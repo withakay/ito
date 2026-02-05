@@ -1,9 +1,9 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{CliResult, fail};
+use crate::cli_error::{fail, CliResult};
 use crate::runtime::Runtime;
 use crate::{commands, util};
-use clap::Parser;
 use clap::error::ErrorKind;
+use clap::Parser;
 
 pub(super) fn run(args: &[String]) -> CliResult<()> {
     // Match TS behavior: `--no-color` sets NO_COLOR=1 globally before command execution.
@@ -30,6 +30,16 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             ErrorKind::DisplayVersion => {
                 // Match Commander.js behavior: `ito --version` prints the version only.
                 let v = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+                // For debug builds, show git info for easier debugging
+                #[cfg(debug_assertions)]
+                {
+                    let sha = option_env!("VERGEN_GIT_SHA").unwrap_or("unknown");
+                    let dirty = option_env!("VERGEN_GIT_DIRTY")
+                        .map(|d| if d == "true" { "-dirty" } else { "" })
+                        .unwrap_or("");
+                    println!("{v} ({}{dirty})", &sha[..7.min(sha.len())]);
+                }
+                #[cfg(not(debug_assertions))]
                 println!("{v}");
                 return Ok(());
             }
