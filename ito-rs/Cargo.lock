@@ -475,6 +475,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
+dependencies = [
+ "darling_core",
+ "darling_macro",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.20.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
+dependencies = [
+ "darling_core",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -487,6 +522,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
+]
+
+[[package]]
+name = "derive_builder"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "507dfb09ea8b7fa618fcf76e953f4f5e192547945816d5358edffe39f6f94947"
+dependencies = [
+ "derive_builder_macro",
+]
+
+[[package]]
+name = "derive_builder_core"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "derive_builder_macro"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
+dependencies = [
+ "derive_builder_core",
+ "syn",
 ]
 
 [[package]]
@@ -646,6 +712,12 @@ checksum = "b09cf3155332e944990140d967ff5eceb70df778b34f77d8075db46e4704e6d8"
 dependencies = [
  "num-traits",
 ]
+
+[[package]]
+name = "fnv"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "form_urlencoded"
@@ -1045,6 +1117,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ident_case"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
 name = "idna"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1135,7 +1213,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-cli"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1165,11 +1243,12 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+ "vergen-gitcl",
 ]
 
 [[package]]
 name = "ito-common"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "miette",
  "tempfile",
@@ -1178,7 +1257,7 @@ dependencies = [
 
 [[package]]
 name = "ito-config"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1189,7 +1268,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1212,7 +1291,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1230,7 +1309,7 @@ dependencies = [
 
 [[package]]
 name = "ito-harness"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "miette",
  "serde",
@@ -1241,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "hex",
@@ -1255,7 +1334,7 @@ dependencies = [
 
 [[package]]
 name = "ito-models"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "dirs",
@@ -1269,7 +1348,7 @@ dependencies = [
 
 [[package]]
 name = "ito-schemas"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1278,7 +1357,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1287,7 +1366,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "insta",
  "portable-pty",
@@ -1297,7 +1376,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.24.0-local.202602051036"
+version = "0.1.0"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1544,6 +1623,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_threads"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -2401,7 +2489,9 @@ checksum = "9da98b7d9b7dad93488a84b8248efc35352b0b2657397d4167e7ad67e5d535e5"
 dependencies = [
  "deranged",
  "itoa",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",
@@ -2751,6 +2841,44 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vergen"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b849a1f6d8639e8de261e81ee0fc881e3e3620db1af9f2e0da015d4382ceaf75"
+dependencies = [
+ "anyhow",
+ "derive_builder",
+ "rustversion",
+ "time",
+ "vergen-lib",
+]
+
+[[package]]
+name = "vergen-gitcl"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ff3b5300a085d6bcd8fc96a507f706a28ae3814693236c9b409db71a1d15b9"
+dependencies = [
+ "anyhow",
+ "derive_builder",
+ "rustversion",
+ "time",
+ "vergen",
+ "vergen-lib",
+]
+
+[[package]]
+name = "vergen-lib"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b34a29ba7e9c59e62f229ae1932fb1b8fb8a6fdcc99215a641913f5f5a59a569"
+dependencies = [
+ "anyhow",
+ "derive_builder",
+ "rustversion",
+]
 
 [[package]]
 name = "version_check"
