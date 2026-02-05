@@ -1,6 +1,25 @@
 use std::path::Path;
+use vergen_gitcl::{BuildBuilder, Emitter, GitclBuilder};
 
 fn main() {
+    // Emit git and build metadata via vergen
+    // This sets VERGEN_GIT_SHA, VERGEN_GIT_BRANCH, VERGEN_GIT_DIRTY, VERGEN_BUILD_TIMESTAMP
+    let build = BuildBuilder::default().build_timestamp(true).build();
+    let gitcl = GitclBuilder::default()
+        .sha(true)
+        .branch(true)
+        .dirty(true)
+        .build();
+
+    let mut emitter = Emitter::default();
+    if let Ok(build) = build {
+        let _ = emitter.add_instructions(&build);
+    }
+    if let Ok(gitcl) = gitcl {
+        let _ = emitter.add_instructions(&gitcl);
+    }
+    let _ = emitter.emit();
+
     // Keep `ito --version` in sync with the workspace version.
     // This avoids touching `crates/ito-cli/Cargo.toml` (release-please managed)
     // while still reflecting local version bumps in `ito-rs/Cargo.toml`.

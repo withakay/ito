@@ -35,6 +35,9 @@ ito-domain = { workspace = true }
 ito-schemas = { workspace = true }
 ito-harness = { workspace = true }
 
+[build-dependencies]
+vergen-gitcl = { workspace = true }
+
 [dev-dependencies]
 assert_cmd = { workspace = true }
 insta = { workspace = true }
