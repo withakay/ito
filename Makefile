@@ -238,7 +238,7 @@ dev: ## Build and install debug version with git info (fast iteration)
 release-plz-update: ## Run release-plz update (bump versions based on commits)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz update --manifest-path ito-rs/Cargo.toml --config ito-rs/release-plz.toml; \
+		release-plz update --manifest-path ito-rs/Cargo.toml --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \
@@ -248,7 +248,7 @@ release-plz-update: ## Run release-plz update (bump versions based on commits)
 release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz release-pr --manifest-path ito-rs/Cargo.toml --config ito-rs/release-plz.toml; \
+		release-plz release-pr --manifest-path ito-rs/Cargo.toml --git-token `gh auth token` --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \
