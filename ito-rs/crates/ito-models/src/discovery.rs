@@ -37,13 +37,13 @@ pub fn discover_agents(options: &DiscoveryOptions) -> Vec<AgentFile> {
         }
 
         // Discover project agents
-        if !options.global_only {
-            if let Some(project_root) = &options.project_root {
-                for rel_path in harness.project_agent_paths() {
-                    let path = project_root.join(rel_path);
-                    if path.exists() {
-                        agents.extend(discover_in_directory(&path, *harness, AgentScope::Project));
-                    }
+        if !options.global_only
+            && let Some(project_root) = &options.project_root
+        {
+            for rel_path in harness.project_agent_paths() {
+                let path = project_root.join(rel_path);
+                if path.exists() {
+                    agents.extend(discover_in_directory(&path, *harness, AgentScope::Project));
                 }
             }
         }
@@ -69,10 +69,10 @@ fn discover_in_directory(dir: &Path, harness: Harness, scope: AgentScope) -> Vec
             // For Codex skills, check for SKILL.md inside directories
             if harness == Harness::Codex {
                 let skill_md = path.join("SKILL.md");
-                if skill_md.exists() {
-                    if let Some(agent) = parse_agent_file(&skill_md, harness, scope) {
-                        agents.push(agent);
-                    }
+                if skill_md.exists()
+                    && let Some(agent) = parse_agent_file(&skill_md, harness, scope)
+                {
+                    agents.push(agent);
                 }
             }
             continue;

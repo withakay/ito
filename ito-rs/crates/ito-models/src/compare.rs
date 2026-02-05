@@ -341,13 +341,15 @@ mod tests {
         let cmp = compare_models(&a, &b);
 
         assert!(cmp.capabilities.only_a.contains(&ModelCapability::Vision));
-        assert!(cmp
-            .capabilities
-            .only_b
-            .contains(&ModelCapability::Reasoning));
-        assert!(cmp
-            .capabilities
-            .shared
-            .contains(&ModelCapability::FunctionCalling));
+        assert!(
+            cmp.capabilities
+                .only_b
+                .contains(&ModelCapability::Reasoning)
+        );
+        assert!(
+            cmp.capabilities
+                .shared
+                .contains(&ModelCapability::FunctionCalling)
+        );
     }
 }

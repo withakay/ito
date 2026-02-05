@@ -11,29 +11,16 @@ Use this file for project-specific preferences (style, constraints, defaults). A
 
 <!-- ITO:END -->
 
-## Your Guidance
+## Project Guidance
 
-### Use agents and Subagents whenever possible
+### Rust Code Quality
 
-Always attempt to make use of subagents to delegate tasks to. Try and use appropriate subagents for a given task, but if you are not sure use a general agent. This helps reduce load and manage context to improve efficiency and focus.
+After modifying Rust code, dispatch these subagents **in parallel**:
+- @code-simplifier - Refactors for clarity per `.ito/user-rust-style.md`
+- @documentation-police - Ensures public APIs have useful docs
 
-### Proposing Changes
+Then run `make check` to verify.
 
-- When proposing a change that modifies Rust code, ensure that the proposal adheres to Rust coding conventions and best practices.
-- Use the `rust-style` skill to check that any proposed changes conform to established Rust formatting and linting rules.
-- Research subject matter thoroughly to ensure that proposed changes are well-informed and justified.
+### Commits
 
-### Applying Changes
-
-- When a change proposal is implemented (AKA applied) use the `rust-style` skill to ensure that the linting and formatting rules are followed.
-- Ask the @code-simplifier subagent to simplify and refine any Rust code that has been modified as part of the change proposal implementation. This helps ensure that all code adheres to project coding standards and best practices.
-- **Always** run `make check` after applying changes to verify code quality and functionality. `make check` runs tests, linters, and other quality checks to ensure the codebase remains stable.
-
-### Archiving Changes
-
-- When a change proposal is archived run `make version-bump-patch` to increase the patch portion of the version string.
-- Typically archiving a change means it was completed, any commits around this should respect the conventional commit format and treat this as a new feature `feat(scope): Foo implemented`
-
-### Git commits
-
-- Always use conventional commit style.
+Use the `ito-commit` skill for conventional commits aligned to changes. Release-plz handles versioning automatically based on commit history.

@@ -29,8 +29,13 @@ fn version_prints_workspace_version() {
 
     let ver = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     let out = rs.stdout.trim();
+    // Debug builds include git SHA suffix like "(abc1234)" or "(abc1234-dirty)"
+    // Accept: "0.1.0", "ito 0.1.0", "0.1.0 (abc1234)", "0.1.0 (abc1234-dirty)"
     assert!(
-        out == ver || out == format!("ito {ver}"),
+        out == ver
+            || out == format!("ito {ver}")
+            || out.starts_with(&format!("{ver} ("))
+            || out.starts_with(&format!("ito {ver} (")),
         "unexpected --version output: {out:?}"
     );
 }

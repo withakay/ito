@@ -1,12 +1,4 @@
-<p align="center">
-  <a href="https://github.com/withakay/Ito">
-    <picture>
-      <source srcset="assets/logo-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="assets/logo-light.svg" media="(prefers-color-scheme: light)">
-      <img src="assets/logo-light.svg" alt="Ito logo" height="64">
-    </picture>
-  </a>
-</p>
+
 
 <p align="center">Project-centric spec + workflow system for long-running AI coding work.</p>
 
@@ -16,6 +8,10 @@
 </p>
 
 # Ito
+
+- Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
+- Intention/Aim (意図): Often used in the context of plans, aims, or intent.
+
 
 Ito is a Spec Driven development tool that bring project-centric planning and an emphasis on **long-running, multi-agent tasks** to AI coding agents.
 

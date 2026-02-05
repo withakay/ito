@@ -64,12 +64,11 @@ fn find_backups_in_directory(dir: &Path) -> Vec<PathBuf> {
     for entry in entries.flatten() {
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(ext) = path.extension() {
-                if ext == "bak" {
-                    backups.push(path);
-                }
-            }
+        if path.is_file()
+            && let Some(ext) = path.extension()
+            && ext == "bak"
+        {
+            backups.push(path);
         } else if path.is_dir() {
             // Check for SKILL.md.bak in subdirectories (for Codex)
             let skill_backup = path.join("SKILL.md.bak");
@@ -136,12 +135,16 @@ mod tests {
         let backups = find_backups_in_directory(dir.path());
 
         assert_eq!(backups.len(), 2);
-        assert!(backups
-            .iter()
-            .any(|p| p.file_name().unwrap() == "agent1.md.bak"));
-        assert!(backups
-            .iter()
-            .any(|p| p.file_name().unwrap() == "agent2.md.bak"));
+        assert!(
+            backups
+                .iter()
+                .any(|p| p.file_name().unwrap() == "agent1.md.bak")
+        );
+        assert!(
+            backups
+                .iter()
+                .any(|p| p.file_name().unwrap() == "agent2.md.bak")
+        );
     }
 
     #[test]
