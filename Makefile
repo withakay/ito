@@ -5,12 +5,78 @@ BUMP ?= none
 RUST_WARNINGS_AS_ERRORS ?= -D warnings
 
 .PHONY: \
+	init \
 	build test test-watch test-coverage lint check check-max-lines clean help \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install \
 	dev
+
+init: ## Initialize development environment (check rust, install prek hooks)
+	@set -e; \
+	echo "Checking development dependencies..."; \
+	echo ""; \
+	MISSING=""; \
+	if rustc --version >/dev/null 2>&1; then \
+		echo "✓ Rust: $$(rustc --version)"; \
+	else \
+		echo "✗ Rust: not installed"; \
+		echo "  Install: https://rustup.rs/"; \
+		MISSING="$$MISSING rust"; \
+	fi; \
+	if cargo --version >/dev/null 2>&1; then \
+		echo "✓ Cargo: $$(cargo --version)"; \
+	else \
+		echo "✗ Cargo: not installed (comes with Rust)"; \
+		MISSING="$$MISSING cargo"; \
+	fi; \
+	if prek --version >/dev/null 2>&1; then \
+		echo "✓ prek: $$(prek --version)"; \
+	else \
+		echo "✗ prek: not installed"; \
+		echo "  Install: cargo install prek"; \
+		MISSING="$$MISSING prek"; \
+	fi; \
+	if python3 --version >/dev/null 2>&1; then \
+		echo "✓ Python: $$(python3 --version)"; \
+	else \
+		echo "✗ Python 3: not installed"; \
+		MISSING="$$MISSING python3"; \
+	fi; \
+	echo ""; \
+	if [ -n "$$MISSING" ]; then \
+		echo "Missing dependencies:$$MISSING"; \
+		echo "Please install them and re-run 'make init'"; \
+		exit 1; \
+	fi; \
+	echo "Installing git hooks via prek..."; \
+	prek install; \
+	prek install -t pre-push; \
+	echo ""; \
+	echo "✓ Development environment ready!"; \
+	echo ""; \
+	echo "Optional tools (install for full functionality):"; \
+	if cargo llvm-cov --version >/dev/null 2>&1; then \
+		echo "  ✓ cargo-llvm-cov (test coverage)"; \
+	else \
+		echo "  ○ cargo-llvm-cov: cargo install cargo-llvm-cov"; \
+	fi; \
+	if cargo watch --version >/dev/null 2>&1; then \
+		echo "  ✓ cargo-watch (test watch mode)"; \
+	else \
+		echo "  ○ cargo-watch: cargo install cargo-watch"; \
+	fi; \
+	if release-plz --version >/dev/null 2>&1; then \
+		echo "  ✓ release-plz (release management)"; \
+	else \
+		echo "  ○ release-plz: cargo install release-plz"; \
+	fi; \
+	if gh --version >/dev/null 2>&1; then \
+		echo "  ✓ gh CLI (GitHub integration)"; \
+	else \
+		echo "  ○ gh CLI: https://cli.github.com/"; \
+	fi
 
 build: ## Build the project
 	$(MAKE) rust-build
