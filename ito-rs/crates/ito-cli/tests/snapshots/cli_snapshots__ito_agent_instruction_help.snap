@@ -1,0 +1,35 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"agent\", \"instruction\", \"-h\"])"
+---
+Generate enriched instructions
+
+Usage: ito agent instruction [OPTIONS] <ARTIFACT>
+
+Arguments:
+  <ARTIFACT>  Artifact id (e.g. bootstrap, apply, proposal)
+
+Options:
+      --change <CHANGE>  Change id (directory name)
+      --no-color         Disable color output
+      --help-all         Print the full CLI reference (equivalent to `ito help --all`)
+      --tool <TOOL>      Tool name for bootstrap (opencode|claude|codex)
+      --schema <SCHEMA>  Workflow schema name
+      --json             Output as JSON
+  -h, --help             Print help
+
+Artifacts:
+  bootstrap      Generate a tool bootstrap preamble
+  project-setup  Guide for setting up a new project
+  proposal       Show the change proposal
+  specs          Show the specification deltas
+  tasks          Show the implementation task list
+  apply          Show implementation instructions
+  review         Show review instructions
+  archive        Show archive instructions
+
+Examples:
+  ito agent instruction bootstrap --tool opencode
+  ito agent instruction project-setup
+  ito agent instruction proposal --change 005-08_migrate-cli-to-clap
+  ito agent instruction apply --change 005-08_migrate-cli-to-clap

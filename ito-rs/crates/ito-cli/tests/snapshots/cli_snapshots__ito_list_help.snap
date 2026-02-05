@@ -1,0 +1,60 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"list\", \"--help\"])"
+---
+List changes, specs, or modules with status summaries
+
+By default lists changes sorted by most recent. Use --specs or --modules
+to list other item types. Use --ready to filter to changes ready for
+implementation (have proposal, specs, tasks, and pending work).
+
+Examples:
+  ito list
+  ito list --ready
+  ito list --pending
+  ito list --partial
+  ito list --completed
+  ito list --specs
+  ito list --modules --json
+
+Usage: ito list [OPTIONS]
+
+Options:
+      --no-color
+          Disable color output
+
+      --specs
+          List specs instead of changes
+
+      --changes
+          List changes explicitly (default)
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+      --modules
+          List modules instead of changes
+
+      --ready
+          Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
+
+      --completed
+          Filter to completed changes (all tasks done)
+
+      --partial
+          Filter to partially complete changes (some but not all tasks done)
+
+      --pending
+          Filter to pending changes (no tasks started yet)
+
+      --sort <SORT>
+          Sort order
+
+          [default: recent]
+          [possible values: recent, name]
+
+      --json
+          Output as JSON
+
+  -h, --help
+          Print help (see a summary with '-h')

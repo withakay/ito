@@ -1,0 +1,27 @@
+[package]
+name = "ito-core"
+version = "0.24.0-local.202602051036"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+miette = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+walkdir = { workspace = true }
+pulldown-cmark = { workspace = true }
+schemars = { workspace = true }
+ito-common = { path = "../ito-common" }
+ito-config = { path = "../ito-config" }
+ito-domain = { path = "../ito-domain" }
+ito-templates = { path = "../ito-templates" }
+ito-harness = { path = "../ito-harness" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

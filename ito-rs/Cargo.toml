@@ -1,0 +1,65 @@
+[workspace]
+members = [
+  "crates/ito-cli",
+  "crates/ito-common",
+  "crates/ito-config",
+  "crates/ito-core",
+  "crates/ito-domain",
+  "crates/ito-harness",
+  "crates/ito-logging",
+  "crates/ito-models",
+  "crates/ito-schemas",
+  "crates/ito-templates",
+  "crates/ito-test-support",
+  "crates/ito-web",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.24.0-local.202602051036"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/withakay/ito"
+
+[workspace.dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+clap_complete = "4.5.23"
+chrono = { version = "0.4.40", default-features = false, features = ["clock", "std"] }
+miette = { version = "7.2.0", features = ["fancy"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+serde_yaml = "0.9.34"
+regex = "1.11.1"
+strip-ansi-escapes = "0.2.1"
+portable-pty = "0.9.0"
+thiserror = "2.0.11"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-log = "0.2.0"
+log = "0.4.22"
+include_dir = "0.7.4"
+dialoguer = "0.11.0"
+crossterm = "0.28.1"
+indicatif = "0.17.11"
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+sha2 = "0.10.8"
+rand = "0.8.5"
+uuid = { version = "1.11.0", features = ["v4"] }
+hex = "0.4.3"
+walkdir = "2.5.0"
+pulldown-cmark = "0.11.3"
+minijinja = "1"
+schemars = "0.8.22"
+
+[workspace.dependencies.insta]
+version = "1.42.0"
+features = ["glob"]
+
+[workspace.dependencies.assert_cmd]
+version = "2.0.16"
+
+[workspace.dependencies.predicates]
+version = "3.1.3"
+
+[workspace.dependencies.tempfile]
+version = "3.15.0"

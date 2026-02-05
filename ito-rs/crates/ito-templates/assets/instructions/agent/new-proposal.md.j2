@@ -1,0 +1,116 @@
+# Create a New Proposal
+
+You're starting a new change proposal. Follow these steps to create one.
+
+## Step 1: Choose a Module
+
+Changes should belong to a module (an epic grouping related work).
+
+{%- if modules and modules|length > 0 %}
+### Available Modules
+
+| ID | Name |
+|----|------|
+{%- for m in modules %}
+| {{ m.id }} | {{ m.name }} |
+{%- endfor %}
+
+Choose an existing module if your change fits its scope, or create a new one.
+{%- else %}
+No modules exist yet. You can:
+- Use module `000` for standalone/ungrouped changes
+- Create a new module with `ito create module <name>`
+{%- endif %}
+
+## Step 2: Create the Change
+
+```bash
+ito create change "<change-name>" --module <module-id>
+```
+
+**Naming conventions:**
+- Use kebab-case: `add-user-auth`, `fix-login-bug`
+- Prefer verb-led names: `add-`, `update-`, `remove-`, `refactor-`
+- Keep it short and descriptive
+
+**Example:**
+```bash
+ito create change "add-two-factor-auth" --module 001
+# Creates: .ito/changes/001-05_add-two-factor-auth/
+```
+
+## Step 3: Get Proposal Instructions
+
+After creating the change, get detailed instructions:
+
+```bash
+ito agent instruction proposal --change <change-id>
+```
+
+This will provide:
+- Template for `proposal.md`
+- Guidelines for spec deltas
+- Validation requirements
+
+## Step 4: Write the Proposal
+
+Your change directory will contain:
+```
+.ito/changes/<change-id>/
+├── proposal.md     # Why and what (create this)
+├── tasks.md        # Implementation steps (create this)
+├── design.md       # Technical decisions (optional)
+└── specs/          # Delta changes to specifications
+    └── <capability>/
+        └── spec.md # ADDED/MODIFIED/REMOVED requirements
+```
+
+### proposal.md Template
+
+```markdown
+## Why
+
+<!-- 1-2 sentences on the problem or opportunity -->
+
+## What Changes
+
+<!-- Bullet list of changes. Mark breaking changes with **BREAKING** -->
+
+## Capabilities
+
+### New Capabilities
+
+<!-- Each creates specs/<name>/spec.md -->
+- `<name>`: <brief description>
+
+### Modified Capabilities
+
+<!-- Existing capabilities whose requirements are changing -->
+
+## Impact
+
+<!-- Affected code, APIs, dependencies -->
+```
+
+## Step 5: Validate
+
+```bash
+ito validate <change-id> --strict
+```
+
+Fix any errors before proceeding.
+
+## Quick Reference
+
+| Command | Purpose |
+|---------|---------|
+| `ito list --modules` | List all modules |
+| `ito list` | List active changes |
+| `ito list --specs` | List existing specifications |
+| `ito create module <name>` | Create a new module |
+| `ito create change <name> --module <id>` | Create a new change |
+| `ito validate <change-id> --strict` | Validate a change |
+
+## Documentation
+
+For complete workflow details, see `.ito/AGENTS.md`.

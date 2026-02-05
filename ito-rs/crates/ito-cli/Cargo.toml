@@ -1,0 +1,42 @@
+[package]
+name = "ito-cli"
+version = "0.24.0-local.202602051036"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "ito"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+clap_complete = { workspace = true }
+miette = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-log = { workspace = true }
+log = { workspace = true }
+dialoguer = { workspace = true }
+crossterm = { workspace = true }
+indicatif = { workspace = true }
+ito-core = { path = "../ito-core" }
+ito-common = { path = "../ito-common" }
+ito-config = { path = "../ito-config" }
+ito-logging = { path = "../ito-logging" }
+ito-templates = { path = "../ito-templates" }
+ito-web = { path = "../ito-web" }
+chrono = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+ito-domain = { path = "../ito-domain" }
+ito-schemas = { path = "../ito-schemas" }
+ito-harness = { path = "../ito-harness" }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+insta = { workspace = true }
+predicates = { workspace = true }
+tempfile = { workspace = true }
+ito-test-support = { path = "../ito-test-support" }

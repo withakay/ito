@@ -1,0 +1,15 @@
+[package]
+name = "ito-test-support"
+version = "0.24.0-local.202602051036"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+portable-pty = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+tempfile = { workspace = true }

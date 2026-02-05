@@ -1,0 +1,17 @@
+---
+source: crates/ito-cli/tests/parity_ralph_loop.rs
+assertion_line: 152
+expression: rs.stdout
+---
+
+=== Ralph Loop Iteration 1 ===
+
+stub opencode
+<promise>COMPLETE</promise>
+
+=== Ralph Loop Iteration 2 ===
+
+stub opencode
+<promise>COMPLETE</promise>
+
+=== Completion promise "COMPLETE" detected. Loop complete. ===

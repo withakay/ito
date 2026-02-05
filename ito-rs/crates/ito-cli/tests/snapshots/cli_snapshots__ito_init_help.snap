@@ -1,0 +1,38 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"init\", \"--help\"])"
+---
+Set up Ito in a project
+
+Creates the .ito/ directory structure and optionally configures
+AI tool integrations (Claude Code, Codex, OpenCode).
+
+Examples:
+  ito init
+  ito init --tools claude,codex
+  ito init --tools all --force
+
+Usage: ito init [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]
+          Target directory (defaults to current directory)
+
+Options:
+      --no-color
+          Disable color output
+
+      --tools <TOOLS>
+          Configure AI tools non-interactively (all, none, or comma-separated ids)
+
+  -f, --force
+          Overwrite existing tool files without prompting
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+      --home <HOME>
+          Override HOME used for locating global Ito config (for parity/testing)
+
+  -h, --help
+          Print help (see a summary with '-h')

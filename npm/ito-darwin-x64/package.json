@@ -1,0 +1,15 @@
+{
+  "name": "@withakay/ito-darwin-x64",
+  "version": "0.0.0",
+  "description": "Platform binary for @withakay/ito (darwin x64)",
+  "license": "MIT",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/*"
+  ]
+}

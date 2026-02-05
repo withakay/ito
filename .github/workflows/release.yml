@@ -1,0 +1,322 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  # `release` events created by `GITHUB_TOKEN` (e.g. from release-please)
+  # may not trigger downstream workflows. Run after Release Please completes
+  # and derive the latest published tag.
+  workflow_run:
+    workflows: ["Release Please"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag (e.g., v0.20.8)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      skip: ${{ steps.meta.outputs.skip }}
+    steps:
+      - name: Derive tag
+        id: meta
+        run: |
+          set -eu
+          SKIP=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="$(
+              curl --fail --location --silent --show-error \
+                -H "Authorization: Bearer ${{ github.token }}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+              | jq -r '.tag_name'
+            )"
+          fi
+
+          if [ -z "${TAG}" ] || [ "${TAG}" = "null" ]; then
+            SKIP=true
+            TAG=""
+          fi
+
+          if [ "${SKIP}" != "true" ] && ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'; then
+            # Avoid rebuilding for legacy component tags like ito-cli-vX.Y.Z.
+            SKIP=true
+            TAG=""
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+
+  check_assets:
+    name: Check if release assets already exist
+    needs: [meta]
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - name: Check assets
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TAG}" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # If these exist, we assume the release has been built/uploaded already.
+          expected=(
+            "ito-${TAG}-x86_64-apple-darwin.tar.gz"
+            "ito-${TAG}-aarch64-apple-darwin.tar.gz"
+            "ito-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
+            "ito-${TAG}-aarch64-unknown-linux-gnu.tar.gz"
+            "ito-${TAG}-x86_64-pc-windows-msvc.zip"
+          )
+
+          if ! gh release view "$TAG" --json assets >/dev/null 2>&1; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+
+          missing=0
+          for name in "${expected[@]}"; do
+            if ! printf '%s\n' "$assets" | grep -Fxq "$name"; then
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  validate_version:
+    name: Validate tag matches crate version
+    needs: [meta, check_assets]
+    if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate version
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          set -eu
+
+          VERSION="${TAG#v}"
+
+          CARGO_VERSION=$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          out = subprocess.check_output([
+            'cargo','metadata',
+            '--manifest-path','ito-rs/Cargo.toml',
+            '--format-version','1',
+            '--no-deps',
+          ])
+          meta = json.loads(out)
+
+          for pkg in meta['packages']:
+            if pkg.get('name') == 'ito-cli':
+              print(pkg['version'])
+              raise SystemExit(0)
+
+          raise SystemExit('ito-cli package not found')
+          PY
+          )
+
+          if [ "$CARGO_VERSION" != "$VERSION" ]; then
+            echo "Tag version ($VERSION) does not match ito-cli crate version ($CARGO_VERSION)"
+            exit 1
+          fi
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: [meta, check_assets, validate_version]
+    if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            bin: ito
+          - os: macos-14
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            bin: ito
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            bin: ito
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            bin: ito
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            bin: ito.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.meta.outputs.tag }}
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+          shared-key: release-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install cross (Linux aarch64)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: taiki-e/install-action@cross
+
+      - name: Build (cargo)
+        if: ${{ !(runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu') }}
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+        run: |
+          set -eu
+          cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito --release --target "${{ matrix.target }}"
+
+      - name: Build (cross)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+        run: |
+          set -eu
+          cross build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito --release --target "${{ matrix.target }}"
+
+      - name: Package (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          VERSION="$TAG"
+
+          ARCHIVE="ito-${VERSION}-${TARGET}.tar.gz"
+          CHECKSUM="ito-${VERSION}-${TARGET}.sha256"
+          tar -C "ito-rs/target/${TARGET}/release" -czf "$ARCHIVE" "${{ matrix.bin }}"
+
+          if command -v shasum >/dev/null 2>&1; then
+            HASH=$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')
+          else
+            HASH=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+          fi
+
+          printf '%s  %s\n' "$HASH" "$ARCHIVE" > "$CHECKSUM"
+
+      - name: Package (zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          $VERSION = $env:TAG
+          $TARGET = $env:TARGET
+          $ARCHIVE = "ito-$VERSION-$TARGET.zip"
+          $CHECKSUM = "ito-$VERSION-$TARGET.sha256"
+
+          # Ensure the zip contains the binary at the archive root (no nested directories).
+          Push-Location "ito-rs/target/$TARGET/release"
+          Compress-Archive -Path "${{ matrix.bin }}" -DestinationPath (Join-Path $PWD.Path "../../../.." | Join-Path -ChildPath $ARCHIVE)
+          Pop-Location
+
+          $HASH = (Get-FileHash $ARCHIVE -Algorithm SHA256).Hash.ToLower()
+          "$HASH  $ARCHIVE" | Out-File -Encoding ascii -NoNewline -FilePath $CHECKSUM
+          Add-Content -Encoding ascii -Path $CHECKSUM -Value ""
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ito-${{ needs.meta.outputs.tag }}-${{ matrix.target }}
+          path: |
+            ito-${{ needs.meta.outputs.tag }}-${{ matrix.target }}.${{ matrix.archive }}
+            ito-${{ needs.meta.outputs.tag }}-${{ matrix.target }}.sha256
+
+  upload_assets:
+    name: Upload release assets
+    needs: [meta, check_assets, build]
+    if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: |
+          set -eu
+          mkdir -p out
+          find dist -maxdepth 2 -type f -print -exec cp {} out/ \;
+
+      - name: Build aggregated checksums
+        run: |
+          set -eu
+          cd out
+          cat ./*.sha256 > sha256sums.txt
+
+      - name: Upload assets to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          set -eu
+          gh release upload "$TAG" out/* --clobber --repo "$GH_REPO"
+
+  update_homebrew:
+    name: Update Homebrew Formula
+    needs: [meta, check_assets, upload_assets]
+    if: needs.meta.outputs.skip != 'true'
+    uses: ./.github/workflows/update-homebrew.yml
+    with:
+      tag: ${{ needs.meta.outputs.tag }}
+    secrets: inherit

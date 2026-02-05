@@ -1,0 +1,11 @@
+[package]
+name = "ito-templates"
+version = "0.24.0-local.202602051036"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+include_dir = { workspace = true }
+minijinja = { workspace = true }
+serde = { workspace = true }

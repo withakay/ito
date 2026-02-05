@@ -1,0 +1,30 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"workflow\", \"--help\"])"
+---
+Initialize and inspect workflow definitions
+
+Workflows define the artifact structure for changes (proposal, specs, tasks).
+Use 'init' to create custom workflows or 'list' to see available schemas.
+
+Examples:
+  ito workflow list
+  ito workflow show spec-driven
+  ito workflow init
+
+Usage: ito workflow [OPTIONS] <COMMAND>
+
+Commands:
+  init  Initialize workflow templates
+  list  List available workflows
+  show  Show workflow details
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help (see a summary with '-h')

@@ -1,0 +1,64 @@
+## Apply: {{ instructions.changeName }}
+Schema: {{ instructions.schemaName }}
+
+{% if instructions.state == "blocked" and instructions.missingArtifacts %}
+### ⚠️ Blocked
+
+Missing artifacts: {{ instructions.missingArtifacts|join(", ") }}
+Use the ito-continue-change skill to create these first.
+
+{% endif %}
+{% if context_files and context_files|length > 0 %}
+### Context Files
+{% for entry in context_files %}
+- {{ entry.id }}: {{ entry.path }}
+{% endfor %}
+
+{% endif %}
+{% if instructions.tracksFile and instructions.tracksPath %}
+### Task Tracking
+- file: {{ instructions.tracksFile }}
+{% if instructions.tracksFormat %}
+- format: {{ instructions.tracksFormat }}
+{% endif %}
+- path: {{ instructions.tracksPath }}
+{% if tracking_errors %}
+- errors: {{ tracking_errors }}
+{% endif %}
+{% if tracking_warnings %}
+- warnings: {{ tracking_warnings }}
+{% endif %}
+
+{% endif %}
+### Testing Policy
+- TDD workflow: {{ testing_policy.tdd_workflow }} (RED -> GREEN -> REFACTOR)
+- TDD loop: write a failing test (RED), implement the minimum to pass (GREEN), then refactor (REFACTOR)
+- Coverage target: {{ testing_policy.coverage_target_percent }}% (guidance; override per project)
+- Override keys: defaults.testing.tdd.workflow, defaults.testing.coverage.target_percent
+- Override files (low -> high): ito.json, .ito.json, .ito/config.json, $PROJECT_DIR/config.json
+
+{% if instructions.progress.total > 0 or (instructions.tasks and instructions.tasks|length > 0) %}
+### Progress
+{% if instructions.state == "all_done" %}
+{{ instructions.progress.complete }}/{{ instructions.progress.total }} complete ✓
+{% else %}
+{{ instructions.progress.complete }}/{{ instructions.progress.total }} complete
+{% endif %}
+
+{% endif %}
+{% if instructions.tasks and instructions.tasks|length > 0 %}
+### Tasks
+{% for task in instructions.tasks %}
+- [{% if task.done %}x{% else %} {% endif %}] {{ task.description }}
+{% endfor %}
+
+{% endif %}
+### Instruction
+{{ instructions.instruction }}
+
+{% if user_guidance %}
+### User Guidance
+
+{{ user_guidance }}
+
+{% endif %}

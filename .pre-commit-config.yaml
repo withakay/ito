@@ -1,0 +1,98 @@
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+      - id: pretty-format-json
+        args: [--autofix, --indent=2, --no-sort-keys]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-d, relaxed]
+
+  - repo: local
+    hooks:
+      - id: markdownlint-cli2
+        name: markdownlint-cli2
+        entry: markdownlint-cli2
+        language: node
+        additional_dependencies: [markdownlint-cli2@0.20.0]
+        args: [--config, .markdownlint-cli2.yaml]
+        files: \.md$
+        exclude: ^\.ito/
+
+      - id: cargo-fmt
+        name: cargo fmt (ito-rs)
+        entry: cargo
+        language: system
+        args: [fmt, --manifest-path, ito-rs/Cargo.toml, --all]
+        pass_filenames: false
+        files: ^ito-rs/.*\.(rs|toml)$
+
+      - id: cargo-clippy
+        name: cargo clippy (ito-rs)
+        entry: cargo
+        language: system
+        args:
+          - clippy
+          - --manifest-path
+          - ito-rs/Cargo.toml
+          - --workspace
+          - --all-targets
+          - --
+          - -D
+          - warnings
+          - -D
+          - clippy::dbg_macro
+          - -D
+          - clippy::todo
+          - -D
+          - clippy::unimplemented
+        pass_filenames: false
+        files: ^ito-rs/.*\.(rs|toml)$
+
+      - id: cargo-test-coverage
+        name: cargo test with coverage (ito-rs)
+        entry: make
+        language: system
+        args: [test-coverage]
+        pass_filenames: false
+        files: ^ito-rs/.*\.rs$
+        stages: [pre-commit, pre-push]
+
+      - id: cargo-test
+        name: cargo test (ito-rs)
+        entry: make
+        language: system
+        args: [test]
+        pass_filenames: false
+        files: ^ito-rs/.*\.(rs|toml)$
+        stages: [pre-push]
+
+      - id: check-max-lines
+        name: check max lines (ito-rs)
+        entry: python3
+        language: system
+        args: [ito-rs/tools/check_max_lines.py, --soft-limit, "1000", --hard-limit, "1200", --root, ito-rs]
+        pass_filenames: false
+        files: ^ito-rs/.*\.rs$

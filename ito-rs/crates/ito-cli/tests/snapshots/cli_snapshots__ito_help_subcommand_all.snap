@@ -1,0 +1,711 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"help\", \"--all\"])"
+---
+================================================================================
+ITO CLI REFERENCE
+================================================================================
+
+ito
+---
+AI-native system for spec-driven development
+
+Usage: ito [OPTIONS] [COMMAND]
+
+Commands:
+  create       Create a new module or change proposal
+  list         List changes, specs, or modules with status summaries
+  show         Display details of a change, spec, or module
+  status       Check completion status of change artifacts
+  validate     Check changes, specs, and modules for errors and warnings
+  archive      Move a completed change to archive and update main specs
+  tasks        Manage implementation tasks for a change
+  plan         Initialize and track project roadmap
+  state        Track session state and working context
+  agent        Generate instructions and context for AI coding agents
+  ralph        Run an AI agent loop to implement a change
+  init         Set up Ito in a project
+  update       Refresh Ito instruction files and AI tool configs
+  config       Read and write global Ito settings
+  workflow     Initialize and inspect workflow definitions
+  serve        Serve local Ito artifacts and docs over HTTP
+  completions  Output shell completion scripts
+  stats        Display command execution counts and history
+  help         Show help for ito commands
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help
+
+  -V, --version
+          Print version
+
+Run 'ito help --all' for the complete CLI reference.
+
+
+--------------------------------------------------------------------------------
+
+ito init
+--------
+Set up Ito in a project
+
+Creates the .ito/ directory structure and optionally configures
+AI tool integrations (Claude Code, Codex, OpenCode).
+
+Examples:
+  ito init
+  ito init --tools claude,codex
+  ito init --tools all --force
+
+Usage: ito init [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]
+          Target directory (defaults to current directory)
+
+Options:
+      --tools <TOOLS>
+          Configure AI tools non-interactively (all, none, or comma-separated ids)
+
+  -f, --force
+          Overwrite existing tool files without prompting
+
+      --home <HOME>
+          Override HOME used for locating global Ito config (for parity/testing)
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito update
+----------
+Refresh Ito instruction files and AI tool configs
+
+Updates agent instructions, skills, and tool configurations to the
+latest versions without reinitializing the project.
+
+Examples:
+  ito update
+
+Usage: ito update [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]
+          Target directory (defaults to current directory)
+
+Options:
+      --json
+          Output as JSON (not implemented yet)
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito tasks
+---------
+Manage implementation tasks for a change
+
+Track task progress through status, start, complete, and shelve actions.
+Tasks are organized in waves for phased implementation. Use 'ready' to
+find actionable tasks across changes.
+
+Examples:
+  ito tasks status 005-01_add-auth
+  ito tasks next 005-01_add-auth
+  ito tasks ready
+  ito tasks ready 005-01_add-auth
+  ito tasks start 005-01_add-auth 1.1
+  ito tasks complete 005-01_add-auth 1.1
+
+Usage: ito tasks [COMMAND]
+
+Commands:
+  init      Create enhanced tasks.md
+  status    Show task progress
+  next      Show the next available task
+  ready     Show all ready tasks (pending tasks in earliest incomplete wave)
+  start     Mark a task in-progress
+  complete  Mark a task complete
+  shelve    Shelve a task (reversible)
+  unshelve  Restore a shelved task to pending
+  add       Add a new task (enhanced only)
+  show      Print tasks.md
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito plan
+--------
+Initialize and track project roadmap
+
+Creates planning structure for milestones and tracks overall progress
+across multiple changes and modules.
+
+Examples:
+  ito plan init
+  ito plan status
+
+Usage: ito plan <COMMAND>
+
+Commands:
+  init    Initialize planning structure
+  status  Show current milestone progress
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito state
+---------
+Track session state and working context
+
+Record decisions, blockers, notes, and current focus in STATE.md.
+Helps maintain context across coding sessions.
+
+Examples:
+  ito state show
+  ito state focus "implementing auth flow"
+  ito state decision "using JWT for tokens"
+  ito state blocker "waiting on API spec"
+
+Usage: ito state <COMMAND>
+
+Commands:
+  show      Show current project state
+  decision  Record a decision
+  blocker   Record a blocker
+  note      Add a session note
+  focus     Set current focus
+  question  Add an open question
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito workflow
+------------
+Initialize and inspect workflow definitions
+
+Workflows define the artifact structure for changes (proposal, specs, tasks).
+Use 'init' to create custom workflows or 'list' to see available schemas.
+
+Examples:
+  ito workflow list
+  ito workflow show spec-driven
+  ito workflow init
+
+Usage: ito workflow <COMMAND>
+
+Commands:
+  init  Initialize workflow templates
+  list  List available workflows
+  show  Show workflow details
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito list
+--------
+List changes, specs, or modules with status summaries
+
+By default lists changes sorted by most recent. Use --specs or --modules
+to list other item types. Use --ready to filter to changes ready for
+implementation (have proposal, specs, tasks, and pending work).
+
+Examples:
+  ito list
+  ito list --ready
+  ito list --pending
+  ito list --partial
+  ito list --completed
+  ito list --specs
+  ito list --modules --json
+
+Usage: ito list [OPTIONS]
+
+Options:
+      --specs
+          List specs instead of changes
+
+      --changes
+          List changes explicitly (default)
+
+      --modules
+          List modules instead of changes
+
+      --ready
+          Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
+
+      --completed
+          Filter to completed changes (all tasks done)
+
+      --partial
+          Filter to partially complete changes (some but not all tasks done)
+
+      --pending
+          Filter to pending changes (no tasks started yet)
+
+      --sort <SORT>
+          Sort order
+
+          [default: recent]
+          [possible values: recent, name]
+
+      --json
+          Output as JSON
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito archive
+-----------
+Move a completed change to archive and update main specs
+
+Archives the change directory and merges spec deltas into the main specs.
+Validates the change is complete before archiving. Use -y to skip prompts.
+
+Examples:
+  ito archive 005-01_add-auth
+  ito archive 005-01_add-auth -y --skip-specs
+
+Usage: ito archive [OPTIONS] [CHANGE]
+
+Arguments:
+  [CHANGE]
+          Change id (directory name)
+
+Options:
+  -y, --yes
+          Skip confirmation prompts
+
+      --skip-specs
+          Skip spec updates
+
+      --no-validate
+          Skip validation checks
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito config
+----------
+Read and write global Ito settings
+
+Manages configuration in ~/.config/ito/config.json. Settings include
+default schemas, tool preferences, and execution options.
+
+Examples:
+  ito config path
+  ito config get defaults.schema
+  ito config set defaults.schema "spec-driven"
+
+Usage: ito config [COMMAND]
+
+Commands:
+  path    Print config file path
+  list    Print config JSON
+  get     Read value by path
+  set     Set value by path
+  unset   Remove value by path
+  schema  Print JSON schema for Ito config
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito create
+----------
+Create a new module or change proposal
+
+Modules group related changes and specs. Changes are the unit of work
+in Ito - each change has a proposal, spec deltas, and implementation tasks.
+
+Examples:
+  ito create module my-feature
+  ito create change add-auth --module 001
+
+Usage: ito create [COMMAND]
+
+Commands:
+  module  Create a module
+  change  Create a change
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito validate
+------------
+Check changes, specs, and modules for errors and warnings
+
+Validates markdown structure, required fields, and cross-references.
+Use --strict to treat warnings as errors. Returns non-zero on failure.
+
+Examples:
+  ito validate --all
+  ito validate 005-01_add-auth
+  ito validate --specs --strict
+
+Usage: ito validate [OPTIONS] [ITEM]
+       ito validate <COMMAND>
+
+Commands:
+  module  Validate a module
+  help    Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [ITEM]
+          Item name (change id or spec id)
+
+Options:
+      --all
+          Validate everything
+
+      --changes
+          Validate changes
+
+      --specs
+          Validate specs
+
+      --modules
+          Validate modules
+
+      --module <MODULE>
+          Validate a module by id
+
+      --type <TYP>
+          Type: change, spec, or module
+
+          [possible values: change, spec, module]
+
+      --strict
+          Treat warnings as errors
+
+      --json
+          Output as JSON
+
+      --concurrency <CONCURRENCY>
+          Concurrency (default: 6)
+
+          [default: 6]
+
+      --no-interactive
+          Disable interactive prompts
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito show
+--------
+Display details of a change, spec, or module
+
+Shows the full content and metadata for an item. For changes, displays
+the proposal, spec deltas, and task progress. Use --json for structured output.
+
+Examples:
+  ito show 005-01_add-auth
+  ito show --type spec auth-service
+  ito show module 005
+
+Usage: ito show [OPTIONS] [ITEM]
+       ito show <COMMAND>
+
+Commands:
+  module  Show a module
+  help    Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [ITEM]
+          Item name (change id or spec id)
+
+Options:
+      --json
+          Output as JSON
+
+      --type <TYP>
+          Type: change or spec
+
+          [possible values: change, spec]
+
+      --no-interactive
+          Disable interactive prompts
+
+      --deltas-only
+          Change JSON only: only include deltas (deprecated)
+
+      --requirements-only
+          Change JSON only: only include deltas (deprecated)
+
+      --requirements
+          Spec JSON only: exclude scenarios
+
+      --no-scenarios
+          Spec JSON only: exclude scenarios
+
+  -r, --requirement <REQUIREMENT>
+          Spec JSON only: select requirement (1-based)
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito agent
+---------
+Generate instructions and context for AI coding agents
+
+Produces structured output for AI tools like Claude Code, Codex, or OpenCode.
+Includes change proposals, specs, tasks, and implementation guidance.
+
+Examples:
+  ito agent instruction bootstrap --tool claude
+  ito agent instruction apply --change 005-01_add-auth
+  ito agent instruction tasks --change 005-01_add-auth
+
+Usage: ito agent [COMMAND]
+
+Commands:
+  instruction  Generate enriched instructions
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito agent instruction
+---------------------
+Generate enriched instructions
+
+Usage: ito agent instruction [OPTIONS] <ARTIFACT>
+
+Arguments:
+  <ARTIFACT>
+          Artifact id (e.g. bootstrap, apply, proposal)
+
+Options:
+      --change <CHANGE>
+          Change id (directory name)
+
+      --tool <TOOL>
+          Tool name for bootstrap (opencode|claude|codex)
+
+      --schema <SCHEMA>
+          Workflow schema name
+
+      --json
+          Output as JSON
+
+  -h, --help
+          Print help
+
+Artifacts:
+  bootstrap      Generate a tool bootstrap preamble
+  project-setup  Guide for setting up a new project
+  proposal       Show the change proposal
+  specs          Show the specification deltas
+  tasks          Show the implementation task list
+  apply          Show implementation instructions
+  review         Show review instructions
+  archive        Show archive instructions
+
+Examples:
+  ito agent instruction bootstrap --tool opencode
+  ito agent instruction project-setup
+  ito agent instruction proposal --change 005-08_migrate-cli-to-clap
+  ito agent instruction apply --change 005-08_migrate-cli-to-clap
+
+
+--------------------------------------------------------------------------------
+
+ito ralph
+---------
+Run an AI agent loop to implement a change
+
+Iteratively runs an AI coding agent (OpenCode, Claude, etc.) to implement
+a change proposal. Monitors progress and commits incrementally.
+
+Examples:
+  ito ralph --change 005-01_add-auth
+  ito ralph --change 005-01_add-auth --harness claude --max-iterations 5
+
+Usage: ito ralph [OPTIONS] [PROMPT]...
+
+Arguments:
+  [PROMPT]...
+          Prompt text
+
+Options:
+      --change <CHANGE>
+          Target a specific change
+
+      --module <MODULE>
+          Target a module (selects a change)
+
+      --harness <HARNESS>
+          Harness to run
+
+          [default: opencode]
+
+      --model <MODEL>
+          Model id for the harness
+
+      --min-iterations <MIN_ITERATIONS>
+          Minimum iterations before stopping
+
+          [default: 1]
+
+      --max-iterations <MAX_ITERATIONS>
+          Maximum iterations (default: unlimited)
+
+      --completion-promise <COMPLETION_PROMISE>
+          Completion promise token
+
+          [default: COMPLETE]
+
+      --allow-all
+          Allow all tool actions (dangerous)
+
+      --no-commit
+          Do not create git commits per iteration
+
+      --status
+          Show current Ralph state for the change
+
+      --add-context <ADD_CONTEXT>
+          Append extra context to the Ralph loop
+
+      --clear-context
+          Clear the Ralph loop context file
+
+      --no-interactive
+          Do not prompt for selections
+
+  -v, --verbose
+          Verbose output
+
+      --timeout <TIMEOUT>
+          Inactivity timeout (e.g. 15m)
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito status
+----------
+Check completion status of change artifacts
+
+Displays which artifacts (proposal, specs, tasks) are complete for a change.
+Useful for tracking progress before archiving.
+
+Examples:
+  ito status --change 005-01_add-auth
+
+Usage: ito status [OPTIONS]
+
+Options:
+      --change <CHANGE>
+          Change id (directory name)
+
+      --schema <SCHEMA>
+          Workflow schema name
+
+      --json
+          Output as JSON
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito completions
+---------------
+Output shell completion scripts
+
+Generates completion scripts for bash, zsh, fish, or powershell.
+Add to your shell config for tab completion of ito commands.
+
+Examples:
+  ito completions bash >> ~/.bashrc
+  ito completions zsh >> ~/.zshrc
+  ito completions fish > ~/.config/fish/completions/ito.fish
+
+Usage: ito completions <SHELL>
+
+Arguments:
+  <SHELL>
+          Shell type
+
+          [possible values: bash, zsh, fish, powershell]
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito stats
+---------
+Display command execution counts and history
+
+Shows statistics about ito command usage in this project. Useful for understanding workflow patterns.
+
+Usage: ito stats
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+================================================================================
+Run 'ito <command> -h' for detailed command help.
+================================================================================

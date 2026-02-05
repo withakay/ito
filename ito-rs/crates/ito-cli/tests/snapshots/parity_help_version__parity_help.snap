@@ -1,0 +1,43 @@
+---
+source: crates/ito-cli/tests/parity_help_version.rs
+expression: rs.stdout
+---
+Usage: ito [options] [command]
+
+AI-native system for spec-driven development
+
+Options:
+  -V, --version                    output the version number
+  --no-color                       Disable color output
+  -h, --help                       display help for command
+
+Commands:
+  init [options] [path]            Initialize Ito in your project
+  update [options] [path]          Update Ito instruction files
+  tasks                            Track execution tasks for a change
+  plan                             Project planning tools
+  state                            View and update planning/STATE.md
+  workflow                         Manage and run workflows
+  list [options]                   List items (changes by default). Use --specs
+                                   or --modules to list other items.
+  dashboard                        Display an interactive dashboard of specs and
+                                   changes
+  archive [options] [change-name]  Archive a completed change and update main
+                                   specs
+  config [options]                 View and modify global Ito configuration
+  create                           Create items
+  validate [options] [item-name]   Validate changes, specs, and modules
+  show [options] [item-name]       Show a change or spec
+  completions                      Manage shell completions for Ito CLI
+  status [options]                 [Experimental] Display artifact completion
+                                   status for a change
+  x-templates [options]            [Experimental] Show resolved template paths
+                                   for all artifacts in a schema
+  x-schemas [options]              [Experimental] List available workflow
+                                   schemas with descriptions
+  agent                            Commands that generate machine-readable
+                                   output for AI agents
+  ralph [options] [prompt]         Run iterative AI loop against a change
+                                   proposal
+  split [change-id]                Split a large change into smaller changes
+  help [command]                   display help for command

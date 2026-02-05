@@ -1,0 +1,133 @@
+//! Token-based authentication for non-loopback access.
+//!
+//! Token is a deterministic SHA256 hash of: hostname + project_root + salt
+//! This ensures:
+//! - Same token on restart (no need to re-auth)
+//! - Different token per host (can't guess from another machine)
+//! - Different token per project
+
+use axum::{
+    extract::{Query, Request, State},
+    http::{StatusCode, header},
+    middleware::Next,
+    response::{IntoResponse, Response},
+};
+use axum_extra::extract::CookieJar;
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
+
+const COOKIE_NAME: &str = "ito_token";
+const SALT: &str = "ito-web-auth-v1";
+
+/// Generate a deterministic token from hostname and project root.
+pub fn generate_token(project_root: &std::path::Path) -> String {
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
+    let root = project_root
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.to_path_buf())
+        .to_string_lossy()
+        .to_string();
+
+    let mut hasher = Sha256::new();
+    hasher.update(SALT.as_bytes());
+    hasher.update(hostname.as_bytes());
+    hasher.update(root.as_bytes());
+    let result = hasher.finalize();
+
+    // Use first 16 bytes (32 hex chars) for a shorter but still secure token
+    hex::encode(&result[..16])
+}
+
+/// Check if an address is loopback (doesn't need auth).
+pub fn is_loopback(bind: &str) -> bool {
+    matches!(bind, "127.0.0.1" | "localhost" | "::1" | "0:0:0:0:0:0:0:1")
+}
+
+#[derive(Clone)]
+pub struct AuthState {
+    pub token: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct TokenQuery {
+    token: Option<String>,
+}
+
+/// Middleware to check token authentication.
+/// Token can be provided via:
+/// 1. Cookie (ito_token)
+/// 2. Query string (?token=xxx)
+///
+/// If valid token in query string, sets cookie for future requests.
+pub async fn auth_middleware(
+    State(auth): State<Arc<AuthState>>,
+    jar: CookieJar,
+    Query(query): Query<TokenQuery>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // No auth required if no token configured (loopback)
+    let Some(expected_token) = &auth.token else {
+        return next.run(request).await;
+    };
+
+    // Check cookie first
+    if let Some(cookie) = jar.get(COOKIE_NAME)
+        && cookie.value() == expected_token
+    {
+        return next.run(request).await;
+    }
+
+    // Check query string
+    if let Some(provided_token) = &query.token
+        && provided_token == expected_token
+    {
+        // Valid token - run request and set cookie in response
+        let response = next.run(request).await;
+
+        // Add Set-Cookie header
+        let cookie_value = format!(
+            "{}={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400",
+            COOKIE_NAME, expected_token
+        );
+
+        let (mut parts, body) = response.into_parts();
+        parts
+            .headers
+            .insert(header::SET_COOKIE, cookie_value.parse().unwrap());
+
+        return Response::from_parts(parts, body);
+    }
+
+    // No valid token - return 403 with helpful message
+    let body = format!(
+        r#"<!DOCTYPE html>
+<html>
+<head><title>Access Denied</title>
+<style>
+body {{ font-family: system-ui; background: #1a1b26; color: #c0caf5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+.box {{ text-align: center; padding: 2rem; }}
+h1 {{ color: #f7768e; }}
+code {{ background: #24283b; padding: 0.5rem 1rem; border-radius: 4px; display: block; margin: 1rem 0; }}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>Access Denied</h1>
+<p>This server requires a token for remote access.</p>
+<p>Add the token to your URL:</p>
+<code>?token={}</code>
+</div>
+</body>
+</html>"#,
+        expected_token
+    );
+
+    (
+        StatusCode::FORBIDDEN,
+        [(header::CONTENT_TYPE, "text/html")],
+        body,
+    )
+        .into_response()
+}

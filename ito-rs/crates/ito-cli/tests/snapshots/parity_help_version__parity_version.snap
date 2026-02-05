@@ -1,0 +1,5 @@
+---
+source: crates/ito-cli/tests/parity_help_version.rs
+expression: rs.stdout
+---
+0.20.4-local.20260123000000

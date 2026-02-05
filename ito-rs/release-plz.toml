@@ -1,0 +1,30 @@
+# release-plz configuration
+# https://release-plz.dev/docs/config
+
+[workspace]
+# Don't publish to crates.io - we distribute via GitHub releases
+publish = false
+# Use git tags for version tracking instead of crates.io registry
+# This avoids conflicts with the unrelated ito-cli package on crates.io
+git_only = true
+# Allow running with uncommitted changes (temp files, etc.)
+allow_dirty = true
+# Create git tags for releases
+git_tag_enable = true
+# Create GitHub releases
+git_release_enable = true
+# Tag format: v0.24.0
+git_tag_name = "v{{ version }}"
+# Release name format
+git_release_name = "v{{ version }}"
+# Disable semver checks (requires crates.io baseline)
+semver_check = false
+# Don't release internal crates by default
+release = false
+
+# Only release the ito-cli crate
+[[package]]
+name = "ito-cli"
+release = true
+# Changelog lives in the workspace root
+changelog_path = "../CHANGELOG.md"

@@ -1,0 +1,17 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"workflow\", \"--help\"])"
+---
+Manage and run workflows
+
+Usage: ito workflow [OPTIONS] <COMMAND>
+
+Commands:
+  init  Initialize workflow templates
+  list  List available workflows
+  show  Show workflow details
+
+Options:
+      --no-color  Disable color output
+      --help-all  Print the full CLI reference (equivalent to `ito help --all`)
+  -h, --help      Print help

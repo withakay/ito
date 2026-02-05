@@ -1,0 +1,5 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: normalize_version(rs.stdout)
+---
+<VERSION>

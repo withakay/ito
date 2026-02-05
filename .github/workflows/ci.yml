@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test_matrix:
+    name: Test (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            label: linux-bash
+          - os: macos-latest
+            shell: bash
+            label: macos-bash
+          # Windows temporarily disabled (PTY/interactive tests can hang in CI).
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Print environment diagnostics
+        run: |
+          rustc -V
+          cargo -V
+
+      - name: Build
+        run: cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito
+
+      - name: Test
+        run: cargo test --manifest-path ito-rs/Cargo.toml --workspace
+
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust fmt (check)
+        run: cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
+
+      - name: Rust clippy
+        run: |
+          cargo clippy --manifest-path ito-rs/Cargo.toml --workspace --all-targets -- \
+            -D warnings \
+            -D clippy::dbg_macro \
+            -D clippy::todo \
+            -D clippy::unimplemented
+
+  required-checks-pr:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [test_matrix, lint]
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+            echo "Test job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "Lint job failed"
+            exit 1
+          fi
+          echo "All required checks passed!"
+
+  required-checks-main:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [test_matrix, lint]
+    if: always() && github.event_name != 'pull_request'
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+            echo "Matrix test job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "Lint job failed"
+            exit 1
+          fi
+          echo "All required checks passed!"

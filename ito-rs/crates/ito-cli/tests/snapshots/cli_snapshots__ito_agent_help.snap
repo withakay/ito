@@ -1,0 +1,28 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"agent\", \"--help\"])"
+---
+Generate instructions and context for AI coding agents
+
+Produces structured output for AI tools like Claude Code, Codex, or OpenCode.
+Includes change proposals, specs, tasks, and implementation guidance.
+
+Examples:
+  ito agent instruction bootstrap --tool claude
+  ito agent instruction apply --change 005-01_add-auth
+  ito agent instruction tasks --change 005-01_add-auth
+
+Usage: ito agent [OPTIONS] [COMMAND]
+
+Commands:
+  instruction  Generate enriched instructions
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help (see a summary with '-h')

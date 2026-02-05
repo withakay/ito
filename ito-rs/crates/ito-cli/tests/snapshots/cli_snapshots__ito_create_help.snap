@@ -1,0 +1,28 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"create\", \"--help\"])"
+---
+Create a new module or change proposal
+
+Modules group related changes and specs. Changes are the unit of work
+in Ito - each change has a proposal, spec deltas, and implementation tasks.
+
+Examples:
+  ito create module my-feature
+  ito create change add-auth --module 001
+
+Usage: ito create [OPTIONS] [COMMAND]
+
+Commands:
+  module  Create a module
+  change  Create a change
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help (see a summary with '-h')

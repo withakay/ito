@@ -1,0 +1,23 @@
+[package]
+name = "ito-domain"
+version = "0.24.0-local.202602051036"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ito-common = { path = "../ito-common" }
+ito-schemas = { path = "../ito-schemas" }
+
+chrono.workspace = true
+miette.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+rusqlite.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,73 @@
+<artifact id="{{ instructions.artifactId }}" change="{{ instructions.changeName }}" schema="{{ instructions.schemaName }}">
+
+{% if missing and missing|length > 0 %}
+<warning>
+This artifact has unmet dependencies. Complete them first or proceed with caution.
+Missing: {{ missing|join(", ") }}
+</warning>
+
+{% endif %}
+
+<task>
+Create the {{ instructions.artifactId }} artifact for change "{{ instructions.changeName }}".
+{{ instructions.description }}
+</task>
+
+{% if dependencies and dependencies|length > 0 %}
+<context>
+Read these files for context before creating this artifact:
+
+{% for dep in dependencies %}
+<dependency id="{{ dep.id }}" status="{{ dep.status }}">
+  <path>{{ dep.path }}</path>
+  <description>{{ dep.description }}</description>
+</dependency>
+{% endfor %}
+</context>
+
+{% endif %}
+
+{% if user_guidance %}
+<user_guidance>
+{{ user_guidance }}
+</user_guidance>
+
+{% endif %}
+
+{% if instructions.artifactId == "proposal" %}
+<testing_policy>
+- tdd.workflow: {{ testing_policy.tdd_workflow }} (RED -> GREEN -> REFACTOR)
+- coverage.target_percent: {{ testing_policy.coverage_target_percent }}
+- override_keys: defaults.testing.tdd.workflow, defaults.testing.coverage.target_percent
+- override_files (low -> high): ito.json, .ito.json, .ito/config.json, $PROJECT_DIR/config.json
+</testing_policy>
+
+{% endif %}
+
+<output>
+Write to: {{ out_path }}
+</output>
+
+{% if instructions.instruction and instructions.instruction|trim != "" %}
+<instruction>
+{{ instructions.instruction|trim }}
+</instruction>
+
+{% endif %}
+
+<template>
+{{ instructions.template|trim }}
+</template>
+
+<success_criteria>
+<!-- To be defined in schema validation rules -->
+</success_criteria>
+
+{% if instructions.unlocks and instructions.unlocks|length > 0 %}
+<unlocks>
+Completing this artifact enables: {{ instructions.unlocks|join(", ") }}
+</unlocks>
+
+{% endif %}
+
+</artifact>
