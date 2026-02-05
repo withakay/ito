@@ -19,6 +19,7 @@ ______________________________________________________________________
 ## Wave 1
 
 - **Depends On**: None
+- **Goal**: Add CLI flags and update RalphOptions
 
 ### Task 1.1: Add validation CLI flags to RalphArgs
 
@@ -26,7 +27,7 @@ ______________________________________________________________________
 - **Dependencies**: None
 - **Action**:
   Add two new fields to `RalphArgs`:
-  - `--validation-command <cmd>` (optional string, default "make check")
+  - `--validation-command <cmd>` (optional string)
   - `--skip-validation` (boolean flag)
   Update the clap derive to include these flags with appropriate help text.
 - **Verify**: `cargo build --workspace`
@@ -37,10 +38,10 @@ ______________________________________________________________________
 ### Task 1.2: Add validation fields to RalphOptions
 
 - **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
-- **Dependencies**: Task 1.1
+- **Dependencies**: None
 - **Action**:
   Add to `RalphOptions` struct:
-  - `validation_command: Option<String>`
+  - `validation_command: Option<String>` (extra validation command)
   - `skip_validation: bool`
 - **Verify**: `cargo build --workspace`
 - **Done When**: Struct compiles with new fields
@@ -66,48 +67,65 @@ ______________________________________________________________________
 ## Wave 2
 
 - **Depends On**: Wave 1
+- **Goal**: Implement Ito-native task validation
 
-### Task 2.1: Implement run_validation function
+### Task 2.1: Create validation module
 
-- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
 - **Dependencies**: None
 - **Action**:
-  Create a new function `run_validation(command: &str, timeout: Duration) -> Result<ValidationResult>` that:
-  - Executes the command via shell
-  - Captures stdout/stderr
-  - Enforces 5-minute timeout
-  - Returns `ValidationResult { success: bool, output: String, timed_out: bool }`
-- **Verify**: Unit test with mock command
-- **Done When**: Function handles success, failure, timeout, and missing command cases
+  Create a new module `validation.rs` with:
+  - `ValidationResult` struct: `{ success: bool, message: String, output: Option<String> }`
+  - `ValidationStep` enum: `TaskStatus`, `ProjectCheck`, `ExtraCommand`
+  - Export from `mod.rs`
+- **Verify**: `cargo build --workspace`
+- **Done When**: Module compiles and is exported
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
-### Task 2.2: Integrate validation into completion flow
+### Task 2.2: Implement check_task_completion function
 
-- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
 - **Dependencies**: Task 2.1
 - **Action**:
-  Modify the completion check in `run_ralph` (around line 203):
-  - If `skip_validation` is true, accept completion immediately (with warning)
-  - Otherwise, run validation command
-  - If validation passes, exit loop
-  - If validation fails, store failure output for context injection and continue
+  Create function `check_task_completion(ito_path: &Path, change_id: &str) -> Result<ValidationResult>`:
+  - Use `ito_domain::tasks::TaskRepository` to get task counts
+  - Check if all tasks are complete or shelved
+  - Return success with summary, or failure with list of incomplete tasks
 - **Verify**: `cargo test --workspace`
-- **Done When**: Loop validates before exiting
+- **Done When**: Function correctly reports task completion status
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
-### Task 2.3: Inject validation failure as context
+### Task 2.3: Implement run_project_validation function
 
-- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`, `ito-rs/crates/ito-core/src/ralph/prompt.rs`
-- **Dependencies**: Task 2.2
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
+- **Dependencies**: Task 2.1
 - **Action**:
-  When validation fails:
-  - Store the validation output in iteration state
-  - Modify `build_ralph_prompt` to include a `## Validation Failure (completion rejected)` section
-  - Include the validation command output and explain the loop continues
-- **Verify**: `cargo test --workspace`
-- **Done When**: Failed validation output appears in next iteration's prompt
+  Create function `run_project_validation(ito_path: &Path, timeout: Duration) -> Result<ValidationResult>`:
+  - Read validation commands from project configuration (ito.json, .ito/config.json, AGENTS.md, CLAUDE.md)
+  - Execute configured validation commands
+  - Capture stdout/stderr
+  - Enforce 5-minute timeout per command
+  - Return success if all pass, failure with output otherwise
+  - If no validation configured, warn and return success (graceful degradation)
+- **Verify**: Unit test with mock commands
+- **Done When**: Function reads config and handles success, failure, timeout, and no-config cases
+- **Updated At**: 2026-02-05
+- **Status**: [ ] pending
+
+### Task 2.4: Implement run_extra_validation function
+
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
+- **Dependencies**: Task 2.1
+- **Action**:
+  Create function `run_extra_validation(command: &str, timeout: Duration) -> Result<ValidationResult>`:
+  - Execute the command via shell
+  - Capture stdout/stderr
+  - Enforce 5-minute timeout
+  - Return success or failure with output
+- **Verify**: Unit test with mock command
+- **Done When**: Function handles success, failure, and timeout cases
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
@@ -116,35 +134,50 @@ ______________________________________________________________________
 ## Wave 3
 
 - **Depends On**: Wave 2
+- **Goal**: Integrate validation into the completion flow
 
-### Task 3.1: Add unit tests for validation logic
+### Task 3.1: Add validation failure state tracking
 
-- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs` or new test file
+- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
 - **Dependencies**: None
 - **Action**:
-  Write tests for:
-  - Validation success accepts completion
-  - Validation failure continues loop
-  - Validation timeout treated as failure
-  - Missing validation command (graceful degradation)
-  - Skip validation flag bypasses check
-- **Verify**: `cargo test --workspace -- --test-threads=1`
-- **Done When**: All validation scenarios covered
+  Add a field to track validation failure output between iterations:
+  - `last_validation_failure: Option<String>` (or similar)
+  - This will be used to inject context into the next iteration
+- **Verify**: `cargo build --workspace`
+- **Done When**: State can track validation failure output
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
-### Task 3.2: Add integration test with stub harness
+### Task 3.2: Integrate validation into completion check
 
-- **Files**: `ito-rs/crates/ito-cli/tests/ralph_smoke.rs` or new test file
+- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
 - **Dependencies**: Task 3.1
 - **Action**:
-  Create an integration test that:
-  - Uses stub harness to emit completion promise
-  - Configures a validation command that fails first, then passes
-  - Verifies loop continues after failed validation
-  - Verifies loop exits after successful validation
-- **Verify**: `cargo test --workspace ralph`
-- **Done When**: Integration test passes
+  Modify the completion check in `run_ralph` (around line 203):
+  - If `skip_validation` is true, accept completion immediately (with warning)
+  - Otherwise, run validation in order:
+    1. `check_task_completion` (if change_id provided)
+    2. `run_project_validation`
+    3. `run_extra_validation` (if validation_command provided)
+  - If all pass, exit loop
+  - If any fails, store failure output and continue to next iteration
+- **Verify**: `cargo test --workspace`
+- **Done When**: Loop validates before exiting
+- **Updated At**: 2026-02-05
+- **Status**: [ ] pending
+
+### Task 3.3: Update prompt builder for validation failure context
+
+- **Files**: `ito-rs/crates/ito-core/src/ralph/prompt.rs`
+- **Dependencies**: Task 3.1
+- **Action**:
+  Modify `build_ralph_prompt` and `BuildPromptOptions` to:
+  - Accept optional `validation_failure: Option<String>`
+  - When present, include a section labeled `## Validation Failure (completion rejected)`
+  - Include the failure output and explain that the loop continues until validation passes
+- **Verify**: `cargo test --workspace`
+- **Done When**: Failed validation output appears in next iteration's prompt
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
@@ -153,39 +186,69 @@ ______________________________________________________________________
 ## Wave 4
 
 - **Depends On**: Wave 3
+- **Goal**: Testing and documentation
 
-### Task 4.1: Update CLI help text
+### Task 4.1: Add unit tests for task completion validation
 
-- **Files**: `ito-rs/crates/ito-cli/src/cli.rs`
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
 - **Dependencies**: None
 - **Action**:
-  Ensure help text for `--validation-command` and `--skip-validation` clearly explains:
-  - Default behavior (make check)
-  - Purpose (verify completion before exiting)
-  - When to use skip-validation
-- **Verify**: `cargo run -- ralph --help`
-- **Done When**: Help text is clear and complete
+  Write tests for `check_task_completion`:
+  - All tasks complete -> success
+  - All tasks complete or shelved -> success
+  - Some tasks pending -> failure with task list
+  - No change-id -> skip (handled at call site)
+- **Verify**: `cargo test --workspace -- ralph::validation`
+- **Done When**: Task validation scenarios covered
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
-### Task 4.2: Add public API documentation
+### Task 4.2: Add unit tests for project validation
 
-- **Files**: `ito-rs/crates/ito-core/src/ralph/runner.rs`
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`
 - **Dependencies**: None
 - **Action**:
-  Add doc comments to:
-  - New `ValidationResult` struct
-  - New `run_validation` function
-  - Updated `RalphOptions` fields
-- **Verify**: `cargo doc --no-deps`
-- **Done When**: `make docs` passes without warnings for new code
+  Write tests for `run_project_validation`:
+  - Configured command passes -> success
+  - Configured command fails -> failure with output
+  - Timeout -> failure with timeout message
+  - No validation configured -> graceful skip with warning
+- **Verify**: `cargo test --workspace -- ralph::validation`
+- **Done When**: Project validation scenarios covered
 - **Updated At**: 2026-02-05
 - **Status**: [ ] pending
 
-### Task 4.3: Run full validation
+### Task 4.3: Add integration test with stub harness
+
+- **Files**: `ito-rs/crates/ito-cli/tests/ralph_smoke.rs` or new test file
+- **Dependencies**: None
+- **Action**:
+  Create an integration test that:
+  - Uses stub harness to emit completion promise
+  - Sets up a change with incomplete tasks
+  - Verifies loop continues after task validation fails
+  - Marks tasks complete and verifies loop can exit
+- **Verify**: `cargo test --workspace ralph`
+- **Done When**: Integration test passes
+- **Updated At**: 2026-02-05
+- **Status**: [ ] pending
+
+### Task 4.4: Update CLI help text and documentation
+
+- **Files**: `ito-rs/crates/ito-cli/src/cli.rs`, `ito-rs/crates/ito-core/src/ralph/validation.rs`
+- **Dependencies**: None
+- **Action**:
+  - Ensure help text for flags clearly explains their purpose
+  - Add doc comments to all public functions in validation module
+- **Verify**: `cargo doc --no-deps` and `cargo run -- ralph --help`
+- **Done When**: Help text and docs are clear and complete
+- **Updated At**: 2026-02-05
+- **Status**: [ ] pending
+
+### Task 4.5: Run full validation
 
 - **Files**: All modified files
-- **Dependencies**: Task 4.1, Task 4.2
+- **Dependencies**: Task 4.1, Task 4.2, Task 4.3, Task 4.4
 - **Action**:
   Run full project validation:
   - `make check` (lint + format)
