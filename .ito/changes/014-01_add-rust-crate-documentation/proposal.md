@@ -2,22 +2,28 @@
 
 ## Why
 
-The Rust codebase has 11 library crates that serve as the foundation of Ito. While the code compiles and passes tests, documentation coverage is inconsistent. The project's style guide (`.ito/user-rust-style.md`) establishes clear documentation standards, but not all crates fully adhere to these guidelines. Comprehensive documentation improves maintainability, onboarding, and enables the `#![warn(missing_docs)]` lint to catch gaps.
+The Rust codebase has 11 core crates that form Ito's foundation. The code compiles and tests pass, but documentation coverage is inconsistent across crates and public APIs.
+
+This work standardizes crate/module/API docs to improve maintainability and onboarding, and makes documentation gaps visible via `cargo doc` and (where appropriate) `#![warn(missing_docs)]`.
 
 ## What Changes
 
-- Review each Rust crate's `lib.rs` and public modules for documentation completeness
-- Add module-level documentation (`//!`) explaining purpose, usage, and examples
-- Document all public APIs (`pub fn`, `pub struct`, `pub enum`, `pub trait`) per style guide
-- Ensure documentation is genuinely useful (explains *why* and *when*, not just *what*)
-- Fix any documentation warnings (e.g., unclosed HTML tags)
-- Enable `#![warn(missing_docs)]` on crates that don't have it
+- Add or improve crate-level docs (`//!` in each `lib.rs`) describing purpose, key concepts, and entry points
+- Add module-level docs (`//!`) for non-trivial public modules
+- Add or improve docs for public items (`pub fn`, `pub struct`, `pub enum`, `pub trait`, `pub mod`) following `.ito/user-rust-style.md`
+- Fix documentation warnings and broken doctests/markup (e.g., bad HTML tags)
+- Where it helps catch regressions, enable `#![warn(missing_docs)]` at crate root; otherwise rely on `cargo doc` staying warning-free
+
+Non-goals:
+- No runtime behavior changes
+- No public API redesigns or refactors beyond what is required to attach useful docs
+- No new external dependencies
 
 ## Capabilities
 
 ### New Capabilities
 
-- `rust-documentation-standards`: Establishes documentation requirements and conventions for Rust crates
+- `rust-documentation-standards`: Documentation requirements and conventions for Rust crates
 
 ### Modified Capabilities
 
@@ -25,7 +31,8 @@ The Rust codebase has 11 library crates that serve as the foundation of Ito. Whi
 
 ## Impact
 
-- **Affected code**: All 11 crates under `ito-rs/crates/`:
+- **Affected specs**: `rust-documentation-standards` (new)
+- **Affected code**: Crates under `ito-rs/crates/` (documentation edits only):
   - `ito-common` - Shared types and utilities
   - `ito-config` - Configuration loading and management
   - `ito-core` - Core Ito functionality
@@ -37,5 +44,11 @@ The Rust codebase has 11 library crates that serve as the foundation of Ito. Whi
   - `ito-templates` - Template management
   - `ito-test-support` - Testing utilities
   - `ito-web` - Web server functionality
-- **Build impact**: Documentation build (`cargo doc`) will pass without warnings
-- **No breaking changes**: Documentation-only modifications
+- **Build impact**: `cargo doc` / `make docs` runs without warnings; any doc-related warnings are treated as failures for this change
+- **Behavior**: No runtime behavior changes; the only expected difference is improved generated docs
+
+Acceptance criteria:
+- `make docs` (or `cargo doc --no-deps`) completes without warnings
+- `cargo test --workspace` passes
+- `cargo clippy --workspace --all-targets -- -D warnings` passes
+- Each crate has clear crate-level documentation and public items are documented to the standards in the new spec
