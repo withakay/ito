@@ -6,7 +6,6 @@ import argparse
 import re
 from pathlib import Path
 
-
 _SEMVER_RE = re.compile(
     r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)"
     r"(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+(?P<build>[0-9A-Za-z.-]+))?$"
@@ -55,7 +54,7 @@ def bump_workspace_package_version(manifest: Path, stamp: str, bump: str) -> str
             if m:
                 orig = m.group(1)
 
-                base_version = orig.split("-local.")[0]
+                base_version = orig.split("-dev.")[0]
                 base = _parse_semver(base_version)
                 bumped = _bump_base(base, bump)
 
