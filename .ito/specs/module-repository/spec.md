@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Module Repository Specification
+
+## Purpose
+
+Define the `module-repository` capability: centralized access to module metadata and listings.
+
+## Requirements
 
 ### Requirement: ModuleRepository provides centralized module access
 

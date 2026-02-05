@@ -8,5 +8,5 @@ Track work related to a backend-agnostic task/todo system in Ito (with optional 
 
 ## Changes
 - [ ] 008-01_add-rust-task-backends
-- [ ] 008-02_sqlite-validation-for-enhanced-tasks
+- [x] 008-02_sqlite-validation-for-enhanced-tasks
 - [x] 008-03_support-in-progress-status

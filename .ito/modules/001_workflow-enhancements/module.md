@@ -17,7 +17,7 @@
 - [ ] \[
 - [x] 001-09_improve-archive-completed-detection
 - [x] 001-10_comprehensive-cli-help-system
-- [ ] 001-11_tdd-red-green-coverage-guidance
+- [x] 001-11_tdd-red-green-coverage-guidance
 - [ ] 001-12_project-setup-wizard
 - [x] 001-13_integrate-release-please-via-github-actions
 - [ ] 001-14_add-partial-and-pending-list-filters

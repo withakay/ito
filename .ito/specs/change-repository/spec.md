@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Change Repository Specification
+
+## Purpose
+
+Define the `change-repository` capability: a stable repository API for loading and querying Ito change artifacts.
+
+## Requirements
 
 ### Requirement: ChangeRepository provides centralized change access
 
