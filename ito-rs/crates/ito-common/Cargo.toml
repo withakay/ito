@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Common utilities and error types for Ito"
 
 [dependencies]
 miette = { workspace = true }

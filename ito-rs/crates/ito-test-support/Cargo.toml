@@ -1,9 +1,10 @@
 [package]
 name = "ito-test-support"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Test utilities and helpers for Ito"
 
 [dependencies]
 portable-pty = { workspace = true }

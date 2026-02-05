@@ -1,13 +1,14 @@
 [package]
 name = "ito-domain"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Domain models and repositories for Ito"
 
 [dependencies]
-ito-common = { path = "../ito-common" }
-ito-schemas = { path = "../ito-schemas" }
+ito-common = { workspace = true }
+ito-schemas = { workspace = true }
 
 chrono.workspace = true
 miette.workspace = true

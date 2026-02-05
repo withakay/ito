@@ -1,9 +1,10 @@
 [package]
 name = "ito-cli"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Command-line interface for Ito"
 
 [[bin]]
 name = "ito"
@@ -22,17 +23,17 @@ log = { workspace = true }
 dialoguer = { workspace = true }
 crossterm = { workspace = true }
 indicatif = { workspace = true }
-ito-core = { path = "../ito-core" }
-ito-common = { path = "../ito-common" }
-ito-config = { path = "../ito-config" }
-ito-logging = { path = "../ito-logging" }
-ito-templates = { path = "../ito-templates" }
-ito-web = { path = "../ito-web" }
+ito-core = { workspace = true }
+ito-common = { workspace = true }
+ito-config = { workspace = true }
+ito-logging = { workspace = true }
+ito-templates = { workspace = true }
+ito-web = { workspace = true }
 chrono = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread"] }
-ito-domain = { path = "../ito-domain" }
-ito-schemas = { path = "../ito-schemas" }
-ito-harness = { path = "../ito-harness" }
+ito-domain = { workspace = true }
+ito-schemas = { workspace = true }
+ito-harness = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

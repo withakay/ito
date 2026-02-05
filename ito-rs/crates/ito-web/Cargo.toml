@@ -1,9 +1,10 @@
 [package]
 name = "ito-web"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Web server and UI for Ito"
 
 [[bin]]
 name = "ito-web"
@@ -26,4 +27,4 @@ portable-pty = { workspace = true }
 sha2 = "0.10"
 hex = "0.4"
 gethostname = "0.5"
-ito-templates = { path = "../ito-templates" }
+ito-templates = { workspace = true }

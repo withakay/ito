@@ -1,9 +1,10 @@
 [package]
 name = "ito-core"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Core functionality and business logic for Ito"
 
 [dependencies]
 thiserror = { workspace = true }
@@ -17,11 +18,11 @@ uuid = { workspace = true }
 walkdir = { workspace = true }
 pulldown-cmark = { workspace = true }
 schemars = { workspace = true }
-ito-common = { path = "../ito-common" }
-ito-config = { path = "../ito-config" }
-ito-domain = { path = "../ito-domain" }
-ito-templates = { path = "../ito-templates" }
-ito-harness = { path = "../ito-harness" }
+ito-common = { workspace = true }
+ito-config = { workspace = true }
+ito-domain = { workspace = true }
+ito-templates = { workspace = true }
+ito-harness = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
