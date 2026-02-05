@@ -1,0 +1,36 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"--help\"])"
+---
+AI-native system for spec-driven development
+
+Usage: ito [OPTIONS] [COMMAND]
+
+Commands:
+  create       Create a new module or change proposal
+  list         List changes, specs, or modules with status summaries
+  show         Display details of a change, spec, or module
+  status       Check completion status of change artifacts
+  validate     Check changes, specs, and modules for errors and warnings
+  archive      Move a completed change to archive and update main specs
+  tasks        Manage implementation tasks for a change
+  plan         Initialize and track project roadmap
+  state        Track session state and working context
+  agent        Generate instructions and context for AI coding agents
+  ralph        Run an AI agent loop to implement a change
+  init         Set up Ito in a project
+  update       Refresh Ito instruction files and AI tool configs
+  config       Read and write global Ito settings
+  workflow     Initialize and inspect workflow definitions
+  serve        Serve local Ito artifacts and docs over HTTP
+  completions  Output shell completion scripts
+  stats        Display command execution counts and history
+  help         Show help for ito commands
+
+Options:
+      --no-color  Disable color output
+      --help-all  Print the full CLI reference (equivalent to `ito help --all`)
+  -h, --help      Print help
+  -V, --version   Print version
+
+Run 'ito help --all' for the complete CLI reference.

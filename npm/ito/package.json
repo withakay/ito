@@ -1,0 +1,30 @@
+{
+  "name": "@withakay/ito",
+  "version": "0.0.0",
+  "description": "Ito (native binary) - optional npm distribution",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/withakay/Ito.git"
+  },
+  "bugs": {
+    "url": "https://github.com/withakay/Ito/issues"
+  },
+  "homepage": "https://github.com/withakay/Ito#readme",
+  "bin": {
+    "ito": "bin/ito.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@withakay/ito-darwin-x64": "0.0.0",
+    "@withakay/ito-darwin-arm64": "0.0.0",
+    "@withakay/ito-linux-x64": "0.0.0",
+    "@withakay/ito-linux-arm64": "0.0.0",
+    "@withakay/ito-win32-x64": "0.0.0"
+  },
+  "files": [
+    "bin/ito.js"
+  ]
+}

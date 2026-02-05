@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Ito</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+  <style>
+    @font-face {
+      font-family: 'MesloLGS NF';
+      src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.1.1/patched-fonts/Meslo/S/Regular/MesloLGSNerdFont-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'MesloLGS NF';
+      src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.1.1/patched-fonts/Meslo/S/Bold/MesloLGSNerdFont-Bold.ttf') format('truetype');
+      font-weight: bold;
+      font-style: normal;
+    }
+  </style>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f17; --bg-secondary: #16161e; --bg-tertiary: #1a1b26;
+      --surface: #24283b; --surface-hover: #2f3549;
+      --text: #c0caf5; --text-muted: #565f89;
+      --accent: #7aa2f7; --accent-hover: #89b4fa; --accent-glow: rgba(122, 162, 247, 0.15);
+      --green: #9ece6a; --red: #f7768e; --yellow: #e0af68; --magenta: #bb9af7; --cyan: #7dcfff;
+      --border: #292e42; --border-focus: #3d59a1;
+      --radius: 8px; --radius-sm: 4px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4); --transition: 0.15s ease;
+    }
+    html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased; position: fixed; inset: 0; }
+    .app { display: flex; height: 100%; width: 100%; overflow: hidden; position: absolute; inset: 0; }
+    .sidebar { width: 260px; min-width: 260px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+     .sidebar-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+     .sidebar-actions { margin-left: auto; display: flex; gap: 8px; }
+    .logo { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--magenta)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: white; box-shadow: 0 2px 8px var(--accent-glow); }
+    .sidebar-title { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .breadcrumb { padding: 10px 16px; font-size: 12px; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .breadcrumb span { cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); transition: var(--transition); }
+    .breadcrumb span:hover { background: var(--surface); color: var(--accent); }
+    .file-tree { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px; }
+    .file-tree::-webkit-scrollbar { width: 6px; }
+    .file-tree::-webkit-scrollbar-track { background: transparent; }
+    .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .tree-item { display: flex; align-items: center; padding: 8px 12px; margin: 2px 0; border-radius: var(--radius); cursor: pointer; font-size: 13px; gap: 10px; transition: var(--transition); color: var(--text-muted); }
+    .tree-item:hover { background: var(--surface); color: var(--text); }
+    .tree-item.active { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--border-focus); }
+    .tree-item .icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+    .tree-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; position: relative; }
+    .toolbar { padding: 10px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; min-height: 52px; }
+    .toolbar .filename { font-size: 13px; font-weight: 500; flex: 1; display: flex; align-items: center; gap: 8px; }
+    .toolbar .filename.modified::after { content: ''; width: 8px; height: 8px; background: var(--yellow); border-radius: 50%; }
+    .btn { padding: 8px 14px; border-radius: var(--radius); border: 1px solid transparent; font-size: 12px; font-weight: 500; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 2px 12px var(--accent-glow); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-focus); }
+    .btn-secondary.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+    .btn-icon { padding: 8px; min-width: 34px; justify-content: center; }
+    .status { font-size: 11px; color: var(--text-muted); padding: 4px 8px; border-radius: var(--radius-sm); }
+    .status.saved { color: var(--green); background: rgba(158, 206, 106, 0.1); }
+    .status.error { color: var(--red); background: rgba(247, 118, 142, 0.1); }
+    .editor-area { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    .editor-container { flex: 1; overflow: hidden; position: relative; }
+    .CodeMirror { height: 100% !important; font-family: 'MesloLGS NF', 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; background: var(--bg) !important; }
+    .CodeMirror-gutters { background: var(--bg-secondary) !important; border-right: 1px solid var(--border) !important; }
+    .preview-container { flex: 1; overflow: auto; padding: 32px 48px; background: var(--bg); display: none; }
+    .preview-container.visible { display: block; }
+    .preview-container h1, .preview-container h2, .preview-container h3, .preview-container h4, .preview-container h5, .preview-container h6 { color: var(--text); margin: 1.5em 0 0.5em; font-weight: 600; }
+    .preview-container h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+    .preview-container h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+    .preview-container h3 { font-size: 1.25em; }
+    .preview-container p { margin: 1em 0; line-height: 1.7; }
+    .preview-container a { color: var(--accent); text-decoration: none; }
+    .preview-container a:hover { text-decoration: underline; }
+    .preview-container code { background: var(--surface); padding: 2px 6px; border-radius: var(--radius-sm); font-family: 'MesloLGS NF', monospace; font-size: 0.9em; }
+    .preview-container pre { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; margin: 1em 0; }
+    .preview-container pre code { background: none; padding: 0; }
+    .preview-container blockquote { border-left: 4px solid var(--accent); margin: 1em 0; padding: 0.5em 1em; background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; }
+    .preview-container ul, .preview-container ol { margin: 1em 0; padding-left: 2em; }
+    .preview-container li { margin: 0.5em 0; }
+    .preview-container table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+    .preview-container th, .preview-container td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    .preview-container th { background: var(--surface); font-weight: 600; }
+    .preview-container hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 16px; }
+    .empty-state .icon { font-size: 48px; opacity: 0.5; }
+    .empty-state p { font-size: 14px; }
+    .empty-state kbd { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; font-family: inherit; font-size: 12px; }
+    .terminal-panel { height: 300px; min-height: 100px; max-height: 80%; background: var(--bg-tertiary); display: flex; flex-direction: column; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .terminal-panel.collapsed { height: 44px !important; min-height: 44px; }
+    .terminal-panel.maximized { position: absolute; inset: 0; height: 100% !important; max-height: 100%; z-index: 100; }
+    .resize-handle { height: 6px; cursor: ns-resize; background: transparent; display: flex; align-items: center; justify-content: center; }
+    .resize-handle::after { content: ''; width: 40px; height: 3px; background: var(--border); border-radius: 2px; transition: var(--transition); }
+    .resize-handle:hover::after { background: var(--accent); }
+    .terminal-header { padding: 8px 16px; background: var(--bg-secondary); display: flex; align-items: center; gap: 12px; }
+    .terminal-tabs { display: flex; gap: 4px; flex: 1; }
+    .terminal-tab { padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-muted); transition: var(--transition); }
+    .terminal-tab:hover { background: var(--surface); color: var(--text); }
+    .terminal-tab.active { background: var(--surface); color: var(--text); }
+    .terminal-tab .indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+    .terminal-tab .indicator.connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .terminal-actions { display: flex; gap: 4px; }
+    .terminal-container { flex: 1; padding: 8px 12px; overflow: hidden; }
+    .terminal-panel.collapsed .terminal-container, .terminal-panel.collapsed .resize-handle { display: none; }
+    #terminal { height: 100%; }
+    kbd { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px 6px; font-size: 11px; font-family: inherit; }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 200; transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: var(--shadow); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+      .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
+      .mobile-header { display: flex !important; }
+    }
+    .mobile-header { display: none; padding: 12px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); align-items: center; gap: 12px; }
+    .menu-btn { background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; padding: 4px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <aside class="sidebar" id="sidebar">
+       <div class="sidebar-header">
+         <div class="logo">S</div>
+         <span class="sidebar-title">Ito</span>
+         <div class="sidebar-actions">
+           <button class="btn btn-secondary btn-icon active" id="mode-files" title="Browse files">Files</button>
+           <button class="btn btn-secondary btn-icon" id="mode-templates" title="View templates">Templates</button>
+         </div>
+       </div>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="file-tree" id="file-tree"></div>
+    </aside>
+    <main class="main">
+      <div class="mobile-header"><button class="menu-btn" id="menu-btn">☰</button><span id="mobile-filename">Ito</span></div>
+      <div class="editor-area" id="editor-area">
+        <div class="toolbar" id="toolbar" style="display: none;">
+          <span class="filename" id="filename"></span>
+          <span class="status" id="status"></span>
+          <button class="btn btn-secondary btn-icon" id="preview-btn" title="Toggle Preview" style="display: none;">👁</button>
+          <button class="btn btn-primary" id="save-btn" disabled>Save <kbd>⌘S</kbd></button>
+        </div>
+        <div class="editor-container" id="editor-container">
+          <div class="empty-state"><div class="icon">📂</div><p>Select a file to edit</p><p><kbd>⌘S</kbd> Save <kbd>⌘P</kbd> Preview <kbd>⌘`</kbd> Terminal</p></div>
+        </div>
+        <div class="preview-container" id="preview-container"></div>
+      </div>
+      <div class="terminal-panel" id="terminal-panel">
+        <div class="resize-handle" id="resize-handle"></div>
+        <div class="terminal-header">
+          <div class="terminal-tabs"><div class="terminal-tab active"><span class="indicator" id="terminal-indicator"></span>Terminal</div></div>
+          <div class="terminal-actions">
+            <button class="btn btn-secondary btn-icon" id="terminal-maximize" title="Maximize">⬜</button>
+            <button class="btn btn-secondary btn-icon" id="terminal-toggle" title="Minimize">−</button>
+          </div>
+        </div>
+        <div class="terminal-container"><div id="terminal"></div></div>
+      </div>
+    </main>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/rust/rust.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/toml/toml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/go/go.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.umd.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
+     .template-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+     .template-header { padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+     .template-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+     .template-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px 20px; overflow: hidden; }
+     .template-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+     .template-panel h3 { padding: 10px 12px; font-size: 12px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+     .template-panel textarea { flex: 1; min-height: 0; width: 100%; padding: 12px; background: transparent; color: var(--text); border: none; outline: none; resize: none; font-family: 'MesloLGS NF', 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+     .template-panel pre { flex: 1; min-height: 0; margin: 0; padding: 12px; overflow: auto; white-space: pre; font-family: 'MesloLGS NF', 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; color: var(--text); }
+     .template-output-md { flex: 1; min-height: 0; margin: 0; padding: 12px; overflow: auto; display: none; }
+     .template-output-md.visible { display: block; }
+     .template-output-md h1, .template-output-md h2, .template-output-md h3, .template-output-md h4 { margin: 1em 0 0.5em; }
+     .template-output-md code { background: var(--surface); padding: 2px 6px; border-radius: var(--radius-sm); }
+     .template-output-md pre { white-space: pre; }
+     .template-output-md pre code { background: none; padding: 0; }
+     @media (max-width: 1000px) { .template-grid { grid-template-columns: 1fr; } }

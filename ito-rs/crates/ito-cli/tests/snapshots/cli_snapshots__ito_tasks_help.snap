@@ -1,0 +1,41 @@
+---
+source: crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"tasks\", \"--help\"])"
+---
+Manage implementation tasks for a change
+
+Track task progress through status, start, complete, and shelve actions.
+Tasks are organized in waves for phased implementation. Use 'ready' to
+find actionable tasks across changes.
+
+Examples:
+  ito tasks status 005-01_add-auth
+  ito tasks next 005-01_add-auth
+  ito tasks ready
+  ito tasks ready 005-01_add-auth
+  ito tasks start 005-01_add-auth 1.1
+  ito tasks complete 005-01_add-auth 1.1
+
+Usage: ito tasks [OPTIONS] [COMMAND]
+
+Commands:
+  init      Create enhanced tasks.md
+  status    Show task progress
+  next      Show the next available task
+  ready     Show all ready tasks (pending tasks in earliest incomplete wave)
+  start     Mark a task in-progress
+  complete  Mark a task complete
+  shelve    Shelve a task (reversible)
+  unshelve  Restore a shelved task to pending
+  add       Add a new task (enhanced only)
+  show      Print tasks.md
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help (see a summary with '-h')

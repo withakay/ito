@@ -1,0 +1,17 @@
+[package]
+name = "ito-models"
+version = "0.24.0-local.202602051036"
+edition = "2021"
+description = "Model registry and agent management for Ito"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "2"
+ureq = { version = "3", features = ["json"] }
+
+[dev-dependencies]
+tempfile = "3"

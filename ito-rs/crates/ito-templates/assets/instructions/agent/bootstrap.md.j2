@@ -1,0 +1,97 @@
+# Ito Bootstrap Instructions
+
+This is a minimal bootstrap preamble for {{ tool }}. For complete workflow instructions, use the artifact-specific commands below.
+
+{% if tool == "opencode" %}
+## Tool-Specific Notes: OpenCode
+
+OpenCode provides MCP (Model Context Protocol) tools for file operations and task delegation:
+
+- **File Operations**: Use Read, Write, Edit, Glob, Grep tools for file manipulation
+- **Shell Commands**: Use Bash tool for git, npm, docker, etc.
+- **Task Delegation**: Use Task tool to launch specialized agents for complex subtasks
+- **Parallel Invocation**: You can call multiple independent tools in a single response for optimal performance
+
+When working with Ito changes, always prefer the dedicated tools over shell commands for file operations.
+
+{% elif tool == "claude" %}
+## Tool-Specific Notes: Claude Code
+
+Claude Code provides a comprehensive toolkit for development workflows:
+
+- **File Operations**: Use Read, Write, Edit tools for file manipulation
+- **Search**: Use Glob (file patterns) and Grep (content search) instead of shell commands
+- **Task Delegation**: Use Task tool to launch specialized agents for complex, multi-step work
+- **Shell Commands**: Use Bash tool for git, npm, docker, and other CLI operations
+- **Tool Routing**: Prefer specialized tools (Read/Write/Edit/Grep/Glob) over generic shell commands
+
+When implementing Ito changes, use the Task tool for independent subtasks and the dedicated file tools for code modifications.
+
+{% elif tool == "codex" %}
+## Tool-Specific Notes: Codex
+
+Codex is a shell-first environment with command execution as the primary interface:
+
+- **Shell Commands**: All operations are performed via shell commands
+- **File Operations**: Use standard Unix tools (cat, grep, find, sed, awk)
+- **Git Operations**: Direct git commands for version control
+- **Available Commands**: Standard Unix utilities, git, npm, make, and project-specific tools
+- **Bootstrap**: This bootstrap snippet is always included in your system prompt
+
+When working with Ito changes, use shell commands and standard Unix tools for all operations.
+
+{% endif %}
+
+## Retrieving Workflow Instructions
+
+To get detailed instructions for working with a Ito change, use these commands:
+
+### View Change Proposal
+```bash
+ito agent instruction proposal --change <change-id>
+```
+Shows the change proposal (why, what, impact).
+
+### View Specifications
+```bash
+ito agent instruction specs --change <change-id>
+```
+Shows the specification deltas for the change.
+
+### View Tasks
+```bash
+ito agent instruction tasks --change <change-id>
+```
+Shows the implementation task list.
+
+### Apply Instructions
+```bash
+ito agent instruction apply --change <change-id>
+```
+Shows comprehensive instructions for implementing the change, including:
+- Context files to read
+- Task progress tracking
+- Implementation guidance
+- Completion criteria
+
+### Review Instructions
+```bash
+ito agent instruction review --change <change-id>
+```
+Shows instructions for reviewing a completed change.
+
+### Archive Instructions
+```bash
+ito agent instruction archive --change <change-id>
+```
+Shows instructions for archiving a completed change and updating main specs.
+
+## Workflow Overview
+
+1. **Proposal Phase**: Read proposal.md to understand the change
+2. **Planning Phase**: Review specs/ deltas and tasks.md
+3. **Implementation Phase**: Use `apply` instructions to execute tasks
+4. **Review Phase**: Validate implementation against specs
+5. **Archive Phase**: Integrate changes into main specs
+
+All workflow content is centralized in the Ito CLI. Adapters should remain thin and delegate to these instruction artifacts.

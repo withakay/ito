@@ -1,0 +1,265 @@
+name: Update Homebrew Formula
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Version tag (e.g., v0.20.8)"
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag (e.g., v0.20.8)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update-formula:
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      TAP_REPO: withakay/homebrew-ito
+      FORMULA_PATH: Formula/ito.rb
+      OWNER_REPO: withakay/ito
+
+    concurrency:
+      group: formula-update
+      cancel-in-progress: false
+
+    steps:
+      - name: Derive tag + version
+        id: meta
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="$(
+              curl --fail --location --silent --show-error \
+                -H "Authorization: Bearer ${{ github.token }}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/${OWNER_REPO}/releases/latest" \
+              | jq -r '.tag_name'
+            )"
+          fi
+
+          if [ -z "${TAG}" ] || [ "${TAG}" = "null" ]; then
+            echo "Could not determine release tag; skipping."
+            exit 0
+          fi
+
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Latest release tag ($TAG) is not a vX.Y.Z tag; skipping."
+            exit 0
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute sha256 (release assets)
+        id: sha
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.meta.outputs.tag }}"
+          BASE="https://github.com/${OWNER_REPO}/releases/download/${TAG}"
+
+          MAC_X64_URL="$BASE/ito-${TAG}-x86_64-apple-darwin.tar.gz"
+          MAC_ARM64_URL="$BASE/ito-${TAG}-aarch64-apple-darwin.tar.gz"
+          LINUX_X64_URL="$BASE/ito-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
+          LINUX_ARM64_URL="$BASE/ito-${TAG}-aarch64-unknown-linux-gnu.tar.gz"
+
+          sha() {
+            local url="$1"
+            local attempt=1
+            local max_attempts=80
+            local sleep_seconds=15
+            local tmp
+
+            while [ "$attempt" -le "$max_attempts" ]; do
+              tmp="$(mktemp)"
+              if curl --fail --location --silent --show-error --output "$tmp" "$url"; then
+                if [ ! -s "$tmp" ]; then
+                  echo "Downloaded 0 bytes; waiting for asset: $url"
+                  rm -f "$tmp"
+                else
+                  sha256sum "$tmp" | awk '{print $1}'
+                  rm -f "$tmp"
+                  return 0
+                fi
+              else
+                rm -f "$tmp" || true
+              fi
+
+              echo "Waiting for release asset to become available ($attempt/$max_attempts): $url"
+              sleep "$sleep_seconds"
+              attempt=$((attempt + 1))
+            done
+
+            echo "Asset did not become available after $max_attempts attempts: $url"
+            return 1
+          }
+
+          echo "mac_x64_url=$MAC_X64_URL" >> "$GITHUB_OUTPUT"
+          echo "mac_arm64_url=$MAC_ARM64_URL" >> "$GITHUB_OUTPUT"
+          echo "linux_x64_url=$LINUX_X64_URL" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64_url=$LINUX_ARM64_URL" >> "$GITHUB_OUTPUT"
+
+          echo "mac_x64_sha256=$(sha "$MAC_X64_URL")" >> "$GITHUB_OUTPUT"
+          echo "mac_arm64_sha256=$(sha "$MAC_ARM64_URL")" >> "$GITHUB_OUTPUT"
+          echo "linux_x64_sha256=$(sha "$LINUX_X64_URL")" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64_sha256=$(sha "$LINUX_ARM64_URL")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tap (write-enabled)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TAP_REPO }}
+          ref: main
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          persist-credentials: false
+
+      - name: Update formula url/sha256
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.meta.outputs.version }}"
+
+          MAC_X64_URL="${{ steps.sha.outputs.mac_x64_url }}"
+          MAC_ARM64_URL="${{ steps.sha.outputs.mac_arm64_url }}"
+          LINUX_X64_URL="${{ steps.sha.outputs.linux_x64_url }}"
+          LINUX_ARM64_URL="${{ steps.sha.outputs.linux_arm64_url }}"
+
+          MAC_X64_SHA256="${{ steps.sha.outputs.mac_x64_sha256 }}"
+          MAC_ARM64_SHA256="${{ steps.sha.outputs.mac_arm64_sha256 }}"
+          LINUX_X64_SHA256="${{ steps.sha.outputs.linux_x64_sha256 }}"
+          LINUX_ARM64_SHA256="${{ steps.sha.outputs.linux_arm64_sha256 }}"
+
+          : "${VERSION:?missing version}"
+          : "${MAC_X64_URL:?missing mac x64 url}"
+          : "${MAC_ARM64_URL:?missing mac arm64 url}"
+          : "${LINUX_X64_URL:?missing linux x64 url}"
+          : "${LINUX_ARM64_URL:?missing linux arm64 url}"
+          : "${MAC_X64_SHA256:?missing mac x64 sha256}"
+          : "${MAC_ARM64_SHA256:?missing mac arm64 sha256}"
+          : "${LINUX_X64_SHA256:?missing linux x64 sha256}"
+          : "${LINUX_ARM64_SHA256:?missing linux arm64 sha256}"
+
+          export VERSION
+          export MAC_X64_URL MAC_X64_SHA256
+          export MAC_ARM64_URL MAC_ARM64_SHA256
+          export LINUX_X64_URL LINUX_X64_SHA256
+          export LINUX_ARM64_URL LINUX_ARM64_SHA256
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from string import Template
+
+          p = Path(os.environ["FORMULA_PATH"])
+
+          template = Template(
+              """# typed: false
+          # frozen_string_literal: true
+
+          class Ito < Formula
+            desc "Spec-driven workflow management for AI-assisted development"
+            homepage "https://github.com/withakay/ito"
+            license "MIT"
+            version "$version"
+
+            on_intel do
+              on_macos do
+                url "$mac_x64_url"
+                sha256 "$mac_x64_sha256"
+              end
+
+              on_linux do
+                url "$linux_x64_url"
+                sha256 "$linux_x64_sha256"
+              end
+            end
+
+            on_arm do
+              on_macos do
+                url "$mac_arm64_url"
+                sha256 "$mac_arm64_sha256"
+              end
+
+              on_linux do
+                url "$linux_arm64_url"
+                sha256 "$linux_arm64_sha256"
+              end
+            end
+
+            head "https://github.com/withakay/ito.git", branch: "main"
+
+            livecheck do
+              url :stable
+              strategy :github_latest
+            end
+
+            head do
+              depends_on "rust" => :build
+            end
+
+            def install
+              if build.head?
+                cd "ito-rs" do
+                  system "cargo", "install", *std_cargo_args(path: "crates/ito-cli")
+                end
+              else
+                bin.install "ito"
+              end
+            end
+
+            test do
+              output = shell_output("#{bin}/ito --version").strip
+              if build.head?
+                assert_match(/^\\d+\\.\\d+\\.\\d+/, output)
+              else
+                assert_match(/^#{Regexp.escape(version.to_s)}$$/, output)
+              end
+            end
+          end
+          """
+          )
+
+          mapping = {
+              "version": os.environ["VERSION"],
+              "mac_x64_url": os.environ["MAC_X64_URL"],
+              "mac_x64_sha256": os.environ["MAC_X64_SHA256"],
+              "mac_arm64_url": os.environ["MAC_ARM64_URL"],
+              "mac_arm64_sha256": os.environ["MAC_ARM64_SHA256"],
+              "linux_x64_url": os.environ["LINUX_X64_URL"],
+              "linux_x64_sha256": os.environ["LINUX_X64_SHA256"],
+              "linux_arm64_url": os.environ["LINUX_ARM64_URL"],
+              "linux_arm64_sha256": os.environ["LINUX_ARM64_SHA256"],
+          }
+
+          p.write_text(template.substitute(mapping), encoding="utf-8")
+          PY
+
+          ruby -c "${FORMULA_PATH}"
+          grep -En '^\s*(url|sha256|version)\s*"' "${FORMULA_PATH}"
+
+      - name: Commit & push to main
+        env:
+          GH_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GH_NAME: github-actions[bot]
+        run: |
+          set -euo pipefail
+          git config user.email "$GH_EMAIL"
+          git config user.name "$GH_NAME"
+          if git diff --quiet -- "${FORMULA_PATH}"; then
+            echo "No changes to commit; skipping push."
+            exit 0
+          fi
+          git add "${FORMULA_PATH}"
+          git commit -m "ito ${{ steps.meta.outputs.version }}: bump formula"
+          git remote set-url origin "https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/${{ env.TAP_REPO }}.git"
+          git pull --rebase origin main
+          git push origin HEAD:main

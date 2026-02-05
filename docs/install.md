@@ -1,0 +1,30 @@
+# Installation
+
+## Homebrew (macOS)
+
+```bash
+brew tap withakay/ito
+brew install ito
+ito --version
+```
+
+## Prebuilt Binary (macOS/Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/withakay/ito/main/scripts/install.sh | sh
+ito --version
+```
+
+## Build From Source
+
+```bash
+make rust-install
+ito --version
+```
+
+## npm (optional)
+
+```bash
+npm install -g @withakay/ito
+ito --version
+```

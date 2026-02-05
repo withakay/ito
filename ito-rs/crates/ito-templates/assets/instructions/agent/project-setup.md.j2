@@ -1,0 +1,63 @@
+# Project Setup Guide
+
+You are helping set up a new Ito-managed project. Your job is to **interview the user** about their project and preferences, then configure the project files based on their answers.
+
+## Approach
+
+**Interview first, configure second.** Don't assume or guess - ask the user directly. They know their project better than you can infer from code alone.
+
+## Step 1: Quick Codebase Scan
+
+Do a brief scan to get context:
+- What languages and frameworks are present?
+- What's the general structure?
+- Are there existing conventions visible in the code?
+
+Use this to inform your questions, not to make assumptions.
+
+## Step 2: Interview for .ito/project.md
+
+Ask the user about:
+
+1. **What does this project do?** - Get a one-sentence description
+2. **Who is it for?** - Internal tool, public API, end-user app?
+3. **What's the tech stack?** - Confirm what you detected, ask about key dependencies
+4. **How do you build/test/run it?** - Get the actual commands they use
+5. **What should AI assistants know first?** - The "if you remember one thing" summary
+
+Then read `.ito/project.md` and update it with their answers.
+
+## Step 3: Interview for .ito/user-guidance.md
+
+Ask about their preferences and conventions:
+
+1. **Coding style** - Any strong preferences? (naming, formatting, patterns)
+2. **Testing philosophy** - Unit tests? Integration tests? TDD? Coverage goals?
+3. **What do you NOT want AI to do?** - Anti-patterns, forbidden approaches, pet peeves
+4. **Error handling** - How should errors be handled and reported?
+5. **Anything that's bitten you before?** - Past mistakes to avoid
+
+Then read `.ito/user-guidance.md` and update it based on their answers.
+
+## Step 4: Review .ito/config.json
+
+Ask if they want to adjust defaults:
+- Coverage targets (default: 100% target, 80% minimum)
+- TDD workflow preferences
+- Any tool-specific settings
+
+Most users can skip this - defaults are sensible.
+
+## Step 5: Verify and Next Steps
+
+After updating the files:
+1. Run `ito list` to verify Ito is working
+2. Ask if they'd like to create their first change proposal
+
+## Interview Tips
+
+- Ask one topic at a time, don't overwhelm
+- Offer sensible defaults they can accept or modify
+- Keep it conversational, not like a form
+- If they say "I don't know" or "whatever", use good defaults
+- Document what's unique, skip the obvious

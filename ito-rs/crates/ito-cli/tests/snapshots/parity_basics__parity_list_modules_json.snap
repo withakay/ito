@@ -1,0 +1,21 @@
+---
+source: crates/ito-cli/tests/parity_basics.rs
+assertion_line: 86
+expression: rs.stdout
+---
+{
+  "modules": [
+    {
+      "id": "000",
+      "name": "ungrouped",
+      "fullName": "000_ungrouped",
+      "changeCount": 1
+    },
+    {
+      "id": "006",
+      "name": "ito-rs-port",
+      "fullName": "006_ito-rs-port",
+      "changeCount": 2
+    }
+  ]
+}
