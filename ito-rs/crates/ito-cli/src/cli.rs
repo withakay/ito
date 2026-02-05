@@ -1025,6 +1025,18 @@ pub struct RalphArgs {
     #[arg(long = "completion-promise", default_value = "COMPLETE")]
     pub completion_promise: String,
 
+    /// Skip completion validation (tasks + project checks/tests)
+    ///
+    /// When set, Ralph trusts the completion promise and exits immediately.
+    #[arg(long = "skip-validation")]
+    pub skip_validation: bool,
+
+    /// Extra validation command to run on completion promise
+    ///
+    /// Runs after the project validation steps.
+    #[arg(long = "validation-command")]
+    pub validation_command: Option<String>,
+
     /// Allow all tool actions (dangerous)
     #[arg(long = "allow-all", alias = "yolo", alias = "dangerously-allow-all")]
     pub allow_all: bool,

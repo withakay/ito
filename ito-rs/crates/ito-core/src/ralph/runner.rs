@@ -4,6 +4,7 @@ use crate::ralph::state::{
     RalphHistoryEntry, RalphState, append_context, clear_context, load_context, load_state,
     save_state,
 };
+use crate::ralph::validation;
 use ito_harness::{Harness, HarnessName};
 use miette::{Result, miette};
 use std::path::{Path, PathBuf};
@@ -57,6 +58,16 @@ pub struct RalphOptions {
 
     /// Inactivity timeout - restart iteration if no output for this duration.
     pub inactivity_timeout: Option<Duration>,
+
+    /// Skip all completion validation.
+    ///
+    /// When set, the loop trusts the completion promise and exits immediately.
+    pub skip_validation: bool,
+
+    /// Additional validation command to run when a completion promise is detected.
+    ///
+    /// This runs after the project validation steps.
+    pub validation_command: Option<String>,
 }
 
 /// Run the Ralph loop until a completion promise is detected.
@@ -147,6 +158,8 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
     }
     println!();
 
+    let mut last_validation_failure: Option<String> = None;
+
     for _ in 0..max_iters {
         let iteration = state.iteration.saturating_add(1);
 
@@ -164,6 +177,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
                 min_iterations: opts.min_iterations,
                 completion_promise: opts.completion_promise.clone(),
                 context_content: Some(context_content),
+                validation_failure: last_validation_failure.clone(),
             },
         )?;
 
@@ -194,8 +208,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         }
 
         // Mirror TS: completion promise is detected from stdout (not stderr).
-        let needle = format!("<promise>{}</promise>", opts.completion_promise);
-        let completion_found = run.stdout.contains(&needle);
+        let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
         let file_changes_count = if harness.name() == HarnessName::OPENCODE {
             count_git_changes()? as u32
@@ -234,15 +247,113 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         save_state(ito_path, &change_id, &state)?;
 
         if completion_found && iteration >= opts.min_iterations {
+            if opts.skip_validation {
+                println!("\n=== Warning: --skip-validation set. Completion is not verified. ===\n");
+                println!(
+                    "\n=== Completion promise \"{p}\" detected. Loop complete. ===\n",
+                    p = opts.completion_promise
+                );
+                return Ok(());
+            }
+
+            let report =
+                validate_completion(ito_path, &change_id, opts.validation_command.as_deref())?;
+            if report.passed {
+                println!(
+                    "\n=== Completion promise \"{p}\" detected (validated). Loop complete. ===\n",
+                    p = opts.completion_promise
+                );
+                return Ok(());
+            }
+
+            last_validation_failure = Some(report.context_markdown);
             println!(
-                "\n=== Completion promise \"{p}\" detected. Loop complete. ===\n",
-                p = opts.completion_promise
+                "\n=== Completion promise detected, but validation failed. Continuing... ===\n"
             );
-            return Ok(());
         }
     }
 
     Ok(())
+}
+
+#[derive(Debug)]
+struct CompletionValidationReport {
+    passed: bool,
+    context_markdown: String,
+}
+
+fn validate_completion(
+    ito_path: &Path,
+    change_id: &str,
+    extra_command: Option<&str>,
+) -> Result<CompletionValidationReport> {
+    let mut passed = true;
+    let mut sections: Vec<String> = Vec::new();
+
+    let task = validation::check_task_completion(ito_path, change_id)?;
+    sections.push(render_validation_result("Ito task status", &task));
+    if !task.success {
+        passed = false;
+    }
+
+    let timeout = Duration::from_secs(5 * 60);
+    let project = validation::run_project_validation(ito_path, timeout)?;
+    sections.push(render_validation_result("Project validation", &project));
+    if !project.success {
+        passed = false;
+    }
+
+    if let Some(cmd) = extra_command {
+        let project_root = ito_path.parent().unwrap_or_else(|| Path::new("."));
+        let extra = validation::run_extra_validation(project_root, cmd, timeout)?;
+        sections.push(render_validation_result("Extra validation", &extra));
+        if !extra.success {
+            passed = false;
+        }
+    }
+
+    Ok(CompletionValidationReport {
+        passed,
+        context_markdown: sections.join("\n\n"),
+    })
+}
+
+fn render_validation_result(title: &str, r: &validation::ValidationResult) -> String {
+    let mut md = String::new();
+    md.push_str(&format!("### {title}\n\n"));
+    md.push_str(&format!(
+        "- Result: {}\n",
+        if r.success { "PASS" } else { "FAIL" }
+    ));
+    md.push_str(&format!("- Summary: {}\n", r.message.trim()));
+    if let Some(out) = r.output.as_deref() {
+        let out = out.trim();
+        if !out.is_empty() {
+            md.push_str("\nOutput:\n\n```text\n");
+            md.push_str(out);
+            md.push_str("\n```\n");
+        }
+    }
+    md
+}
+
+fn completion_promise_found(stdout: &str, token: &str) -> bool {
+    let mut rest = stdout;
+    loop {
+        let Some(start) = rest.find("<promise>") else {
+            return false;
+        };
+        let after_start = &rest[start + "<promise>".len()..];
+        let Some(end) = after_start.find("</promise>") else {
+            return false;
+        };
+        let inner = &after_start[..end];
+        if inner.trim() == token {
+            return true;
+        }
+
+        rest = &after_start[end + "</promise>".len()..];
+    }
 }
 
 fn resolve_target(

@@ -71,6 +71,12 @@ fn write_fixture_ito(ito_path: &Path, change_id: &str) {
     std::fs::write(module_dir.join("module.md"), "# 006_ito-rs-port\n").unwrap();
 }
 
+fn write_tasks(ito_path: &Path, change_id: &str, contents: &str) {
+    let dir = ito_path.join("changes").join(change_id);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("tasks.md"), contents).unwrap();
+}
+
 fn default_opts() -> RalphOptions {
     RalphOptions {
         prompt: "do the thing".to_string(),
@@ -88,7 +94,100 @@ fn default_opts() -> RalphOptions {
         clear_context: false,
         verbose: false,
         inactivity_timeout: None,
+        skip_validation: false,
+        validation_command: None,
     }
+}
+
+#[test]
+fn run_ralph_completion_promise_trims_whitespace() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![(
+            ("<promise>\n  COMPLETE\n</promise>\n").to_string(),
+            String::new(),
+            0,
+        )],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.min_iterations = 1;
+    opts.max_iterations = Some(1);
+    run_ralph(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 1);
+}
+
+#[test]
+fn run_ralph_continues_when_completion_validation_fails() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+    write_tasks(
+        &ito,
+        "006-09_fixture",
+        "# Tasks\n\n- [x] done\n- [ ] todo\n",
+    );
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+            ("still working\n".to_string(), String::new(), 0),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.min_iterations = 1;
+    opts.max_iterations = Some(2);
+    run_ralph(&ito, opts, &mut h).unwrap();
+
+    // If validation incorrectly allowed completion, the loop would exit after 1 run.
+    assert_eq!(h.idx, 2);
+
+    let raw = std::fs::read_to_string(ito.join(".state/ralph/006-09_fixture/state.json")).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    assert_eq!(v.get("iteration").and_then(|v| v.as_u64()).unwrap(), 2);
+}
+
+#[test]
+fn run_ralph_skip_validation_exits_immediately() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+    write_tasks(&ito, "006-09_fixture", "# Tasks\n\n- [ ] todo\n");
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+            ("should not run\n".to_string(), String::new(), 0),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.min_iterations = 1;
+    opts.max_iterations = Some(2);
+    opts.skip_validation = true;
+    run_ralph(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 1);
 }
 
 #[test]

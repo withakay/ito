@@ -30,6 +30,11 @@ pub struct BuildPromptOptions {
 
     /// Optional additional context injected mid-loop.
     pub context_content: Option<String>,
+
+    /// Optional validation failure output from the previous iteration.
+    ///
+    /// When present, the prompt includes a section explaining completion was rejected.
+    pub validation_failure: Option<String>,
 }
 
 /// Build the standard Ralph preamble for a given iteration.
@@ -42,6 +47,7 @@ pub fn build_prompt_preamble(
     min_iterations: u32,
     completion_promise: &str,
     context_content: Option<&str>,
+    validation_failure: Option<&str>,
     task: &str,
 ) -> String {
     let has_finite_max = max_iterations.is_some_and(|v| v > 0);
@@ -55,6 +61,16 @@ pub fn build_prompt_preamble(
         )
     };
 
+    let normalized_validation = validation_failure.unwrap_or("").trim();
+    let validation_section = if normalized_validation.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "\n## Validation Failure (completion rejected)\n\nRalph detected a completion promise, but it was rejected because validation failed. Fix the issues below and try again.\n\n{v}\n\n---\n",
+            v = normalized_validation
+        )
+    };
+
     let max_str = if has_finite_max {
         format!(" / {}", max_iterations.unwrap())
     } else {
@@ -62,9 +78,10 @@ pub fn build_prompt_preamble(
     };
 
     format!(
-        "# Ralph Wiggum Loop - Iteration {iteration}\n\nYou are in an iterative development loop. Work on the task below until you can genuinely complete it.\n{context_section}## Your Task\n\n{task}\n\n## Instructions\n\n1. Read the current state of files to understand what's been done\n2. **Update your todo list** - Use the TodoWrite tool to track progress and plan remaining work\n3. Make progress on the task\n4. Run tests/verification if applicable\n5. When the task is GENUINELY COMPLETE, output:\n   <promise>{completion_promise}</promise>\n\n## Critical Rules\n\n- ONLY output <promise>{completion_promise}</promise> when the task is truly done\n- Do NOT lie or output false promises to exit the loop\n- If stuck, try a different approach\n- Check your work before claiming completion\n- The loop will continue until you succeed\n- **IMPORTANT**: Update your todo list at the start of each iteration to show progress\n\n## AUTONOMY REQUIREMENTS (CRITICAL)\n\n- **DO NOT ASK QUESTIONS** - This is an autonomous loop with no human interaction\n- **DO NOT USE THE QUESTION TOOL** - Work independently without prompting for input\n- Make reasonable assumptions when information is missing\n- Use your best judgment to resolve ambiguities\n- If multiple approaches exist, choose the most reasonable one and proceed\n- The orchestrator cannot respond to questions - you must be self-sufficient\n- Trust your training and make decisions autonomously\n\n## Current Iteration: {iteration}{max_str} (min: {min_iterations})\n\nNow, work on the task autonomously. Good luck!",
+        "# Ralph Wiggum Loop - Iteration {iteration}\n\nYou are in an iterative development loop. Work on the task below until you can genuinely complete it.\n\nImportant: Ralph validates completion promises before exiting (tasks + project checks/tests).\n{context_section}{validation_section}## Your Task\n\n{task}\n\n## Instructions\n\n1. Read the current state of files to understand what's been done\n2. **Update your todo list** - Use the TodoWrite tool to track progress and plan remaining work\n3. Make progress on the task\n4. Run tests/verification if applicable\n5. When the task is GENUINELY COMPLETE, output:\n   <promise>{completion_promise}</promise>\n\n## Critical Rules\n\n- ONLY output <promise>{completion_promise}</promise> when the task is truly done\n- Do NOT lie or output false promises to exit the loop\n- If stuck, try a different approach\n- Check your work before claiming completion\n- The loop will continue until you succeed\n- **IMPORTANT**: Update your todo list at the start of each iteration to show progress\n\n## AUTONOMY REQUIREMENTS (CRITICAL)\n\n- **DO NOT ASK QUESTIONS** - This is an autonomous loop with no human interaction\n- **DO NOT USE THE QUESTION TOOL** - Work independently without prompting for input\n- Make reasonable assumptions when information is missing\n- Use your best judgment to resolve ambiguities\n- If multiple approaches exist, choose the most reasonable one and proceed\n- The orchestrator cannot respond to questions - you must be self-sufficient\n- Trust your training and make decisions autonomously\n\n## Current Iteration: {iteration}{max_str} (min: {min_iterations})\n\nNow, work on the task autonomously. Good luck!",
         iteration = iteration,
         context_section = context_section,
+        validation_section = validation_section,
         task = task,
         completion_promise = completion_promise,
         max_str = max_str,
@@ -104,6 +121,7 @@ pub fn build_ralph_prompt(
             options.min_iterations,
             &options.completion_promise,
             options.context_content.as_deref(),
+            options.validation_failure.as_deref(),
             &task,
         )
         .trim()

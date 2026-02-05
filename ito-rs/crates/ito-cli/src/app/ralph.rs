@@ -47,6 +47,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     | "--min-iterations"
                     | "--max-iterations"
                     | "--completion-promise"
+                    | "--validation-command"
                     | "--add-context"
                     | "--timeout"
                     | "--stub-script"
@@ -64,6 +65,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 || a.starts_with("--min-iterations=")
                 || a.starts_with("--max-iterations=")
                 || a.starts_with("--completion-promise=")
+                || a.starts_with("--validation-command=")
                 || a.starts_with("--add-context=")
                 || a.starts_with("--timeout=")
                 || a.starts_with("--stub-script=")
@@ -93,6 +95,9 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let max_iterations = parse_u32_flag(args, "--max-iterations");
     let completion_promise =
         parse_string_flag(args, "--completion-promise").unwrap_or_else(|| "COMPLETE".to_string());
+
+    let skip_validation = args.iter().any(|a| a == "--skip-validation");
+    let validation_command = parse_string_flag(args, "--validation-command");
 
     let allow_all = args.iter().any(|a| {
         matches!(
@@ -179,6 +184,8 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         clear_context,
         verbose,
         inactivity_timeout,
+        skip_validation,
+        validation_command,
     };
 
     core_ralph::run_ralph(ito_path, opts, harness_impl.as_mut()).map_err(to_cli_error)?;
@@ -220,6 +227,14 @@ fn ralph_args_to_argv(args: &RalphArgs) -> Vec<String> {
     }
     argv.push("--completion-promise".to_string());
     argv.push(args.completion_promise.clone());
+
+    if args.skip_validation {
+        argv.push("--skip-validation".to_string());
+    }
+    if let Some(cmd) = &args.validation_command {
+        argv.push("--validation-command".to_string());
+        argv.push(cmd.clone());
+    }
     if args.allow_all {
         argv.push("--allow-all".to_string());
     }

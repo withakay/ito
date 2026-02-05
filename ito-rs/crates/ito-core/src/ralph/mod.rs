@@ -15,5 +15,8 @@ pub mod runner;
 /// On-disk state for the Ralph loop.
 pub mod state;
 
+/// Completion validation for Ralph.
+pub mod validation;
+
 pub use duration::{format_duration, parse_duration};
 pub use runner::{RalphOptions, run_ralph};
