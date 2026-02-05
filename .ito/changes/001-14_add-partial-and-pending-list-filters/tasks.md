@@ -82,7 +82,7 @@ ______________________________________________________________________
 - **Files**:
   - ito-rs/crates/ito-templates/assets/default/project/AGENTS.md
   - ito-rs/crates/ito-templates/assets/skills/ito-archive/SKILL.md
-- **Dependencies**: Task 1.2
+- **Dependencies**: None
 - **Action**:
   Update the default agent instructions and relevant skill templates to reference the new `ito list` progress filters (`--pending`, `--partial`, `--completed`).
 - **Verify**: `cargo build --package ito-templates`

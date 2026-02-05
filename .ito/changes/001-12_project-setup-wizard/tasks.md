@@ -83,7 +83,7 @@ ______________________________________________________________________
   - `ito-rs/crates/ito-templates/assets/default/project/AGENTS.md`
   - `ito-rs/crates/ito-templates/assets/default/project/CLAUDE.md`
   - `ito-rs/crates/ito-templates/assets/default/project/.codex/instructions/*` (if needed)
-- **Dependencies**: Task 1.2
+- **Dependencies**: None
 - **Action**:
   - Mention `/ito-project-setup` and `ito agent instruction project-setup`.
   - Briefly describe what outputs it produces (Makefile/PowerShell script + project marker).
