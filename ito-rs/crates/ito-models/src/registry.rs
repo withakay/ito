@@ -34,41 +34,41 @@ impl ModelRegistry {
         };
 
         // Try cache first (unless force refresh)
-        if !options.force_refresh {
-            if let Some(cached) = self.cache.load() {
-                let stale = self.cache.is_stale(ttl_hours);
+        if !options.force_refresh
+            && let Some(cached) = self.cache.load()
+        {
+            let stale = self.cache.is_stale(ttl_hours);
 
-                // If cache is fresh, use it
-                if !stale {
+            // If cache is fresh, use it
+            if !stale {
+                return Ok(RegistryLoad {
+                    updated_at: cached.updated_at,
+                    source: ModelSource::Cache,
+                    stale: false,
+                    models: cached.models,
+                });
+            }
+
+            // Cache is stale, try to refresh
+            match self.client.fetch_models() {
+                Ok(models) => {
+                    // Save to cache
+                    let _ = self.cache.save(&models);
+                    return Ok(RegistryLoad {
+                        updated_at: chrono::Utc::now(),
+                        source: ModelSource::Api,
+                        stale: false,
+                        models,
+                    });
+                }
+                Err(_) => {
+                    // API failed, use stale cache
                     return Ok(RegistryLoad {
                         updated_at: cached.updated_at,
                         source: ModelSource::Cache,
-                        stale: false,
+                        stale: true,
                         models: cached.models,
                     });
-                }
-
-                // Cache is stale, try to refresh
-                match self.client.fetch_models() {
-                    Ok(models) => {
-                        // Save to cache
-                        let _ = self.cache.save(&models);
-                        return Ok(RegistryLoad {
-                            updated_at: chrono::Utc::now(),
-                            source: ModelSource::Api,
-                            stale: false,
-                            models,
-                        });
-                    }
-                    Err(_) => {
-                        // API failed, use stale cache
-                        return Ok(RegistryLoad {
-                            updated_at: cached.updated_at,
-                            source: ModelSource::Cache,
-                            stale: true,
-                            models: cached.models,
-                        });
-                    }
                 }
             }
         }

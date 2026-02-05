@@ -1,9 +1,9 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{fail, CliResult};
+use crate::cli_error::{CliResult, fail};
 use crate::runtime::Runtime;
 use crate::{commands, util};
-use clap::error::ErrorKind;
 use clap::Parser;
+use clap::error::ErrorKind;
 
 pub(super) fn run(args: &[String]) -> CliResult<()> {
     // Match TS behavior: `--no-color` sets NO_COLOR=1 globally before command execution.

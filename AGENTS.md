@@ -151,9 +151,17 @@ let (completed, total) = task_repo.get_task_counts("005-01_foo")?;
 - Use `core_paths::change_dir()` for data access (use for path construction only)
 - Duplicate task counting logic
 
-## Coding conventions
+## Coding Conventions
 
-When working in the Rust codebase use the skill `rust-style` to guide naming, structuring, and formatting etc.
+When working in the Rust codebase, follow the project's Rust style guide at `.ito/user-rust-style.md`. This covers:
+
+- Control flow patterns (for loops over iterators, let-else for early returns)
+- Pattern matching (if-let chains, explicit matching, no wildcards)
+- Variable naming (shadowing over renaming)
+- Type safety (newtypes, enums over bools)
+- Documentation requirements (all public APIs must be documented)
+
+You can also use the skill `rust-style` for additional guidance.
 
 **Guiding Principles**:
 
@@ -162,4 +170,4 @@ When working in the Rust codebase use the skill `rust-style` to guide naming, st
 - DRY: Avoid duplication by abstracting common patterns into reusable functions, modules or crates.
 - Idiomatic Rust: Follow Rust best practices and conventions for safety, performance, and readability.
 - Comprehensive Testing: Write tests for new features and edge cases to ensure reliability.
-- Documentation: Document public APIs, complex logic, and usage examples to aid future maintainers.
+- Documentation: Document public APIs with genuinely useful context, not perfunctory parameter lists. Run `make docs` to verify.

@@ -11,7 +11,7 @@ RUST_WARNINGS_AS_ERRORS ?= -D warnings
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install \
-	dev
+	dev docs docs-open
 
 init: ## Initialize development environment (check rust, install prek hooks)
 	@set -e; \
@@ -254,6 +254,12 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 		echo "Install: cargo install release-plz"; \
 		exit 1; \
 	fi
+
+docs: ## Build Rust documentation (warns on missing docs)
+	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path ito-rs/Cargo.toml --workspace --no-deps
+
+docs-open: ## Build and open Rust documentation in browser
+	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path ito-rs/Cargo.toml --workspace --no-deps --open
 
 clean: ## Remove build artifacts
 	rm -rf ito-rs/target

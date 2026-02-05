@@ -17,16 +17,16 @@ mod types;
 mod update;
 
 pub use agent::{AgentFile, AgentFrontmatter, AgentScope, AgentTier, Harness};
-pub use compare::{compare_models, ComparisonResult, ModelComparison};
-pub use discovery::{discover_agents, filter_by_harness, filter_ito_agents, DiscoveryOptions};
+pub use compare::{ComparisonResult, ModelComparison, compare_models};
+pub use discovery::{DiscoveryOptions, discover_agents, filter_by_harness, filter_ito_agents};
 pub use registry::{CostTier, ModelRegistry, RegistryError};
 pub use rollback::{
-    find_backup_files, restore_from_backup, rollback_all, RollbackError, RollbackResult,
+    RollbackError, RollbackResult, find_backup_files, restore_from_backup, rollback_all,
 };
 pub use types::{
     LoadOptions, Modality, Model, ModelCapability, ModelModalities, ModelSource, Provider,
     RegistryLoad,
 };
 pub use update::{
-    update_agent_model, update_agents_batch, BatchUpdateOptions, UpdateError, UpdateResult,
+    BatchUpdateOptions, UpdateError, UpdateResult, update_agent_model, update_agents_batch,
 };

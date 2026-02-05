@@ -14,12 +14,32 @@ fn make_fixture_repo() -> tempfile::TempDir {
 
 fn normalize_version(text: String) -> String {
     // The CLI prints the workspace version (via build.rs) when available.
-    // Snapshot tests should normalize either source.
+    // Debug builds also include git SHA suffix like "(abc1234-dirty)".
+    // Snapshot tests should normalize all version-related output.
     let mut out = text;
     if let Some(ver) = option_env!("ITO_WORKSPACE_VERSION") {
         out = out.replace(ver, "<VERSION>");
     }
-    out.replace(env!("CARGO_PKG_VERSION"), "<VERSION>")
+    out = out.replace(env!("CARGO_PKG_VERSION"), "<VERSION>");
+
+    // Strip git SHA suffix from debug builds: "<VERSION> (abc1234)" or "<VERSION> (abc1234-dirty)"
+    // Simple approach: if we find " (" followed by hex chars and optional "-dirty", strip it
+    if let Some(pos) = out.find(" (")
+        && let Some(close_pos) = out[pos..].find(')')
+    {
+        let content = &out[pos + 2..pos + close_pos];
+        // Check if content is hex digits optionally followed by "-dirty"
+        let is_git_sha = if let Some(dash_pos) = content.find('-') {
+            content[..dash_pos].chars().all(|c| c.is_ascii_hexdigit())
+                && &content[dash_pos..] == "-dirty"
+        } else {
+            content.chars().all(|c| c.is_ascii_hexdigit())
+        };
+        if is_git_sha {
+            out = out[..pos].to_string();
+        }
+    }
+    out
 }
 
 fn normalize_trailing_whitespace(text: String) -> String {
