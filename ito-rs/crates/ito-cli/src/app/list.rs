@@ -326,7 +326,9 @@ fn is_partial(s: &ito_domain::changes::ChangeSummary) -> bool {
     matches!(
         s.work_status(),
         ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.completed_tasks > 0
+    ) && s.total_tasks > 0
+        && s.completed_tasks > 0
+        && s.completed_tasks < s.total_tasks
 }
 
 fn is_pending(s: &ito_domain::changes::ChangeSummary) -> bool {
@@ -334,7 +336,8 @@ fn is_pending(s: &ito_domain::changes::ChangeSummary) -> bool {
     matches!(
         s.work_status(),
         ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.completed_tasks == 0
+    ) && s.total_tasks > 0
+        && s.completed_tasks == 0
 }
 
 fn format_relative_time(then: DateTime<Utc>) -> String {
@@ -368,9 +371,10 @@ fn format_relative_time(then: DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_relative_time, format_task_status, is_completed, is_partial, is_pending,
-        parse_sort_order,
+        format_relative_time, format_task_status, handle_list, is_completed, is_partial,
+        is_pending, parse_sort_order,
     };
+    use crate::runtime::Runtime;
     use chrono::{Duration, Utc};
 
     #[test]
@@ -467,6 +471,10 @@ mod tests {
         assert!(!is_pending(&s));
         assert!(!is_completed(&s));
 
+        // Not partial when 0 tasks are complete
+        let s = make_summary(0, 0, 0, 3, 3);
+        assert!(!is_partial(&s));
+
         // All completed
         let s = make_summary(3, 0, 0, 0, 3);
         assert!(is_completed(&s));
@@ -478,6 +486,17 @@ mod tests {
         assert!(is_completed(&s)); // Paused counts as "completed" for filtering
         assert!(!is_partial(&s));
         assert!(!is_pending(&s));
+    }
+
+    #[test]
+    fn progress_filter_flags_are_mutually_exclusive() {
+        let rt = Runtime::new();
+        let args = vec!["--pending".to_string(), "--partial".to_string()];
+        let err = handle_list(&rt, &args).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Flags --completed, --partial, and --pending are mutually exclusive."
+        );
     }
 
     #[test]

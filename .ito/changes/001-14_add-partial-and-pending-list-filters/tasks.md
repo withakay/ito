@@ -28,8 +28,8 @@ ______________________________________________________________________
   Add `--partial` and `--pending` boolean flags to the `ListArgs` struct. Configure clap to make them mutually exclusive with `--completed` and each other using conflict groups.
 - **Verify**: `cargo build --package ito-cli`
 - **Done When**: CLI compiles with new flags visible in `ito list --help`
-- **Updated At**: 2026-02-03
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-05
+- **Status**: [x] complete
 
 ### Task 1.2: Implement filtering logic
 
@@ -42,8 +42,8 @@ ______________________________________________________________________
   Ensure changes with no tasks (total == 0) are excluded from both filters.
 - **Verify**: `cargo test --package ito-cli`
 - **Done When**: Filtering logic implemented and existing tests pass
-- **Updated At**: 2026-02-03
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-05
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -63,8 +63,8 @@ ______________________________________________________________________
   - Mutual exclusivity error messages
 - **Verify**: `cargo test --package ito-cli`
 - **Done When**: All new tests pass
-- **Updated At**: 2026-02-03
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-05
+- **Status**: [x] complete
 
 ### Task 2.2: Run make check
 
@@ -74,8 +74,8 @@ ______________________________________________________________________
   Run `make check` to verify code quality (fmt, clippy, tests).
 - **Verify**: `make check`
 - **Done When**: All checks pass
-- **Updated At**: 2026-02-03
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-05
+- **Status**: [x] complete
 
 ### Task 2.3: Update agent instructions and skill templates
 
@@ -87,8 +87,8 @@ ______________________________________________________________________
   Update the default agent instructions and relevant skill templates to reference the new `ito list` progress filters (`--pending`, `--partial`, `--completed`).
 - **Verify**: `cargo build --package ito-templates`
 - **Done When**: Templates mention the new flags and build succeeds
-- **Updated At**: 2026-02-03
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-05
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
