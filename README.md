@@ -12,10 +12,11 @@
 - Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
 - Intention/Aim (意図): Often used in the context of plans, aims, or intent.
 
+Ito is a Change Driven development tool that brings together project-centric planning, design, specifications and tasks with an emphasis on **long-running, multi-agent tasks** to AI coding agents.
 
-Ito is a Spec Driven development tool that bring project-centric planning and an emphasis on **long-running, multi-agent tasks** to AI coding agents.
+It's designed for the type of AI-assisted development where work spans multiple sessions, needs explicit verification criteria, and benefits from parallel subagents. The approach draws inspiration from software development best practices, Easy Approach to Requirements Syntax and RFCs adapted for the challenges of AI-assisted coding.
 
-It's designed for the type of AI-assisted development where work spans multiple sessions, needs explicit verification criteria, and benefits from parallel subagents. The approach draws inspiration f[...]
+Ito is not a project management tool, but rather a lightweight, flexible framework for structuring and orchestrating the work itself. It provides templates, conventions, and automation to help you plan, execute, and review changes in a way that tries to align with AI agents abilites. It tries to strike a balance between structure and flexibility, providing enough scaffolding to be useful without stiffling the ag.
 
 ## What You Get
 
@@ -25,7 +26,14 @@ It's designed for the type of AI-assisted development where work spans multiple 
 - Agent configuration: per-tool models + context budgets (`config.json`)
 - Workflow orchestration: YAML workflows with waves + checkpoints, plus execution status tracking
 - Unified "research" and "adversarial review" workflows available as slash commands in supported tools
-- Ito agent skills installed automatically during init
+- Ito agent skills installed automatically during repositiroy inititialisaton
+- Built in Ralph loop - create a change proposal and then use `ito ralph` to execute it in a loop with the agent, tracking progress and updating the proposal as you go.
+- Docs server *:
+  - `ito serve` to browse `.ito/` artifacts and project docs over HTTP.
+  - Integrates with Tailscale for secure remote access, allows for a remote terminal based workflow in a cheap VM with easy access to documents in the browser.
+  - Embedded terminal in the docs UI for quick commands.
+
+*It is pretty easy to accidentally expose sensitive info with the docs server, so it is opt-in and requires explicit configuration. Use with caution and consider running in a separate VM if you want remote access.
 
 ## Quick Start
 
