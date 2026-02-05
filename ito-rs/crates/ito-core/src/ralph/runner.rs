@@ -1,11 +1,12 @@
 use crate::ralph::duration::format_duration;
-use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
+use crate::ralph::prompt::{build_ralph_prompt, BuildPromptOptions};
 use crate::ralph::state::{
-    RalphHistoryEntry, RalphState, append_context, clear_context, load_context, load_state,
-    save_state,
+    append_context, clear_context, load_context, load_state, save_state, RalphHistoryEntry,
+    RalphState,
 };
+use ito_domain::tasks::TaskRepository;
 use ito_harness::{Harness, HarnessName};
-use miette::{Result, miette};
+use miette::{miette, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -57,6 +58,16 @@ pub struct RalphOptions {
 
     /// Inactivity timeout - restart iteration if no output for this duration.
     pub inactivity_timeout: Option<Duration>,
+
+    /// Skip all completion validation.
+    ///
+    /// When set, the loop trusts the completion promise and exits immediately.
+    pub skip_validation: bool,
+
+    /// Additional validation commands to run when a completion promise is detected.
+    ///
+    /// These run after the project defaults (e.g. `make check`, `make test`).
+    pub validation_commands: Vec<String>,
 }
 
 /// Run the Ralph loop until a completion promise is detected.
@@ -234,15 +245,186 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         save_state(ito_path, &change_id, &state)?;
 
         if completion_found && iteration >= opts.min_iterations {
+            if opts.skip_validation {
+                println!(
+                    "\n=== Completion promise \"{p}\" detected. Loop complete. ===\n",
+                    p = opts.completion_promise
+                );
+                return Ok(());
+            }
+
+            let report = validate_completion(ito_path, &change_id, &opts.validation_commands)?;
+            if report.passed {
+                println!(
+                    "\n=== Completion promise \"{p}\" detected (validated). Loop complete. ===\n",
+                    p = opts.completion_promise
+                );
+                return Ok(());
+            }
+
+            append_context(ito_path, &change_id, &report.context_markdown)?;
             println!(
-                "\n=== Completion promise \"{p}\" detected. Loop complete. ===\n",
-                p = opts.completion_promise
+                "\n=== Completion promise detected, but validation failed. Continuing... ===\n"
             );
-            return Ok(());
         }
     }
 
     Ok(())
+}
+
+#[derive(Debug)]
+struct CompletionValidationReport {
+    passed: bool,
+    context_markdown: String,
+}
+
+fn validate_completion(
+    ito_path: &Path,
+    change_id: &str,
+    extra_commands: &[String],
+) -> Result<CompletionValidationReport> {
+    let mut sections: Vec<String> = Vec::new();
+    let mut passed = true;
+
+    let task_section = validate_tasks_complete(ito_path, change_id)?;
+    if !task_section.passed {
+        passed = false;
+    }
+    sections.push(task_section.markdown);
+
+    for cmd in default_project_validation_commands() {
+        let out = run_validation_command(ito_path, &cmd)?;
+        if !out.passed {
+            passed = false;
+        }
+        sections.push(out.markdown);
+    }
+
+    for cmd in extra_commands {
+        let out = run_validation_command(ito_path, cmd)?;
+        if !out.passed {
+            passed = false;
+        }
+        sections.push(out.markdown);
+    }
+
+    let header = "## Ralph completion validation\n\nRalph detected a completion promise, but validation did not pass. Fix the issues and try again.\n";
+    Ok(CompletionValidationReport {
+        passed,
+        context_markdown: format!("{header}\n{}", sections.join("\n\n")),
+    })
+}
+
+fn default_project_validation_commands() -> Vec<String> {
+    vec!["make check".to_string(), "make test".to_string()]
+}
+
+#[derive(Debug)]
+struct ValidationSection {
+    passed: bool,
+    markdown: String,
+}
+
+fn validate_tasks_complete(ito_path: &Path, change_id: &str) -> Result<ValidationSection> {
+    let repo = TaskRepository::new(ito_path);
+    let parsed = repo.load_tasks(change_id)?;
+
+    if parsed.progress.total == 0 {
+        return Ok(ValidationSection {
+            passed: true,
+            markdown:
+                "### Ito task status\n\nNo tasks file detected; skipping task completion check."
+                    .to_string(),
+        });
+    }
+
+    let parse_errors: usize = parsed
+        .diagnostics
+        .iter()
+        .filter(|d| d.level == ito_domain::tasks::DiagnosticLevel::Error)
+        .count();
+
+    let remaining = parsed.progress.remaining;
+    let passed = remaining == 0 && parse_errors == 0;
+
+    let mut md = String::new();
+    md.push_str("### Ito task status\n\n");
+    md.push_str(&format!(
+        "- Total: {}\n- Complete: {}\n- Shelved: {}\n- In-progress: {}\n- Pending: {}\n- Remaining: {}\n",
+        parsed.progress.total,
+        parsed.progress.complete,
+        parsed.progress.shelved,
+        parsed.progress.in_progress,
+        parsed.progress.pending,
+        parsed.progress.remaining
+    ));
+    if parse_errors > 0 {
+        md.push_str(&format!(
+            "\nTasks file has {parse_errors} parse errors; treat as incomplete."
+        ));
+    }
+    if passed {
+        md.push_str("\n\nResult: PASS");
+    } else {
+        md.push_str("\n\nResult: FAIL (all tasks must be complete or shelved)");
+    }
+
+    Ok(ValidationSection {
+        passed,
+        markdown: md,
+    })
+}
+
+fn run_validation_command(ito_path: &Path, cmd: &str) -> Result<ValidationSection> {
+    let project_root = ito_path.parent().unwrap_or_else(|| Path::new("."));
+
+    let output = Command::new("sh")
+        .args(["-lc", cmd])
+        .current_dir(project_root)
+        .output()
+        .map_err(|e| miette!("Failed to run validation command '{cmd}': {e}"))?;
+
+    let passed = output.status.success();
+    let code = output.status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    let mut md = String::new();
+    md.push_str(&format!(
+        "### Validation command\n\n- Command: `{cmd}`\n- Exit code: {code}\n\n"
+    ));
+    if passed {
+        md.push_str("Result: PASS\n");
+    } else {
+        md.push_str("Result: FAIL\n");
+    }
+
+    let out = truncate_for_context(stdout.as_ref(), 12_000);
+    let err = truncate_for_context(stderr.as_ref(), 12_000);
+    if !out.trim().is_empty() {
+        md.push_str("\nStdout:\n\n```text\n");
+        md.push_str(&out);
+        md.push_str("\n```\n");
+    }
+    if !err.trim().is_empty() {
+        md.push_str("\nStderr:\n\n```text\n");
+        md.push_str(&err);
+        md.push_str("\n```\n");
+    }
+
+    Ok(ValidationSection {
+        passed,
+        markdown: md,
+    })
+}
+
+fn truncate_for_context(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let mut out = s[..max_bytes].to_string();
+    out.push_str("\n... (truncated) ...");
+    out
 }
 
 fn resolve_target(
