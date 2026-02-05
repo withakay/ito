@@ -608,6 +608,16 @@ Options:
 
           [default: COMPLETE]
 
+      --skip-validation
+          Skip completion validation (tasks + project checks/tests)
+
+          When set, Ralph trusts the completion promise and exits immediately.
+
+      --validation-command <VALIDATION_COMMAND>
+          Extra validation command to run on completion promise
+
+          Runs after the project validation steps.
+
       --allow-all
           Allow all tool actions (dangerous)
 
