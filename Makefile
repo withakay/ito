@@ -6,10 +6,11 @@ RUST_WARNINGS_AS_ERRORS ?= -D warnings
 
 .PHONY: \
 	build test test-watch test-coverage lint check check-max-lines clean help \
-	release \
+	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
-	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install
+	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install \
+	dev
 
 build: ## Build the project
 	$(MAKE) rust-build
@@ -157,6 +158,36 @@ rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_D
 	"$$INSTALL_DIR/ito" --version
 
 install: version-sync rust-install ## Sync version date + install Rust ito as 'ito'
+
+dev: ## Build and install debug version with git info (fast iteration)
+	@set -e; \
+	cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito; \
+	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
+	mkdir -p "$$INSTALL_DIR"; \
+	cp "ito-rs/target/debug/ito" "$$INSTALL_DIR/ito"; \
+	chmod +x "$$INSTALL_DIR/ito"; \
+	echo "Installed: $$INSTALL_DIR/ito"; \
+	"$$INSTALL_DIR/ito" --version
+
+release-plz-update: ## Run release-plz update (bump versions based on commits)
+	@set -e; \
+	if release-plz --version >/dev/null 2>&1; then \
+		release-plz update --manifest-path ito-rs/Cargo.toml --config ito-rs/release-plz.toml; \
+	else \
+		echo "release-plz is not installed."; \
+		echo "Install: cargo install release-plz"; \
+		exit 1; \
+	fi
+
+release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
+	@set -e; \
+	if release-plz --version >/dev/null 2>&1; then \
+		release-plz release-pr --manifest-path ito-rs/Cargo.toml --config ito-rs/release-plz.toml; \
+	else \
+		echo "release-plz is not installed."; \
+		echo "Install: cargo install release-plz"; \
+		exit 1; \
+	fi
 
 clean: ## Remove build artifacts
 	rm -rf ito-rs/target
