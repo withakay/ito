@@ -158,8 +158,10 @@ pub enum CostTier {
 #[derive(Debug, thiserror::Error)]
 pub enum RegistryError {
     #[error("Failed to fetch models: {0}")]
+    /// Remote fetch failed.
     Fetch(String),
 
     #[error("No models available (cache empty and API unreachable)")]
+    /// No models are available (cache empty and API unreachable).
     NoModels,
 }

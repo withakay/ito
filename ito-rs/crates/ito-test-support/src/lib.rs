@@ -1,17 +1,33 @@
+//! Test helpers for the Ito workspace.
+//!
+//! This crate provides small utilities used in integration tests and snapshot
+//! tests across the workspace. It is not intended for production code paths.
+
+#![warn(missing_docs)]
+
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Command, Output};
 
+/// PTY helpers for driving interactive commands in tests.
 pub mod pty;
 
+/// Captured output from running a command in tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CmdOutput {
+    /// Process exit code (defaults to 1 when unavailable).
     pub code: i32,
+    /// Captured stdout as UTF-8 (lossy).
     pub stdout: String,
+    /// Captured stderr as UTF-8 (lossy).
     pub stderr: String,
 }
 
 impl CmdOutput {
+    /// Return a version with normalized stdout/stderr.
+    ///
+    /// Normalization strips ANSI escapes, converts CRLF to LF, and replaces the
+    /// provided `home` path with `<HOME>` for deterministic snapshots.
     pub fn normalized(&self, home: &Path) -> CmdOutput {
         CmdOutput {
             code: self.code,
@@ -21,10 +37,18 @@ impl CmdOutput {
     }
 }
 
+/// Build a [`Command`] used to invoke the Rust candidate binary.
+///
+/// Tests use this to ensure a consistent base configuration before adding
+/// arguments and environment.
 pub fn rust_candidate_command(program: &Path) -> Command {
     Command::new(program)
 }
 
+/// Run the Rust candidate binary and capture its output.
+///
+/// This sets a small collection of environment variables to improve determinism
+/// in snapshots (e.g. disable color and interactivity).
 pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path) -> CmdOutput {
     let mut cmd = rust_candidate_command(program);
     cmd.args(args);
@@ -60,6 +84,10 @@ fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).to_string()
 }
 
+/// Normalize text for deterministic snapshots.
+///
+/// This strips ANSI escape codes, converts CRLF to LF, and replaces occurrences
+/// of the provided `home` path with `<HOME>`.
 pub fn normalize_text(input: &str, home: &Path) -> String {
     let stripped = strip_ansi(input);
     let newlines = stripped.replace("\r\n", "\n");
@@ -68,6 +96,10 @@ pub fn normalize_text(input: &str, home: &Path) -> String {
     newlines.replace(home_norm.as_ref(), "<HOME>")
 }
 
+/// Collect all file bytes under `root`, keyed by normalized relative paths.
+///
+/// Paths are normalized to use `/` separators so snapshots are stable across
+/// platforms.
 pub fn collect_file_bytes(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn walk(base: &Path, dir: &Path, out: &mut BTreeMap<String, Vec<u8>>) {
         let Ok(entries) = std::fs::read_dir(dir) else {
@@ -100,6 +132,10 @@ pub fn collect_file_bytes(root: &Path) -> BTreeMap<String, Vec<u8>> {
     out
 }
 
+/// Replace the contents of `dst` with a recursive copy of `src`.
+///
+/// This is used in tests to reset a working directory to a known state without
+/// needing platform-specific `rm -rf` behavior.
 pub fn reset_dir(dst: &Path, src: &Path) -> std::io::Result<()> {
     let Ok(entries) = std::fs::read_dir(dst) else {
         return copy_dir_all(src, dst);
@@ -118,6 +154,7 @@ pub fn reset_dir(dst: &Path, src: &Path) -> std::io::Result<()> {
     copy_dir_all(src, dst)
 }
 
+/// Recursively copy `from` to `to`.
 pub fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
 

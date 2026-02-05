@@ -3,9 +3,11 @@ use std::fmt;
 use super::IdParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A spec identifier (directory name under `.ito/specs/`).
 pub struct SpecId(String);
 
 impl SpecId {
+    /// Borrow the underlying string.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -18,10 +20,16 @@ impl fmt::Display for SpecId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed representation of a spec identifier.
 pub struct ParsedSpecId {
+    /// The parsed spec id.
     pub spec_id: SpecId,
 }
 
+/// Parse a spec identifier.
+///
+/// This is intentionally permissive: any non-empty directory name is accepted
+/// as a spec id.
 pub fn parse_spec_id(input: &str) -> Result<ParsedSpecId, IdParseError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {

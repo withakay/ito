@@ -21,9 +21,13 @@ pub struct AgentConfig {
 /// Harness identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Harness {
+    /// OpenCode (`opencode`) harness.
     OpenCode,
+    /// Claude Code harness.
     ClaudeCode,
+    /// Codex harness.
     Codex,
+    /// GitHub Copilot harness.
     GitHubCopilot,
 }
 
@@ -62,8 +66,11 @@ impl Harness {
 /// Agent tier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AgentTier {
+    /// Fast/cheap tier for simple tasks.
     Quick,
+    /// Default tier for typical development tasks.
     General,
+    /// Highest reasoning tier for complex work.
     Thinking,
 }
 

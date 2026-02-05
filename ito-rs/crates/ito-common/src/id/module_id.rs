@@ -3,6 +3,9 @@ use std::fmt;
 use super::IdParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A module identifier.
+///
+/// Modules are grouped epics (e.g. `001_project-setup`).
 pub struct ModuleId(String);
 
 impl ModuleId {
@@ -10,6 +13,7 @@ impl ModuleId {
         Self(inner)
     }
 
+    /// Borrow the canonical `NNN` module id string.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -22,11 +26,19 @@ impl fmt::Display for ModuleId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed representation of a module identifier.
 pub struct ParsedModuleId {
+    /// Canonical numeric id, padded to 3 digits.
     pub module_id: ModuleId,
+
+    /// Optional module name suffix.
     pub module_name: Option<String>,
 }
 
+/// Parse a module identifier.
+///
+/// Accepts either `NNN` or `NNN_name` (flexible padding); the returned id is
+/// always canonicalized to a 3-digit `NNN` string.
 pub fn parse_module_id(input: &str) -> Result<ParsedModuleId, IdParseError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {

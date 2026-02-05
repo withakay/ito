@@ -1,3 +1,8 @@
+//! Cross-artifact repository integrity checks.
+//!
+//! These checks validate relationships between on-disk Ito artifacts that are
+//! hard to express as a single file-local validation.
+
 use crate::validate::{ValidationIssue, error};
 use ito_common::fs::StdFs;
 use ito_common::id;
@@ -7,10 +12,14 @@ use rusqlite::Connection;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+/// Convert a `rusqlite::Result` into a `miette::Result`.
 fn sqlite<T>(r: rusqlite::Result<T>) -> Result<T> {
     r.map_err(|e| miette!("sqlite error: {e}"))
 }
 
+/// Extract the 3-digit module id prefix from a module directory name.
+///
+/// Module directories are expected to be in the format `NNN_slug`.
 fn parse_module_id_from_dir_name(dir_name: &str) -> Option<String> {
     let (id_part, _slug) = dir_name.split_once('_')?;
     if id_part.len() != 3 || !id_part.chars().all(|c| c.is_ascii_digit()) {
@@ -19,6 +28,10 @@ fn parse_module_id_from_dir_name(dir_name: &str) -> Option<String> {
     Some(id_part.to_string())
 }
 
+/// Validate change directory naming and cross-references.
+///
+/// The returned map is keyed by change directory name. A directory is present in
+/// the map only if at least one integrity issue was found.
 pub fn validate_change_dirs_repo_integrity(
     ito_path: &Path,
 ) -> Result<BTreeMap<String, Vec<ValidationIssue>>> {

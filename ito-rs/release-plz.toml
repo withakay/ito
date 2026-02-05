@@ -2,9 +2,6 @@
 # https://release-plz.dev/docs/config
 
 [workspace]
-# The git repository root is the parent directory (not ito-rs/)
-# This is required because the Cargo workspace is in a subdirectory
-repo_path = ".."
 # Don't publish to crates.io - we distribute via GitHub releases
 publish = false
 # Use git tags for version tracking instead of crates.io registry

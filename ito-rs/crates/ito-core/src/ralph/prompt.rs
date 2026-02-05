@@ -1,3 +1,9 @@
+//! Prompt construction for Ralph loop iterations.
+//!
+//! The Ralph loop assembles a single prompt string that includes optional Ito
+//! context (change proposal + module), the user's base prompt, and a fixed
+//! preamble describing the iteration rules.
+
 use crate::validate;
 use miette::{Result, miette};
 use std::path::Path;
@@ -5,16 +11,31 @@ use std::path::Path;
 use ito_common::fs::StdFs;
 use ito_common::paths;
 
+/// Options that control which context is embedded into a Ralph prompt.
 pub struct BuildPromptOptions {
+    /// Optional change id (e.g. `014-01_add-rust-crate-documentation`).
     pub change_id: Option<String>,
+    /// Optional module id (e.g. `014`).
     pub module_id: Option<String>,
+
+    /// Iteration number to display in the preamble.
     pub iteration: Option<u32>,
+    /// Optional maximum number of iterations (used only for display).
     pub max_iterations: Option<u32>,
+    /// Minimum iteration count required before a completion promise is honored.
     pub min_iterations: u32,
+
+    /// The completion promise token (e.g. `COMPLETE`).
     pub completion_promise: String,
+
+    /// Optional additional context injected mid-loop.
     pub context_content: Option<String>,
 }
 
+/// Build the standard Ralph preamble for a given iteration.
+///
+/// This is the outer wrapper around the task content; it communicates the loop
+/// rules and the completion promise the harness must emit.
 pub fn build_prompt_preamble(
     iteration: u32,
     max_iterations: Option<u32>,
@@ -51,6 +72,9 @@ pub fn build_prompt_preamble(
     )
 }
 
+/// Build a full Ralph prompt with optional change/module context.
+///
+/// When `options.iteration` is set, this includes the iteration preamble.
 pub fn build_ralph_prompt(
     ito_path: &Path,
     user_prompt: &str,

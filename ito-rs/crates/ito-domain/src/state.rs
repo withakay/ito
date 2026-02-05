@@ -1,6 +1,13 @@
+//! Helpers for updating `planning/STATE.md`.
+//!
+//! These functions implement small, targeted edits (e.g. updating the last
+//! updated date or inserting new bullets) while keeping the rest of the file
+//! intact.
+
 use chrono::Local;
 use regex::Regex;
 
+/// Update the `Last Updated:` line in a STATE.md document.
 pub fn update_last_updated(contents: &str, date: &str) -> String {
     let re = Regex::new(r"(?m)^Last Updated: .+$").unwrap();
     if re.is_match(contents) {
@@ -33,18 +40,21 @@ fn insert_after_heading(
     Ok(s)
 }
 
+/// Add a decision entry under "Recent Decisions" and update the last-updated date.
 pub fn add_decision(contents: &str, date: &str, text: &str) -> Result<String, String> {
     let line = format!("- {date}: {text}");
     let updated = insert_after_heading(contents, "## Recent Decisions", &line)?;
     Ok(update_last_updated(&updated, date))
 }
 
+/// Add a question entry under "Open Questions" and update the last-updated date.
 pub fn add_question(contents: &str, date: &str, text: &str) -> Result<String, String> {
     let line = format!("- [ ] {text}");
     let updated = insert_after_heading(contents, "## Open Questions", &line)?;
     Ok(update_last_updated(&updated, date))
 }
 
+/// Add a blocker entry under "Blockers" and update the last-updated date.
 pub fn add_blocker(contents: &str, date: &str, text: &str) -> Result<String, String> {
     let mut lines: Vec<String> = contents.lines().map(|l| l.to_string()).collect();
     let mut i = 0usize;
@@ -84,6 +94,7 @@ pub fn add_blocker(contents: &str, date: &str, text: &str) -> Result<String, Str
     Ok(update_last_updated(&out, date))
 }
 
+/// Set the "Current Focus" section to `text` and update the last-updated date.
 pub fn set_focus(contents: &str, date: &str, text: &str) -> Result<String, String> {
     // Match TS: /(## Current Focus\n)([^\n#]*)/
     let re = Regex::new(r"(?m)(## Current Focus\n)([^\n#]*)").unwrap();
@@ -98,6 +109,9 @@ pub fn set_focus(contents: &str, date: &str, text: &str) -> Result<String, Strin
     Ok(update_last_updated(&updated, date))
 }
 
+/// Add a timestamped note under "Session Notes".
+///
+/// If a matching session header exists, the note is inserted immediately after it.
 pub fn add_note(contents: &str, date: &str, time: &str, text: &str) -> Result<String, String> {
     let session_header = format!("### {date} Session");
     let entry = format!("- {time}: {text}");
@@ -128,10 +142,12 @@ pub fn add_note(contents: &str, date: &str, time: &str, text: &str) -> Result<St
     Err("Could not find Session Notes section".to_string())
 }
 
+/// Current local time formatted as `HH:MM:SS`.
 pub fn now_time() -> String {
     Local::now().format("%H:%M:%S").to_string()
 }
 
+/// Current local date formatted as `YYYY-MM-DD`.
 pub fn now_date() -> String {
     Local::now().format("%Y-%m-%d").to_string()
 }

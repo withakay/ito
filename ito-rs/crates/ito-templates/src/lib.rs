@@ -1,8 +1,21 @@
+//! Embedded templates and assets installed by `ito init` / `ito update`.
+//!
+//! `ito-templates` packages the default project and home templates (plus shared
+//! skills/adapters/commands) as embedded assets.
+//!
+//! The Rust CLI writes these files to disk, optionally rewriting `.ito/` path
+//! prefixes when users configure a custom Ito directory name.
+
+#![warn(missing_docs)]
+
 use std::borrow::Cow;
 
 use include_dir::{Dir, include_dir};
 
+/// Embedded agent definitions.
 pub mod agents;
+
+/// Embedded instruction artifacts.
 pub mod instructions;
 
 static DEFAULT_PROJECT_DIR: Dir<'static> =
@@ -14,23 +27,30 @@ static COMMANDS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/com
 static AGENTS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/agents");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A file embedded in the `ito-templates` assets.
 pub struct EmbeddedFile {
+    /// Path relative to the template root directory.
     pub relative_path: &'static str,
+    /// Raw file contents.
     pub contents: &'static [u8],
 }
 
+/// Return all embedded files for the default project template.
 pub fn default_project_files() -> Vec<EmbeddedFile> {
     dir_files(&DEFAULT_PROJECT_DIR)
 }
 
+/// Return all embedded files for the default home template.
 pub fn default_home_files() -> Vec<EmbeddedFile> {
     dir_files(&DEFAULT_HOME_DIR)
 }
 
+/// Return all embedded shared skill files.
 pub fn skills_files() -> Vec<EmbeddedFile> {
     dir_files(&SKILLS_DIR)
 }
 
+/// Return all embedded harness adapter files.
 pub fn adapters_files() -> Vec<EmbeddedFile> {
     dir_files(&ADAPTERS_DIR)
 }
@@ -45,6 +65,7 @@ pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
     ADAPTERS_DIR.get_file(path).map(|f| f.contents())
 }
 
+/// Return all embedded shared command files.
 pub fn commands_files() -> Vec<EmbeddedFile> {
     dir_files(&COMMANDS_DIR)
 }
@@ -73,6 +94,9 @@ fn collect_dir_files(dir: &'static Dir<'static>, out: &mut Vec<EmbeddedFile>) {
     }
 }
 
+/// Normalize an Ito directory name to the dotted form (e.g. `.ito`).
+///
+/// Empty inputs default to `.ito`. Non-dotted names are prefixed with `.`.
 pub fn normalize_ito_dir(ito_dir: &str) -> String {
     if ito_dir.is_empty() {
         return ".ito".to_string();
@@ -84,6 +108,9 @@ pub fn normalize_ito_dir(ito_dir: &str) -> String {
     }
 }
 
+/// Rewrite a relative template path for a custom Ito directory.
+///
+/// When `ito_dir` is `.ito`, this returns `rel` unchanged.
 pub fn render_rel_path<'a>(rel: &'a str, ito_dir: &str) -> Cow<'a, str> {
     if ito_dir == ".ito" {
         return Cow::Borrowed(rel);
@@ -94,6 +121,9 @@ pub fn render_rel_path<'a>(rel: &'a str, ito_dir: &str) -> Cow<'a, str> {
     Cow::Borrowed(rel)
 }
 
+/// Rewrite file bytes for a custom Ito directory.
+///
+/// This performs a best-effort UTF-8 rewrite of `.ito/` path occurrences.
 pub fn render_bytes<'a>(bytes: &'a [u8], ito_dir: &str) -> Cow<'a, [u8]> {
     if ito_dir == ".ito" {
         return Cow::Borrowed(bytes);
@@ -108,9 +138,15 @@ pub fn render_bytes<'a>(bytes: &'a [u8], ito_dir: &str) -> Cow<'a, [u8]> {
     Cow::Owned(out.into_bytes())
 }
 
+/// Start marker for Ito-managed file blocks.
 pub const ITO_START_MARKER: &str = "<!-- ITO:START -->";
+
+/// End marker for Ito-managed file blocks.
 pub const ITO_END_MARKER: &str = "<!-- ITO:END -->";
 
+/// Extract the substring between [`ITO_START_MARKER`] and [`ITO_END_MARKER`].
+///
+/// Returns `None` if the markers are not present *on their own lines*.
 pub fn extract_managed_block(text: &str) -> Option<&str> {
     let start = find_marker_index(text, ITO_START_MARKER, 0)?;
     let end = find_marker_index(text, ITO_END_MARKER, start + ITO_START_MARKER.len())?;

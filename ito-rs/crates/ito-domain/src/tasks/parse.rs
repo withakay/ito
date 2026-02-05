@@ -1,23 +1,41 @@
+//! Parsing for Ito `tasks.md` tracking files.
+//!
+//! Ito supports two tasks formats:
+//! - a legacy checkbox list (minimal structure)
+//! - an enhanced format with waves, explicit dependencies, and status metadata
+//!
+//! This module parses either format into a single normalized representation
+//! ([`TasksParseResult`]) used by the tasks CLI and workflow execution.
+
 use chrono::{DateTime, Local, NaiveDate};
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The detected format of a `tasks.md` file.
 pub enum TasksFormat {
+    /// Enhanced wave-based format.
     Enhanced,
+    /// Legacy checkbox list format.
     Checkbox,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Status values supported by Ito task tracking.
 pub enum TaskStatus {
+    /// Not started.
     Pending,
+    /// Currently being worked.
     InProgress,
+    /// Finished.
     Complete,
+    /// Intentionally deferred/paused.
     Shelved,
 }
 
 impl TaskStatus {
+    /// Status label used by the enhanced tasks format.
     pub fn as_enhanced_label(self) -> &'static str {
         match self {
             TaskStatus::Pending => "pending",
@@ -27,6 +45,7 @@ impl TaskStatus {
         }
     }
 
+    /// Parse an enhanced-format status label.
     pub fn from_enhanced_label(s: &str) -> Option<Self> {
         match s {
             "pending" => Some(TaskStatus::Pending),
@@ -37,6 +56,7 @@ impl TaskStatus {
         }
     }
 
+    /// Return true when the status counts as "done" for gating.
     pub fn is_done(self) -> bool {
         match self {
             TaskStatus::Pending => false,
@@ -48,20 +68,29 @@ impl TaskStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A parse-time diagnostic emitted while reading a tasks file.
 pub struct TaskDiagnostic {
+    /// Severity level.
     pub level: DiagnosticLevel,
+    /// Human-readable message.
     pub message: String,
+    /// Optional task id the diagnostic refers to.
     pub task_id: Option<String>,
+    /// Optional 0-based line index.
     pub line: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Diagnostic severity.
 pub enum DiagnosticLevel {
+    /// The file is malformed and results may be incomplete.
     Error,
+    /// The file is parseable but contains suspicious content.
     Warning,
 }
 
 impl DiagnosticLevel {
+    /// Render as a stable string label.
     pub fn as_str(self) -> &'static str {
         match self {
             DiagnosticLevel::Error => "error",
@@ -71,52 +100,86 @@ impl DiagnosticLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A normalized task entry parsed from a tasks tracking file.
 pub struct TaskItem {
+    /// Task identifier (e.g. `1.1`).
     pub id: String,
+    /// Task title/name.
     pub name: String,
+    /// Optional wave number (enhanced format).
     pub wave: Option<u32>,
+    /// Current status.
     pub status: TaskStatus,
+    /// Optional `YYYY-MM-DD` updated date.
     pub updated_at: Option<String>,
+    /// Explicit task dependencies by id.
     pub dependencies: Vec<String>,
+    /// File paths mentioned for the task.
     pub files: Vec<String>,
+    /// Freeform action description.
     pub action: String,
+    /// Optional verification command.
     pub verify: Option<String>,
+    /// Optional completion criteria.
     pub done_when: Option<String>,
+    /// Task kind (normal vs checkpoint).
     pub kind: TaskKind,
+    /// 0-based line index where the task header was found.
     pub header_line_index: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// Task classification.
 pub enum TaskKind {
     #[default]
+    /// A runnable task.
     Normal,
+    /// A checkpoint that requires explicit approval.
     Checkpoint,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Summary counts computed from the parsed tasks.
 pub struct ProgressInfo {
+    /// Total tasks.
     pub total: usize,
+    /// Completed tasks.
     pub complete: usize,
+    /// Shelved tasks.
     pub shelved: usize,
+    /// In-progress tasks.
     pub in_progress: usize,
+    /// Pending tasks.
     pub pending: usize,
+    /// Remaining work (`total - complete - shelved`).
     pub remaining: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Wave metadata parsed from enhanced tasks files.
 pub struct WaveInfo {
+    /// Wave number.
     pub wave: u32,
+    /// Other waves that must be complete before this wave is unlocked.
     pub depends_on: Vec<u32>,
+    /// 0-based line index for the wave heading.
     pub header_line_index: usize,
+    /// 0-based line index for the depends-on line, when present.
     pub depends_on_line_index: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Output of parsing a `tasks.md` file.
 pub struct TasksParseResult {
+    /// Detected file format.
     pub format: TasksFormat,
+    /// Parsed tasks in source order.
     pub tasks: Vec<TaskItem>,
+    /// Parsed wave declarations.
     pub waves: Vec<WaveInfo>,
+    /// Parse diagnostics.
     pub diagnostics: Vec<TaskDiagnostic>,
+    /// Aggregate progress counts.
     pub progress: ProgressInfo,
 }
 
@@ -140,6 +203,7 @@ impl TasksParseResult {
     }
 }
 
+/// Default template for an enhanced-format `tasks.md`.
 pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String {
     let date = now.format("%Y-%m-%d").to_string();
     format!(
@@ -147,6 +211,7 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
     )
 }
 
+/// Detect whether the file is in enhanced or checkbox format.
 pub fn detect_tasks_format(contents: &str) -> TasksFormat {
     let enhanced_heading = Regex::new(r"(?m)^###\s+(Task\s+)?[^:]+:\s+.+$").unwrap();
     let has_status = contents.contains("- **Status**:");
@@ -160,6 +225,7 @@ pub fn detect_tasks_format(contents: &str) -> TasksFormat {
     TasksFormat::Checkbox
 }
 
+/// Parse a `tasks.md` tracking file into a normalized representation.
 pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     match detect_tasks_format(contents) {
         TasksFormat::Enhanced => parse_enhanced_tasks(contents),
@@ -723,6 +789,7 @@ fn compute_progress(tasks: &[TaskItem]) -> ProgressInfo {
     }
 }
 
+/// Path to `{ito_path}/changes/{change_id}/tasks.md`.
 pub fn tasks_path(ito_path: &Path, change_id: &str) -> PathBuf {
     ito_path.join("changes").join(change_id).join("tasks.md")
 }

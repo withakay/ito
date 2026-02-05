@@ -1,3 +1,16 @@
+//! Telemetry logging for Ito.
+//!
+//! This crate records low-volume execution events to a JSONL file under the
+//! user's config directory. The output is designed to be append-only and
+//! resilient: failures to read/write telemetry should never break the main
+//! command flow.
+//!
+//! The logger intentionally stores only coarse metadata:
+//! - a stable-but-anonymized `project_id` derived from a per-user salt
+//! - a `session_id` persisted under `.ito/session.json` when available
+
+#![warn(missing_docs)]
+
 use chrono::{SecondsFormat, Utc};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -11,8 +24,11 @@ const EVENT_VERSION: u32 = 1;
 const SALT_FILE_NAME: &str = "telemetry_salt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// High-level command outcome used for telemetry.
 pub enum Outcome {
+    /// Command finished successfully.
     Success,
+    /// Command finished with an error.
     Error,
 }
 
@@ -26,6 +42,10 @@ impl Outcome {
 }
 
 #[derive(Debug, Clone)]
+/// Append-only telemetry logger.
+///
+/// Construct with [`Logger::new`]. When logging is disabled or cannot be
+/// initialized, `new` returns `None`.
 pub struct Logger {
     file_path: PathBuf,
     ito_version: String,
@@ -36,6 +56,12 @@ pub struct Logger {
 }
 
 impl Logger {
+    /// Create a logger if telemetry is enabled.
+    ///
+    /// Returns `None` when:
+    /// - telemetry is disabled (`ITO_DISABLE_LOGGING`)
+    /// - the config directory is not available
+    /// - the telemetry salt cannot be read/created
     pub fn new(
         config_dir: Option<PathBuf>,
         project_root: &Path,
@@ -71,18 +97,27 @@ impl Logger {
         })
     }
 
+    /// Session identifier for this execution.
+    ///
+    /// When an `.ito/` directory exists, this is persisted in
+    /// `.ito/session.json` to allow grouping commands across runs.
     pub fn session_id(&self) -> &str {
         &self.session_id
     }
 
+    /// Stable anonymized project identifier.
+    ///
+    /// This is derived from `project_root` using a per-user random salt.
     pub fn project_id(&self) -> &str {
         &self.project_id
     }
 
+    /// Write a `command_start` event.
     pub fn write_start(&self) {
         self.write_event("command_start", None, None);
     }
 
+    /// Write a `command_end` event.
     pub fn write_end(&self, outcome: Outcome, duration: Duration) {
         let duration_ms = duration.as_millis();
         let duration_ms = u64::try_from(duration_ms).unwrap_or(u64::MAX);

@@ -15,6 +15,10 @@ pub fn run_pty(program: &Path, args: &[&str], cwd: &Path, home: &Path, input: &s
     run_pty_with_interactive(program, args, cwd, home, input, false)
 }
 
+/// Runs a command in a PTY with `ITO_INTERACTIVE=1`.
+///
+/// This is useful for testing that interactive code paths behave as expected
+/// under a pseudo-terminal.
 pub fn run_pty_interactive(
     program: &Path,
     args: &[&str],

@@ -1,3 +1,11 @@
+//! Archive completed changes.
+//!
+//! Archiving moves a change directory into the archive area and can copy spec
+//! deltas back into the main `specs/` tree.
+//!
+//! This module also includes a small helper for determining whether a
+//! `tasks.md` file is fully complete.
+
 use std::fs;
 use std::path::Path;
 
@@ -9,12 +17,25 @@ use ito_common::id::parse_change_id;
 use ito_common::paths;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Summary of task completion for a change.
 pub enum TaskStatus {
+    /// The file contains no recognized tasks.
     NoTasks,
+    /// All recognized tasks are complete.
     AllComplete,
-    HasIncomplete { pending: usize, total: usize },
+    /// Some tasks are incomplete.
+    HasIncomplete {
+        /// Number of incomplete tasks.
+        pending: usize,
+        /// Total number of recognized tasks.
+        total: usize,
+    },
 }
 
+/// Check whether the tasks in `contents` are complete.
+///
+/// Supports both the checkbox task format (`- [ ]`, `- [x]`, `- [~]`, `- [>]`)
+/// and the enhanced format (`- **Status**: [ ] pending`).
 pub fn check_task_completion(contents: &str) -> TaskStatus {
     // Support both:
     // - checkbox tasks: "- [ ]" / "- [x]" / "- [~]" / "- [>]"
@@ -70,11 +91,15 @@ pub fn check_task_completion(contents: &str) -> TaskStatus {
     TaskStatus::HasIncomplete { pending, total }
 }
 
+/// List available change directories under `{ito_path}/changes`.
 pub fn list_available_changes(ito_path: &Path) -> Result<Vec<String>> {
     let fs = StdFs;
     ito_domain::discovery::list_change_dir_names(&fs, ito_path)
 }
 
+/// Return `true` if the change exists.
+///
+/// Existence is determined by presence of `{change}/proposal.md`.
 pub fn change_exists(ito_path: &Path, change_name: &str) -> bool {
     if change_name.trim().is_empty() {
         return false;
@@ -83,16 +108,19 @@ pub fn change_exists(ito_path: &Path, change_name: &str) -> bool {
     proposal.exists()
 }
 
+/// Generate an archive folder name for `change_name`.
 pub fn generate_archive_name(change_name: &str) -> String {
     let date = Utc::now().format("%Y-%m-%d").to_string();
     format!("{date}-{change_name}")
 }
 
+/// Return `true` if `{ito_path}/changes/archive/{archive_name}` exists.
 pub fn archive_exists(ito_path: &Path, archive_name: &str) -> bool {
     let dir = paths::changes_archive_dir(ito_path).join(archive_name);
     dir.exists()
 }
 
+/// Discover spec ids present under `{change}/specs/*/spec.md`.
 pub fn discover_change_specs(ito_path: &Path, change_name: &str) -> Result<Vec<String>> {
     let mut out: Vec<String> = Vec::new();
     let specs_dir = paths::change_specs_dir(ito_path, change_name);
@@ -123,6 +151,7 @@ pub fn discover_change_specs(ito_path: &Path, change_name: &str) -> Result<Vec<S
     Ok(out)
 }
 
+/// Split spec ids into those already present in main specs and those that are new.
 pub fn categorize_specs(ito_path: &Path, spec_names: &[String]) -> (Vec<String>, Vec<String>) {
     let mut new_specs: Vec<String> = Vec::new();
     let mut existing_specs: Vec<String> = Vec::new();
@@ -137,6 +166,9 @@ pub fn categorize_specs(ito_path: &Path, spec_names: &[String]) -> (Vec<String>,
     (new_specs, existing_specs)
 }
 
+/// Copy change spec deltas to the main specs tree.
+///
+/// Returns the list of spec ids that were written.
 pub fn copy_specs_to_main(
     ito_path: &Path,
     change_name: &str,
@@ -185,6 +217,7 @@ fn mark_change_complete_in_module(ito_path: &Path, change_name: &str) {
     let _ = ito_common::io::write_std(&resolved.module_md, out);
 }
 
+/// Move a change directory to the archive location.
 pub fn move_to_archive(ito_path: &Path, change_name: &str, archive_name: &str) -> Result<()> {
     let change_dir = paths::change_dir(ito_path, change_name);
     if !change_dir.exists() {

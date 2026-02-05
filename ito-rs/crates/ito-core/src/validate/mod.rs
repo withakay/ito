@@ -1,3 +1,11 @@
+//! Validate Ito repository artifacts.
+//!
+//! This module provides lightweight validation helpers for specs, changes, and
+//! modules.
+//!
+//! The primary consumer is the CLI and any APIs that need a structured report
+//! (`ValidationReport`) rather than a single error.
+
 use std::path::{Path, PathBuf};
 
 use miette::Result;
@@ -18,10 +26,14 @@ pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata}
 pub use repo_integrity::validate_change_dirs_repo_integrity;
 pub use report::{ReportBuilder, report};
 
+/// Severity level for a [`ValidationIssue`].
 pub type ValidationLevel = &'static str;
 
+/// Validation issue is an error (always fails validation).
 pub const LEVEL_ERROR: ValidationLevel = "ERROR";
+/// Validation issue is a warning (fails validation in strict mode).
 pub const LEVEL_WARNING: ValidationLevel = "WARNING";
+/// Validation issue is informational (never fails validation).
 pub const LEVEL_INFO: ValidationLevel = "INFO";
 
 // Thresholds: match TS defaults.
@@ -30,33 +42,53 @@ const MIN_MODULE_PURPOSE_LENGTH: usize = 20;
 const MAX_DELTAS_PER_CHANGE: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One validation finding.
 pub struct ValidationIssue {
+    /// Issue severity.
     pub level: String,
+    /// Logical path within the validated artifact (or a filename).
     pub path: String,
+    /// Human-readable message.
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional 1-based line number.
     pub line: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional 1-based column number.
     pub column: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional structured metadata for tooling.
     pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A validation report with a computed summary.
 pub struct ValidationReport {
+    /// Whether validation passed for the selected strictness.
     pub valid: bool,
+
+    /// All issues found (errors + warnings + info).
     pub issues: Vec<ValidationIssue>,
+
+    /// Counts grouped by severity.
     pub summary: ValidationSummary,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Aggregated counts for a validation run.
 pub struct ValidationSummary {
+    /// Number of `ERROR` issues.
     pub errors: u32,
+    /// Number of `WARNING` issues.
     pub warnings: u32,
+    /// Number of `INFO` issues.
     pub info: u32,
 }
 
 impl ValidationReport {
+    /// Construct a report and compute summary + `valid`.
+    ///
+    /// When `strict` is `true`, warnings are treated as failures.
     pub fn new(issues: Vec<ValidationIssue>, strict: bool) -> Self {
         let mut errors = 0u32;
         let mut warnings = 0u32;
@@ -86,6 +118,7 @@ impl ValidationReport {
     }
 }
 
+/// Validate a spec markdown string and return a structured report.
 pub fn validate_spec_markdown(markdown: &str, strict: bool) -> ValidationReport {
     let json = parse_spec_show_json("<spec>", markdown);
 
@@ -126,12 +159,14 @@ pub fn validate_spec_markdown(markdown: &str, strict: bool) -> ValidationReport 
     r.finish()
 }
 
+/// Validate a spec by id from `.ito/specs/<id>/spec.md`.
 pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> Result<ValidationReport> {
     let path = paths::spec_markdown_path(ito_path, spec_id);
     let markdown = ito_common::io::read_to_string(&path)?;
     Ok(validate_spec_markdown(&markdown, strict))
 }
 
+/// Validate a change's delta specs by change id.
 pub fn validate_change(ito_path: &Path, change_id: &str, strict: bool) -> Result<ValidationReport> {
     let paths = crate::show::read_change_delta_spec_paths(ito_path, change_id)?;
     if paths.is_empty() {
@@ -190,13 +225,22 @@ pub fn validate_change(ito_path: &Path, change_id: &str, strict: bool) -> Result
 }
 
 #[derive(Debug, Clone)]
+/// A resolved module reference (directory + key paths).
 pub struct ResolvedModule {
+    /// 3-digit module id.
     pub id: String,
+    /// Directory name under `.ito/modules/`.
     pub full_name: String,
+    /// Full path to the module directory.
     pub module_dir: PathBuf,
+    /// Full path to `module.md`.
     pub module_md: PathBuf,
 }
 
+/// Resolve a module directory name from user input.
+///
+/// Input can be a full directory name (`NNN_slug`) or the numeric module id
+/// (`NNN`). Empty input returns `Ok(None)`.
 pub fn resolve_module(ito_path: &Path, input: &str) -> Result<Option<ResolvedModule>> {
     let modules_dir = paths::modules_dir(ito_path);
     let trimmed = input.trim();
@@ -237,6 +281,9 @@ pub fn resolve_module(ito_path: &Path, input: &str) -> Result<Option<ResolvedMod
     Ok(None)
 }
 
+/// Validate a module's `module.md` for minimal required sections.
+///
+/// Returns the resolved module directory name along with the report.
 pub fn validate_module(
     ito_path: &Path,
     module_input: &str,

@@ -22,18 +22,23 @@ pub struct UpdateResult {
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateError {
     #[error("Failed to read agent file: {0}")]
+    /// Failed to read or write an agent file.
     ReadError(#[from] io::Error),
 
     #[error("Agent file has no frontmatter")]
+    /// The file does not contain YAML frontmatter.
     NoFrontmatter,
 
     #[error("Failed to parse frontmatter: {0}")]
+    /// YAML frontmatter could not be parsed.
     ParseError(String),
 
     #[error("Model '{0}' is not valid for harness '{1}' (requires provider: {2})")]
+    /// The model id does not satisfy harness provider constraints.
     InvalidProvider(String, Harness, String),
 
     #[error("Harness '{0}' does not support model configuration in agent files")]
+    /// The harness does not support changing models in frontmatter.
     ModelNotSupported(Harness),
 }
 

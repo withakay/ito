@@ -1,6 +1,10 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Error returned when parsing an Ito identifier fails.
 pub struct IdParseError {
+    /// Human-readable error message.
     pub error: String,
+
+    /// Optional hint describing a common fix.
     pub hint: Option<String>,
 }
 

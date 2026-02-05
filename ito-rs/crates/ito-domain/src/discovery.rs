@@ -1,3 +1,8 @@
+//! Filesystem discovery helpers.
+//!
+//! These helpers list change/module/spec directories under an Ito project.
+//! They are used by higher-level repositories and CLI commands.
+
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -32,20 +37,26 @@ fn list_child_dirs<F: FileSystem>(fs: &F, dir: &Path) -> Result<Vec<String>> {
     Ok(out)
 }
 
+/// List child directory names under `dir`.
+///
+/// Returned names are sorted. Non-directory entries are ignored.
 pub fn list_dir_names<F: FileSystem>(fs: &F, dir: &Path) -> Result<Vec<String>> {
     list_child_dirs(fs, dir)
 }
 
+/// List change directory names under `{ito_path}/changes`, excluding `archive`.
 pub fn list_change_dir_names<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     let mut out = list_child_dirs(fs, paths::changes_dir(ito_path).as_path())?;
     out.retain(|n| n != "archive");
     Ok(out)
 }
 
+/// List module directory names under `{ito_path}/modules`.
 pub fn list_module_dir_names<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     list_child_dirs(fs, paths::modules_dir(ito_path).as_path())
 }
 
+/// Extract module ids (3-digit prefixes) from the module directory names.
 pub fn list_module_ids<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<BTreeSet<String>> {
     let mut ids: BTreeSet<String> = BTreeSet::new();
     for name in list_module_dir_names(fs, ito_path)? {
@@ -59,19 +70,23 @@ pub fn list_module_ids<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<BTreeSe
     Ok(ids)
 }
 
+/// List spec directory names under `{ito_path}/specs`.
 pub fn list_spec_dir_names<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     list_child_dirs(fs, paths::specs_dir(ito_path).as_path())
 }
 
 // Spec-facing API.
+/// List changes (spec-facing API).
 pub fn list_changes<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     list_change_dir_names(fs, ito_path)
 }
 
+/// List modules (spec-facing API).
 pub fn list_modules<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     list_module_dir_names(fs, ito_path)
 }
 
+/// List specs (spec-facing API).
 pub fn list_specs<F: FileSystem>(fs: &F, ito_path: &Path) -> Result<Vec<String>> {
     list_spec_dir_names(fs, ito_path)
 }

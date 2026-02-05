@@ -1,22 +1,35 @@
+//! Workflow directory helpers and default workflow templates.
+//!
+//! Workflows are stored under `{ito_path}/workflows` and describe multi-wave
+//! task execution.
+
 use ito_schemas::WorkflowDefinition;
 use std::path::{Path, PathBuf};
 
+/// Path to the workflows directory (`{ito_path}/workflows`).
 pub fn workflows_dir(ito_path: &Path) -> PathBuf {
     ito_path.join("workflows")
 }
 
+/// Path to the workflow state directory (`{ito_path}/workflows/.state`).
 pub fn workflow_state_dir(ito_path: &Path) -> PathBuf {
     workflows_dir(ito_path).join(".state")
 }
 
+/// Path to the commands directory (`{ito_path}/commands`).
 pub fn commands_dir(ito_path: &Path) -> PathBuf {
     ito_path.join("commands")
 }
 
+/// Path to a specific workflow file (`{ito_path}/workflows/{name}.yaml`).
 pub fn workflow_file_path(ito_path: &Path, name: &str) -> PathBuf {
     workflows_dir(ito_path).join(format!("{name}.yaml"))
 }
 
+/// Initialize the default workflow structure and template workflows.
+///
+/// This creates required directories and writes default `research`, `execute`,
+/// and `review` workflows.
 pub fn init_workflow_structure(ito_path: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(workflows_dir(ito_path))?;
     std::fs::create_dir_all(workflow_state_dir(ito_path))?;
@@ -37,6 +50,7 @@ pub fn init_workflow_structure(ito_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// List workflow names (without extension) from the workflows directory.
 pub fn list_workflows(ito_path: &Path) -> Vec<String> {
     let dir = workflows_dir(ito_path);
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -64,12 +78,14 @@ pub fn list_workflows(ito_path: &Path) -> Vec<String> {
     out
 }
 
+/// Load and parse a workflow definition from disk.
 pub fn load_workflow(ito_path: &Path, name: &str) -> Result<WorkflowDefinition, String> {
     let p = workflow_file_path(ito_path, name);
     let contents = std::fs::read_to_string(&p).map_err(|e| e.to_string())?;
     serde_yaml::from_str::<WorkflowDefinition>(&contents).map_err(|e| e.to_string())
 }
 
+/// Count the number of tasks across all waves in the workflow.
 pub fn count_tasks(wf: &WorkflowDefinition) -> usize {
     wf.waves.iter().map(|w| w.tasks.len()).sum()
 }

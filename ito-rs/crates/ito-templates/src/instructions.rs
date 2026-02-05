@@ -4,6 +4,7 @@ use serde::Serialize;
 
 static INSTRUCTIONS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/instructions");
 
+/// List all embedded instruction template paths.
 pub fn list_instruction_templates() -> Vec<&'static str> {
     let mut out = Vec::new();
     collect_paths(&INSTRUCTIONS_DIR, &mut out);
@@ -11,15 +12,18 @@ pub fn list_instruction_templates() -> Vec<&'static str> {
     out
 }
 
+/// Fetch an embedded instruction template as raw bytes.
 pub fn get_instruction_template_bytes(path: &str) -> Option<&'static [u8]> {
     INSTRUCTIONS_DIR.get_file(path).map(|f| f.contents())
 }
 
+/// Fetch an embedded instruction template as UTF-8 text.
 pub fn get_instruction_template(path: &str) -> Option<&'static str> {
     let bytes = get_instruction_template_bytes(path)?;
     std::str::from_utf8(bytes).ok()
 }
 
+/// Render an instruction template by path using a serializable context.
 pub fn render_instruction_template<T: Serialize>(
     path: &str,
     ctx: &T,
@@ -30,6 +34,7 @@ pub fn render_instruction_template<T: Serialize>(
     render_template_str(template, ctx)
 }
 
+/// Render an arbitrary template string using a serializable context.
 pub fn render_template_str<T: Serialize>(
     template: &str,
     ctx: &T,
