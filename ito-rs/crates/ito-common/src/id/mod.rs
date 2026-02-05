@@ -11,6 +11,7 @@ pub use module_id::{ModuleId, ParsedModuleId};
 pub use spec_id::parse_spec_id;
 pub use spec_id::{ParsedSpecId, SpecId};
 
+/// Quick heuristic used by CLI prompts to detect a likely change id.
 pub fn looks_like_change_id(input: &str) -> bool {
     input
         .trim()
@@ -22,6 +23,7 @@ pub fn looks_like_change_id(input: &str) -> bool {
         && input.contains('_')
 }
 
+/// Quick heuristic used by CLI prompts to detect a likely module id.
 pub fn looks_like_module_id(input: &str) -> bool {
     let t = input.trim();
     !t.is_empty() && t.chars().next().is_some_and(|c| c.is_ascii_digit())

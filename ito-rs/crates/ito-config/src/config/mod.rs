@@ -1,3 +1,14 @@
+//! Configuration loading.
+//!
+//! Ito supports configuration at multiple layers:
+//!
+//! - Repo-local: `ito.json` and `.ito.json`
+//! - Project/Ito dir: `<itoDir>/config.json` (and optionally `$PROJECT_DIR/config.json`)
+//! - Global: `~/.config/ito/config.json` (or `$XDG_CONFIG_HOME/ito/config.json`)
+//!
+//! This module loads these sources, merges them with defaults, and records the
+//! paths that contributed to the final configuration.
+
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -5,8 +16,13 @@ use ito_common::fs::{FileSystem, StdFs};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Default config values and JSON serialization helpers.
 pub mod defaults;
+
+/// JSON schema generation for Ito configuration.
 pub mod schema;
+
+/// Serde models for `config.json`.
 pub mod types;
 
 const REPO_CONFIG_FILE_NAME: &str = "ito.json";
@@ -14,25 +30,34 @@ const REPO_DOT_CONFIG_FILE_NAME: &str = ".ito.json";
 const ITO_DIR_CONFIG_FILE_NAME: &str = "config.json";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// Global (user-level) configuration.
 pub struct GlobalConfig {
+    /// Preferred Ito working directory name.
     #[serde(rename = "projectPath")]
     pub project_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// Repo-local configuration.
 pub struct ProjectConfig {
+    /// Repo-local Ito working directory name override.
     #[serde(rename = "projectPath")]
     pub project_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
+/// Process environment inputs for configuration resolution.
 pub struct ConfigContext {
+    /// Optional XDG config home path override.
     pub xdg_config_home: Option<PathBuf>,
+    /// Home directory, used for non-XDG config lookup.
     pub home_dir: Option<PathBuf>,
+    /// Optional project directory override (used by some harnesses).
     pub project_dir: Option<PathBuf>,
 }
 
 impl ConfigContext {
+    /// Build a context from environment variables.
     pub fn from_process_env() -> Self {
         let xdg_config_home = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
 
@@ -66,10 +91,12 @@ fn read_to_string_optional_fs<F: FileSystem>(fs: &F, path: &Path) -> Option<Stri
     }
 }
 
+/// Load `ito.json` from `project_root`.
 pub fn load_project_config(project_root: &Path) -> Option<ProjectConfig> {
     load_project_config_fs(&StdFs, project_root)
 }
 
+/// Like [`load_project_config`], but uses an injected file-system.
 pub fn load_project_config_fs<F: FileSystem>(fs: &F, project_root: &Path) -> Option<ProjectConfig> {
     let path = project_root.join(REPO_CONFIG_FILE_NAME);
     let contents = read_to_string_optional_fs(fs, &path)?;
@@ -153,6 +180,7 @@ pub fn load_repo_project_path_override(project_root: &Path) -> Option<String> {
     load_repo_project_path_override_fs(&StdFs, project_root)
 }
 
+/// Like [`load_repo_project_path_override`], but uses an injected file-system.
 pub fn load_repo_project_path_override_fs<F: FileSystem>(
     fs: &F,
     project_root: &Path,
@@ -177,13 +205,18 @@ pub fn load_repo_project_path_override_fs<F: FileSystem>(
 }
 
 #[derive(Debug, Clone)]
+/// Merged project configuration along with provenance.
 pub struct CascadingProjectConfig {
+    /// Fully merged config JSON.
     pub merged: Value,
+    /// Paths that were successfully loaded and merged.
     pub loaded_from: Vec<PathBuf>,
 }
 
+/// Alias used by consumers who only care about the resolved config output.
 pub type ResolvedConfig = CascadingProjectConfig;
 
+/// Return the ordered list of configuration file paths consulted for a project.
 pub fn project_config_paths(
     project_root: &Path,
     ito_path: &Path,
@@ -216,6 +249,7 @@ pub fn load_cascading_project_config(
     load_cascading_project_config_fs(&StdFs, project_root, ito_path, ctx)
 }
 
+/// Like [`load_cascading_project_config`], but uses an injected file-system.
 pub fn load_cascading_project_config_fs<F: FileSystem>(
     fs: &F,
     project_root: &Path,
@@ -240,10 +274,12 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
     }
 }
 
+/// Return the global configuration file path, if it can be determined.
 pub fn global_config_path(ctx: &ConfigContext) -> Option<PathBuf> {
     ito_config_dir(ctx).map(|d| d.join("config.json"))
 }
 
+/// Return the global configuration directory (`~/.config/ito` or XDG equivalent).
 pub fn ito_config_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     #[cfg(windows)]
     {
@@ -269,10 +305,12 @@ pub fn ito_config_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     }
 }
 
+/// Load the global config file.
 pub fn load_global_config(ctx: &ConfigContext) -> GlobalConfig {
     load_global_config_fs(&StdFs, ctx)
 }
 
+/// Like [`load_global_config`], but uses an injected file-system.
 pub fn load_global_config_fs<F: FileSystem>(fs: &F, ctx: &ConfigContext) -> GlobalConfig {
     let Some(path) = global_config_path(ctx) else {
         return GlobalConfig::default();

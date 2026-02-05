@@ -10,6 +10,7 @@ pub fn default_config() -> ItoConfig {
     ItoConfig::default()
 }
 
+/// Default configuration serialized as JSON.
 pub fn default_config_json() -> Value {
     serde_json::to_value(default_config()).expect("default config should serialize")
 }

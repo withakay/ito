@@ -7,25 +7,34 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// One scripted execution step for the stub harness.
 pub struct StubStep {
+    /// Captured stdout for this step.
     pub stdout: String,
     #[serde(default)]
+    /// Captured stderr for this step.
     pub stderr: String,
     #[serde(default)]
+    /// Exit code for this step.
     pub exit_code: i32,
 }
 
 #[derive(Debug, Clone)]
+/// Harness implementation that returns pre-recorded outputs.
+///
+/// This is primarily used for tests and offline development workflows.
 pub struct StubHarness {
     steps: Vec<StubStep>,
     idx: usize,
 }
 
 impl StubHarness {
+    /// Create a stub harness with an explicit list of steps.
     pub fn new(steps: Vec<StubStep>) -> Self {
         Self { steps, idx: 0 }
     }
 
+    /// Load stub steps from a JSON file.
     pub fn from_json_path(path: &Path) -> Result<Self> {
         let raw = fs::read_to_string(path)
             .map_err(|e| miette!("Failed to read stub script {p}: {e}", p = path.display()))?;
@@ -34,6 +43,10 @@ impl StubHarness {
         Ok(Self::new(steps))
     }
 
+    /// Resolve the stub script path from CLI args or `ITO_STUB_SCRIPT`.
+    ///
+    /// When no script is provided, this returns a single default step that
+    /// yields `<promise>COMPLETE</promise>`.
     pub fn from_env_or_default(script_path: Option<PathBuf>) -> Result<Self> {
         let from_env = std::env::var("ITO_STUB_SCRIPT").ok().map(PathBuf::from);
         let path = script_path.or(from_env);

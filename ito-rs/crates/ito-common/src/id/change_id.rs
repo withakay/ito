@@ -4,6 +4,9 @@ use super::IdParseError;
 use super::ModuleId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A change identifier.
+///
+/// Changes are tracked as `NNN-NN_name` (e.g. `014-01_add-rust-crate-documentation`).
 pub struct ChangeId(String);
 
 impl ChangeId {
@@ -11,6 +14,7 @@ impl ChangeId {
         Self(inner)
     }
 
+    /// Borrow the underlying string.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -23,13 +27,25 @@ impl fmt::Display for ChangeId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parsed representation of a change identifier.
 pub struct ParsedChangeId {
+    /// Canonical module id.
     pub module_id: ModuleId,
+
+    /// Canonical change number (at least 2 digits).
     pub change_num: String,
+
+    /// Canonicalized change name (lowercase).
     pub name: String,
+
+    /// Canonical `NNN-NN_name` string.
     pub canonical: ChangeId,
 }
 
+/// Parse a change identifier.
+///
+/// Accepts flexible padding for the module and change numbers, but always
+/// returns a canonical representation.
 pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {

@@ -1,3 +1,9 @@
+//! Convert Ito markdown artifacts into JSON-friendly structures.
+//!
+//! This module is used by "show"-style commands and APIs. It reads spec and
+//! change markdown files from disk and produces lightweight structs that can be
+//! serialized to JSON.
+
 use std::path::{Path, PathBuf};
 
 use miette::Result;
@@ -7,62 +13,100 @@ use ito_common::fs::StdFs;
 use ito_common::paths;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One raw scenario block from a spec or delta.
 pub struct Scenario {
     #[serde(rename = "rawText")]
+    /// The original scenario text (preserves newlines).
     pub raw_text: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A single requirement statement and its scenarios.
 pub struct Requirement {
+    /// The normalized requirement statement.
     pub text: String,
+
+    /// Scenario blocks associated with the requirement.
     pub scenarios: Vec<Scenario>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// JSON-serializable view of a spec markdown file.
 pub struct SpecShowJson {
+    /// Spec id (folder name under `.ito/specs/`).
     pub id: String,
+    /// Human-readable title (currently same as `id`).
     pub title: String,
+    /// Extracted `## Purpose` section.
     pub overview: String,
     #[serde(rename = "requirementCount")]
+    /// Total number of requirements.
     pub requirement_count: u32,
+
+    /// Requirements parsed from the markdown.
     pub requirements: Vec<Requirement>,
+
+    /// Metadata describing the output format.
     pub metadata: SpecMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// Additional info included in serialized spec output.
 pub struct SpecMetadata {
+    /// Output schema version.
     pub version: String,
+
+    /// Output format identifier.
     pub format: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// JSON-serializable view of a change (proposal + deltas).
 pub struct ChangeShowJson {
+    /// Change id (folder name under `.ito/changes/`).
     pub id: String,
+    /// Human-readable title (currently same as `id`).
     pub title: String,
     #[serde(rename = "deltaCount")]
+    /// Total number of deltas.
     pub delta_count: u32,
+
+    /// Parsed deltas from delta spec files.
     pub deltas: Vec<ChangeDelta>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One delta entry extracted from a change delta spec.
 pub struct ChangeDelta {
+    /// Spec id the delta belongs to.
     pub spec: String,
+
+    /// Delta operation (e.g. `ADDED`, `MODIFIED`).
     pub operation: String,
+
+    /// Human-readable description for display.
     pub description: String,
+
+    /// Primary requirement extracted for the delta (legacy shape).
     pub requirement: Requirement,
+
+    /// All requirements extracted for the delta.
     pub requirements: Vec<Requirement>,
 }
 
+/// Read the markdown for a spec id from `.ito/specs/<id>/spec.md`.
 pub fn read_spec_markdown(ito_path: &Path, id: &str) -> Result<String> {
     let path = paths::spec_markdown_path(ito_path, id);
     ito_common::io::read_to_string(&path)
 }
 
+/// Read the proposal markdown for a change id.
 pub fn read_change_proposal_markdown(ito_path: &Path, change_id: &str) -> Result<String> {
     let path = paths::change_dir(ito_path, change_id).join("proposal.md");
     ito_common::io::read_to_string(&path)
 }
 
+/// Parse spec markdown into a serializable structure.
 pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
     let overview = extract_section_text(markdown, "Purpose");
     let requirements = parse_spec_requirements(markdown);
@@ -79,6 +123,7 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
     }
 }
 
+/// Return all `spec.md` files under `.ito/changes/<change>/specs/*/spec.md`.
 pub fn read_change_delta_spec_paths(ito_path: &Path, change_id: &str) -> Result<Vec<PathBuf>> {
     let specs_dir = paths::change_specs_dir(ito_path, change_id);
     if !specs_dir.exists() {
@@ -97,6 +142,7 @@ pub fn read_change_delta_spec_paths(ito_path: &Path, change_id: &str) -> Result<
     Ok(out)
 }
 
+/// Parse a change id plus its delta spec files into a JSON-friendly structure.
 pub fn parse_change_show_json(change_id: &str, delta_specs: &[DeltaSpecFile]) -> ChangeShowJson {
     let mut deltas: Vec<ChangeDelta> = Vec::new();
     for file in delta_specs {
@@ -112,11 +158,16 @@ pub fn parse_change_show_json(change_id: &str, delta_specs: &[DeltaSpecFile]) ->
 }
 
 #[derive(Debug, Clone)]
+/// One loaded delta spec file.
 pub struct DeltaSpecFile {
+    /// Spec id this delta spec belongs to.
     pub spec: String,
+
+    /// Full markdown contents of the delta `spec.md`.
     pub markdown: String,
 }
 
+/// Load a delta `spec.md` and infer the spec id from its parent directory.
 pub fn load_delta_spec_file(path: &Path) -> Result<DeltaSpecFile> {
     let markdown = ito_common::io::read_to_string(path)?;
     let spec = path

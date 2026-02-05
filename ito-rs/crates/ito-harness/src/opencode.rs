@@ -11,6 +11,10 @@ use std::time::{Duration, Instant};
 pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 #[derive(Debug, Default)]
+/// Harness implementation that executes the `opencode` CLI.
+///
+/// This harness is intended for local development and CI where OpenCode is
+/// available on `PATH`.
 pub struct OpencodeHarness;
 
 impl Harness for OpencodeHarness {

@@ -1,3 +1,11 @@
+//! Creation helpers for modules and changes.
+//!
+//! This module contains the filesystem operations behind `ito create module`
+//! and `ito create change`.
+//!
+//! Functions here are designed to be called by the CLI layer and return
+//! structured results suitable for JSON output.
+
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,43 +20,64 @@ use ito_common::id::{parse_change_id, parse_module_id};
 use ito_common::paths;
 
 #[derive(Debug, thiserror::Error)]
+/// Errors that can occur while creating modules or changes.
 pub enum CreateError {
+    /// The provided module name is invalid.
     #[error("Invalid module name '{0}'")]
     InvalidModuleName(String),
 
     // Match TS: the message is already user-facing (e.g. "Change name must be lowercase ...").
+    /// The provided change name is invalid.
     #[error("{0}")]
     InvalidChangeName(String),
 
+    /// The requested module id does not exist.
     #[error("Module '{0}' not found")]
     ModuleNotFound(String),
 
+    /// A change with the same id already exists.
     #[error("Change '{0}' already exists")]
     ChangeAlreadyExists(String),
 
+    /// Underlying I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 
+    /// JSON serialization/deserialization error.
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Clone)]
+/// Result of creating (or resolving) a module.
 pub struct CreateModuleResult {
+    /// 3-digit module id.
     pub module_id: String,
+    /// Module name (slug).
     pub module_name: String,
+    /// Folder name under `{ito_path}/modules`.
     pub folder_name: String,
+    /// `true` if the module was newly created.
     pub created: bool,
+    /// Path to the module directory.
     pub module_dir: PathBuf,
+    /// Path to `module.md`.
     pub module_md: PathBuf,
 }
 
 #[derive(Debug, Clone)]
+/// Result of creating a change.
 pub struct CreateChangeResult {
+    /// Change id (folder name under `{ito_path}/changes`).
     pub change_id: String,
+    /// Path to the change directory.
     pub change_dir: PathBuf,
 }
 
+/// Create (or resolve) a module by name.
+///
+/// If a module with the same name already exists, this returns it with
+/// `created=false`.
 pub fn create_module(
     ito_path: &Path,
     name: &str,
@@ -113,6 +142,7 @@ pub fn create_module(
     })
 }
 
+/// Create a new change directory and update the module's `module.md` checklist.
 pub fn create_change(
     ito_path: &Path,
     name: &str,

@@ -66,8 +66,10 @@ pub struct Provider {
 /// Supported input/output modalities
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ModelModalities {
+    /// Supported input modalities.
     #[serde(default)]
     pub input: Vec<Modality>,
+    /// Supported output modalities.
     #[serde(default)]
     pub output: Vec<Modality>,
 }
@@ -76,11 +78,16 @@ pub struct ModelModalities {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Modality {
+    /// Plain text.
     Text,
+    /// Images.
     Image,
+    /// Audio.
     Audio,
+    /// Video.
     Video,
     #[serde(other)]
+    /// Unknown / unsupported modality.
     Unknown,
 }
 
@@ -100,12 +107,18 @@ impl fmt::Display for Modality {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModelCapability {
+    /// Vision / image understanding.
     Vision,
+    /// Tool / function calling.
     FunctionCalling,
+    /// Native JSON-mode output.
     JsonMode,
+    /// Server-sent streaming.
     Streaming,
+    /// Enhanced reasoning mode.
     Reasoning,
     #[serde(other)]
+    /// Unknown / unsupported capability.
     Unknown,
 }
 

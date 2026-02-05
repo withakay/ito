@@ -1,10 +1,21 @@
+//! Fuzzy matching helpers.
+//!
+//! Used for "did you mean" suggestions in CLI error messages.
+
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A candidate string scored by edit distance.
 pub struct ScoredCandidate {
+    /// The candidate string.
     pub candidate: String,
+    /// The edit distance to the input.
     pub distance: usize,
+    /// The original index in the input list (used for stable tie-breaking).
     pub index: usize,
 }
 
+/// Return up to `max` candidates closest to `input`.
+///
+/// Matches are sorted by Levenshtein distance and are stable on ties.
 pub fn nearest_matches(input: &str, candidates: &[String], max: usize) -> Vec<String> {
     let mut scored = Vec::new();
     for (idx, c) in candidates.iter().enumerate() {
@@ -25,6 +36,7 @@ pub fn nearest_matches(input: &str, candidates: &[String], max: usize) -> Vec<St
     out
 }
 
+/// Compute the Levenshtein edit distance between two strings.
 pub fn levenshtein(a: &str, b: &str) -> usize {
     let a_chars: Vec<char> = a.chars().collect();
     let b_chars: Vec<char> = b.chars().collect();

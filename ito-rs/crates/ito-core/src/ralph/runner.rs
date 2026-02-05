@@ -11,25 +11,58 @@ use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
+/// Runtime options for a single Ralph loop invocation.
 pub struct RalphOptions {
+    /// Base prompt content appended after any change/module context.
     pub prompt: String,
+
+    /// Optional change id to scope the loop to.
     pub change_id: Option<String>,
+
+    /// Optional module id to scope the loop to.
     pub module_id: Option<String>,
+
+    /// Optional model override passed through to the harness.
     pub model: Option<String>,
+
+    /// Minimum number of iterations required before a completion promise is honored.
     pub min_iterations: u32,
+
+    /// Optional maximum iteration count.
     pub max_iterations: Option<u32>,
+
+    /// Completion token that signals the loop is done (e.g. `COMPLETE`).
     pub completion_promise: String,
+
+    /// Auto-approve all harness prompts and actions.
     pub allow_all: bool,
+
+    /// Skip creating a git commit after each iteration.
     pub no_commit: bool,
+
+    /// Enable interactive mode when supported by the harness.
     pub interactive: bool,
+
+    /// Print the current saved state without running a new iteration.
     pub status: bool,
+
+    /// Append additional markdown to the saved Ralph context and exit.
     pub add_context: Option<String>,
+
+    /// Clear any saved Ralph context and exit.
     pub clear_context: bool,
+
+    /// Print the full prompt sent to the harness.
     pub verbose: bool,
+
     /// Inactivity timeout - restart iteration if no output for this duration.
     pub inactivity_timeout: Option<Duration>,
 }
 
+/// Run the Ralph loop until a completion promise is detected.
+///
+/// This persists lightweight state under `.ito/.state/ralph/<change>/` so the
+/// user can inspect iteration history.
 pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness) -> Result<()> {
     let (change_id, module_id) =
         resolve_target(ito_path, opts.change_id, opts.module_id, opts.interactive)?;

@@ -580,7 +580,7 @@ pub enum ConfigCommand {
 
 #[derive(Args, Debug, Clone, Default)]
 pub struct ConfigCommonArgs {
-    /// Treat <value> as a string
+    /// Treat `value` as a string.
     #[arg(long)]
     pub string: bool,
 }

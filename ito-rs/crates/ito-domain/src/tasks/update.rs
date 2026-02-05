@@ -1,8 +1,14 @@
+//! Helpers for updating task status in `tasks.md`.
+
 use chrono::{DateTime, Local};
 use regex::Regex;
 
 use super::TaskStatus;
 
+/// Update a checkbox-format task's status by numeric index.
+///
+/// `task_id` is interpreted as a 1-based index of the checkbox items in the
+/// file.
 pub fn update_checkbox_task_status(
     contents: &str,
     task_id: &str,
@@ -62,6 +68,7 @@ pub fn update_checkbox_task_status(
     Ok(out)
 }
 
+/// Update an enhanced-format task's status and `Updated At` metadata.
 pub fn update_enhanced_task_status(
     contents: &str,
     task_id: &str,

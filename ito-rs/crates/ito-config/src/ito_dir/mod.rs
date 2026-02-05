@@ -1,13 +1,23 @@
+//! Ito working directory discovery.
+//!
+//! This module answers: "where is the `.ito/` directory for this project?".
+//! It mirrors the precedence rules from the TypeScript implementation.
+
 use std::path::{Path, PathBuf};
 
 use ito_common::fs::{FileSystem, StdFs};
 
 use crate::{ConfigContext, load_global_config_fs, load_repo_project_path_override_fs};
 
+/// Determine the configured Ito working directory name.
+///
+/// This returns the directory name (not a full path). It consults repo-local
+/// configuration first, then global config, then falls back to `.ito`.
 pub fn get_ito_dir_name(project_root: &Path, ctx: &ConfigContext) -> String {
     get_ito_dir_name_fs(&StdFs, project_root, ctx)
 }
 
+/// Like [`get_ito_dir_name`], but uses an injected file-system.
 pub fn get_ito_dir_name_fs<F: FileSystem>(
     fs: &F,
     project_root: &Path,
@@ -32,10 +42,12 @@ pub fn get_ito_dir_name_fs<F: FileSystem>(
     ".ito".to_string()
 }
 
+/// Resolve the `.ito/` path for `project_root`.
 pub fn get_ito_path(project_root: &Path, ctx: &ConfigContext) -> PathBuf {
     get_ito_path_fs(&StdFs, project_root, ctx)
 }
 
+/// Like [`get_ito_path`], but uses an injected file-system.
 pub fn get_ito_path_fs<F: FileSystem>(fs: &F, project_root: &Path, ctx: &ConfigContext) -> PathBuf {
     let root = absolutize_and_normalize(project_root);
     root.join(get_ito_dir_name_fs(fs, &root, ctx))

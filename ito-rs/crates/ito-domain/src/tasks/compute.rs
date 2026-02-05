@@ -1,7 +1,13 @@
+//! Task scheduling helpers.
+//!
+//! These functions compute which tasks are ready to execute versus blocked by
+//! wave gating or explicit task dependencies.
+
 use std::collections::BTreeMap;
 
 use super::{TaskItem, TaskStatus, TasksFormat, TasksParseResult};
 
+/// Compute ready tasks and blocked tasks (with reasons) from a parsed tasks file.
 pub fn compute_ready_and_blocked(
     parsed: &TasksParseResult,
 ) -> (Vec<TaskItem>, Vec<(TaskItem, Vec<String>)>) {

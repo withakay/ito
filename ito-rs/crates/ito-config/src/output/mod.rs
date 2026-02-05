@@ -1,15 +1,25 @@
+//! UI-related option resolution.
+//!
+//! These helpers translate CLI flags + environment variables into a single
+//! `UiOptions` struct used by higher-level crates.
+
 use std::io::IsTerminal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// UI behavior flags.
 pub struct UiOptions {
+    /// Disable ANSI color output.
     pub no_color: bool,
+    /// Whether interactive prompts are allowed.
     pub interactive: bool,
 }
 
+/// Return `true` if stdout is a TTY.
 pub fn stdout_is_tty() -> bool {
     std::io::stdout().is_terminal()
 }
 
+/// Resolve UI options from CLI flags and environment variables.
 pub fn resolve_ui_options(
     cli_no_color: bool,
     no_color_env: Option<&str>,
@@ -25,6 +35,7 @@ pub fn resolve_ui_options(
     )
 }
 
+/// Resolve UI options, allowing tests to inject TTY detection.
 pub fn resolve_ui_options_with_tty(
     cli_no_color: bool,
     no_color_env: Option<&str>,
@@ -39,6 +50,7 @@ pub fn resolve_ui_options_with_tty(
     }
 }
 
+/// Interpret the `NO_COLOR` env var value.
 pub fn no_color_env_set(value: Option<&str>) -> bool {
     match value {
         Some("1") => true,
@@ -48,6 +60,7 @@ pub fn no_color_env_set(value: Option<&str>) -> bool {
     }
 }
 
+/// Resolve whether prompts should run interactively.
 pub fn resolve_interactive(
     cli_no_interactive: bool,
     env: Option<&str>,

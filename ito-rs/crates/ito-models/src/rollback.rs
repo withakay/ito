@@ -18,9 +18,11 @@ pub struct RollbackResult {
 #[derive(Debug, thiserror::Error)]
 pub enum RollbackError {
     #[error("Failed to restore file: {0}")]
+    /// I/O error while restoring or deleting files.
     IoError(#[from] io::Error),
 
     #[error("Backup file not found: {0}")]
+    /// Backup file does not exist.
     BackupNotFound(PathBuf),
 }
 

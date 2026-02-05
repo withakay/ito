@@ -11,33 +11,46 @@ mod markers;
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_dir_name;
 
+/// Tool id for Claude Code.
 pub const TOOL_CLAUDE: &str = "claude";
+/// Tool id for Codex.
 pub const TOOL_CODEX: &str = "codex";
+/// Tool id for GitHub Copilot.
 pub const TOOL_GITHUB_COPILOT: &str = "github-copilot";
+/// Tool id for OpenCode.
 pub const TOOL_OPENCODE: &str = "opencode";
 
+/// Return the set of supported tool ids.
 pub fn available_tool_ids() -> &'static [&'static str] {
     &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Options that control template installation behavior.
 pub struct InitOptions {
+    /// Selected tool ids.
     pub tools: BTreeSet<String>,
+    /// Overwrite existing files when `true`.
     pub force: bool,
 }
 
 impl InitOptions {
+    /// Create new init options.
     pub fn new(tools: BTreeSet<String>, force: bool) -> Self {
         Self { tools, force }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Installation mode used by the installer.
 pub enum InstallMode {
+    /// Initial installation (`ito init`).
     Init,
+    /// Update installation (`ito update`).
     Update,
 }
 
+/// Install the default project templates and selected tool adapters.
 pub fn install_default_templates(
     project_root: &Path,
     ctx: &ConfigContext,

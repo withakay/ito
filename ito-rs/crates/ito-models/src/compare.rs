@@ -6,18 +6,26 @@ use std::fmt;
 /// Result of comparing two models
 #[derive(Debug, Clone)]
 pub struct ModelComparison<'a> {
+    /// First model in the comparison.
     pub model_a: &'a Model,
+    /// Second model in the comparison.
     pub model_b: &'a Model,
+    /// Token pricing comparison.
     pub pricing: PricingComparison,
+    /// Context-window comparison.
     pub context: ContextComparison,
+    /// Capability-set comparison.
     pub capabilities: CapabilityComparison,
 }
 
 /// Pricing comparison between two models
 #[derive(Debug, Clone)]
 pub struct PricingComparison {
+    /// `model_b.input_cost - model_a.input_cost`, if both are known.
     pub input_diff: Option<f64>,
+    /// `model_b.output_cost - model_a.output_cost`, if both are known.
     pub output_diff: Option<f64>,
+    /// Combined input+output diff (`model_b - model_a`).
     pub total_diff: f64,
     /// Which model is cheaper (A, B, or Equal)
     pub cheaper: ComparisonResult,
@@ -26,7 +34,9 @@ pub struct PricingComparison {
 /// Context window comparison
 #[derive(Debug, Clone)]
 pub struct ContextComparison {
+    /// `model_b.max_input_tokens - model_a.max_input_tokens`, if both are known.
     pub input_diff: Option<i64>,
+    /// `model_b.max_output_tokens - model_a.max_output_tokens`, if both are known.
     pub output_diff: Option<i64>,
     /// Which model has larger context (A, B, or Equal)
     pub larger: ComparisonResult,

@@ -1,3 +1,9 @@
+//! Embedded asset distribution helpers.
+//!
+//! This module builds install manifests for the various harnesses Ito supports.
+//! The manifests map a file embedded in `ito-templates` to a destination path on
+//! disk.
+
 use ito_templates::{
     commands_files, get_adapter_file, get_command_file, get_skill_file, skills_files,
 };
@@ -5,6 +11,7 @@ use miette::{Result, miette};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
+/// One file to be installed from embedded assets.
 pub struct FileManifest {
     /// Source path relative to embedded assets (e.g., "brainstorming/SKILL.md" for skills)
     pub source: String,
@@ -15,9 +22,13 @@ pub struct FileManifest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Category of embedded asset.
 pub enum AssetType {
+    /// A skill markdown file.
     Skill,
+    /// A tool-specific adapter/bootstrap file.
     Adapter,
+    /// A command/prompt template.
     Command,
 }
 
@@ -80,6 +91,11 @@ fn ito_commands_manifests(commands_dir: &Path) -> Vec<FileManifest> {
     manifests
 }
 
+/// Return manifest entries for OpenCode template installation.
+///
+/// OpenCode stores its configuration under a single directory (typically
+/// `~/.config/opencode/`). We install an Ito plugin along with a flat list of
+/// skills and commands.
 pub fn opencode_manifests(config_dir: &Path) -> Vec<FileManifest> {
     let mut out = Vec::new();
 
@@ -100,6 +116,7 @@ pub fn opencode_manifests(config_dir: &Path) -> Vec<FileManifest> {
     out
 }
 
+/// Return manifest entries for Claude Code template installation.
 pub fn claude_manifests(project_root: &Path) -> Vec<FileManifest> {
     let mut out = vec![FileManifest {
         source: "claude/session-start.sh".to_string(),
@@ -118,6 +135,7 @@ pub fn claude_manifests(project_root: &Path) -> Vec<FileManifest> {
     out
 }
 
+/// Return manifest entries for Codex template installation.
 pub fn codex_manifests(project_root: &Path) -> Vec<FileManifest> {
     let mut out = vec![FileManifest {
         source: "codex/ito-skills-bootstrap.md".to_string(),
@@ -139,6 +157,7 @@ pub fn codex_manifests(project_root: &Path) -> Vec<FileManifest> {
     out
 }
 
+/// Return manifest entries for GitHub Copilot template installation.
 pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
     // Skills go directly under .github/skills/ (flat structure with ito- prefix)
     let skills_dir = project_root.join(".github").join("skills");

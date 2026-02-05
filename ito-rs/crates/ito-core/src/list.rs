@@ -1,3 +1,8 @@
+//! Listing helpers for modules, changes, and specs.
+//!
+//! These functions are used by the CLI to produce stable, JSON-friendly
+//! summaries of on-disk Ito state.
+
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, SecondsFormat, Timelike, Utc};
@@ -7,29 +12,42 @@ use ito_common::fs::StdFs;
 use ito_common::paths;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// Module entry returned by `ito list modules`.
 pub struct ModuleListItem {
+    /// 3-digit module id.
     pub id: String,
+    /// Module name (slug).
     pub name: String,
     #[serde(rename = "fullName")]
+    /// Folder name (`NNN_name`).
     pub full_name: String,
     #[serde(rename = "changeCount")]
+    /// Number of changes currently associated with the module.
     pub change_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// Change entry returned by `ito list changes`.
 pub struct ChangeListItem {
+    /// Change folder name.
     pub name: String,
     #[serde(rename = "completedTasks")]
+    /// Number of completed tasks.
     pub completed_tasks: u32,
     #[serde(rename = "shelvedTasks")]
+    /// Number of shelved tasks.
     pub shelved_tasks: u32,
     #[serde(rename = "inProgressTasks")]
+    /// Number of in-progress tasks.
     pub in_progress_tasks: u32,
     #[serde(rename = "pendingTasks")]
+    /// Number of pending tasks.
     pub pending_tasks: u32,
     #[serde(rename = "totalTasks")]
+    /// Total number of tasks.
     pub total_tasks: u32,
     #[serde(rename = "lastModified")]
+    /// Last modified time for the change directory.
     pub last_modified: String,
     /// Legacy status field for backward compatibility
     pub status: String,
@@ -37,16 +55,21 @@ pub struct ChangeListItem {
     #[serde(rename = "workStatus")]
     pub work_status: String,
     /// True when no remaining work (complete or paused)
+    /// True when no remaining work (complete or paused)
     pub completed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// Spec entry returned by `ito list specs`.
 pub struct SpecListItem {
+    /// Spec id.
     pub id: String,
     #[serde(rename = "requirementCount")]
+    /// Count of requirements in `spec.md`.
     pub requirement_count: u32,
 }
 
+/// List modules under `{ito_path}/modules`.
 pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
     let changes_dir = paths::changes_dir(ito_path);
 
@@ -74,6 +97,7 @@ pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
     Ok(modules)
 }
 
+/// List change directories under `{ito_path}/changes`.
 pub fn list_change_dirs(ito_path: &Path) -> Result<Vec<PathBuf>> {
     let fs = StdFs;
     Ok(ito_domain::discovery::list_change_dir_names(&fs, ito_path)?
@@ -82,6 +106,7 @@ pub fn list_change_dirs(ito_path: &Path) -> Result<Vec<PathBuf>> {
         .collect())
 }
 
+/// Compute the most-recent modification time under `path`.
 pub fn last_modified_recursive(path: &Path) -> Result<DateTime<Utc>> {
     use std::collections::VecDeque;
 
@@ -122,6 +147,7 @@ pub fn last_modified_recursive(path: &Path) -> Result<DateTime<Utc>> {
     Ok(dt)
 }
 
+/// Render a UTC timestamp as ISO-8601 with millisecond precision.
 pub fn to_iso_millis(dt: DateTime<Utc>) -> String {
     // JS Date.toISOString() is millisecond-precision. Truncate to millis to avoid
     // platform-specific sub-ms differences.
@@ -132,6 +158,7 @@ pub fn to_iso_millis(dt: DateTime<Utc>) -> String {
     truncated.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
+/// List specs under `{ito_path}/specs`.
 pub fn list_specs(ito_path: &Path) -> Result<Vec<SpecListItem>> {
     let mut specs: Vec<SpecListItem> = Vec::new();
     let specs_dir = paths::specs_dir(ito_path);
