@@ -1,48 +1,18 @@
-# docs-agent-instructions Specification
+# Docs Agent Instructions Specification
 
 ## Purpose
 
-TBD - created by archiving change improve-agent-instruction-usability. Update Purpose after archive.
+Define requirements for generating stable, useful agent-facing instruction artifacts.
 
 ## Requirements
 
-### Requirement: Quick Reference Placement
+### Requirement: TDD and coverage guidance is explicit and configurable
 
-The AI instructions SHALL begin with a quick-reference section that surfaces required file structures, templates, and formatting rules before any narrative guidance.
+AI-facing instructions SHALL explicitly encourage a RED/GREEN/REFACTOR workflow and reference a default coverage target, while describing how projects can override defaults.
 
-#### Scenario: Loading templates at the top
+#### Scenario: AGENTS guidance includes RED/GREEN and coverage target
 
-- **WHEN** `ito/AGENTS.md` is regenerated or updated
-- **THEN** the first substantive section after the title SHALL provide copy-ready headings for `proposal.md`, `tasks.md`, spec deltas, and scenario formatting
-- **AND** link each template to the corresponding workflow step for deeper reading
-
-### Requirement: Embedded Templates and Examples
-
-`ito/AGENTS.md` SHALL include complete copy/paste templates and inline examples exactly where agents make corresponding edits.
-
-#### Scenario: Providing file templates
-
-- **WHEN** authors reach the workflow guidance for drafting proposals and deltas
-- **THEN** provide fenced Markdown templates that match the required structure (`## Why`, `## ADDED Requirements`, `#### Scenario:` etc.)
-- **AND** accompany each template with a brief example showing correct header usage and scenario bullets
-
-### Requirement: Pre-validation Checklist
-
-`ito/AGENTS.md` SHALL offer a concise pre-validation checklist that highlights common formatting mistakes before running `ito validate`.
-
-#### Scenario: Highlighting common validation failures
-
-- **WHEN** a reader reaches the validation guidance
-- **THEN** present a checklist reminding them to verify requirement headers, scenario formatting, and delta sections
-- **AND** include reminders about at least `#### Scenario:` usage and descriptive requirement text before scenarios
-
-### Requirement: Progressive Disclosure of Workflow Guidance
-
-The documentation SHALL separate beginner essentials from advanced topics so newcomers can focus on core steps without losing access to advanced workflows.
-
-#### Scenario: Organizing beginner and advanced sections
-
-- **WHEN** reorganizing `ito/AGENTS.md`
-- **THEN** keep an introductory section limited to the minimum steps (scaffold, draft, validate, request review)
-- **AND** move advanced topics (multi-capability changes, archiving details, tooling deep dives) into clearly labeled later sections
-- **AND** provide anchor links from the quick-reference to those advanced sections
+- **WHEN** an agent reads `.ito/AGENTS.md`
+- **THEN** it includes a concise section describing RED/GREEN/REFACTOR
+- **AND** it references a default coverage target of 80%
+- **AND** it describes where to configure overrides

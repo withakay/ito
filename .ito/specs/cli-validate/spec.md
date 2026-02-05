@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Define the `cli-validate` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
+Define the `cli-validate` capability so repository/change/spec validation behavior is stable and testable.
 
 ## Requirements
 

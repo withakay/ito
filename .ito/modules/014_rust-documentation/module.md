@@ -7,4 +7,4 @@
 - *
 
 ## Changes
-- [ ] 014-01_add-rust-crate-documentation
+- [x] 014-01_add-rust-crate-documentation

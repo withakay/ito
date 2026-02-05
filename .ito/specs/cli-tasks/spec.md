@@ -1,9 +1,8 @@
-
 # Cli Tasks Specification
 
 ## Purpose
 
-Define the `cli-tasks` capability, including required behavior and validation scenarios, so it remains stable and testable.
+Define the `cli-tasks` capability: enhanced tasks file structure and task workflow commands.
 
 ## Requirements
 
@@ -46,7 +45,7 @@ The CLI SHALL display the current status of all tasks in a change, including wav
 
 ### Requirement: Task execution management
 
-The CLI SHALL provide commands to start, complete, and move to the next task, with automatic dependency validation. The CLI SHALL support both enhanced format and checkbox-only format for `ito tasks start`, `ito tasks complete`, and `ito tasks next`.
+The CLI SHALL provide commands to start, complete, and move to the next task, with automatic dependency validation.
 
 #### Scenario: Start a task
 
@@ -63,19 +62,6 @@ The CLI SHALL provide commands to start, complete, and move to the next task, wi
 - **AND** print an error if the task is shelved
 - **AND** print an error if any dependencies are not complete
 
-#### Scenario: Start a task in checkbox format
-
-- **WHEN** executing `ito tasks start <change-id> <task-id>`
-- **AND** the tasks.md file uses checkbox-only format
-- **THEN** read `.ito/changes/<change-id>/tasks.md`
-- **AND** find the task with the specified ID (1-indexed line number in checkbox format)
-- **AND** verify that no other task is currently in-progress (`- [~]`)
-- **AND** update the task marker from `- [ ]` to `- [~]`
-- **AND** write the updated tasks.md file
-- **AND** display a confirmation that the task has been started
-- **AND** print an error if the task is already complete (`- [x]`)
-- **AND** print an error if another task is already in-progress
-
 #### Scenario: Complete a task
 
 - **WHEN** executing `ito tasks complete <change-id> <task-id>`
@@ -86,16 +72,6 @@ The CLI SHALL provide commands to start, complete, and move to the next task, wi
 - **AND** write the updated tasks.md file
 - **AND** display a confirmation that the task has been completed
 - **AND** print an error if the task ID is not found
-
-#### Scenario: Complete a task in checkbox format
-
-- **WHEN** executing `ito tasks complete <change-id> <task-id>`
-- **AND** the tasks.md file uses checkbox-only format
-- **THEN** read `.ito/changes/<change-id>/tasks.md`
-- **AND** find the task with the specified ID (1-indexed line number in checkbox format)
-- **AND** update the task marker from `- [ ]` or `- [~]` to `- [x]`
-- **AND** write the updated tasks.md file
-- **AND** display a confirmation that the task has been completed
 
 #### Scenario: Move to next task
 
@@ -109,17 +85,6 @@ The CLI SHALL provide commands to start, complete, and move to the next task, wi
 - **AND** if exactly one ready task exists, automatically start it and display confirmation
 - **AND** if multiple ready tasks exist, display them and ask user which to start
 - **AND** if no ready tasks exist, display a message indicating all complete/shelved or blockers remain
-
-#### Scenario: Move to next task in checkbox format
-
-- **WHEN** executing `ito tasks next <change-id>`
-- **AND** the tasks.md file uses checkbox-only format
-- **THEN** read `.ito/changes/<change-id>/tasks.md`
-- **AND** if a task is already in-progress (`- [~]`), display it as the current task
-- **AND** otherwise identify the first task with status "pending" (`- [ ]`)
-- **AND** display the next pending task
-- **AND** print guidance to start it with `ito tasks start <change-id> <task-id>`
-- **AND** if no pending tasks remain, display a completion message
 
 ### Requirement: Task structure validation
 
@@ -189,6 +154,8 @@ The CLI SHALL maintain accurate status tracking for all tasks and support status
 - **AND** show wave-specific progress percentages
 - **AND** display counts for complete vs shelved
 - **AND** indicate estimated time remaining if duration information is available
+
+
 
 ### Requirement: Task shelving
 

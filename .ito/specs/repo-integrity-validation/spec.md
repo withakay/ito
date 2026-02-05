@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Define the `repo-integrity-validation` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
+Define repository integrity validation rules for modules, changes, and naming conventions.
 
 ## Requirements
 
