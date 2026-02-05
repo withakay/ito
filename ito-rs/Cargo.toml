@@ -22,6 +22,18 @@ license = "MIT"
 repository = "https://github.com/withakay/ito"
 
 [workspace.dependencies]
+# Internal crates
+ito-common = { path = "crates/ito-common", version = "0.24.0-local.202602051036" }
+ito-config = { path = "crates/ito-config", version = "0.24.0-local.202602051036" }
+ito-core = { path = "crates/ito-core", version = "0.24.0-local.202602051036" }
+ito-domain = { path = "crates/ito-domain", version = "0.24.0-local.202602051036" }
+ito-harness = { path = "crates/ito-harness", version = "0.24.0-local.202602051036" }
+ito-logging = { path = "crates/ito-logging", version = "0.24.0-local.202602051036" }
+ito-schemas = { path = "crates/ito-schemas", version = "0.24.0-local.202602051036" }
+ito-templates = { path = "crates/ito-templates", version = "0.24.0-local.202602051036" }
+ito-web = { path = "crates/ito-web", version = "0.24.0-local.202602051036" }
+
+# External dependencies
 clap = { version = "4.5.23", features = ["derive"] }
 clap_complete = "4.5.23"
 chrono = { version = "0.4.40", default-features = false, features = ["clock", "std"] }

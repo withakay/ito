@@ -1,7 +1,9 @@
 [package]
 name = "ito-models"
-version = "0.24.0-local.202602051036"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Model registry and agent management for Ito"
 
 [dependencies]

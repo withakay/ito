@@ -26,5 +26,5 @@ release = false
 [[package]]
 name = "ito-cli"
 release = true
-# Changelog lives in the workspace root
+# Changelog lives in the repo root
 changelog_path = "../CHANGELOG.md"

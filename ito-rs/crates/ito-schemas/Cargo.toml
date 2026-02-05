@@ -1,9 +1,10 @@
 [package]
 name = "ito-schemas"
-version = "0.24.0-local.202602051036"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Schema definitions for Ito data structures"
 
 [dependencies]
 serde.workspace = true
