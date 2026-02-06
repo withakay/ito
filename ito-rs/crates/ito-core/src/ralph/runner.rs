@@ -1,3 +1,4 @@
+use crate::change_repository::FsChangeRepository;
 use crate::ralph::duration::format_duration;
 use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
 use crate::ralph::state::{
@@ -5,9 +6,7 @@ use crate::ralph::state::{
     save_state,
 };
 use crate::ralph::validation;
-use ito_domain::changes::{
-    ChangeRepository, ChangeSummary, ChangeTargetResolution, ChangeWorkStatus,
-};
+use ito_domain::changes::{ChangeSummary, ChangeTargetResolution, ChangeWorkStatus};
 use ito_harness::{Harness, HarnessName};
 use miette::{Result, miette};
 use std::path::{Path, PathBuf};
@@ -372,7 +371,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
 }
 
 fn module_changes(ito_path: &Path, module_id: &str) -> Result<Vec<ChangeSummary>> {
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     let changes = change_repo.list_by_module(module_id)?;
     if changes.is_empty() {
         return Err(miette!(
@@ -501,7 +500,7 @@ fn resolve_target(
     module_id: Option<String>,
     interactive: bool,
 ) -> Result<(String, String)> {
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
 
     // If change is provided, resolve canonical ID and infer module.
     if let Some(change) = change_id {

@@ -6,10 +6,13 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, SecondsFormat, Timelike, Utc};
-use miette::{IntoDiagnostic, Result};
+use miette::{IntoDiagnostic, Result, miette};
 
+use crate::change_repository::FsChangeRepository;
+use crate::module_repository::FsModuleRepository;
 use ito_common::fs::StdFs;
 use ito_common::paths;
+use ito_domain::changes::{ChangeStatus, ChangeSummary};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 /// Module entry returned by `ito list modules`.
@@ -59,6 +62,73 @@ pub struct ChangeListItem {
     pub completed: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Progress filter for the `ito list` default changes path.
+pub enum ChangeProgressFilter {
+    /// Return all changes.
+    All,
+    /// Return only ready changes.
+    Ready,
+    /// Return only completed (including paused) changes.
+    Completed,
+    /// Return only partially complete changes.
+    Partial,
+    /// Return only pending changes.
+    Pending,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Sort order for the `ito list` default changes path.
+pub enum ChangeSortOrder {
+    /// Sort by most-recent first.
+    Recent,
+    /// Sort by change name.
+    Name,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Input arguments for the default `ito list` changes use-case.
+pub struct ListChangesInput {
+    /// Progress filter to apply before sorting.
+    pub progress_filter: ChangeProgressFilter,
+    /// Sort order applied to filtered changes.
+    pub sort: ChangeSortOrder,
+}
+
+impl Default for ListChangesInput {
+    fn default() -> Self {
+        Self {
+            progress_filter: ChangeProgressFilter::All,
+            sort: ChangeSortOrder::Recent,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Stable typed summary returned to adapters for `ito list` changes.
+pub struct ChangeListSummary {
+    /// Change folder name.
+    pub name: String,
+    /// Number of completed tasks.
+    pub completed_tasks: u32,
+    /// Number of shelved tasks.
+    pub shelved_tasks: u32,
+    /// Number of in-progress tasks.
+    pub in_progress_tasks: u32,
+    /// Number of pending tasks.
+    pub pending_tasks: u32,
+    /// Total number of tasks.
+    pub total_tasks: u32,
+    /// Last modified time for the change directory.
+    pub last_modified: DateTime<Utc>,
+    /// Legacy status field for backward compatibility.
+    pub status: String,
+    /// Work status: draft, ready, in-progress, paused, complete.
+    pub work_status: String,
+    /// True when no remaining work (complete or paused).
+    pub completed: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 /// Spec entry returned by `ito list specs`.
 pub struct SpecListItem {
@@ -71,25 +141,16 @@ pub struct SpecListItem {
 
 /// List modules under `{ito_path}/modules`.
 pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
-    let changes_dir = paths::changes_dir(ito_path);
-
     let mut modules: Vec<ModuleListItem> = Vec::new();
-    let modules_dir = paths::modules_dir(ito_path);
 
-    let fs = StdFs;
-    for full_name in ito_domain::discovery::list_module_dir_names(&fs, ito_path)? {
-        let Some((id, name)) = parse_module_folder_name(&full_name) else {
-            continue;
-        };
-        if std::fs::metadata(modules_dir.join(&full_name).join("module.md")).is_err() {
-            continue;
-        }
-        let change_count = count_changes_for_module(&changes_dir, &id)?;
+    let module_repo = FsModuleRepository::new(ito_path);
+    for module in module_repo.list()? {
+        let full_name = format!("{}_{}", module.id, module.name);
         modules.push(ModuleListItem {
-            id,
-            name,
+            id: module.id,
+            name: module.name,
             full_name,
-            change_count,
+            change_count: module.change_count as usize,
         });
     }
 
@@ -103,6 +164,56 @@ pub fn list_change_dirs(ito_path: &Path) -> Result<Vec<PathBuf>> {
     Ok(ito_domain::discovery::list_change_dir_names(&fs, ito_path)?
         .into_iter()
         .map(|name| paths::change_dir(ito_path, &name))
+        .collect())
+}
+
+/// List active changes using typed summaries for adapter rendering.
+pub fn list_changes(ito_path: &Path, input: ListChangesInput) -> Result<Vec<ChangeListSummary>> {
+    let changes_dir = paths::changes_dir(ito_path);
+    if !changes_dir.exists() {
+        return Err(miette!(
+            "No Ito changes directory found. Run 'ito init' first."
+        ));
+    }
+
+    let change_repo = FsChangeRepository::new(ito_path);
+    let mut summaries: Vec<ChangeSummary> =
+        change_repo.list().map_err(|err| miette!(err.to_string()))?;
+
+    match input.progress_filter {
+        ChangeProgressFilter::All => {}
+        ChangeProgressFilter::Ready => summaries.retain(|s| s.is_ready()),
+        ChangeProgressFilter::Completed => summaries.retain(is_completed),
+        ChangeProgressFilter::Partial => summaries.retain(is_partial),
+        ChangeProgressFilter::Pending => summaries.retain(is_pending),
+    }
+
+    match input.sort {
+        ChangeSortOrder::Name => summaries.sort_by(|a, b| a.id.cmp(&b.id)),
+        ChangeSortOrder::Recent => summaries.sort_by(|a, b| b.last_modified.cmp(&a.last_modified)),
+    }
+
+    Ok(summaries
+        .into_iter()
+        .map(|s| {
+            let status = match s.status() {
+                ChangeStatus::NoTasks => "no-tasks",
+                ChangeStatus::InProgress => "in-progress",
+                ChangeStatus::Complete => "complete",
+            };
+            ChangeListSummary {
+                name: s.id.clone(),
+                completed_tasks: s.completed_tasks,
+                shelved_tasks: s.shelved_tasks,
+                in_progress_tasks: s.in_progress_tasks,
+                pending_tasks: s.pending_tasks,
+                total_tasks: s.total_tasks,
+                last_modified: s.last_modified,
+                status: status.to_string(),
+                work_status: s.work_status().to_string(),
+                completed: is_completed(&s),
+            }
+        })
         .collect())
 }
 
@@ -181,35 +292,7 @@ pub fn list_specs(ito_path: &Path) -> Result<Vec<SpecListItem>> {
     Ok(specs)
 }
 
-fn parse_module_folder_name(folder: &str) -> Option<(String, String)> {
-    // TS regex: /^(\d{3})_([a-z][a-z0-9-]*)$/
-    let bytes = folder.as_bytes();
-    if bytes.len() < 5 {
-        return None;
-    }
-    if !bytes.first()?.is_ascii_digit()
-        || !bytes.get(1)?.is_ascii_digit()
-        || !bytes.get(2)?.is_ascii_digit()
-    {
-        return None;
-    }
-    if *bytes.get(3)? != b'_' {
-        return None;
-    }
-    let name = &folder[4..];
-    let mut chars = name.chars();
-    let first = chars.next()?;
-    if !first.is_ascii_lowercase() {
-        return None;
-    }
-    for c in chars {
-        if !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
-            return None;
-        }
-    }
-    Some((folder[0..3].to_string(), name.to_string()))
-}
-
+#[cfg(test)]
 fn parse_modular_change_module_id(folder: &str) -> Option<&str> {
     // Accept canonical folder names like:
     // - "NNN-NN_name" (2+ digit change number)
@@ -266,28 +349,6 @@ fn parse_modular_change_module_id(folder: &str) -> Option<&str> {
     Some(&folder[0..3])
 }
 
-fn count_changes_for_module(changes_dir: &Path, module_id: &str) -> Result<usize> {
-    if !changes_dir.exists() {
-        return Ok(0);
-    }
-    let mut count = 0usize;
-    let fs = StdFs;
-    for name in ito_domain::discovery::list_dir_names(&fs, changes_dir)? {
-        if name == "archive" {
-            continue;
-        }
-        if std::fs::metadata(changes_dir.join(&name).join("proposal.md")).is_err() {
-            continue;
-        }
-        if let Some(mid) = parse_modular_change_module_id(&name)
-            && mid == module_id
-        {
-            count += 1;
-        }
-    }
-    Ok(count)
-}
-
 #[derive(Debug, Clone)]
 struct Section {
     level: usize,
@@ -304,6 +365,33 @@ fn count_requirements_in_spec_markdown(content: &str) -> u32 {
         return 0;
     }
     req.map(|s| s.children.len() as u32).unwrap_or(0)
+}
+
+fn is_completed(s: &ChangeSummary) -> bool {
+    use ito_domain::changes::ChangeWorkStatus;
+    matches!(
+        s.work_status(),
+        ChangeWorkStatus::Complete | ChangeWorkStatus::Paused
+    )
+}
+
+fn is_partial(s: &ChangeSummary) -> bool {
+    use ito_domain::changes::ChangeWorkStatus;
+    matches!(
+        s.work_status(),
+        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
+    ) && s.total_tasks > 0
+        && s.completed_tasks > 0
+        && s.completed_tasks < s.total_tasks
+}
+
+fn is_pending(s: &ChangeSummary) -> bool {
+    use ito_domain::changes::ChangeWorkStatus;
+    matches!(
+        s.work_status(),
+        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
+    ) && s.total_tasks > 0
+        && s.completed_tasks == 0
 }
 
 fn parse_sections(content: &str) -> Vec<Section> {
@@ -383,6 +471,30 @@ fn find_section<'a>(sections: &'a [Section], title: &str) -> Option<&'a Section>
 mod tests {
     use super::*;
 
+    fn write(path: impl AsRef<Path>, contents: &str) {
+        let path = path.as_ref();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("parent dirs should exist");
+        }
+        std::fs::write(path, contents).expect("test fixture should write");
+    }
+
+    fn make_change(root: &Path, id: &str, tasks: &str) {
+        write(
+            root.join(".ito/changes").join(id).join("proposal.md"),
+            "## Why\nfixture\n\n## What Changes\n- fixture\n\n## Impact\n- fixture\n",
+        );
+        write(root.join(".ito/changes").join(id).join("tasks.md"), tasks);
+        write(
+            root.join(".ito/changes")
+                .join(id)
+                .join("specs")
+                .join("alpha")
+                .join("spec.md"),
+            "## ADDED Requirements\n\n### Requirement: Fixture\nFixture requirement.\n\n#### Scenario: Works\n- **WHEN** fixture runs\n- **THEN** it is ready\n",
+        );
+    }
+
     #[test]
     fn counts_requirements_from_headings() {
         let md = r#"
@@ -415,5 +527,111 @@ bar
         assert_eq!(parse_modular_change_module_id("001-02_foo"), Some("001"));
         assert_eq!(parse_modular_change_module_id("001-100_foo"), Some("001"));
         assert_eq!(parse_modular_change_module_id("001-1234_foo"), Some("001"));
+    }
+
+    #[test]
+    fn list_changes_filters_by_progress_status() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let ito_path = repo.path().join(".ito");
+        make_change(
+            repo.path(),
+            "000-01_pending",
+            "## 1. Implementation\n- [ ] 1.1 todo\n",
+        );
+        make_change(
+            repo.path(),
+            "000-02_partial",
+            "## 1. Implementation\n- [x] 1.1 done\n- [ ] 1.2 todo\n",
+        );
+        make_change(
+            repo.path(),
+            "000-03_completed",
+            "## 1. Implementation\n- [x] 1.1 done\n",
+        );
+
+        let ready = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::Ready,
+                sort: ChangeSortOrder::Name,
+            },
+        )
+        .expect("ready list should succeed");
+        assert_eq!(ready.len(), 2);
+        assert_eq!(ready[0].name, "000-01_pending");
+        assert_eq!(ready[1].name, "000-02_partial");
+
+        let pending = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::Pending,
+                sort: ChangeSortOrder::Name,
+            },
+        )
+        .expect("pending list should succeed");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].name, "000-01_pending");
+
+        let partial = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::Partial,
+                sort: ChangeSortOrder::Name,
+            },
+        )
+        .expect("partial list should succeed");
+        assert_eq!(partial.len(), 1);
+        assert_eq!(partial[0].name, "000-02_partial");
+
+        let completed = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::Completed,
+                sort: ChangeSortOrder::Name,
+            },
+        )
+        .expect("completed list should succeed");
+        assert_eq!(completed.len(), 1);
+        assert_eq!(completed[0].name, "000-03_completed");
+        assert!(completed[0].completed);
+    }
+
+    #[test]
+    fn list_changes_sorts_by_name_and_recent() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let ito_path = repo.path().join(".ito");
+        make_change(
+            repo.path(),
+            "000-01_alpha",
+            "## 1. Implementation\n- [ ] 1.1 todo\n",
+        );
+        std::thread::sleep(std::time::Duration::from_millis(15));
+        make_change(
+            repo.path(),
+            "000-02_beta",
+            "## 1. Implementation\n- [ ] 1.1 todo\n",
+        );
+
+        let by_name = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::All,
+                sort: ChangeSortOrder::Name,
+            },
+        )
+        .expect("name sort should succeed");
+        assert_eq!(by_name[0].name, "000-01_alpha");
+        assert_eq!(by_name[1].name, "000-02_beta");
+
+        let by_recent = list_changes(
+            &ito_path,
+            ListChangesInput {
+                progress_filter: ChangeProgressFilter::All,
+                sort: ChangeSortOrder::Recent,
+            },
+        )
+        .expect("recent sort should succeed");
+        assert_eq!(by_recent[0].name, "000-02_beta");
+        assert_eq!(by_recent[1].name, "000-01_alpha");
     }
 }

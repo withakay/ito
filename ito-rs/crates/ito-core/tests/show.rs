@@ -1,6 +1,7 @@
+use ito_core::change_repository::FsChangeRepository;
 use ito_core::show::{
     DeltaSpecFile, load_delta_spec_file, parse_change_show_json, parse_spec_show_json,
-    read_change_delta_spec_paths,
+    read_change_delta_spec_files,
 };
 use std::path::Path;
 
@@ -51,7 +52,7 @@ Then Y
 }
 
 #[test]
-fn read_change_delta_spec_paths_lists_spec_md_files_sorted() {
+fn read_change_delta_spec_files_lists_specs_sorted() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     let change_id = "001-01_demo";
@@ -73,10 +74,11 @@ fn read_change_delta_spec_paths_lists_spec_md_files_sorted() {
         "# a\n",
     );
 
-    let paths = read_change_delta_spec_paths(&ito, change_id).unwrap();
-    assert_eq!(paths.len(), 2);
-    assert!(paths[0].to_string_lossy().contains("/a/spec.md"));
-    assert!(paths[1].to_string_lossy().contains("/b/spec.md"));
+    let repo = FsChangeRepository::new(&ito);
+    let files = read_change_delta_spec_files(&repo, change_id).unwrap();
+    assert_eq!(files.len(), 2);
+    assert_eq!(files[0].spec, "a");
+    assert_eq!(files[1].spec, "b");
 }
 
 #[test]

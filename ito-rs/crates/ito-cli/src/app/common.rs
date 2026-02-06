@@ -4,8 +4,9 @@ use clap::ColorChoice;
 use clap::CommandFactory;
 use ito_common::paths as core_paths;
 use ito_config::ConfigContext;
+use ito_core::change_repository::FsChangeRepository;
 use ito_core::workflow as core_workflow;
-use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
+use ito_domain::changes::ChangeTargetResolution;
 use std::path::Path;
 
 pub(crate) fn schema_not_found_message(ctx: &ConfigContext, name: &str) -> String {
@@ -54,7 +55,7 @@ pub(crate) fn detect_item_type(rt: &Runtime, item: &str) -> String {
     let ito_path = rt.ito_path();
     let idx = rt.repo_index();
 
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     let is_change = match change_repo.resolve_target(item) {
         ChangeTargetResolution::Unique(_) => true,
         ChangeTargetResolution::Ambiguous(_) | ChangeTargetResolution::NotFound => {
@@ -76,7 +77,7 @@ pub(crate) fn list_spec_ids(rt: &Runtime) -> Vec<String> {
 }
 
 pub(crate) fn list_change_ids(rt: &Runtime) -> Vec<String> {
-    let change_repo = ChangeRepository::new(rt.ito_path());
+    let change_repo = FsChangeRepository::new(rt.ito_path());
     change_repo
         .list()
         .map(|changes| changes.into_iter().map(|c| c.id).collect())
@@ -84,7 +85,7 @@ pub(crate) fn list_change_ids(rt: &Runtime) -> Vec<String> {
 }
 
 pub(crate) fn resolve_change_target(ito_path: &Path, input: &str) -> Result<String, String> {
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     match change_repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(id),
         ChangeTargetResolution::Ambiguous(matches) => {

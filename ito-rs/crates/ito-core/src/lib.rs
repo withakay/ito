@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Filesystem-backed change repository implementation.
+pub mod change_repository;
+
 /// Create new modules/changes and initial scaffolding.
 pub mod create;
 
@@ -23,6 +26,9 @@ pub mod installers;
 
 /// List/query project entities (modules, changes, tasks).
 pub mod list;
+
+/// Filesystem-backed module repository implementation.
+pub mod module_repository;
 
 /// Ralph Wiggum loop support.
 pub mod ralph;

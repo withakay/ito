@@ -51,7 +51,7 @@ ok
 fn validate_change_requires_at_least_one_delta() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
-    std::fs::create_dir_all(&ito).unwrap();
+    std::fs::create_dir_all(ito.join("changes").join("001-01_demo")).unwrap();
 
     let r = validate_change(&ito, "001-01_demo", false).unwrap();
     assert!(!r.valid);

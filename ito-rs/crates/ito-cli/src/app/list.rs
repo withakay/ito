@@ -2,9 +2,7 @@ use crate::cli::{ListArgs, ListSortOrder};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use chrono::{DateTime, Utc};
-use ito_common::paths as core_paths;
-use ito_domain::changes::{ChangeRepository, ChangeStatus};
-use ito_domain::modules::ModuleRepository;
+use ito_core::module_repository::FsModuleRepository;
 
 #[derive(Debug, serde::Serialize)]
 struct ModulesResponse {
@@ -58,7 +56,7 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     match mode {
         "modules" => {
-            let module_repo = ModuleRepository::new(ito_path);
+            let module_repo = FsModuleRepository::new(ito_path);
             let modules = module_repo.list().map_err(to_cli_error)?;
 
             if want_json {
@@ -129,33 +127,32 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
         _ => {
             // changes
-            let changes_dir = core_paths::changes_dir(ito_path);
-            if !changes_dir.exists() {
-                return fail("No Ito changes directory found. Run 'ito init' first.");
-            }
+            let progress_filter = if want_ready {
+                ito_core::list::ChangeProgressFilter::Ready
+            } else if want_completed {
+                ito_core::list::ChangeProgressFilter::Completed
+            } else if want_partial {
+                ito_core::list::ChangeProgressFilter::Partial
+            } else if want_pending {
+                ito_core::list::ChangeProgressFilter::Pending
+            } else {
+                ito_core::list::ChangeProgressFilter::All
+            };
 
-            let change_repo = ChangeRepository::new(ito_path);
-            let mut summaries = change_repo.list().map_err(to_cli_error)?;
+            let sort_order = if sort == "name" {
+                ito_core::list::ChangeSortOrder::Name
+            } else {
+                ito_core::list::ChangeSortOrder::Recent
+            };
 
-            // Filter to ready changes if requested
-            if want_ready {
-                summaries.retain(|s| s.is_ready());
-            }
-
-            // Filter to completed changes if requested
-            if want_completed {
-                summaries.retain(is_completed);
-            }
-
-            // Filter to partially complete changes if requested
-            if want_partial {
-                summaries.retain(is_partial);
-            }
-
-            // Filter to pending changes if requested
-            if want_pending {
-                summaries.retain(is_pending);
-            }
+            let summaries = ito_core::list::list_changes(
+                ito_path,
+                ito_core::list::ListChangesInput {
+                    progress_filter,
+                    sort: sort_order,
+                },
+            )
+            .map_err(to_cli_error)?;
 
             if summaries.is_empty() {
                 if want_json {
@@ -178,34 +175,20 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return Ok(());
             }
 
-            // Sort according to preference
-            if sort == "name" {
-                summaries.sort_by(|a, b| a.id.cmp(&b.id));
-            } else {
-                summaries.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
-            }
-
             if want_json {
                 let changes: Vec<ito_core::list::ChangeListItem> = summaries
                     .iter()
-                    .map(|s| {
-                        let status = match s.status() {
-                            ChangeStatus::NoTasks => "no-tasks",
-                            ChangeStatus::InProgress => "in-progress",
-                            ChangeStatus::Complete => "complete",
-                        };
-                        ito_core::list::ChangeListItem {
-                            name: s.id.clone(),
-                            completed_tasks: s.completed_tasks,
-                            shelved_tasks: s.shelved_tasks,
-                            in_progress_tasks: s.in_progress_tasks,
-                            pending_tasks: s.pending_tasks,
-                            total_tasks: s.total_tasks,
-                            last_modified: ito_core::list::to_iso_millis(s.last_modified),
-                            status: status.to_string(),
-                            work_status: s.work_status().to_string(),
-                            completed: is_completed(s),
-                        }
+                    .map(|s| ito_core::list::ChangeListItem {
+                        name: s.name.clone(),
+                        completed_tasks: s.completed_tasks,
+                        shelved_tasks: s.shelved_tasks,
+                        in_progress_tasks: s.in_progress_tasks,
+                        pending_tasks: s.pending_tasks,
+                        total_tasks: s.total_tasks,
+                        last_modified: ito_core::list::to_iso_millis(s.last_modified),
+                        status: s.status.clone(),
+                        work_status: s.work_status.clone(),
+                        completed: s.completed,
                     })
                     .collect();
                 let payload = ChangesResponse { changes };
@@ -216,11 +199,11 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             println!("Changes:");
-            let name_width = summaries.iter().map(|s| s.id.len()).max().unwrap_or(0);
+            let name_width = summaries.iter().map(|s| s.name.len()).max().unwrap_or(0);
             for s in &summaries {
                 let status = format_task_status(s);
                 let time_ago = format_relative_time(s.last_modified);
-                let padded = format!("{: <width$}", s.id, width = name_width);
+                let padded = format!("{: <width$}", s.name, width = name_width);
                 println!("  {padded}     {: <20}  {time_ago}", status);
             }
         }
@@ -279,7 +262,7 @@ fn parse_sort_order(args: &[String]) -> Option<&str> {
     None
 }
 
-fn format_task_status(s: &ito_domain::changes::ChangeSummary) -> String {
+fn format_task_status(s: &ito_core::list::ChangeListSummary) -> String {
     if s.total_tasks == 0 {
         return "No tasks".to_string();
     }
@@ -303,41 +286,14 @@ fn format_task_status(s: &ito_domain::changes::ChangeSummary) -> String {
     let counts = parts.join("/");
 
     // Add work status indicator
-    use ito_domain::changes::ChangeWorkStatus;
-    match s.work_status() {
-        ChangeWorkStatus::Complete => format!("\u{2713} Complete ({})", counts),
-        ChangeWorkStatus::Paused => format!("\u{2016} Paused ({})", counts),
-        ChangeWorkStatus::InProgress => format!("\u{25B6} Active ({})", counts),
-        ChangeWorkStatus::Ready => counts,
-        ChangeWorkStatus::Draft => format!("{} (draft)", counts),
+    match s.work_status.as_str() {
+        "complete" => format!("\u{2713} Complete ({})", counts),
+        "paused" => format!("\u{2016} Paused ({})", counts),
+        "in-progress" => format!("\u{25B6} Active ({})", counts),
+        "ready" => counts,
+        "draft" => format!("{} (draft)", counts),
+        _ => counts,
     }
-}
-
-fn is_completed(s: &ito_domain::changes::ChangeSummary) -> bool {
-    use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Complete | ChangeWorkStatus::Paused
-    )
-}
-
-fn is_partial(s: &ito_domain::changes::ChangeSummary) -> bool {
-    use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.total_tasks > 0
-        && s.completed_tasks > 0
-        && s.completed_tasks < s.total_tasks
-}
-
-fn is_pending(s: &ito_domain::changes::ChangeSummary) -> bool {
-    use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.total_tasks > 0
-        && s.completed_tasks == 0
 }
 
 fn format_relative_time(then: DateTime<Utc>) -> String {
@@ -370,10 +326,7 @@ fn format_relative_time(then: DateTime<Utc>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        format_relative_time, format_task_status, handle_list, is_completed, is_partial,
-        is_pending, parse_sort_order,
-    };
+    use super::{format_relative_time, format_task_status, handle_list, parse_sort_order};
     use crate::runtime::Runtime;
     use chrono::{Duration, Utc};
 
@@ -388,104 +341,46 @@ mod tests {
 
     #[test]
     fn format_task_status_handles_various_states() {
-        use chrono::Utc;
-        use ito_domain::changes::ChangeSummary;
-
-        let make_summary = |completed, shelved, in_progress, pending, total| ChangeSummary {
-            id: "test".to_string(),
-            module_id: None,
-            completed_tasks: completed,
-            shelved_tasks: shelved,
-            in_progress_tasks: in_progress,
-            pending_tasks: pending,
-            total_tasks: total,
-            last_modified: Utc::now(),
-            has_proposal: true,
-            has_design: false,
-            has_specs: true,
-            has_tasks: true,
+        let make_summary = |completed, shelved, in_progress, pending, total, work_status: &str| {
+            ito_core::list::ChangeListSummary {
+                name: "test".to_string(),
+                status: "in-progress".to_string(),
+                work_status: work_status.to_string(),
+                completed: false,
+                completed_tasks: completed,
+                shelved_tasks: shelved,
+                in_progress_tasks: in_progress,
+                pending_tasks: pending,
+                total_tasks: total,
+                last_modified: Utc::now(),
+            }
         };
 
         // No tasks
-        let s = make_summary(0, 0, 0, 0, 0);
+        let s = make_summary(0, 0, 0, 0, 0, "ready");
         assert_eq!(format_task_status(&s), "No tasks");
 
         // All complete
-        let s = make_summary(3, 0, 0, 0, 3);
+        let s = make_summary(3, 0, 0, 0, 3, "complete");
         assert!(format_task_status(&s).contains("Complete"));
         assert!(format_task_status(&s).contains("3c"));
 
         // Paused (complete + shelved = total, shelved > 0)
-        let s = make_summary(2, 1, 0, 0, 3);
+        let s = make_summary(2, 1, 0, 0, 3, "paused");
         assert!(format_task_status(&s).contains("Paused"));
         assert!(format_task_status(&s).contains("2c"));
         assert!(format_task_status(&s).contains("1s"));
 
         // In progress
-        let s = make_summary(1, 0, 1, 1, 3);
+        let s = make_summary(1, 0, 1, 1, 3, "in-progress");
         assert!(format_task_status(&s).contains("Active"));
         assert!(format_task_status(&s).contains("1i"));
 
         // Ready (pending work, nothing in progress)
-        let s = make_summary(1, 0, 0, 2, 3);
+        let s = make_summary(1, 0, 0, 2, 3, "ready");
         let status = format_task_status(&s);
         assert!(status.contains("1c"));
         assert!(status.contains("2p"));
-    }
-
-    #[test]
-    fn progress_predicates_work_with_change_summary() {
-        use chrono::Utc;
-        use ito_domain::changes::ChangeSummary;
-
-        let make_summary = |completed, shelved, in_progress, pending, total| ChangeSummary {
-            id: "test".to_string(),
-            module_id: None,
-            completed_tasks: completed,
-            shelved_tasks: shelved,
-            in_progress_tasks: in_progress,
-            pending_tasks: pending,
-            total_tasks: total,
-            last_modified: Utc::now(),
-            has_proposal: true,
-            has_design: false,
-            has_specs: true,
-            has_tasks: total > 0,
-        };
-
-        // No tasks - none of the predicates match
-        let s = make_summary(0, 0, 0, 0, 0);
-        assert!(!is_completed(&s));
-        assert!(!is_partial(&s));
-        assert!(!is_pending(&s));
-
-        // All pending (ready state, no completed)
-        let s = make_summary(0, 0, 0, 3, 3);
-        assert!(is_pending(&s));
-        assert!(!is_partial(&s));
-        assert!(!is_completed(&s));
-
-        // Partial (some completed, some pending)
-        let s = make_summary(1, 0, 0, 2, 3);
-        assert!(is_partial(&s));
-        assert!(!is_pending(&s));
-        assert!(!is_completed(&s));
-
-        // Not partial when 0 tasks are complete
-        let s = make_summary(0, 0, 0, 3, 3);
-        assert!(!is_partial(&s));
-
-        // All completed
-        let s = make_summary(3, 0, 0, 0, 3);
-        assert!(is_completed(&s));
-        assert!(!is_partial(&s));
-        assert!(!is_pending(&s));
-
-        // Paused (completed + shelved = total) should count as completed
-        let s = make_summary(2, 1, 0, 0, 3);
-        assert!(is_completed(&s)); // Paused counts as "completed" for filtering
-        assert!(!is_partial(&s));
-        assert!(!is_pending(&s));
     }
 
     #[test]

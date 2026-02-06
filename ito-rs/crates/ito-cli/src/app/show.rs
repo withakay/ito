@@ -5,8 +5,9 @@ use crate::util::parse_string_flag;
 use ito_common::match_::nearest_matches;
 use ito_common::paths as core_paths;
 use ito_config::output;
+use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::show as core_show;
-use ito_domain::modules::ModuleRepository;
 
 pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -137,22 +138,17 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 Ok(id) => id,
                 Err(msg) => return fail(msg),
             };
-            let change_path = core_paths::change_dir(ito_path, &resolved_change);
-            let proposal_path = change_path.join("proposal.md");
+            let change_repo = FsChangeRepository::new(ito_path);
             if want_json {
-                let mut files: Vec<core_show::DeltaSpecFile> = Vec::new();
-                let paths = core_show::read_change_delta_spec_paths(ito_path, &resolved_change)
+                let files = core_show::read_change_delta_spec_files(&change_repo, &resolved_change)
                     .unwrap_or_default();
-                for p in paths {
-                    if let Ok(f) = core_show::load_delta_spec_file(&p) {
-                        files.push(f);
-                    }
-                }
                 let json = core_show::parse_change_show_json(&resolved_change, &files);
                 let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
                 println!("{rendered}");
             } else {
-                let md = ito_common::io::read_to_string_or_default(&proposal_path);
+                let md = core_show::read_change_proposal_markdown(&change_repo, &resolved_change)
+                    .map_err(to_cli_error)?
+                    .unwrap_or_default();
                 print!("{md}");
             }
             Ok(())
@@ -261,7 +257,7 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let ito_path = rt.ito_path();
 
-    let module_repo = ModuleRepository::new(ito_path);
+    let module_repo = FsModuleRepository::new(ito_path);
     let module = module_repo.get(&module_id).map_err(to_cli_error)?;
 
     let module_md_path = module.path.join("module.md");
