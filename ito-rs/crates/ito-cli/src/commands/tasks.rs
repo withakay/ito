@@ -4,6 +4,7 @@ use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_common::paths as core_paths;
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::tasks as core_tasks;
 use ito_domain::changes::ChangeTargetResolution;
 use ito_domain::tasks as wf_tasks;
 
@@ -952,12 +953,8 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
 
 /// Show ready tasks across all changes
 fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
-    let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let summaries = change_repo.list().map_err(to_cli_error)?;
-
-    // Only process changes that are ready (have proposal, specs, tasks, and pending work)
-    let ready_changes: Vec<_> = summaries.iter().filter(|s| s.is_ready()).collect();
+    let ready_changes =
+        core_tasks::list_ready_tasks_across_changes(rt.ito_path()).map_err(to_cli_error)?;
 
     if ready_changes.is_empty() {
         if want_json {
@@ -969,39 +966,19 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     }
 
     let mut all_results: Vec<serde_json::Value> = Vec::new();
-    let mut has_any_tasks = false;
 
-    for summary in &ready_changes {
-        let path = wf_tasks::tasks_path(ito_path, &summary.id);
-        let Ok(contents) = ito_common::io::read_to_string(&path) else {
-            continue;
-        };
-
-        let parsed = wf_tasks::parse_tasks_tracking_file(&contents);
-
-        // Skip if there are blocking errors
-        if diagnostics::blocking_task_error_message(&path, &parsed.diagnostics).is_some() {
-            continue;
-        }
-
-        let (ready, _blocked) = wf_tasks::compute_ready_and_blocked(&parsed);
-
-        if ready.is_empty() {
-            continue;
-        }
-
-        has_any_tasks = true;
-
+    for change in &ready_changes {
         if want_json {
-            let json_tasks: Vec<serde_json::Value> = ready.iter().map(json_task).collect();
+            let json_tasks: Vec<serde_json::Value> =
+                change.ready_tasks.iter().map(json_task).collect();
             all_results.push(serde_json::json!({
                 "action": "ready",
-                "change_id": summary.id,
+                "change_id": change.change_id,
                 "ready_tasks": json_tasks,
             }));
         } else {
-            println!("{}:", summary.id);
-            for t in &ready {
+            println!("{}:", change.change_id);
+            for t in &change.ready_tasks {
                 println!("  {} - {}", t.id, t.name);
             }
             println!();
@@ -1010,8 +987,6 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
 
     if want_json {
         return print_json(&serde_json::json!(all_results));
-    } else if !has_any_tasks {
-        println!("No ready tasks found across any changes.");
     }
 
     Ok(())

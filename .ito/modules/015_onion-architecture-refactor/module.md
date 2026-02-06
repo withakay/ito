@@ -24,6 +24,6 @@ Guiding document: `.local/onionarchitecturerefactor_epic_plan.md`.
 - [ ] 015-07_refactor-task-repo-ports
 - [ ] 015-08_refactor-error-boundaries
 - [ ] 015-09_refactor-process-exec-boundary
-- [ ] 015-10_refactor-adapter-thinning
+- [x] 015-10_refactor-adapter-thinning
 - [ ] 015-11_refactor-schema-usage-guidelines
 - [ ] 015-12_refactor-split-core-into-app-infra
