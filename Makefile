@@ -221,6 +221,9 @@ rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_D
 	mkdir -p "$$INSTALL_DIR"; \
 	cp "ito-rs/target/release/ito" "$$INSTALL_DIR/ito"; \
 	chmod +x "$$INSTALL_DIR/ito"; \
+	if [ "$$(uname -s)" = "Darwin" ]; then \
+		codesign --force --sign - "$$INSTALL_DIR/ito"; \
+	fi; \
 	"$$INSTALL_DIR/ito" --version
 
 install: version-sync rust-install ## Sync version date + install Rust ito as 'ito'
@@ -232,6 +235,9 @@ dev: ## Build and install debug version with git info (fast iteration)
 	mkdir -p "$$INSTALL_DIR"; \
 	cp "ito-rs/target/debug/ito" "$$INSTALL_DIR/ito"; \
 	chmod +x "$$INSTALL_DIR/ito"; \
+	if [ "$$(uname -s)" = "Darwin" ]; then \
+		codesign --force --sign - "$$INSTALL_DIR/ito"; \
+	fi; \
 	echo "Installed: $$INSTALL_DIR/ito"; \
 	"$$INSTALL_DIR/ito" --version
 
