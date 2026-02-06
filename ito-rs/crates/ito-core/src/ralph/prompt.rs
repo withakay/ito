@@ -4,8 +4,9 @@
 //! context (change proposal + module), the user's base prompt, and a fixed
 //! preamble describing the iteration rules.
 
+use crate::change_repository::FsChangeRepository;
 use crate::validate;
-use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
+use ito_domain::changes::ChangeTargetResolution;
 use miette::{Result, miette};
 use std::path::Path;
 
@@ -152,7 +153,7 @@ fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String
 }
 
 fn resolve_change_id(ito_path: &Path, input: &str) -> Result<Option<String>> {
-    let repo = ChangeRepository::new(ito_path);
+    let repo = FsChangeRepository::new(ito_path);
     match repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(Some(id)),
         ChangeTargetResolution::NotFound => Ok(None),

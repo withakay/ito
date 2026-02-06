@@ -3,11 +3,12 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_common::paths as core_paths;
-use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
+use ito_core::change_repository::FsChangeRepository;
+use ito_domain::changes::ChangeTargetResolution;
 use ito_domain::tasks as wf_tasks;
 
 fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     match change_repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(id),
         ChangeTargetResolution::Ambiguous(matches) => {
@@ -951,10 +952,8 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
 
 /// Show ready tasks across all changes
 fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
-    use ito_domain::changes::ChangeRepository;
-
     let ito_path = rt.ito_path();
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     let summaries = change_repo.list().map_err(to_cli_error)?;
 
     // Only process changes that are ready (have proposal, specs, tasks, and pending work)

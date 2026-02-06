@@ -3,9 +3,9 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::load_cascading_project_config;
+use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::workflow as core_workflow;
-use ito_domain::changes::ChangeRepository;
-use ito_domain::modules::ModuleRepository;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -106,7 +106,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             return handle_new_proposal_guide(rt, want_json);
         }
 
-        let change_repo = ChangeRepository::new(rt.ito_path());
+        let change_repo = FsChangeRepository::new(rt.ito_path());
         let changes = change_repo.list().unwrap_or_default();
         let mut msg = "Missing required option --change".to_string();
         if !changes.is_empty() {
@@ -318,7 +318,7 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
         modules: Vec<ModuleEntry>,
     }
 
-    let module_repo = ModuleRepository::new(rt.ito_path());
+    let module_repo = FsModuleRepository::new(rt.ito_path());
     let modules = module_repo.list().unwrap_or_default();
     let modules: Vec<ModuleEntry> = modules
         .into_iter()

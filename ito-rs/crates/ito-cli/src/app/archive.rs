@@ -2,7 +2,7 @@ use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_common::paths as core_paths;
-use ito_domain::changes::ChangeRepository;
+use ito_core::change_repository::FsChangeRepository;
 use ito_domain::tasks::TaskRepository;
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -35,7 +35,7 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         .map(|s| s.as_str());
 
     // If no change specified, list available changes and prompt for selection
-    let change_repo = ChangeRepository::new(ito_path);
+    let change_repo = FsChangeRepository::new(ito_path);
     let change_name = if let Some(name) = change_name {
         match super::common::resolve_change_target(ito_path, name) {
             Ok(resolved) => resolved,

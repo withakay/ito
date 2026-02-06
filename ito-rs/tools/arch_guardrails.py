@@ -18,7 +18,6 @@ DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
     "std::fs": {
         "ito-rs/crates/ito-domain/src/changes/repository.rs": 2,
         "ito-rs/crates/ito-domain/src/discovery.rs": 9,
-        "ito-rs/crates/ito-domain/src/modules/repository.rs": 2,
         "ito-rs/crates/ito-domain/src/planning.rs": 5,
         "ito-rs/crates/ito-domain/src/tasks/repository.rs": 2,
         "ito-rs/crates/ito-domain/src/workflow.rs": 8,

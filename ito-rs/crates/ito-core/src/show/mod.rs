@@ -4,13 +4,13 @@
 //! change markdown files from disk and produces lightweight structs that can be
 //! serialized to JSON.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use miette::Result;
 use serde::Serialize;
 
-use ito_common::fs::StdFs;
 use ito_common::paths;
+use ito_domain::changes::ChangeRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One raw scenario block from a spec or delta.
@@ -101,9 +101,12 @@ pub fn read_spec_markdown(ito_path: &Path, id: &str) -> Result<String> {
 }
 
 /// Read the proposal markdown for a change id.
-pub fn read_change_proposal_markdown(ito_path: &Path, change_id: &str) -> Result<String> {
-    let path = paths::change_dir(ito_path, change_id).join("proposal.md");
-    ito_common::io::read_to_string(&path)
+pub fn read_change_proposal_markdown(
+    repo: &impl ChangeRepository,
+    change_id: &str,
+) -> Result<Option<String>> {
+    let change = repo.get(change_id)?;
+    Ok(change.proposal)
 }
 
 /// Parse spec markdown into a serializable structure.
@@ -123,22 +126,21 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
     }
 }
 
-/// Return all `spec.md` files under `.ito/changes/<change>/specs/*/spec.md`.
-pub fn read_change_delta_spec_paths(ito_path: &Path, change_id: &str) -> Result<Vec<PathBuf>> {
-    let specs_dir = paths::change_specs_dir(ito_path, change_id);
-    if !specs_dir.exists() {
-        return Ok(vec![]);
-    }
-
-    let mut out: Vec<PathBuf> = Vec::new();
-    let fs = StdFs;
-    for name in ito_domain::discovery::list_dir_names(&fs, &specs_dir)? {
-        let spec_md = specs_dir.join(name).join("spec.md");
-        if spec_md.exists() {
-            out.push(spec_md);
-        }
-    }
-    out.sort();
+/// Return all delta spec files for a change from the repository.
+pub fn read_change_delta_spec_files(
+    repo: &impl ChangeRepository,
+    change_id: &str,
+) -> Result<Vec<DeltaSpecFile>> {
+    let change = repo.get(change_id)?;
+    let mut out: Vec<DeltaSpecFile> = change
+        .specs
+        .into_iter()
+        .map(|spec| DeltaSpecFile {
+            spec: spec.name,
+            markdown: spec.content,
+        })
+        .collect();
+    out.sort_by(|a, b| a.spec.cmp(&b.spec));
     Ok(out)
 }
 

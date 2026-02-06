@@ -14,9 +14,8 @@ use serde::Serialize;
 use ito_common::fs::StdFs;
 use ito_common::paths;
 
-use crate::show::{
-    DeltaSpecFile, load_delta_spec_file, parse_change_show_json, parse_spec_show_json,
-};
+use crate::change_repository::FsChangeRepository;
+use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
 
 mod issue;
 mod repo_integrity;
@@ -168,16 +167,12 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> Result<Val
 
 /// Validate a change's delta specs by change id.
 pub fn validate_change(ito_path: &Path, change_id: &str, strict: bool) -> Result<ValidationReport> {
-    let paths = crate::show::read_change_delta_spec_paths(ito_path, change_id)?;
-    if paths.is_empty() {
+    let change_repo = FsChangeRepository::new(ito_path);
+    let files = read_change_delta_spec_files(&change_repo, change_id)?;
+    if files.is_empty() {
         let mut r = report(strict);
         r.push(error("specs", "Change must have at least one delta"));
         return Ok(r.finish());
-    }
-
-    let mut files: Vec<DeltaSpecFile> = Vec::new();
-    for p in paths {
-        files.push(load_delta_spec_file(&p)?);
     }
 
     let show = parse_change_show_json(change_id, &files);

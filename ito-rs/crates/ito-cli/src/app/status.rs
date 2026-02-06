@@ -2,8 +2,8 @@ use crate::cli::StatusArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_core::change_repository::FsChangeRepository;
 use ito_core::workflow as core_workflow;
-use ito_domain::changes::ChangeRepository;
 
 pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -17,7 +17,7 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let want_json = args.iter().any(|a| a == "--json");
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
-        let change_repo = ChangeRepository::new(rt.ito_path());
+        let change_repo = FsChangeRepository::new(rt.ito_path());
         let changes = change_repo.list().unwrap_or_default();
         let mut msg = "Missing required option --change".to_string();
         if !changes.is_empty() {
