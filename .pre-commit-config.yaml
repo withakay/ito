@@ -96,3 +96,11 @@ repos:
         args: [ito-rs/tools/check_max_lines.py, --soft-limit, "1000", --hard-limit, "1200", --root, ito-rs]
         pass_filenames: false
         files: ^ito-rs/.*\.rs$
+
+      - id: arch-guardrails
+        name: architecture guardrails
+        entry: make
+        language: system
+        args: [arch-guardrails]
+        pass_filenames: false
+        files: ^(ito-rs/.*\.(rs|toml)|Makefile|\.pre-commit-config\.yaml|\.github/workflows/ci\.yml)$
