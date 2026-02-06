@@ -5,10 +5,10 @@
 //! preamble describing the iteration rules.
 
 use crate::validate;
+use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 use miette::{Result, miette};
 use std::path::Path;
 
-use ito_common::fs::StdFs;
 use ito_common::paths;
 
 /// Options that control which context is embedded into a Ralph prompt.
@@ -133,7 +133,7 @@ pub fn build_ralph_prompt(
 
 fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String>> {
     let changes_dir = paths::changes_dir(ito_path);
-    let resolved = resolve_change_id(&changes_dir, change_id)?;
+    let resolved = resolve_change_id(ito_path, change_id)?;
     let Some(resolved) = resolved else {
         return Ok(None);
     };
@@ -151,34 +151,12 @@ fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String
     )))
 }
 
-fn resolve_change_id(changes_dir: &Path, input: &str) -> Result<Option<String>> {
-    let direct = changes_dir.join(input);
-    if direct.exists() {
-        return Ok(Some(input.to_string()));
-    }
-
-    if !changes_dir.exists() {
-        return Ok(None);
-    }
-
-    let mut matches: Vec<String> = Vec::new();
-    let fs = StdFs;
-    for name in ito_domain::discovery::list_dir_names(&fs, changes_dir)? {
-        if name == "archive" {
-            continue;
-        }
-        if name.starts_with(input) {
-            matches.push(name);
-        }
-    }
-
-    matches.sort();
-    matches.dedup();
-
-    match matches.len() {
-        0 => Ok(None),
-        1 => Ok(Some(matches[0].clone())),
-        _ => Err(miette!(
+fn resolve_change_id(ito_path: &Path, input: &str) -> Result<Option<String>> {
+    let repo = ChangeRepository::new(ito_path);
+    match repo.resolve_target(input) {
+        ChangeTargetResolution::Unique(id) => Ok(Some(id)),
+        ChangeTargetResolution::NotFound => Ok(None),
+        ChangeTargetResolution::Ambiguous(matches) => Err(miette!(
             "Ambiguous change id '{input}'. Matches: {matches}",
             input = input,
             matches = matches.join(", ")
