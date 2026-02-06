@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -103,6 +104,38 @@ def check_domain_api_bans() -> list[str]:
     return violations
 
 
+def check_cli_no_default_features_web_decoupling() -> list[str]:
+    command = [
+        "cargo",
+        "tree",
+        "--manifest-path",
+        str(WORKSPACE_MANIFEST),
+        "-p",
+        "ito-cli",
+        "--no-default-features",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip()
+        details = stderr or "cargo tree command failed"
+        return [
+            f"unable to verify ito-cli no-default-features dependency tree: {details}"
+        ]
+
+    tree_output = completed.stdout
+    if re.search(r"^ito-web v", tree_output, flags=re.MULTILINE):
+        return ["ito-cli --no-default-features still pulls ito-web in dependency tree"]
+
+    return []
+
+
 def report(group_name: str, violations: list[str]) -> None:
     if not violations:
         print(f"OK: {group_name}")
@@ -116,11 +149,13 @@ def report(group_name: str, violations: list[str]) -> None:
 def main() -> int:
     edge_violations = check_crate_edges()
     api_violations = check_domain_api_bans()
+    no_web_violations = check_cli_no_default_features_web_decoupling()
 
     report("crate edge rules", edge_violations)
     report("ito-domain API bans", api_violations)
+    report("ito-cli no-default-features decoupling", no_web_violations)
 
-    if edge_violations or api_violations:
+    if edge_violations or api_violations or no_web_violations:
         return 1
 
     print("Architecture guardrails passed.")

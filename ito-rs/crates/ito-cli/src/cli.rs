@@ -243,6 +243,7 @@ pub enum Commands {
     ///   ito serve status
     ///   ito serve stop
     #[command(verbatim_doc_comment)]
+    #[cfg(feature = "web")]
     Serve(ServeArgs),
 
     // ─── Utilities ──────────────────────────────────────────────────────────────

@@ -10,6 +10,10 @@ description = "Command-line interface for Ito"
 name = "ito"
 path = "src/main.rs"
 
+[features]
+default = ["web"]
+web = ["dep:ito-web"]
+
 [dependencies]
 clap = { workspace = true }
 clap_complete = { workspace = true }
@@ -28,7 +32,7 @@ ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-logging = { workspace = true }
 ito-templates = { workspace = true }
-ito-web = { workspace = true }
+ito-web = { workspace = true, optional = true }
 chrono = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 ito-domain = { workspace = true }
