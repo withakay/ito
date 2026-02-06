@@ -38,6 +38,9 @@ pub mod module_repository;
 /// Filesystem-backed task repository implementation.
 pub mod task_repository;
 
+/// Task-focused orchestration use-cases.
+pub mod tasks;
+
 /// Ralph Wiggum loop support.
 pub mod ralph;
 
