@@ -77,6 +77,26 @@ fn write_tasks(ito_path: &Path, change_id: &str, contents: &str) {
     std::fs::write(dir.join("tasks.md"), contents).unwrap();
 }
 
+fn write_spec(ito_path: &Path, change_id: &str) {
+    let spec_dir = ito_path
+        .join("changes")
+        .join(change_id)
+        .join("specs")
+        .join("alpha");
+    std::fs::create_dir_all(&spec_dir).unwrap();
+    std::fs::write(
+        spec_dir.join("spec.md"),
+        "## Requirements\n\n### Requirement: Test\nThe system SHALL be testable.\n",
+    )
+    .unwrap();
+}
+
+fn write_ready_change(ito_path: &Path, change_id: &str) {
+    write_fixture_ito(ito_path, change_id);
+    write_spec(ito_path, change_id);
+    write_tasks(ito_path, change_id, "# Tasks\n\n- [ ] todo\n");
+}
+
 fn default_opts() -> RalphOptions {
     RalphOptions {
         prompt: "do the thing".to_string(),
@@ -93,6 +113,7 @@ fn default_opts() -> RalphOptions {
         add_context: None,
         clear_context: false,
         verbose: false,
+        continue_module: false,
         inactivity_timeout: None,
         skip_validation: false,
         validation_command: None,
@@ -380,7 +401,7 @@ fn run_ralph_module_resolves_single_change() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     std::fs::create_dir_all(&ito).unwrap();
-    write_fixture_ito(&ito, "006-01_only");
+    write_ready_change(&ito, "006-01_only");
 
     let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
     let mut opts = default_opts();
@@ -395,14 +416,83 @@ fn run_ralph_module_multiple_changes_errors_when_non_interactive() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     std::fs::create_dir_all(&ito).unwrap();
-    write_fixture_ito(&ito, "006-01_a");
-    write_fixture_ito(&ito, "006-02_b");
+    write_ready_change(&ito, "006-01_a");
+    write_ready_change(&ito, "006-02_b");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![(
+            "<promise>COMPLETE</promise>\n".to_string(),
+            String::new(),
+            0,
+        )],
+    );
     let mut opts = default_opts();
     opts.module_id = Some("006".to_string());
-    opts.status = true;
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
     opts.prompt = String::new();
-    let err = run_ralph(&ito, opts, &mut h).unwrap_err();
-    assert!(err.to_string().contains("Multiple changes"));
+    run_ralph(&ito, opts, &mut h).unwrap();
+
+    assert!(ito.join(".state/ralph/006-01_a/state.json").exists());
+    assert!(!ito.join(".state/ralph/006-02_b/state.json").exists());
+}
+
+#[derive(Debug)]
+struct CompletingHarness {
+    complete_in_order: Vec<String>,
+    ito_path: std::path::PathBuf,
+    idx: usize,
+}
+
+impl Harness for CompletingHarness {
+    fn name(&self) -> HarnessName {
+        HarnessName::STUB
+    }
+
+    fn run(&mut self, _config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
+        if let Some(change_id) = self.complete_in_order.get(self.idx) {
+            write_tasks(&self.ito_path, change_id, "# Tasks\n\n- [x] done\n");
+        }
+        self.idx = self.idx.saturating_add(1);
+
+        Ok(HarnessRunResult {
+            stdout: "<promise>COMPLETE</promise>\n".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration: Duration::from_millis(1),
+            timed_out: false,
+        })
+    }
+
+    fn stop(&mut self) {}
+}
+
+#[test]
+fn run_ralph_continue_module_processes_all_ready_changes() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+    write_ready_change(&ito, "006-02_b");
+
+    let mut h = CompletingHarness {
+        complete_in_order: vec!["006-01_a".to_string(), "006-02_b".to_string()],
+        ito_path: ito.clone(),
+        idx: 0,
+    };
+
+    let mut opts = default_opts();
+    opts.module_id = Some("006".to_string());
+    opts.continue_module = true;
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
+    opts.prompt = String::new();
+
+    run_ralph(&ito, opts, &mut h).unwrap();
+
+    assert_eq!(h.idx, 2);
+    assert!(ito.join(".state/ralph/006-01_a/state.json").exists());
+    assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
 }

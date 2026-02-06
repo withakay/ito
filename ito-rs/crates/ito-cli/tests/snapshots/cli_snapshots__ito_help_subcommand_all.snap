@@ -1,6 +1,5 @@
 ---
 source: crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 81
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -590,6 +589,9 @@ Options:
 
       --module <MODULE>
           Target a module (selects a change)
+
+      --continue-module
+          When using --module, keep working through ready changes until module work is complete
 
       --harness <HARNESS>
           Harness to run
