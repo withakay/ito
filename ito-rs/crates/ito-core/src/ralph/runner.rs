@@ -594,20 +594,43 @@ fn count_git_changes() -> Result<usize> {
 }
 
 fn commit_iteration(iteration: u32) -> Result<()> {
-    let status = Command::new("git")
+    let add = Command::new("git")
         .args(["add", "-A"])
-        .status()
+        .output()
         .map_err(|e| miette!("Failed to run git add: {e}"))?;
-    if !status.success() {
-        return Err(miette!("git add failed"));
+    if !add.status.success() {
+        let stdout = String::from_utf8_lossy(&add.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&add.stderr).trim().to_string();
+        let mut msg = String::from("git add failed");
+        if !stdout.is_empty() {
+            msg.push_str("\nstdout:\n");
+            msg.push_str(&stdout);
+        }
+        if !stderr.is_empty() {
+            msg.push_str("\nstderr:\n");
+            msg.push_str(&stderr);
+        }
+        return Err(miette!(msg));
     }
 
     let msg = format!("Ralph loop iteration {iteration}");
-    let status = Command::new("git")
+    let commit = Command::new("git")
         .args(["commit", "-m", &msg])
-        .status()
+        .output()
         .map_err(|e| miette!("Failed to run git commit: {e}"))?;
-    // TS ignores commit failures due to no changes; mimic by allowing non-zero.
-    let _ = status;
+    if !commit.status.success() {
+        let stdout = String::from_utf8_lossy(&commit.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&commit.stderr).trim().to_string();
+        let mut msg = format!("git commit failed for iteration {iteration}");
+        if !stdout.is_empty() {
+            msg.push_str("\nstdout:\n");
+            msg.push_str(&stdout);
+        }
+        if !stderr.is_empty() {
+            msg.push_str("\nstderr:\n");
+            msg.push_str(&stderr);
+        }
+        return Err(miette!(msg));
+    }
     Ok(())
 }
