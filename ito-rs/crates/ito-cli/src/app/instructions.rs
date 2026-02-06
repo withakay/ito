@@ -117,11 +117,15 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         }
         return fail(msg);
     }
-    let change = change.expect("checked above");
-    let schema = parse_string_flag(args, "--schema");
-
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
+    let change = change.expect("checked above");
+    let change = match super::common::resolve_change_target(ito_path, &change) {
+        Ok(resolved) => resolved,
+        Err(msg) => return fail(msg),
+    };
+    let schema = parse_string_flag(args, "--schema");
+
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let testing_policy = load_testing_policy(project_root, ito_path, ctx);
 
@@ -177,6 +181,15 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         ctx,
     ) {
         Ok(r) => r,
+        Err(core_workflow::WorkflowError::InvalidChangeName) => {
+            return fail("Invalid change name");
+        }
+        Err(core_workflow::WorkflowError::ChangeNotFound(name)) => {
+            return fail(format!("Change '{name}' not found"));
+        }
+        Err(core_workflow::WorkflowError::SchemaNotFound(name)) => {
+            return fail(super::common::schema_not_found_message(ctx, &name));
+        }
         Err(e) => return Err(to_cli_error(e)),
     };
 

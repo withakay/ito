@@ -37,6 +37,10 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     eprintln!("- Loading change status...");
 
     let change = change.expect("checked above");
+    let change = match super::common::resolve_change_target(ito_path, &change) {
+        Ok(resolved) => resolved,
+        Err(msg) => return fail(msg),
+    };
     let status =
         match core_workflow::compute_change_status(ito_path, &change, schema.as_deref(), ctx) {
             Ok(s) => s,
@@ -44,16 +48,7 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Invalid change name");
             }
             Err(core_workflow::WorkflowError::ChangeNotFound(name)) => {
-                let change_repo = ChangeRepository::new(ito_path);
-                let changes = change_repo.list().unwrap_or_default();
-                let mut msg = format!("Change '{name}' not found");
-                if !changes.is_empty() {
-                    msg.push_str("\n\nAvailable changes:\n");
-                    for c in changes {
-                        msg.push_str(&format!("  {}\n", c.id));
-                    }
-                }
-                return fail(msg);
+                return fail(format!("Change '{name}' not found"));
             }
             Err(core_workflow::WorkflowError::SchemaNotFound(name)) => {
                 return fail(super::common::schema_not_found_message(ctx, &name));

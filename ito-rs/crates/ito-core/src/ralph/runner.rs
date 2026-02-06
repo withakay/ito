@@ -5,6 +5,7 @@ use crate::ralph::state::{
     save_state,
 };
 use crate::ralph::validation;
+use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 use ito_harness::{Harness, HarnessName};
 use miette::{Result, miette};
 use std::path::{Path, PathBuf};
@@ -362,14 +363,32 @@ fn resolve_target(
     module_id: Option<String>,
     interactive: bool,
 ) -> Result<(String, String)> {
-    // If change is provided, infer module.
+    let change_repo = ChangeRepository::new(ito_path);
+
+    // If change is provided, resolve canonical ID and infer module.
     if let Some(change) = change_id {
+        let change = match change_repo.resolve_target(&change) {
+            ChangeTargetResolution::Unique(id) => id,
+            ChangeTargetResolution::Ambiguous(matches) => {
+                return Err(miette!(
+                    "Change '{change}' is ambiguous. Matches: {}",
+                    matches.join(", ")
+                ));
+            }
+            ChangeTargetResolution::NotFound => {
+                return Err(miette!("Change '{change}' not found"));
+            }
+        };
         let module = infer_module_from_change(&change)?;
         return Ok((change, module));
     }
 
     if let Some(module) = module_id {
-        let changes = changes_for_module(ito_path, &module)?;
+        let changes: Vec<String> = change_repo
+            .list_by_module(&module)?
+            .into_iter()
+            .map(|summary| summary.id)
+            .collect();
         if changes.is_empty() {
             return Err(miette!(
                 "No changes found for module {module}",
@@ -406,14 +425,6 @@ fn infer_module_from_change(change_id: &str) -> Result<String> {
         return Err(miette!("Invalid change ID format: {id}", id = change_id));
     };
     Ok(module.to_string())
-}
-
-fn changes_for_module(ito_path: &Path, module_id: &str) -> Result<Vec<String>> {
-    let prefix = format!("{module}-", module = module_id);
-    let fs = ito_common::fs::StdFs;
-    let mut out = ito_domain::discovery::list_change_dir_names(&fs, ito_path)?;
-    out.retain(|name| name.starts_with(&prefix));
-    Ok(out)
 }
 
 fn now_ms() -> Result<i64> {

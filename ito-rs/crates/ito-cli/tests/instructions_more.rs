@@ -114,3 +114,49 @@ fn agent_instruction_proposal_honors_testing_policy_override() {
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("- coverage.target_percent: 93"));
 }
+
+#[test]
+fn agent_instruction_change_flag_supports_shorthand() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["agent", "instruction", "proposal", "--change", "0-1"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("<artifact id=\"proposal\""));
+}
+
+#[test]
+fn agent_instruction_change_flag_reports_ambiguous_target() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path().join(".ito/changes/000-01_test-alt/proposal.md"),
+        "## Why\nAmbiguous fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["agent", "instruction", "proposal", "--change", "0-1"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("is ambiguous"));
+    assert!(out.stderr.contains("000-01_test-change"));
+    assert!(out.stderr.contains("000-01_test-alt"));
+}

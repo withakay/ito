@@ -5,7 +5,7 @@
 
 mod repository;
 
-pub use repository::ChangeRepository;
+pub use repository::{ChangeRepository, ChangeTargetResolution};
 
 use chrono::{DateTime, Utc};
 use std::path::PathBuf;
