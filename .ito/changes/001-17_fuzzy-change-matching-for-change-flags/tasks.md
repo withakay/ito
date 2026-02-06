@@ -32,8 +32,8 @@ ______________________________________________________________________
   - Ensure archived changes are excluded by default.
 - **Verify**: `make test`
 - **Done When**: unit tests cover unique match, ambiguity, and not-found.
-- **Updated At**: 2026-02-05
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-06
+- **Status**: [x] complete
 
 ### Task 1.2: Wire resolver into all `--change`/`--change-id` flags
 
@@ -44,8 +44,8 @@ ______________________________________________________________________
   - Keep behavior non-interactive when a flag is provided (error on ambiguity).
 - **Verify**: `make test`
 - **Done When**: integration tests demonstrate consistent resolution across representative commands.
-- **Updated At**: 2026-02-05
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-06
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
