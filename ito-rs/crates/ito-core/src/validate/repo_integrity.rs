@@ -3,6 +3,7 @@
 //! These checks validate relationships between on-disk Ito artifacts that are
 //! hard to express as a single file-local validation.
 
+use crate::error_bridge::IntoCoreMiette;
 use crate::validate::{ValidationIssue, error};
 use ito_common::fs::StdFs;
 use ito_common::id;
@@ -38,13 +39,13 @@ pub fn validate_change_dirs_repo_integrity(
     let mut by_dir: BTreeMap<String, Vec<ValidationIssue>> = BTreeMap::new();
 
     let mut module_ids: BTreeSet<String> = BTreeSet::new();
-    for m in discovery::list_module_dir_names(&StdFs, ito_path)? {
+    for m in discovery::list_module_dir_names(&StdFs, ito_path).into_core_miette()? {
         if let Some(id) = parse_module_id_from_dir_name(&m) {
             module_ids.insert(id);
         }
     }
 
-    let change_dirs = discovery::list_change_dir_names(&StdFs, ito_path)?;
+    let change_dirs = discovery::list_change_dir_names(&StdFs, ito_path).into_core_miette()?;
     if change_dirs.is_empty() {
         return Ok(by_dir);
     }

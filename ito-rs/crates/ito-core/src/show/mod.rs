@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use crate::error_bridge::IntoCoreMiette;
 use miette::Result;
 use serde::Serialize;
 
@@ -105,7 +106,7 @@ pub fn read_change_proposal_markdown(
     repo: &impl ChangeRepository,
     change_id: &str,
 ) -> Result<Option<String>> {
-    let change = repo.get(change_id)?;
+    let change = repo.get(change_id).into_core_miette()?;
     Ok(change.proposal)
 }
 
@@ -131,7 +132,7 @@ pub fn read_change_delta_spec_files(
     repo: &impl ChangeRepository,
     change_id: &str,
 ) -> Result<Vec<DeltaSpecFile>> {
-    let change = repo.get(change_id)?;
+    let change = repo.get(change_id).into_core_miette()?;
     let mut out: Vec<DeltaSpecFile> = change
         .specs
         .into_iter()

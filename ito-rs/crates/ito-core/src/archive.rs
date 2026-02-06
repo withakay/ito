@@ -12,6 +12,7 @@ use std::path::Path;
 use chrono::Utc;
 use miette::{Result, miette};
 
+use crate::error_bridge::IntoCoreMiette;
 use ito_common::fs::StdFs;
 use ito_common::id::parse_change_id;
 use ito_common::paths;
@@ -94,7 +95,7 @@ pub fn check_task_completion(contents: &str) -> TaskStatus {
 /// List available change directories under `{ito_path}/changes`.
 pub fn list_available_changes(ito_path: &Path) -> Result<Vec<String>> {
     let fs = StdFs;
-    ito_domain::discovery::list_change_dir_names(&fs, ito_path)
+    ito_domain::discovery::list_change_dir_names(&fs, ito_path).into_core_miette()
 }
 
 /// Return `true` if the change exists.

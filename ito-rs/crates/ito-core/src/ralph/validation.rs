@@ -9,11 +9,13 @@ use miette::{Result, miette};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use ito_domain::tasks::{DiagnosticLevel, TaskRepository};
+use ito_domain::tasks::{DiagnosticLevel, TaskRepository as DomainTaskRepository};
+
+use crate::error_bridge::IntoCoreMiette;
+use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
+use crate::task_repository::TaskRepository;
 
 /// Result of one validation step.
 #[derive(Debug, Clone)]
@@ -42,7 +44,7 @@ pub enum ValidationStep {
 /// Missing tasks file is treated as success.
 pub fn check_task_completion(ito_path: &Path, change_id: &str) -> Result<ValidationResult> {
     let repo = TaskRepository::new(ito_path);
-    let parsed = repo.load_tasks(change_id)?;
+    let parsed = repo.load_tasks(change_id).into_core_miette()?;
 
     if parsed.progress.total == 0 {
         return Ok(ValidationResult {
@@ -52,11 +54,12 @@ pub fn check_task_completion(ito_path: &Path, change_id: &str) -> Result<Validat
         });
     }
 
-    let parse_errors: usize = parsed
-        .diagnostics
-        .iter()
-        .filter(|d| d.level == DiagnosticLevel::Error)
-        .count();
+    let mut parse_errors: usize = 0;
+    for diagnostic in &parsed.diagnostics {
+        if diagnostic.level == DiagnosticLevel::Error {
+            parse_errors += 1;
+        }
+    }
 
     let remaining = parsed.progress.remaining;
     let success = remaining == 0 && parse_errors == 0;
@@ -76,7 +79,7 @@ pub fn check_task_completion(ito_path: &Path, change_id: &str) -> Result<Validat
     if !success {
         lines.push(String::new());
         lines.push("Incomplete tasks:".to_string());
-        for t in parsed.tasks.iter() {
+        for t in &parsed.tasks {
             if t.status.is_done() {
                 continue;
             }
@@ -254,7 +257,10 @@ fn normalize_commands_value(v: &Value) -> Vec<String> {
             }
             out
         }
-        _ => Vec::new(),
+        Value::Null => Vec::new(),
+        Value::Bool(_b) => Vec::new(),
+        Value::Number(_n) => Vec::new(),
+        Value::Object(_obj) => Vec::new(),
     }
 }
 
@@ -307,70 +313,21 @@ impl ShellRunOutput {
 }
 
 fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> Result<ShellRunOutput> {
-    let mut stdout_path = std::env::temp_dir();
-    stdout_path.push(format!(
-        "ito-ralph-stdout-{}-{}.log",
-        std::process::id(),
-        chrono::Utc::now().timestamp_millis()
-    ));
-    let mut stderr_path = std::env::temp_dir();
-    stderr_path.push(format!(
-        "ito-ralph-stderr-{}-{}.log",
-        std::process::id(),
-        chrono::Utc::now().timestamp_millis()
-    ));
-
-    let stdout_file = fs::File::create(&stdout_path)
-        .map_err(|e| miette!("Failed to create {}: {e}", stdout_path.display()))?;
-    let stderr_file = fs::File::create(&stderr_path)
-        .map_err(|e| miette!("Failed to create {}: {e}", stderr_path.display()))?;
-
-    let mut child = Command::new("sh")
+    let runner = SystemProcessRunner;
+    let request = ProcessRequest::new("sh")
         .args(["-lc", cmd])
-        .current_dir(cwd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout_file))
-        .stderr(Stdio::from(stderr_file))
-        .spawn()
-        .map_err(|e| miette!("Failed to spawn validation command '{cmd}': {e}"))?;
-
-    let started = Instant::now();
-    let mut timed_out = false;
-    let exit_code;
-    let success;
-    loop {
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|e| miette!("Failed waiting for '{cmd}': {e}"))?
-        {
-            exit_code = status.code().unwrap_or(-1);
-            success = status.success();
-            break;
-        }
-
-        if started.elapsed() >= timeout {
-            timed_out = true;
-            let _ = child.kill();
-            let _ = child.wait();
-            exit_code = -1;
-            success = false;
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(50));
-    }
-    let stdout = fs::read_to_string(&stdout_path).unwrap_or_default();
-    let stderr = fs::read_to_string(&stderr_path).unwrap_or_default();
-    let _ = fs::remove_file(&stdout_path);
-    let _ = fs::remove_file(&stderr_path);
+        .current_dir(cwd.to_path_buf());
+    let output = runner
+        .run_with_timeout(&request, timeout)
+        .map_err(|e| miette!("Failed to run validation command '{cmd}': {e}"))?;
 
     Ok(ShellRunOutput {
         command: cmd.to_string(),
-        success: !timed_out && success,
-        exit_code,
-        timed_out,
-        stdout,
-        stderr,
+        success: output.success,
+        exit_code: output.exit_code,
+        timed_out: output.timed_out,
+        stdout: output.stdout,
+        stderr: output.stderr,
     })
 }
 

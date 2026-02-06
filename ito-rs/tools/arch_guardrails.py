@@ -15,6 +15,7 @@ FORBIDDEN_CRATE_EDGES = {
 }
 
 DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
+    "miette::": {},
     "std::fs": {
         "ito-rs/crates/ito-domain/src/changes/repository.rs": 2,
         "ito-rs/crates/ito-domain/src/discovery.rs": 9,

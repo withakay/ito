@@ -1,4 +1,6 @@
 use crate::change_repository::FsChangeRepository;
+use crate::error_bridge::IntoCoreMiette;
+use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
 use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
 use crate::ralph::state::{
@@ -10,7 +12,6 @@ use ito_domain::changes::{ChangeSummary, ChangeTargetResolution, ChangeWorkStatu
 use ito_harness::{Harness, HarnessName};
 use miette::{Result, miette};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
@@ -80,6 +81,8 @@ pub struct RalphOptions {
 /// This persists lightweight state under `.ito/.state/ralph/<change>/` so the
 /// user can inspect iteration history.
 pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness) -> Result<()> {
+    let process_runner = SystemProcessRunner;
+
     if opts.continue_module {
         if opts.change_id.is_some() {
             return Err(miette!(
@@ -305,7 +308,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
         let file_changes_count = if harness.name() == HarnessName::OPENCODE {
-            count_git_changes()? as u32
+            count_git_changes(&process_runner)? as u32
         } else {
             0
         };
@@ -326,7 +329,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         }
 
         if !opts.no_commit {
-            commit_iteration(iteration)?;
+            commit_iteration(&process_runner, iteration)?;
         }
 
         let timestamp = now_ms()?;
@@ -372,7 +375,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
 
 fn module_changes(ito_path: &Path, module_id: &str) -> Result<Vec<ChangeSummary>> {
     let change_repo = FsChangeRepository::new(ito_path);
-    let changes = change_repo.list_by_module(module_id)?;
+    let changes = change_repo.list_by_module(module_id).into_core_miette()?;
     if changes.is_empty() {
         return Err(miette!(
             "No changes found for module {module}",
@@ -383,19 +386,23 @@ fn module_changes(ito_path: &Path, module_id: &str) -> Result<Vec<ChangeSummary>
 }
 
 fn module_ready_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
-    changes
-        .iter()
-        .filter(|change| change.is_ready())
-        .map(|change| change.id.clone())
-        .collect()
+    let mut ready_change_ids = Vec::new();
+    for change in changes {
+        if change.is_ready() {
+            ready_change_ids.push(change.id.clone());
+        }
+    }
+    ready_change_ids
 }
 
 fn module_incomplete_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
-    changes
-        .iter()
-        .filter(|change| change.work_status() != ChangeWorkStatus::Complete)
-        .map(|change| change.id.clone())
-        .collect()
+    let mut incomplete_change_ids = Vec::new();
+    for change in changes {
+        if change.work_status() != ChangeWorkStatus::Complete {
+            incomplete_change_ids.push(change.id.clone());
+        }
+    }
+    incomplete_change_ids
 }
 
 fn print_ready_changes(module_id: &str, ready_changes: &[String]) {
@@ -521,7 +528,7 @@ fn resolve_target(
     }
 
     if let Some(module) = module_id {
-        let changes = change_repo.list_by_module(&module)?;
+        let changes = change_repo.list_by_module(&module).into_core_miette()?;
         if changes.is_empty() {
             return Err(miette!(
                 "No changes found for module {module}",
@@ -575,31 +582,37 @@ fn now_ms() -> Result<i64> {
     Ok(dur.as_millis() as i64)
 }
 
-fn count_git_changes() -> Result<usize> {
-    let out = Command::new("git")
-        .args(["status", "--porcelain"])
-        .output()
+fn count_git_changes(runner: &dyn ProcessRunner) -> Result<usize> {
+    let request = ProcessRequest::new("git").args(["status", "--porcelain"]);
+    let out = runner
+        .run(&request)
         .map_err(|e| miette!("Failed to run git status: {e}"))?;
-    if !out.status.success() {
+    if !out.success {
         // Match TS behavior: the git error output is visible to the user.
-        let err = String::from_utf8_lossy(&out.stderr);
+        let err = out.stderr;
         if !err.is_empty() {
             eprint!("{}", err);
         }
         return Ok(0);
     }
-    let s = String::from_utf8_lossy(&out.stdout);
-    Ok(s.lines().filter(|l| !l.trim().is_empty()).count())
+    let s = out.stdout;
+    let mut line_count = 0;
+    for line in s.lines() {
+        if !line.trim().is_empty() {
+            line_count += 1;
+        }
+    }
+    Ok(line_count)
 }
 
-fn commit_iteration(iteration: u32) -> Result<()> {
-    let add = Command::new("git")
-        .args(["add", "-A"])
-        .output()
+fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> Result<()> {
+    let add_request = ProcessRequest::new("git").args(["add", "-A"]);
+    let add = runner
+        .run(&add_request)
         .map_err(|e| miette!("Failed to run git add: {e}"))?;
-    if !add.status.success() {
-        let stdout = String::from_utf8_lossy(&add.stdout).trim().to_string();
-        let stderr = String::from_utf8_lossy(&add.stderr).trim().to_string();
+    if !add.success {
+        let stdout = add.stdout.trim().to_string();
+        let stderr = add.stderr.trim().to_string();
         let mut msg = String::from("git add failed");
         if !stdout.is_empty() {
             msg.push_str("\nstdout:\n");
@@ -613,13 +626,13 @@ fn commit_iteration(iteration: u32) -> Result<()> {
     }
 
     let msg = format!("Ralph loop iteration {iteration}");
-    let commit = Command::new("git")
-        .args(["commit", "-m", &msg])
-        .output()
+    let commit_request = ProcessRequest::new("git").args(["commit", "-m", &msg]);
+    let commit = runner
+        .run(&commit_request)
         .map_err(|e| miette!("Failed to run git commit: {e}"))?;
-    if !commit.status.success() {
-        let stdout = String::from_utf8_lossy(&commit.stdout).trim().to_string();
-        let stderr = String::from_utf8_lossy(&commit.stderr).trim().to_string();
+    if !commit.success {
+        let stdout = commit.stdout.trim().to_string();
+        let stderr = commit.stderr.trim().to_string();
         let mut msg = format!("git commit failed for iteration {iteration}");
         if !stdout.is_empty() {
             msg.push_str("\nstdout:\n");

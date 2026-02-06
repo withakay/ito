@@ -21,6 +21,11 @@ pub mod create;
 /// Distribution/build metadata helpers.
 pub mod distribution;
 
+mod error_bridge;
+
+/// Process execution boundary and default runner.
+pub mod process;
+
 /// Installers for project/home templates and harness assets.
 pub mod installers;
 
@@ -29,6 +34,9 @@ pub mod list;
 
 /// Filesystem-backed module repository implementation.
 pub mod module_repository;
+
+/// Filesystem-backed task repository implementation.
+pub mod task_repository;
 
 /// Ralph Wiggum loop support.
 pub mod ralph;

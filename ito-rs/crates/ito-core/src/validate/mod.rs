@@ -8,6 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::error_bridge::IntoCoreMiette;
 use miette::Result;
 use serde::Serialize;
 
@@ -249,7 +250,9 @@ pub fn resolve_module(ito_path: &Path, input: &str) -> Result<Option<ResolvedMod
     }
 
     let fs = StdFs;
-    for full_name in ito_domain::discovery::list_module_dir_names(&fs, ito_path)? {
+    for full_name in
+        ito_domain::discovery::list_module_dir_names(&fs, ito_path).into_core_miette()?
+    {
         // folder format: NNN_name
         let Some((id_part, _)) = full_name.split_once('_') else {
             continue;

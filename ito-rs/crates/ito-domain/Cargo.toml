@@ -11,7 +11,6 @@ ito-common = { workspace = true }
 ito-schemas = { workspace = true }
 
 chrono.workspace = true
-miette.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true

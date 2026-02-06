@@ -1298,7 +1298,6 @@ dependencies = [
  "chrono",
  "ito-common",
  "ito-schemas",
- "miette",
  "regex",
  "rusqlite",
  "serde",
