@@ -7,6 +7,7 @@ RUST_WARNINGS_AS_ERRORS ?= -D warnings
 .PHONY: \
 	init \
 	build test test-watch test-coverage lint check check-max-lines clean help \
+	arch-guardrails \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
@@ -119,6 +120,9 @@ check: ## Run pre-commit hooks via prek
 
 check-max-lines: ## Fail if Rust files exceed 1000 lines (override MAX_RUST_FILE_LINES=...)
 	python3 "ito-rs/tools/check_max_lines.py" --max-lines "$(MAX_RUST_FILE_LINES)" --root "ito-rs"
+
+arch-guardrails: ## Run architecture guardrail checks
+	python3 "ito-rs/tools/arch_guardrails.py"
 
 release: ## Trigger Release Please workflow (creates/updates release PR)
 	@set -e; \

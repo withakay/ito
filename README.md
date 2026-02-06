@@ -292,6 +292,9 @@ prek run --all-files
 
 # Install git hooks (runs automatically on commit)
 prek install
+
+# Run architecture guardrails directly
+make arch-guardrails
 ```
 
 ### Already using pre-commit?
@@ -308,6 +311,7 @@ prek install -f
 - **Structured formats**: JSON syntax, YAML syntax + lint
 - **Markdown**: linting via markdownlint-cli2
 - **Rust**: `cargo fmt` + `cargo clippy` with the repo's lint policy
+- **Architecture**: `make arch-guardrails` for crate-edge and domain API guardrails
 
 ## Contributing
 
