@@ -175,6 +175,7 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             );
         }
 
+        #[cfg(feature = "web")]
         Some(Commands::Serve(args)) => {
             return util::with_logging(
                 &rt,

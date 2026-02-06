@@ -28,4 +28,4 @@ The repository MUST include a Cargo workspace at `ito-rs/` with the agreed crate
 
 - **WHEN** a developer lists `ito-rs/`
 - **THEN** it contains a workspace `Cargo.toml` and `crates/`
-- **AND** the crates include `ito-cli`, `ito-core`, `ito-domain`, `ito-templates`, `ito-schemas`, `ito-harness`, `ito-test-support`, `ito-web`
+- **AND** the crates include `ito-cli`, `ito-common`, `ito-config`, `ito-core`, `ito-domain`, `ito-harness`, `ito-logging`, `ito-models`, `ito-schemas`, `ito-templates`, `ito-test-support`, `ito-web`
