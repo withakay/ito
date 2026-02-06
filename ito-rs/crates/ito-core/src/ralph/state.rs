@@ -6,7 +6,7 @@
 //!
 //! State is stored under `.ito/.state/ralph/<change-id>/`.
 
-use miette::{Result, miette};
+use crate::errors::{CoreError, CoreResult};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -54,47 +54,57 @@ pub fn ralph_context_path(ito_path: &Path, change_id: &str) -> PathBuf {
 }
 
 /// Load saved state for `change_id`.
-pub fn load_state(ito_path: &Path, change_id: &str) -> Result<Option<RalphState>> {
+pub fn load_state(ito_path: &Path, change_id: &str) -> CoreResult<Option<RalphState>> {
     let p = ralph_state_json_path(ito_path, change_id);
     if !p.exists() {
         return Ok(None);
     }
-    let raw = ito_common::io::read_to_string(&p)?;
+    let raw = ito_common::io::read_to_string_std(&p)
+        .map_err(|e| CoreError::io(format!("reading {}", p.display()), e))?;
     let state = serde_json::from_str(&raw)
-        .map_err(|e| miette!("JSON error parsing {p}: {e}", p = p.display()))?;
+        .map_err(|e| CoreError::Parse(format!("JSON error parsing {p}: {e}", p = p.display())))?;
     Ok(Some(state))
 }
 
 /// Persist `state` for `change_id`.
-pub fn save_state(ito_path: &Path, change_id: &str, state: &RalphState) -> Result<()> {
+pub fn save_state(ito_path: &Path, change_id: &str, state: &RalphState) -> CoreResult<()> {
     let dir = ralph_state_dir(ito_path, change_id);
-    ito_common::io::create_dir_all(&dir)?;
+    ito_common::io::create_dir_all_std(&dir)
+        .map_err(|e| CoreError::io(format!("creating directory {}", dir.display()), e))?;
     let p = ralph_state_json_path(ito_path, change_id);
     let raw = serde_json::to_string_pretty(state)
-        .map_err(|e| miette!("JSON error serializing state: {e}"))?;
-    ito_common::io::write(&p, raw)?;
+        .map_err(|e| CoreError::Parse(format!("JSON error serializing state: {e}")))?;
+    ito_common::io::write_std(&p, raw)
+        .map_err(|e| CoreError::io(format!("writing {}", p.display()), e))?;
     Ok(())
 }
 
 /// Load the saved context markdown for `change_id`.
 ///
 /// Missing files return an empty string.
-pub fn load_context(ito_path: &Path, change_id: &str) -> Result<String> {
+pub fn load_context(ito_path: &Path, change_id: &str) -> CoreResult<String> {
     let p = ralph_context_path(ito_path, change_id);
     if !p.exists() {
         return Ok(String::new());
     }
-    ito_common::io::read_to_string(&p)
+    ito_common::io::read_to_string_std(&p)
+        .map_err(|e| CoreError::io(format!("reading {}", p.display()), e))
 }
 
 /// Append `text` to the saved context for `change_id`.
 ///
 /// Empty/whitespace-only input is ignored.
-pub fn append_context(ito_path: &Path, change_id: &str, text: &str) -> Result<()> {
+pub fn append_context(ito_path: &Path, change_id: &str, text: &str) -> CoreResult<()> {
     let dir = ralph_state_dir(ito_path, change_id);
-    ito_common::io::create_dir_all(&dir)?;
+    ito_common::io::create_dir_all_std(&dir)
+        .map_err(|e| CoreError::io(format!("creating directory {}", dir.display()), e))?;
     let p = ralph_context_path(ito_path, change_id);
-    let mut existing = ito_common::io::read_to_string_optional(&p)?.unwrap_or_default();
+    let existing_result = ito_common::io::read_to_string_std(&p);
+    let mut existing = match existing_result {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(CoreError::io(format!("reading {}", p.display()), e)),
+    };
 
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -106,15 +116,18 @@ pub fn append_context(ito_path: &Path, change_id: &str, text: &str) -> Result<()
     }
     existing.push_str(trimmed);
     existing.push('\n');
-    ito_common::io::write(&p, existing)?;
+    ito_common::io::write_std(&p, existing)
+        .map_err(|e| CoreError::io(format!("writing {}", p.display()), e))?;
     Ok(())
 }
 
 /// Clear the saved context for `change_id`.
-pub fn clear_context(ito_path: &Path, change_id: &str) -> Result<()> {
+pub fn clear_context(ito_path: &Path, change_id: &str) -> CoreResult<()> {
     let dir = ralph_state_dir(ito_path, change_id);
-    ito_common::io::create_dir_all(&dir)?;
+    ito_common::io::create_dir_all_std(&dir)
+        .map_err(|e| CoreError::io(format!("creating directory {}", dir.display()), e))?;
     let p = ralph_context_path(ito_path, change_id);
-    ito_common::io::write(&p, "")?;
+    ito_common::io::write_std(&p, "")
+        .map_err(|e| CoreError::io(format!("writing {}", p.display()), e))?;
     Ok(())
 }

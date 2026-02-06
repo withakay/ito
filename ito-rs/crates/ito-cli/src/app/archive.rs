@@ -2,9 +2,10 @@ use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_common::paths as core_paths;
+use ito_core::DomainTaskRepository;
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::task_repository::TaskRepository;
-use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
@@ -38,7 +39,7 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     // If no change specified, list available changes and prompt for selection
     let change_repo = FsChangeRepository::new(ito_path);
     let change_name = if let Some(name) = change_name {
-        match super::common::resolve_change_target(ito_path, name) {
+        match super::common::resolve_change_target(&change_repo, name) {
             Ok(resolved) => resolved,
             Err(msg) => return fail(msg),
         }
@@ -164,7 +165,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     // Move to archive
-    archive::move_to_archive(ito_path, &change_name, &archive_name).map_err(to_cli_error)?;
+    let module_repo = FsModuleRepository::new(ito_path);
+    archive::move_to_archive(&module_repo, ito_path, &change_name, &archive_name)
+        .map_err(to_cli_error)?;
 
     eprintln!("✔ Archived '{}' as '{}'", change_name, archive_name);
     if !specs_updated.is_empty() {

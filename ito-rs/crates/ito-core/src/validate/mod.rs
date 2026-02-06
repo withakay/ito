@@ -8,15 +8,15 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error_bridge::IntoCoreMiette;
-use miette::Result;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use serde::Serialize;
 
-use ito_common::fs::StdFs;
 use ito_common::paths;
 
-use crate::change_repository::FsChangeRepository;
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
+use ito_domain::changes::ChangeRepository as DomainChangeRepository;
+use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 mod issue;
 mod repo_integrity;
@@ -160,16 +160,20 @@ pub fn validate_spec_markdown(markdown: &str, strict: bool) -> ValidationReport 
 }
 
 /// Validate a spec by id from `.ito/specs/<id>/spec.md`.
-pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> Result<ValidationReport> {
+pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult<ValidationReport> {
     let path = paths::spec_markdown_path(ito_path, spec_id);
-    let markdown = ito_common::io::read_to_string(&path)?;
+    let markdown = ito_common::io::read_to_string_std(&path)
+        .map_err(|e| CoreError::io(format!("reading spec {}", spec_id), e))?;
     Ok(validate_spec_markdown(&markdown, strict))
 }
 
 /// Validate a change's delta specs by change id.
-pub fn validate_change(ito_path: &Path, change_id: &str, strict: bool) -> Result<ValidationReport> {
-    let change_repo = FsChangeRepository::new(ito_path);
-    let files = read_change_delta_spec_files(&change_repo, change_id)?;
+pub fn validate_change(
+    change_repo: &impl DomainChangeRepository,
+    change_id: &str,
+    strict: bool,
+) -> CoreResult<ValidationReport> {
+    let files = read_change_delta_spec_files(change_repo, change_id)?;
     if files.is_empty() {
         let mut r = report(strict);
         r.push(error("specs", "Change must have at least one delta"));
@@ -237,57 +241,43 @@ pub struct ResolvedModule {
 ///
 /// Input can be a full directory name (`NNN_slug`) or the numeric module id
 /// (`NNN`). Empty input returns `Ok(None)`.
-pub fn resolve_module(ito_path: &Path, input: &str) -> Result<Option<ResolvedModule>> {
-    let modules_dir = paths::modules_dir(ito_path);
+pub fn resolve_module(
+    module_repo: &impl DomainModuleRepository,
+    _ito_path: &Path,
+    input: &str,
+) -> CoreResult<Option<ResolvedModule>> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Ok(None);
     }
-    let mut wanted_id: Option<String> = None;
-    if trimmed.chars().all(|c| c.is_ascii_digit()) {
-        let num: u32 = trimmed.parse().unwrap_or(0);
-        wanted_id = Some(format!("{num:03}"));
-    }
 
-    let fs = StdFs;
-    for full_name in
-        ito_domain::discovery::list_module_dir_names(&fs, ito_path).into_core_miette()?
-    {
-        // folder format: NNN_name
-        let Some((id_part, _)) = full_name.split_once('_') else {
-            continue;
-        };
-        if id_part.len() != 3 || !id_part.chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-
-        if full_name == trimmed
-            || wanted_id.as_deref().is_some_and(|w| w == id_part)
-            || trimmed == id_part
-        {
-            let module_dir = modules_dir.join(&full_name);
+    let module = module_repo.get(trimmed).into_core();
+    match module {
+        Ok(m) => {
+            let full_name = format!("{}_{}", m.id, m.name);
+            let module_dir = m.path;
             let module_md = module_dir.join("module.md");
-            return Ok(Some(ResolvedModule {
-                id: id_part.to_string(),
+            Ok(Some(ResolvedModule {
+                id: m.id,
                 full_name,
                 module_dir,
                 module_md,
-            }));
+            }))
         }
+        Err(_) => Ok(None),
     }
-
-    Ok(None)
 }
 
 /// Validate a module's `module.md` for minimal required sections.
 ///
 /// Returns the resolved module directory name along with the report.
 pub fn validate_module(
+    module_repo: &impl DomainModuleRepository,
     ito_path: &Path,
     module_input: &str,
     strict: bool,
-) -> Result<(String, ValidationReport)> {
-    let resolved = resolve_module(ito_path, module_input)?;
+) -> CoreResult<(String, ValidationReport)> {
+    let resolved = resolve_module(module_repo, ito_path, module_input)?;
     let Some(r) = resolved else {
         let mut rep = report(strict);
         rep.push(error("module", "Module not found"));

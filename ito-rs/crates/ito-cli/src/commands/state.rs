@@ -1,7 +1,8 @@
 use crate::cli::{StateAction, StateArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
-use ito_domain::state as wf_state;
+use ito_core::domain::state as wf_state;
+use ito_core::time as wf_time;
 
 pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -39,7 +40,7 @@ pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()>
 
     let contents = ito_common::io::read_to_string(&state_path)
         .map_err(|_| CliError::msg("Failed to read STATE.md"))?;
-    let date = wf_state::now_date();
+    let date = wf_time::now_date();
 
     let updated = match action {
         StateAction::Show => Ok(contents),
@@ -48,7 +49,7 @@ pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()>
         StateAction::Question { .. } => wf_state::add_question(&contents, &date, &text),
         StateAction::Focus { .. } => wf_state::set_focus(&contents, &date, &text),
         StateAction::Note { .. } => {
-            let time = wf_state::now_time();
+            let time = wf_time::now_time();
             wf_state::add_note(&contents, &date, &time, &text)
         }
     };

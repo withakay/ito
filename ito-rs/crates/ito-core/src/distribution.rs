@@ -4,10 +4,10 @@
 //! The manifests map a file embedded in `ito-templates` to a destination path on
 //! disk.
 
+use crate::errors::{CoreError, CoreResult};
 use ito_templates::{
     commands_files, get_adapter_file, get_command_file, get_skill_file, skills_files,
 };
-use miette::{Result, miette};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -185,33 +185,36 @@ pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
 }
 
 /// Install manifests from embedded assets to disk.
-pub fn install_manifests(manifests: &[FileManifest]) -> Result<()> {
+pub fn install_manifests(manifests: &[FileManifest]) -> CoreResult<()> {
     for manifest in manifests {
         let bytes = match manifest.asset_type {
             AssetType::Skill => get_skill_file(&manifest.source).ok_or_else(|| {
-                miette!(
+                CoreError::NotFound(format!(
                     "Skill file not found in embedded assets: {}",
                     manifest.source
-                )
+                ))
             })?,
             AssetType::Adapter => get_adapter_file(&manifest.source).ok_or_else(|| {
-                miette!(
+                CoreError::NotFound(format!(
                     "Adapter file not found in embedded assets: {}",
                     manifest.source
-                )
+                ))
             })?,
             AssetType::Command => get_command_file(&manifest.source).ok_or_else(|| {
-                miette!(
+                CoreError::NotFound(format!(
                     "Command file not found in embedded assets: {}",
                     manifest.source
-                )
+                ))
             })?,
         };
 
         if let Some(parent) = manifest.dest.parent() {
-            ito_common::io::create_dir_all(parent)?;
+            ito_common::io::create_dir_all_std(parent).map_err(|e| {
+                CoreError::io(format!("creating directory {}", parent.display()), e)
+            })?;
         }
-        ito_common::io::write(&manifest.dest, bytes)?;
+        ito_common::io::write_std(&manifest.dest, bytes)
+            .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
     }
     Ok(())
 }

@@ -1,7 +1,8 @@
 use crate::cli::{WorkflowAction, WorkflowArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
-use ito_domain::workflow as wf_workflow;
+use ito_core::domain::workflow as wf_workflow;
+use ito_core::workflow_templates as wf_io;
 
 pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -12,7 +13,7 @@ pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResu
 
     match action {
         WorkflowAction::Init => {
-            wf_workflow::init_workflow_structure(ito_path).map_err(to_cli_error)?;
+            wf_io::init_workflow_structure(ito_path).map_err(to_cli_error)?;
             println!("Created workflows directory with example workflows:");
             println!("  - research.yaml  (domain investigation)");
             println!("  - execute.yaml   (task execution)");
@@ -22,7 +23,7 @@ pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResu
             Ok(())
         }
         WorkflowAction::List => {
-            let workflows = wf_workflow::list_workflows(ito_path);
+            let workflows = wf_io::list_workflows(ito_path);
             if workflows.is_empty() {
                 println!("No workflows found. Run `ito workflow init` to create examples.");
                 return Ok(());
@@ -30,7 +31,7 @@ pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResu
             println!("Available workflows:");
             println!();
             for name in workflows {
-                match wf_workflow::load_workflow(ito_path, &name) {
+                match wf_io::load_workflow(ito_path, &name) {
                     Ok(wf) => {
                         println!("  {name}");
                         println!("    {}", wf.description);
@@ -54,7 +55,7 @@ pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResu
                 return Err(CliError::msg("Missing required argument <workflow-name>"));
             }
 
-            let wf = wf_workflow::load_workflow(ito_path, &workflow_name)
+            let wf = wf_io::load_workflow(ito_path, &workflow_name)
                 .map_err(|e| CliError::msg(format!("Invalid workflow: {e}")))?;
 
             fn agent_label(a: &ito_schemas::AgentType) -> &'static str {

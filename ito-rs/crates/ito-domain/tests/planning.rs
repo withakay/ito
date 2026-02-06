@@ -13,23 +13,3 @@ fn roadmap_parsing_extracts_current_progress_and_phases() {
     assert_eq!(phases[0].0, "1");
     assert_eq!(phases[0].2, "Pending");
 }
-
-#[test]
-fn init_planning_structure_writes_files() {
-    let td = tempfile::tempdir().expect("tempdir");
-    let ito_path = td.path().join(".ito");
-    let date = "2026-01-28";
-
-    planning::init_planning_structure(&ito_path, date, ".ito").expect("init");
-
-    let project = ito_path.join("planning").join("PROJECT.md");
-    let roadmap = ito_path.join("planning").join("ROADMAP.md");
-    let state = ito_path.join("planning").join("STATE.md");
-    assert!(project.exists());
-    assert!(roadmap.exists());
-    assert!(state.exists());
-
-    let state_contents = std::fs::read_to_string(state).expect("read");
-    assert!(state_contents.contains("Last Updated: 2026-01-28"));
-    assert!(state_contents.contains("`.ito/changes/`"));
-}

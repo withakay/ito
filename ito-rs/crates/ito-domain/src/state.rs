@@ -1,10 +1,11 @@
 //! Helpers for updating `planning/STATE.md`.
 //!
-//! These functions implement small, targeted edits (e.g. updating the last
-//! updated date or inserting new bullets) while keeping the rest of the file
-//! intact.
+//! These functions implement small, targeted **pure** edits (e.g. updating the
+//! last updated date or inserting new bullets) while keeping the rest of the
+//! file intact.
+//!
+//! Clock helpers (`now_time`, `now_date`) live in `ito-core::time`.
 
-use chrono::Local;
 use regex::Regex;
 
 /// Update the `Last Updated:` line in a STATE.md document.
@@ -142,12 +143,5 @@ pub fn add_note(contents: &str, date: &str, time: &str, text: &str) -> Result<St
     Err("Could not find Session Notes section".to_string())
 }
 
-/// Current local time formatted as `HH:MM:SS`.
-pub fn now_time() -> String {
-    Local::now().format("%H:%M:%S").to_string()
-}
-
-/// Current local date formatted as `YYYY-MM-DD`.
-pub fn now_date() -> String {
-    Local::now().format("%Y-%m-%d").to_string()
-}
+// NOTE: `now_time()` and `now_date()` were moved to `ito_core::time` to
+// keep the domain layer free of non-deterministic I/O.

@@ -117,7 +117,27 @@ fn default_opts() -> RalphOptions {
         inactivity_timeout: None,
         skip_validation: false,
         validation_command: None,
+        exit_on_error: false,
+        error_threshold: 10,
     }
+}
+
+fn run_ralph_for_test(
+    ito_path: &Path,
+    opts: RalphOptions,
+    harness: &mut dyn Harness,
+) -> ito_core::errors::CoreResult<()> {
+    let change_repo = ito_core::change_repository::FsChangeRepository::new(ito_path);
+    let task_repo = ito_core::task_repository::FsTaskRepository::new(ito_path);
+    let module_repo = ito_core::module_repository::FsModuleRepository::new(ito_path);
+    run_ralph(
+        ito_path,
+        &change_repo,
+        &task_repo,
+        &module_repo,
+        opts,
+        harness,
+    )
 }
 
 #[test]
@@ -140,7 +160,7 @@ fn run_ralph_completion_promise_trims_whitespace() {
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 1;
     opts.max_iterations = Some(1);
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
     assert_eq!(h.idx, 1);
 }
 
@@ -172,7 +192,7 @@ fn run_ralph_continues_when_completion_validation_fails() {
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 1;
     opts.max_iterations = Some(2);
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
     // If validation incorrectly allowed completion, the loop would exit after 1 run.
     assert_eq!(h.idx, 2);
@@ -207,7 +227,7 @@ fn run_ralph_skip_validation_exits_immediately() {
     opts.min_iterations = 1;
     opts.max_iterations = Some(2);
     opts.skip_validation = true;
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
     assert_eq!(h.idx, 1);
 }
 
@@ -237,7 +257,7 @@ fn run_ralph_loop_writes_state_and_honors_min_iterations() {
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 2;
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
     let state_path = ito.join(".state/ralph/006-09_fixture/state.json");
     assert!(state_path.exists());
@@ -262,7 +282,7 @@ fn run_ralph_errors_when_max_iterations_is_zero() {
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
     opts.max_iterations = Some(0);
-    let err = run_ralph(&ito, opts, &mut h).unwrap_err();
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
     assert!(err.to_string().contains("--max-iterations"));
 }
 
@@ -280,8 +300,59 @@ fn run_ralph_returns_error_on_harness_failure() {
 
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
-    let err = run_ralph(&ito, opts, &mut h).unwrap_err();
+    opts.exit_on_error = true;
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
     assert!(err.to_string().contains("exited with code"));
+}
+
+#[test]
+fn run_ralph_continues_after_harness_failure_by_default() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("build failed".to_string(), "compiler error".to_string(), 2),
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.skip_validation = true;
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 2);
+}
+
+#[test]
+fn run_ralph_fails_after_error_threshold() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("fail-1".to_string(), "err-1".to_string(), 2),
+            ("fail-2".to_string(), "err-2".to_string(), 3),
+            ("fail-3".to_string(), "err-3".to_string(), 4),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.error_threshold = 3;
+    opts.max_iterations = Some(20);
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    assert!(err.to_string().contains("exceeded non-zero exit threshold"));
 }
 
 #[test]
@@ -322,7 +393,7 @@ fn run_ralph_opencode_counts_git_changes_when_in_repo() {
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 1;
     opts.max_iterations = Some(1);
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
     let raw = std::fs::read_to_string(ito.join(".state/ralph/006-09_fixture/state.json")).unwrap();
     let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -365,7 +436,7 @@ fn run_ralph_status_path_works_with_no_state() {
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
     opts.status = true;
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 }
 
 #[test]
@@ -381,7 +452,7 @@ fn run_ralph_add_and_clear_context_paths() {
     add.change_id = Some("006-09_fixture".to_string());
     add.add_context = Some("hello".to_string());
     add.prompt = String::new();
-    run_ralph(&ito, add, &mut h).unwrap();
+    run_ralph_for_test(&ito, add, &mut h).unwrap();
 
     let ctx = ito_core::ralph::state::load_context(&ito, "006-09_fixture").unwrap();
     assert!(ctx.contains("hello"));
@@ -390,7 +461,7 @@ fn run_ralph_add_and_clear_context_paths() {
     clear.change_id = Some("006-09_fixture".to_string());
     clear.clear_context = true;
     clear.prompt = String::new();
-    run_ralph(&ito, clear, &mut h).unwrap();
+    run_ralph_for_test(&ito, clear, &mut h).unwrap();
 
     let ctx2 = ito_core::ralph::state::load_context(&ito, "006-09_fixture").unwrap();
     assert!(ctx2.trim().is_empty());
@@ -408,7 +479,7 @@ fn run_ralph_module_resolves_single_change() {
     opts.status = true;
     opts.module_id = Some("006".to_string());
     opts.prompt = String::new();
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 }
 
 #[test]
@@ -432,7 +503,7 @@ fn run_ralph_module_multiple_changes_errors_when_non_interactive() {
     opts.max_iterations = Some(1);
     opts.skip_validation = true;
     opts.prompt = String::new();
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
     assert!(ito.join(".state/ralph/006-01_a/state.json").exists());
     assert!(!ito.join(".state/ralph/006-02_b/state.json").exists());
@@ -490,7 +561,7 @@ fn run_ralph_continue_module_processes_all_ready_changes() {
     opts.skip_validation = true;
     opts.prompt = String::new();
 
-    run_ralph(&ito, opts, &mut h).unwrap();
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
     assert_eq!(h.idx, 2);
     assert!(ito.join(".state/ralph/006-01_a/state.json").exists());

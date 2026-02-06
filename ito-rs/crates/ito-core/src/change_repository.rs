@@ -35,9 +35,17 @@ impl<'a> FsChangeRepository<'a, StdFs> {
 impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
     /// Create a repository with an explicit filesystem implementation.
     pub fn with_fs(ito_path: &'a Path, fs: F) -> Self {
+        Self::with_task_repo(ito_path, FsTaskRepository::new(ito_path), fs)
+    }
+
+    /// Create a repository with an injected task repository.
+    ///
+    /// Use this when you need to control the task repository instance
+    /// (e.g., in tests or when sharing a repo across multiple consumers).
+    pub fn with_task_repo(ito_path: &'a Path, task_repo: FsTaskRepository<'a>, fs: F) -> Self {
         Self {
             ito_path,
-            task_repo: FsTaskRepository::new(ito_path),
+            task_repo,
             fs,
         }
     }

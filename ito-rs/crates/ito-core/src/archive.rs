@@ -10,12 +10,13 @@ use std::fs;
 use std::path::Path;
 
 use chrono::Utc;
-use miette::{Result, miette};
 
-use crate::error_bridge::IntoCoreMiette;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use ito_common::fs::StdFs;
 use ito_common::id::parse_change_id;
 use ito_common::paths;
+use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Summary of task completion for a change.
@@ -93,9 +94,9 @@ pub fn check_task_completion(contents: &str) -> TaskStatus {
 }
 
 /// List available change directories under `{ito_path}/changes`.
-pub fn list_available_changes(ito_path: &Path) -> Result<Vec<String>> {
+pub fn list_available_changes(ito_path: &Path) -> CoreResult<Vec<String>> {
     let fs = StdFs;
-    ito_domain::discovery::list_change_dir_names(&fs, ito_path).into_core_miette()
+    ito_domain::discovery::list_change_dir_names(&fs, ito_path).into_core()
 }
 
 /// Return `true` if the change exists.
@@ -122,7 +123,7 @@ pub fn archive_exists(ito_path: &Path, archive_name: &str) -> bool {
 }
 
 /// Discover spec ids present under `{change}/specs/*/spec.md`.
-pub fn discover_change_specs(ito_path: &Path, change_name: &str) -> Result<Vec<String>> {
+pub fn discover_change_specs(ito_path: &Path, change_name: &str) -> CoreResult<Vec<String>> {
     let mut out: Vec<String> = Vec::new();
     let specs_dir = paths::change_specs_dir(ito_path, change_name);
     if !specs_dir.exists() {
@@ -130,9 +131,9 @@ pub fn discover_change_specs(ito_path: &Path, change_name: &str) -> Result<Vec<S
     }
 
     let entries = fs::read_dir(&specs_dir)
-        .map_err(|e| miette!("I/O error reading {}: {e}", specs_dir.display()))?;
+        .map_err(|e| CoreError::io(format!("reading {}", specs_dir.display()), e))?;
     for entry in entries {
-        let entry = entry.map_err(|e| miette!("I/O error reading dir entry: {e}"))?;
+        let entry = entry.map_err(|e| CoreError::io("reading dir entry", e))?;
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         if !is_dir {
             continue;
@@ -174,7 +175,7 @@ pub fn copy_specs_to_main(
     ito_path: &Path,
     change_name: &str,
     spec_names: &[String],
-) -> Result<Vec<String>> {
+) -> CoreResult<Vec<String>> {
     let mut updated: Vec<String> = Vec::new();
     for spec in spec_names {
         let src = paths::change_specs_dir(ito_path, change_name)
@@ -184,21 +185,30 @@ pub fn copy_specs_to_main(
             continue;
         }
         let dst_dir = paths::specs_dir(ito_path).join(spec);
-        ito_common::io::create_dir_all(&dst_dir)?;
+        ito_common::io::create_dir_all_std(&dst_dir)
+            .map_err(|e| CoreError::io(format!("creating spec dir {}", dst_dir.display()), e))?;
         let dst = dst_dir.join("spec.md");
-        let md = ito_common::io::read_to_string(&src)?;
-        ito_common::io::write(&dst, md.as_bytes())?;
+        let md = ito_common::io::read_to_string_std(&src)
+            .map_err(|e| CoreError::io(format!("reading spec {}", src.display()), e))?;
+        ito_common::io::write_std(&dst, md)
+            .map_err(|e| CoreError::io(format!("writing spec {}", dst.display()), e))?;
         updated.push(spec.clone());
     }
     Ok(updated)
 }
 
-fn mark_change_complete_in_module(ito_path: &Path, change_name: &str) {
+fn mark_change_complete_in_module(
+    module_repo: &impl DomainModuleRepository,
+    ito_path: &Path,
+    change_name: &str,
+) {
     let Ok(parsed) = parse_change_id(change_name) else {
         return;
     };
     let module_id = parsed.module_id;
-    let Ok(Some(resolved)) = crate::validate::resolve_module(ito_path, module_id.as_str()) else {
+    let Ok(Some(resolved)) =
+        crate::validate::resolve_module(module_repo, ito_path, module_id.as_str())
+    else {
         return;
     };
     let Ok(md) = ito_common::io::read_to_string_std(&resolved.module_md) else {
@@ -219,23 +229,33 @@ fn mark_change_complete_in_module(ito_path: &Path, change_name: &str) {
 }
 
 /// Move a change directory to the archive location.
-pub fn move_to_archive(ito_path: &Path, change_name: &str, archive_name: &str) -> Result<()> {
+pub fn move_to_archive(
+    module_repo: &impl DomainModuleRepository,
+    ito_path: &Path,
+    change_name: &str,
+    archive_name: &str,
+) -> CoreResult<()> {
     let change_dir = paths::change_dir(ito_path, change_name);
     if !change_dir.exists() {
-        return Err(miette!("Change '{change_name}' not found"));
+        return Err(CoreError::not_found(format!(
+            "Change '{change_name}' not found"
+        )));
     }
 
     let archive_root = paths::changes_archive_dir(ito_path);
-    ito_common::io::create_dir_all(&archive_root)?;
+    ito_common::io::create_dir_all_std(&archive_root)
+        .map_err(|e| CoreError::io("creating archive directory", e))?;
 
     let dst = archive_root.join(archive_name);
     if dst.exists() {
-        return Err(miette!("Archive target already exists: {}", dst.display()));
+        return Err(CoreError::validation(format!(
+            "Archive target already exists: {}",
+            dst.display()
+        )));
     }
 
-    mark_change_complete_in_module(ito_path, change_name);
+    mark_change_complete_in_module(module_repo, ito_path, change_name);
 
-    fs::rename(&change_dir, &dst)
-        .map_err(|e| miette!("I/O error moving change to archive: {e}"))?;
+    fs::rename(&change_dir, &dst).map_err(|e| CoreError::io("moving change to archive", e))?;
     Ok(())
 }

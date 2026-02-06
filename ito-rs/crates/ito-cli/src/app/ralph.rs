@@ -2,7 +2,10 @@ use crate::cli::RalphArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::ralph as core_ralph;
+use ito_core::task_repository::FsTaskRepository;
 use ito_harness::Harness;
 use ito_harness::OpencodeHarness;
 use ito_harness::stub::StubHarness;
@@ -48,9 +51,11 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     | "--max-iterations"
                     | "--completion-promise"
                     | "--validation-command"
+                    | "--error-threshold"
                     | "--add-context"
                     | "--timeout"
                     | "--stub-script"
+                    | "--file"
             );
 
             if takes_value {
@@ -66,9 +71,11 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 || a.starts_with("--max-iterations=")
                 || a.starts_with("--completion-promise=")
                 || a.starts_with("--validation-command=")
+                || a.starts_with("--error-threshold=")
                 || a.starts_with("--add-context=")
                 || a.starts_with("--timeout=")
                 || a.starts_with("--stub-script=")
+                || a.starts_with("--file=")
             {
                 i += 1;
                 continue;
@@ -98,6 +105,9 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let skip_validation = args.iter().any(|a| a == "--skip-validation");
     let validation_command = parse_string_flag(args, "--validation-command");
+    let exit_on_error = args.iter().any(|a| a == "--exit-on-error");
+    let error_threshold =
+        parse_u32_flag(args, "--error-threshold").unwrap_or(core_ralph::DEFAULT_ERROR_THRESHOLD);
 
     let allow_all = args.iter().any(|a| {
         matches!(
@@ -124,6 +134,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         None
     };
 
+    let prompt_file = parse_string_flag(args, "--file");
     // Hidden testing flag.
     let stub_script = parse_string_flag(args, "--stub-script");
 
@@ -133,9 +144,10 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         && !status
         && add_context.is_none()
         && !clear_context
+        && prompt_file.is_none()
     {
         return fail(
-            "Either --change, --module, --status, --add-context, or --clear-context must be specified",
+            "Either --change, --module, --status, --add-context, --clear-context, or --file must be specified",
         );
     }
 
@@ -149,7 +161,19 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return fail("--change is required for --status, or provide --module to auto-select");
     }
 
-    let prompt = collect_prompt(args);
+    let positional_prompt = collect_prompt(args);
+    let prompt = if let Some(path) = prompt_file {
+        let path_buf = std::path::PathBuf::from(&path);
+        let file_prompt = ito_common::io::read_to_string_std(&path_buf)
+            .map_err(|e| to_cli_error(miette::miette!("Failed to read prompt file {path}: {e}")))?;
+        if positional_prompt.is_empty() {
+            file_prompt
+        } else {
+            format!("{file_prompt}\n\n{positional_prompt}")
+        }
+    } else {
+        positional_prompt
+    };
 
     let ito_path = rt.ito_path();
 
@@ -188,9 +212,23 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         inactivity_timeout,
         skip_validation,
         validation_command,
+        exit_on_error,
+        error_threshold,
     };
 
-    core_ralph::run_ralph(ito_path, opts, harness_impl.as_mut()).map_err(to_cli_error)?;
+    let change_repo = FsChangeRepository::new(ito_path);
+    let module_repo = FsModuleRepository::new(ito_path);
+    let task_repo = FsTaskRepository::new(ito_path);
+
+    core_ralph::run_ralph(
+        ito_path,
+        &change_repo,
+        &task_repo,
+        &module_repo,
+        opts,
+        harness_impl.as_mut(),
+    )
+    .map_err(to_cli_error)?;
 
     Ok(())
 }
@@ -236,6 +274,13 @@ fn ralph_args_to_argv(args: &RalphArgs) -> Vec<String> {
     if args.skip_validation {
         argv.push("--skip-validation".to_string());
     }
+    if args.exit_on_error {
+        argv.push("--exit-on-error".to_string());
+    }
+    if let Some(threshold) = args.error_threshold {
+        argv.push("--error-threshold".to_string());
+        argv.push(threshold.to_string());
+    }
     if let Some(cmd) = &args.validation_command {
         argv.push("--validation-command".to_string());
         argv.push(cmd.clone());
@@ -269,6 +314,10 @@ fn ralph_args_to_argv(args: &RalphArgs) -> Vec<String> {
     if let Some(timeout) = &args.timeout {
         argv.push("--timeout".to_string());
         argv.push(timeout.clone());
+    }
+    if let Some(file) = &args.file {
+        argv.push("--file".to_string());
+        argv.push(file.clone());
     }
     if !args.prompt.is_empty() {
         argv.extend(args.prompt.iter().cloned());

@@ -1,7 +1,7 @@
 use std::path::Path;
 
+use ito_core::tasks::{DiagnosticLevel, TaskDiagnostic};
 use ito_core::validate::ValidationIssue;
-use ito_domain::tasks::{DiagnosticLevel, TaskDiagnostic};
 
 pub fn format_path_line(path: &Path, line: Option<usize>) -> String {
     match line {
@@ -57,8 +57,8 @@ mod tests {
     use super::{blocking_task_error_message, format_path_line, render_task_diagnostics};
     use std::path::Path;
 
+    use ito_core::tasks::{DiagnosticLevel, TaskDiagnostic};
     use ito_core::validate::ValidationIssue;
-    use ito_domain::tasks::{DiagnosticLevel, TaskDiagnostic};
 
     #[test]
     fn format_path_line_includes_optional_line_number() {

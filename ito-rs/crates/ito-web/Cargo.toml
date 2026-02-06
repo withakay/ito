@@ -28,3 +28,4 @@ sha2 = "0.10"
 hex = "0.4"
 gethostname = "0.5"
 ito-templates = { workspace = true }
+ito-core = { workspace = true }

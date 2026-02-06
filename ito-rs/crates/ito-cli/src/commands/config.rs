@@ -1,6 +1,7 @@
 use crate::cli::{ConfigArgs, ConfigCommand};
-use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
+use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+use ito_core::config as core_config;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -34,7 +35,7 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "list" => {
-            let v = read_json_object_or_empty(&path)?;
+            let v = core_config::read_json_config(&path).map_err(to_cli_error)?;
             println!(
                 "{}",
                 serde_json::to_string_pretty(&v).unwrap_or_else(|_| "{}".to_string())
@@ -46,8 +47,9 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if key.is_empty() || key.starts_with('-') {
                 return fail("Missing required argument <key>");
             }
-            let v = read_json_object_or_empty(&path)?;
-            let Some(value) = json_get_path(&v, key) else {
+            let v = core_config::read_json_config(&path).map_err(to_cli_error)?;
+            let parts = core_config::json_split_path(key);
+            let Some(value) = core_config::json_get_path(&v, &parts) else {
                 return fail("Key not found");
             };
             println!("{}", json_render_value(value));
@@ -64,14 +66,12 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
             let force_string = args.iter().any(|a| a == "--string");
 
-            let mut v = read_json_object_or_empty(&path)?;
-            let value = parse_json_value_arg(raw, force_string)?;
-            json_set_path(&mut v, key, value)?;
+            let mut v = core_config::read_json_config(&path).map_err(to_cli_error)?;
+            let value = core_config::parse_json_value_arg(raw, force_string);
+            let parts = core_config::json_split_path(key);
+            core_config::json_set_path(&mut v, &parts, value).map_err(to_cli_error)?;
 
-            let bytes = serde_json::to_vec_pretty(&v).map_err(to_cli_error)?;
-            let mut bytes = bytes;
-            bytes.push(b'\n');
-            ito_common::io::write_atomic_std(&path, bytes).map_err(to_cli_error)?;
+            core_config::write_json_config(&path, &v).map_err(to_cli_error)?;
             Ok(())
         }
         "unset" => {
@@ -80,13 +80,11 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <key>");
             }
 
-            let mut v = read_json_object_or_empty(&path)?;
-            json_unset_path(&mut v, key)?;
+            let mut v = core_config::read_json_config(&path).map_err(to_cli_error)?;
+            let parts = core_config::json_split_path(key);
+            core_config::json_unset_path(&mut v, &parts).map_err(to_cli_error)?;
 
-            let bytes = serde_json::to_vec_pretty(&v).map_err(to_cli_error)?;
-            let mut bytes = bytes;
-            bytes.push(b'\n');
-            ito_common::io::write_atomic_std(&path, bytes).map_err(to_cli_error)?;
+            core_config::write_json_config(&path, &v).map_err(to_cli_error)?;
             Ok(())
         }
         _ => fail(format!("Unknown config subcommand '{sub}'")),
@@ -161,31 +159,6 @@ fn handle_config_schema(output: Option<&Path>) -> CliResult<()> {
     Ok(())
 }
 
-fn read_json_object_or_empty(path: &Path) -> CliResult<serde_json::Value> {
-    let Ok(contents) = std::fs::read_to_string(path) else {
-        return Ok(serde_json::Value::Object(serde_json::Map::new()));
-    };
-    let v: serde_json::Value = serde_json::from_str(&contents)
-        .map_err(|e| CliError::msg(format!("Invalid JSON in {}: {e}", path.display())))?;
-    match v {
-        serde_json::Value::Object(_) => Ok(v),
-        _ => Err(CliError::msg(format!(
-            "Expected JSON object in {}",
-            path.display()
-        ))),
-    }
-}
-
-fn parse_json_value_arg(raw: &str, force_string: bool) -> CliResult<serde_json::Value> {
-    if force_string {
-        return Ok(serde_json::Value::String(raw.to_string()));
-    }
-    match serde_json::from_str::<serde_json::Value>(raw) {
-        Ok(v) => Ok(v),
-        Err(_) => Ok(serde_json::Value::String(raw.to_string())),
-    }
-}
-
 fn json_render_value(v: &serde_json::Value) -> String {
     match v {
         serde_json::Value::String(s) => s.clone(),
@@ -196,105 +169,4 @@ fn json_render_value(v: &serde_json::Value) -> String {
             serde_json::to_string_pretty(v).unwrap_or_else(|_| "{}".to_string())
         }
     }
-}
-
-fn json_split_path(path: &str) -> Vec<&str> {
-    let mut out: Vec<&str> = Vec::new();
-    for part in path.split('.') {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        out.push(part);
-    }
-    out
-}
-
-fn json_get_path<'a>(root: &'a serde_json::Value, path: &str) -> Option<&'a serde_json::Value> {
-    let parts = json_split_path(path);
-    let mut cur = root;
-    for p in parts {
-        let serde_json::Value::Object(map) = cur else {
-            return None;
-        };
-        let next = map.get(p)?;
-        cur = next;
-    }
-    Some(cur)
-}
-
-fn json_set_path(
-    root: &mut serde_json::Value,
-    path: &str,
-    value: serde_json::Value,
-) -> CliResult<()> {
-    let parts = json_split_path(path);
-    if parts.is_empty() {
-        return Err(CliError::msg("Invalid empty path"));
-    }
-
-    let mut cur = root;
-    for (i, key) in parts.iter().enumerate() {
-        let is_last = i + 1 == parts.len();
-
-        let is_object = matches!(cur, serde_json::Value::Object(_));
-        if !is_object {
-            *cur = serde_json::Value::Object(serde_json::Map::new());
-        }
-
-        let serde_json::Value::Object(map) = cur else {
-            return Err(CliError::msg("Failed to set path"));
-        };
-
-        if is_last {
-            map.insert((*key).to_string(), value);
-            return Ok(());
-        }
-
-        let needs_object = match map.get(*key) {
-            Some(serde_json::Value::Object(_)) => false,
-            Some(_) => true,
-            None => true,
-        };
-        if needs_object {
-            map.insert(
-                (*key).to_string(),
-                serde_json::Value::Object(serde_json::Map::new()),
-            );
-        }
-
-        let Some(next) = map.get_mut(*key) else {
-            return Err(CliError::msg("Failed to set path"));
-        };
-        cur = next;
-    }
-
-    Ok(())
-}
-
-fn json_unset_path(root: &mut serde_json::Value, path: &str) -> CliResult<()> {
-    let parts = json_split_path(path);
-    if parts.is_empty() {
-        return Err(CliError::msg("Invalid empty path"));
-    }
-
-    let mut cur = root;
-    for (i, p) in parts.iter().enumerate() {
-        let is_last = i + 1 == parts.len();
-        let serde_json::Value::Object(map) = cur else {
-            return Ok(());
-        };
-
-        if is_last {
-            map.remove(*p);
-            return Ok(());
-        }
-
-        let Some(next) = map.get_mut(*p) else {
-            return Ok(());
-        };
-        cur = next;
-    }
-
-    Ok(())
 }

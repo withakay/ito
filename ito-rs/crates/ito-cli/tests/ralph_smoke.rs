@@ -161,3 +161,109 @@ fn ralph_change_flag_supports_slug_query_resolution() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Ralph Status for 001-12_setup-wizard"));
 }
+
+#[test]
+fn ralph_file_flag_requires_readable_file() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "000-01_test-change",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--file",
+            "missing-prompt.txt",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stderr
+            .contains("Failed to read prompt file missing-prompt.txt")
+    );
+}
+
+#[test]
+fn ralph_file_flag_allowed_without_change_or_module() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--file",
+            "missing-prompt.txt",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stderr
+            .contains("Failed to read prompt file missing-prompt.txt")
+    );
+}
+
+#[test]
+fn ralph_file_flag_runs_without_change_or_module() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(repo.path().join("prompt.md"), "do work\n");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--file",
+            "prompt.md",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Starting Ralph for unscoped"));
+
+    let state_path = repo.path().join(".ito/.state/ralph/unscoped/state.json");
+    assert!(state_path.exists());
+}

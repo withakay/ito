@@ -11,19 +11,30 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_MANIFEST = REPO_ROOT / "ito-rs" / "Cargo.toml"
 
 FORBIDDEN_CRATE_EDGES = {
-    "ito-domain": {"ito-cli", "ito-web"},
+    "ito-domain": {"ito-cli", "ito-web", "ito-core"},
+    "ito-core": {"ito-cli", "ito-web"},
+    "ito-cli": {"ito-domain"},  # Phase 6: CLI must route through ito-core
+}
+
+REQUIRED_CRATE_EDGES = {
+    "ito-core": {"ito-domain"},
+    "ito-cli": {"ito-core"},
+    "ito-web": {"ito-core"},
 }
 
 DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
     "miette::": {},
     "std::fs": {
-        "ito-rs/crates/ito-domain/src/changes/repository.rs": 2,
         "ito-rs/crates/ito-domain/src/discovery.rs": 9,
-        "ito-rs/crates/ito-domain/src/planning.rs": 5,
-        "ito-rs/crates/ito-domain/src/tasks/repository.rs": 2,
-        "ito-rs/crates/ito-domain/src/workflow.rs": 8,
     },
     "std::process::Command": {},
+}
+
+# Phase 5: miette must not leak into ito-core production code.
+# Test code (tests/ dir) is excluded from this check.
+CORE_API_BASELINE: dict[str, dict[str, int]] = {
+    "miette::": {},
+    "miette!": {},
 }
 
 
@@ -71,6 +82,19 @@ def check_crate_edges() -> list[str]:
                     f"forbidden dependency edge: {source_crate} -> {forbidden_target}"
                 )
 
+    for source_crate, required_targets in REQUIRED_CRATE_EDGES.items():
+        source = packages.get(source_crate)
+        if source is None:
+            violations.append(f"missing workspace crate: {source_crate}")
+            continue
+
+        dep_names = {dependency["name"] for dependency in source["dependencies"]}
+        for required_target in sorted(required_targets):
+            if required_target not in dep_names:
+                violations.append(
+                    f"missing required dependency edge: {source_crate} -> {required_target}"
+                )
+
     return violations
 
 
@@ -88,6 +112,44 @@ def check_domain_api_bans() -> list[str]:
         for path in sorted(domain_src.rglob("*.rs")):
             rel_path = path.relative_to(REPO_ROOT).as_posix()
             count = count_occurrences(path.read_text(encoding="utf-8"), symbol)
+            if count > 0:
+                actual_counts[rel_path] = count
+
+        for rel_path, count in sorted(actual_counts.items()):
+            allowed = baseline.get(rel_path)
+            if allowed is None:
+                violations.append(f"new {symbol} usage in {rel_path} ({count} matches)")
+                continue
+            if count > allowed:
+                violations.append(
+                    f"increased {symbol} usage in {rel_path} ({count} > baseline {allowed})"
+                )
+
+    return violations
+
+
+def check_core_api_bans() -> list[str]:
+    """Check that ito-core production code does not use banned APIs (e.g. miette).
+
+    Only checks src/ files — tests/ are excluded since integration tests may
+    need miette (e.g. for implementing the Harness trait from ito-harness).
+    """
+    core_src = REPO_ROOT / "ito-rs" / "crates" / "ito-core" / "src"
+    violations: list[str] = []
+
+    for symbol, baseline in CORE_API_BASELINE.items():
+        actual_counts: dict[str, int] = {}
+
+        for path in sorted(core_src.rglob("*.rs")):
+            rel_path = path.relative_to(REPO_ROOT).as_posix()
+            contents = path.read_text(encoding="utf-8")
+            # Skip counting occurrences inside doc comments (lines starting with ///)
+            non_doc_lines = [
+                line
+                for line in contents.splitlines()
+                if not line.strip().startswith("///")
+            ]
+            count = count_occurrences("\n".join(non_doc_lines), symbol)
             if count > 0:
                 actual_counts[rel_path] = count
 
@@ -149,13 +211,15 @@ def report(group_name: str, violations: list[str]) -> None:
 def main() -> int:
     edge_violations = check_crate_edges()
     api_violations = check_domain_api_bans()
+    core_api_violations = check_core_api_bans()
     no_web_violations = check_cli_no_default_features_web_decoupling()
 
     report("crate edge rules", edge_violations)
     report("ito-domain API bans", api_violations)
+    report("ito-core API bans", core_api_violations)
     report("ito-cli no-default-features decoupling", no_web_violations)
 
-    if edge_violations or api_violations or no_web_violations:
+    if edge_violations or api_violations or core_api_violations or no_web_violations:
         return 1
 
     print("Architecture guardrails passed.")

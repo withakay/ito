@@ -1,7 +1,8 @@
 use crate::cli::{PlanAction, PlanArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
-use ito_domain::planning as wf_planning;
+use ito_core::domain::planning as wf_planning;
+use ito_core::planning_init;
 
 pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -13,11 +14,11 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| ".ito".to_string());
-    let current_date = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let current_date = ito_core::time::now_date();
 
     match action {
         PlanAction::Init => {
-            wf_planning::init_planning_structure(ito_path, &current_date, &ito_dir)
+            planning_init::init_planning_structure(ito_path, &current_date, &ito_dir)
                 .map_err(to_cli_error)?;
             eprintln!("✔ Planning structure initialized");
             println!("Created:");

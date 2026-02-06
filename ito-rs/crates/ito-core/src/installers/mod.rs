@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use chrono::Utc;
-use miette::{Result, miette};
+
+use crate::errors::{CoreError, CoreResult};
 
 use markers::update_file_with_markers;
 
@@ -56,7 +57,7 @@ pub fn install_default_templates(
     ctx: &ConfigContext,
     mode: InstallMode,
     opts: &InitOptions,
-) -> Result<()> {
+) -> CoreResult<()> {
     let ito_dir_name = get_ito_dir_name(project_root, ctx);
     let ito_dir = ito_templates::normalize_ito_dir(&ito_dir_name);
 
@@ -73,17 +74,25 @@ pub fn install_default_templates(
     Ok(())
 }
 
-fn ensure_repo_gitignore_ignores_session_json(project_root: &Path, ito_dir: &str) -> Result<()> {
+fn ensure_repo_gitignore_ignores_session_json(
+    project_root: &Path,
+    ito_dir: &str,
+) -> CoreResult<()> {
     let entry = format!("{ito_dir}/session.json");
     ensure_gitignore_contains_line(project_root, &entry)
 }
 
-fn ensure_gitignore_contains_line(project_root: &Path, entry: &str) -> Result<()> {
+fn ensure_gitignore_contains_line(project_root: &Path, entry: &str) -> CoreResult<()> {
     let path = project_root.join(".gitignore");
-    let existing = ito_common::io::read_to_string_optional(&path)?;
+    let existing = match ito_common::io::read_to_string_std(&path) {
+        Ok(s) => Some(s),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(CoreError::io(format!("reading {}", path.display()), e)),
+    };
 
     let Some(mut s) = existing else {
-        ito_common::io::write(&path, format!("{entry}\n"))?;
+        ito_common::io::write_std(&path, format!("{entry}\n"))
+            .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
         return Ok(());
     };
 
@@ -97,7 +106,8 @@ fn ensure_gitignore_contains_line(project_root: &Path, entry: &str) -> Result<()
     s.push_str(entry);
     s.push('\n');
 
-    ito_common::io::write(&path, s)?;
+    ito_common::io::write_std(&path, s)
+        .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
     Ok(())
 }
 
@@ -110,7 +120,7 @@ fn install_project_templates(
     ito_dir: &str,
     mode: InstallMode,
     opts: &InitOptions,
-) -> Result<()> {
+) -> CoreResult<()> {
     let selected = &opts.tools;
     let current_date = Utc::now().format("%Y-%m-%d").to_string();
     let state_rel = format!("{ito_dir}/planning/STATE.md");
@@ -166,9 +176,10 @@ fn write_one(
     rendered_bytes: &[u8],
     mode: InstallMode,
     opts: &InitOptions,
-) -> Result<()> {
+) -> CoreResult<()> {
     if let Some(parent) = target.parent() {
-        ito_common::io::create_dir_all(parent)?;
+        ito_common::io::create_dir_all_std(parent)
+            .map_err(|e| CoreError::io(format!("creating directory {}", parent.display()), e))?;
     }
 
     // Marker-managed files: template contains markers; we extract the inner block.
@@ -183,10 +194,10 @@ fn write_one(
                 let has_start = existing.contains(ito_templates::ITO_START_MARKER);
                 let has_end = existing.contains(ito_templates::ITO_END_MARKER);
                 if !(has_start && has_end) {
-                    return Err(miette!(
+                    return Err(CoreError::Validation(format!(
                         "Refusing to overwrite existing file without markers: {} (re-run with --force)",
                         target.display()
-                    ));
+                    )));
                 }
             }
 
@@ -196,10 +207,20 @@ fn write_one(
                 ito_templates::ITO_START_MARKER,
                 ito_templates::ITO_END_MARKER,
             )
-            .map_err(|e| miette!("Failed to update markers in {}: {e}", target.display()))?;
+            .map_err(|e| match e {
+                markers::FsEditError::Io(io_err) => {
+                    CoreError::io(format!("updating markers in {}", target.display()), io_err)
+                }
+                markers::FsEditError::Marker(marker_err) => CoreError::Validation(format!(
+                    "Failed to update markers in {}: {}",
+                    target.display(),
+                    marker_err
+                )),
+            })?;
         } else {
             // New file: write the template bytes verbatim so output matches embedded assets.
-            ito_common::io::write(target, rendered_bytes)?;
+            ito_common::io::write_std(target, rendered_bytes)
+                .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
         }
 
         return Ok(());
@@ -207,13 +228,14 @@ fn write_one(
 
     // Non-marker-managed files: init refuses to overwrite unless --force.
     if mode == InstallMode::Init && target.exists() && !opts.force {
-        return Err(miette!(
+        return Err(CoreError::Validation(format!(
             "Refusing to overwrite existing file without markers: {} (re-run with --force)",
             target.display()
-        ));
+        )));
     }
 
-    ito_common::io::write(target, rendered_bytes)?;
+    ito_common::io::write_std(target, rendered_bytes)
+        .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
     Ok(())
 }
 
@@ -221,7 +243,7 @@ fn install_adapter_files(
     project_root: &Path,
     _mode: InstallMode,
     opts: &InitOptions,
-) -> Result<()> {
+) -> CoreResult<()> {
     for tool in &opts.tools {
         match tool.as_str() {
             TOOL_OPENCODE => {
@@ -253,7 +275,7 @@ fn install_agent_templates(
     project_root: &Path,
     mode: InstallMode,
     opts: &InitOptions,
-) -> Result<()> {
+) -> CoreResult<()> {
     use ito_templates::agents::{
         AgentTier, Harness, default_agent_configs, get_agent_files, render_agent_template,
     };
@@ -315,10 +337,13 @@ fn install_agent_templates(
 
                     // Ensure parent directory exists
                     if let Some(parent) = target.parent() {
-                        ito_common::io::create_dir_all(parent)?;
+                        ito_common::io::create_dir_all_std(parent).map_err(|e| {
+                            CoreError::io(format!("creating directory {}", parent.display()), e)
+                        })?;
                     }
 
-                    ito_common::io::write(&target, rendered)?;
+                    ito_common::io::write_std(&target, rendered)
+                        .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
                 }
                 InstallMode::Update => {
                     // During update: only update model in existing ito agent files
@@ -335,9 +360,13 @@ fn install_agent_templates(
                         };
 
                         if let Some(parent) = target.parent() {
-                            ito_common::io::create_dir_all(parent)?;
+                            ito_common::io::create_dir_all_std(parent).map_err(|e| {
+                                CoreError::io(format!("creating directory {}", parent.display()), e)
+                            })?;
                         }
-                        ito_common::io::write(&target, rendered)?;
+                        ito_common::io::write_std(&target, rendered).map_err(|e| {
+                            CoreError::io(format!("writing {}", target.display()), e)
+                        })?;
                     } else if let Some(cfg) = config {
                         // File exists, only update model field in frontmatter
                         update_agent_model_field(&target, &cfg.model)?;
@@ -351,7 +380,7 @@ fn install_agent_templates(
 }
 
 /// Update only the model field in an existing agent file's frontmatter
-fn update_agent_model_field(path: &Path, new_model: &str) -> Result<()> {
+fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
     let content = ito_common::io::read_to_string_or_default(path);
 
     // Only update files with frontmatter
@@ -373,7 +402,8 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> Result<()> {
 
     // Reconstruct file
     let updated = format!("---{}\n---{}", updated_frontmatter, body);
-    ito_common::io::write(path, updated)?;
+    ito_common::io::write_std(path, updated)
+        .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
 
     Ok(())
 }

@@ -8,7 +8,6 @@ description = "Core functionality and business logic for Ito"
 
 [dependencies]
 thiserror = { workspace = true }
-miette = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -24,6 +23,8 @@ ito-config = { workspace = true }
 ito-domain = { workspace = true }
 ito-templates = { workspace = true }
 ito-harness = { workspace = true }
+ito-schemas = { workspace = true }
 
 [dev-dependencies]
+miette = { workspace = true }
 tempfile = { workspace = true }

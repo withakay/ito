@@ -1,5 +1,5 @@
-use crate::change_repository::FsChangeRepository;
-use crate::error_bridge::IntoCoreMiette;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
 use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
@@ -8,9 +8,13 @@ use crate::ralph::state::{
     save_state,
 };
 use crate::ralph::validation;
-use ito_domain::changes::{ChangeSummary, ChangeTargetResolution, ChangeWorkStatus};
+use ito_domain::changes::{
+    ChangeRepository as DomainChangeRepository, ChangeSummary, ChangeTargetResolution,
+    ChangeWorkStatus,
+};
+use ito_domain::modules::ModuleRepository as DomainModuleRepository;
+use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use ito_harness::{Harness, HarnessName};
-use miette::{Result, miette};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -74,32 +78,54 @@ pub struct RalphOptions {
     ///
     /// This runs after the project validation steps.
     pub validation_command: Option<String>,
+
+    /// Exit immediately when the harness process returns non-zero.
+    ///
+    /// When false, Ralph captures the failure output and continues iterating.
+    pub exit_on_error: bool,
+
+    /// Maximum number of non-zero harness exits allowed before failing.
+    ///
+    /// Applies only when `exit_on_error` is false.
+    pub error_threshold: u32,
 }
+
+/// Default maximum number of non-zero harness exits Ralph tolerates.
+pub const DEFAULT_ERROR_THRESHOLD: u32 = 10;
 
 /// Run the Ralph loop until a completion promise is detected.
 ///
 /// This persists lightweight state under `.ito/.state/ralph/<change>/` so the
 /// user can inspect iteration history.
-pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness) -> Result<()> {
+pub fn run_ralph(
+    ito_path: &Path,
+    change_repo: &impl DomainChangeRepository,
+    task_repo: &impl DomainTaskRepository,
+    module_repo: &impl DomainModuleRepository,
+    opts: RalphOptions,
+    harness: &mut dyn Harness,
+) -> CoreResult<()> {
     let process_runner = SystemProcessRunner;
 
     if opts.continue_module {
         if opts.change_id.is_some() {
-            return Err(miette!(
-                "--continue-module cannot be used with --change. Use --module only."
+            return Err(CoreError::Validation(
+                "--continue-module cannot be used with --change. Use --module only.".into(),
             ));
         }
         let Some(module_id) = opts.module_id.clone() else {
-            return Err(miette!("--continue-module requires --module"));
+            return Err(CoreError::Validation(
+                "--continue-module requires --module".into(),
+            ));
         };
         if opts.status || opts.add_context.is_some() || opts.clear_context {
-            return Err(miette!(
-                "--continue-module cannot be combined with --status, --add-context, or --clear-context"
+            return Err(CoreError::Validation(
+                "--continue-module cannot be combined with --status, --add-context, or --clear-context".into()
             ));
         }
 
         loop {
-            let current_changes = module_changes(ito_path, &module_id)?;
+            let current_changes = module_changes(change_repo, &module_id)?;
             let ready_changes = module_ready_change_ids(&current_changes);
             print_ready_changes(&module_id, &ready_changes);
 
@@ -111,16 +137,16 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
                     return Ok(());
                 }
 
-                return Err(miette!(
+                return Err(CoreError::Validation(format!(
                     "Module {module} has no ready changes. Remaining non-complete changes: {}",
                     incomplete.join(", "),
                     module = module_id
-                ));
+                )));
             }
 
             let mut next_change = ready_changes[0].clone();
 
-            let preflight_changes = module_changes(ito_path, &module_id)?;
+            let preflight_changes = module_changes(change_repo, &module_id)?;
             let preflight_ready = module_ready_change_ids(&preflight_changes);
             if preflight_ready.is_empty() {
                 let incomplete = module_incomplete_change_ids(&preflight_changes);
@@ -128,11 +154,11 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
                     println!("\nModule {module} is complete.", module = module_id);
                     return Ok(());
                 }
-                return Err(miette!(
+                return Err(CoreError::Validation(format!(
                     "Module {module} changed during selection and now has no ready changes. Remaining non-complete changes: {}",
                     incomplete.join(", "),
                     module = module_id
-                ));
+                )));
             }
             let preflight_first = preflight_ready[0].clone();
             if preflight_first != next_change {
@@ -153,9 +179,16 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
             single_opts.continue_module = false;
             single_opts.change_id = Some(next_change);
 
-            run_ralph(ito_path, single_opts, harness)?;
+            run_ralph(
+                ito_path,
+                change_repo,
+                task_repo,
+                module_repo,
+                single_opts,
+                harness,
+            )?;
 
-            let post_changes = module_changes(ito_path, &module_id)?;
+            let post_changes = module_changes(change_repo, &module_id)?;
             let post_ready = module_ready_change_ids(&post_changes);
             print_ready_changes(&module_id, &post_ready);
         }
@@ -167,13 +200,22 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         && opts.add_context.is_none()
         && !opts.clear_context
     {
-        let module_changes = module_changes(ito_path, module_id)?;
+        let module_changes = module_changes(change_repo, module_id)?;
         let ready_changes = module_ready_change_ids(&module_changes);
         print_ready_changes(module_id, &ready_changes);
     }
 
-    let (change_id, module_id) =
-        resolve_target(ito_path, opts.change_id, opts.module_id, opts.interactive)?;
+    let unscoped_target = opts.change_id.is_none() && opts.module_id.is_none();
+    let (change_id, module_id) = if unscoped_target {
+        ("unscoped".to_string(), "unscoped".to_string())
+    } else {
+        resolve_target(
+            change_repo,
+            opts.change_id,
+            opts.module_id,
+            opts.interactive,
+        )?
+    };
 
     if opts.status {
         let state = load_state(ito_path, &change_id)?;
@@ -232,7 +274,14 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
 
     let max_iters = opts.max_iterations.unwrap_or(u32::MAX);
     if max_iters == 0 {
-        return Err(miette!("--max-iterations must be >= 1"));
+        return Err(CoreError::Validation(
+            "--max-iterations must be >= 1".into(),
+        ));
+    }
+    if opts.error_threshold == 0 {
+        return Err(CoreError::Validation(
+            "--error-threshold must be >= 1".into(),
+        ));
     }
 
     // Print startup message so user knows something is happening
@@ -256,6 +305,7 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
     println!();
 
     let mut last_validation_failure: Option<String> = None;
+    let mut harness_error_count: u32 = 0;
 
     for _ in 0..max_iters {
         let iteration = state.iteration.saturating_add(1);
@@ -265,10 +315,20 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         let context_content = load_context(ito_path, &change_id)?;
         let prompt = build_ralph_prompt(
             ito_path,
+            change_repo,
+            module_repo,
             &opts.prompt,
             BuildPromptOptions {
-                change_id: Some(change_id.clone()),
-                module_id: Some(module_id.clone()),
+                change_id: if unscoped_target {
+                    None
+                } else {
+                    Some(change_id.clone())
+                },
+                module_id: if unscoped_target {
+                    None
+                } else {
+                    Some(module_id.clone())
+                },
                 iteration: Some(iteration),
                 max_iterations: opts.max_iterations,
                 min_iterations: opts.min_iterations,
@@ -285,14 +345,16 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         }
 
         let started = std::time::Instant::now();
-        let run = harness.run(&ito_harness::HarnessRunConfig {
-            prompt,
-            model: opts.model.clone(),
-            cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
-            env: std::collections::BTreeMap::new(),
-            interactive: opts.interactive && !opts.allow_all,
-            inactivity_timeout: opts.inactivity_timeout,
-        })?;
+        let run = harness
+            .run(&ito_harness::HarnessRunConfig {
+                prompt,
+                model: opts.model.clone(),
+                cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+                env: std::collections::BTreeMap::new(),
+                interactive: opts.interactive && !opts.allow_all,
+                inactivity_timeout: opts.inactivity_timeout,
+            })
+            .map_err(|e| CoreError::Process(format!("Harness execution failed: {e}")))?;
 
         // Pass through output if harness didn't already stream it
         if !harness.streams_output() {
@@ -321,11 +383,38 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
         }
 
         if run.exit_code != 0 {
-            return Err(miette!(
-                "Harness '{name}' exited with code {code}",
-                name = harness.name().0,
-                code = run.exit_code
+            if opts.exit_on_error {
+                return Err(CoreError::Process(format!(
+                    "Harness '{name}' exited with code {code}",
+                    name = harness.name().0,
+                    code = run.exit_code
+                )));
+            }
+
+            harness_error_count = harness_error_count.saturating_add(1);
+            if harness_error_count >= opts.error_threshold {
+                return Err(CoreError::Process(format!(
+                    "Harness '{name}' exceeded non-zero exit threshold ({count}/{threshold}); last exit code {code}",
+                    name = harness.name().0,
+                    count = harness_error_count,
+                    threshold = opts.error_threshold,
+                    code = run.exit_code
+                )));
+            }
+
+            last_validation_failure = Some(render_harness_failure(
+                harness.name().0,
+                run.exit_code,
+                &run.stdout,
+                &run.stderr,
             ));
+            println!(
+                "\n=== Harness exited with code {code} ({count}/{threshold}). Continuing to let Ralph fix it... ===\n",
+                code = run.exit_code,
+                count = harness_error_count,
+                threshold = opts.error_threshold
+            );
+            continue;
         }
 
         if !opts.no_commit {
@@ -353,8 +442,16 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
                 return Ok(());
             }
 
-            let report =
-                validate_completion(ito_path, &change_id, opts.validation_command.as_deref())?;
+            let report = validate_completion(
+                ito_path,
+                task_repo,
+                if unscoped_target {
+                    None
+                } else {
+                    Some(change_id.as_str())
+                },
+                opts.validation_command.as_deref(),
+            )?;
             if report.passed {
                 println!(
                     "\n=== Completion promise \"{p}\" detected (validated). Loop complete. ===\n",
@@ -373,14 +470,16 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
     Ok(())
 }
 
-fn module_changes(ito_path: &Path, module_id: &str) -> Result<Vec<ChangeSummary>> {
-    let change_repo = FsChangeRepository::new(ito_path);
-    let changes = change_repo.list_by_module(module_id).into_core_miette()?;
+fn module_changes(
+    change_repo: &impl DomainChangeRepository,
+    module_id: &str,
+) -> CoreResult<Vec<ChangeSummary>> {
+    let changes = change_repo.list_by_module(module_id).into_core()?;
     if changes.is_empty() {
-        return Err(miette!(
+        return Err(CoreError::NotFound(format!(
             "No changes found for module {module}",
             module = module_id
-        ));
+        )));
     }
     Ok(changes)
 }
@@ -429,16 +528,24 @@ struct CompletionValidationReport {
 
 fn validate_completion(
     ito_path: &Path,
-    change_id: &str,
+    task_repo: &impl DomainTaskRepository,
+    change_id: Option<&str>,
     extra_command: Option<&str>,
-) -> Result<CompletionValidationReport> {
+) -> CoreResult<CompletionValidationReport> {
     let mut passed = true;
     let mut sections: Vec<String> = Vec::new();
 
-    let task = validation::check_task_completion(ito_path, change_id)?;
-    sections.push(render_validation_result("Ito task status", &task));
-    if !task.success {
-        passed = false;
+    if let Some(change_id) = change_id {
+        let task = validation::check_task_completion(task_repo, change_id)?;
+        sections.push(render_validation_result("Ito task status", &task));
+        if !task.success {
+            passed = false;
+        }
+    } else {
+        sections.push(
+            "### Ito task status\n\n- Result: SKIP\n- Summary: No change selected; skipped task validation"
+                .to_string(),
+        );
     }
 
     let timeout = Duration::from_secs(5 * 60);
@@ -482,6 +589,30 @@ fn render_validation_result(title: &str, r: &validation::ValidationResult) -> St
     md
 }
 
+fn render_harness_failure(name: &str, exit_code: i32, stdout: &str, stderr: &str) -> String {
+    let mut md = String::new();
+    md.push_str("### Harness execution\n\n");
+    md.push_str("- Result: FAIL\n");
+    md.push_str(&format!("- Harness: {name}\n"));
+    md.push_str(&format!("- Exit code: {code}\n", code = exit_code));
+
+    let stdout = stdout.trim();
+    if !stdout.is_empty() {
+        md.push_str("\nStdout:\n\n```text\n");
+        md.push_str(stdout);
+        md.push_str("\n```\n");
+    }
+
+    let stderr = stderr.trim();
+    if !stderr.is_empty() {
+        md.push_str("\nStderr:\n\n```text\n");
+        md.push_str(stderr);
+        md.push_str("\n```\n");
+    }
+
+    md
+}
+
 fn completion_promise_found(stdout: &str, token: &str) -> bool {
     let mut rest = stdout;
     loop {
@@ -502,25 +633,23 @@ fn completion_promise_found(stdout: &str, token: &str) -> bool {
 }
 
 fn resolve_target(
-    ito_path: &Path,
+    change_repo: &impl DomainChangeRepository,
     change_id: Option<String>,
     module_id: Option<String>,
     interactive: bool,
-) -> Result<(String, String)> {
-    let change_repo = FsChangeRepository::new(ito_path);
-
+) -> CoreResult<(String, String)> {
     // If change is provided, resolve canonical ID and infer module.
     if let Some(change) = change_id {
         let change = match change_repo.resolve_target(&change) {
             ChangeTargetResolution::Unique(id) => id,
             ChangeTargetResolution::Ambiguous(matches) => {
-                return Err(miette!(
+                return Err(CoreError::Validation(format!(
                     "Change '{change}' is ambiguous. Matches: {}",
                     matches.join(", ")
-                ));
+                )));
             }
             ChangeTargetResolution::NotFound => {
-                return Err(miette!("Change '{change}' not found"));
+                return Err(CoreError::NotFound(format!("Change '{change}' not found")));
             }
         };
         let module = infer_module_from_change(&change)?;
@@ -528,12 +657,12 @@ fn resolve_target(
     }
 
     if let Some(module) = module_id {
-        let changes = change_repo.list_by_module(&module).into_core_miette()?;
+        let changes = change_repo.list_by_module(&module).into_core()?;
         if changes.is_empty() {
-            return Err(miette!(
+            return Err(CoreError::NotFound(format!(
                 "No changes found for module {module}",
                 module = module
-            ));
+            )));
         }
 
         let ready_changes = module_ready_change_ids(&changes);
@@ -544,49 +673,52 @@ fn resolve_target(
         let incomplete = module_incomplete_change_ids(&changes);
 
         if incomplete.is_empty() {
-            return Err(miette!(
+            return Err(CoreError::Validation(format!(
                 "Module {module} has no ready changes because all changes are complete",
                 module = module
-            ));
+            )));
         }
 
-        return Err(miette!(
+        return Err(CoreError::Validation(format!(
             "Module {module} has no ready changes. Remaining non-complete changes: {}",
             incomplete.join(", "),
             module = module
-        ));
+        )));
     }
 
     if !interactive {
-        return Err(miette!(
-            "Change selection requires interactive mode. Use --change to specify or run in interactive mode."
+        return Err(CoreError::Validation(
+            "Change selection requires interactive mode. Use --change to specify or run in interactive mode.".into()
         ));
     }
 
-    Err(miette!(
-        "Interactive selection is not yet implemented in Rust. Use --change to specify."
+    Err(CoreError::Validation(
+        "Interactive selection is not yet implemented in Rust. Use --change to specify.".into(),
     ))
 }
 
-fn infer_module_from_change(change_id: &str) -> Result<String> {
+fn infer_module_from_change(change_id: &str) -> CoreResult<String> {
     let Some((module, _rest)) = change_id.split_once('-') else {
-        return Err(miette!("Invalid change ID format: {id}", id = change_id));
+        return Err(CoreError::Validation(format!(
+            "Invalid change ID format: {id}",
+            id = change_id
+        )));
     };
     Ok(module.to_string())
 }
 
-fn now_ms() -> Result<i64> {
+fn now_ms() -> CoreResult<i64> {
     let dur = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| miette!("Clock error: {e}"))?;
+        .map_err(|e| CoreError::Process(format!("Clock error: {e}")))?;
     Ok(dur.as_millis() as i64)
 }
 
-fn count_git_changes(runner: &dyn ProcessRunner) -> Result<usize> {
+fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
     let request = ProcessRequest::new("git").args(["status", "--porcelain"]);
     let out = runner
         .run(&request)
-        .map_err(|e| miette!("Failed to run git status: {e}"))?;
+        .map_err(|e| CoreError::Process(format!("Failed to run git status: {e}")))?;
     if !out.success {
         // Match TS behavior: the git error output is visible to the user.
         let err = out.stderr;
@@ -605,11 +737,11 @@ fn count_git_changes(runner: &dyn ProcessRunner) -> Result<usize> {
     Ok(line_count)
 }
 
-fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> Result<()> {
+fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()> {
     let add_request = ProcessRequest::new("git").args(["add", "-A"]);
     let add = runner
         .run(&add_request)
-        .map_err(|e| miette!("Failed to run git add: {e}"))?;
+        .map_err(|e| CoreError::Process(format!("Failed to run git add: {e}")))?;
     if !add.success {
         let stdout = add.stdout.trim().to_string();
         let stderr = add.stderr.trim().to_string();
@@ -622,14 +754,14 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> Result<()> {
             msg.push_str("\nstderr:\n");
             msg.push_str(&stderr);
         }
-        return Err(miette!(msg));
+        return Err(CoreError::Process(msg));
     }
 
     let msg = format!("Ralph loop iteration {iteration}");
     let commit_request = ProcessRequest::new("git").args(["commit", "-m", &msg]);
     let commit = runner
         .run(&commit_request)
-        .map_err(|e| miette!("Failed to run git commit: {e}"))?;
+        .map_err(|e| CoreError::Process(format!("Failed to run git commit: {e}")))?;
     if !commit.success {
         let stdout = commit.stdout.trim().to_string();
         let stderr = commit.stderr.trim().to_string();
@@ -642,7 +774,7 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> Result<()> {
             msg.push_str("\nstderr:\n");
             msg.push_str(&stderr);
         }
-        return Err(miette!(msg));
+        return Err(CoreError::Process(msg));
     }
     Ok(())
 }

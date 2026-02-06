@@ -4,9 +4,8 @@ use clap::ColorChoice;
 use clap::CommandFactory;
 use ito_common::paths as core_paths;
 use ito_config::ConfigContext;
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::workflow as core_workflow;
-use ito_domain::changes::ChangeTargetResolution;
+use ito_core::{ChangeRepository, ChangeTargetResolution};
 use std::path::Path;
 
 pub(crate) fn schema_not_found_message(ctx: &ConfigContext, name: &str) -> String {
@@ -51,11 +50,12 @@ pub(crate) fn unknown_with_suggestions(kind: &str, item: &str, suggestions: &[St
     msg
 }
 
-pub(crate) fn detect_item_type(rt: &Runtime, item: &str) -> String {
-    let ito_path = rt.ito_path();
-    let idx = rt.repo_index();
-
-    let change_repo = FsChangeRepository::new(ito_path);
+pub(crate) fn detect_item_type(
+    change_repo: &impl ChangeRepository,
+    ito_path: &Path,
+    idx: &ito_core::repo_index::RepoIndex,
+    item: &str,
+) -> String {
     let is_change = match change_repo.resolve_target(item) {
         ChangeTargetResolution::Unique(_) => true,
         ChangeTargetResolution::Ambiguous(_) | ChangeTargetResolution::NotFound => {
@@ -76,16 +76,17 @@ pub(crate) fn list_spec_ids(rt: &Runtime) -> Vec<String> {
     list_spec_ids_from_index(rt.ito_path(), rt.repo_index())
 }
 
-pub(crate) fn list_change_ids(rt: &Runtime) -> Vec<String> {
-    let change_repo = FsChangeRepository::new(rt.ito_path());
+pub(crate) fn list_change_ids(change_repo: &impl ChangeRepository) -> Vec<String> {
     change_repo
         .list()
         .map(|changes| changes.into_iter().map(|c| c.id).collect())
         .unwrap_or_default()
 }
 
-pub(crate) fn resolve_change_target(ito_path: &Path, input: &str) -> Result<String, String> {
-    let change_repo = FsChangeRepository::new(ito_path);
+pub(crate) fn resolve_change_target(
+    change_repo: &impl ChangeRepository,
+    input: &str,
+) -> Result<String, String> {
     match change_repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(id),
         ChangeTargetResolution::Ambiguous(matches) => {
@@ -121,9 +122,12 @@ pub(crate) fn resolve_change_target(ito_path: &Path, input: &str) -> Result<Stri
     }
 }
 
-pub(crate) fn list_candidate_items(rt: &Runtime) -> Vec<String> {
+pub(crate) fn list_candidate_items(
+    change_repo: &impl ChangeRepository,
+    rt: &Runtime,
+) -> Vec<String> {
     let mut items = list_spec_ids(rt);
-    items.extend(list_change_ids(rt));
+    items.extend(list_change_ids(change_repo));
     items
 }
 

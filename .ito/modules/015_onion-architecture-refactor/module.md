@@ -27,3 +27,4 @@ Guiding document: `.local/onionarchitecturerefactor_epic_plan.md`.
 - [x] 015-10_refactor-adapter-thinning
 - [ ] 015-11_refactor-schema-usage-guidelines
 - [ ] 015-12_refactor-split-core-into-app-infra
+- [ ] 015-13_standardize-arch-guardrails-tooling

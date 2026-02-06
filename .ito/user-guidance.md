@@ -21,6 +21,10 @@ After modifying Rust code, dispatch these subagents **in parallel**:
 
 Then run `make check` to verify.
 
+### Running test and checks
+
+Always use the test-with-subagent skill for running builds, tests and checks.
+
 ### Commits
 
 Use the `ito-commit` skill for conventional commits aligned to changes. Release-plz handles versioning automatically based on commit history.

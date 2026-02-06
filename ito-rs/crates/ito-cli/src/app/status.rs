@@ -32,12 +32,13 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let schema = parse_string_flag(args, "--schema");
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
+    let change_repo = FsChangeRepository::new(ito_path);
 
     // Match TS/ora: spinner output is written to stderr.
     eprintln!("- Loading change status...");
 
     let change = change.expect("checked above");
-    let change = match super::common::resolve_change_target(ito_path, &change) {
+    let change = match super::common::resolve_change_target(&change_repo, &change) {
         Ok(resolved) => resolved,
         Err(msg) => return fail(msg),
     };

@@ -9,6 +9,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Command, Output};
 
+/// In-memory mock implementations of domain repository traits for unit testing.
+pub mod mock_repos;
+
 /// PTY helpers for driving interactive commands in tests.
 pub mod pty;
 

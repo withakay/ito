@@ -5,7 +5,8 @@
 //! - Project validation commands (build/tests/lints)
 //! - Optional extra validation command provided via CLI
 
-use miette::{Result, miette};
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,9 +14,7 @@ use std::time::Duration;
 
 use ito_domain::tasks::{DiagnosticLevel, TaskRepository as DomainTaskRepository};
 
-use crate::error_bridge::IntoCoreMiette;
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
-use crate::task_repository::TaskRepository;
 
 /// Result of one validation step.
 #[derive(Debug, Clone)]
@@ -42,9 +41,12 @@ pub enum ValidationStep {
 /// Check that all tasks for `change_id` are complete or shelved.
 ///
 /// Missing tasks file is treated as success.
-pub fn check_task_completion(ito_path: &Path, change_id: &str) -> Result<ValidationResult> {
-    let repo = TaskRepository::new(ito_path);
-    let parsed = repo.load_tasks(change_id).into_core_miette()?;
+pub fn check_task_completion(
+    task_repo: &impl DomainTaskRepository,
+    change_id: &str,
+) -> CoreResult<ValidationResult> {
+    let repo = task_repo;
+    let parsed = repo.load_tasks(change_id).into_core()?;
 
     if parsed.progress.total == 0 {
         return Ok(ValidationResult {
@@ -110,7 +112,7 @@ pub fn check_task_completion(ito_path: &Path, change_id: &str) -> Result<Validat
 /// Run project validation commands discovered from configuration sources.
 ///
 /// If no validation is configured, returns success with a warning message.
-pub fn run_project_validation(ito_path: &Path, timeout: Duration) -> Result<ValidationResult> {
+pub fn run_project_validation(ito_path: &Path, timeout: Duration) -> CoreResult<ValidationResult> {
     let project_root = ito_path.parent().unwrap_or_else(|| Path::new("."));
     let commands = discover_project_validation_commands(project_root, ito_path)?;
 
@@ -147,7 +149,7 @@ pub fn run_extra_validation(
     project_root: &Path,
     command: &str,
     timeout: Duration,
-) -> Result<ValidationResult> {
+) -> CoreResult<ValidationResult> {
     let out = run_shell_with_timeout(project_root, command, timeout)?;
     Ok(ValidationResult {
         success: out.success,
@@ -163,7 +165,7 @@ pub fn run_extra_validation(
 fn discover_project_validation_commands(
     project_root: &Path,
     ito_path: &Path,
-) -> Result<Vec<String>> {
+) -> CoreResult<Vec<String>> {
     let candidates: Vec<(ProjectSource, PathBuf)> = vec![
         (ProjectSource::RepoJson, project_root.join("ito.json")),
         (ProjectSource::ItoConfigJson, ito_path.join("config.json")),
@@ -176,7 +178,7 @@ fn discover_project_validation_commands(
             continue;
         }
         let contents = fs::read_to_string(&path)
-            .map_err(|e| miette!("Failed to read {}: {e}", path.display()))?;
+            .map_err(|e| CoreError::io(format!("Failed to read {}", path.display()), e))?;
         let commands = match source {
             ProjectSource::RepoJson | ProjectSource::ItoConfigJson => {
                 extract_commands_from_json_str(&contents)
@@ -312,14 +314,14 @@ impl ShellRunOutput {
     }
 }
 
-fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> Result<ShellRunOutput> {
+fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> CoreResult<ShellRunOutput> {
     let runner = SystemProcessRunner;
     let request = ProcessRequest::new("sh")
         .args(["-lc", cmd])
         .current_dir(cwd.to_path_buf());
-    let output = runner
-        .run_with_timeout(&request, timeout)
-        .map_err(|e| miette!("Failed to run validation command '{cmd}': {e}"))?;
+    let output = runner.run_with_timeout(&request, timeout).map_err(|e| {
+        CoreError::Process(format!("Failed to run validation command '{cmd}': {e}"))
+    })?;
 
     Ok(ShellRunOutput {
         command: cmd.to_string(),
@@ -357,7 +359,8 @@ mod tests {
         let td = tempfile::tempdir().unwrap();
         let ito = td.path().join(".ito");
         fs::create_dir_all(&ito).unwrap();
-        let r = check_task_completion(&ito, "001-01_missing").unwrap();
+        let task_repo = crate::task_repository::FsTaskRepository::new(&ito);
+        let r = check_task_completion(&task_repo, "001-01_missing").unwrap();
         assert!(r.success);
     }
 
@@ -370,7 +373,8 @@ mod tests {
             &ito.join("changes/001-01_test/tasks.md"),
             "# Tasks\n\n- [x] done\n- [ ] todo\n",
         );
-        let r = check_task_completion(&ito, "001-01_test").unwrap();
+        let task_repo = crate::task_repository::FsTaskRepository::new(&ito);
+        let r = check_task_completion(&task_repo, "001-01_test").unwrap();
         assert!(!r.success);
     }
 
