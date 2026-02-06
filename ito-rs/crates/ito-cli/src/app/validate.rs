@@ -5,7 +5,6 @@ use crate::util::parse_string_flag;
 use ito_common::match_::nearest_matches;
 use ito_common::paths as core_paths;
 use ito_core::validate as core_validate;
-use ito_domain::changes::ChangeRepository;
 use ito_domain::tasks as domain_tasks;
 use std::path::Path;
 
@@ -315,20 +314,10 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let change_repo = ChangeRepository::new(ito_path);
-            if !change_repo.exists(&item) {
-                let candidates = super::common::list_change_ids(rt);
-                let suggestions = nearest_matches(&item, &candidates, 5);
-                return fail(super::common::unknown_with_suggestions(
-                    "change",
-                    &item,
-                    &suggestions,
-                ));
-            }
-
-            // Resolve flexible IDs (e.g. "005-01") to the actual directory name.
-            let summary = change_repo.get_summary(&item).map_err(to_cli_error)?;
-            let actual = summary.id;
+            let actual = match super::common::resolve_change_target(ito_path, &item) {
+                Ok(id) => id,
+                Err(msg) => return fail(msg),
+            };
 
             let mut issues = Vec::new();
             let repo_integrity =

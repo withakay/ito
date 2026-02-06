@@ -6,7 +6,6 @@ use ito_common::match_::nearest_matches;
 use ito_common::paths as core_paths;
 use ito_config::output;
 use ito_core::show as core_show;
-use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
 
 pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -134,22 +133,22 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let change_repo = ChangeRepository::new(ito_path);
-            if !change_repo.exists(&item) {
-                return fail(format!("Change '{item}' not found"));
-            }
-            let change_path = core_paths::change_dir(ito_path, &item);
+            let resolved_change = match super::common::resolve_change_target(ito_path, &item) {
+                Ok(id) => id,
+                Err(msg) => return fail(msg),
+            };
+            let change_path = core_paths::change_dir(ito_path, &resolved_change);
             let proposal_path = change_path.join("proposal.md");
             if want_json {
                 let mut files: Vec<core_show::DeltaSpecFile> = Vec::new();
-                let paths =
-                    core_show::read_change_delta_spec_paths(ito_path, &item).unwrap_or_default();
+                let paths = core_show::read_change_delta_spec_paths(ito_path, &resolved_change)
+                    .unwrap_or_default();
                 for p in paths {
                     if let Ok(f) = core_show::load_delta_spec_file(&p) {
                         files.push(f);
                     }
                 }
-                let json = core_show::parse_change_show_json(&item, &files);
+                let json = core_show::parse_change_show_json(&resolved_change, &files);
                 let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
                 println!("{rendered}");
             } else {

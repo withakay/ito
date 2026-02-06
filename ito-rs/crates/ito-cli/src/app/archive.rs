@@ -37,7 +37,10 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     // If no change specified, list available changes and prompt for selection
     let change_repo = ChangeRepository::new(ito_path);
     let change_name = if let Some(name) = change_name {
-        name.to_string()
+        match super::common::resolve_change_target(ito_path, name) {
+            Ok(resolved) => resolved,
+            Err(msg) => return fail(msg),
+        }
     } else {
         let available = change_repo.list().unwrap_or_default();
         if available.is_empty() {
