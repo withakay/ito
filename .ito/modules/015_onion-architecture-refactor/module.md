@@ -17,7 +17,7 @@ Guiding document: `.local/onionarchitecturerefactor_epic_plan.md`.
 ## Changes
 - [ ] 015-01_refactor-arch-guardrails
 - [ ] 015-02_refactor-cli-web-decouple
-- [ ] 015-03_update-rust-workspace-specs
+- [x] 015-03_update-rust-workspace-specs
 - [ ] 015-04_refactor-tracer-bullet-ito-list
 - [ ] 015-05_refactor-change-repo-ports
 - [ ] 015-06_refactor-module-repo-ports
