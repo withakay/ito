@@ -17,3 +17,4 @@
 - [ ] 002-08_extract-ralph-into-crate
 - [ ] 002-09_add-ralph-interactive-mode
 - [ ] 002-10_validate-completion-before-exit
+- [x] 002-11_ralph-module-ready-sequencing
