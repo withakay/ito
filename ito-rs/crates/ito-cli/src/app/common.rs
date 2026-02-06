@@ -5,7 +5,7 @@ use clap::CommandFactory;
 use ito_common::paths as core_paths;
 use ito_config::ConfigContext;
 use ito_core::workflow as core_workflow;
-use ito_domain::changes::ChangeRepository;
+use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 use std::path::Path;
 
 pub(crate) fn schema_not_found_message(ctx: &ConfigContext, name: &str) -> String {
@@ -76,6 +76,32 @@ pub(crate) fn list_change_ids(rt: &Runtime) -> Vec<String> {
         .list()
         .map(|changes| changes.into_iter().map(|c| c.id).collect())
         .unwrap_or_default()
+}
+
+pub(crate) fn resolve_change_target(ito_path: &Path, input: &str) -> Result<String, String> {
+    let change_repo = ChangeRepository::new(ito_path);
+    match change_repo.resolve_target(input) {
+        ChangeTargetResolution::Unique(id) => Ok(id),
+        ChangeTargetResolution::Ambiguous(matches) => {
+            let mut msg = format!("Change '{input}' is ambiguous. Matches:\n");
+            for id in matches {
+                msg.push_str(&format!("  {id}\n"));
+            }
+            msg.push_str("Use a longer prefix or the full canonical change ID.");
+            Err(msg)
+        }
+        ChangeTargetResolution::NotFound => {
+            let mut msg = format!("Change '{input}' not found");
+            let changes = change_repo.list().unwrap_or_default();
+            if !changes.is_empty() {
+                msg.push_str("\n\nAvailable changes:\n");
+                for c in changes {
+                    msg.push_str(&format!("  {}\n", c.id));
+                }
+            }
+            Err(msg)
+        }
+    }
 }
 
 pub(crate) fn list_candidate_items(rt: &Runtime) -> Vec<String> {

@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, TimeZone, Utc};
 use miette::{IntoDiagnostic, Result, miette};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -18,6 +19,17 @@ pub struct ChangeRepository<'a> {
     task_repo: TaskRepository<'a>,
 }
 
+/// Deterministic resolution result for a change target input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChangeTargetResolution {
+    /// Exactly one canonical change id matched.
+    Unique(String),
+    /// Multiple canonical change ids matched the target.
+    Ambiguous(Vec<String>),
+    /// No changes matched the target.
+    NotFound,
+}
+
 impl<'a> ChangeRepository<'a> {
     /// Create a new change repository for the given ito directory.
     pub fn new(ito_path: &'a Path) -> Self {
@@ -32,59 +44,102 @@ impl<'a> ChangeRepository<'a> {
         self.ito_path.join("changes")
     }
 
-    /// Find a change directory by flexible ID matching.
-    ///
-    /// Accepts various formats:
-    /// - Exact directory name: `005-01_my-change`
-    /// - Shortened: `5-1_my-change`, `5-1`
-    /// - Numeric only: `005-01`, `5-1`
-    fn find_change_dir(&self, input: &str) -> Option<(std::path::PathBuf, String)> {
+    /// List canonical change directory names in sorted order.
+    fn list_change_dir_names(&self) -> Vec<String> {
         let changes_dir = self.changes_dir();
         if !changes_dir.is_dir() {
-            return None;
+            return Vec::new();
         }
 
-        // First try exact match
-        let exact_path = changes_dir.join(input);
-        if exact_path.is_dir() {
-            return Some((exact_path, input.to_string()));
+        let mut out = Vec::new();
+        let Ok(entries) = fs::read_dir(&changes_dir) else {
+            return out;
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            out.push(name.to_string());
+        }
+        out.sort();
+        out
+    }
+
+    /// Resolve an input change target into a canonical change id.
+    ///
+    /// Matching strategy is deterministic:
+    /// - exact canonical directory name match first
+    /// - canonical numeric-prefix match (`NNN-NN`) after parsing shorthand (e.g. `1-12`)
+    /// - generic prefix match on canonical change ids
+    pub fn resolve_target(&self, input: &str) -> ChangeTargetResolution {
+        let names = self.list_change_dir_names();
+        if names.is_empty() {
+            return ChangeTargetResolution::NotFound;
         }
 
-        // Parse the input to get normalized module and change numbers
-        let (module_id, change_num) = parse_change_id(input)?;
+        if names.iter().any(|name| name == input) {
+            return ChangeTargetResolution::Unique(input.to_string());
+        }
 
-        // Look for a directory starting with "NNN-NN_"
-        let prefix = format!("{}-{}_", module_id, change_num);
+        let mut matches: BTreeSet<String> = BTreeSet::new();
 
-        fs::read_dir(&changes_dir)
-            .ok()?
-            .filter_map(|e| e.ok())
-            .find(|e| {
-                e.file_name()
-                    .to_str()
-                    .map(|n| n.starts_with(&prefix))
-                    .unwrap_or(false)
-            })
-            .map(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                (e.path(), name)
-            })
+        for name in &names {
+            if name.starts_with(input) {
+                matches.insert(name.clone());
+            }
+        }
+
+        if let Some((module_id, change_num)) = parse_change_id(input) {
+            let numeric_prefix = format!("{module_id}-{change_num}");
+            let with_separator = format!("{numeric_prefix}_");
+            for name in &names {
+                if name == &numeric_prefix || name.starts_with(&with_separator) {
+                    matches.insert(name.clone());
+                }
+            }
+        }
+
+        if matches.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        let matches: Vec<String> = matches.into_iter().collect();
+        if matches.len() == 1 {
+            return ChangeTargetResolution::Unique(matches[0].clone());
+        }
+
+        ChangeTargetResolution::Ambiguous(matches)
+    }
+
+    fn resolve_unique_change_id(&self, input: &str) -> Result<String> {
+        match self.resolve_target(input) {
+            ChangeTargetResolution::Unique(id) => Ok(id),
+            ChangeTargetResolution::Ambiguous(matches) => Err(miette!(
+                "Ambiguous change target '{input}'. Matches: {}",
+                matches.join(", ")
+            )),
+            ChangeTargetResolution::NotFound => Err(miette!("Change not found: {input}")),
+        }
     }
 
     /// Check if a change exists.
     ///
-    /// Accepts flexible ID formats (see `find_change_dir`).
+    /// Accepts flexible ID formats resolved by [`Self::resolve_target`].
     pub fn exists(&self, id: &str) -> bool {
-        self.find_change_dir(id).is_some()
+        matches!(self.resolve_target(id), ChangeTargetResolution::Unique(_))
     }
 
     /// Get a full change with all artifacts loaded.
     ///
-    /// Accepts flexible ID formats (see `find_change_dir`).
+    /// Accepts flexible ID formats resolved by [`Self::resolve_target`].
     pub fn get(&self, id: &str) -> Result<Change> {
-        let (path, actual_id) = self
-            .find_change_dir(id)
-            .ok_or_else(|| miette!("Change not found: {}", id))?;
+        let actual_id = self.resolve_unique_change_id(id)?;
+        let path = self.changes_dir().join(&actual_id);
 
         let proposal = self.read_optional_file(&path.join("proposal.md"))?;
         let design = self.read_optional_file(&path.join("design.md"))?;
@@ -164,11 +219,10 @@ impl<'a> ChangeRepository<'a> {
 
     /// Get a summary for a specific change (lightweight).
     ///
-    /// Accepts flexible ID formats (see `find_change_dir`).
+    /// Accepts flexible ID formats resolved by [`Self::resolve_target`].
     pub fn get_summary(&self, id: &str) -> Result<ChangeSummary> {
-        let (path, actual_id) = self
-            .find_change_dir(id)
-            .ok_or_else(|| miette!("Change not found: {}", id))?;
+        let actual_id = self.resolve_unique_change_id(id)?;
+        let path = self.changes_dir().join(&actual_id);
 
         let progress = self.task_repo.get_progress(&actual_id)?;
         let completed_tasks = progress.complete as u32;
@@ -182,10 +236,11 @@ impl<'a> ChangeRepository<'a> {
         let has_design = path.join("design.md").is_file();
         let has_specs = self.has_specs(&path);
         let has_tasks = total_tasks > 0;
+        let module_id = extract_module_id(&actual_id);
 
         Ok(ChangeSummary {
             id: actual_id,
-            module_id: extract_module_id(id),
+            module_id,
             completed_tasks,
             shelved_tasks,
             in_progress_tasks,
@@ -460,6 +515,44 @@ mod tests {
         assert_eq!(change2.id, "005-01_my-change");
         assert_eq!(change3.id, "005-01_my-change");
         assert_eq!(change4.id, "005-01_my-change");
+    }
+
+    #[test]
+    fn test_resolve_target_unique_partial_and_leading_zero_shorthand() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_test_ito(&tmp);
+        create_change(&ito_path, "001-12_first-change", false);
+
+        let repo = ChangeRepository::new(&ito_path);
+
+        assert_eq!(
+            repo.resolve_target("1-12"),
+            ChangeTargetResolution::Unique("001-12_first-change".to_string())
+        );
+        assert_eq!(
+            repo.resolve_target("001-12_f"),
+            ChangeTargetResolution::Unique("001-12_first-change".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_target_reports_ambiguity() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_test_ito(&tmp);
+        create_change(&ito_path, "001-12_first-change", false);
+        create_change(&ito_path, "001-12_follow-up", false);
+
+        let repo = ChangeRepository::new(&ito_path);
+
+        assert_eq!(
+            repo.resolve_target("1-12"),
+            ChangeTargetResolution::Ambiguous(vec![
+                "001-12_first-change".to_string(),
+                "001-12_follow-up".to_string(),
+            ])
+        );
+        assert!(!repo.exists("1-12"));
+        assert!(repo.get("1-12").is_err());
     }
 
     #[test]

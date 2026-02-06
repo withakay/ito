@@ -112,3 +112,22 @@ fn ralph_stub_harness_writes_state_and_status_works() {
     assert!(out.stdout.contains("Iteration:"));
     assert!(out.stdout.contains("History entries:"));
 }
+
+#[test]
+fn ralph_change_flag_supports_shorthand_resolution() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["ralph", "--change", "0-1", "--status", "--no-interactive"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Ralph Status for 000-01_test-change"));
+}
