@@ -6,6 +6,8 @@ The `ito-schemas` crate MUST contain serde models for Ito's on-disk formats.
 
 `ito-schemas` MUST NOT contain filesystem access or process execution.
 
+Guardrails MUST exist to detect forbidden filesystem/process references in `ito-schemas` source.
+
 #### Scenario: Schemas crate has crate-level documentation
 
 - **WHEN** inspecting `ito-rs/crates/ito-schemas/src/lib.rs`
@@ -20,6 +22,11 @@ The `ito-schemas` crate MUST contain serde models for Ito's on-disk formats.
 
 - **WHEN** searching `ito-rs/crates/ito-schemas/` source code
 - **THEN** it MUST NOT reference `std::process::Command`
+
+#### Scenario: Guardrail tests protect crate boundaries
+
+- **WHEN** running tests for `ito-rs/crates/ito-schemas/`
+- **THEN** guardrail tests MUST fail if `src/` references `std::fs` or `std::process::Command`
 
 ### Requirement: Schema types may be used pragmatically
 
