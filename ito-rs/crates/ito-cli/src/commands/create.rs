@@ -3,6 +3,38 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_core::{create as core_create, workflow as core_workflow};
+use std::path::Path;
+
+fn print_change_created_message(
+    ito_path: &Path,
+    change_id: &str,
+    schema: &str,
+    module_id: &str,
+    module_was_explicit: bool,
+    has_description: bool,
+) {
+    let ito_dir = ito_path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".ito".to_string());
+    eprintln!("✔ Created change '{change_id}'");
+    eprintln!("  Path: {ito_dir}/changes/{change_id}");
+    eprintln!("  Schema: {schema}");
+    eprintln!("  Created files:");
+    eprintln!("    - .ito.yaml");
+    if has_description {
+        eprintln!("    - README.md");
+    }
+    if module_was_explicit {
+        eprintln!("  Module: {module_id} (from --module)");
+    } else {
+        eprintln!("  Module: {module_id} (default)");
+    }
+    eprintln!("  Next steps:");
+    eprintln!("    1) ito agent instruction proposal --change {change_id}");
+    eprintln!("    2) ito agent instruction tasks --change {change_id}");
+    eprintln!("    3) ito validate {change_id} --strict");
+}
 
 pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -131,14 +163,13 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 description.as_deref(),
             ) {
                 Ok(r) => {
-                    // TS prints the ito directory name (default: \".ito\") rather than an absolute path.
-                    let ito_dir = ito_path
-                        .file_name()
-                        .map(|s| s.to_string_lossy().to_string())
-                        .unwrap_or_else(|| ".ito".to_string());
-                    eprintln!(
-                        "✔ Created change '{}' at {}/changes/{}/ (schema: {})",
-                        r.change_id, ito_dir, r.change_id, schema
+                    print_change_created_message(
+                        ito_path,
+                        &r.change_id,
+                        &schema,
+                        &module_id,
+                        module.is_some(),
+                        description.is_some(),
                     );
                     Ok(())
                 }
@@ -197,13 +228,13 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
         description.as_deref(),
     ) {
         Ok(r) => {
-            let ito_dir = ito_path
-                .file_name()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| ".ito".to_string());
-            eprintln!(
-                "✔ Created change '{}' at {}/changes/{}/ (schema: {})",
-                r.change_id, ito_dir, r.change_id, schema
+            print_change_created_message(
+                ito_path,
+                &r.change_id,
+                &schema,
+                &module_id,
+                module.is_some(),
+                description.is_some(),
             );
             Ok(())
         }

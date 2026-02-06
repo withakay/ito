@@ -55,7 +55,12 @@ pub(crate) fn detect_item_type(rt: &Runtime, item: &str) -> String {
     let idx = rt.repo_index();
 
     let change_repo = ChangeRepository::new(ito_path);
-    let is_change = change_repo.exists(item);
+    let is_change = match change_repo.resolve_target(item) {
+        ChangeTargetResolution::Unique(_) => true,
+        ChangeTargetResolution::Ambiguous(_) | ChangeTargetResolution::NotFound => {
+            change_repo.exists(item)
+        }
+    };
     let is_spec = idx.spec_dir_names.iter().any(|n| n == item)
         && core_paths::spec_markdown_path(ito_path, item).exists();
     match (is_change, is_spec) {
@@ -84,19 +89,30 @@ pub(crate) fn resolve_change_target(ito_path: &Path, input: &str) -> Result<Stri
         ChangeTargetResolution::Unique(id) => Ok(id),
         ChangeTargetResolution::Ambiguous(matches) => {
             let mut msg = format!("Change '{input}' is ambiguous. Matches:\n");
-            for id in matches {
+            for id in matches.iter().take(8) {
                 msg.push_str(&format!("  {id}\n"));
+            }
+            if matches.len() > 8 {
+                msg.push_str(&format!("  ... and {} more\n", matches.len() - 8));
             }
             msg.push_str("Use a longer prefix or the full canonical change ID.");
             Err(msg)
         }
         ChangeTargetResolution::NotFound => {
             let mut msg = format!("Change '{input}' not found");
-            let changes = change_repo.list().unwrap_or_default();
-            if !changes.is_empty() {
-                msg.push_str("\n\nAvailable changes:\n");
-                for c in changes {
-                    msg.push_str(&format!("  {}\n", c.id));
+            let suggestions = change_repo.suggest_targets(input, 5);
+            if !suggestions.is_empty() {
+                msg.push_str("\n\nDid you mean:\n");
+                for suggestion in suggestions {
+                    msg.push_str(&format!("  {}\n", suggestion));
+                }
+            } else {
+                let changes = change_repo.list().unwrap_or_default();
+                if !changes.is_empty() {
+                    msg.push_str("\n\nAvailable changes:\n");
+                    for c in changes {
+                        msg.push_str(&format!("  {}\n", c.id));
+                    }
                 }
             }
             Err(msg)
