@@ -111,6 +111,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let clear_context = args.iter().any(|a| a == "--clear-context");
     let interactive = !args.iter().any(|a| a == "--no-interactive");
     let verbose = args.iter().any(|a| a == "--verbose" || a == "-v");
+    let continue_module = args.iter().any(|a| a == "--continue-module");
 
     let inactivity_timeout = if let Some(raw) = parse_string_flag(args, "--timeout") {
         match core_ralph::parse_duration(&raw) {
@@ -183,6 +184,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         add_context,
         clear_context,
         verbose,
+        continue_module,
         inactivity_timeout,
         skip_validation,
         validation_command,
@@ -212,6 +214,9 @@ fn ralph_args_to_argv(args: &RalphArgs) -> Vec<String> {
     if let Some(module) = &args.module {
         argv.push("--module".to_string());
         argv.push(module.clone());
+    }
+    if args.continue_module {
+        argv.push("--continue-module".to_string());
     }
     argv.push("--harness".to_string());
     argv.push(args.harness.clone());

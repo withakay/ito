@@ -5,7 +5,9 @@ use crate::ralph::state::{
     save_state,
 };
 use crate::ralph::validation;
-use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
+use ito_domain::changes::{
+    ChangeRepository, ChangeSummary, ChangeTargetResolution, ChangeWorkStatus,
+};
 use ito_harness::{Harness, HarnessName};
 use miette::{Result, miette};
 use std::path::{Path, PathBuf};
@@ -57,6 +59,9 @@ pub struct RalphOptions {
     /// Print the full prompt sent to the harness.
     pub verbose: bool,
 
+    /// When targeting a module, continue through ready changes until module work is complete.
+    pub continue_module: bool,
+
     /// Inactivity timeout - restart iteration if no output for this duration.
     pub inactivity_timeout: Option<Duration>,
 
@@ -76,6 +81,95 @@ pub struct RalphOptions {
 /// This persists lightweight state under `.ito/.state/ralph/<change>/` so the
 /// user can inspect iteration history.
 pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness) -> Result<()> {
+    if opts.continue_module {
+        if opts.change_id.is_some() {
+            return Err(miette!(
+                "--continue-module cannot be used with --change. Use --module only."
+            ));
+        }
+        let Some(module_id) = opts.module_id.clone() else {
+            return Err(miette!("--continue-module requires --module"));
+        };
+        if opts.status || opts.add_context.is_some() || opts.clear_context {
+            return Err(miette!(
+                "--continue-module cannot be combined with --status, --add-context, or --clear-context"
+            ));
+        }
+
+        loop {
+            let current_changes = module_changes(ito_path, &module_id)?;
+            let ready_changes = module_ready_change_ids(&current_changes);
+            print_ready_changes(&module_id, &ready_changes);
+
+            if ready_changes.is_empty() {
+                let incomplete = module_incomplete_change_ids(&current_changes);
+
+                if incomplete.is_empty() {
+                    println!("\nModule {module} is complete.", module = module_id);
+                    return Ok(());
+                }
+
+                return Err(miette!(
+                    "Module {module} has no ready changes. Remaining non-complete changes: {}",
+                    incomplete.join(", "),
+                    module = module_id
+                ));
+            }
+
+            let mut next_change = ready_changes[0].clone();
+
+            let preflight_changes = module_changes(ito_path, &module_id)?;
+            let preflight_ready = module_ready_change_ids(&preflight_changes);
+            if preflight_ready.is_empty() {
+                let incomplete = module_incomplete_change_ids(&preflight_changes);
+                if incomplete.is_empty() {
+                    println!("\nModule {module} is complete.", module = module_id);
+                    return Ok(());
+                }
+                return Err(miette!(
+                    "Module {module} changed during selection and now has no ready changes. Remaining non-complete changes: {}",
+                    incomplete.join(", "),
+                    module = module_id
+                ));
+            }
+            let preflight_first = preflight_ready[0].clone();
+            if preflight_first != next_change {
+                println!(
+                    "\nModule state shifted before start; reorienting from {from} to {to}.",
+                    from = next_change,
+                    to = preflight_first
+                );
+                next_change = preflight_first;
+            }
+
+            println!(
+                "\nStarting module change {change} (lowest ready change id).",
+                change = next_change
+            );
+
+            let mut single_opts = opts.clone();
+            single_opts.continue_module = false;
+            single_opts.change_id = Some(next_change);
+
+            run_ralph(ito_path, single_opts, harness)?;
+
+            let post_changes = module_changes(ito_path, &module_id)?;
+            let post_ready = module_ready_change_ids(&post_changes);
+            print_ready_changes(&module_id, &post_ready);
+        }
+    }
+
+    if opts.change_id.is_none()
+        && let Some(module_id) = opts.module_id.as_deref()
+        && !opts.status
+        && opts.add_context.is_none()
+        && !opts.clear_context
+    {
+        let module_changes = module_changes(ito_path, module_id)?;
+        let ready_changes = module_ready_change_ids(&module_changes);
+        print_ready_changes(module_id, &ready_changes);
+    }
+
     let (change_id, module_id) =
         resolve_target(ito_path, opts.change_id, opts.module_id, opts.interactive)?;
 
@@ -277,6 +371,50 @@ pub fn run_ralph(ito_path: &Path, opts: RalphOptions, harness: &mut dyn Harness)
     Ok(())
 }
 
+fn module_changes(ito_path: &Path, module_id: &str) -> Result<Vec<ChangeSummary>> {
+    let change_repo = ChangeRepository::new(ito_path);
+    let changes = change_repo.list_by_module(module_id)?;
+    if changes.is_empty() {
+        return Err(miette!(
+            "No changes found for module {module}",
+            module = module_id
+        ));
+    }
+    Ok(changes)
+}
+
+fn module_ready_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
+    changes
+        .iter()
+        .filter(|change| change.is_ready())
+        .map(|change| change.id.clone())
+        .collect()
+}
+
+fn module_incomplete_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
+    changes
+        .iter()
+        .filter(|change| change.work_status() != ChangeWorkStatus::Complete)
+        .map(|change| change.id.clone())
+        .collect()
+}
+
+fn print_ready_changes(module_id: &str, ready_changes: &[String]) {
+    println!("\nReady changes for module {module}:", module = module_id);
+    if ready_changes.is_empty() {
+        println!("  (none)");
+        return;
+    }
+
+    for (idx, change_id) in ready_changes.iter().enumerate() {
+        if idx == 0 {
+            println!("  - {change} (selected first)", change = change_id);
+            continue;
+        }
+        println!("  - {change}", change = change_id);
+    }
+}
+
 #[derive(Debug)]
 struct CompletionValidationReport {
     passed: bool,
@@ -384,28 +522,32 @@ fn resolve_target(
     }
 
     if let Some(module) = module_id {
-        let changes: Vec<String> = change_repo
-            .list_by_module(&module)?
-            .into_iter()
-            .map(|summary| summary.id)
-            .collect();
+        let changes = change_repo.list_by_module(&module)?;
         if changes.is_empty() {
             return Err(miette!(
                 "No changes found for module {module}",
                 module = module
             ));
         }
-        if changes.len() == 1 {
-            return Ok((changes[0].clone(), module));
+
+        let ready_changes = module_ready_change_ids(&changes);
+        if let Some(change_id) = ready_changes.first() {
+            return Ok((change_id.clone(), infer_module_from_change(change_id)?));
         }
-        if !interactive {
+
+        let incomplete = module_incomplete_change_ids(&changes);
+
+        if incomplete.is_empty() {
             return Err(miette!(
-                "Multiple changes found for module {module}. Use --change to specify or run in interactive mode.",
+                "Module {module} has no ready changes because all changes are complete",
                 module = module
             ));
         }
+
         return Err(miette!(
-            "Interactive selection is not yet implemented in Rust. Use --change to specify."
+            "Module {module} has no ready changes. Remaining non-complete changes: {}",
+            incomplete.join(", "),
+            module = module
         ));
     }
 

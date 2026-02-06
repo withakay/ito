@@ -1005,6 +1005,10 @@ pub struct RalphArgs {
     #[arg(long)]
     pub module: Option<String>,
 
+    /// When using --module, keep working through ready changes until module work is complete
+    #[arg(long = "continue-module")]
+    pub continue_module: bool,
+
     /// Harness to run
     #[arg(long, default_value = "opencode")]
     pub harness: String,
