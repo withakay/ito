@@ -3,7 +3,86 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_common::paths as core_paths;
+use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 use ito_domain::tasks as wf_tasks;
+
+fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
+    let change_repo = ChangeRepository::new(ito_path);
+    match change_repo.resolve_target(input) {
+        ChangeTargetResolution::Unique(id) => Ok(id),
+        ChangeTargetResolution::Ambiguous(matches) => {
+            let mut msg = format!("Change '{input}' is ambiguous. Matches:\n");
+            for id in matches.iter().take(8) {
+                msg.push_str(&format!("  {id}\n"));
+            }
+            if matches.len() > 8 {
+                msg.push_str(&format!("  ... and {} more\n", matches.len() - 8));
+            }
+            msg.push_str("Use a longer prefix or the full canonical change ID.");
+            Err(CliError::msg(msg))
+        }
+        ChangeTargetResolution::NotFound => {
+            let mut msg = format!("Change '{input}' not found");
+            let suggestions = change_repo.suggest_targets(input, 5);
+            if !suggestions.is_empty() {
+                msg.push_str("\n\nDid you mean:\n");
+                for suggestion in suggestions {
+                    msg.push_str(&format!("  {suggestion}\n"));
+                }
+            }
+            Err(CliError::msg(msg))
+        }
+    }
+}
+
+fn task_status_label(status: wf_tasks::TaskStatus) -> &'static str {
+    match status {
+        wf_tasks::TaskStatus::Pending => "pending",
+        wf_tasks::TaskStatus::InProgress => "in_progress",
+        wf_tasks::TaskStatus::Complete => "complete",
+        wf_tasks::TaskStatus::Shelved => "shelved",
+    }
+}
+
+fn tasks_format_label(format: wf_tasks::TasksFormat) -> &'static str {
+    match format {
+        wf_tasks::TasksFormat::Enhanced => "enhanced",
+        wf_tasks::TasksFormat::Checkbox => "checkbox",
+    }
+}
+
+fn json_task(task: &wf_tasks::TaskItem) -> serde_json::Value {
+    serde_json::json!({
+        "id": &task.id,
+        "name": &task.name,
+        "wave": task.wave,
+        "status": task_status_label(task.status),
+        "updated_at": &task.updated_at,
+        "dependencies": &task.dependencies,
+        "files": &task.files,
+        "action": &task.action,
+        "verify": &task.verify,
+        "done_when": &task.done_when,
+        "kind": format!("{:?}", task.kind).to_lowercase(),
+        "header_line_index": task.header_line_index,
+    })
+}
+
+fn json_diagnostic(path: &std::path::Path, d: &wf_tasks::TaskDiagnostic) -> serde_json::Value {
+    serde_json::json!({
+        "level": d.level.as_str(),
+        "message": &d.message,
+        "task_id": &d.task_id,
+        "line": d.line,
+        "path": path.display().to_string(),
+    })
+}
+
+fn print_json(value: &serde_json::Value) -> CliResult<()> {
+    let rendered = serde_json::to_string_pretty(value).map_err(to_cli_error)?;
+    println!("{rendered}");
+    Ok(())
+}
 
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -11,7 +90,7 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
         return fail("Missing required argument <change-id>");
     };
 
-    let forwarded: Vec<String> = match action {
+    let mut forwarded: Vec<String> = match action {
         TasksAction::Init { change_id } => vec!["init".to_string(), change_id.clone()],
         TasksAction::Status { change_id, wave } => {
             let mut out = vec!["status".to_string(), change_id.clone()];
@@ -22,13 +101,10 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
             out
         }
         TasksAction::Next { change_id } => vec!["next".to_string(), change_id.clone()],
-        TasksAction::Ready { change_id, json } => {
+        TasksAction::Ready { change_id } => {
             let mut out = vec!["ready".to_string()];
             if let Some(id) = change_id {
                 out.push(id.clone());
-            }
-            if *json {
-                out.push("--json".to_string());
             }
             out
         }
@@ -59,6 +135,10 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
         TasksAction::External(rest) => rest.clone(),
     };
 
+    if args.json {
+        forwarded.push("--json".to_string());
+    }
+
     handle_tasks(rt, &forwarded)
 }
 
@@ -85,6 +165,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let sub = args.first().map(|s| s.as_str()).unwrap_or("");
+    let want_json = args.iter().any(|a| a == "--json");
     let ito_path = rt.ito_path();
 
     // Handle "ready" specially since change_id is optional
@@ -92,19 +173,21 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return handle_tasks_ready(rt, args);
     }
 
-    let change_id = args.get(1).map(|s| s.as_str()).unwrap_or("");
-    if change_id.is_empty() || change_id.starts_with('-') {
+    let input_change_id = args.get(1).map(|s| s.as_str()).unwrap_or("");
+    if input_change_id.is_empty() || input_change_id.starts_with('-') {
         return fail("Missing required argument <change-id>");
     }
 
-    let change_dir = core_paths::change_dir(ito_path, change_id);
+    let change_id = resolve_change_id(ito_path, input_change_id)?;
+
+    let change_dir = core_paths::change_dir(ito_path, &change_id);
 
     match sub {
         "init" => {
             if !change_dir.exists() {
                 return fail(format!("Change '{change_id}' not found"));
             }
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             if path.exists() {
                 return fail(format!(
                     "tasks.md already exists for \"{change_id}\". Use \"tasks add\" to add tasks."
@@ -112,17 +195,34 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             let now = chrono::Local::now();
-            let contents = wf_tasks::enhanced_tasks_template(change_id, now);
+            let contents = wf_tasks::enhanced_tasks_template(&change_id, now);
             if let Some(parent) = path.parent() {
                 ito_common::io::create_dir_all(parent).map_err(to_cli_error)?;
             }
             ito_common::io::write(&path, contents.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "init",
+                    "change_id": change_id,
+                    "path": path.display().to_string(),
+                    "created": true,
+                }));
+            }
             eprintln!("✔ Enhanced tasks.md created for \"{change_id}\"");
             Ok(())
         }
         "status" => {
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             if !path.exists() {
+                if want_json {
+                    return print_json(&serde_json::json!({
+                        "action": "status",
+                        "change_id": change_id,
+                        "path": path.display().to_string(),
+                        "exists": false,
+                        "message": format!("No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
+                    }));
+                }
                 println!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
                 );
@@ -137,6 +237,44 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if let Some(msg) = diagnostics::blocking_task_error_message(&path, &parsed.diagnostics)
             {
                 return Err(CliError::msg(msg));
+            }
+
+            let (ready, blocked) = wf_tasks::compute_ready_and_blocked(&parsed);
+            if want_json {
+                let warnings: Vec<serde_json::Value> = parsed
+                    .diagnostics
+                    .iter()
+                    .filter(|d| d.level == wf_tasks::DiagnosticLevel::Warning)
+                    .map(|d| json_diagnostic(&path, d))
+                    .collect();
+                let ready_tasks: Vec<serde_json::Value> = ready.iter().map(json_task).collect();
+                let blocked_tasks: Vec<serde_json::Value> = blocked
+                    .iter()
+                    .map(|(task, blockers)| {
+                        serde_json::json!({
+                            "task": json_task(task),
+                            "blockers": blockers,
+                        })
+                    })
+                    .collect();
+
+                return print_json(&serde_json::json!({
+                    "action": "status",
+                    "change_id": change_id,
+                    "path": path.display().to_string(),
+                    "format": tasks_format_label(parsed.format),
+                    "progress": {
+                        "total": parsed.progress.total,
+                        "complete": parsed.progress.complete,
+                        "shelved": parsed.progress.shelved,
+                        "in_progress": parsed.progress.in_progress,
+                        "pending": parsed.progress.pending,
+                        "remaining": parsed.progress.remaining,
+                    },
+                    "warnings": warnings,
+                    "ready_tasks": ready_tasks,
+                    "blocked_tasks": blocked_tasks,
+                }));
             }
 
             println!("Tasks for: {change_id}");
@@ -178,7 +316,6 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }
             }
 
-            let (ready, blocked) = wf_tasks::compute_ready_and_blocked(&parsed);
             println!();
             println!("Ready");
             for t in &ready {
@@ -196,7 +333,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "next" => {
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -216,6 +353,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         .iter()
                         .find(|t| t.status == wf_tasks::TaskStatus::InProgress);
                     if let Some(t) = current {
+                        if want_json {
+                            return print_json(&serde_json::json!({
+                                "action": "next",
+                                "change_id": change_id,
+                                "format": "checkbox",
+                                "state": "current",
+                                "task": json_task(t),
+                            }));
+                        }
                         println!("Current Task (compat)");
                         println!("──────────────────────────────────────────────────");
                         println!("Task {}: {}", t.id, t.name);
@@ -228,6 +374,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         .iter()
                         .find(|t| t.status == wf_tasks::TaskStatus::Pending);
                     if let Some(t) = next {
+                        if want_json {
+                            return print_json(&serde_json::json!({
+                                "action": "next",
+                                "change_id": change_id,
+                                "format": "checkbox",
+                                "state": "next",
+                                "task": json_task(t),
+                            }));
+                        }
                         println!("Next Task (compat)");
                         println!("──────────────────────────────────────────────────");
                         println!("Task {}: {}", t.id, t.name);
@@ -236,17 +391,51 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         return Ok(());
                     }
 
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "next",
+                            "change_id": change_id,
+                            "format": "checkbox",
+                            "state": "complete",
+                            "message": "All tasks complete!",
+                        }));
+                    }
                     println!("All tasks complete!");
                     Ok(())
                 }
                 wf_tasks::TasksFormat::Enhanced => {
                     if parsed.progress.remaining == 0 {
+                        if want_json {
+                            return print_json(&serde_json::json!({
+                                "action": "next",
+                                "change_id": change_id,
+                                "format": "enhanced",
+                                "state": "complete",
+                                "message": "All tasks complete!",
+                            }));
+                        }
                         println!("All tasks complete!");
                         return Ok(());
                     }
 
                     let (ready, blocked) = wf_tasks::compute_ready_and_blocked(&parsed);
                     if ready.is_empty() {
+                        if want_json {
+                            let first_blocked = blocked.first().map(|(task, blockers)| {
+                                serde_json::json!({
+                                    "task": json_task(task),
+                                    "blockers": blockers,
+                                })
+                            });
+                            return print_json(&serde_json::json!({
+                                "action": "next",
+                                "change_id": change_id,
+                                "format": "enhanced",
+                                "state": "blocked",
+                                "message": "No ready tasks.",
+                                "first_blocked": first_blocked,
+                            }));
+                        }
                         println!("No ready tasks.");
                         if let Some((t, blockers)) = blocked.first() {
                             println!("First blocked task: {} - {}", t.id, t.name);
@@ -256,6 +445,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     }
 
                     let t = &ready[0];
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "next",
+                            "change_id": change_id,
+                            "format": "enhanced",
+                            "state": "next",
+                            "task": json_task(t),
+                        }));
+                    }
                     println!("Next Task");
                     println!("──────────────────────────────────────────────────");
                     println!("Task {}: {}", t.id, t.name);
@@ -286,7 +484,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if task_id.is_empty() || task_id.starts_with('-') {
                 return fail("Missing required argument <task-id>");
             }
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -322,6 +520,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     )
                     .map_err(CliError::msg)?;
                     ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "start",
+                            "change_id": change_id,
+                            "task_id": task_id,
+                            "format": "checkbox",
+                            "status": "in_progress",
+                        }));
+                    }
                     eprintln!("✔ Task \"{task_id}\" marked as in-progress");
                     return Ok(());
                 };
@@ -372,6 +579,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 chrono::Local::now(),
             );
             ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "start",
+                    "change_id": change_id,
+                    "task_id": task_id,
+                    "format": "enhanced",
+                    "status": "in_progress",
+                }));
+            }
             eprintln!("✔ Task \"{task_id}\" marked as in-progress");
             Ok(())
         }
@@ -380,7 +596,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if task_id.is_empty() || task_id.starts_with('-') {
                 return fail("Missing required argument <task-id>");
             }
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -395,6 +611,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 )
                 .map_err(CliError::msg)?;
                 ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+                if want_json {
+                    return print_json(&serde_json::json!({
+                        "action": "complete",
+                        "change_id": change_id,
+                        "task_id": task_id,
+                        "format": "checkbox",
+                        "status": "complete",
+                    }));
+                }
                 eprintln!("✔ Task \"{task_id}\" marked as complete");
                 return Ok(());
             }
@@ -411,6 +636,15 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 chrono::Local::now(),
             );
             ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "complete",
+                    "change_id": change_id,
+                    "task_id": task_id,
+                    "format": "enhanced",
+                    "status": "complete",
+                }));
+            }
             eprintln!("✔ Task \"{task_id}\" marked as complete");
             Ok(())
         }
@@ -419,7 +653,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if task_id.is_empty() || task_id.starts_with('-') {
                 return fail("Missing required argument <task-id>");
             }
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -449,6 +683,14 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 chrono::Local::now(),
             );
             ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "shelve",
+                    "change_id": change_id,
+                    "task_id": task_id,
+                    "status": "shelved",
+                }));
+            }
             eprintln!("✔ Task \"{task_id}\" shelved");
             Ok(())
         }
@@ -457,7 +699,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if task_id.is_empty() || task_id.starts_with('-') {
                 return fail("Missing required argument <task-id>");
             }
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -487,6 +729,14 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 chrono::Local::now(),
             );
             ito_common::io::write(&path, updated.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "unshelve",
+                    "change_id": change_id,
+                    "task_id": task_id,
+                    "status": "pending",
+                }));
+            }
             eprintln!("✔ Task \"{task_id}\" unshelved (pending)");
             Ok(())
         }
@@ -496,7 +746,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-name>");
             }
             let wave = parse_wave_flag(args);
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path).map_err(|_| {
                 CliError::msg(format!(
                     "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
@@ -556,11 +806,20 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             ito_common::io::write(&path, out.as_bytes()).map_err(to_cli_error)?;
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "add",
+                    "change_id": change_id,
+                    "task_id": new_id,
+                    "task_name": task_name,
+                    "wave": wave,
+                }));
+            }
             eprintln!("✔ Task {new_id} \"{task_name}\" added to Wave {wave}");
             Ok(())
         }
         "show" => {
-            let path = wf_tasks::tasks_path(ito_path, change_id);
+            let path = wf_tasks::tasks_path(ito_path, &change_id);
             let contents = ito_common::io::read_to_string(&path)
                 .map_err(|_| CliError::msg(format!("tasks.md not found for \"{change_id}\"")))?;
             let parsed = wf_tasks::parse_tasks_tracking_file(&contents);
@@ -568,6 +827,45 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             if let Some(msg) = diagnostics::blocking_task_error_message(&path, &parsed.diagnostics)
             {
                 return Err(CliError::msg(msg));
+            }
+            if want_json {
+                let tasks: Vec<serde_json::Value> = parsed.tasks.iter().map(json_task).collect();
+                let waves: Vec<serde_json::Value> = parsed
+                    .waves
+                    .iter()
+                    .map(|wave| {
+                        serde_json::json!({
+                            "wave": wave.wave,
+                            "depends_on": wave.depends_on,
+                            "header_line_index": wave.header_line_index,
+                            "depends_on_line_index": wave.depends_on_line_index,
+                        })
+                    })
+                    .collect();
+                let warnings: Vec<serde_json::Value> = parsed
+                    .diagnostics
+                    .iter()
+                    .filter(|d| d.level == wf_tasks::DiagnosticLevel::Warning)
+                    .map(|d| json_diagnostic(&path, d))
+                    .collect();
+                return print_json(&serde_json::json!({
+                    "action": "show",
+                    "change_id": change_id,
+                    "path": path.display().to_string(),
+                    "format": tasks_format_label(parsed.format),
+                    "progress": {
+                        "total": parsed.progress.total,
+                        "complete": parsed.progress.complete,
+                        "shelved": parsed.progress.shelved,
+                        "in_progress": parsed.progress.in_progress,
+                        "pending": parsed.progress.pending,
+                        "remaining": parsed.progress.remaining,
+                    },
+                    "warnings": warnings,
+                    "waves": waves,
+                    "tasks": tasks,
+                    "raw": contents,
+                }));
             }
             print!("{contents}");
             Ok(())
@@ -598,7 +896,8 @@ fn handle_tasks_ready(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// Show ready tasks for a single change
 fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let path = wf_tasks::tasks_path(ito_path, change_id);
+    let change_id = resolve_change_id(ito_path, change_id)?;
+    let path = wf_tasks::tasks_path(ito_path, &change_id);
 
     let contents = ito_common::io::read_to_string(&path).map_err(|_| {
         CliError::msg(format!(
@@ -615,26 +914,13 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
     let (ready, _blocked) = wf_tasks::compute_ready_and_blocked(&parsed);
 
     if want_json {
-        let json_tasks: Vec<serde_json::Value> = ready
-            .iter()
-            .map(|t| {
-                serde_json::json!({
-                    "id": t.id,
-                    "name": t.name,
-                    "wave": t.wave,
-                    "files": t.files,
-                    "action": t.action,
-                    "verify": t.verify,
-                    "done_when": t.done_when,
-                })
-            })
-            .collect();
-        let output = serde_json::json!({
+        let json_tasks: Vec<serde_json::Value> = ready.iter().map(json_task).collect();
+        return print_json(&serde_json::json!({
+            "action": "ready",
             "change_id": change_id,
+            "path": path.display().to_string(),
             "ready_tasks": json_tasks,
-        });
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
-        return Ok(());
+        }));
     }
 
     if ready.is_empty() {
@@ -676,7 +962,7 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
 
     if ready_changes.is_empty() {
         if want_json {
-            println!("[]");
+            return print_json(&serde_json::json!([]));
         } else {
             println!("No ready changes found.");
         }
@@ -708,17 +994,9 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
         has_any_tasks = true;
 
         if want_json {
-            let json_tasks: Vec<serde_json::Value> = ready
-                .iter()
-                .map(|t| {
-                    serde_json::json!({
-                        "id": t.id,
-                        "name": t.name,
-                        "wave": t.wave,
-                    })
-                })
-                .collect();
+            let json_tasks: Vec<serde_json::Value> = ready.iter().map(json_task).collect();
             all_results.push(serde_json::json!({
+                "action": "ready",
                 "change_id": summary.id,
                 "ready_tasks": json_tasks,
             }));
@@ -732,7 +1010,7 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     }
 
     if want_json {
-        println!("{}", serde_json::to_string_pretty(&all_results).unwrap());
+        return print_json(&serde_json::json!(all_results));
     } else if !has_any_tasks {
         println!("No ready tasks found across any changes.");
     }

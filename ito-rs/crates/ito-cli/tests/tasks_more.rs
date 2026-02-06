@@ -263,3 +263,215 @@ fn tasks_next_supports_checkbox_compat_mode_and_shows_current_or_next() {
     assert!(out.stdout.contains("Next Task (compat)"));
     assert!(out.stdout.contains("Task 2: second"));
 }
+
+#[test]
+fn tasks_status_resolves_short_change_id() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(
+        repo.path()
+            .join(".ito/changes/001-17_fuzzy-change-matching"),
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "init", "001-17_fuzzy-change-matching"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "001-17"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout
+            .contains("Tasks for: 001-17_fuzzy-change-matching")
+    );
+}
+
+#[test]
+fn tasks_status_resolves_free_form_two_numbers() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(
+        repo.path()
+            .join(".ito/changes/001-17_fuzzy-change-matching"),
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "init", "001-17_fuzzy-change-matching"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "change 1.17"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout
+            .contains("Tasks for: 001-17_fuzzy-change-matching")
+    );
+}
+
+#[test]
+fn tasks_status_rejects_free_form_with_more_than_two_numbers() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(
+        repo.path()
+            .join(".ito/changes/001-17_fuzzy-change-matching"),
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "change 1.17.3"],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("not found"));
+}
+
+#[test]
+fn tasks_commands_support_json_output() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito/changes/test-change")).unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "init", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"init\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"status\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "next", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"next\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "ready", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"ready\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "ready", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.trim_start().starts_with('['));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "shelve", "test-change", "1.1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"shelve\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "unshelve", "test-change", "1.1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"unshelve\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "start", "test-change", "1.1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"start\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "complete", "test-change", "1.1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"complete\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "tasks",
+            "add",
+            "test-change",
+            "Write more tests",
+            "--wave",
+            "2",
+            "--json",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"add\""));
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "show", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("\"action\": \"show\""));
+}
