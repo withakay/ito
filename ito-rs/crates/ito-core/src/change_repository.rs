@@ -10,16 +10,18 @@ use ito_domain::changes::{
     parse_module_id,
 };
 use ito_domain::discovery;
-use ito_domain::tasks::TaskRepository;
-use miette::{IntoDiagnostic, Result, miette};
+use ito_domain::errors::{DomainError, DomainResult};
+use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use regex::Regex;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::task_repository::FsTaskRepository;
+
 /// Filesystem-backed change repository.
 pub struct FsChangeRepository<'a, F: FileSystem = StdFs> {
     ito_path: &'a Path,
-    task_repo: TaskRepository<'a>,
+    task_repo: FsTaskRepository<'a>,
     fs: F,
 }
 
@@ -35,7 +37,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
     pub fn with_fs(ito_path: &'a Path, fs: F) -> Self {
         Self {
             ito_path,
-            task_repo: TaskRepository::new(ito_path),
+            task_repo: FsTaskRepository::new(ito_path),
             fs,
         }
     }
@@ -65,32 +67,32 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
     }
 
     /// Get a full change with all artifacts loaded.
-    pub fn get(&self, id: &str) -> Result<Change> {
+    pub fn get(&self, id: &str) -> DomainResult<Change> {
         DomainChangeRepository::get(self, id)
     }
 
     /// List all changes as summaries (lightweight).
-    pub fn list(&self) -> Result<Vec<ChangeSummary>> {
+    pub fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
         DomainChangeRepository::list(self)
     }
 
     /// List changes belonging to a specific module.
-    pub fn list_by_module(&self, module_id: &str) -> Result<Vec<ChangeSummary>> {
+    pub fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
         DomainChangeRepository::list_by_module(self, module_id)
     }
 
     /// List changes with incomplete tasks.
-    pub fn list_incomplete(&self) -> Result<Vec<ChangeSummary>> {
+    pub fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
         DomainChangeRepository::list_incomplete(self)
     }
 
     /// List changes with all tasks complete.
-    pub fn list_complete(&self) -> Result<Vec<ChangeSummary>> {
+    pub fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
         DomainChangeRepository::list_complete(self)
     }
 
     /// Get a summary for a specific change (lightweight).
-    pub fn get_summary(&self, id: &str) -> Result<ChangeSummary> {
+    pub fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
         DomainChangeRepository::get_summary(self, id)
     }
 
@@ -172,27 +174,29 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         parse_change_id(&parsed)
     }
 
-    fn resolve_unique_change_id(&self, input: &str) -> Result<String> {
+    fn resolve_unique_change_id(&self, input: &str) -> DomainResult<String> {
         match self.resolve_target(input) {
             ChangeTargetResolution::Unique(id) => Ok(id),
-            ChangeTargetResolution::Ambiguous(matches) => Err(miette!(
-                "Ambiguous change target '{input}'. Matches: {}",
-                matches.join(", ")
-            )),
-            ChangeTargetResolution::NotFound => Err(miette!("Change not found: {input}")),
+            ChangeTargetResolution::Ambiguous(matches) => {
+                Err(DomainError::ambiguous_target("change", input, &matches))
+            }
+            ChangeTargetResolution::NotFound => Err(DomainError::not_found("change", input)),
         }
     }
 
-    fn read_optional_file(&self, path: &Path) -> Result<Option<String>> {
+    fn read_optional_file(&self, path: &Path) -> DomainResult<Option<String>> {
         if self.fs.is_file(path) {
-            let content = self.fs.read_to_string(path).into_diagnostic()?;
+            let content = self
+                .fs
+                .read_to_string(path)
+                .map_err(|source| DomainError::io("reading optional file", source))?;
             Ok(Some(content))
         } else {
             Ok(None)
         }
     }
 
-    fn load_specs(&self, change_path: &Path) -> Result<Vec<Spec>> {
+    fn load_specs(&self, change_path: &Path) -> DomainResult<Vec<Spec>> {
         let specs_dir = change_path.join("specs");
         if !self.fs.is_dir(&specs_dir) {
             return Ok(Vec::new());
@@ -202,7 +206,10 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         for name in discovery::list_dir_names(&self.fs, &specs_dir)? {
             let spec_file = specs_dir.join(&name).join("spec.md");
             if self.fs.is_file(&spec_file) {
-                let content = self.fs.read_to_string(&spec_file).into_diagnostic()?;
+                let content = self
+                    .fs
+                    .read_to_string(&spec_file)
+                    .map_err(|source| DomainError::io("reading spec file", source))?;
                 specs.push(Spec { name, content });
             }
         }
@@ -226,7 +233,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
             .unwrap_or(false)
     }
 
-    fn get_last_modified(&self, change_path: &Path) -> Result<DateTime<Utc>> {
+    fn get_last_modified(&self, change_path: &Path) -> DomainResult<DateTime<Utc>> {
         let mut latest = Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap();
 
         for entry in walkdir::WalkDir::new(change_path)
@@ -448,7 +455,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         matches!(self.resolve_target(id), ChangeTargetResolution::Unique(_))
     }
 
-    fn get(&self, id: &str) -> Result<Change> {
+    fn get(&self, id: &str) -> DomainResult<Change> {
         let actual_id = self.resolve_unique_change_id(id)?;
         let path = self.changes_dir().join(&actual_id);
 
@@ -470,7 +477,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         })
     }
 
-    fn list(&self) -> Result<Vec<ChangeSummary>> {
+    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
         let changes_dir = self.changes_dir();
         if !self.fs.is_dir(&changes_dir) {
             return Ok(Vec::new());
@@ -486,7 +493,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         Ok(summaries)
     }
 
-    fn list_by_module(&self, module_id: &str) -> Result<Vec<ChangeSummary>> {
+    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
         let normalized_id = parse_module_id(module_id);
         let all = self.list()?;
         Ok(all
@@ -495,7 +502,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             .collect())
     }
 
-    fn list_incomplete(&self) -> Result<Vec<ChangeSummary>> {
+    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
         let all = self.list()?;
         Ok(all
             .into_iter()
@@ -503,7 +510,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             .collect())
     }
 
-    fn list_complete(&self) -> Result<Vec<ChangeSummary>> {
+    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
         let all = self.list()?;
         Ok(all
             .into_iter()
@@ -511,7 +518,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             .collect())
     }
 
-    fn get_summary(&self, id: &str) -> Result<ChangeSummary> {
+    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
         let actual_id = self.resolve_unique_change_id(id)?;
         let path = self.changes_dir().join(&actual_id);
 

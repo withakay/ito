@@ -1,8 +1,7 @@
 //! Module repository port definitions.
 
-use miette::Result;
-
 use super::{Module, ModuleSummary};
+use crate::errors::DomainResult;
 
 /// Port for accessing module data.
 ///
@@ -13,8 +12,8 @@ pub trait ModuleRepository {
     fn exists(&self, id: &str) -> bool;
 
     /// Get a module by ID or full name.
-    fn get(&self, id_or_name: &str) -> Result<Module>;
+    fn get(&self, id_or_name: &str) -> DomainResult<Module>;
 
     /// List all modules.
-    fn list(&self) -> Result<Vec<ModuleSummary>>;
+    fn list(&self) -> DomainResult<Vec<ModuleSummary>>;
 }

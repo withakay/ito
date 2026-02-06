@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use ito_common::fs::{FileSystem, StdFs};
 use ito_domain::changes::{extract_module_id, parse_module_id};
+use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository as DomainModuleRepository, ModuleSummary};
-use miette::{IntoDiagnostic, Result, miette};
 
 /// Filesystem-backed implementation of the domain `ModuleRepository` port.
 pub struct FsModuleRepository<'a, F: FileSystem = StdFs> {
@@ -58,13 +58,16 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
             })
     }
 
-    fn load_module_description(&self, module_path: &Path) -> Result<Option<String>> {
+    fn load_module_description(&self, module_path: &Path) -> DomainResult<Option<String>> {
         let yaml_path = module_path.join("module.yaml");
         if !self.fs.is_file(&yaml_path) {
             return Ok(None);
         }
 
-        let content = self.fs.read_to_string(&yaml_path).into_diagnostic()?;
+        let content = self
+            .fs
+            .read_to_string(&yaml_path)
+            .map_err(|source| DomainError::io("reading module.yaml", source))?;
 
         for line in content.lines() {
             let line = line.trim();
@@ -79,14 +82,18 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
         Ok(None)
     }
 
-    fn count_changes_by_module(&self) -> Result<HashMap<String, u32>> {
+    fn count_changes_by_module(&self) -> DomainResult<HashMap<String, u32>> {
         let mut counts = HashMap::new();
         let changes_dir = self.ito_path.join("changes");
         if !self.fs.is_dir(&changes_dir) {
             return Ok(counts);
         }
 
-        for path in self.fs.read_dir(&changes_dir).into_diagnostic()? {
+        for path in self
+            .fs
+            .read_dir(&changes_dir)
+            .map_err(|source| DomainError::io("listing change directories", source))?
+        {
             if !self.fs.is_dir(&path) {
                 continue;
             }
@@ -109,12 +116,12 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
     }
 
     /// Get a module by ID or full name.
-    pub fn get(&self, id_or_name: &str) -> Result<Module> {
+    pub fn get(&self, id_or_name: &str) -> DomainResult<Module> {
         DomainModuleRepository::get(self, id_or_name)
     }
 
     /// List all modules.
-    pub fn list(&self) -> Result<Vec<ModuleSummary>> {
+    pub fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
         DomainModuleRepository::list(self)
     }
 }
@@ -124,10 +131,10 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
         self.find_module_dir(id).is_some()
     }
 
-    fn get(&self, id_or_name: &str) -> Result<Module> {
+    fn get(&self, id_or_name: &str) -> DomainResult<Module> {
         let path = self
             .find_module_dir(id_or_name)
-            .ok_or_else(|| miette!("Module not found: {}", id_or_name))?;
+            .ok_or_else(|| DomainError::not_found("module", id_or_name))?;
 
         let id = parse_module_id(id_or_name);
         let name = path
@@ -147,7 +154,7 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
         })
     }
 
-    fn list(&self) -> Result<Vec<ModuleSummary>> {
+    fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
         let modules_dir = self.modules_dir();
         if !self.fs.is_dir(&modules_dir) {
             return Ok(Vec::new());
@@ -156,7 +163,11 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
         let change_counts = self.count_changes_by_module()?;
 
         let mut summaries = Vec::new();
-        for path in self.fs.read_dir(&modules_dir).into_diagnostic()? {
+        for path in self
+            .fs
+            .read_dir(&modules_dir)
+            .map_err(|source| DomainError::io("listing module directories", source))?
+        {
             if !self.fs.is_dir(&path) {
                 continue;
             }

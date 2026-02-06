@@ -12,6 +12,9 @@
 /// Change definitions and computed status.
 pub mod changes;
 
+/// Domain-level error types.
+pub mod errors;
+
 /// Project discovery and filesystem traversal.
 pub mod discovery;
 

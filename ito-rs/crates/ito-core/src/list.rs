@@ -9,6 +9,7 @@ use chrono::{DateTime, SecondsFormat, Timelike, Utc};
 use miette::{IntoDiagnostic, Result, miette};
 
 use crate::change_repository::FsChangeRepository;
+use crate::error_bridge::IntoCoreMiette;
 use crate::module_repository::FsModuleRepository;
 use ito_common::fs::StdFs;
 use ito_common::paths;
@@ -144,7 +145,7 @@ pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
     let mut modules: Vec<ModuleListItem> = Vec::new();
 
     let module_repo = FsModuleRepository::new(ito_path);
-    for module in module_repo.list()? {
+    for module in module_repo.list().into_core_miette()? {
         let full_name = format!("{}_{}", module.id, module.name);
         modules.push(ModuleListItem {
             id: module.id,
@@ -161,7 +162,8 @@ pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
 /// List change directories under `{ito_path}/changes`.
 pub fn list_change_dirs(ito_path: &Path) -> Result<Vec<PathBuf>> {
     let fs = StdFs;
-    Ok(ito_domain::discovery::list_change_dir_names(&fs, ito_path)?
+    Ok(ito_domain::discovery::list_change_dir_names(&fs, ito_path)
+        .into_core_miette()?
         .into_iter()
         .map(|name| paths::change_dir(ito_path, &name))
         .collect())
@@ -274,7 +276,7 @@ pub fn list_specs(ito_path: &Path) -> Result<Vec<SpecListItem>> {
     let mut specs: Vec<SpecListItem> = Vec::new();
     let specs_dir = paths::specs_dir(ito_path);
     let fs = StdFs;
-    for id in ito_domain::discovery::list_spec_dir_names(&fs, ito_path)? {
+    for id in ito_domain::discovery::list_spec_dir_names(&fs, ito_path).into_core_miette()? {
         let spec_md = specs_dir.join(&id).join("spec.md");
         let content = ito_common::io::read_to_string_or_default(&spec_md);
         let requirement_count = if content.is_empty() {

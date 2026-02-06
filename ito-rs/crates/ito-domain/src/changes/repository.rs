@@ -1,8 +1,7 @@
 //! Change repository port definitions.
 
-use miette::Result;
-
 use super::{Change, ChangeSummary};
+use crate::errors::DomainResult;
 
 /// Deterministic resolution result for a change target input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,20 +45,20 @@ pub trait ChangeRepository {
     fn exists(&self, id: &str) -> bool;
 
     /// Get a full change with all artifacts loaded.
-    fn get(&self, id: &str) -> Result<Change>;
+    fn get(&self, id: &str) -> DomainResult<Change>;
 
     /// List all changes as summaries (lightweight).
-    fn list(&self) -> Result<Vec<ChangeSummary>>;
+    fn list(&self) -> DomainResult<Vec<ChangeSummary>>;
 
     /// List changes belonging to a specific module.
-    fn list_by_module(&self, module_id: &str) -> Result<Vec<ChangeSummary>>;
+    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>>;
 
     /// List changes with incomplete tasks.
-    fn list_incomplete(&self) -> Result<Vec<ChangeSummary>>;
+    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>>;
 
     /// List changes with all tasks complete.
-    fn list_complete(&self) -> Result<Vec<ChangeSummary>>;
+    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>>;
 
     /// Get a summary for a specific change (lightweight).
-    fn get_summary(&self, id: &str) -> Result<ChangeSummary>;
+    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary>;
 }

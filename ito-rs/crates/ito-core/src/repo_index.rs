@@ -6,6 +6,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::error_bridge::IntoCoreMiette;
 use miette::Result;
 
 use ito_common::fs::StdFs;
@@ -30,10 +31,14 @@ impl RepoIndex {
     /// Load a fresh index from `ito_path`.
     pub fn load(ito_path: &Path) -> Result<Self> {
         let fs = StdFs;
-        let module_dir_names = ito_domain::discovery::list_module_dir_names(&fs, ito_path)?;
-        let module_ids = ito_domain::discovery::list_module_ids(&fs, ito_path)?;
-        let change_dir_names = ito_domain::discovery::list_change_dir_names(&fs, ito_path)?;
-        let spec_dir_names = ito_domain::discovery::list_spec_dir_names(&fs, ito_path)?;
+        let module_dir_names =
+            ito_domain::discovery::list_module_dir_names(&fs, ito_path).into_core_miette()?;
+        let module_ids =
+            ito_domain::discovery::list_module_ids(&fs, ito_path).into_core_miette()?;
+        let change_dir_names =
+            ito_domain::discovery::list_change_dir_names(&fs, ito_path).into_core_miette()?;
+        let spec_dir_names =
+            ito_domain::discovery::list_spec_dir_names(&fs, ito_path).into_core_miette()?;
 
         Ok(Self {
             module_dir_names,
