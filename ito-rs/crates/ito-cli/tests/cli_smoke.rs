@@ -132,7 +132,7 @@ fn list_show_validate_smoke() {
 
     let out = run_rust_candidate(
         rust_path,
-        &["show", "--type", "change", "000-01_test-change", "--json"],
+        &["show", "--type", "change", "0-1", "--json"],
         repo.path(),
         home.path(),
     );
@@ -143,6 +143,16 @@ fn list_show_validate_smoke() {
         Some("000-01_test-change")
     );
     assert!(v.get("deltas").is_some());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["validate", "--type", "change", "0-1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0);
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("validate change json");
+    assert!(v.get("items").is_some());
 
     // validate
     let out = run_rust_candidate(
@@ -204,13 +214,7 @@ fn agent_instruction_status_archive_smoke() {
     // archive (skip specs + validate to avoid interactive flows)
     let out = run_rust_candidate(
         rust_path,
-        &[
-            "archive",
-            "000-01_test-change",
-            "--skip-specs",
-            "--no-validate",
-            "-y",
-        ],
+        &["archive", "0-1", "--skip-specs", "--no-validate", "-y"],
         repo.path(),
         home.path(),
     );
@@ -265,6 +269,34 @@ fn create_workflow_plan_state_config_smoke() {
         home.path(),
     );
     assert_eq!(out.code, 0);
+    assert!(out.stderr.contains("Created files:"));
+    assert!(out.stderr.contains(".ito.yaml"));
+    assert!(out.stderr.contains("README.md"));
+    assert!(out.stderr.contains("Module: 000 (from --module)"));
+    assert!(out.stderr.contains("Next steps:"));
+    assert!(
+        out.stderr
+            .contains("ito agent instruction proposal --change 000-01_hello")
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "create",
+            "change",
+            "hello-default",
+            "--schema",
+            "spec-driven",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0);
+    assert!(out.stderr.contains("Created files:"));
+    assert!(out.stderr.contains(".ito.yaml"));
+    assert!(!out.stderr.contains("README.md"));
+    assert!(out.stderr.contains("Module: 000 (default)"));
+    assert!(out.stderr.contains("Next steps:"));
 
     // workflow
     let out = run_rust_candidate(rust_path, &["workflow", "init"], repo.path(), home.path());

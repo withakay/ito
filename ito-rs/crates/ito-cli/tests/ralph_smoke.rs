@@ -131,3 +131,33 @@ fn ralph_change_flag_supports_shorthand_resolution() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Ralph Status for 000-01_test-change"));
 }
+
+#[test]
+fn ralph_change_flag_supports_slug_query_resolution() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(
+        repo.path()
+            .join(".ito/changes/001-12_setup-wizard/proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "setup wizard",
+            "--status",
+            "--no-interactive",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Ralph Status for 001-12_setup-wizard"));
+}

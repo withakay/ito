@@ -160,3 +160,34 @@ fn agent_instruction_change_flag_reports_ambiguous_target() {
     assert!(out.stderr.contains("000-01_test-change"));
     assert!(out.stderr.contains("000-01_test-alt"));
 }
+
+#[test]
+fn agent_instruction_change_flag_supports_slug_query() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes/001-12_setup-wizard/proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "proposal",
+            "--change",
+            "setup wizard",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("<artifact id=\"proposal\""));
+}

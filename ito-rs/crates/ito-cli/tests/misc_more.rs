@@ -123,6 +123,63 @@ fn status_change_flag_reports_ambiguous_target() {
 }
 
 #[test]
+fn status_change_flag_supports_module_scoped_slug_query() {
+    let base = fixtures::make_repo_all_valid();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes/001-12_setup-wizard/proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes/002-12_setup-wizard/proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["status", "--change", "1:setup wizard", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("status json");
+    assert_eq!(v["changeName"], "001-12_setup-wizard");
+}
+
+#[test]
+fn status_change_flag_not_found_shows_suggestions() {
+    let base = fixtures::make_repo_all_valid();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes/001-12_setup-wizard/proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["status", "--change", "setpu"],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("not found"));
+    assert!(out.stderr.contains("Did you mean"));
+    assert!(out.stderr.contains("001-12_setup-wizard"));
+}
+
+#[test]
 fn list_errors_when_ito_changes_dir_missing() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
