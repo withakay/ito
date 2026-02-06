@@ -6,14 +6,15 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, SecondsFormat, Timelike, Utc};
-use miette::{IntoDiagnostic, Result, miette};
 
-use crate::change_repository::FsChangeRepository;
-use crate::error_bridge::IntoCoreMiette;
-use crate::module_repository::FsModuleRepository;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use ito_common::fs::StdFs;
 use ito_common::paths;
-use ito_domain::changes::{ChangeStatus, ChangeSummary};
+use ito_domain::changes::{
+    ChangeRepository as DomainChangeRepository, ChangeStatus, ChangeSummary,
+};
+use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 /// Module entry returned by `ito list modules`.
@@ -141,11 +142,10 @@ pub struct SpecListItem {
 }
 
 /// List modules under `{ito_path}/modules`.
-pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
+pub fn list_modules(module_repo: &impl DomainModuleRepository) -> CoreResult<Vec<ModuleListItem>> {
     let mut modules: Vec<ModuleListItem> = Vec::new();
 
-    let module_repo = FsModuleRepository::new(ito_path);
-    for module in module_repo.list().into_core_miette()? {
+    for module in module_repo.list().into_core()? {
         let full_name = format!("{}_{}", module.id, module.name);
         modules.push(ModuleListItem {
             id: module.id,
@@ -160,27 +160,21 @@ pub fn list_modules(ito_path: &Path) -> Result<Vec<ModuleListItem>> {
 }
 
 /// List change directories under `{ito_path}/changes`.
-pub fn list_change_dirs(ito_path: &Path) -> Result<Vec<PathBuf>> {
+pub fn list_change_dirs(ito_path: &Path) -> CoreResult<Vec<PathBuf>> {
     let fs = StdFs;
     Ok(ito_domain::discovery::list_change_dir_names(&fs, ito_path)
-        .into_core_miette()?
+        .into_core()?
         .into_iter()
         .map(|name| paths::change_dir(ito_path, &name))
         .collect())
 }
 
 /// List active changes using typed summaries for adapter rendering.
-pub fn list_changes(ito_path: &Path, input: ListChangesInput) -> Result<Vec<ChangeListSummary>> {
-    let changes_dir = paths::changes_dir(ito_path);
-    if !changes_dir.exists() {
-        return Err(miette!(
-            "No Ito changes directory found. Run 'ito init' first."
-        ));
-    }
-
-    let change_repo = FsChangeRepository::new(ito_path);
-    let mut summaries: Vec<ChangeSummary> =
-        change_repo.list().map_err(|err| miette!(err.to_string()))?;
+pub fn list_changes(
+    change_repo: &impl DomainChangeRepository,
+    input: ListChangesInput,
+) -> CoreResult<Vec<ChangeListSummary>> {
+    let mut summaries: Vec<ChangeSummary> = change_repo.list().into_core()?;
 
     match input.progress_filter {
         ChangeProgressFilter::All => {}
@@ -220,13 +214,13 @@ pub fn list_changes(ito_path: &Path, input: ListChangesInput) -> Result<Vec<Chan
 }
 
 /// Compute the most-recent modification time under `path`.
-pub fn last_modified_recursive(path: &Path) -> Result<DateTime<Utc>> {
+pub fn last_modified_recursive(path: &Path) -> CoreResult<DateTime<Utc>> {
     use std::collections::VecDeque;
 
     let mut max = std::fs::metadata(path)
-        .into_diagnostic()?
+        .map_err(|e| CoreError::io("reading metadata", e))?
         .modified()
-        .into_diagnostic()?;
+        .map_err(|e| CoreError::io("getting modification time", std::io::Error::other(e)))?;
 
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     queue.push_back(path.to_path_buf());
@@ -272,11 +266,11 @@ pub fn to_iso_millis(dt: DateTime<Utc>) -> String {
 }
 
 /// List specs under `{ito_path}/specs`.
-pub fn list_specs(ito_path: &Path) -> Result<Vec<SpecListItem>> {
+pub fn list_specs(ito_path: &Path) -> CoreResult<Vec<SpecListItem>> {
     let mut specs: Vec<SpecListItem> = Vec::new();
     let specs_dir = paths::specs_dir(ito_path);
     let fs = StdFs;
-    for id in ito_domain::discovery::list_spec_dir_names(&fs, ito_path).into_core_miette()? {
+    for id in ito_domain::discovery::list_spec_dir_names(&fs, ito_path).into_core()? {
         let spec_md = specs_dir.join(&id).join("spec.md");
         let content = ito_common::io::read_to_string_or_default(&spec_md);
         let requirement_count = if content.is_empty() {
@@ -551,8 +545,10 @@ bar
             "## 1. Implementation\n- [x] 1.1 done\n",
         );
 
+        let change_repo = crate::change_repository::FsChangeRepository::new(&ito_path);
+
         let ready = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::Ready,
                 sort: ChangeSortOrder::Name,
@@ -564,7 +560,7 @@ bar
         assert_eq!(ready[1].name, "000-02_partial");
 
         let pending = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::Pending,
                 sort: ChangeSortOrder::Name,
@@ -575,7 +571,7 @@ bar
         assert_eq!(pending[0].name, "000-01_pending");
 
         let partial = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::Partial,
                 sort: ChangeSortOrder::Name,
@@ -586,7 +582,7 @@ bar
         assert_eq!(partial[0].name, "000-02_partial");
 
         let completed = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::Completed,
                 sort: ChangeSortOrder::Name,
@@ -614,8 +610,10 @@ bar
             "## 1. Implementation\n- [ ] 1.1 todo\n",
         );
 
+        let change_repo = crate::change_repository::FsChangeRepository::new(&ito_path);
+
         let by_name = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::All,
                 sort: ChangeSortOrder::Name,
@@ -626,7 +624,7 @@ bar
         assert_eq!(by_name[1].name, "000-02_beta");
 
         let by_recent = list_changes(
-            &ito_path,
+            &change_repo,
             ListChangesInput {
                 progress_filter: ChangeProgressFilter::All,
                 sort: ChangeSortOrder::Recent,

@@ -35,7 +35,6 @@ ito-templates = { workspace = true }
 ito-web = { workspace = true, optional = true }
 chrono = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread"] }
-ito-domain = { workspace = true }
 ito-schemas = { workspace = true }
 ito-harness = { workspace = true }
 

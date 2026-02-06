@@ -17,7 +17,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
 rusqlite.workspace = true
-walkdir.workspace = true
+
 
 [dev-dependencies]
 tempfile.workspace = true

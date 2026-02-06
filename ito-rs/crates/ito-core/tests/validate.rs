@@ -1,3 +1,5 @@
+use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::validate::{validate_change, validate_module, validate_spec_markdown};
 use std::path::Path;
 
@@ -52,8 +54,9 @@ fn validate_change_requires_at_least_one_delta() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     std::fs::create_dir_all(ito.join("changes").join("001-01_demo")).unwrap();
+    let change_repo = FsChangeRepository::new(&ito);
 
-    let r = validate_change(&ito, "001-01_demo", false).unwrap();
+    let r = validate_change(&change_repo, "001-01_demo", false).unwrap();
     assert!(!r.valid);
     assert!(
         r.issues
@@ -67,6 +70,7 @@ fn validate_change_requires_shall_or_must_in_requirement_text() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     let change_id = "001-01_demo";
+    let change_repo = FsChangeRepository::new(&ito);
 
     write(
         &ito.join("changes")
@@ -85,7 +89,7 @@ ok
 "#,
     );
 
-    let r = validate_change(&ito, change_id, false).unwrap();
+    let r = validate_change(&change_repo, change_id, false).unwrap();
     assert!(!r.valid);
     assert!(
         r.issues
@@ -98,6 +102,7 @@ ok
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
+    let module_repo = FsModuleRepository::new(&ito);
 
     write(
         &ito.join("modules").join("006_demo").join("module.md"),
@@ -110,7 +115,7 @@ Too short.
 "#,
     );
 
-    let (_name, r) = validate_module(&ito, "006_demo", false).unwrap();
+    let (_name, r) = validate_module(&module_repo, &ito, "006_demo", false).unwrap();
     assert!(!r.valid);
     assert!(r.summary.errors >= 1);
 }

@@ -54,12 +54,14 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let item = item.expect("checked");
 
     let ito_path = rt.ito_path();
+    let change_repo = FsChangeRepository::new(ito_path);
+    let repo_index = rt.repo_index();
 
     let explicit = typ.as_deref();
     let resolved_type = match explicit {
         Some("change") | Some("spec") => explicit.unwrap().to_string(),
         Some(_) => return fail("Invalid type. Expected 'change' or 'spec'."),
-        None => super::common::detect_item_type(rt, &item),
+        None => super::common::detect_item_type(&change_repo, ito_path, repo_index, &item),
     };
 
     if resolved_type == "ambiguous" {
@@ -68,7 +70,7 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
         ));
     }
     if resolved_type == "unknown" {
-        let candidates = super::common::list_candidate_items(rt);
+        let candidates = super::common::list_candidate_items(&change_repo, rt);
         let suggestions = nearest_matches(&item, &candidates, 5);
         return fail(super::common::unknown_with_suggestions(
             "item",
@@ -134,11 +136,10 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let resolved_change = match super::common::resolve_change_target(ito_path, &item) {
+            let resolved_change = match super::common::resolve_change_target(&change_repo, &item) {
                 Ok(id) => id,
                 Err(msg) => return fail(msg),
             };
-            let change_repo = FsChangeRepository::new(ito_path);
             if want_json {
                 let files = core_show::read_change_delta_spec_files(&change_repo, &resolved_change)
                     .unwrap_or_default();

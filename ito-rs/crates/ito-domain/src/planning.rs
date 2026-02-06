@@ -1,11 +1,13 @@
-//! Project planning file templates and helpers.
+//! Project planning templates and helpers.
 //!
 //! Ito's planning area lives under `{ito_path}/planning`.
-//! This module provides helpers for initializing that structure and parsing
-//! a small amount of structured data from the generated markdown.
+//! This module provides **pure** path helpers, template content, and parsing
+//! utilities.  Filesystem I/O (init) lives in `ito-core`.
 
 use regex::Regex;
 use std::path::{Path, PathBuf};
+
+// Filesystem I/O (init_planning_structure) lives in `ito-core`.
 
 /// Path to the planning directory (`{ito_path}/planning`).
 pub fn planning_dir(ito_path: &Path) -> PathBuf {
@@ -40,32 +42,8 @@ pub fn state_md_template(current_date: &str, ito_dir: &str) -> String {
     )
 }
 
-/// Initialize the planning directory structure under `ito_path`.
-///
-/// This is safe to call multiple times; existing files are left unchanged.
-pub fn init_planning_structure(
-    ito_path: &Path,
-    current_date: &str,
-    ito_dir: &str,
-) -> std::io::Result<()> {
-    let planning = planning_dir(ito_path);
-    std::fs::create_dir_all(&planning)?;
-    std::fs::create_dir_all(milestones_dir(ito_path))?;
-
-    let project_path = planning.join("PROJECT.md");
-    if !project_path.exists() {
-        std::fs::write(project_path, project_md_template(None, None))?;
-    }
-    let roadmap_path = planning.join("ROADMAP.md");
-    if !roadmap_path.exists() {
-        std::fs::write(roadmap_path, roadmap_md_template())?;
-    }
-    let state_path = planning.join("STATE.md");
-    if !state_path.exists() {
-        std::fs::write(state_path, state_md_template(current_date, ito_dir))?;
-    }
-    Ok(())
-}
+// NOTE: `init_planning_structure` was moved to `ito-core` to keep
+// the domain layer free of filesystem I/O.
 
 /// Parse the "Current Milestone" header block from roadmap markdown.
 pub fn read_current_progress(roadmap_contents: &str) -> Option<(String, String, String)> {

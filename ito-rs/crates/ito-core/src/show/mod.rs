@@ -6,8 +6,8 @@
 
 use std::path::Path;
 
-use crate::error_bridge::IntoCoreMiette;
-use miette::Result;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use serde::Serialize;
 
 use ito_common::paths;
@@ -96,17 +96,18 @@ pub struct ChangeDelta {
 }
 
 /// Read the markdown for a spec id from `.ito/specs/<id>/spec.md`.
-pub fn read_spec_markdown(ito_path: &Path, id: &str) -> Result<String> {
+pub fn read_spec_markdown(ito_path: &Path, id: &str) -> CoreResult<String> {
     let path = paths::spec_markdown_path(ito_path, id);
     ito_common::io::read_to_string(&path)
+        .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))
 }
 
 /// Read the proposal markdown for a change id.
 pub fn read_change_proposal_markdown(
     repo: &impl ChangeRepository,
     change_id: &str,
-) -> Result<Option<String>> {
-    let change = repo.get(change_id).into_core_miette()?;
+) -> CoreResult<Option<String>> {
+    let change = repo.get(change_id).into_core()?;
     Ok(change.proposal)
 }
 
@@ -131,8 +132,8 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
 pub fn read_change_delta_spec_files(
     repo: &impl ChangeRepository,
     change_id: &str,
-) -> Result<Vec<DeltaSpecFile>> {
-    let change = repo.get(change_id).into_core_miette()?;
+) -> CoreResult<Vec<DeltaSpecFile>> {
+    let change = repo.get(change_id).into_core()?;
     let mut out: Vec<DeltaSpecFile> = change
         .specs
         .into_iter()
@@ -171,8 +172,13 @@ pub struct DeltaSpecFile {
 }
 
 /// Load a delta `spec.md` and infer the spec id from its parent directory.
-pub fn load_delta_spec_file(path: &Path) -> Result<DeltaSpecFile> {
-    let markdown = ito_common::io::read_to_string(path)?;
+pub fn load_delta_spec_file(path: &Path) -> CoreResult<DeltaSpecFile> {
+    let markdown = ito_common::io::read_to_string(path).map_err(|e| {
+        CoreError::io(
+            format!("reading delta spec {}", path.display()),
+            std::io::Error::other(e),
+        )
+    })?;
     let spec = path
         .parent()
         .and_then(|p| p.file_name())

@@ -1,5 +1,6 @@
 ---
 source: crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 81
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -624,6 +625,12 @@ Options:
 
           Runs after the project validation steps.
 
+      --exit-on-error
+          Exit Ralph immediately if harness exits non-zero
+
+      --error-threshold <ERROR_THRESHOLD>
+          Maximum non-zero harness exits before failing (default: 10)
+
       --allow-all
           Allow all tool actions (dangerous)
 
@@ -647,6 +654,9 @@ Options:
 
       --timeout <TIMEOUT>
           Inactivity timeout (e.g. 15m)
+
+      --file <FILE>
+          Read prompt text from a file
 
   -h, --help
           Print help (see a summary with '-h')

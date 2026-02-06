@@ -1,4 +1,4 @@
-use miette::{Result, miette};
+use crate::errors::CoreResult;
 use std::time::Duration;
 
 /// Parse a human-readable duration string into a Duration.
@@ -22,10 +22,12 @@ use std::time::Duration;
 /// assert_eq!(parse_duration("1m30s").unwrap(), Duration::from_secs(90));
 /// assert_eq!(parse_duration("90").unwrap(), Duration::from_secs(90));
 /// ```
-pub fn parse_duration(s: &str) -> Result<Duration> {
+pub fn parse_duration(s: &str) -> CoreResult<Duration> {
     let s = s.trim();
     if s.is_empty() {
-        return Err(miette!("Duration string cannot be empty"));
+        return Err(crate::errors::CoreError::Parse(
+            "Duration string cannot be empty".into(),
+        ));
     }
 
     // Try parsing as bare number (seconds)
@@ -42,13 +44,15 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
         } else {
             let unit = c.to_ascii_lowercase();
             if current_num.is_empty() {
-                return Err(miette!(
+                return Err(crate::errors::CoreError::Parse(format!(
                     "Invalid duration format: missing number before '{unit}'"
-                ));
+                )));
             }
-            let num: u64 = current_num
-                .parse()
-                .map_err(|_| miette!("Invalid number in duration: {current_num}"))?;
+            let num: u64 = current_num.parse().map_err(|_| {
+                crate::errors::CoreError::Parse(format!(
+                    "Invalid number in duration: {current_num}"
+                ))
+            })?;
             current_num.clear();
 
             let multiplier = match unit {
@@ -56,30 +60,32 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
                 'm' => 60,
                 'h' => 3600,
                 _ => {
-                    return Err(miette!(
+                    return Err(crate::errors::CoreError::Parse(format!(
                         "Invalid duration unit '{unit}'. Use 's', 'm', or 'h'"
-                    ));
+                    )));
                 }
             };
 
             total_secs = total_secs
                 .checked_add(num.saturating_mul(multiplier))
-                .ok_or_else(|| miette!("Duration overflow"))?;
+                .ok_or_else(|| crate::errors::CoreError::Parse("Duration overflow".into()))?;
         }
     }
 
     // Handle trailing number without unit (treat as seconds)
     if !current_num.is_empty() {
-        let num: u64 = current_num
-            .parse()
-            .map_err(|_| miette!("Invalid number in duration: {current_num}"))?;
+        let num: u64 = current_num.parse().map_err(|_| {
+            crate::errors::CoreError::Parse(format!("Invalid number in duration: {current_num}"))
+        })?;
         total_secs = total_secs
             .checked_add(num)
-            .ok_or_else(|| miette!("Duration overflow"))?;
+            .ok_or_else(|| crate::errors::CoreError::Parse("Duration overflow".into()))?;
     }
 
     if total_secs == 0 {
-        return Err(miette!("Duration must be greater than 0"));
+        return Err(crate::errors::CoreError::Parse(
+            "Duration must be greater than 0".into(),
+        ));
     }
 
     Ok(Duration::from_secs(total_secs))

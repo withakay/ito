@@ -2,6 +2,7 @@ use crate::cli::{ListArgs, ListSortOrder};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use chrono::{DateTime, Utc};
+use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 
 #[derive(Debug, serde::Serialize)]
@@ -57,22 +58,10 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
     match mode {
         "modules" => {
             let module_repo = FsModuleRepository::new(ito_path);
-            let modules = module_repo.list().map_err(to_cli_error)?;
+            let modules = ito_core::list::list_modules(&module_repo).map_err(to_cli_error)?;
 
             if want_json {
-                // Convert to legacy format for JSON compatibility
-                let legacy_modules: Vec<ito_core::list::ModuleListItem> = modules
-                    .iter()
-                    .map(|m| ito_core::list::ModuleListItem {
-                        id: m.id.clone(),
-                        name: m.name.clone(),
-                        full_name: format!("{}_{}", m.id, m.name),
-                        change_count: m.change_count as usize,
-                    })
-                    .collect();
-                let payload = ModulesResponse {
-                    modules: legacy_modules,
-                };
+                let payload = ModulesResponse { modules };
                 let rendered =
                     serde_json::to_string_pretty(&payload).expect("json should serialize");
                 println!("{rendered}");
@@ -86,10 +75,9 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             println!("Modules:\n");
-            for m in modules {
-                let full_name = format!("{}_{}", m.id, m.name);
+            for m in &modules {
                 if m.change_count == 0 {
-                    println!("  {full_name}");
+                    println!("  {}", m.full_name);
                     continue;
                 }
                 let suffix = if m.change_count == 1 {
@@ -97,7 +85,7 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 } else {
                     "changes"
                 };
-                println!("  {full_name} ({} {suffix})", m.change_count);
+                println!("  {} ({} {suffix})", m.full_name, m.change_count);
             }
             println!();
         }
@@ -145,8 +133,17 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 ito_core::list::ChangeSortOrder::Recent
             };
 
+            let changes_dir = ito_path.join("changes");
+            if !changes_dir.exists() {
+                return Err(to_cli_error(miette::miette!(
+                    "No Ito changes directory found at {}",
+                    changes_dir.display()
+                )));
+            }
+
+            let change_repo = FsChangeRepository::new(ito_path);
             let summaries = ito_core::list::list_changes(
-                ito_path,
+                &change_repo,
                 ito_core::list::ListChangesInput {
                     progress_filter,
                     sort: sort_order,

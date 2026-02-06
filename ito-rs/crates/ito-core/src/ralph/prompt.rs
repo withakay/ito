@@ -4,10 +4,10 @@
 //! context (change proposal + module), the user's base prompt, and a fixed
 //! preamble describing the iteration rules.
 
-use crate::change_repository::FsChangeRepository;
+use crate::errors::{CoreError, CoreResult};
 use crate::validate;
-use ito_domain::changes::ChangeTargetResolution;
-use miette::{Result, miette};
+use ito_domain::changes::{ChangeRepository as DomainChangeRepository, ChangeTargetResolution};
+use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 use std::path::Path;
 
 use ito_common::paths;
@@ -95,19 +95,21 @@ pub fn build_prompt_preamble(
 /// When `options.iteration` is set, this includes the iteration preamble.
 pub fn build_ralph_prompt(
     ito_path: &Path,
+    change_repo: &impl DomainChangeRepository,
+    module_repo: &impl DomainModuleRepository,
     user_prompt: &str,
     options: BuildPromptOptions,
-) -> Result<String> {
+) -> CoreResult<String> {
     let mut sections: Vec<String> = Vec::new();
 
     if let Some(change_id) = options.change_id.as_deref()
-        && let Some(ctx) = load_change_context(ito_path, change_id)?
+        && let Some(ctx) = load_change_context(ito_path, change_repo, change_id)?
     {
         sections.push(ctx);
     }
 
     if let Some(module_id) = options.module_id.as_deref()
-        && let Some(ctx) = load_module_context(ito_path, module_id)?
+        && let Some(ctx) = load_module_context(ito_path, module_repo, module_id)?
     {
         sections.push(ctx);
     }
@@ -132,9 +134,13 @@ pub fn build_ralph_prompt(
     }
 }
 
-fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String>> {
+fn load_change_context(
+    ito_path: &Path,
+    change_repo: &impl DomainChangeRepository,
+    change_id: &str,
+) -> CoreResult<Option<String>> {
     let changes_dir = paths::changes_dir(ito_path);
-    let resolved = resolve_change_id(ito_path, change_id)?;
+    let resolved = resolve_change_id(change_repo, change_id)?;
     let Some(resolved) = resolved else {
         return Ok(None);
     };
@@ -144,7 +150,8 @@ fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String
         return Ok(None);
     }
 
-    let proposal = ito_common::io::read_to_string(&proposal_path)?;
+    let proposal = ito_common::io::read_to_string_std(&proposal_path)
+        .map_err(|e| CoreError::io(format!("reading {}", proposal_path.display()), e))?;
     Ok(Some(format!(
         "## Change Proposal ({id})\n\n{proposal}",
         id = resolved,
@@ -152,21 +159,27 @@ fn load_change_context(ito_path: &Path, change_id: &str) -> Result<Option<String
     )))
 }
 
-fn resolve_change_id(ito_path: &Path, input: &str) -> Result<Option<String>> {
-    let repo = FsChangeRepository::new(ito_path);
-    match repo.resolve_target(input) {
+fn resolve_change_id(
+    change_repo: &impl DomainChangeRepository,
+    input: &str,
+) -> CoreResult<Option<String>> {
+    match change_repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(Some(id)),
         ChangeTargetResolution::NotFound => Ok(None),
-        ChangeTargetResolution::Ambiguous(matches) => Err(miette!(
+        ChangeTargetResolution::Ambiguous(matches) => Err(CoreError::Validation(format!(
             "Ambiguous change id '{input}'. Matches: {matches}",
             input = input,
             matches = matches.join(", ")
-        )),
+        ))),
     }
 }
 
-fn load_module_context(ito_path: &Path, module_id: &str) -> Result<Option<String>> {
-    let resolved = validate::resolve_module(ito_path, module_id)?;
+fn load_module_context(
+    ito_path: &Path,
+    module_repo: &impl DomainModuleRepository,
+    module_id: &str,
+) -> CoreResult<Option<String>> {
+    let resolved = validate::resolve_module(module_repo, ito_path, module_id)?;
     let Some(resolved) = resolved else {
         return Ok(None);
     };
@@ -175,7 +188,8 @@ fn load_module_context(ito_path: &Path, module_id: &str) -> Result<Option<String
         return Ok(None);
     }
 
-    let module_content = ito_common::io::read_to_string(&resolved.module_md)?;
+    let module_content = ito_common::io::read_to_string_std(&resolved.module_md)
+        .map_err(|e| CoreError::io(format!("reading {}", resolved.module_md.display()), e))?;
     Ok(Some(format!(
         "## Module ({id})\n\n{content}",
         id = resolved.id,

@@ -3,19 +3,19 @@
 //! These checks validate relationships between on-disk Ito artifacts that are
 //! hard to express as a single file-local validation.
 
-use crate::error_bridge::IntoCoreMiette;
+use crate::error_bridge::IntoCoreResult;
+use crate::errors::{CoreError, CoreResult};
 use crate::validate::{ValidationIssue, error};
 use ito_common::fs::StdFs;
 use ito_common::id;
 use ito_domain::discovery;
-use miette::{Result, miette};
 use rusqlite::Connection;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-/// Convert a `rusqlite::Result` into a `miette::Result`.
-fn sqlite<T>(r: rusqlite::Result<T>) -> Result<T> {
-    r.map_err(|e| miette!("sqlite error: {e}"))
+/// Convert a `rusqlite::Result` into a `CoreResult`.
+fn sqlite<T>(r: rusqlite::Result<T>) -> CoreResult<T> {
+    r.map_err(|e| CoreError::Sqlite(format!("sqlite error: {e}")))
 }
 
 /// Extract the 3-digit module id prefix from a module directory name.
@@ -35,17 +35,17 @@ fn parse_module_id_from_dir_name(dir_name: &str) -> Option<String> {
 /// the map only if at least one integrity issue was found.
 pub fn validate_change_dirs_repo_integrity(
     ito_path: &Path,
-) -> Result<BTreeMap<String, Vec<ValidationIssue>>> {
+) -> CoreResult<BTreeMap<String, Vec<ValidationIssue>>> {
     let mut by_dir: BTreeMap<String, Vec<ValidationIssue>> = BTreeMap::new();
 
     let mut module_ids: BTreeSet<String> = BTreeSet::new();
-    for m in discovery::list_module_dir_names(&StdFs, ito_path).into_core_miette()? {
+    for m in discovery::list_module_dir_names(&StdFs, ito_path).into_core()? {
         if let Some(id) = parse_module_id_from_dir_name(&m) {
             module_ids.insert(id);
         }
     }
 
-    let change_dirs = discovery::list_change_dir_names(&StdFs, ito_path).into_core_miette()?;
+    let change_dirs = discovery::list_change_dir_names(&StdFs, ito_path).into_core()?;
     if change_dirs.is_empty() {
         return Ok(by_dir);
     }
@@ -119,9 +119,9 @@ CREATE TABLE change_dir (
             ))?;
             let dirs: Vec<String> = stmt2
                 .query_map([numeric_id.as_str()], |r| r.get(0))
-                .map_err(|e| miette!("sqlite error: {e}"))?
+                .map_err(|e| CoreError::Sqlite(format!("sqlite error: {e}")))?
                 .collect::<std::result::Result<Vec<_>, _>>()
-                .map_err(|e| miette!("sqlite error: {e}"))?;
+                .map_err(|e| CoreError::Sqlite(format!("sqlite error: {e}")))?;
             for d in &dirs {
                 let others: Vec<&str> = dirs
                     .iter()

@@ -7,7 +7,6 @@ members = [
   "crates/ito-domain",
   "crates/ito-harness",
   "crates/ito-logging",
-  "crates/ito-models",
   "crates/ito-schemas",
   "crates/ito-templates",
   "crates/ito-test-support",
