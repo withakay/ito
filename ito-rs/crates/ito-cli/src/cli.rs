@@ -761,6 +761,10 @@ pub enum CompletionShell {
 /// Track execution tasks for a change.
 #[derive(Args, Debug, Clone)]
 pub struct TasksArgs {
+    /// Output as JSON
+    #[arg(long, global = true)]
+    pub json: bool,
+
     #[command(subcommand)]
     pub action: Option<TasksAction>,
 }
@@ -802,10 +806,6 @@ pub enum TasksAction {
     Ready {
         /// Change id (optional - if omitted, shows tasks from all changes)
         change_id: Option<String>,
-
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
     },
 
     /// Mark a task in-progress
