@@ -28,3 +28,5 @@ Guiding document: `.local/onionarchitecturerefactor_epic_plan.md`.
 - [ ] 015-11_refactor-schema-usage-guidelines
 - [ ] 015-12_refactor-split-core-into-app-infra
 - [ ] 015-13_standardize-arch-guardrails-tooling
+- [ ] 015-14_consolidate-workspace-crates
+- [ ] 015-15_move-ralph-command-to-commands

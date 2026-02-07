@@ -138,7 +138,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let module_id = module
                 .as_deref()
                 .and_then(|m| {
-                    ito_common::id::parse_module_id(m)
+                    ito_core::parse_module_id(m)
                         .ok()
                         .map(|p| p.module_id.to_string())
                 })
@@ -205,7 +205,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let module_id = module
         .as_deref()
         .and_then(|m| {
-            ito_common::id::parse_module_id(m)
+            ito_core::parse_module_id(m)
                 .ok()
                 .map(|p| p.module_id.to_string())
         })

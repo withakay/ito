@@ -3,6 +3,7 @@
 //! This module owns the filesystem I/O for bootstrapping the planning area.
 //! Pure helpers (path builders, templates, parsers) remain in `ito_domain::planning`.
 
+use crate::errors::{CoreError, CoreResult};
 use ito_domain::planning::{
     milestones_dir, planning_dir, project_md_template, roadmap_md_template, state_md_template,
 };
@@ -33,4 +34,11 @@ pub fn init_planning_structure(
         std::fs::write(state_path, state_md_template(current_date, ito_dir))?;
     }
     Ok(())
+}
+
+/// Read the contents of `planning/ROADMAP.md`.
+pub fn read_planning_status(ito_path: &Path) -> CoreResult<String> {
+    let roadmap_path = planning_dir(ito_path).join("ROADMAP.md");
+    ito_common::io::read_to_string(&roadmap_path)
+        .map_err(|e| CoreError::io("reading ROADMAP.md", std::io::Error::other(e)))
 }

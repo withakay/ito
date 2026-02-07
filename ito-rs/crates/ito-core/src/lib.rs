@@ -65,6 +65,9 @@ pub mod show;
 /// Statistics collection and computation for command usage.
 pub mod stats;
 
+/// State management operations for `planning/STATE.md`.
+pub mod state;
+
 /// Validation utilities for on-disk state.
 pub mod validate;
 
@@ -78,6 +81,14 @@ pub mod workflow_templates;
 pub use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 pub use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 
+/// Harness integrations for running AI-assisted workflows.
+pub mod harness;
+
+/// Re-exported schema types from [`ito_domain::schemas`].
+pub mod schemas {
+    pub use ito_domain::schemas::*;
+}
+
 /// Re-exported workflow domain modules
 pub mod domain {
     /// Planning domain module
@@ -86,4 +97,16 @@ pub mod domain {
     pub use ito_domain::state;
     /// Workflow domain module
     pub use ito_domain::workflow;
+}
+
+// Re-export utility functions for CLI convenience
+pub use ito_common::id::parse_change_id;
+pub use ito_common::id::parse_module_id;
+pub use ito_common::match_::nearest_matches;
+
+/// Re-exported path utilities from [`ito_common::paths`].
+pub mod paths {
+    pub use ito_common::paths::changes_dir;
+    pub use ito_common::paths::spec_markdown_path;
+    pub use ito_common::paths::specs_dir;
 }

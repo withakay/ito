@@ -24,7 +24,7 @@ The `ito-core` crate SHALL contain only business logic (workflow, archive, valid
 
 ### Requirement: ito-core dependencies
 
-The `ito-core` crate SHALL depend on `ito-config`, `ito-domain`, `ito-common`, `ito-templates`, and `ito-harness`. It SHALL NOT depend on CLI crates.
+The `ito-core` crate SHALL depend on `ito-config`, `ito-domain`, `ito-common`, and `ito-templates`. It SHALL NOT depend on CLI crates. The `harness` module (previously the `ito-harness` crate) is now part of `ito-core`.
 
 #### Scenario: Core depends on config and domain
 - **WHEN** examining `ito-core/Cargo.toml`

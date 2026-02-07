@@ -1,5 +1,5 @@
+use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use ito_core::ralph::{RalphOptions, run_ralph};
-use ito_harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;

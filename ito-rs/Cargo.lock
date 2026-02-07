@@ -1043,9 +1043,7 @@ dependencies = [
  "ito-common",
  "ito-config",
  "ito-core",
- "ito-harness",
  "ito-logging",
- "ito-schemas",
  "ito-templates",
  "ito-test-support",
  "ito-web",
@@ -1091,8 +1089,6 @@ dependencies = [
  "ito-common",
  "ito-config",
  "ito-domain",
- "ito-harness",
- "ito-schemas",
  "ito-templates",
  "miette",
  "pulldown-cmark",
@@ -1114,23 +1110,11 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "ito-common",
- "ito-schemas",
  "regex",
  "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ito-harness"
-version = "0.1.0"
-dependencies = [
- "miette",
- "serde",
- "serde_json",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -1147,15 +1131,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "uuid",
-]
-
-[[package]]
-name = "ito-schemas"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "serde_yaml",
 ]
 
 [[package]]

@@ -7,15 +7,15 @@ Define the `ralph-crate` capability, including required behavior and validation 
 
 ## Requirements
 
-### Requirement: Ralph is extracted into its own crate
+### Requirement: Ralph lives in ito-core
 
-The project SHALL provide a dedicated Rust crate that contains the Ralph loop implementation.
+The Ralph loop implementation SHALL live in the `ito-core` crate as the `ralph` module.
 
-#### Scenario: Ralph crate exists and is used by the CLI
+#### Scenario: Ralph module exists in ito-core
 
 - **WHEN** the workspace is built
-- **THEN** a `ito-ralph` crate is built as part of the workspace
-- **AND** `ito-cli` uses that crate to implement `ito ralph`
+- **THEN** `ito-core` provides a `ralph` module
+- **AND** `ito-cli` uses `ito_core::ralph` to implement `ito ralph`
 
 ### Requirement: Ralph behavior is preserved
 

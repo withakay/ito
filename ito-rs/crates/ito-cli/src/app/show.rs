@@ -2,11 +2,9 @@ use crate::cli::{ShowArgs, ShowCommand, ShowItemType};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_common::match_::nearest_matches;
-use ito_common::paths as core_paths;
 use ito_config::output;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
+use ito_core::nearest_matches;
 use ito_core::show as core_show;
 
 pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -99,13 +97,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     match resolved_type.as_str() {
         "spec" => {
-            let spec_path = core_paths::spec_markdown_path(ito_path, &item);
-            let md = ito_common::io::read_to_string(&spec_path).map_err(|_| {
-                CliError::msg(format!(
-                    "Spec '{item}' not found at {}",
-                    spec_path.display()
-                ))
-            })?;
+            let md = core_show::read_spec_markdown(ito_path, &item)
+                .map_err(|e| CliError::msg(format!("Spec '{item}' not found: {e}")))?;
             if want_json {
                 if requirements && requirement_idx.is_some() {
                     return fail("Cannot use --requirement with --requirements");
@@ -258,11 +251,7 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let ito_path = rt.ito_path();
 
-    let module_repo = FsModuleRepository::new(ito_path);
-    let module = module_repo.get(&module_id).map_err(to_cli_error)?;
-
-    let module_md_path = module.path.join("module.md");
-    let md = ito_common::io::read_to_string_or_default(&module_md_path);
+    let md = core_show::read_module_markdown(ito_path, &module_id).map_err(to_cli_error)?;
     print!("{md}");
 
     Ok(())

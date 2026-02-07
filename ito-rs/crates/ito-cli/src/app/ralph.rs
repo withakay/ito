@@ -3,12 +3,12 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::harness::Harness;
+use ito_core::harness::OpencodeHarness;
+use ito_core::harness::stub::StubHarness;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::ralph as core_ralph;
 use ito_core::task_repository::FsTaskRepository;
-use ito_harness::Harness;
-use ito_harness::OpencodeHarness;
-use ito_harness::stub::StubHarness;
 
 pub(crate) fn handle_loop(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {

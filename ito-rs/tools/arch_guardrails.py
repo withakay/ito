@@ -35,9 +35,18 @@ DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
 
 # Phase 5: miette must not leak into ito-core production code.
 # Test code (tests/ dir) is excluded from this check.
+# Exception: the harness module (merged from the former ito-harness crate) uses
+# miette directly for the Harness trait's Result type and error construction.
 CORE_API_BASELINE: dict[str, dict[str, int]] = {
-    "miette::": {},
-    "miette!": {},
+    "miette::": {
+        "ito-rs/crates/ito-core/src/harness/types.rs": 1,
+        "ito-rs/crates/ito-core/src/harness/opencode.rs": 3,
+        "ito-rs/crates/ito-core/src/harness/stub.rs": 4,
+    },
+    "miette!": {
+        "ito-rs/crates/ito-core/src/harness/opencode.rs": 2,
+        "ito-rs/crates/ito-core/src/harness/stub.rs": 3,
+    },
 }
 
 
@@ -135,7 +144,8 @@ def check_core_api_bans() -> list[str]:
     """Check that ito-core production code does not use banned APIs (e.g. miette).
 
     Only checks src/ files — tests/ are excluded since integration tests may
-    need miette (e.g. for implementing the Harness trait from ito-harness).
+    need miette (e.g. for implementing the Harness trait).
+    The harness module (merged from the former ito-harness crate) has baselines.
     """
     core_src = REPO_ROOT / "ito-rs" / "crates" / "ito-core" / "src"
     violations: list[str] = []

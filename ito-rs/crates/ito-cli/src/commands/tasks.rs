@@ -2,7 +2,6 @@ use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
-use ito_common::paths as core_paths;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
@@ -181,10 +180,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let change_id = resolve_change_id(ito_path, input_change_id)?;
 
-    let change_dir = core_paths::change_dir(ito_path, &change_id);
-
     match sub {
         "init" => {
+            let change_dir = ito_path.join("changes").join(&change_id);
             if !change_dir.exists() {
                 return fail(format!("Change '{change_id}' not found"));
             }
@@ -210,7 +208,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "status" => {
-            let path = core_paths::change_dir(ito_path, &change_id).join("tasks.md");
+            let path = core_tasks::tasks_path(ito_path, &change_id);
 
             let status = match core_tasks::get_task_status(ito_path, &change_id) {
                 Ok(s) => s,
@@ -331,7 +329,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "next" => {
-            let path = core_paths::change_dir(ito_path, &change_id).join("tasks.md");
+            let path = core_tasks::tasks_path(ito_path, &change_id);
 
             let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
 
@@ -573,7 +571,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "show" => {
-            let path = core_paths::change_dir(ito_path, &change_id).join("tasks.md");
+            let path = core_tasks::tasks_path(ito_path, &change_id);
             let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
 
             if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
@@ -582,9 +580,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             if want_json {
-                let contents = ito_common::io::read_to_string(&path).map_err(|_| {
-                    CliError::msg(format!("tasks.md not found for \"{change_id}\""))
-                })?;
+                let contents =
+                    core_tasks::read_tasks_markdown(ito_path, &change_id).map_err(to_cli_error)?;
                 let parsed = core_tasks::parse_tasks_tracking_file(&contents);
 
                 let tasks: Vec<serde_json::Value> = status.items.iter().map(json_task).collect();
@@ -626,8 +623,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }));
             }
 
-            let contents = ito_common::io::read_to_string(&path)
-                .map_err(|_| CliError::msg(format!("tasks.md not found for \"{change_id}\"")))?;
+            let contents =
+                core_tasks::read_tasks_markdown(ito_path, &change_id).map_err(to_cli_error)?;
             print!("{contents}");
             Ok(())
         }
@@ -658,7 +655,7 @@ fn handle_tasks_ready(rt: &Runtime, args: &[String]) -> CliResult<()> {
 fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let change_id = resolve_change_id(ito_path, change_id)?;
-    let path = core_paths::change_dir(ito_path, &change_id).join("tasks.md");
+    let path = core_tasks::tasks_path(ito_path, &change_id);
 
     let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
 

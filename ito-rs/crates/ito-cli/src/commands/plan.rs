@@ -28,8 +28,7 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
             Ok(())
         }
         PlanAction::Status => {
-            let roadmap_path = wf_planning::planning_dir(ito_path).join("ROADMAP.md");
-            let contents = ito_common::io::read_to_string(&roadmap_path).map_err(|_| {
+            let contents = planning_init::read_planning_status(ito_path).map_err(|_| {
                 CliError::msg("ROADMAP.md not found. Run \"ito init\" or \"ito plan init\" first.")
             })?;
 

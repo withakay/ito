@@ -111,6 +111,18 @@ pub fn read_change_proposal_markdown(
     Ok(change.proposal)
 }
 
+/// Read the raw markdown for a module's `module.md` file.
+pub fn read_module_markdown(ito_path: &Path, module_id: &str) -> CoreResult<String> {
+    use crate::error_bridge::IntoCoreResult;
+    use crate::module_repository::FsModuleRepository;
+
+    let module_repo = FsModuleRepository::new(ito_path);
+    let module = module_repo.get(module_id).into_core()?;
+    let module_md_path = module.path.join("module.md");
+    let md = ito_common::io::read_to_string_or_default(&module_md_path);
+    Ok(md)
+}
+
 /// Parse spec markdown into a serializable structure.
 pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
     let overview = extract_section_text(markdown, "Purpose");

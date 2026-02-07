@@ -93,3 +93,54 @@ THEN it SHALL check: no duplicate creates, events reference prior creates, valid
 
 WHEN validation completes
 THEN it SHALL return a `ValidationResult` with `errors: Vec<Diagnostic>`, `warnings: Vec<Diagnostic>`, where each `Diagnostic` has `line`, `severity`, `message`
+
+### Requirement: Integrated audit validation
+
+The `ito-core` crate SHALL provide functions that integrate audit validation into existing validation flows.
+
+#### Scenario: Change-scoped audit validation
+
+WHEN `validate_change_audit(ito_path, change_id)` is called
+THEN it SHALL read audit events scoped to the change
+AND check structural integrity (valid JSON, required fields, valid timestamps)
+AND materialize expected state and compare against file-on-disk task state
+AND return `Vec<ValidationIssue>` compatible with the existing `ValidationReport` infrastructure
+
+#### Scenario: Ralph audit completion check
+
+WHEN `check_audit_completion(ito_path, change_id)` is called
+THEN it SHALL verify that the audit log contains events for all completed/shelved tasks in the change
+AND detect drift between materialized audit state and current file state
+AND return a `ValidationResult` compatible with the Ralph `validate_completion()` flow
+
+#### Scenario: Archive audit pre-check
+
+WHEN `check_audit_for_archive(ito_path, change_id)` is called
+THEN it SHALL verify audit event consistency for the change
+AND return drift items if any are found
+AND the caller (archive command) SHALL use this to warn the user before proceeding
+
+### Requirement: Event file watcher for streaming
+
+The `ito-core` crate SHALL provide a file-watching mechanism for the stream command.
+
+#### Scenario: Watch single event file
+
+WHEN `watch_audit_file(path, callback)` is called
+THEN it SHALL monitor the JSONL file for new appended lines
+AND invoke the callback with each new `AuditEvent` as it appears
+AND handle file truncation/corruption gracefully (skip malformed lines)
+
+#### Scenario: Watch multiple worktree event files
+
+WHEN `watch_audit_files(paths, callback)` is called with multiple file paths
+THEN it SHALL monitor all files simultaneously
+AND tag each event with the source file path (for worktree identification)
+AND interleave events by timestamp in the callback
+
+#### Scenario: Worktree discovery
+
+WHEN `discover_worktree_audit_files(ito_path)` is called
+THEN it SHALL execute `git worktree list --porcelain` to find all worktrees
+AND resolve the `.ito/.state/audit/events.jsonl` path for each worktree
+AND return only paths where the event file exists

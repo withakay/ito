@@ -18,6 +18,7 @@ Use this file for project-specific preferences (style, constraints, defaults). A
 After modifying Rust code, dispatch these subagents **in parallel**:
 - @code-simplifier - Refactors for clarity per `.ito/user-rust-style.md`
 - @documentation-police - Ensures public APIs have useful docs
+- @rust-code-reviewer - Checks for idiomatic usage, error handling, and best practices
 
 Then run `make check` to verify.
 

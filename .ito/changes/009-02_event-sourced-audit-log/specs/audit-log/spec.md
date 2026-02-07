@@ -23,6 +23,34 @@ THEN it SHALL contain the following fields:
 - `actor` (String): Mutation source — one of `cli`, `reconcile`, `ralph`
 - `by` (String): User/agent identity, derived from git config `user.name` or `$USER` env var, formatted as `@lowercase-hyphenated`
 - `meta` (Option<serde_json::Value>): Optional operation-specific metadata (e.g., file paths for task add, resolution for archive)
+- `ctx` (EventContext): Session and git context for traceability
+
+#### Scenario: EventContext structure
+
+WHEN an audit event is created
+THEN it SHALL include a `ctx` field containing:
+- `session_id` (String): Ito-generated UUID v4 per CLI process group, persisted to `.state/audit/.session`
+- `harness_session_id` (Option<String>): Captured from `$ITO_HARNESS_SESSION_ID` or `$CLAUDE_SESSION_ID` env vars, in that order of precedence
+- `branch` (Option<String>): Current git branch name from `git symbolic-ref --short HEAD` (None if detached HEAD)
+- `worktree` (Option<String>): Worktree name/path if not the main worktree (None if main)
+- `commit` (Option<String>): Short HEAD commit hash (8 chars) from `git rev-parse --short HEAD`
+AND all fields except `session_id` SHALL be optional (None when not available)
+AND the `ctx` SHALL serialize as a nested JSON object
+
+#### Scenario: Session ID lifecycle
+
+WHEN a CLI command emits an audit event
+THEN it SHALL read the session ID from `{ito_path}/.state/audit/.session` if it exists
+AND if the file does not exist, it SHALL generate a new UUID v4, write it to `.session`, and use it
+AND the `.session` file SHALL be gitignored (it is process-local, not project history)
+AND all events within a single CLI invocation SHALL share the same session ID
+
+#### Scenario: Git context resolution
+
+WHEN `EventContext` is resolved
+THEN git context fields (branch, worktree, commit) SHALL be captured once per CLI invocation and cached
+AND resolution failures (e.g., no git repository, detached HEAD) SHALL result in None values, not errors
+AND git context resolution SHALL NOT block or slow down the primary operation
 
 #### Scenario: Event serialization
 

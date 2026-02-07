@@ -91,6 +91,95 @@ The reconcile engine checks these specific drift cases:
 
 Planning state and config mutations are NOT reconciled (they are append-only or replacement operations where drift detection is impractical without content hashing).
 
+### D11: Append-only immutability -- no rewriting history
+
+**Decision: The audit log is strictly append-only. Events are never modified, deleted, or rewritten.**
+
+Rationale: This is a true audit log, not a mutable state store. If an event was emitted in error (e.g., a reconciliation recorded the wrong `from` status), the correct response is to append a compensating event that records the correction -- not to edit or remove the original. This preserves the complete history of what happened and when, including mistakes. The materialization function replays all events in order, so the latest compensating event naturally becomes the "current truth."
+
+Practical implications:
+- `ito audit reconcile --fix` appends `Reconciled` events; it never modifies existing lines.
+- There is no `ito audit delete` or `ito audit edit` command.
+- If the JSONL file is corrupted mid-line (e.g., partial write from crash), the reader skips malformed lines and logs a warning. The next successful write appends a valid line after the corruption.
+- Future backends (database, Kafka, etc.) will implement the same append-only contract via the `AuditWriter` trait.
+
+### D12: Integrated validation -- audit checks embedded in existing validation flows
+
+**Options:**
+- A) Standalone validation (`ito audit validate` only, separate from `ito validate`)
+- B) Integrated validation (audit checks woven into `ito validate`, Ralph completion checks, and archive pre-checks, with `ito audit validate` as the standalone entry point)
+
+**Decision: B -- Integrated validation.**
+
+Rationale: The user already asks LLMs to validate changes rigorously via `ito validate`, Ralph completion loops, and pre-archive checks. Adding a separate audit validation step that agents must remember to call creates a gap. Instead, audit event validation should run as part of the existing validation surfaces:
+
+1. **`ito validate --changes`** (existing command): When validating a change, also validate that audit events for that change are structurally sound and that materialized state matches file-on-disk state. Uses the same `ValidationIssue` / `ValidationReport` infrastructure.
+2. **Ralph completion validation** (automated loop): After checking task completion and running project validation, also check audit event consistency for the change being completed. If drift is detected, the failure is injected into the next Ralph iteration prompt.
+3. **`ito archive` pre-check** (archive gate): Before archiving a change, verify audit events are consistent. Warn and prompt if drift exists.
+4. **`ito audit validate`** (standalone): Remains available for explicit full-log validation, CI pipelines, and deep structural checks that don't belong in the change-scoped flows above.
+
+This means agents get audit validation "for free" when they run `ito validate` -- they don't need to know about the audit system to benefit from it.
+
+### D13: Live stream command with worktree awareness
+
+**Decision: Add `ito audit stream` for real-time event monitoring across worktrees.**
+
+The stream command tails the audit event file(s) and displays new events as they're appended, similar to `tail -f` but with structured formatting.
+
+**Worktree awareness**: When a project uses `git worktree`, each worktree has its own `.ito/.state/audit/events.jsonl`. The stream command discovers all worktrees via `git worktree list --porcelain` and monitors all event files simultaneously, interleaving events by timestamp and tagging each with its worktree name/branch.
+
+**Design constraints:**
+- **Stream is informative, not authoritative.** Events from worktrees that are later discarded (branch deleted without merge) will have appeared in the stream but won't exist in the merged mainline log. This is acceptable -- the stream is a live debugging/monitoring aid, not the source of truth.
+- **The JSONL file in each worktree IS the source of truth for that worktree.** Events become part of the canonical project history only when they are merged into the main branch via git.
+- **File watching**: Use `notify` crate (or poll-based fallback) to watch for file modifications. When a watched file grows, read and parse the new lines.
+- **Output format**: Default is human-readable (timestamp, entity, operation, actor, branch/worktree tag). `--json` emits raw JSONL. `--filter` supports entity/scope/op filtering (same as `ito audit log`).
+- **Graceful handling**: If a worktree is removed while streaming, the watcher drops it silently. New worktrees created during streaming are NOT auto-discovered (restart required).
+
+### D14: Session and git context in events
+
+**Decision: Each event carries an `EventContext` struct with session ID, git branch, worktree path, and HEAD commit hash.**
+
+The context is captured at event-write time and stored in a `ctx` field on `AuditEvent`. This enables tracing events back to their originating session, branch, and commit range without bloating the core event fields.
+
+**Session ID strategy:**
+- Ito generates a session ID (UUID v4) once per CLI process group. The first CLI command in a session generates the ID and writes it to `{ito_path}/.state/audit/.session`. Subsequent commands in the same logical session reuse it.
+- If a harness session ID is available (e.g., via `$ITO_HARNESS_SESSION_ID` env var or `$CLAUDE_SESSION_ID`), it is captured in a separate `harness_session_id` field. This enables correlation between audit events and the LLM session that triggered them.
+- If no harness session ID is available, the field is `None` -- no degradation occurs.
+
+**Git context fields (all optional, best-effort):**
+- `branch` -- Current branch name from `git symbolic-ref --short HEAD` (None if detached)
+- `worktree` -- Worktree name/path if not the main worktree (None if main)
+- `commit` -- HEAD commit hash (short, 8 chars) from `git rev-parse --short HEAD`
+
+**Design rationale:**
+- All context fields are `Option<String>` to handle edge cases (detached HEAD, bare repos, no git).
+- Context is captured once per CLI invocation and reused for all events in that invocation (not re-resolved per event).
+- The `ctx` field is a nested JSON object, keeping the top-level event schema flat and clean.
+- The session file (`.state/audit/.session`) is gitignored -- it's process-local state, not project history.
+
+**Example event with context:**
+```json
+{
+  "v": 1,
+  "ts": "2026-02-07T14:30:00Z",
+  "entity": "task",
+  "entity_id": "2.1",
+  "scope": "009-02_event-sourced-audit-log",
+  "op": "status_change",
+  "from": "pending",
+  "to": "in-progress",
+  "actor": "cli",
+  "by": "@jack",
+  "ctx": {
+    "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "harness_session_id": "ses_abc123",
+    "branch": "feat/audit-log",
+    "worktree": "audit-log",
+    "commit": "3a7f2b1c"
+  }
+}
+```
+
 ## Crate Architecture
 
 ```

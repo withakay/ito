@@ -32,3 +32,8 @@ pub mod tasks;
 
 /// Workflow models and execution helpers.
 pub mod workflow;
+
+/// Serde schema types for workflow definitions, plans, and execution state.
+///
+/// Re-exported from the former `ito-schemas` crate.
+pub mod schemas;

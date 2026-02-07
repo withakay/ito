@@ -18,11 +18,12 @@ Coverage target: 80%.
 - **Dependencies**: None
 - **Action**:
   Create `ito-rs/crates/ito-domain/src/audit/` module with:
-  - `AuditEvent` struct: v (u32), op (AuditOperation), entity_type (String), entity_id (String), change_id (Option<String>), ts (DateTime<Utc>), actor (AuditActor), data (serde_json::Value)
+  - `AuditEvent` struct: v (u32), op (AuditOperation), entity_type (String), entity_id (String), change_id (Option<String>), ts (DateTime<Utc>), actor (AuditActor), data (serde_json::Value), ctx (EventContext)
   - `AuditOperation` enum: TaskStatusChanged, TaskCreated, ChangeCreated, ChangeArchived, ModuleCreated, ModuleUpdated, WaveCompleted, SpecsUpdated, Reconciled
   - `AuditActor` struct: kind (ActorKind enum: Cli/Reconcile/Ralph/Agent), name (Option<String>)
+  - `EventContext` struct: session_id (String), harness_session_id (Option<String>), branch (Option<String>), worktree (Option<String>), commit (Option<String>)
   - Serde Serialize/Deserialize derives with snake_case
-  - Constructor `AuditEvent::new(op, entity_type, entity_id, change_id, actor, data)` that stamps ts=Utc::now() and v=1
+  - Constructor `AuditEvent::new(op, entity_type, entity_id, change_id, actor, data, ctx)` that stamps ts=Utc::now() and v=1
   - Re-export from audit/mod.rs
 - **Verify**: `cargo test -p ito-domain --lib audit`
 - **Done When**: AuditEvent serializes to/from JSON matching the spec schema; all fields present
@@ -74,7 +75,22 @@ Coverage target: 80%.
 - **Updated At**: 2026-02-06
 - **Status**: [ ] pending
 
-## Wave 2: Core Infrastructure (Writer, File I/O)
+### Task 1.5: Implement EventContext resolution logic in ito-domain
+- **Files**: `ito-rs/crates/ito-domain/src/audit/context.rs`
+- **Dependencies**: 1.1
+- **Action**:
+  Implement `EventContext` resolution:
+  - `resolve_session_id(ito_path: &Path) -> String`: checks for `.ito/.state/audit/.session` file; if exists and not stale (created within current process group), returns its UUID; otherwise generates new UUID v4, writes to `.session`, returns it. The `.session` file is gitignored.
+  - `resolve_harness_session_id() -> Option<String>`: checks env vars `CLAUDE_SESSION_ID`, `OPENCODE_SESSION_ID`, `CODEX_SESSION_ID`, `ITO_SESSION_ID` in priority order. Returns first found.
+  - `resolve_git_context() -> GitContext { branch, worktree, commit }`: runs `git rev-parse --abbrev-ref HEAD`, `git rev-parse --show-toplevel`, `git rev-parse --short HEAD`. Returns None for each field that fails.
+  - `EventContext::resolve(ito_path: &Path) -> EventContext`: composes all of the above into a single context struct.
+  Session ID persists across CLI invocations within the same work session. Harness session ID is captured opportunistically.
+- **Verify**: `cargo test -p ito-domain --lib audit::context`
+- **Done When**: EventContext populates session_id (always), harness_session_id (when env available), and git fields (when in a git repo)
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+## Wave 2: Core Infrastructure (Writer, File I/O, Worktree Discovery)
 - **Depends On**: Wave 1
 
 ### Task 2.1: Implement JsonlAuditWriter in ito-core
@@ -87,10 +103,12 @@ Coverage target: 80%.
   - `write_event` serializes event to JSON + newline, appends to file using `OpenOptions::new().create(true).append(true)`
   - Creates parent directories if they don't exist
   - Best-effort: returns Ok even if write fails (logs warning via tracing, never panics)
+  - The log is strictly append-only: no truncation, rewriting, or deletion is ever performed
+  - Reconciliation fixes are appended as new compensating events (op: Reconciled), never by editing prior entries
   - Add `read_events(path: &Path) -> Result<Vec<AuditEvent>>` standalone function that reads and parses JSONL, skipping malformed lines with warnings
 - **Verify**: `cargo test -p ito-core --lib audit`
-- **Done When**: Events are appended to JSONL file atomically; reading back produces same events; malformed lines are skipped
-- **Updated At**: 2026-02-06
+- **Done When**: Events are appended to JSONL file atomically; reading back produces same events; malformed lines are skipped; no code path exists that truncates or overwrites the file
+- **Updated At**: 2026-02-07
 - **Status**: [ ] pending
 
 ### Task 2.2: Implement FileState builder from existing repositories
@@ -117,11 +135,28 @@ Coverage target: 80%.
   2. Materializes audit state
   3. Builds file state (scoped to change_id if provided)
   4. Computes drift
-  5. If `fix=true`, generates reconciliation events and appends them to the log
+  5. If `fix=true`, generates Reconciled events and APPENDS them to the log (never modifies existing entries)
   6. Returns `ReconcileReport { drifts, events_written, scoped_to }`
+  Reconciliation is always additive: drift is corrected by appending compensating events, not by rewriting history.
 - **Verify**: `cargo test -p ito-core --lib audit::reconcile`
-- **Done When**: Full round-trip: emit events, manually change files, reconcile detects and fixes drift
-- **Updated At**: 2026-02-06
+- **Done When**: Full round-trip: emit events, manually change files, reconcile detects and fixes drift by appending new events
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+### Task 2.4: Implement worktree discovery for audit event aggregation
+- **Files**: `ito-rs/crates/ito-core/src/audit/worktree.rs`
+- **Dependencies**: None
+- **Action**:
+  Implement `discover_worktrees(ito_path: &Path) -> Result<Vec<WorktreeInfo>>` that:
+  - Calls `git worktree list --porcelain` to enumerate all worktrees for the repository
+  - For each worktree, resolves the `.ito/.state/audit/events.jsonl` path
+  - Returns `Vec<WorktreeInfo>` with worktree path, branch name, and events.jsonl path
+  - Filters to only worktrees where events.jsonl exists
+  Also implement `aggregate_worktree_events(worktrees: &[WorktreeInfo]) -> Result<Vec<(WorktreeInfo, Vec<AuditEvent>)>>` that reads events from all worktree event files and returns them grouped by worktree.
+  Note: worktree events are informational (for streaming/monitoring). The source of truth is always the events that get merged into the main branch.
+- **Verify**: `cargo test -p ito-core --lib audit::worktree`
+- **Done When**: Discovers all git worktrees, resolves their event files, reads and aggregates events across worktrees
+- **Updated At**: 2026-02-07
 - **Status**: [ ] pending
 
 ## Wave 3: CLI Integration (Emit Events from Commands)
@@ -180,10 +215,70 @@ Coverage target: 80%.
   - `ito audit log [--change <id>] [--last N] [--json]`: display recent events, optionally filtered
   - `ito audit reconcile [change_id] [--fix] [--json]`: run reconciliation, show drifts, optionally fix
   - `ito audit validate [--json]`: validate JSONL integrity (parseable, monotonic timestamps, known ops)
+  - `ito audit stream [--worktrees] [--json]`: live tail of events.jsonl with optional worktree aggregation
   Register in CLI arg parser.
 - **Verify**: `cargo test -p ito-cli -- audit`
-- **Done When**: All three subcommands work; `--json` outputs structured JSON; `--fix` emits reconciliation events
-- **Updated At**: 2026-02-06
+- **Done When**: All four subcommands work; `--json` outputs structured JSON; `--fix` emits reconciliation events; `stream` tails new events in real-time
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+### Task 3.5: Integrate audit validation into `ito validate --changes`
+- **Files**: `ito-rs/crates/ito-cli/src/app/validate.rs`, `ito-rs/crates/ito-core/src/validate/mod.rs`
+- **Dependencies**: 3.1
+- **Action**:
+  Add `validate_change_audit(ito_path, change_id) -> Vec<ValidationIssue>` to `ito-core::validate`:
+  - Reads events.jsonl, filters to change scope
+  - Materializes expected state from events, compares to file state
+  - Produces ValidationIssue items for: missing events (entity in file with no events), diverged state (event log disagrees with file), structural issues (unparseable events, unknown ops)
+  - Uses existing `ValidationIssue` / `ReportBuilder` infrastructure
+  Wire into `handle_validate()` in app/validate.rs so that when `--changes` is specified, audit issues are merged into the same validation report. Agents running `ito validate` get audit validation for free.
+- **Verify**: `cargo test -p ito-core --lib validate && cargo test -p ito-cli -- validate`
+- **Done When**: `ito validate --changes` reports audit drift alongside spec/task issues in a single report
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+### Task 3.6: Integrate audit validation into Ralph completion loop
+- **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`, `ito-rs/crates/ito-core/src/ralph/runner.rs`
+- **Dependencies**: 3.5
+- **Action**:
+  Add `check_audit_consistency(ito_path, change_id) -> ValidationResult` to `ralph::validation`:
+  - Reuses the core `validate_change_audit` logic from the validate module
+  - Returns ValidationResult with success/failure and diagnostic message
+  Wire into `validate_completion()` in runner.rs as a 4th validation step (after task completion, project validation, extra command). If audit drift is detected, the failure message is injected into the next iteration prompt, same as other validation failures.
+- **Verify**: `cargo test -p ito-core --lib ralph`
+- **Done When**: Ralph refuses to accept COMPLETE if audit events diverge from file state; drift message appears in next prompt
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+### Task 3.7: Integrate audit validation into `ito archive` pre-check
+- **Files**: `ito-rs/crates/ito-cli/src/app/archive.rs`
+- **Dependencies**: 3.5
+- **Action**:
+  After the existing task completion check in `handle_archive()`, add an audit consistency check:
+  - Call `validate_change_audit(ito_path, change_id)`
+  - If issues exist, warn user with summary and prompt for confirmation (same pattern as incomplete tasks)
+  - If `--no-validate` is passed, skip audit validation too
+  - On archive success, emit `change.archive` audit event (from task 3.3)
+- **Verify**: `cargo test -p ito-cli -- archive`
+- **Done When**: `ito archive` warns about audit drift before proceeding; `--no-validate` skips the check
+- **Updated At**: 2026-02-07
+- **Status**: [ ] pending
+
+### Task 3.8: Implement live event streaming with worktree support
+- **Files**: `ito-rs/crates/ito-core/src/audit/stream.rs`
+- **Dependencies**: 2.4, 3.4
+- **Action**:
+  Implement `stream_events(ito_path, include_worktrees, tx: Sender<TaggedAuditEvent>)`:
+  - Uses `notify` crate (or polling fallback) to watch events.jsonl for appends
+  - Tracks file offset; on change notification, seeks to last offset, reads new lines, parses, sends via channel
+  - If `include_worktrees`, discovers all worktrees and watches their event files too
+  - `TaggedAuditEvent` includes source worktree path so consumer can distinguish origins
+  - Events from multiple worktrees are interleaved by arrival time (not sorted by ts)
+  - Stream is informative only: events from discarded worktree branches will appear but won't exist in merged history
+  - Graceful handling: if a worktree disappears mid-stream, log warning and stop watching that file
+- **Verify**: `cargo test -p ito-core --lib audit::stream`
+- **Done When**: New events appended to events.jsonl appear on the stream; worktree events are interleaved; stream recovers from file rotation
+- **Updated At**: 2026-02-07
 - **Status**: [ ] pending
 
 ## Wave 4: Agent Instructions and Template Updates
