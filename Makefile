@@ -7,7 +7,7 @@ RUST_WARNINGS_AS_ERRORS ?= -D warnings
 .PHONY: \
 	init \
 	build test test-watch test-coverage lint check check-max-lines clean help \
-	arch-guardrails \
+	arch-guardrails cargo-deny \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
@@ -62,6 +62,11 @@ init: ## Initialize development environment (check rust, install prek hooks)
 		echo "  ✓ cargo-llvm-cov (test coverage)"; \
 	else \
 		echo "  ○ cargo-llvm-cov: cargo install cargo-llvm-cov"; \
+	fi; \
+	if cargo deny --version >/dev/null 2>&1; then \
+		echo "  ✓ cargo-deny (license/advisory checks)"; \
+	else \
+		echo "  ○ cargo-deny: cargo install cargo-deny"; \
 	fi; \
 	if cargo watch --version >/dev/null 2>&1; then \
 		echo "  ✓ cargo-watch (test watch mode)"; \
@@ -123,6 +128,16 @@ check-max-lines: ## Fail if Rust files exceed 1000 lines (override MAX_RUST_FILE
 
 arch-guardrails: ## Run architecture guardrail checks
 	python3 "ito-rs/tools/arch_guardrails.py"
+
+cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
+	@set -e; \
+	if cargo deny --version >/dev/null 2>&1; then \
+		cargo deny --manifest-path ito-rs/Cargo.toml check; \
+	else \
+		echo "cargo-deny is not installed."; \
+		echo "Install: cargo install cargo-deny"; \
+		exit 1; \
+	fi
 
 release: ## Trigger Release Please workflow (creates/updates release PR)
 	@set -e; \

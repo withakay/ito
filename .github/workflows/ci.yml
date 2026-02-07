@@ -91,6 +91,12 @@ jobs:
       - name: Run architecture guardrails
         run: make arch-guardrails
 
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Run cargo-deny (license/advisory checks)
+        run: cargo deny --manifest-path ito-rs/Cargo.toml check
+
   required-checks-pr:
     name: All checks passed
     runs-on: ubuntu-latest
