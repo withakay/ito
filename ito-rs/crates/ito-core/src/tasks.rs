@@ -575,6 +575,17 @@ pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<
         .ok_or_else(|| CoreError::not_found(format!("Task \"{task_id}\" not found")))
 }
 
+/// Read the raw markdown contents of a change's tasks.md file.
+pub fn read_tasks_markdown(ito_path: &Path, change_id: &str) -> CoreResult<String> {
+    let path = tasks_path(ito_path, change_id);
+    ito_common::io::read_to_string(&path).map_err(|e| {
+        CoreError::io(
+            format!("reading tasks.md for \"{change_id}\""),
+            std::io::Error::other(e),
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;

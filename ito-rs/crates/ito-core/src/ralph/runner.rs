@@ -1,5 +1,6 @@
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::harness::{Harness, HarnessName};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
 use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
@@ -14,7 +15,6 @@ use ito_domain::changes::{
 };
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 use ito_domain::tasks::TaskRepository as DomainTaskRepository;
-use ito_harness::{Harness, HarnessName};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -346,7 +346,7 @@ pub fn run_ralph(
 
         let started = std::time::Instant::now();
         let run = harness
-            .run(&ito_harness::HarnessRunConfig {
+            .run(&crate::harness::HarnessRunConfig {
                 prompt,
                 model: opts.model.clone(),
                 cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),

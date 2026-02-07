@@ -22,8 +22,7 @@ ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-domain = { workspace = true }
 ito-templates = { workspace = true }
-ito-harness = { workspace = true }
-ito-schemas = { workspace = true }
+miette = { workspace = true }
 
 [dev-dependencies]
 miette = { workspace = true }

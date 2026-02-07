@@ -1,10 +1,10 @@
 use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
-use ito_common::paths as core_paths;
 use ito_core::DomainTaskRepository;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
+use ito_core::paths as core_paths;
 use ito_core::task_repository::TaskRepository;
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {

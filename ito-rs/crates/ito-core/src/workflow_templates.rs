@@ -3,10 +3,10 @@
 //! This module owns the filesystem operations for the workflow subsystem.
 //! Pure helpers (path builders, parsing, counting) remain in `ito_domain::workflow`.
 
+use ito_domain::schemas::WorkflowDefinition;
 use ito_domain::workflow::{
     commands_dir, parse_workflow, workflow_file_path, workflow_state_dir, workflows_dir,
 };
-use ito_schemas::WorkflowDefinition;
 use std::path::Path;
 
 /// Initialize the default workflow structure and template workflows.

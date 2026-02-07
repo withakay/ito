@@ -8,7 +8,6 @@ description = "Domain models and repositories for Ito"
 
 [dependencies]
 ito-common = { workspace = true }
-ito-schemas = { workspace = true }
 
 chrono.workspace = true
 regex.workspace = true

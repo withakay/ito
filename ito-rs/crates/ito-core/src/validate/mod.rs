@@ -337,3 +337,39 @@ fn extract_section(markdown: &str, header: &str) -> String {
     }
     out
 }
+
+/// Validate a change's tasks.md file and return any issues found.
+pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
+    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file, tasks_path};
+
+    let path = tasks_path(ito_path, change_id);
+    let report_path = format!("changes/{change_id}/tasks.md");
+
+    let contents = match ito_common::io::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            return Ok(vec![error(
+                &report_path,
+                format!("Failed to read {report_path}: {e}"),
+            )]);
+        }
+    };
+
+    let parsed = parse_tasks_tracking_file(&contents);
+    let mut issues = Vec::new();
+    for d in &parsed.diagnostics {
+        let level = match d.level {
+            DiagnosticLevel::Error => LEVEL_ERROR,
+            DiagnosticLevel::Warning => LEVEL_WARNING,
+        };
+        issues.push(ValidationIssue {
+            path: report_path.clone(),
+            level: level.to_string(),
+            message: d.message.clone(),
+            line: d.line.map(|l| l as u32),
+            column: None,
+            metadata: None,
+        });
+    }
+    Ok(issues)
+}

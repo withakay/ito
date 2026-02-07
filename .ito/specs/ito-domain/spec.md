@@ -8,11 +8,11 @@ Define the `ito-domain` capability: domain models, repositories, and discovery A
 
 ### Requirement: ito-domain crate dependencies
 
-The `ito-domain` crate SHALL depend on `ito-common` and `ito-schemas` only. It SHALL NOT depend on `ito-core`, `ito-config`, or CLI crates.
+The `ito-domain` crate SHALL depend on `ito-common` only. It SHALL NOT depend on `ito-core`, `ito-config`, or CLI crates. The `schemas` module (previously the `ito-schemas` crate) is now part of `ito-domain`.
 
-#### Scenario: Crate depends on ito-common and ito-schemas
+#### Scenario: Crate depends on ito-common only
 - **WHEN** examining `ito-domain/Cargo.toml`
-- **THEN** the only `ito-*` dependencies are `ito-common` and `ito-schemas`
+- **THEN** the only `ito-*` dependency is `ito-common`
 
 
 ### Requirement: Discovery module in ito-domain

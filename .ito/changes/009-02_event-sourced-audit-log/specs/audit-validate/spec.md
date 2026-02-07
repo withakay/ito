@@ -78,6 +78,54 @@ THEN warnings SHALL be treated as errors
 AND the command SHALL exit with non-zero status if any warnings or errors are found
 AND this mode is suitable for CI integration
 
+### Requirement: Integrated validation
+
+Audit event validation SHALL be embedded into existing validation flows so agents get audit checks automatically.
+
+#### Scenario: `ito validate --changes` integration
+
+WHEN `ito validate --changes` validates a change
+THEN it SHALL also validate audit events scoped to that change
+AND audit issues SHALL appear in the same `ValidationReport` alongside task and spec issues
+AND audit issues SHALL use the same `ValidationIssue` severity levels (error, warning, info)
+
+#### Scenario: Ralph completion validation
+
+WHEN the Ralph automation loop validates completion of a change
+THEN it SHALL check audit event consistency for that change
+AND audit drift (materialized state != file state) SHALL be reported as a validation failure
+AND the failure SHALL be injected into the next iteration prompt (same as existing task/project validation failures)
+
+#### Scenario: Archive pre-check
+
+WHEN `ito archive` runs its pre-archive validation
+THEN it SHALL check audit event consistency for the change being archived
+AND if drift is detected, it SHALL warn the user and prompt for confirmation (unless `--no-validate` is passed)
+AND the user MAY run `ito audit reconcile --change <id> --fix` to resolve drift before retrying
+
+#### Scenario: Standalone validation remains available
+
+WHEN `ito audit validate` is invoked directly
+THEN it SHALL run full structural + semantic + state consistency checks on the entire log
+AND this mode SHALL be suitable for CI pipelines and deep diagnostics beyond change-scoped flows
+
+### Requirement: Append-only immutability
+
+The audit log SHALL be strictly append-only. Validation and reconciliation SHALL never modify or delete existing events.
+
+#### Scenario: Reconciliation appends only
+
+WHEN `ito audit reconcile --fix` detects drift
+THEN it SHALL append compensating `Reconciled` events to the log
+AND it SHALL NOT modify or delete any existing events
+AND it SHALL NOT rewrite the JSONL file
+
+#### Scenario: No deletion commands
+
+WHEN a user or agent interacts with the audit system
+THEN there SHALL be no command to delete, edit, or truncate audit events
+AND the only way to correct an incorrect event is to append a compensating event
+
 ### Requirement: Validation output
 
 The validator SHALL provide clear, actionable output.

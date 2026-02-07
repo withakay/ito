@@ -5,9 +5,7 @@ members = [
   "crates/ito-config",
   "crates/ito-core",
   "crates/ito-domain",
-  "crates/ito-harness",
   "crates/ito-logging",
-  "crates/ito-schemas",
   "crates/ito-templates",
   "crates/ito-test-support",
   "crates/ito-web",
@@ -26,9 +24,7 @@ ito-common = { path = "crates/ito-common", version = "0.1.0" }
 ito-config = { path = "crates/ito-config", version = "0.1.0" }
 ito-core = { path = "crates/ito-core", version = "0.1.0" }
 ito-domain = { path = "crates/ito-domain", version = "0.1.0" }
-ito-harness = { path = "crates/ito-harness", version = "0.1.0" }
 ito-logging = { path = "crates/ito-logging", version = "0.1.0" }
-ito-schemas = { path = "crates/ito-schemas", version = "0.1.0" }
 ito-templates = { path = "crates/ito-templates", version = "0.1.0" }
 ito-web = { path = "crates/ito-web", version = "0.1.0" }
 

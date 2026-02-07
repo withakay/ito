@@ -58,12 +58,12 @@ pub(crate) fn handle_workflow_clap(rt: &Runtime, args: &WorkflowArgs) -> CliResu
             let wf = wf_io::load_workflow(ito_path, &workflow_name)
                 .map_err(|e| CliError::msg(format!("Invalid workflow: {e}")))?;
 
-            fn agent_label(a: &ito_schemas::AgentType) -> &'static str {
+            fn agent_label(a: &ito_core::schemas::AgentType) -> &'static str {
                 match a {
-                    ito_schemas::AgentType::Research => "research",
-                    ito_schemas::AgentType::Execution => "execution",
-                    ito_schemas::AgentType::Review => "review",
-                    ito_schemas::AgentType::Planning => "planning",
+                    ito_core::schemas::AgentType::Research => "research",
+                    ito_core::schemas::AgentType::Execution => "execution",
+                    ito_core::schemas::AgentType::Review => "review",
+                    ito_core::schemas::AgentType::Planning => "planning",
                 }
             }
 

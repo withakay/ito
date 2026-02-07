@@ -2,11 +2,9 @@ use crate::cli::{ValidateArgs, ValidateCommand, ValidateItemType};
 use crate::cli_error::{CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_common::match_::nearest_matches;
-use ito_common::paths as core_paths;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
-use ito_core::tasks::{DiagnosticLevel, parse_tasks_tracking_file, tasks_path};
+use ito_core::nearest_matches;
 use ito_core::validate as core_validate;
 use std::path::Path;
 
@@ -91,7 +89,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }
 
                 // Preserve the legacy module existence check for dirs that might not be parsed.
-                if let Ok(p) = ito_common::id::parse_change_id(&dir_name)
+                if let Ok(p) = ito_core::parse_change_id(&dir_name)
                     && !module_ids.contains(p.module_id.as_str())
                 {
                     issues.push(core_validate::error(
@@ -300,8 +298,8 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     match resolved_type.as_str() {
         "spec" => {
-            let spec_path = core_paths::spec_markdown_path(ito_path, &item);
-            if !spec_path.exists() {
+            let report = validate_spec_by_id_or_enoent(ito_path, &item, strict);
+            if !report.valid && report.issues.iter().any(|i| i.message.contains("ENOENT")) {
                 let candidates = super::common::list_spec_ids(rt);
                 let suggestions = nearest_matches(&item, &candidates, 5);
                 return fail(super::common::unknown_with_suggestions(
@@ -310,8 +308,6 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     &suggestions,
                 ));
             }
-            let report =
-                core_validate::validate_spec(ito_path, &item, strict).map_err(to_cli_error)?;
             let ok = render_validate_result("spec", &item, report, want_json);
             if !ok {
                 return silent_fail();
@@ -359,46 +355,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 }
 
 fn validate_tasks_file(ito_path: &Path, change_id: &str) -> Vec<core_validate::ValidationIssue> {
-    let path = tasks_path(ito_path, change_id);
-    if !path.exists() {
-        return Vec::new();
-    }
-
-    let report_path = format!(".ito/changes/{change_id}/tasks.md");
-
-    let contents = match ito_common::io::read_to_string(&path) {
-        Ok(c) => c,
-        Err(e) => {
-            return vec![core_validate::error(
-                &report_path,
-                format!("Failed to read {report_path}: {e}"),
-            )];
-        }
-    };
-
-    let parsed = parse_tasks_tracking_file(&contents);
-    let mut issues = Vec::new();
-    for d in parsed.diagnostics {
-        let mut issue = match d.level {
-            DiagnosticLevel::Error => core_validate::error(&report_path, d.message),
-            DiagnosticLevel::Warning => core_validate::warning(&report_path, d.message),
-        };
-        if let Some(line) = d.line {
-            issue = core_validate::with_line(issue, line as u32);
-        }
-
-        if let Some(task_id) = d.task_id {
-            issue = core_validate::with_metadata(
-                issue,
-                serde_json::json!({
-                    "taskId": task_id,
-                }),
-            );
-        }
-
-        issues.push(issue);
-    }
-    issues
+    core_validate::validate_tasks_file(ito_path, change_id).unwrap_or_default()
 }
 
 pub(crate) fn handle_validate_clap(rt: &Runtime, args: &ValidateArgs) -> CliResult<()> {
@@ -480,9 +437,8 @@ fn validate_spec_by_id_or_enoent(
     spec_id: &str,
     strict: bool,
 ) -> core_validate::ValidationReport {
-    let path = core_paths::spec_markdown_path(ito_path, spec_id);
-    match ito_common::io::read_to_string_std(&path) {
-        Ok(md) => core_validate::validate_spec_markdown(&md, strict),
+    match core_validate::validate_spec(ito_path, spec_id, strict) {
+        Ok(report) => report,
         Err(e) => core_validate::ValidationReport::new(
             vec![core_validate::error("file", format!("ENOENT: {e}"))],
             strict,

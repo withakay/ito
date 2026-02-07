@@ -12,10 +12,7 @@ The workspace MUST include crate directories for the supported Rust workspace cr
 - **AND** `ito-config` MUST exist
 - **AND** `ito-core` MUST exist
 - **AND** `ito-domain` MUST exist
-- **AND** `ito-harness` MUST exist
 - **AND** `ito-logging` MUST exist
-- **AND** `ito-models` MUST exist
-- **AND** `ito-schemas` MUST exist
 - **AND** `ito-templates` MUST exist
 - **AND** `ito-test-support` MUST exist
 - **AND** `ito-web` MUST exist
@@ -28,4 +25,4 @@ The repository MUST include a Cargo workspace at `ito-rs/` with the agreed crate
 
 - **WHEN** a developer lists `ito-rs/`
 - **THEN** it contains a workspace `Cargo.toml` and `crates/`
-- **AND** the crates include `ito-cli`, `ito-common`, `ito-config`, `ito-core`, `ito-domain`, `ito-harness`, `ito-logging`, `ito-models`, `ito-schemas`, `ito-templates`, `ito-test-support`, `ito-web`
+- **AND** the crates include `ito-cli`, `ito-common`, `ito-config`, `ito-core`, `ito-domain`, `ito-logging`, `ito-templates`, `ito-test-support`, `ito-web`

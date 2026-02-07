@@ -1,8 +1,7 @@
 use crate::cli::{StateAction, StateArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
-use ito_core::domain::state as wf_state;
-use ito_core::time as wf_time;
+use ito_core::state::{self, StateAction as CoreStateAction};
 
 pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -23,8 +22,7 @@ pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()>
     }
 
     if matches!(action, StateAction::Show) {
-        let contents = ito_common::io::read_to_string(&state_path)
-            .map_err(|_| CliError::msg("Failed to read STATE.md"))?;
+        let contents = state::read_state(ito_path).map_err(to_cli_error)?;
         print!("{contents}");
         return Ok(());
     }
@@ -38,28 +36,16 @@ pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()>
         | StateAction::Question { text } => text.join(" "),
     };
 
-    let contents = ito_common::io::read_to_string(&state_path)
-        .map_err(|_| CliError::msg("Failed to read STATE.md"))?;
-    let date = wf_time::now_date();
-
-    let updated = match action {
-        StateAction::Show => Ok(contents),
-        StateAction::Decision { .. } => wf_state::add_decision(&contents, &date, &text),
-        StateAction::Blocker { .. } => wf_state::add_blocker(&contents, &date, &text),
-        StateAction::Question { .. } => wf_state::add_question(&contents, &date, &text),
-        StateAction::Focus { .. } => wf_state::set_focus(&contents, &date, &text),
-        StateAction::Note { .. } => {
-            let time = wf_time::now_time();
-            wf_state::add_note(&contents, &date, &time, &text)
-        }
+    let core_action = match action {
+        StateAction::Show => unreachable!("handled above"),
+        StateAction::Decision { .. } => CoreStateAction::AddDecision { text: text.clone() },
+        StateAction::Blocker { .. } => CoreStateAction::AddBlocker { text: text.clone() },
+        StateAction::Question { .. } => CoreStateAction::AddQuestion { text: text.clone() },
+        StateAction::Focus { .. } => CoreStateAction::SetFocus { text: text.clone() },
+        StateAction::Note { .. } => CoreStateAction::AddNote { text: text.clone() },
     };
 
-    let updated = match updated {
-        Ok(v) => v,
-        Err(e) => return Err(CliError::msg(e)),
-    };
-
-    ito_common::io::write(&state_path, updated.as_bytes()).map_err(to_cli_error)?;
+    state::update_state(ito_path, core_action).map_err(to_cli_error)?;
 
     match action {
         StateAction::Show => {}

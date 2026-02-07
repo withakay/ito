@@ -94,3 +94,49 @@ WHEN `ito audit stats [--change <id>]` is invoked
 THEN it SHALL display: total events, events by entity type, events by operation, events by actor
 AND optionally scoped to a specific change
 AND `--json` SHALL produce structured JSON output
+
+### Requirement: Live event streaming
+
+The CLI SHALL provide a command to tail audit events in real-time across all worktrees.
+
+#### Scenario: Basic stream
+
+WHEN `ito audit stream` is invoked
+THEN it SHALL tail the local audit event file and display new events as they are appended
+AND events SHALL be displayed with timestamp, entity, entity_id, operation, actor, and worktree/branch tag
+AND the command SHALL run indefinitely until interrupted (Ctrl+C)
+
+#### Scenario: Worktree-aware streaming
+
+WHEN `ito audit stream` is invoked in a project that uses `git worktree`
+THEN it SHALL discover all worktrees via `git worktree list --porcelain`
+AND it SHALL monitor the audit event file in each worktree simultaneously
+AND events from all worktrees SHALL be interleaved by timestamp
+AND each event SHALL be tagged with the worktree name or branch to distinguish sources
+
+#### Scenario: Worktree removal during streaming
+
+WHEN a worktree is removed while `ito audit stream` is running
+THEN the watcher for that worktree SHALL be dropped silently
+AND streaming SHALL continue for remaining worktrees
+AND new worktrees created during streaming SHALL NOT be auto-discovered (restart required)
+
+#### Scenario: Stream filtering
+
+WHEN `ito audit stream --entity <type>` or `--change <id>` or `--op <operation>` is passed
+THEN only events matching the filter criteria SHALL be displayed
+AND filtering SHALL apply across all monitored worktrees
+
+#### Scenario: JSON stream output
+
+WHEN `ito audit stream --json` is invoked
+THEN each event SHALL be emitted as a single JSON line (JSONL format)
+AND this mode is suitable for piping to other tools (e.g., `jq`, log aggregators)
+
+#### Scenario: Stream is informative only
+
+WHEN events from a worktree branch are observed via stream
+AND that branch is later discarded without merging
+THEN those events will have been displayed in the stream
+AND they will NOT exist in the merged mainline audit log
+AND this is expected behavior -- the stream is a live monitoring aid, not the source of truth

@@ -6,7 +6,7 @@
 //! This module provides **pure** path helpers, template content, and parsing
 //! utilities.  Filesystem I/O (init, list, load) lives in `ito-core`.
 
-use ito_schemas::WorkflowDefinition;
+use crate::schemas::WorkflowDefinition;
 use std::path::{Path, PathBuf};
 
 /// Path to the workflows directory (`{ito_path}/workflows`).
