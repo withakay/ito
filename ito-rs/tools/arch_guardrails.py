@@ -22,10 +22,13 @@ REQUIRED_CRATE_EDGES = {
     "ito-web": {"ito-core"},
 }
 
+# Domain purity baseline.  Production code is zero-tolerance; the sole
+# exception is discovery.rs whose 9 std::fs hits are ALL in #[cfg(test)]
+# fixture setup (production paths use the FileSystem trait).
 DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
     "miette::": {},
     "std::fs": {
-        "ito-rs/crates/ito-domain/src/discovery.rs": 9,
+        "ito-rs/crates/ito-domain/src/discovery.rs": 9,  # test-only
     },
     "std::process::Command": {},
 }
