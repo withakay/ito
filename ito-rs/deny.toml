@@ -1,0 +1,73 @@
+# cargo-deny configuration for Ito workspace
+#
+# Enforces license compliance and dependency advisories using standard
+# Rust ecosystem tooling, reducing reliance on bespoke scripts.
+#
+# Install: cargo install cargo-deny
+# Run:     cargo deny --manifest-path ito-rs/Cargo.toml check
+#
+# Migration note (015-13): Dependency *direction* enforcement (onion
+# architecture layers) stays in arch_guardrails.py because cargo-deny
+# cannot enforce intra-workspace crate edges. This config covers
+# license and advisory checks that cargo-deny handles natively.
+
+[graph]
+targets = []
+all-features = true
+no-default-features = false
+
+# ──────────────────────────────────────────────────────────────────────
+# Advisories: deny known-vulnerable or unmaintained crates
+# ──────────────────────────────────────────────────────────────────────
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn"
+unsound = "warn"
+yanked = "warn"
+notice = "warn"
+ignore = []
+
+# ──────────────────────────────────────────────────────────────────────
+# Licenses: allow only OSS-compatible licenses
+# ──────────────────────────────────────────────────────────────────────
+[licenses]
+unlicensed = "deny"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "CC0-1.0",
+    "BSL-1.0",
+    "OpenSSL",
+]
+copyleft = "deny"
+allow-osi-fsf-free = "neither"
+default = "deny"
+confidence-threshold = 0.8
+
+[[licenses.clarify]]
+crate = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+# ──────────────────────────────────────────────────────────────────────
+# Bans: general dependency hygiene
+# ──────────────────────────────────────────────────────────────────────
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+# ──────────────────────────────────────────────────────────────────────
+# Sources: restrict to crates.io
+# ──────────────────────────────────────────────────────────────────────
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
