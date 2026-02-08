@@ -30,7 +30,6 @@ indicatif = { workspace = true }
 ito-core = { workspace = true }
 ito-common = { workspace = true }
 ito-config = { workspace = true }
-ito-domain = { workspace = true }
 ito-logging = { workspace = true }
 ito-templates = { workspace = true }
 ito-web = { workspace = true, optional = true }

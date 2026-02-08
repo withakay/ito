@@ -20,10 +20,10 @@ pub struct EventFilter {
 impl EventFilter {
     /// Check if an event matches this filter.
     fn matches(&self, event: &AuditEvent) -> bool {
-        if let Some(entity) = &self.entity {
-            if event.entity != *entity {
-                return false;
-            }
+        if let Some(entity) = &self.entity
+            && event.entity != *entity
+        {
+            return false;
         }
         if let Some(scope) = &self.scope {
             match &event.scope {
@@ -31,10 +31,10 @@ impl EventFilter {
                 _ => return false,
             }
         }
-        if let Some(op) = &self.op {
-            if event.op != *op {
-                return false;
-            }
+        if let Some(op) = &self.op
+            && event.op != *op
+        {
+            return false;
         }
         true
     }

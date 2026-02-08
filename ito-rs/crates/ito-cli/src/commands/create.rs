@@ -2,8 +2,8 @@ use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
+use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::{create as core_create, workflow as core_workflow};
-use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 use std::path::Path;
 
 fn print_change_created_message(

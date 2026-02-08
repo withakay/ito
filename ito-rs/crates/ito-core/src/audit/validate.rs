@@ -128,19 +128,18 @@ fn check_invalid_status_transitions(events: &[AuditEvent]) -> Vec<AuditIssue> {
         );
 
         // Check if `from` matches the last known status
-        if let Some(from) = &event.from {
-            if let Some(last) = last_status.get(&key) {
-                if last != from {
-                    issues.push(AuditIssue {
-                        level: "warning".to_string(),
-                        message: format!(
-                            "Status transition mismatch for {}/{}: expected from='{}' but event says from='{}'",
-                            event.entity, event.entity_id, last, from
-                        ),
-                        event_index: i,
-                    });
-                }
-            }
+        if let Some(from) = &event.from
+            && let Some(last) = last_status.get(&key)
+            && last != from
+        {
+            issues.push(AuditIssue {
+                level: "warning".to_string(),
+                message: format!(
+                    "Status transition mismatch for {}/{}: expected from='{}' but event says from='{}'",
+                    event.entity, event.entity_id, last, from
+                ),
+                event_index: i,
+            });
         }
 
         // Update the tracked status
