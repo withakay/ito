@@ -1,5 +1,9 @@
 use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use ito_core::ralph::{RalphOptions, run_ralph};
+use ito_domain::changes::{
+    Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
+};
+use ito_domain::errors::DomainResult;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -114,6 +118,7 @@ fn default_opts() -> RalphOptions {
         clear_context: false,
         verbose: false,
         continue_module: false,
+        continue_ready: false,
         inactivity_timeout: None,
         skip_validation: false,
         validation_command: None,
@@ -138,6 +143,124 @@ fn run_ralph_for_test(
         opts,
         harness,
     )
+}
+
+fn run_ralph_for_test_with_change_repo(
+    ito_path: &Path,
+    change_repo: &impl ChangeRepository,
+    opts: RalphOptions,
+    harness: &mut dyn Harness,
+) -> ito_core::errors::CoreResult<()> {
+    let task_repo = ito_core::task_repository::FsTaskRepository::new(ito_path);
+    let module_repo = ito_core::module_repository::FsModuleRepository::new(ito_path);
+    run_ralph(
+        ito_path,
+        change_repo,
+        &task_repo,
+        &module_repo,
+        opts,
+        harness,
+    )
+}
+
+#[derive(Debug, Clone)]
+enum DriftAction {
+    CompleteChange(String),
+    CompleteAll,
+    RemoveSpecs(String),
+}
+
+#[derive(Debug)]
+struct DriftingChangeRepo {
+    ito_path: std::path::PathBuf,
+    action: DriftAction,
+    did_drift: std::sync::Mutex<bool>,
+}
+
+impl DriftingChangeRepo {
+    fn new(ito_path: &Path, action: DriftAction) -> Self {
+        Self {
+            ito_path: ito_path.to_path_buf(),
+            action,
+            did_drift: std::sync::Mutex::new(false),
+        }
+    }
+
+    fn repo(&self) -> ito_core::change_repository::FsChangeRepository<'_> {
+        ito_core::change_repository::FsChangeRepository::new(&self.ito_path)
+    }
+
+    fn maybe_drift(&self) {
+        let Ok(mut did) = self.did_drift.lock() else {
+            return;
+        };
+        if *did {
+            return;
+        }
+        *did = true;
+
+        match &self.action {
+            DriftAction::CompleteChange(change_id) => {
+                write_tasks(&self.ito_path, change_id, "# Tasks\n\n- [x] done\n");
+            }
+            DriftAction::CompleteAll => {
+                let Ok(changes) = self.repo().list() else {
+                    return;
+                };
+                for change in changes {
+                    write_tasks(&self.ito_path, &change.id, "# Tasks\n\n- [x] done\n");
+                }
+            }
+            DriftAction::RemoveSpecs(change_id) => {
+                let specs_dir = self.ito_path.join("changes").join(change_id).join("specs");
+                let _ = std::fs::remove_dir_all(specs_dir);
+            }
+        }
+    }
+}
+
+impl ChangeRepository for DriftingChangeRepo {
+    fn resolve_target_with_options(
+        &self,
+        input: &str,
+        options: ResolveTargetOptions,
+    ) -> ChangeTargetResolution {
+        self.repo().resolve_target_with_options(input, options)
+    }
+
+    fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
+        self.repo().suggest_targets(input, max)
+    }
+
+    fn exists(&self, id: &str) -> bool {
+        self.repo().exists(id)
+    }
+
+    fn get(&self, id: &str) -> DomainResult<Change> {
+        self.repo().get(id)
+    }
+
+    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
+        let out = self.repo().list();
+        self.maybe_drift();
+        out
+    }
+
+    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
+        self.repo().list_by_module(module_id)
+    }
+
+    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
+        self.repo().list_incomplete()
+    }
+
+    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
+        self.repo().list_complete()
+    }
+
+    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
+        self.repo().get_summary(id)
+    }
 }
 
 #[test]
@@ -516,6 +639,49 @@ struct CompletingHarness {
     idx: usize,
 }
 
+fn extract_change_id_from_prompt(prompt: &str) -> Option<String> {
+    let marker = "## Change Proposal (";
+    let start = prompt.find(marker)?;
+    let rest = &prompt[start + marker.len()..];
+    let end = rest.find(')')?;
+    Some(rest[..end].to_string())
+}
+
+#[derive(Debug)]
+struct RecordingCompletingHarness {
+    complete_in_order: Vec<String>,
+    ito_path: std::path::PathBuf,
+    idx: usize,
+    seen_change_ids: Vec<String>,
+}
+
+impl Harness for RecordingCompletingHarness {
+    fn name(&self) -> HarnessName {
+        HarnessName::STUB
+    }
+
+    fn run(&mut self, config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
+        if let Some(change_id) = extract_change_id_from_prompt(&config.prompt) {
+            self.seen_change_ids.push(change_id);
+        }
+
+        if let Some(change_id) = self.complete_in_order.get(self.idx) {
+            write_tasks(&self.ito_path, change_id, "# Tasks\n\n- [x] done\n");
+        }
+        self.idx = self.idx.saturating_add(1);
+
+        Ok(HarnessRunResult {
+            stdout: "<promise>COMPLETE</promise>\n".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration: Duration::from_millis(1),
+            timed_out: false,
+        })
+    }
+
+    fn stop(&mut self) {}
+}
+
 impl Harness for CompletingHarness {
     fn name(&self) -> HarnessName {
         HarnessName::STUB
@@ -566,4 +732,154 @@ fn run_ralph_continue_module_processes_all_ready_changes() {
     assert_eq!(h.idx, 2);
     assert!(ito.join(".state/ralph/006-01_a/state.json").exists());
     assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
+}
+
+#[test]
+fn run_ralph_continue_ready_processes_all_eligible_changes_across_repo() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    // Ready change.
+    write_ready_change(&ito, "006-02_b");
+
+    // In-progress change (eligible under continue-ready).
+    write_fixture_ito(&ito, "007-01_a");
+    write_spec(&ito, "007-01_a");
+    write_tasks(&ito, "007-01_a", "# Tasks\n\n- [>] doing\n");
+
+    let mut h = RecordingCompletingHarness {
+        complete_in_order: vec!["006-02_b".to_string(), "007-01_a".to_string()],
+        ito_path: ito.clone(),
+        idx: 0,
+        seen_change_ids: Vec::new(),
+    };
+
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
+    opts.prompt = String::new();
+
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+
+    assert_eq!(h.idx, 2);
+    assert_eq!(
+        h.seen_change_ids,
+        vec!["006-02_b".to_string(), "007-01_a".to_string()]
+    );
+    assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
+    assert!(ito.join(".state/ralph/007-01_a/state.json").exists());
+}
+
+#[test]
+fn run_ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    // Draft change (missing proposal/specs).
+    write_tasks(&ito, "006-09_fixture", "# Tasks\n\n- [ ] todo\n");
+
+    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.max_iterations = Some(1);
+    opts.prompt = String::new();
+
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("no eligible changes"));
+    assert!(msg.contains("006-09_fixture"));
+}
+
+#[test]
+fn run_ralph_continue_ready_reorients_when_repo_state_shifts() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+    write_ready_change(&ito, "006-02_b");
+
+    let change_repo = DriftingChangeRepo::new(&ito, DriftAction::CompleteChange("006-01_a".into()));
+
+    let mut h = RecordingCompletingHarness {
+        complete_in_order: vec!["006-02_b".to_string()],
+        ito_path: ito.clone(),
+        idx: 0,
+        seen_change_ids: Vec::new(),
+    };
+
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
+    opts.prompt = String::new();
+
+    run_ralph_for_test_with_change_repo(&ito, &change_repo, opts, &mut h).unwrap();
+
+    assert_eq!(h.seen_change_ids, vec!["006-02_b".to_string()]);
+    assert!(!ito.join(".state/ralph/006-01_a/state.json").exists());
+    assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
+}
+
+#[test]
+fn run_ralph_continue_ready_exits_when_repo_becomes_complete_before_preflight() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+
+    let change_repo = DriftingChangeRepo::new(&ito, DriftAction::CompleteAll);
+
+    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.max_iterations = Some(1);
+    opts.prompt = String::new();
+
+    run_ralph_for_test_with_change_repo(&ito, &change_repo, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 0);
+}
+
+#[test]
+fn run_ralph_continue_ready_errors_when_targeting_change_or_module() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+
+    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.change_id = Some("006-01_a".to_string());
+    opts.prompt = String::new();
+
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("--continue-ready"));
+    assert!(msg.contains("--change") || msg.contains("--module"));
+}
+
+#[test]
+fn run_ralph_continue_ready_errors_when_repo_shifts_to_no_eligible_changes() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+
+    let change_repo = DriftingChangeRepo::new(&ito, DriftAction::RemoveSpecs("006-01_a".into()));
+
+    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.prompt = String::new();
+
+    let err = run_ralph_for_test_with_change_repo(&ito, &change_repo, opts, &mut h).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("changed during selection"), "{msg}");
 }

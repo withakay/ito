@@ -122,6 +122,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let interactive = !args.iter().any(|a| a == "--no-interactive");
     let verbose = args.iter().any(|a| a == "--verbose" || a == "-v");
     let continue_module = args.iter().any(|a| a == "--continue-module");
+    let continue_ready = args.iter().any(|a| a == "--continue-ready");
 
     let inactivity_timeout = if let Some(raw) = parse_string_flag(args, "--timeout") {
         match core_ralph::parse_duration(&raw) {
@@ -141,13 +142,14 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if !interactive
         && change_id.is_none()
         && module_id.is_none()
+        && !continue_ready
         && !status
         && add_context.is_none()
         && !clear_context
         && prompt_file.is_none()
     {
         return fail(
-            "Either --change, --module, --status, --add-context, --clear-context, or --file must be specified",
+            "Either --change, --module, --continue-ready, --status, --add-context, --clear-context, or --file must be specified",
         );
     }
 
@@ -209,6 +211,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
         clear_context,
         verbose,
         continue_module,
+        continue_ready,
         inactivity_timeout,
         skip_validation,
         validation_command,
@@ -255,6 +258,9 @@ fn ralph_args_to_argv(args: &RalphArgs) -> Vec<String> {
     }
     if args.continue_module {
         argv.push("--continue-module".to_string());
+    }
+    if args.continue_ready {
+        argv.push("--continue-ready".to_string());
     }
     argv.push("--harness".to_string());
     argv.push(args.harness.clone());

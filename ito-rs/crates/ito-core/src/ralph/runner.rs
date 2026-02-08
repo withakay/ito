@@ -66,6 +66,11 @@ pub struct RalphOptions {
     /// When targeting a module, continue through ready changes until module work is complete.
     pub continue_module: bool,
 
+    /// When set, continuously process eligible changes across the repo.
+    ///
+    /// Eligible changes are those whose derived work status is `Ready` or `InProgress`.
+    pub continue_ready: bool,
+
     /// Inactivity timeout - restart iteration if no output for this duration.
     pub inactivity_timeout: Option<Duration>,
 
@@ -106,6 +111,86 @@ pub fn run_ralph(
     harness: &mut dyn Harness,
 ) -> CoreResult<()> {
     let process_runner = SystemProcessRunner;
+
+    if opts.continue_ready {
+        if opts.continue_module {
+            return Err(CoreError::Validation(
+                "--continue-ready cannot be used with --continue-module".into(),
+            ));
+        }
+        if opts.change_id.is_some() || opts.module_id.is_some() {
+            return Err(CoreError::Validation(
+                "--continue-ready cannot be used with --change or --module".into(),
+            ));
+        }
+        if opts.status || opts.add_context.is_some() || opts.clear_context {
+            return Err(CoreError::Validation(
+                "--continue-ready cannot be combined with --status, --add-context, or --clear-context".into(),
+            ));
+        }
+
+        loop {
+            let current_changes = repo_changes(change_repo)?;
+            let eligible_changes = repo_eligible_change_ids(&current_changes);
+            print_eligible_changes(&eligible_changes);
+
+            if eligible_changes.is_empty() {
+                let incomplete = repo_incomplete_change_ids(&current_changes);
+                if incomplete.is_empty() {
+                    println!("\nAll changes are complete.");
+                    return Ok(());
+                }
+
+                return Err(CoreError::Validation(format!(
+                    "Repository has no eligible changes. Remaining non-complete changes: {}",
+                    incomplete.join(", ")
+                )));
+            }
+
+            let mut next_change = eligible_changes[0].clone();
+
+            let preflight_changes = repo_changes(change_repo)?;
+            let preflight_eligible = repo_eligible_change_ids(&preflight_changes);
+            if preflight_eligible.is_empty() {
+                let incomplete = repo_incomplete_change_ids(&preflight_changes);
+                if incomplete.is_empty() {
+                    println!("\nAll changes are complete.");
+                    return Ok(());
+                }
+                return Err(CoreError::Validation(format!(
+                    "Repository changed during selection and now has no eligible changes. Remaining non-complete changes: {}",
+                    incomplete.join(", ")
+                )));
+            }
+            let preflight_first = preflight_eligible[0].clone();
+            if preflight_first != next_change {
+                println!(
+                    "\nRepository state shifted before start; reorienting from {from} to {to}.",
+                    from = next_change,
+                    to = preflight_first
+                );
+                next_change = preflight_first;
+            }
+
+            println!(
+                "\nStarting change {change} (lowest eligible change id).",
+                change = next_change
+            );
+
+            let mut single_opts = opts.clone();
+            single_opts.continue_ready = false;
+            single_opts.change_id = Some(next_change);
+
+            run_ralph(
+                ito_path,
+                change_repo,
+                task_repo,
+                module_repo,
+                single_opts,
+                harness,
+            )?;
+        }
+    }
 
     if opts.continue_module {
         if opts.change_id.is_some() {
@@ -177,6 +262,7 @@ pub fn run_ralph(
 
             let mut single_opts = opts.clone();
             single_opts.continue_module = false;
+            single_opts.continue_ready = false;
             single_opts.change_id = Some(next_change);
 
             run_ralph(
@@ -492,6 +578,49 @@ fn module_ready_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
         }
     }
     ready_change_ids
+}
+
+fn repo_changes(change_repo: &impl DomainChangeRepository) -> CoreResult<Vec<ChangeSummary>> {
+    change_repo.list().into_core()
+}
+
+fn repo_eligible_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
+    let mut eligible_change_ids = Vec::new();
+    for change in changes {
+        let work_status = change.work_status();
+        if work_status == ChangeWorkStatus::Ready || work_status == ChangeWorkStatus::InProgress {
+            eligible_change_ids.push(change.id.clone());
+        }
+    }
+    eligible_change_ids.sort();
+    eligible_change_ids
+}
+
+fn repo_incomplete_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
+    let mut incomplete_change_ids = Vec::new();
+    for change in changes {
+        if change.work_status() != ChangeWorkStatus::Complete {
+            incomplete_change_ids.push(change.id.clone());
+        }
+    }
+    incomplete_change_ids.sort();
+    incomplete_change_ids
+}
+
+fn print_eligible_changes(eligible_changes: &[String]) {
+    println!("\nEligible changes (ready or in-progress):");
+    if eligible_changes.is_empty() {
+        println!("  (none)");
+        return;
+    }
+
+    for (idx, change_id) in eligible_changes.iter().enumerate() {
+        if idx == 0 {
+            println!("  - {change} (selected first)", change = change_id);
+            continue;
+        }
+        println!("  - {change}", change = change_id);
+    }
 }
 
 fn module_incomplete_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
