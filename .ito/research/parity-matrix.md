@@ -57,6 +57,6 @@ non-interactive mode.
 Paths and notes (from specs and current repo conventions):
 
 - Ito directory: `.ito/` (or user-selected ito dir if supported)
-- OpenCode paths are singular: `.opencode/skill/`, `.opencode/command/`, `.opencode/plugin/`
+- OpenCode paths are plural: `.opencode/skills/`, `.opencode/commands/`, `.opencode/plugins/`
 - GitHub Copilot prompts: `.github/prompts/*.prompt.md` (YAML frontmatter + `$ARGUMENTS`)
 - Codex prompts: `$CODEX_HOME/prompts` or `~/.codex/prompts`
