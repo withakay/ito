@@ -30,6 +30,9 @@ pub mod state;
 /// Task models and task list parsing.
 pub mod tasks;
 
+/// Audit event domain types and pure functions.
+pub mod audit;
+
 /// Workflow models and execution helpers.
 pub mod workflow;
 

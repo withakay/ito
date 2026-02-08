@@ -67,11 +67,18 @@ DOMAIN_API_BASELINE: dict[str, dict[str, int]] = {
     "miette::": {},
     # std::fs — domain must be deterministic.  The 9 hits in discovery.rs
     # are ALL in #[cfg(test)] fixture setup (production uses FileSystem trait).
+    # audit/context.rs uses std::fs for session ID persistence (6 hits), which is
+    # justified as context resolution is inherently tied to EventContext (domain).
     "std::fs": {
         "ito-rs/crates/ito-domain/src/discovery.rs": 9,
+        "ito-rs/crates/ito-domain/src/audit/context.rs": 6,
     },
     # std::process::Command — domain must not spawn processes.
-    "std::process::Command": {},
+    # audit/context.rs uses it to run git commands for context resolution (1 hit),
+    # which is necessary for EventContext which belongs in the domain layer.
+    "std::process::Command": {
+        "ito-rs/crates/ito-domain/src/audit/context.rs": 1,
+    },
 }
 
 
