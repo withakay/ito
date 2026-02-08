@@ -1,55 +1,73 @@
-# Ito Templates Notes
+# ito-templates — Layer 1 (Domain)
 
-This crate owns the files installed by the Rust CLI via `ito init` / `ito update`.
+Embedded assets for `ito init` / `ito update`. Packages default project and home templates, shared skills, adapters, commands, agents, and instruction templates as compile-time embedded assets.
 
-## Where to edit
+For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
 
-- **Shared skills** (installed to all harnesses): `assets/skills/`
-  - General development skills (e.g., `brainstorming/`, `systematic-debugging/`)
-  - Ito workflow skills (e.g., `ito/`, `ito-apply-change-proposal/`)
-  - Skills here are copied to each harness's skills directory at install time
+## Purpose
 
-- **Shared adapters**: `assets/adapters/`
-  - Harness-specific bootstrap files (e.g., `claude/session-start.sh`, `opencode/ito-skills.js`)
+Own the canonical source files for everything `ito init` installs. Templates are compiled into the binary via `include_dir!` so `ito init` works without runtime filesystem dependencies for template content.
 
-- **Project templates**: `assets/default/project/`
-  - Harness-specific commands/prompts: `.opencode/commands/`, `.claude/commands/`, `.github/prompts/`, `.codex/prompts/`
-  - Ito project docs: `.ito/`
+## Key Exports
 
-- **Home templates**: `assets/default/home/` (currently unused by default)
+| Export | Responsibility |
+|---|---|
+| `default_project_files()` | All files from `assets/default/project/` |
+| `default_home_files()` | All files from `assets/default/home/` |
+| `skills_files()` | Shared skills installed to all harnesses |
+| `adapters_files()` | Harness-specific bootstrap files |
+| `commands_files()` | Shared command definitions |
+| `agents` module | Agent template rendering, harness configs, tier definitions |
+| `instructions` module | Instruction artifact template rendering |
+| `normalize_ito_dir()`, `render_rel_path()`, `render_bytes()` | Path/content rewriting for custom Ito directory names |
+| `ITO_START_MARKER`, `ITO_END_MARKER` | Managed block markers |
 
-Do NOT edit the checked-in, repo-root `.opencode/`, `.claude/`, `.github/`, or `.ito/` files directly when changing what `ito init` installs; those are outputs.
+## Asset Layout
 
-## Keeping harness files in sync
+```
+assets/
+├── default/
+│   ├── project/          # Installed to project root (.ito/, .claude/, .opencode/, .github/, .codex/)
+│   └── home/             # Installed to ~/.config/
+├── skills/               # Shared skills — installed to ALL harnesses
+├── adapters/             # Harness-specific bootstrap files
+├── commands/             # Shared command definitions
+├── agents/               # Agent prompt templates
+└── instructions/         # Instruction artifact templates (Jinja)
+```
 
-**IMPORTANT**: Commands and prompts under each harness directory (`.claude/`, `.opencode/`, `.codex/`, `.github/`) must be kept functionally equivalent.
+## Workspace Dependencies
 
-Each harness has its own frontmatter format:
-- **Claude Code** (`.claude/`): YAML frontmatter with `name`, `description`, `category`, `tags`
-- **OpenCode** (`.opencode/`): YAML frontmatter with `name`, `description`
-- **GitHub Copilot** (`.github/`): YAML frontmatter (check GitHub docs for current format)
-- **Codex** (`.codex/`): YAML frontmatter with `name`, `description`
+None — this is a standalone crate with only external dependencies (`include_dir`, `minijinja`, `serde`).
 
-When adding or modifying a command/prompt:
-1. Update ALL harness versions to maintain feature parity
-2. Use the correct frontmatter format for each harness
-3. Keep the core instructions identical (only frontmatter differs)
+## Architectural Constraints
 
-Skills are shared from `assets/skills/` and don't need per-harness maintenance.
+### MUST NOT
 
-## How to verify changes
+- Depend on `ito-core`, `ito-cli`, or `ito-web`
+- Perform filesystem I/O at runtime — only compile-time embedding via `include_dir!`
+- Contain business logic or domain models
+
+### MUST
+
+- Be the single source of truth for all installed template content
+- Keep harness files in sync — commands/prompts under `.claude/`, `.opencode/`, `.codex/`, `.github/` must be functionally equivalent
+- Use managed block markers (`<!-- ITO:START -->` / `<!-- ITO:END -->`) in files that `ito update` should refresh
+
+## Critical Rules for Editing Templates
+
+1. **Never edit repo-root `.claude/`, `.opencode/`, `.github/`, `.ito/` directly** — those are outputs of `ito init`. Edit the source templates here.
+2. **When adding or modifying a command/prompt**, update ALL harness versions for feature parity (each has its own frontmatter format).
+3. **Skills are shared** from `assets/skills/` and don't need per-harness maintenance.
+4. **OpenCode uses plural directory names**: `.opencode/skills/`, `.opencode/commands/`, `.opencode/plugins/`.
+
+## Verifying Changes
 
 ```bash
 make install
 ito init --force --tools all
 ```
 
-Then inspect installed files (examples):
+Then inspect installed files to confirm they match expectations.
 
-- `.opencode/skills/*/SKILL.md`
-- `.claude/skills/*/SKILL.md`
-- `.github/skills/*/SKILL.md`
-- `.ito/AGENTS.md`
-
-## Future harnesses
-There may have been more harnesses added after this was written; follow the same pattern for those and self update this document if you come across them.
+Use the `documentation-police` subagent to verify that any new templates include adequate documentation. Use the `rust-quality-checker` subagent for changes to the Rust source code in this crate.
