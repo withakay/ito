@@ -3,6 +3,7 @@ use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::domain::planning as wf_planning;
 use ito_core::planning_init;
+use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
@@ -20,6 +21,21 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
         PlanAction::Init => {
             planning_init::init_planning_structure(ito_path, &current_date, &ito_dir)
                 .map_err(to_cli_error)?;
+
+            // Emit audit event for planning init
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Planning)
+                .entity_id("planning-structure")
+                .op(ops::PLANNING_NOTE)
+                .to("initialized")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
             eprintln!("✔ Planning structure initialized");
             println!("Created:");
             println!("  - {}/planning/PROJECT.md", ito_dir);

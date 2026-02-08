@@ -3,6 +3,7 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_core::{create as core_create, workflow as core_workflow};
+use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 use std::path::Path;
 
 fn print_change_created_message(
@@ -118,6 +119,20 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 println!("Module \"{}\" already exists as {}", name, r.folder_name);
                 return Ok(());
             }
+
+            // Emit audit event for module creation
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Module)
+                .entity_id(&r.folder_name)
+                .op(ops::MODULE_CREATE)
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
             println!("Created module: {}", r.folder_name);
             println!("  Path: {}", r.module_dir.display());
             println!("  Edit: ito/modules/{}/module.md", r.folder_name);
@@ -163,6 +178,23 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 description.as_deref(),
             ) {
                 Ok(r) => {
+                    // Emit audit event for change creation
+                    if let Some(event) = AuditEventBuilder::new()
+                        .entity(EntityType::Change)
+                        .entity_id(&r.change_id)
+                        .op(ops::CHANGE_CREATE)
+                        .actor(Actor::Cli)
+                        .by(rt.user_identity())
+                        .meta(serde_json::json!({
+                            "schema": schema,
+                            "module": module_id,
+                        }))
+                        .ctx(rt.event_context().clone())
+                        .build()
+                    {
+                        rt.emit_audit_event(&event);
+                    }
+
                     print_change_created_message(
                         ito_path,
                         &r.change_id,
@@ -228,6 +260,23 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
         description.as_deref(),
     ) {
         Ok(r) => {
+            // Emit audit event for change creation (via `ito new`)
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Change)
+                .entity_id(&r.change_id)
+                .op(ops::CHANGE_CREATE)
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .meta(serde_json::json!({
+                    "schema": schema,
+                    "module": module_id,
+                }))
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
             print_change_created_message(
                 ito_path,
                 &r.change_id,
