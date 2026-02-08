@@ -2,6 +2,7 @@ use crate::cli::{ValidateArgs, ValidateCommand, ValidateItemType};
 use crate::cli_error::{CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_core::audit;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::nearest_matches;
@@ -115,6 +116,9 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
                 // tasks.md validation (enhanced + checkbox)
                 issues.extend(validate_tasks_file(ito_path, &dir_name));
+
+                // Audit consistency check (warnings only)
+                issues.extend(validate_audit_consistency(ito_path, &dir_name));
 
                 let mut merged = report.issues.clone();
                 merged.extend(issues);
@@ -334,6 +338,10 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // tasks.md validation (enhanced + checkbox)
             merged.extend(validate_tasks_file(ito_path, &actual));
+
+            // Audit consistency check (warnings only)
+            merged.extend(validate_audit_consistency(ito_path, &actual));
+
             let report = core_validate::ValidationReport::new(merged, strict);
             let ok = render_validate_result("change", &item, report, want_json);
             if !ok {
@@ -356,6 +364,28 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
 fn validate_tasks_file(ito_path: &Path, change_id: &str) -> Vec<core_validate::ValidationIssue> {
     core_validate::validate_tasks_file(ito_path, change_id).unwrap_or_default()
+}
+
+/// Check audit log consistency for a change. Returns warnings for any drift detected.
+fn validate_audit_consistency(
+    ito_path: &Path,
+    change_id: &str,
+) -> Vec<core_validate::ValidationIssue> {
+    let report = audit::run_reconcile(ito_path, Some(change_id), false);
+    let mut issues = Vec::new();
+
+    for drift in &report.drifts {
+        issues.push(core_validate::ValidationIssue {
+            level: "warning".to_string(),
+            path: ".state/audit/events.jsonl".to_string(),
+            line: None,
+            column: None,
+            message: format!("Audit drift: {drift}"),
+            metadata: None,
+        });
+    }
+
+    issues
 }
 
 pub(crate) fn handle_validate_clap(rt: &Runtime, args: &ValidateArgs) -> CliResult<()> {
