@@ -86,6 +86,21 @@ ito agent instruction archive --change <change-id>
 ```
 Shows instructions for archiving a completed change and updating main specs.
 
+### Project Setup
+```bash
+ito agent instruction project-setup
+```
+Guides initial project setup: stack detection, dev commands (Makefile), and tooling preferences. No `--change` required.
+
+## Audit Trail
+
+Ito automatically records audit events for CLI operations. The audit log lives at `.ito/.state/audit/events.jsonl`.
+
+- View log: `ito audit log` (optionally `--change <id>`, `--entity-type <type>`)
+- Check for drift: `ito audit reconcile`
+- Fix drift: `ito audit reconcile --fix`
+- Validate log integrity: `ito audit validate`
+
 ## Workflow Overview
 
 1. **Proposal Phase**: Read proposal.md to understand the change
