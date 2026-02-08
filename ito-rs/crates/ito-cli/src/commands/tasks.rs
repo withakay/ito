@@ -5,6 +5,7 @@ use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
+use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
     let change_repo = FsChangeRepository::new(ito_path);
@@ -471,6 +472,22 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let _task =
                 core_tasks::start_task(ito_path, &change_id, task_id).map_err(to_cli_error)?;
 
+            // Emit audit event for task start
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Task)
+                .entity_id(task_id)
+                .scope(&change_id)
+                .op(ops::TASK_STATUS_CHANGE)
+                .from("pending")
+                .to("in-progress")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
             if want_json {
                 let status =
                     core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
@@ -493,6 +510,21 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             let _task = core_tasks::complete_task(ito_path, &change_id, task_id, None)
                 .map_err(to_cli_error)?;
+
+            // Emit audit event for task completion
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Task)
+                .entity_id(task_id)
+                .scope(&change_id)
+                .op(ops::TASK_STATUS_CHANGE)
+                .to("complete")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
 
             if want_json {
                 let status =
@@ -517,6 +549,21 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let _task = core_tasks::shelve_task(ito_path, &change_id, task_id, None)
                 .map_err(to_cli_error)?;
 
+            // Emit audit event for task shelve
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Task)
+                .entity_id(task_id)
+                .scope(&change_id)
+                .op(ops::TASK_STATUS_CHANGE)
+                .to("shelved")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
             if want_json {
                 return print_json(&serde_json::json!({
                     "action": "shelve",
@@ -536,6 +583,22 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             let _task =
                 core_tasks::unshelve_task(ito_path, &change_id, task_id).map_err(to_cli_error)?;
+
+            // Emit audit event for task unshelve
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Task)
+                .entity_id(task_id)
+                .scope(&change_id)
+                .op(ops::TASK_STATUS_CHANGE)
+                .from("shelved")
+                .to("pending")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -557,6 +620,25 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             let task = core_tasks::add_task(ito_path, &change_id, task_name, Some(wave))
                 .map_err(to_cli_error)?;
+
+            // Emit audit event for task add
+            if let Some(event) = AuditEventBuilder::new()
+                .entity(EntityType::Task)
+                .entity_id(&task.id)
+                .scope(&change_id)
+                .op(ops::TASK_ADD)
+                .to("pending")
+                .actor(Actor::Cli)
+                .by(rt.user_identity())
+                .meta(serde_json::json!({
+                    "wave": wave,
+                    "name": task_name,
+                }))
+                .ctx(rt.event_context().clone())
+                .build()
+            {
+                rt.emit_audit_event(&event);
+            }
 
             if want_json {
                 return print_json(&serde_json::json!({
