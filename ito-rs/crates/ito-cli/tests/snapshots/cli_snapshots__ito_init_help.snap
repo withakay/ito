@@ -31,6 +31,9 @@ Options:
       --help-all
           Print the full CLI reference (equivalent to `ito help --all`)
 
+  -u, --update
+          Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
+
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
 

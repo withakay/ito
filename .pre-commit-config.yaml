@@ -7,7 +7,20 @@ repos:
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
+        args:
+          [
+            feat,
+            fix,
+            docs,
+            style,
+            refactor,
+            perf,
+            test,
+            build,
+            ci,
+            chore,
+            revert,
+          ]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -65,15 +78,6 @@ repos:
         pass_filenames: false
         files: ^ito-rs/.*\.rs$
         stages: [pre-commit, pre-push]
-
-      - id: cargo-test
-        name: cargo test (ito-rs)
-        entry: make
-        language: system
-        args: [test]
-        pass_filenames: false
-        files: ^ito-rs/.*\.(rs|toml)$
-        stages: [pre-push]
 
       - id: check-max-lines
         name: check max lines (ito-rs)

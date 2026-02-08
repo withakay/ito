@@ -63,5 +63,11 @@ Options:
       --no-interactive
           Disable interactive prompts
 
+      --audit
+          Run audit consistency checks only
+
+      --no-audit
+          Skip audit consistency checks
+
   -h, --help
           Print help (see a summary with '-h')

@@ -77,6 +77,9 @@ Options:
   -f, --force
           Overwrite existing tool files without prompting
 
+  -u, --update
+          Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
+
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
 
@@ -434,6 +437,12 @@ Options:
 
       --no-interactive
           Disable interactive prompts
+
+      --audit
+          Run audit consistency checks only
+
+      --no-audit
+          Skip audit consistency checks
 
   -h, --help
           Print help (see a summary with '-h')
