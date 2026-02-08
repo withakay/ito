@@ -28,4 +28,6 @@ Always use the test-with-subagent skill for running builds, tests and checks.
 
 ### Commits
 
-Use the `ito-commit` skill for conventional commits aligned to changes. Release-plz handles versioning automatically based on commit history.
+Make small, focused commits with clear messages.
+Regularly use the `ito-commit` skill for conventional commits aligned with the project's commit message guidelines.
+IF you have to do more work to make changes that don't break the build whilst remaining small and focused, so be it.
