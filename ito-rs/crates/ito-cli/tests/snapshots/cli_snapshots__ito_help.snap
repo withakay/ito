@@ -23,6 +23,7 @@ Commands:
   config       Read and write global Ito settings
   workflow     Initialize and inspect workflow definitions
   serve        Serve local Ito artifacts and docs over HTTP
+  audit        Query, validate, and manage the audit event log
   completions  Output shell completion scripts
   stats        Display command execution counts and history
   help         Show help for ito commands
