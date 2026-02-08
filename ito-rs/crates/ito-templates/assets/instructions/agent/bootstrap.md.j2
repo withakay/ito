@@ -101,6 +101,12 @@ Ito automatically records audit events for CLI operations. The audit log lives a
 - Fix drift: `ito audit reconcile --fix`
 - Validate log integrity: `ito audit validate`
 
+**Audit requirements:**
+- MUST use `ito tasks start/complete/shelve/unshelve/add` CLI commands for all task state changes
+- If a direct edit to `tasks.md` is unavoidable, run `ito audit reconcile --fix` immediately after
+- Run `ito audit validate` at session start to verify audit log integrity
+- Run `ito audit reconcile` before `ito archive` to ensure consistency
+
 ## Workflow Overview
 
 1. **Proposal Phase**: Read proposal.md to understand the change

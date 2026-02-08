@@ -197,6 +197,11 @@ Ito automatically records audit events for CLI operations (task changes, module/
 - Fix drift: `ito audit reconcile --fix`
 - Validate log integrity: `ito audit validate`
 
+**Audit requirements:**
+- MUST use `ito tasks start/complete/shelve/unshelve/add` CLI commands for all task state changes (this emits audit events automatically)
+- If a direct edit to `tasks.md` is unavoidable, MUST run `ito audit reconcile --change {{ instructions.changeName }} --fix` immediately after
+- Run `ito audit reconcile --change {{ instructions.changeName }}` before `ito archive` to ensure audit consistency
+
 ### Instruction
 {{ instructions.instruction }}
 {% if worktree.enabled and worktree.apply_enabled %}

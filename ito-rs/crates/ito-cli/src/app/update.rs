@@ -1,8 +1,12 @@
+use crate::app::worktree_wizard::{
+    is_worktree_configured, load_worktree_result_from_config, run_worktree_wizard,
+};
 use crate::cli::UpdateArgs;
 use crate::cli_error::{CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
+use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
@@ -21,16 +25,8 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let target_path = std::path::Path::new(&target);
     let ctx = rt.ctx();
 
-    let tools: BTreeSet<String> = ito_core::installers::available_tool_ids()
-        .iter()
-        .map(|s| (*s).to_string())
-        .collect();
-    let opts = InitOptions::new(tools, true);
-
-    install_default_templates(target_path, ctx, InstallMode::Update, &opts)
-        .map_err(to_cli_error)?;
-
-    // Worktree setup wizard (only when config not yet set)
+    // Resolve worktree config BEFORE template installation.
+    // During update, run the wizard only if worktrees are not yet configured.
     let ui = output::resolve_ui_options(
         false,
         std::env::var("NO_COLOR").ok().as_deref(),
@@ -40,17 +36,70 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
 
-    if is_interactive
-        && let Some(config_path) = ito_config::global_config_path(ctx)
-        && !super::worktree_wizard::is_worktree_configured(&config_path)
-    {
+    let worktree_ctx = resolve_update_worktree_config(ctx, is_interactive);
+
+    let tools: BTreeSet<String> = ito_core::installers::available_tool_ids()
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let opts = InitOptions::new(tools, true, false);
+
+    install_default_templates(
+        target_path,
+        ctx,
+        InstallMode::Update,
+        &opts,
+        Some(&worktree_ctx),
+    )
+    .map_err(to_cli_error)?;
+
+    Ok(())
+}
+
+/// Resolve worktree configuration for `ito update`.
+///
+/// If the user has not configured worktrees yet and we are in interactive mode,
+/// runs the wizard. Otherwise loads existing config, defaulting to disabled.
+fn resolve_update_worktree_config(
+    ctx: &ito_config::ConfigContext,
+    interactive: bool,
+) -> WorktreeTemplateContext {
+    let Some(config_path) = ito_config::global_config_path(ctx) else {
+        return WorktreeTemplateContext::default();
+    };
+
+    // Interactive + not yet configured: run the wizard.
+    if interactive && !is_worktree_configured(&config_path) {
         if let Some(parent) = config_path.parent() {
             let _ = ito_common::io::create_dir_all_std(parent);
         }
-        let _ = super::worktree_wizard::run_worktree_wizard(&config_path);
+        if let Ok(result) = run_worktree_wizard(&config_path) {
+            if result.enabled {
+                return WorktreeTemplateContext {
+                    enabled: true,
+                    strategy: result.strategy.unwrap_or_default(),
+                    layout_dir_name: "ito-worktrees".to_string(),
+                    integration_mode: result.integration_mode.unwrap_or_default(),
+                    default_branch: "main".to_string(),
+                };
+            }
+            return WorktreeTemplateContext::default();
+        }
     }
 
-    Ok(())
+    // Non-interactive or already configured: load from config.
+    let result = load_worktree_result_from_config(&config_path);
+    if result.enabled {
+        return WorktreeTemplateContext {
+            enabled: true,
+            strategy: result.strategy.unwrap_or_default(),
+            layout_dir_name: "ito-worktrees".to_string(),
+            integration_mode: result.integration_mode.unwrap_or_default(),
+            default_branch: "main".to_string(),
+        };
+    }
+
+    WorktreeTemplateContext::default()
 }
 
 pub(crate) fn handle_update_clap(rt: &Runtime, args: &UpdateArgs) -> CliResult<()> {

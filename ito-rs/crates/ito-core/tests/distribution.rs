@@ -2,6 +2,7 @@ use ito_core::distribution::{
     AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
     opencode_manifests,
 };
+use ito_templates::project_templates::WorktreeTemplateContext;
 use std::path::Path;
 
 #[test]
@@ -154,7 +155,7 @@ fn install_manifests_writes_files_to_disk() {
     let config_dir = td.path().join(".opencode");
 
     let manifests = opencode_manifests(&config_dir);
-    install_manifests(&manifests).unwrap();
+    install_manifests(&manifests, None).unwrap();
 
     // Check plugin was installed
     assert!(
@@ -182,10 +183,72 @@ fn install_manifests_creates_parent_directories() {
     let deep_path = td.path().join("a").join("b").join("c").join(".claude");
 
     let manifests = claude_manifests(deep_path.parent().unwrap());
-    install_manifests(&manifests).unwrap();
+    install_manifests(&manifests, None).unwrap();
 
     // Parent directories should be created
     assert!(deep_path.join("session-start.sh").exists());
+}
+
+#[test]
+fn install_manifests_renders_worktree_skill_with_context() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path().join("project");
+
+    // Use claude manifests (any harness works — they all install skills)
+    let manifests = claude_manifests(&project_root);
+
+    // Install with a disabled worktree context (the most common case)
+    let ctx = WorktreeTemplateContext::default();
+    install_manifests(&manifests, Some(&ctx)).unwrap();
+
+    // The using-git-worktrees skill should exist and be rendered (no Jinja2 syntax)
+    let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
+    assert!(
+        worktree_skill.exists(),
+        "worktree skill should be installed"
+    );
+
+    let content = std::fs::read_to_string(&worktree_skill).unwrap();
+    assert!(
+        !content.contains("{%"),
+        "rendered skill should not contain Jinja2 block syntax"
+    );
+    assert!(
+        content.contains("not configured"),
+        "disabled context should produce 'not configured' output"
+    );
+}
+
+#[test]
+fn install_manifests_renders_worktree_skill_enabled() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path().join("project");
+
+    let manifests = claude_manifests(&project_root);
+
+    let ctx = WorktreeTemplateContext {
+        enabled: true,
+        strategy: "checkout_subdir".to_string(),
+        layout_dir_name: "ito-worktrees".to_string(),
+        integration_mode: "commit_pr".to_string(),
+        default_branch: "main".to_string(),
+    };
+    install_manifests(&manifests, Some(&ctx)).unwrap();
+
+    let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
+    let content = std::fs::read_to_string(&worktree_skill).unwrap();
+    assert!(
+        !content.contains("{%"),
+        "rendered skill should not contain Jinja2 block syntax"
+    );
+    assert!(
+        content.contains("checkout_subdir"),
+        "enabled context should mention the strategy"
+    );
+    assert!(
+        content.contains("git worktree add"),
+        "enabled context should contain worktree commands"
+    );
 }
 
 #[test]
@@ -198,7 +261,7 @@ fn all_manifests_use_embedded_assets() {
     let oc = td.path().join("opencode");
     let manifests = opencode_manifests(&oc);
     assert!(
-        install_manifests(&manifests).is_ok(),
+        install_manifests(&manifests, None).is_ok(),
         "opencode manifests should install successfully"
     );
 
@@ -206,7 +269,7 @@ fn all_manifests_use_embedded_assets() {
     let claude = td.path().join("claude");
     let manifests = claude_manifests(&claude);
     assert!(
-        install_manifests(&manifests).is_ok(),
+        install_manifests(&manifests, None).is_ok(),
         "claude manifests should install successfully"
     );
 
@@ -214,7 +277,7 @@ fn all_manifests_use_embedded_assets() {
     let codex = td.path().join("codex");
     let manifests = codex_manifests(&codex);
     assert!(
-        install_manifests(&manifests).is_ok(),
+        install_manifests(&manifests, None).is_ok(),
         "codex manifests should install successfully"
     );
 
@@ -222,7 +285,7 @@ fn all_manifests_use_embedded_assets() {
     let github = td.path().join("github");
     let manifests = github_manifests(&github);
     assert!(
-        install_manifests(&manifests).is_ok(),
+        install_manifests(&manifests, None).is_ok(),
         "github manifests should install successfully"
     );
 }

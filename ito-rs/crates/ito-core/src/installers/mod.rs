@@ -11,6 +11,7 @@ mod markers;
 
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_dir_name;
+use ito_templates::project_templates::WorktreeTemplateContext;
 
 /// Tool id for Claude Code.
 pub const TOOL_CLAUDE: &str = "claude";
@@ -33,12 +34,23 @@ pub struct InitOptions {
     pub tools: BTreeSet<String>,
     /// Overwrite existing files when `true`.
     pub force: bool,
+    /// When `true`, update managed files while preserving user-edited files.
+    ///
+    /// In this mode, non-marker files that already exist are silently skipped
+    /// instead of triggering an error. Marker-managed files still get their
+    /// managed blocks updated. Adapter files, skills, and commands are
+    /// overwritten as usual.
+    pub update: bool,
 }
 
 impl InitOptions {
     /// Create new init options.
-    pub fn new(tools: BTreeSet<String>, force: bool) -> Self {
-        Self { tools, force }
+    pub fn new(tools: BTreeSet<String>, force: bool, update: bool) -> Self {
+        Self {
+            tools,
+            force,
+            update,
+        }
     }
 }
 
@@ -52,25 +64,32 @@ pub enum InstallMode {
 }
 
 /// Install the default project templates and selected tool adapters.
+///
+/// When `worktree_ctx` is `Some`, templates containing Jinja2 syntax will be
+/// rendered with the given worktree configuration. When `None`, a disabled
+/// default context is used.
 pub fn install_default_templates(
     project_root: &Path,
     ctx: &ConfigContext,
     mode: InstallMode,
     opts: &InitOptions,
+    worktree_ctx: Option<&WorktreeTemplateContext>,
 ) -> CoreResult<()> {
     let ito_dir_name = get_ito_dir_name(project_root, ctx);
     let ito_dir = ito_templates::normalize_ito_dir(&ito_dir_name);
 
-    install_project_templates(project_root, &ito_dir, mode, opts)?;
+    install_project_templates(project_root, &ito_dir, mode, opts, worktree_ctx)?;
 
     // Repository-local ignore rules for per-worktree state.
     // This is not a templated file: we update `.gitignore` directly to preserve existing content.
     if mode == InstallMode::Init {
         ensure_repo_gitignore_ignores_session_json(project_root, &ito_dir)?;
         ensure_repo_gitignore_ignores_audit_session(project_root, &ito_dir)?;
+        // Un-ignore audit event log so it is git-tracked even if .state/ is broadly ignored.
+        ensure_repo_gitignore_unignores_audit_events(project_root, &ito_dir)?;
     }
 
-    install_adapter_files(project_root, mode, opts)?;
+    install_adapter_files(project_root, mode, opts, worktree_ctx)?;
     install_agent_templates(project_root, mode, opts)?;
     Ok(())
 }
@@ -89,6 +108,19 @@ fn ensure_repo_gitignore_ignores_audit_session(
     ito_dir: &str,
 ) -> CoreResult<()> {
     let entry = format!("{ito_dir}/.state/audit/.session");
+    ensure_gitignore_contains_line(project_root, &entry)
+}
+
+/// Un-ignore the audit events directory so `events.jsonl` is git-tracked.
+///
+/// If `.ito/.state/` is broadly gitignored (e.g., by a user rule or template),
+/// we add `!.ito/.state/audit/` to override the ignore and ensure the audit
+/// event log is committed alongside other project artifacts.
+fn ensure_repo_gitignore_unignores_audit_events(
+    project_root: &Path,
+    ito_dir: &str,
+) -> CoreResult<()> {
+    let entry = format!("!{ito_dir}/.state/audit/");
     ensure_gitignore_contains_line(project_root, &entry)
 }
 
@@ -130,10 +162,15 @@ fn install_project_templates(
     ito_dir: &str,
     mode: InstallMode,
     opts: &InitOptions,
+    worktree_ctx: Option<&WorktreeTemplateContext>,
 ) -> CoreResult<()> {
+    use ito_templates::project_templates::render_project_template;
+
     let selected = &opts.tools;
     let current_date = Utc::now().format("%Y-%m-%d").to_string();
     let state_rel = format!("{ito_dir}/planning/STATE.md");
+    let default_ctx = WorktreeTemplateContext::default();
+    let ctx = worktree_ctx.unwrap_or(&default_ctx);
 
     for f in ito_templates::default_project_files() {
         let rel = ito_templates::render_rel_path(f.relative_path, ito_dir);
@@ -147,6 +184,17 @@ fn install_project_templates(
         {
             bytes = s.replace("__CURRENT_DATE__", &current_date).into_bytes();
         }
+
+        // Render worktree-aware project templates (AGENTS.md) with worktree
+        // config. Only AGENTS.md uses Jinja2 for worktree rendering; other
+        // files (e.g., .ito/commands/) may contain `{{` as user-facing prompt
+        // placeholders that must NOT be processed by minijinja.
+        if rel.as_ref() == "AGENTS.md" {
+            bytes = render_project_template(&bytes, ctx).map_err(|e| {
+                CoreError::Validation(format!("Failed to render template {}: {}", rel.as_ref(), e))
+            })?;
+        }
+
         let target = project_root.join(rel.as_ref());
         write_one(&target, &bytes, mode, opts)?;
     }
@@ -197,9 +245,9 @@ fn write_one(
         && let Some(block) = ito_templates::extract_managed_block(text)
     {
         if target.exists() {
-            if mode == InstallMode::Init && !opts.force {
+            if mode == InstallMode::Init && !opts.force && !opts.update {
                 // If the file exists but doesn't contain Ito markers, mimic TS init behavior:
-                // refuse to overwrite without --force.
+                // refuse to overwrite without --force or --update.
                 let existing = ito_common::io::read_to_string_or_default(target);
                 let has_start = existing.contains(ito_templates::ITO_START_MARKER);
                 let has_end = existing.contains(ito_templates::ITO_END_MARKER);
@@ -237,7 +285,11 @@ fn write_one(
     }
 
     // Non-marker-managed files: init refuses to overwrite unless --force.
+    // With --update, silently skip existing files to preserve user edits.
     if mode == InstallMode::Init && target.exists() && !opts.force {
+        if opts.update {
+            return Ok(());
+        }
         return Err(CoreError::Validation(format!(
             "Refusing to overwrite existing file without markers: {} (re-run with --force)",
             target.display()
@@ -253,25 +305,26 @@ fn install_adapter_files(
     project_root: &Path,
     _mode: InstallMode,
     opts: &InitOptions,
+    worktree_ctx: Option<&WorktreeTemplateContext>,
 ) -> CoreResult<()> {
     for tool in &opts.tools {
         match tool.as_str() {
             TOOL_OPENCODE => {
                 let config_dir = project_root.join(".opencode");
                 let manifests = crate::distribution::opencode_manifests(&config_dir);
-                crate::distribution::install_manifests(&manifests)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
             TOOL_CLAUDE => {
                 let manifests = crate::distribution::claude_manifests(project_root);
-                crate::distribution::install_manifests(&manifests)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
             TOOL_CODEX => {
                 let manifests = crate::distribution::codex_manifests(project_root);
-                crate::distribution::install_manifests(&manifests)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
             TOOL_GITHUB_COPILOT => {
                 let manifests = crate::distribution::github_manifests(project_root);
-                crate::distribution::install_manifests(&manifests)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
             _ => {}
         }
@@ -329,9 +382,18 @@ fn install_agent_templates(
 
             match mode {
                 InstallMode::Init => {
-                    // During init: skip if exists and not forced
-                    if target.exists() && !opts.force {
-                        continue;
+                    if target.exists() {
+                        if opts.update {
+                            // --update: only update model field in existing agent files
+                            if let Some(cfg) = config {
+                                update_agent_model_field(&target, &cfg.model)?;
+                            }
+                            continue;
+                        }
+                        if !opts.force {
+                            // Default init: skip existing files
+                            continue;
+                        }
                     }
 
                     // Render full template
@@ -495,5 +557,25 @@ mod tests {
         ensure_repo_gitignore_ignores_session_json(td.path(), ".ito").unwrap();
         let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
         assert_eq!(s, "node_modules\n.ito/session.json\n");
+    }
+
+    #[test]
+    fn gitignore_audit_events_unignored() {
+        let td = tempfile::tempdir().unwrap();
+        ensure_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert!(s.contains("!.ito/.state/audit/"));
+    }
+
+    #[test]
+    fn gitignore_full_audit_setup() {
+        let td = tempfile::tempdir().unwrap();
+        // Simulate a broad .state/ ignore
+        std::fs::write(td.path().join(".gitignore"), ".ito/.state/\n").unwrap();
+        ensure_repo_gitignore_ignores_audit_session(td.path(), ".ito").unwrap();
+        ensure_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert!(s.contains(".ito/.state/audit/.session"));
+        assert!(s.contains("!.ito/.state/audit/"));
     }
 }
