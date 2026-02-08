@@ -165,6 +165,15 @@ ito create module <name>   # Create a new module
 ito show module <id>       # Show module details
 ito validate module <id>   # Validate a module
 
+# Audit trail
+ito audit log              # View audit event log
+ito audit log --change <id>  # Filter by change
+ito audit reconcile        # Check for drift between log and filesystem
+ito audit reconcile --fix  # Fix drift with compensating events
+ito audit validate         # Validate log integrity
+ito audit stats            # Show audit statistics
+ito audit stream           # Tail recent events
+
 # Project management
 ito init [path]           # Initialize Ito
 ito update [path]         # Update instruction files

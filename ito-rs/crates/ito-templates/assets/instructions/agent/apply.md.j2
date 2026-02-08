@@ -53,6 +53,15 @@ Use the ito-continue-change skill to create these first.
 {% endfor %}
 
 {% endif %}
+### Audit Trail
+
+Ito automatically records audit events for CLI operations (task changes, module/change creation, archival, config updates). No manual action is needed.
+
+- View the audit log: `ito audit log --change {{ instructions.changeName }}`
+- Check for drift: `ito audit reconcile`
+- Fix drift: `ito audit reconcile --fix`
+- Validate log integrity: `ito audit validate`
+
 ### Instruction
 {{ instructions.instruction }}
 
