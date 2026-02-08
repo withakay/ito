@@ -6,6 +6,7 @@ use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::paths as core_paths;
 use ito_core::task_repository::TaskRepository;
+use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
@@ -161,6 +162,55 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     eprintln!("✔ Updated {} specs", specs_updated.len());
                 }
             }
+        }
+    }
+
+    // Audit pre-check: warn about drift but don't block archiving
+    {
+        let audit_report = ito_core::audit::run_reconcile(ito_path, Some(&change_name), false);
+        if !audit_report.drifts.is_empty() {
+            eprintln!(
+                "Warning: {} audit drift items detected for '{}'. Run 'ito audit reconcile --change {} --fix' to resolve.",
+                audit_report.drifts.len(),
+                change_name,
+                change_name
+            );
+        }
+    }
+
+    // Emit audit events BEFORE the directory move
+    // change.archive event
+    if let Some(event) = AuditEventBuilder::new()
+        .entity(EntityType::Change)
+        .entity_id(&change_name)
+        .op(ops::CHANGE_ARCHIVE)
+        .actor(Actor::Cli)
+        .by(rt.user_identity())
+        .meta(serde_json::json!({
+            "archive_name": archive_name,
+        }))
+        .ctx(rt.event_context().clone())
+        .build()
+    {
+        rt.emit_audit_event(&event);
+    }
+
+    // module.change_completed event
+    // Extract module_id from change_name (format: "NNN-NN_slug")
+    if let Some(module_id) = change_name.split('-').next() {
+        if let Some(event) = AuditEventBuilder::new()
+            .entity(EntityType::Module)
+            .entity_id(module_id)
+            .op(ops::MODULE_CHANGE_COMPLETED)
+            .actor(Actor::Cli)
+            .by(rt.user_identity())
+            .meta(serde_json::json!({
+                "change_id": change_name,
+            }))
+            .ctx(rt.event_context().clone())
+            .build()
+        {
+            rt.emit_audit_event(&event);
         }
     }
 
