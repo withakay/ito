@@ -6,10 +6,10 @@ agent harnesses. It caches the raw provider pages and emits a compact
 JSON with extracted model IDs.
 
 Usage:
-  python .opencode/skill/models-dev/models-dev.py [--refresh] [--out <path>]
+  python .opencode/skills/models-dev/models-dev.py [--refresh] [--out <path>]
 
 Cache:
-  .opencode/skill/models-dev/temp/models.dev.json
+  .opencode/skills/models-dev/temp/models.dev.json
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-DEFAULT_OUT = ".opencode/skill/models-dev/temp/models.dev.json"
+DEFAULT_OUT = ".opencode/skills/models-dev/temp/models.dev.json"
 DEFAULT_TTL_SECONDS = 60 * 60 * 24  # 24h
 
 API_URL = "https://models.dev/api.json"
