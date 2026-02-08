@@ -1,7 +1,7 @@
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::show::{
     DeltaSpecFile, load_delta_spec_file, parse_change_show_json, parse_spec_show_json,
-    read_change_delta_spec_files,
+    read_change_delta_spec_files, read_module_markdown,
 };
 use std::path::Path;
 
@@ -115,4 +115,42 @@ Then B
     assert_eq!(json.deltas[0].spec, "auth");
     assert_eq!(json.deltas[0].operation, "ADDED");
     assert!(json.deltas[0].description.contains("Add requirement"));
+}
+
+#[test]
+fn read_module_markdown_returns_contents_for_existing_module() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let module_content = "# My Module\n\n## Purpose\nDoes things.\n";
+    write(
+        &ito.join("modules").join("006_demo").join("module.md"),
+        module_content,
+    );
+
+    let result = read_module_markdown(&ito, "006").expect("should read module.md");
+    assert_eq!(result, module_content);
+}
+
+#[test]
+fn read_module_markdown_returns_empty_for_missing_module_md() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    // Create the module directory but not the module.md file
+    std::fs::create_dir_all(ito.join("modules").join("007_empty")).unwrap();
+
+    let result = read_module_markdown(&ito, "007").expect("should succeed with empty string");
+    assert!(
+        result.is_empty(),
+        "should return empty string for missing module.md, got: {result}"
+    );
+}
+
+#[test]
+fn read_module_markdown_returns_error_for_nonexistent_module() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    // Don't create any modules directory
+
+    let result = read_module_markdown(&ito, "999");
+    assert!(result.is_err(), "should fail for nonexistent module");
 }

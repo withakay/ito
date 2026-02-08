@@ -74,6 +74,7 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let prev_value = core_config::json_get_path(&v, &parts).map(json_render_value);
 
             let value = core_config::parse_json_value_arg(raw, force_string);
+            core_config::validate_config_value(&parts, &value).map_err(to_cli_error)?;
             core_config::json_set_path(&mut v, &parts, value).map_err(to_cli_error)?;
             core_config::write_json_config(&path, &v).map_err(to_cli_error)?;
 

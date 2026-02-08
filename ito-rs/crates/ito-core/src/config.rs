@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use crate::errors::{CoreError, CoreResult};
+use ito_config::types::{IntegrationMode, WorktreeStrategy};
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
 ///
@@ -137,6 +138,70 @@ pub fn json_set_path(
     Ok(())
 }
 
+/// Validate a config value for known keys that require enum values.
+///
+/// Returns `Ok(())` if the key is not constrained or the value is valid.
+/// Returns `Err` with a descriptive message if the value is invalid.
+///
+/// # Errors
+///
+/// Returns [`CoreError::Validation`] if the value does not match the allowed enum values.
+pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreResult<()> {
+    let path = parts.join(".");
+    match path.as_str() {
+        "worktrees.strategy" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: {}",
+                    path,
+                    WorktreeStrategy::ALL.join(", ")
+                )));
+            };
+            if WorktreeStrategy::parse_value(s).is_none() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: {}",
+                    s,
+                    path,
+                    WorktreeStrategy::ALL.join(", ")
+                )));
+            }
+        }
+        "worktrees.apply.integration_mode" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: {}",
+                    path,
+                    IntegrationMode::ALL.join(", ")
+                )));
+            };
+            if IntegrationMode::parse_value(s).is_none() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: {}",
+                    s,
+                    path,
+                    IntegrationMode::ALL.join(", ")
+                )));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Validate that a worktree strategy string is one of the supported values.
+///
+/// Returns `true` if valid, `false` otherwise.
+pub fn is_valid_worktree_strategy(s: &str) -> bool {
+    WorktreeStrategy::parse_value(s).is_some()
+}
+
+/// Validate that an integration mode string is one of the supported values.
+///
+/// Returns `true` if valid, `false` otherwise.
+pub fn is_valid_integration_mode(s: &str) -> bool {
+    IntegrationMode::parse_value(s).is_some()
+}
+
 /// Remove a key at a dot-delimited path in a JSON object.
 ///
 /// Returns `true` if a key was removed, `false` if the path didn't exist.
@@ -167,4 +232,90 @@ pub fn json_unset_path(root: &mut serde_json::Value, parts: &[&str]) -> CoreResu
     }
 
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn validate_config_value_accepts_valid_strategy() {
+        let parts = ["worktrees", "strategy"];
+        let value = json!("checkout_subdir");
+        assert!(validate_config_value(&parts, &value).is_ok());
+
+        let value = json!("checkout_siblings");
+        assert!(validate_config_value(&parts, &value).is_ok());
+
+        let value = json!("bare_control_siblings");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_strategy() {
+        let parts = ["worktrees", "strategy"];
+        let value = json!("custom_layout");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("custom_layout"));
+    }
+
+    #[test]
+    fn validate_config_value_rejects_non_string_strategy() {
+        let parts = ["worktrees", "strategy"];
+        let value = json!(42);
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("requires a string value"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_valid_integration_mode() {
+        let parts = ["worktrees", "apply", "integration_mode"];
+        let value = json!("commit_pr");
+        assert!(validate_config_value(&parts, &value).is_ok());
+
+        let value = json!("merge_parent");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_integration_mode() {
+        let parts = ["worktrees", "apply", "integration_mode"];
+        let value = json!("squash_merge");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("squash_merge"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_unknown_keys() {
+        let parts = ["worktrees", "enabled"];
+        let value = json!(true);
+        assert!(validate_config_value(&parts, &value).is_ok());
+
+        let parts = ["some", "other", "key"];
+        let value = json!("anything");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn is_valid_worktree_strategy_checks_correctly() {
+        assert!(is_valid_worktree_strategy("checkout_subdir"));
+        assert!(is_valid_worktree_strategy("checkout_siblings"));
+        assert!(is_valid_worktree_strategy("bare_control_siblings"));
+        assert!(!is_valid_worktree_strategy("custom"));
+        assert!(!is_valid_worktree_strategy(""));
+    }
+
+    #[test]
+    fn is_valid_integration_mode_checks_correctly() {
+        assert!(is_valid_integration_mode("commit_pr"));
+        assert!(is_valid_integration_mode("merge_parent"));
+        assert!(!is_valid_integration_mode("squash"));
+        assert!(!is_valid_integration_mode(""));
+    }
 }

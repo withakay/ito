@@ -669,4 +669,35 @@ mod tests {
 
         assert!(ready.is_empty());
     }
+
+    #[test]
+    fn read_tasks_markdown_returns_contents_for_existing_file() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let ito_path = repo.path().join(".ito");
+        let change_id = "000-01_alpha";
+        let tasks_content = "## 1. Implementation\n- [ ] 1.1 pending\n";
+        write(
+            ito_path.join("changes").join(change_id).join("tasks.md"),
+            tasks_content,
+        );
+
+        let result =
+            super::read_tasks_markdown(&ito_path, change_id).expect("should read tasks.md");
+        assert_eq!(result, tasks_content);
+    }
+
+    #[test]
+    fn read_tasks_markdown_returns_error_for_missing_file() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let ito_path = repo.path().join(".ito");
+
+        let result = super::read_tasks_markdown(&ito_path, "nonexistent-change");
+        assert!(result.is_err(), "should fail for missing tasks.md");
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("tasks.md"),
+            "error should mention tasks.md, got: {msg}"
+        );
+    }
 }

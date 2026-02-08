@@ -10,5 +10,6 @@ mod show;
 mod status;
 mod update;
 mod validate;
+mod worktree_wizard;
 
 pub(crate) use entrypoint::main;

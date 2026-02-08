@@ -3,10 +3,13 @@
 MAX_RUST_FILE_LINES ?= 1000
 BUMP ?= none
 RUST_WARNINGS_AS_ERRORS ?= -D warnings
+COVERAGE_HARD_MIN ?= 80
+COVERAGE_TARGET ?= 90
 
 .PHONY: \
 	init \
 	build test test-watch test-coverage lint check check-max-lines clean help \
+	fmt clippy \
 	arch-guardrails cargo-deny \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
@@ -100,10 +103,18 @@ test-watch: ## Run tests in watch mode (requires cargo-watch)
 		exit 1; \
 	fi
 
-test-coverage: ## Run coverage (requires cargo-llvm-cov)
+test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(COVERAGE_TARGET)%)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests; \
+		echo "Coverage enforcement: hard min=$(COVERAGE_HARD_MIN)%, target=$(COVERAGE_TARGET)%"; \
+		echo "  Below $(COVERAGE_HARD_MIN)%: build FAILS (hard floor)"; \
+		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
+		echo "  Excluded crates: ito-web (no tests yet)"; \
+		echo ""; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests \
+			--exclude ito-web \
+			--fail-under-lines $(COVERAGE_HARD_MIN) \
+			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
 		echo "cargo-llvm-cov is not installed."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
@@ -112,6 +123,16 @@ test-coverage: ## Run coverage (requires cargo-llvm-cov)
 
 lint: ## Run linter
 	$(MAKE) rust-lint
+
+fmt: ## Run cargo fmt (auto-fix)
+	cargo fmt --manifest-path ito-rs/Cargo.toml --all
+
+clippy: ## Run cargo clippy
+	cargo clippy --manifest-path ito-rs/Cargo.toml --workspace --all-targets -- \
+		-D warnings \
+		-D clippy::dbg_macro \
+		-D clippy::todo \
+		-D clippy::unimplemented
 
 check: ## Run pre-commit hooks via prek
 	@set -e; \
@@ -215,10 +236,13 @@ rust-build-release: ## Build Rust ito (release)
 rust-test: ## Run Rust tests
 	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace
 
-rust-test-coverage: ## Run Rust tests with coverage (fallback to regular tests)
+rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests \
+			--exclude ito-web \
+			--fail-under-lines $(COVERAGE_HARD_MIN) \
+			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
 		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
