@@ -1,3 +1,4 @@
+pub(crate) mod audit;
 pub(crate) mod completions;
 pub(crate) mod config;
 pub(crate) mod create;
@@ -10,6 +11,7 @@ pub(crate) mod stats;
 pub(crate) mod tasks;
 pub(crate) mod workflow;
 
+pub(crate) use audit::handle_audit_clap;
 pub(crate) use completions::handle_completions;
 pub(crate) use config::handle_config_clap;
 pub(crate) use create::handle_create_clap;
