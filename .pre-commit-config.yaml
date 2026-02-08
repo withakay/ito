@@ -43,31 +43,17 @@ repos:
 
       - id: cargo-fmt
         name: cargo fmt (ito-rs)
-        entry: cargo
+        entry: make
         language: system
-        args: [fmt, --manifest-path, ito-rs/Cargo.toml, --all]
+        args: [fmt]
         pass_filenames: false
         files: ^ito-rs/.*\.(rs|toml)$
 
       - id: cargo-clippy
         name: cargo clippy (ito-rs)
-        entry: cargo
+        entry: make
         language: system
-        args:
-          - clippy
-          - --manifest-path
-          - ito-rs/Cargo.toml
-          - --workspace
-          - --all-targets
-          - --
-          - -D
-          - warnings
-          - -D
-          - clippy::dbg_macro
-          - -D
-          - clippy::todo
-          - -D
-          - clippy::unimplemented
+        args: [clippy]
         pass_filenames: false
         files: ^ito-rs/.*\.(rs|toml)$
 
@@ -91,9 +77,9 @@ repos:
 
       - id: check-max-lines
         name: check max lines (ito-rs)
-        entry: python3
+        entry: make
         language: system
-        args: [ito-rs/tools/check_max_lines.py, --soft-limit, "1000", --hard-limit, "1200", --root, ito-rs]
+        args: [check-max-lines]
         pass_filenames: false
         files: ^ito-rs/.*\.rs$
 

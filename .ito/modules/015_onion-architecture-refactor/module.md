@@ -15,18 +15,18 @@ Guiding document: `.local/onionarchitecturerefactor_epic_plan.md`.
 - *
 
 ## Changes
-- [ ] 015-01_refactor-arch-guardrails
-- [ ] 015-02_refactor-cli-web-decouple
+- [x] 015-01_refactor-arch-guardrails
+- [x] 015-02_refactor-cli-web-decouple
 - [x] 015-03_update-rust-workspace-specs
-- [ ] 015-04_refactor-tracer-bullet-ito-list
-- [ ] 015-05_refactor-change-repo-ports
-- [ ] 015-06_refactor-module-repo-ports
-- [ ] 015-07_refactor-task-repo-ports
-- [ ] 015-08_refactor-error-boundaries
-- [ ] 015-09_refactor-process-exec-boundary
+- [x] 015-04_refactor-tracer-bullet-ito-list
+- [x] 015-05_refactor-change-repo-ports
+- [x] 015-06_refactor-module-repo-ports
+- [x] 015-07_refactor-task-repo-ports
+- [x] 015-08_refactor-error-boundaries
+- [x] 015-09_refactor-process-exec-boundary
 - [x] 015-10_refactor-adapter-thinning
-- [ ] 015-11_refactor-schema-usage-guidelines
-- [ ] 015-12_refactor-split-core-into-app-infra
-- [ ] 015-13_standardize-arch-guardrails-tooling
+- [x] 015-11_refactor-schema-usage-guidelines
+- [x] 015-12_refactor-split-core-into-app-infra
+- [x] 015-13_standardize-arch-guardrails-tooling
 - [ ] 015-14_consolidate-workspace-crates
 - [ ] 015-15_move-ralph-command-to-commands

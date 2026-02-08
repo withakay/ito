@@ -18,4 +18,4 @@
 - [ ] 002-09_add-ralph-interactive-mode
 - [ ] 002-10_validate-completion-before-exit
 - [x] 002-11_ralph-module-ready-sequencing
-- [ ] 002-12_add-ralph-error-threshold
+- [x] 002-12_add-ralph-error-threshold
