@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Audit log infrastructure: writer, reader, reconciliation, worktree discovery.
+pub mod audit;
+
 /// Filesystem-backed change repository implementation.
 pub mod change_repository;
 
