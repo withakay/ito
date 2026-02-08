@@ -105,15 +105,15 @@ prek auto-update                # Update hook versions
 
 ## OpenCode Path Convention
 
-**IMPORTANT**: OpenCode uses **singular** directory names for its configuration paths:
+**IMPORTANT**: OpenCode uses **plural** directory names for its configuration paths:
 
-- `.opencode/skill/` (NOT `.opencode/skills/`)
-- `.opencode/command/` (NOT `.opencode/commands/`)
-- `.opencode/plugin/` (NOT `.opencode/plugins/`)
+- `.opencode/skills/` (NOT `.opencode/skill/`)
+- `.opencode/commands/` (NOT `.opencode/command/`)
+- `.opencode/plugins/` (NOT `.opencode/plugin/`)
 
-This differs from other tools like Claude Code which use plural forms (`.claude/skills/`, `.claude/commands/`).
+OpenCode accepts both singular and plural forms (e.g., `{command,commands}/**/*.md`), but the plural form is the documented convention.
 
-When writing tests or code that references OpenCode paths, always use the singular form.
+When writing tests or code that references OpenCode paths, always use the plural form.
 
 ## Repository Pattern for Data Access
 
