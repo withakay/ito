@@ -31,3 +31,4 @@ Adopt and adapt the vendored `ito-skills/` (fork of Superpowers skills) into Ito
 - [x] 013-17_update-finishing-branch-skill
 - [x] 013-18_cleanup-ito-skills-repo
 - [x] 013-19_consolidate-embedded-assets
+- [x] 013-20_add-ito-list-command

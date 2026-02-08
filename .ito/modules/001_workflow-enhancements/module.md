@@ -21,5 +21,6 @@
 - [ ] 001-12_project-setup-wizard
 - [x] 001-13_integrate-release-please-via-github-actions
 - [x] 001-14_add-partial-and-pending-list-filters
-- [ ] 001-17_fuzzy-change-matching-for-change-flags
+- [x] 001-17_fuzzy-change-matching-for-change-flags
 - [ ] 001-18_agent-instruction-peer-review
+- [x] 001-20_init-update-flag
