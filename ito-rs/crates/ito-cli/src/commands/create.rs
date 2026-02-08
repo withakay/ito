@@ -195,6 +195,24 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         rt.emit_audit_event(&event);
                     }
 
+                    // Emit module.change_added event if change belongs to a non-default module
+                    if module_id != "000"
+                        && let Some(event) = AuditEventBuilder::new()
+                            .entity(EntityType::Module)
+                            .entity_id(&module_id)
+                            .op(ops::MODULE_CHANGE_ADDED)
+                            .to(&r.change_id)
+                            .actor(Actor::Cli)
+                            .by(rt.user_identity())
+                            .meta(serde_json::json!({
+                                "change_id": r.change_id,
+                            }))
+                            .ctx(rt.event_context().clone())
+                            .build()
+                    {
+                        rt.emit_audit_event(&event);
+                    }
+
                     print_change_created_message(
                         ito_path,
                         &r.change_id,
@@ -273,6 +291,24 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }))
                 .ctx(rt.event_context().clone())
                 .build()
+            {
+                rt.emit_audit_event(&event);
+            }
+
+            // Emit module.change_added event if change belongs to a non-default module
+            if module_id != "000"
+                && let Some(event) = AuditEventBuilder::new()
+                    .entity(EntityType::Module)
+                    .entity_id(&module_id)
+                    .op(ops::MODULE_CHANGE_ADDED)
+                    .to(&r.change_id)
+                    .actor(Actor::Cli)
+                    .by(rt.user_identity())
+                    .meta(serde_json::json!({
+                        "change_id": r.change_id,
+                    }))
+                    .ctx(rt.event_context().clone())
+                    .build()
             {
                 rt.emit_audit_event(&event);
             }

@@ -184,3 +184,4 @@ target
 
 # Local SSH config helpers
 .local/ssh/config_github_remote
+.ito/.state/audit/.session

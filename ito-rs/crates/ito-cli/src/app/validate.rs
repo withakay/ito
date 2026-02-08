@@ -36,6 +36,8 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let want_json = args.iter().any(|a| a == "--json");
     let strict = args.iter().any(|a| a == "--strict");
+    let want_audit_only = args.iter().any(|a| a == "--audit");
+    let skip_audit = args.iter().any(|a| a == "--no-audit");
     let typ = parse_string_flag(args, "--type");
     let bulk = args
         .iter()
@@ -118,10 +120,21 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 issues.extend(validate_tasks_file(ito_path, &dir_name));
 
                 // Audit consistency check (warnings only)
-                issues.extend(validate_audit_consistency(ito_path, &dir_name));
+                if !skip_audit {
+                    issues.extend(validate_audit_consistency(ito_path, &dir_name));
+                }
 
-                let mut merged = report.issues.clone();
-                merged.extend(issues);
+                let merged = if want_audit_only {
+                    // --audit: only include audit issues
+                    issues
+                        .into_iter()
+                        .filter(|i| i.path.contains("audit"))
+                        .collect()
+                } else {
+                    let mut m = report.issues.clone();
+                    m.extend(issues);
+                    m
+                };
                 let merged_report = core_validate::ValidationReport::new(merged, strict);
 
                 items.push(Item {
@@ -340,7 +353,9 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
             merged.extend(validate_tasks_file(ito_path, &actual));
 
             // Audit consistency check (warnings only)
-            merged.extend(validate_audit_consistency(ito_path, &actual));
+            if !skip_audit {
+                merged.extend(validate_audit_consistency(ito_path, &actual));
+            }
 
             let report = core_validate::ValidationReport::new(merged, strict);
             let ok = render_validate_result("change", &item, report, want_json);
@@ -425,6 +440,12 @@ pub(crate) fn handle_validate_clap(rt: &Runtime, args: &ValidateArgs) -> CliResu
     }
     if args.json {
         argv.push("--json".to_string());
+    }
+    if args.audit {
+        argv.push("--audit".to_string());
+    }
+    if args.no_audit {
+        argv.push("--no-audit".to_string());
     }
     if let Some(item) = &args.item {
         argv.push(item.clone());

@@ -34,7 +34,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-domain --lib audit`
 - **Done When**: AuditEvent serializes to/from JSON matching the spec schema; all fields present; builder works
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Define AuditWriter trait in ito-domain
 - **Files**: `ito-rs/crates/ito-domain/src/audit/writer.rs`
@@ -47,7 +47,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-domain --lib audit`
 - **Done When**: Trait compiles, NoopAuditWriter passes basic test, trait is object-safe
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Implement state materialization from events
 - **Files**: `ito-rs/crates/ito-domain/src/audit/materialize.rs`
@@ -60,7 +60,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-domain --lib audit::materialize`
 - **Done When**: Given a sequence of events, produces correct entity status map
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.4: Implement reconciliation diff logic in ito-domain
 - **Files**: `ito-rs/crates/ito-domain/src/audit/reconcile.rs`
@@ -74,7 +74,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-domain --lib audit::reconcile`
 - **Done When**: Correctly identifies drift between materialized audit state and file state
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.5: Implement EventContext resolution logic
 - **Files**: `ito-rs/crates/ito-domain/src/audit/context.rs`
@@ -89,7 +89,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-domain --lib audit::context`
 - **Done When**: EventContext populates session_id (always), harness_session_id (when env available), git fields (when in git repo)
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ---
 
@@ -109,7 +109,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit`
 - **Done When**: Events appended to JSONL file; reading back produces same events; best-effort on failure
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Implement audit log reader in ito-core
 - **Files**: `ito-rs/crates/ito-core/src/audit/reader.rs`
@@ -123,7 +123,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit::reader`
 - **Done When**: Reads and parses JSONL; filters work; malformed lines skipped
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Implement FileState builder and reconcile orchestrator
 - **Files**: `ito-rs/crates/ito-core/src/audit/reconcile.rs`
@@ -139,7 +139,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit::reconcile`
 - **Done When**: Full round-trip: emit events, change files, reconcile detects and fixes drift
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.4: Implement worktree discovery for audit streaming
 - **Files**: `ito-rs/crates/ito-core/src/audit/worktree.rs`
@@ -153,7 +153,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit::worktree`
 - **Done When**: Discovers worktrees, resolves event files, aggregates events
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ---
 
@@ -171,7 +171,7 @@ Coverage target: 80%.
 - **Verify**: `cargo build -p ito-cli`
 - **Done When**: CLI compiles with audit writer threaded through Runtime
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Emit audit events from task mutation commands
 - **Files**: `ito-rs/crates/ito-cli/src/commands/tasks.rs`
@@ -187,7 +187,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-cli -- tasks`
 - **Done When**: Running task mutations appends events to events.jsonl
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.3: Emit audit events from change creation and archive
 - **Files**: `ito-rs/crates/ito-cli/src/commands/create.rs`, `ito-rs/crates/ito-cli/src/app/archive.rs`
@@ -201,7 +201,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-cli -- create && cargo test -p ito-cli -- archive`
 - **Done When**: Creating/archiving changes emits audit events
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.4: Emit audit events from config and plan commands
 - **Files**: `ito-rs/crates/ito-cli/src/commands/config.rs`, `ito-rs/crates/ito-cli/src/commands/plan.rs`
@@ -215,7 +215,7 @@ Coverage target: 80%.
 - **Verify**: `cargo build -p ito-cli`
 - **Done When**: Config and plan mutations emit audit events
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.5: Implement `ito audit` CLI subcommand group
 - **Files**: `ito-rs/crates/ito-cli/src/commands/audit.rs`, `ito-rs/crates/ito-cli/src/cli.rs`
@@ -231,7 +231,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-cli -- audit`
 - **Done When**: All five subcommands work with their flags
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.6: Integrate audit validation into `ito validate --changes`
 - **Files**: `ito-rs/crates/ito-cli/src/app/validate.rs`, `ito-rs/crates/ito-core/src/validate/mod.rs`
@@ -246,7 +246,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib validate && cargo test -p ito-cli -- validate`
 - **Done When**: `ito validate --changes` reports audit drift; `--audit` and `--no-audit` flags work
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.7: Integrate audit validation into Ralph completion loop
 - **Files**: `ito-rs/crates/ito-core/src/ralph/validation.rs`, `ito-rs/crates/ito-core/src/ralph/runner.rs`
@@ -258,7 +258,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib ralph`
 - **Done When**: Ralph refuses COMPLETE if audit events diverge from file state
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.8: Integrate audit pre-check into `ito archive`
 - **Files**: `ito-rs/crates/ito-cli/src/app/archive.rs`
@@ -272,7 +272,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-cli -- archive`
 - **Done When**: `ito archive` warns about audit drift before proceeding
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.9: Implement live event streaming with worktree support
 - **Files**: `ito-rs/crates/ito-core/src/audit/stream.rs`
@@ -289,7 +289,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit::stream`
 - **Done When**: New events appear on stream; worktree events interleaved; stream recovers from file changes
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.10: Implement semantic validation in `ito audit validate`
 - **Files**: `ito-rs/crates/ito-core/src/audit/validate.rs`
@@ -303,7 +303,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-core --lib audit::validate`
 - **Done When**: `ito audit validate` catches duplicate creates, orphaned events, and invalid transitions
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ---
 
@@ -322,7 +322,7 @@ Coverage target: 80%.
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: `ito init` installs instructions that guide LLMs to use CLI and reconcile after direct edits
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 4.2: Add .gitignore rules for audit state files
 - **Files**: `ito-rs/crates/ito-core/src/installers/mod.rs`
@@ -334,7 +334,7 @@ Coverage target: 80%.
 - **Verify**: Check .gitignore rules against .state/audit/ paths
 - **Done When**: events.jsonl is tracked by git; .session is ignored
 - **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ---
 

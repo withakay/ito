@@ -468,6 +468,10 @@ pub struct InitArgs {
     #[arg(short = 'f', long)]
     pub force: bool,
 
+    /// Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
+    #[arg(short = 'u', long)]
+    pub update: bool,
+
     /// Override HOME used for locating global Ito config (for parity/testing)
     #[arg(long, value_name = "HOME")]
     pub home: Option<std::path::PathBuf>,
@@ -986,6 +990,14 @@ pub struct ValidateArgs {
     /// Disable interactive prompts
     #[arg(long = "no-interactive")]
     pub no_interactive: bool,
+
+    /// Run audit consistency checks only
+    #[arg(long)]
+    pub audit: bool,
+
+    /// Skip audit consistency checks
+    #[arg(long = "no-audit", conflicts_with = "audit")]
+    pub no_audit: bool,
 
     /// Item name (change id or spec id)
     #[arg(value_name = "ITEM")]
