@@ -1,37 +1,16 @@
-# Rust Clippy Policy Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Domain-restriction checks prioritize lint or compiler-backed enforcement
 
-Define the `rust-clippy-policy` capability, including required behavior and validation scenarios, so it remains stable and testable.
+Domain-layer restriction checks SHOULD prioritize lint/compiler-backed enforcement over textual baseline counting when practical.
+If textual baseline checks remain, they MUST be documented as temporary and scoped to minimize long-term maintenance.
 
+#### Scenario: Lint/compiler-backed checks are preferred
 
-## Requirements
+- **WHEN** defining checks for restricted APIs in Rust domain-layer crates
+- **THEN** the policy SHOULD use clippy/lint/test/compiler-backed mechanisms before introducing new textual baseline counting
 
-### Requirement: Repo defines a consistent clippy policy
+#### Scenario: Temporary textual baselines are explicitly tracked
 
-The repository MUST define a documented clippy policy that is run in local hooks and in CI.
-The policy MUST be enforced consistently across the Rust workspace.
-
-#### Scenario: Clippy policy runs in CI
-
-- **WHEN** CI runs the repo lint workflow
-- **THEN** `cargo clippy` runs with the same lint policy as local hooks and fails the job on violations
-
-### Requirement: Clippy policy is curated and maintainable
-
-The clippy policy MUST be curated to prioritize high-signal lints and allow local suppression when justified.
-The repo MUST document how to add, remove, or locally allow specific lints.
-
-#### Scenario: Local suppression is possible
-
-- **WHEN** a lint is not appropriate for a specific code path
-- **THEN** code can use `#[allow(clippy::<lint>)]` (with a brief justification) without disabling the policy globally
-
-### Requirement: Clippy policy aligns with repo Rust style guidance
-
-The clippy policy MUST enable lints (or configurations) that reinforce the repo's Rust style guidance where practical.
-
-#### Scenario: Style-aligned lints are enabled
-
-- **WHEN** the policy is evaluated
-- **THEN** the enabled lint set includes style-aligned items where they provide clear signal and acceptable noise
+- **WHEN** a textual baseline check is retained for compatibility
+- **THEN** the check MUST have documented scope and migration notes toward lint/compiler-backed enforcement

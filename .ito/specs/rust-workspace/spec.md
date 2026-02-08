@@ -1,28 +1,17 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Planned crate directories exist
+### Requirement: Adapter crates do not depend on each other
 
-The workspace MUST include crate directories for the supported Rust workspace crates.
+`ito-cli` MUST NOT have a hard dependency on `ito-web`.
 
-#### Scenario: Crate directories exist
+If `ito-cli` offers web-related functionality, it MUST be behind an optional Cargo feature (for example, `web`) so that `ito-cli` can build without the web adapter.
 
-- **WHEN** inspecting `ito-rs/crates/`
-- **THEN** `ito-cli` MUST exist
-- **AND** `ito-common` MUST exist
-- **AND** `ito-config` MUST exist
-- **AND** `ito-core` MUST exist
-- **AND** `ito-domain` MUST exist
-- **AND** `ito-logging` MUST exist
-- **AND** `ito-templates` MUST exist
-- **AND** `ito-test-support` MUST exist
-- **AND** `ito-web` MUST exist
+#### Scenario: `ito-cli` builds without the web adapter
 
-### Requirement: Cargo workspace exists with defined crate structure
+- **WHEN** running `cargo build -p ito-cli --no-default-features` in `ito-rs/`
+- **THEN** the build MUST succeed
 
-The repository MUST include a Cargo workspace at `ito-rs/` with the agreed crate structure.
+#### Scenario: `ito-cli` does not pull `ito-web` without the feature
 
-#### Scenario: Workspace layout exists
-
-- **WHEN** a developer lists `ito-rs/`
-- **THEN** it contains a workspace `Cargo.toml` and `crates/`
-- **AND** the crates include `ito-cli`, `ito-common`, `ito-config`, `ito-core`, `ito-domain`, `ito-logging`, `ito-templates`, `ito-test-support`, `ito-web`
+- **WHEN** running `cargo tree -p ito-cli --no-default-features` in `ito-rs/`
+- **THEN** the dependency graph MUST NOT include `ito-web`

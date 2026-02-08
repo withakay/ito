@@ -11,3 +11,4 @@ Add an optional Git worktree-based workspace layout so Ito can isolate changes i
 
 ## Changes
 - [x] 012-01_add-git-worktree-support
+- [ ] 012-02_configurable-worktree-apply-behavior
