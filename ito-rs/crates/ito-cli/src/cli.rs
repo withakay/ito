@@ -246,6 +246,20 @@ pub enum Commands {
     #[cfg(feature = "web")]
     Serve(ServeArgs),
 
+    // ─── Audit ────────────────────────────────────────────────────────────────────
+    /// Query, validate, and manage the audit event log
+    ///
+    /// The audit log records all state transitions (task mutations, change
+    /// creation/archival, config changes) as append-only JSONL events.
+    ///
+    /// Examples:
+    ///   ito audit log --change 005-01_add-auth
+    ///   ito audit reconcile --change 005-01_add-auth
+    ///   ito audit validate --change 005-01_add-auth
+    ///   ito audit stats
+    #[command(verbatim_doc_comment)]
+    Audit(crate::commands::audit::AuditArgs),
+
     // ─── Utilities ──────────────────────────────────────────────────────────────
     /// Display an interactive dashboard [not implemented]
     #[command(hide = true)]
