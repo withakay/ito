@@ -98,13 +98,15 @@ Override per project via cascading config:
 1. **Read tasks.md** - Get implementation checklist
 1. **Implement tasks sequentially** - Complete in order
 1. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-1. **Update statuses** - Prefer `ito tasks start|complete` for enhanced tasks.md; for legacy checkbox lists, set `- [x]` so the list reflects reality
+1. **Update statuses** - MUST use `ito tasks start|complete|shelve|unshelve|add` for enhanced tasks.md (this emits audit events automatically); for legacy checkbox lists, set `- [x]` so the list reflects reality
+1. **Reconcile if needed** - If a direct edit to `tasks.md` was unavoidable, run `ito audit reconcile --fix` immediately after
 1. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
 
 ### Stage 3: Archiving Changes
 
 After deployment, create separate PR to:
 
+- Run `ito audit reconcile --change <change-id>` to ensure audit consistency before archiving
 - Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
 - Update `specs/` if capabilities changed
 - Use `ito archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)

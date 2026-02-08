@@ -2,18 +2,34 @@
 //!
 //! Guides the user through enabling worktrees, selecting a strategy, and
 //! choosing an integration mode. Choices are persisted to config immediately.
+//!
+//! The [`WorktreeWizardResult`] carries the resolved config values so that
+//! downstream consumers (e.g., template rendering) can use them without
+//! re-reading the config file.
 
 use crate::cli_error::{CliError, CliResult};
 use ito_core::config as core_config;
 use std::path::Path;
 
 /// Result of the worktree setup wizard.
+///
+/// Carries the resolved worktree configuration values so that callers (e.g.,
+/// `init.rs`) can forward them to the template installer for Jinja2 rendering.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct WorktreeWizardResult {
     /// Whether the wizard ran (false if skipped).
-    pub _ran: bool,
+    pub ran: bool,
     /// Whether worktrees were enabled by the user.
-    pub _enabled: bool,
+    pub enabled: bool,
+    /// The chosen worktree strategy (e.g., `"checkout_subdir"`).
+    ///
+    /// `None` when worktrees are disabled.
+    pub strategy: Option<String>,
+    /// The chosen integration mode (e.g., `"commit_pr"`).
+    ///
+    /// `None` when worktrees are disabled.
+    pub integration_mode: Option<String>,
 }
 
 /// Run the interactive worktree setup wizard.
@@ -66,8 +82,10 @@ pub(crate) fn run_worktree_wizard(config_path: &Path) -> CliResult<WorktreeWizar
         println!("  worktrees.enabled = false\n");
 
         return Ok(WorktreeWizardResult {
-            _ran: true,
-            _enabled: false,
+            ran: true,
+            enabled: false,
+            strategy: None,
+            integration_mode: None,
         });
     }
 
@@ -153,8 +171,10 @@ pub(crate) fn run_worktree_wizard(config_path: &Path) -> CliResult<WorktreeWizar
     println!("  worktrees.apply.integration_mode = {integration_mode}\n");
 
     Ok(WorktreeWizardResult {
-        _ran: true,
-        _enabled: true,
+        ran: true,
+        enabled: true,
+        strategy: Some(strategy.to_string()),
+        integration_mode: Some(integration_mode.to_string()),
     })
 }
 
@@ -165,4 +185,52 @@ pub(crate) fn is_worktree_configured(config_path: &Path) -> bool {
     };
     let parts = core_config::json_split_path("worktrees.strategy");
     core_config::json_get_path(&config, &parts).is_some()
+}
+
+/// Load a [`WorktreeWizardResult`] from an existing config file.
+///
+/// Returns a "disabled" result if the file does not exist or has no worktree
+/// configuration. This is used for non-interactive init and for `ito update`
+/// where the wizard does not run but we still need config for template rendering.
+#[allow(dead_code)]
+pub(crate) fn load_worktree_result_from_config(config_path: &Path) -> WorktreeWizardResult {
+    let Ok(config) = core_config::read_json_config(config_path) else {
+        return WorktreeWizardResult {
+            ran: false,
+            enabled: false,
+            strategy: None,
+            integration_mode: None,
+        };
+    };
+
+    let enabled =
+        core_config::json_get_path(&config, &core_config::json_split_path("worktrees.enabled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+    if !enabled {
+        return WorktreeWizardResult {
+            ran: false,
+            enabled: false,
+            strategy: None,
+            integration_mode: None,
+        };
+    }
+
+    let strategy =
+        core_config::json_get_path(&config, &core_config::json_split_path("worktrees.strategy"))
+            .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+    let integration_mode = core_config::json_get_path(
+        &config,
+        &core_config::json_split_path("worktrees.apply.integration_mode"),
+    )
+    .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+    WorktreeWizardResult {
+        ran: false,
+        enabled: true,
+        strategy,
+        integration_mode,
+    }
 }

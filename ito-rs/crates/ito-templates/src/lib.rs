@@ -18,6 +18,9 @@ pub mod agents;
 /// Embedded instruction artifacts.
 pub mod instructions;
 
+/// Jinja2 rendering for project templates (AGENTS.md, skills).
+pub mod project_templates;
+
 static DEFAULT_PROJECT_DIR: Dir<'static> =
     include_dir!("$CARGO_MANIFEST_DIR/assets/default/project");
 static DEFAULT_HOME_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/default/home");

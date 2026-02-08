@@ -1,9 +1,14 @@
+use crate::app::worktree_wizard::{
+    WorktreeWizardResult, load_worktree_result_from_config, run_worktree_wizard,
+};
 use crate::cli::InitArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_config::ConfigContext;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
+use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
@@ -17,6 +22,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
+    let update = args.iter().any(|a| a == "--update" || a == "-u");
     let tools_arg = parse_string_flag(args, "--tools");
 
     // Positional path (defaults to current directory).
@@ -138,10 +144,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
             .collect()
     };
 
-    let opts = InitOptions::new(tools, force);
-    install_default_templates(target_path, ctx, InstallMode::Init, &opts).map_err(to_cli_error)?;
-
-    // Worktree setup wizard (interactive only)
+    // Resolve worktree config BEFORE template installation so that templates
+    // can be rendered with the user's worktree preferences.
     let ui = output::resolve_ui_options(
         false,
         std::env::var("NO_COLOR").ok().as_deref(),
@@ -151,15 +155,18 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
 
-    if is_interactive {
-        let config_path = ito_config::global_config_path(ctx);
-        if let Some(config_path) = config_path {
-            if let Some(parent) = config_path.parent() {
-                let _ = ito_common::io::create_dir_all_std(parent);
-            }
-            let _ = super::worktree_wizard::run_worktree_wizard(&config_path);
-        }
-    }
+    let worktree_result = resolve_worktree_config(ctx, is_interactive)?;
+    let worktree_ctx = worktree_template_context(&worktree_result);
+
+    let opts = InitOptions::new(tools, force, update);
+    install_default_templates(
+        target_path,
+        ctx,
+        InstallMode::Init,
+        &opts,
+        Some(&worktree_ctx),
+    )
+    .map_err(to_cli_error)?;
 
     print_post_init_guidance(target_path);
 
@@ -205,8 +212,58 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     if args.force {
         argv.push("--force".to_string());
     }
+    if args.update {
+        argv.push("--update".to_string());
+    }
     if let Some(path) = &args.path {
         argv.push(path.clone());
     }
     handle_init(rt, &argv)
+}
+
+/// Resolve worktree configuration for template rendering.
+///
+/// In interactive mode, runs the worktree setup wizard and returns the user's
+/// choices. In non-interactive mode, loads existing config from the global
+/// config file, defaulting to "disabled" if no config exists.
+fn resolve_worktree_config(
+    ctx: &ConfigContext,
+    interactive: bool,
+) -> CliResult<WorktreeWizardResult> {
+    let Some(config_path) = ito_config::global_config_path(ctx) else {
+        return Ok(WorktreeWizardResult {
+            ran: false,
+            enabled: false,
+            strategy: None,
+            integration_mode: None,
+        });
+    };
+
+    if interactive {
+        if let Some(parent) = config_path.parent() {
+            let _ = ito_common::io::create_dir_all_std(parent);
+        }
+        return run_worktree_wizard(&config_path);
+    }
+
+    Ok(load_worktree_result_from_config(&config_path))
+}
+
+/// Convert a [`WorktreeWizardResult`] into a [`WorktreeTemplateContext`].
+///
+/// Maps the wizard's raw string fields into the context struct that templates
+/// consume. Falls back to the disabled default when the wizard result indicates
+/// worktrees are not enabled.
+fn worktree_template_context(result: &WorktreeWizardResult) -> WorktreeTemplateContext {
+    if !result.enabled {
+        return WorktreeTemplateContext::default();
+    }
+
+    WorktreeTemplateContext {
+        enabled: true,
+        strategy: result.strategy.clone().unwrap_or_default(),
+        layout_dir_name: "ito-worktrees".to_string(),
+        integration_mode: result.integration_mode.clone().unwrap_or_default(),
+        default_branch: "main".to_string(),
+    }
 }

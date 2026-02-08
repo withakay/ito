@@ -185,9 +185,22 @@ pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
 }
 
 /// Install manifests from embedded assets to disk.
-pub fn install_manifests(manifests: &[FileManifest]) -> CoreResult<()> {
+///
+/// When `worktree_ctx` is `Some`, the `using-git-worktrees` skill template is
+/// rendered with the given worktree configuration before writing. Other skill
+/// files (which may contain `{{` as user-facing prompt placeholders) are written
+/// as-is.
+pub fn install_manifests(
+    manifests: &[FileManifest],
+    worktree_ctx: Option<&ito_templates::project_templates::WorktreeTemplateContext>,
+) -> CoreResult<()> {
+    use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
+
+    let default_ctx = WorktreeTemplateContext::default();
+    let ctx = worktree_ctx.unwrap_or(&default_ctx);
+
     for manifest in manifests {
-        let bytes = match manifest.asset_type {
+        let raw_bytes = match manifest.asset_type {
             AssetType::Skill => get_skill_file(&manifest.source).ok_or_else(|| {
                 CoreError::NotFound(format!(
                     "Skill file not found in embedded assets: {}",
@@ -208,12 +221,28 @@ pub fn install_manifests(manifests: &[FileManifest]) -> CoreResult<()> {
             })?,
         };
 
+        // Render worktree-aware skill templates with worktree config. Only
+        // the using-git-worktrees skill uses Jinja2 for worktree rendering;
+        // other skills (e.g., research/) may contain `{{` as user-facing
+        // prompt placeholders that must NOT be processed by minijinja.
+        let is_worktree_skill = manifest.source.starts_with("using-git-worktrees/");
+        let bytes = if manifest.asset_type == AssetType::Skill && is_worktree_skill {
+            render_project_template(raw_bytes, ctx).map_err(|e| {
+                CoreError::Validation(format!(
+                    "Failed to render skill template {}: {}",
+                    manifest.source, e
+                ))
+            })?
+        } else {
+            raw_bytes.to_vec()
+        };
+
         if let Some(parent) = manifest.dest.parent() {
             ito_common::io::create_dir_all_std(parent).map_err(|e| {
                 CoreError::io(format!("creating directory {}", parent.display()), e)
             })?;
         }
-        ito_common::io::write_std(&manifest.dest, bytes)
+        ito_common::io::write_std(&manifest.dest, &bytes)
             .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
     }
     Ok(())

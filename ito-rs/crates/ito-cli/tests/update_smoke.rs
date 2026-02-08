@@ -78,3 +78,32 @@ fn update_installs_adapter_files_from_local_ito_skills() {
             .exists()
     );
 }
+
+#[test]
+fn update_renders_agents_md_without_jinja2_syntax() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    // AGENTS.md should be rendered (Jinja2 resolved), not raw template.
+    let agents_md = repo.path().join("AGENTS.md");
+    assert!(agents_md.exists(), "AGENTS.md should be installed");
+
+    let content = std::fs::read_to_string(&agents_md).unwrap();
+    assert!(
+        !content.contains("{%"),
+        "AGENTS.md should not contain raw Jinja2 block syntax after rendering"
+    );
+    // Without worktree config, default context (disabled) should produce
+    // "not configured" text.
+    assert!(
+        content.contains("not configured"),
+        "default worktree context should produce 'not configured' in AGENTS.md"
+    );
+}
