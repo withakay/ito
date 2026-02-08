@@ -18,6 +18,7 @@ walkdir = { workspace = true }
 pulldown-cmark = { workspace = true }
 schemars = { workspace = true }
 regex = { workspace = true }
+tracing = { workspace = true }
 ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-domain = { workspace = true }
