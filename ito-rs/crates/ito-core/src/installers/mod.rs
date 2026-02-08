@@ -63,10 +63,11 @@ pub fn install_default_templates(
 
     install_project_templates(project_root, &ito_dir, mode, opts)?;
 
-    // Repository-local ignore rule for session state.
+    // Repository-local ignore rules for per-worktree state.
     // This is not a templated file: we update `.gitignore` directly to preserve existing content.
     if mode == InstallMode::Init {
         ensure_repo_gitignore_ignores_session_json(project_root, &ito_dir)?;
+        ensure_repo_gitignore_ignores_audit_session(project_root, &ito_dir)?;
     }
 
     install_adapter_files(project_root, mode, opts)?;
@@ -79,6 +80,15 @@ fn ensure_repo_gitignore_ignores_session_json(
     ito_dir: &str,
 ) -> CoreResult<()> {
     let entry = format!("{ito_dir}/session.json");
+    ensure_gitignore_contains_line(project_root, &entry)
+}
+
+/// Ensure `.ito/.state/audit/.session` is gitignored (per-worktree UUID).
+fn ensure_repo_gitignore_ignores_audit_session(
+    project_root: &Path,
+    ito_dir: &str,
+) -> CoreResult<()> {
+    let entry = format!("{ito_dir}/.state/audit/.session");
     ensure_gitignore_contains_line(project_root, &entry)
 }
 
@@ -458,6 +468,24 @@ mod tests {
         ensure_repo_gitignore_ignores_session_json(td.path(), ".ito").unwrap();
         let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
         assert_eq!(s, "node_modules\n.ito/session.json\n");
+    }
+
+    #[test]
+    fn gitignore_audit_session_added() {
+        let td = tempfile::tempdir().unwrap();
+        ensure_repo_gitignore_ignores_audit_session(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert!(s.contains(".ito/.state/audit/.session"));
+    }
+
+    #[test]
+    fn gitignore_both_session_entries() {
+        let td = tempfile::tempdir().unwrap();
+        ensure_repo_gitignore_ignores_session_json(td.path(), ".ito").unwrap();
+        ensure_repo_gitignore_ignores_audit_session(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert!(s.contains(".ito/session.json"));
+        assert!(s.contains(".ito/.state/audit/.session"));
     }
 
     #[test]

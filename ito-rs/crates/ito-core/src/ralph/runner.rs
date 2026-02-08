@@ -541,6 +541,21 @@ fn validate_completion(
         if !task.success {
             passed = false;
         }
+
+        // Audit consistency check (warning only, does not fail validation)
+        let audit_report = crate::audit::run_reconcile(ito_path, Some(change_id), false);
+        if !audit_report.drifts.is_empty() {
+            let drift_lines: Vec<String> = audit_report
+                .drifts
+                .iter()
+                .map(|d| format!("  - {d}"))
+                .collect();
+            sections.push(format!(
+                "### Audit consistency\n\n- Result: WARN\n- Summary: {} drift items detected between audit log and file state\n\n{}",
+                audit_report.drifts.len(),
+                drift_lines.join("\n")
+            ));
+        }
     } else {
         sections.push(
             "### Ito task status\n\n- Result: SKIP\n- Summary: No change selected; skipped task validation"
