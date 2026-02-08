@@ -39,6 +39,25 @@ fn make_base_repo() -> tempfile::TempDir {
     td
 }
 
+fn write_complete_change(repo: &Path, change_id: &str) {
+    write(
+        repo.join(".ito/changes")
+            .join(change_id)
+            .join("proposal.md"),
+        "## Why\nTest fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+    write(
+        repo.join(".ito/changes").join(change_id).join("tasks.md"),
+        "## 1. Implementation\n- [x] 1.1 Done\n",
+    );
+    write(
+        repo.join(".ito/changes")
+            .join(change_id)
+            .join("specs/alpha/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Delta\nThe system SHALL be testable.\n\n#### Scenario: Ok\n- **WHEN** run\n- **THEN** ok\n",
+    );
+}
+
 fn reset_repo(dst: &Path, src: &Path) {
     ito_test_support::reset_dir(dst, src).unwrap();
 }
@@ -230,6 +249,76 @@ fn ralph_file_flag_allowed_without_change_or_module() {
         out.stderr
             .contains("Failed to read prompt file missing-prompt.txt")
     );
+}
+
+#[test]
+fn ralph_continue_ready_exits_successfully_when_all_changes_complete() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    // Ensure the base change is "complete" for work-status purposes.
+    write(
+        repo.path()
+            .join(".ito/changes/000-01_test-change/specs/alpha/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Delta\nThe system SHALL be testable.\n\n#### Scenario: Ok\n- **WHEN** run\n- **THEN** ok\n",
+    );
+    // Add a second complete change.
+    write_complete_change(repo.path(), "000-02_other");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--continue-ready",
+            "--harness",
+            "stub",
+            "--no-interactive",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("All changes are complete."));
+}
+
+#[test]
+fn ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    // Draft change blocks completion: tasks exist, but proposal/specs are missing.
+    write(
+        repo.path().join(".ito/changes/000-03_draft/tasks.md"),
+        "## 1. Implementation\n- [ ] 1.1 Todo\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--continue-ready",
+            "--harness",
+            "stub",
+            "--no-interactive",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stderr.contains("no eligible changes"),
+        "stderr={}",
+        out.stderr
+    );
+    assert!(out.stderr.contains("000-03_draft"), "stderr={}", out.stderr);
 }
 
 #[test]

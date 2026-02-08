@@ -1036,6 +1036,10 @@ pub struct RalphArgs {
     #[arg(long = "continue-module")]
     pub continue_module: bool,
 
+    /// Keep working through eligible changes across the repo until work is complete
+    #[arg(long = "continue-ready")]
+    pub continue_ready: bool,
+
     /// Harness to run
     #[arg(long, default_value = "opencode")]
     pub harness: String,

@@ -34,6 +34,9 @@ Options:
       --continue-module
           When using --module, keep working through ready changes until module work is complete
 
+      --continue-ready
+          Keep working through eligible changes across the repo until work is complete
+
       --harness <HARNESS>
           Harness to run
 
