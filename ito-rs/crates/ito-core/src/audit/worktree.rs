@@ -83,14 +83,14 @@ fn parse_worktree_list(output: &str, _ito_path: &Path) -> Vec<WorktreeInfo> {
     }
 
     // Flush last entry
-    if let Some(path) = current_path {
-        if !is_bare {
-            worktrees.push(WorktreeInfo {
-                path,
-                branch: current_branch,
-                is_main: worktrees.is_empty(),
-            });
-        }
+    if let Some(path) = current_path
+        && !is_bare
+    {
+        worktrees.push(WorktreeInfo {
+            path,
+            branch: current_branch,
+            is_main: worktrees.is_empty(),
+        });
     }
 
     worktrees

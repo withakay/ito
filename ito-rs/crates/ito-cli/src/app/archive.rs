@@ -2,11 +2,11 @@ use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::DomainTaskRepository;
+use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::paths as core_paths;
 use ito_core::task_repository::TaskRepository;
-use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
@@ -197,8 +197,8 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     // module.change_completed event
     // Extract module_id from change_name (format: "NNN-NN_slug")
-    if let Some(module_id) = change_name.split('-').next() {
-        if let Some(event) = AuditEventBuilder::new()
+    if let Some(module_id) = change_name.split('-').next()
+        && let Some(event) = AuditEventBuilder::new()
             .entity(EntityType::Module)
             .entity_id(module_id)
             .op(ops::MODULE_CHANGE_COMPLETED)
@@ -209,9 +209,8 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }))
             .ctx(rt.event_context().clone())
             .build()
-        {
-            rt.emit_audit_event(&event);
-        }
+    {
+        rt.emit_audit_event(&event);
     }
 
     // Move to archive

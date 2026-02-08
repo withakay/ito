@@ -2,10 +2,10 @@ use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
+use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
-use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
     let change_repo = FsChangeRepository::new(ito_path);

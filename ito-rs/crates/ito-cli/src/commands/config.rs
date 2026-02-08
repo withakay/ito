@@ -1,8 +1,8 @@
 use crate::cli::{ConfigArgs, ConfigCommand};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::config as core_config;
-use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 use std::path::{Path, PathBuf};
 
 pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -71,7 +71,7 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Capture previous value for audit event
             let parts = core_config::json_split_path(key);
-            let prev_value = core_config::json_get_path(&v, &parts).map(|v| json_render_value(v));
+            let prev_value = core_config::json_get_path(&v, &parts).map(json_render_value);
 
             let value = core_config::parse_json_value_arg(raw, force_string);
             core_config::json_set_path(&mut v, &parts, value).map_err(to_cli_error)?;
@@ -105,7 +105,7 @@ pub(crate) fn handle_config(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let parts = core_config::json_split_path(key);
 
             // Capture previous value for audit event
-            let prev_value = core_config::json_get_path(&v, &parts).map(|v| json_render_value(v));
+            let prev_value = core_config::json_get_path(&v, &parts).map(json_render_value);
 
             core_config::json_unset_path(&mut v, &parts).map_err(to_cli_error)?;
             core_config::write_json_config(&path, &v).map_err(to_cli_error)?;

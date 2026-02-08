@@ -2,8 +2,8 @@ use clap::{Args, Subcommand};
 
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+use ito_core::audit::AuditEvent;
 use ito_core::audit::{self, EventFilter, read_audit_events, read_audit_events_filtered};
-use ito_domain::audit::event::AuditEvent;
 
 /// Query and manage audit event log.
 #[derive(Args, Debug, Clone)]
@@ -350,13 +350,11 @@ pub(crate) fn handle_audit_clap(rt: &Runtime, args: &AuditArgs) -> CliResult<()>
                             let line = serde_json::to_string(event).map_err(to_cli_error)?;
                             println!("{line}");
                         }
-                    } else {
-                        if !tail.is_empty() {
-                            println!();
-                            println!("── Worktree: {label} ({}) ──", wt.path.display());
-                            for event in tail {
-                                print_event_line(event);
-                            }
+                    } else if !tail.is_empty() {
+                        println!();
+                        println!("── Worktree: {label} ({}) ──", wt.path.display());
+                        for event in tail {
+                            print_event_line(event);
                         }
                     }
                 }

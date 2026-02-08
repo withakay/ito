@@ -1,9 +1,9 @@
 use crate::cli::{PlanAction, PlanArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
+use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::domain::planning as wf_planning;
 use ito_core::planning_init;
-use ito_domain::audit::event::{Actor, AuditEventBuilder, EntityType, ops};
 
 pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
     let Some(action) = &args.action else {

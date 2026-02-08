@@ -1,10 +1,9 @@
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_path;
-use ito_core::audit::FsAuditWriter;
+use ito_core::audit::{
+    AuditEvent, AuditWriter, EventContext, FsAuditWriter, resolve_context, resolve_user_identity,
+};
 use ito_core::repo_index::RepoIndex;
-use ito_domain::audit::context::{resolve_context, resolve_user_identity};
-use ito_domain::audit::event::EventContext;
-use ito_domain::audit::writer::AuditWriter;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -64,7 +63,7 @@ impl Runtime {
     }
 
     /// Emit an audit event using the runtime's writer. Best-effort: never fails.
-    pub(crate) fn emit_audit_event(&self, event: &ito_domain::audit::event::AuditEvent) {
+    pub(crate) fn emit_audit_event(&self, event: &AuditEvent) {
         let _ = self.audit_writer().append(event);
     }
 }
