@@ -1,6 +1,8 @@
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
-use ito_core::validate::{validate_change, validate_module, validate_spec_markdown};
+use ito_core::validate::{
+    validate_change, validate_module, validate_spec_markdown, validate_tasks_file,
+};
 use std::path::Path;
 
 fn write(path: &Path, contents: &str) {
@@ -118,4 +120,72 @@ Too short.
     let (_name, r) = validate_module(&module_repo, &ito, "006_demo", false).unwrap();
     assert!(!r.valid);
     assert!(r.summary.errors >= 1);
+}
+
+#[test]
+fn validate_tasks_file_returns_empty_for_valid_tasks() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let valid_tasks = "## 1. Implementation\n- [ ] 1.1 Do the thing\n- [x] 1.2 Done thing\n";
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        valid_tasks,
+    );
+
+    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    assert!(
+        issues.is_empty(),
+        "valid tasks file should produce no issues, got: {issues:?}"
+    );
+}
+
+#[test]
+fn validate_tasks_file_returns_error_for_missing_file() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+
+    let issues = validate_tasks_file(&ito, "nonexistent-change")
+        .expect("validate_tasks_file should return Ok with error issues");
+    assert!(
+        !issues.is_empty(),
+        "missing tasks file should produce at least one issue"
+    );
+    assert!(
+        issues[0].level == "ERROR",
+        "issue should be an ERROR, got: {}",
+        issues[0].level
+    );
+    assert!(
+        issues[0].message.contains("tasks.md"),
+        "error message should mention tasks.md, got: {}",
+        issues[0].message
+    );
+}
+
+#[test]
+fn validate_tasks_file_returns_diagnostics_for_malformed_content() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_broken";
+    // A tasks file with duplicate task IDs should produce diagnostics
+    let malformed_tasks = "\
+## Wave 1
+
+### Task 1.1: First task
+- **Status**: [x] complete
+
+### Task 1.1: Duplicate ID task
+- **Status**: [ ] pending
+";
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        malformed_tasks,
+    );
+
+    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    assert!(
+        !issues.is_empty(),
+        "malformed tasks file should produce diagnostics, got empty"
+    );
 }

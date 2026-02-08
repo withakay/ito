@@ -170,7 +170,13 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             return Ok(());
         }
 
-        print_apply_instructions_text(&apply, &testing_policy, user_guidance.as_deref());
+        let worktree_config = load_worktree_config(project_root, ito_path, ctx);
+        print_apply_instructions_text(
+            &apply,
+            &testing_policy,
+            user_guidance.as_deref(),
+            &worktree_config,
+        );
         return Ok(());
     }
 
@@ -411,10 +417,108 @@ fn print_artifact_instructions_text(
     print!("{out}");
 }
 
+/// Worktree configuration serialized for the apply instruction template.
+#[derive(Debug, Clone, serde::Serialize)]
+struct WorktreeConfig {
+    enabled: bool,
+    strategy: String,
+    layout_base_dir: Option<String>,
+    layout_dir_name: String,
+    apply_enabled: bool,
+    integration_mode: String,
+    copy_from_main: Vec<String>,
+    setup_commands: Vec<String>,
+    default_branch: String,
+}
+
+fn load_worktree_config(
+    project_root: &Path,
+    ito_path: &Path,
+    ctx: &ito_config::ConfigContext,
+) -> WorktreeConfig {
+    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+    let merged = cfg.merged;
+
+    let mut out = WorktreeConfig {
+        enabled: false,
+        strategy: "checkout_subdir".to_string(),
+        layout_base_dir: None,
+        layout_dir_name: "ito-worktrees".to_string(),
+        apply_enabled: true,
+        integration_mode: "commit_pr".to_string(),
+        copy_from_main: vec![
+            ".env".to_string(),
+            ".envrc".to_string(),
+            ".mise.local.toml".to_string(),
+        ],
+        setup_commands: Vec::new(),
+        default_branch: "main".to_string(),
+    };
+
+    if let Some(wt) = merged.get("worktrees") {
+        if let Some(v) = wt.get("enabled").and_then(|v| v.as_bool()) {
+            out.enabled = v;
+        }
+        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str()) {
+            out.strategy = v.to_string();
+        }
+        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            out.default_branch = v.to_string();
+        }
+
+        if let Some(layout) = wt.get("layout") {
+            if let Some(v) = layout.get("base_dir").and_then(|v| v.as_str())
+                && !v.is_empty()
+            {
+                out.layout_base_dir = Some(v.to_string());
+            }
+            if let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
+                && !v.is_empty()
+            {
+                out.layout_dir_name = v.to_string();
+            }
+        }
+
+        if let Some(apply) = wt.get("apply") {
+            if let Some(v) = apply.get("enabled").and_then(|v| v.as_bool()) {
+                out.apply_enabled = v;
+            }
+            if let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
+                && !v.is_empty()
+            {
+                out.integration_mode = v.to_string();
+            }
+            if let Some(arr) = apply.get("copy_from_main").and_then(|v| v.as_array()) {
+                let mut items = Vec::new();
+                for item in arr {
+                    if let Some(s) = item.as_str() {
+                        items.push(s.to_string());
+                    }
+                }
+                out.copy_from_main = items;
+            }
+            if let Some(arr) = apply.get("setup_commands").and_then(|v| v.as_array()) {
+                let mut items = Vec::new();
+                for item in arr {
+                    if let Some(s) = item.as_str() {
+                        items.push(s.to_string());
+                    }
+                }
+                out.setup_commands = items;
+            }
+        }
+    }
+
+    out
+}
+
 fn print_apply_instructions_text(
     instructions: &core_workflow::ApplyInstructionsResponse,
     testing_policy: &TestingPolicy,
     user_guidance: Option<&str>,
+    worktree_config: &WorktreeConfig,
 ) {
     #[derive(serde::Serialize)]
     struct Ctx {
@@ -424,6 +528,7 @@ fn print_apply_instructions_text(
         tracking_errors: Option<usize>,
         tracking_warnings: Option<usize>,
         user_guidance: Option<String>,
+        worktree: WorktreeConfig,
     }
 
     let context_files = collect_context_files(&instructions.context_files);
@@ -441,6 +546,7 @@ fn print_apply_instructions_text(
         tracking_errors,
         tracking_warnings,
         user_guidance,
+        worktree: worktree_config.clone(),
     };
 
     let out = ito_templates::instructions::render_instruction_template("agent/apply.md.j2", &ctx)

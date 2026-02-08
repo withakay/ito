@@ -5,6 +5,7 @@ use crate::util::parse_string_flag;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use std::collections::BTreeSet;
+use std::io::IsTerminal;
 
 pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -139,6 +140,26 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let opts = InitOptions::new(tools, force);
     install_default_templates(target_path, ctx, InstallMode::Init, &opts).map_err(to_cli_error)?;
+
+    // Worktree setup wizard (interactive only)
+    let ui = output::resolve_ui_options(
+        false,
+        std::env::var("NO_COLOR").ok().as_deref(),
+        false,
+        std::env::var("ITO_INTERACTIVE").ok().as_deref(),
+    );
+    let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
+
+    if is_interactive {
+        let config_path = ito_config::global_config_path(ctx);
+        if let Some(config_path) = config_path {
+            if let Some(parent) = config_path.parent() {
+                let _ = ito_common::io::create_dir_all_std(parent);
+            }
+            let _ = super::worktree_wizard::run_worktree_wizard(&config_path);
+        }
+    }
 
     print_post_init_guidance(target_path);
 

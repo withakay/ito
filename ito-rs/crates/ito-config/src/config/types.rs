@@ -37,6 +37,11 @@ pub struct ItoConfig {
     #[schemars(default, description = "Global defaults for workflow and tooling")]
     /// Defaults for workflows and tooling.
     pub defaults: DefaultsConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Worktree workspace configuration")]
+    /// Worktree workspace configuration.
+    pub worktrees: WorktreesConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -430,6 +435,249 @@ pub struct DefaultsConfig {
     #[schemars(default, description = "Testing-related defaults")]
     /// Testing-related defaults.
     pub testing: TestingDefaults,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Worktree workspace configuration")]
+/// Configuration for Git worktree-based workspace layouts.
+pub struct WorktreesConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Enable worktree policy features")]
+    /// Enable worktree policy features.
+    pub enabled: bool,
+
+    #[serde(default = "WorktreesConfig::default_strategy")]
+    #[schemars(
+        default = "WorktreesConfig::default_strategy",
+        description = "Workspace topology strategy"
+    )]
+    /// Workspace topology strategy.
+    pub strategy: WorktreeStrategy,
+
+    #[serde(default)]
+    #[schemars(default, description = "Layout path configuration")]
+    /// Layout path configuration.
+    pub layout: WorktreeLayoutConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Apply-time behavior configuration")]
+    /// Apply-time behavior configuration.
+    pub apply: WorktreeApplyConfig,
+
+    #[serde(default = "WorktreesConfig::default_branch")]
+    #[schemars(
+        default = "WorktreesConfig::default_branch",
+        description = "Branch used when creating/reusing the base worktree"
+    )]
+    /// Branch used when creating/reusing the base worktree.
+    pub default_branch: String,
+}
+
+impl Default for WorktreesConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            strategy: Self::default_strategy(),
+            layout: WorktreeLayoutConfig::default(),
+            apply: WorktreeApplyConfig::default(),
+            default_branch: Self::default_branch(),
+        }
+    }
+}
+
+impl WorktreesConfig {
+    fn default_strategy() -> WorktreeStrategy {
+        WorktreeStrategy::CheckoutSubdir
+    }
+
+    fn default_branch() -> String {
+        "main".to_string()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(description = "Supported worktree workspace topology strategies")]
+/// Supported worktree workspace topology strategies.
+pub enum WorktreeStrategy {
+    /// Standard checkout with change worktrees under a gitignored subdirectory.
+    CheckoutSubdir,
+    /// Standard checkout with change worktrees in a sibling directory.
+    CheckoutSiblings,
+    /// Bare/control repo with `main` as a worktree and change worktrees as siblings.
+    BareControlSiblings,
+}
+
+impl WorktreeStrategy {
+    /// Return a stable string identifier for display.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            WorktreeStrategy::CheckoutSubdir => "checkout_subdir",
+            WorktreeStrategy::CheckoutSiblings => "checkout_siblings",
+            WorktreeStrategy::BareControlSiblings => "bare_control_siblings",
+        }
+    }
+
+    /// All supported strategy values.
+    pub const ALL: &'static [&'static str] = &[
+        "checkout_subdir",
+        "checkout_siblings",
+        "bare_control_siblings",
+    ];
+
+    /// Parse a string into a strategy, returning `None` for invalid values.
+    pub fn parse_value(s: &str) -> Option<WorktreeStrategy> {
+        match s {
+            "checkout_subdir" => Some(WorktreeStrategy::CheckoutSubdir),
+            "checkout_siblings" => Some(WorktreeStrategy::CheckoutSiblings),
+            "bare_control_siblings" => Some(WorktreeStrategy::BareControlSiblings),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for WorktreeStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Worktree layout path configuration")]
+/// Configuration for worktree directory layout.
+pub struct WorktreeLayoutConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Base path override for worktree directory placement")]
+    /// Base path override for worktree directory placement.
+    pub base_dir: Option<String>,
+
+    #[serde(default = "WorktreeLayoutConfig::default_dir_name")]
+    #[schemars(
+        default = "WorktreeLayoutConfig::default_dir_name",
+        description = "Name of the directory that holds change worktrees"
+    )]
+    /// Name of the directory that holds change worktrees.
+    pub dir_name: String,
+}
+
+impl Default for WorktreeLayoutConfig {
+    fn default() -> Self {
+        Self {
+            base_dir: None,
+            dir_name: Self::default_dir_name(),
+        }
+    }
+}
+
+impl WorktreeLayoutConfig {
+    fn default_dir_name() -> String {
+        "ito-worktrees".to_string()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Worktree apply-time behavior configuration")]
+/// Configuration controlling worktree behavior during apply instructions.
+pub struct WorktreeApplyConfig {
+    #[serde(default = "WorktreeApplyConfig::default_enabled")]
+    #[schemars(
+        default = "WorktreeApplyConfig::default_enabled",
+        description = "Enable worktree-specific setup in apply instructions"
+    )]
+    /// Enable worktree-specific setup in apply instructions.
+    pub enabled: bool,
+
+    #[serde(default = "WorktreeApplyConfig::default_integration_mode")]
+    #[schemars(
+        default = "WorktreeApplyConfig::default_integration_mode",
+        description = "Integration preference after implementation"
+    )]
+    /// Integration preference after implementation.
+    pub integration_mode: IntegrationMode,
+
+    #[serde(default = "WorktreeApplyConfig::default_copy_from_main")]
+    #[schemars(
+        default = "WorktreeApplyConfig::default_copy_from_main",
+        description = "Glob patterns for files to copy from main into the change worktree"
+    )]
+    /// Glob patterns for files to copy from main into the change worktree.
+    pub copy_from_main: Vec<String>,
+
+    #[serde(default)]
+    #[schemars(
+        default,
+        description = "Ordered shell commands to run in the change worktree before implementation"
+    )]
+    /// Ordered shell commands to run in the change worktree before implementation.
+    pub setup_commands: Vec<String>,
+}
+
+impl Default for WorktreeApplyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            integration_mode: Self::default_integration_mode(),
+            copy_from_main: Self::default_copy_from_main(),
+            setup_commands: Vec::new(),
+        }
+    }
+}
+
+impl WorktreeApplyConfig {
+    fn default_enabled() -> bool {
+        true
+    }
+
+    fn default_integration_mode() -> IntegrationMode {
+        IntegrationMode::CommitPr
+    }
+
+    fn default_copy_from_main() -> Vec<String> {
+        vec![
+            ".env".to_string(),
+            ".envrc".to_string(),
+            ".mise.local.toml".to_string(),
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(description = "Integration mode after implementation")]
+/// Integration mode preference for post-implementation workflow.
+pub enum IntegrationMode {
+    /// Commit and open a PR workflow.
+    CommitPr,
+    /// Merge into parent branch workflow.
+    MergeParent,
+}
+
+impl IntegrationMode {
+    /// Return a stable string identifier for display.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IntegrationMode::CommitPr => "commit_pr",
+            IntegrationMode::MergeParent => "merge_parent",
+        }
+    }
+
+    /// All supported integration mode values.
+    pub const ALL: &'static [&'static str] = &["commit_pr", "merge_parent"];
+
+    /// Parse a string into an integration mode, returning `None` for invalid values.
+    pub fn parse_value(s: &str) -> Option<IntegrationMode> {
+        match s {
+            "commit_pr" => Some(IntegrationMode::CommitPr),
+            "merge_parent" => Some(IntegrationMode::MergeParent),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for IntegrationMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

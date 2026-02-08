@@ -158,6 +158,51 @@ fn merge_json(base: &mut Value, overlay: Value) {
     }
 }
 
+/// Migrate legacy camelCase worktree keys to their new snake_case equivalents.
+///
+/// Legacy key mappings:
+/// - `worktrees.defaultBranch` → `worktrees.default_branch`
+/// - `worktrees.localFiles` → `worktrees.apply.copy_from_main`
+///
+/// New keys take precedence if both old and new are present.
+/// Emits deprecation warnings to stderr when legacy keys are found.
+fn migrate_legacy_worktree_keys(config: &mut Value) {
+    let Value::Object(root) = config else {
+        return;
+    };
+
+    let Some(Value::Object(wt)) = root.get_mut("worktrees") else {
+        return;
+    };
+
+    // worktrees.defaultBranch → worktrees.default_branch
+    if let Some(legacy_val) = wt.remove("defaultBranch") {
+        eprintln!(
+            "Warning: Config key 'worktrees.defaultBranch' is deprecated. \
+             Use 'worktrees.default_branch' instead."
+        );
+        if !wt.contains_key("default_branch") {
+            wt.insert("default_branch".to_string(), legacy_val);
+        }
+    }
+
+    // worktrees.localFiles → worktrees.apply.copy_from_main
+    if let Some(legacy_val) = wt.remove("localFiles") {
+        eprintln!(
+            "Warning: Config key 'worktrees.localFiles' is deprecated. \
+             Use 'worktrees.apply.copy_from_main' instead."
+        );
+        let apply = wt
+            .entry("apply")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Value::Object(apply_map) = apply
+            && !apply_map.contains_key("copy_from_main")
+        {
+            apply_map.insert("copy_from_main".to_string(), legacy_val);
+        }
+    }
+}
+
 fn project_path_from_json(v: &Value) -> Option<String> {
     let Value::Object(map) = v else {
         return None;
@@ -261,9 +306,13 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
 
     let paths = project_config_paths(project_root, ito_path, ctx);
     for path in paths {
-        let Some(v) = load_json_object_fs(fs, &path) else {
+        let Some(mut v) = load_json_object_fs(fs, &path) else {
             continue;
         };
+        // Migrate legacy camelCase worktree keys before merging so that
+        // the new key names participate in the normal merge process and
+        // override defaults correctly.
+        migrate_legacy_worktree_keys(&mut v);
         merge_json(&mut merged, v);
         loaded_from.push(path);
     }
@@ -457,6 +506,125 @@ mod tests {
         };
         #[cfg(not(windows))]
         assert_eq!(ito_config_dir(&ctx).unwrap(), PathBuf::from("/tmp/xdg/ito"));
+    }
+
+    #[test]
+    fn worktrees_config_has_defaults_in_cascading_config() {
+        let repo = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let wt = r
+            .merged
+            .get("worktrees")
+            .expect("worktrees key should exist");
+
+        assert_eq!(wt.get("enabled").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(
+            wt.get("strategy").and_then(|v| v.as_str()),
+            Some("checkout_subdir")
+        );
+        assert_eq!(
+            wt.get("default_branch").and_then(|v| v.as_str()),
+            Some("main")
+        );
+
+        let layout = wt.get("layout").unwrap();
+        assert_eq!(
+            layout.get("dir_name").and_then(|v| v.as_str()),
+            Some("ito-worktrees")
+        );
+
+        let apply = wt.get("apply").unwrap();
+        assert_eq!(apply.get("enabled").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            apply.get("integration_mode").and_then(|v| v.as_str()),
+            Some("commit_pr")
+        );
+
+        let copy = apply
+            .get("copy_from_main")
+            .and_then(|v| v.as_array())
+            .unwrap();
+        assert_eq!(copy.len(), 3);
+    }
+
+    #[test]
+    fn legacy_worktree_default_branch_key_migrates() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"worktrees":{"defaultBranch":"develop"}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let wt = r.merged.get("worktrees").unwrap();
+
+        assert_eq!(
+            wt.get("default_branch").and_then(|v| v.as_str()),
+            Some("develop")
+        );
+        assert!(wt.get("defaultBranch").is_none());
+    }
+
+    #[test]
+    fn legacy_worktree_local_files_key_migrates() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"worktrees":{"localFiles":[".env",".secrets"]}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let wt = r.merged.get("worktrees").unwrap();
+        let apply = wt.get("apply").unwrap();
+        let copy = apply
+            .get("copy_from_main")
+            .and_then(|v| v.as_array())
+            .unwrap();
+
+        assert_eq!(copy.len(), 2);
+        assert_eq!(copy[0].as_str(), Some(".env"));
+        assert_eq!(copy[1].as_str(), Some(".secrets"));
+        assert!(wt.get("localFiles").is_none());
+    }
+
+    #[test]
+    fn new_worktree_keys_take_precedence_over_legacy() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"worktrees":{"defaultBranch":"legacy","default_branch":"new-main","localFiles":[".old"],"apply":{"copy_from_main":[".new"]}}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let wt = r.merged.get("worktrees").unwrap();
+
+        assert_eq!(
+            wt.get("default_branch").and_then(|v| v.as_str()),
+            Some("new-main")
+        );
+
+        let apply = wt.get("apply").unwrap();
+        let copy = apply
+            .get("copy_from_main")
+            .and_then(|v| v.as_array())
+            .unwrap();
+        assert_eq!(copy.len(), 1);
+        assert_eq!(copy[0].as_str(), Some(".new"));
     }
 
     // ito_dir tests live in crate::ito_dir.
