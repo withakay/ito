@@ -68,7 +68,6 @@ jobs:
           TAG="${{ steps.meta.outputs.tag }}"
           BASE="https://github.com/${OWNER_REPO}/releases/download/${TAG}"
 
-          MAC_X64_URL="$BASE/ito-${TAG}-x86_64-apple-darwin.tar.gz"
           MAC_ARM64_URL="$BASE/ito-${TAG}-aarch64-apple-darwin.tar.gz"
           LINUX_X64_URL="$BASE/ito-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
           LINUX_ARM64_URL="$BASE/ito-${TAG}-aarch64-unknown-linux-gnu.tar.gz"
@@ -104,12 +103,10 @@ jobs:
             return 1
           }
 
-          echo "mac_x64_url=$MAC_X64_URL" >> "$GITHUB_OUTPUT"
           echo "mac_arm64_url=$MAC_ARM64_URL" >> "$GITHUB_OUTPUT"
           echo "linux_x64_url=$LINUX_X64_URL" >> "$GITHUB_OUTPUT"
           echo "linux_arm64_url=$LINUX_ARM64_URL" >> "$GITHUB_OUTPUT"
 
-          echo "mac_x64_sha256=$(sha "$MAC_X64_URL")" >> "$GITHUB_OUTPUT"
           echo "mac_arm64_sha256=$(sha "$MAC_ARM64_URL")" >> "$GITHUB_OUTPUT"
           echo "linux_x64_sha256=$(sha "$LINUX_X64_URL")" >> "$GITHUB_OUTPUT"
           echo "linux_arm64_sha256=$(sha "$LINUX_ARM64_URL")" >> "$GITHUB_OUTPUT"
@@ -128,28 +125,23 @@ jobs:
 
           VERSION="${{ steps.meta.outputs.version }}"
 
-          MAC_X64_URL="${{ steps.sha.outputs.mac_x64_url }}"
           MAC_ARM64_URL="${{ steps.sha.outputs.mac_arm64_url }}"
           LINUX_X64_URL="${{ steps.sha.outputs.linux_x64_url }}"
           LINUX_ARM64_URL="${{ steps.sha.outputs.linux_arm64_url }}"
 
-          MAC_X64_SHA256="${{ steps.sha.outputs.mac_x64_sha256 }}"
           MAC_ARM64_SHA256="${{ steps.sha.outputs.mac_arm64_sha256 }}"
           LINUX_X64_SHA256="${{ steps.sha.outputs.linux_x64_sha256 }}"
           LINUX_ARM64_SHA256="${{ steps.sha.outputs.linux_arm64_sha256 }}"
 
           : "${VERSION:?missing version}"
-          : "${MAC_X64_URL:?missing mac x64 url}"
           : "${MAC_ARM64_URL:?missing mac arm64 url}"
           : "${LINUX_X64_URL:?missing linux x64 url}"
           : "${LINUX_ARM64_URL:?missing linux arm64 url}"
-          : "${MAC_X64_SHA256:?missing mac x64 sha256}"
           : "${MAC_ARM64_SHA256:?missing mac arm64 sha256}"
           : "${LINUX_X64_SHA256:?missing linux x64 sha256}"
           : "${LINUX_ARM64_SHA256:?missing linux arm64 sha256}"
 
           export VERSION
-          export MAC_X64_URL MAC_X64_SHA256
           export MAC_ARM64_URL MAC_ARM64_SHA256
           export LINUX_X64_URL LINUX_X64_SHA256
           export LINUX_ARM64_URL LINUX_ARM64_SHA256
@@ -171,25 +163,18 @@ jobs:
             license "MIT"
             version "$version"
 
-            on_intel do
-              on_macos do
-                url "$mac_x64_url"
-                sha256 "$mac_x64_sha256"
-              end
+            on_macos do
+              url "$mac_arm64_url"
+              sha256 "$mac_arm64_sha256"
+            end
 
-              on_linux do
+            on_linux do
+              on_intel do
                 url "$linux_x64_url"
                 sha256 "$linux_x64_sha256"
               end
-            end
 
-            on_arm do
-              on_macos do
-                url "$mac_arm64_url"
-                sha256 "$mac_arm64_sha256"
-              end
-
-              on_linux do
+              on_arm do
                 url "$linux_arm64_url"
                 sha256 "$linux_arm64_sha256"
               end
@@ -230,8 +215,6 @@ jobs:
 
           mapping = {
               "version": os.environ["VERSION"],
-              "mac_x64_url": os.environ["MAC_X64_URL"],
-              "mac_x64_sha256": os.environ["MAC_X64_SHA256"],
               "mac_arm64_url": os.environ["MAC_ARM64_URL"],
               "mac_arm64_sha256": os.environ["MAC_ARM64_SHA256"],
               "linux_x64_url": os.environ["LINUX_X64_URL"],

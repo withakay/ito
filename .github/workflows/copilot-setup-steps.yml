@@ -38,6 +38,12 @@ jobs:
           log_level: debug # [default: info] log level
           github_token: ${{ secrets.GITHUB_TOKEN }} # [default: ${{ github.token }}] GitHub token for API authentication
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+          shared-key: copilot-setup
+
       - run: |
           cargo --version
           python --version
