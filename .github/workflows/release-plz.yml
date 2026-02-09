@@ -8,7 +8,7 @@ on:
 jobs:
   release-plz-release:
     name: Release-plz release
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     if: ${{ github.repository_owner == 'withakay' }}
     permissions:
       contents: write
@@ -20,9 +20,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
-      - &install-rust
-        name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - &install-apt
+        name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+      - &install-toolchain
+        name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
@@ -35,7 +40,7 @@ jobs:
 
   release-plz-pr:
     name: Release-plz PR
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     if: ${{ github.repository_owner == 'withakay' }}
     permissions:
       pull-requests: write
@@ -45,7 +50,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - *checkout
-      - *install-rust
+      - *install-apt
+      - *install-toolchain
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
