@@ -1,35 +1,36 @@
 ## ADDED Requirements
 
-### Requirement: Ralph continues on harness failure by default
+### Requirement: Continuous ready-change mode
 
-When a harness run returns a non-zero exit code, Ralph SHALL continue iterating by default and feed the harness failure output back into the next prompt context.
+The system SHALL support a repo-wide continuation mode that selects the next available eligible change and runs Ralph repeatedly until no further eligible work remains.
 
-#### Scenario: Non-zero harness exit continues loop
+Eligible changes are those in `Ready` or `InProgress` work status.
 
-- **GIVEN** `ito ralph` is running with default options
-- **WHEN** the harness returns a non-zero exit code
-- **THEN** Ralph SHALL NOT exit immediately
-- **AND** Ralph SHALL record the harness stdout/stderr as failure context for the next iteration
+#### Scenario: Continue-ready drains ready changes in deterministic order
 
-### Requirement: Ralph enforces configurable harness error threshold
+- **GIVEN** the repository contains multiple changes in `Ready` or `InProgress` work status
+- **WHEN** executing `ito ralph --continue-ready ...`
+- **THEN** the system SHALL select the lowest change ID among eligible changes as the execution target
+- **AND** after each completed change run, the system SHALL refresh readiness and continue with the next lowest-ID eligible change
 
-Ralph SHALL fail the run when non-zero harness exits reach the configured error threshold.
+#### Scenario: Continue-ready exits successfully when no work remains
 
-#### Scenario: Default threshold is applied
+- **GIVEN** the repository contains no changes in `Ready` work status
+- **AND** all changes are `Complete`
+- **WHEN** executing `ito ralph --continue-ready ...`
+- **THEN** the command SHALL exit successfully
 
-- **GIVEN** `ito ralph` is running without `--error-threshold`
-- **WHEN** non-zero harness exits reach 10 attempts
-- **THEN** Ralph SHALL exit with an error indicating the non-zero exit threshold was exceeded
+#### Scenario: Continue-ready fails when blocked work remains
 
-#### Scenario: Custom threshold is applied
+- **GIVEN** the repository contains no changes in `Ready` or `InProgress` work status
+- **AND** at least one change is not `Complete`
+- **WHEN** executing `ito ralph --continue-ready ...`
+- **THEN** the command SHALL fail
+- **AND** the error SHALL identify remaining non-complete changes
 
-- **GIVEN** `ito ralph --error-threshold 3`
-- **WHEN** non-zero harness exits reach 3 attempts
-- **THEN** Ralph SHALL exit with an error indicating the threshold was exceeded
+#### Scenario: Continue-ready reorients on readiness drift
 
-#### Scenario: Exit-on-error remains fail-fast
-
-- **GIVEN** `ito ralph --exit-on-error --error-threshold 10`
-- **WHEN** the first harness run returns a non-zero exit code
-- **THEN** Ralph SHALL exit immediately
-- **AND** the threshold counter SHALL NOT be used for that run
+- **GIVEN** `ito ralph --continue-ready` is running
+- **AND** another process changes task state between selection and run start
+- **WHEN** Ralph performs preflight readiness revalidation
+- **THEN** the system SHALL re-select the current lowest-ID ready change

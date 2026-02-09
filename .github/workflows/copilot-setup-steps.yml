@@ -1,0 +1,48 @@
+name: "Copilot Setup Steps"
+
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
+  copilot-setup-steps:
+    runs-on: withakay-selfhosted
+
+    # Set the permissions to the lowest permissions possible needed for your steps.
+    # Copilot will be given its own token for its operations.
+    permissions:
+      # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
+      contents: read
+
+    # You can define any steps you want, and they will run before the agent starts.
+    # If you do not check out your code, Copilot will do this for you.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - uses: jdx/mise-action@v3
+        with:
+          version: 2024.10.0 # [default: latest] mise version to install
+          install: true # [default: true] run `mise install`
+          install_args: "rust prek python" # [default: ""] additional arguments to `mise install`
+          cache: true # [default: true] cache mise using GitHub's cache
+          experimental: true # [default: false] enable experimental features
+          log_level: info # [default: info] log level
+          # automatically write this .tool-versions file
+          tool_versions: |
+            rust 1.93.0
+          # or, if you prefer .mise.toml format:
+          mise_toml: |
+            [tools]
+            shellcheck = "0.9.0"
+          reshim: false # [default: false] run `mise reshim -f`
+          github_token: ${{ secrets.GITHUB_TOKEN }} # [default: ${{ github.token }}] GitHub token for API authentication
+      - run: make init
