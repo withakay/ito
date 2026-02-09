@@ -8,7 +8,7 @@
 
 - **WHEN** `ito init` completes
 - **AND** `.ito/project.md` contains `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->`
-- **THEN** the CLI prints a hint describing how to run project setup via `ito agent instruction project-setup`
+- **THEN** the CLI prints a hint describing how to run project setup (e.g. `/ito-project-setup` or `ito agent instruction project-setup`)
 
 #### Scenario: Init does not print hint when marker is absent
 
