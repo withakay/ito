@@ -25,14 +25,12 @@ jobs:
     # You can define any steps you want, and they will run before the agent starts.
     # If you do not check out your code, Copilot will do this for you.
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Cache APT Packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
+      - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: "build-essential"
-          version: 1.0
+          version: "1"
 
       - uses: jdx/mise-action@v3
         env:
