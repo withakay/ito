@@ -15,8 +15,7 @@ permissions:
 jobs:
   meta:
     name: Resolve release tag
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       skip: ${{ steps.meta.outputs.skip }}
@@ -58,8 +57,7 @@ jobs:
     name: Check if release assets already exist
     needs: [meta]
     if: needs.meta.outputs.skip != 'true'
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     outputs:
       present: ${{ steps.check.outputs.present }}
     steps:
@@ -108,8 +106,7 @@ jobs:
     name: Validate tag matches crate version
     needs: [meta, check_assets]
     if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -302,8 +299,7 @@ jobs:
     name: Upload release assets
     needs: [meta, check_assets, build]
     if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4

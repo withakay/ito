@@ -21,8 +21,7 @@ jobs:
     if: |
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     env:
       TAP_REPO: withakay/homebrew-ito
       FORMULA_PATH: Formula/ito.rb

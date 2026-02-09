@@ -11,9 +11,9 @@ fn init_planning_structure_writes_files() {
 
     let plan_dir = planning_dir(ito_path);
     assert!(plan_dir.exists(), "planning dir should exist");
-    assert!(plan_dir.join("project.md").exists());
-    assert!(plan_dir.join("roadmap.md").exists());
-    assert!(plan_dir.join("state.md").exists());
+    assert!(plan_dir.join("PROJECT.md").exists());
+    assert!(plan_dir.join("ROADMAP.md").exists());
+    assert!(plan_dir.join("STATE.md").exists());
 }
 
 #[test]
