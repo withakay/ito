@@ -83,7 +83,6 @@ jobs:
 
           # If these exist, we assume the release has been built/uploaded already.
           expected=(
-            "ito-${TAG}-x86_64-apple-darwin.tar.gz"
             "ito-${TAG}-aarch64-apple-darwin.tar.gz"
             "ito-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
             "ito-${TAG}-aarch64-unknown-linux-gnu.tar.gz"
@@ -128,6 +127,13 @@ jobs:
 
       - name: Setup toolchain (mise)
         uses: jdx/mise-action@v3
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+          shared-key: release-validate
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Validate version
         env:
@@ -175,10 +181,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            archive: tar.gz
-            bin: ito
           - os: macos-14
             target: aarch64-apple-darwin
             archive: tar.gz
