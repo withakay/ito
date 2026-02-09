@@ -41,6 +41,11 @@ jobs:
           shared-key: ci-test-linux
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Print environment diagnostics
         run: |
           rustc -V
@@ -72,6 +77,11 @@ jobs:
           workspaces: ito-rs -> target
           shared-key: ci-lint
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
 
       - name: Rust fmt (check)
         run: cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
@@ -105,6 +115,11 @@ jobs:
           workspaces: ito-rs -> target
           shared-key: ci-arch-guardrails
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
 
       - name: Run architecture guardrails
         run: make arch-guardrails
