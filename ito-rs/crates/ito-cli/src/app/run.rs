@@ -219,7 +219,7 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &command_id,
                 &project_root,
                 &ito_path_for_logging,
-                || super::ralph::handle_ralph_clap(&rt, args),
+                || commands::handle_ralph_clap(&rt, args),
             );
         }
         Some(Commands::Loop(args)) => {
@@ -228,7 +228,7 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &command_id,
                 &project_root,
                 &ito_path_for_logging,
-                || super::ralph::handle_loop_clap(&rt, args),
+                || commands::handle_loop_clap(&rt, args),
             );
         }
         Some(Commands::Archive(args)) => {

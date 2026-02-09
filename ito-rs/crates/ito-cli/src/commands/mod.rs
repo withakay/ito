@@ -4,6 +4,7 @@ pub(crate) mod config;
 pub(crate) mod create;
 pub(crate) mod help;
 pub(crate) mod plan;
+pub(crate) mod ralph;
 #[cfg(feature = "web")]
 pub(crate) mod serve;
 pub(crate) mod state;
@@ -19,6 +20,8 @@ pub(crate) use create::handle_new_clap;
 pub(crate) use help::handle_help_all_flags;
 pub(crate) use help::handle_help_clap;
 pub(crate) use plan::handle_plan_clap;
+pub(crate) use ralph::handle_loop_clap;
+pub(crate) use ralph::handle_ralph_clap;
 #[cfg(feature = "web")]
 pub(crate) use serve::handle_serve_clap;
 pub(crate) use state::handle_state_clap;
