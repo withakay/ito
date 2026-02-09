@@ -33,7 +33,7 @@ jobs:
 
       - run: |
           uv python install 3.14
-          uv use 3.14
+          uv venv
           source .venv/bin/activate
 
       - uses: jdx/mise-action@v3
