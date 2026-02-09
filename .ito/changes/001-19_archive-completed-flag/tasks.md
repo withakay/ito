@@ -30,8 +30,8 @@ ______________________________________________________________________
   Add a clap `conflicts_with` attribute so `--completed` and the positional `CHANGE` argument are mutually exclusive.
 - **Verify**: `cargo check --workspace`
 - **Done When**: `ArchiveArgs` has the `completed` field, and `ito archive --completed some-change` is rejected by clap with a conflict error.
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-09
+- **Status**: [x] complete
 
 ### Task 1.2: Write failing tests for batch archive behavior (RED)
 
@@ -47,8 +47,8 @@ ______________________________________________________________________
   Tests should fail initially (RED phase).
 - **Verify**: `cargo test --workspace -- archive_completed` (expect failures)
 - **Done When**: Tests exist and fail because the batch logic is not yet implemented.
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-09
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -72,8 +72,8 @@ ______________________________________________________________________
   Forward `--yes`, `--skip-specs`, and `--no-validate` flags to each per-change invocation.
 - **Verify**: `cargo test --workspace -- archive_completed` (all tests pass)
 - **Done When**: All tests from Task 1.2 pass (GREEN phase).
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-09
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -93,8 +93,8 @@ ______________________________________________________________________
   - Run `make check` (clippy + fmt)
 - **Verify**: `make check && cargo test --workspace`
 - **Done When**: Code is clean, all tests pass, clippy and fmt are clean.
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-09
+- **Status**: [x] complete
 
 ### Task 3.2: Verify test coverage meets target
 
@@ -105,8 +105,8 @@ ______________________________________________________________________
   Add any missing edge case tests if coverage is below target.
 - **Verify**: `make test-coverage`
 - **Done When**: Coverage for archive-related code meets the target.
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-09
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
