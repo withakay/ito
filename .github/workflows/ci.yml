@@ -54,8 +54,8 @@ jobs:
 
   lint:
     name: Lint & Type Check
-    runs-on:
-      group: withakay-selfhost
+    runs-on: 
+      group: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
   arch_guardrails:
     name: Architecture Guardrails
     runs-on:
-      group: withakay-selfhost
+      group: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -121,7 +121,7 @@ jobs:
   required-checks-pr:
     name: All checks passed
     runs-on:
-      group: withakay-selfhost
+      group: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
