@@ -28,6 +28,12 @@ jobs:
       - &install-toolchain
         name: Setup toolchain (mise)
         uses: jdx/mise-action@v3
+      - &rust-cache
+        name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+          shared-key: release-plz
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
@@ -52,6 +58,7 @@ jobs:
       - *checkout
       - *install-apt
       - *install-toolchain
+      - *rust-cache
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:

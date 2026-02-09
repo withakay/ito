@@ -15,25 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test_matrix:
-    name: Test (${{ matrix.label }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: withakay-selfhosted
-            shell: bash
-            label: linux-bash
-          - os: macos-latest
-            shell: bash
-            label: macos-bash
-          # Windows temporarily disabled (PTY/interactive tests can hang in CI).
-
-    defaults:
-      run:
-        shell: ${{ matrix.shell }}
+  test:
+    name: Test (linux)
+    runs-on: withakay-selfhosted
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -42,7 +27,6 @@ jobs:
           fetch-depth: 0
 
       - name: Install build-essential
-        if: runner.os == 'Linux'
         uses: ./.github/actions/cache-apt-pkgs
         with:
           packages: build-essential
@@ -54,6 +38,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ito-rs -> target
+          shared-key: ci-test-linux
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Print environment diagnostics
         run: |
@@ -84,6 +70,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ito-rs -> target
+          shared-key: ci-lint
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Rust fmt (check)
         run: cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
@@ -115,25 +103,27 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ito-rs -> target
+          shared-key: ci-arch-guardrails
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run architecture guardrails
         run: make arch-guardrails
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        uses: taiki-e/install-action@cargo-deny
 
       - name: Run cargo-deny (license/advisory checks)
         run: cargo deny --manifest-path ito-rs/Cargo.toml check
 
   required-checks-pr:
     name: All checks passed
-    runs-on: withakay-selfhosted
-    needs: [test_matrix, lint, arch_guardrails]
+    runs-on: ubuntu-latest
+    needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Verify all checks passed
         run: |
-          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
             echo "Test job failed"
             exit 1
           fi
@@ -149,14 +139,14 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on: withakay-selfhosted
-    needs: [test_matrix, lint, arch_guardrails]
+    runs-on: ubuntu-latest
+    needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
       - name: Verify all checks passed
         run: |
-          if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
-            echo "Matrix test job failed"
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "Test job failed"
             exit 1
           fi
           if [[ "${{ needs.lint.result }}" != "success" ]]; then
