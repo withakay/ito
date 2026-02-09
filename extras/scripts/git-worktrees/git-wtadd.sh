@@ -34,13 +34,12 @@ FLAGS:
   --lock        Lock the created worktree (prevents removal/prune)
   --version     Print version
 EOF
-    kill -INT $$
+    exit 1
 }
 
 function die {
     printf '%b%s%b\n' "$RED" "$1" "$CLEAR" >&2
-    # exit the script, but if it was sourced, don't kill the shell
-    kill -INT $$
+    exit 1
 }
 
 function warn {

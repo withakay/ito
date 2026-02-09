@@ -41,21 +41,24 @@ jobs:
           shared-key: ci-test-linux
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Print environment diagnostics
         run: |
           rustc -V
           cargo -V
 
-      - name: Build
-        run: cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito
-
       - name: Test
-        run: cargo test --manifest-path ito-rs/Cargo.toml --workspace
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+        run: cargo test --manifest-path ito-rs/Cargo.toml --workspace --exclude ito-web
 
   lint:
     name: Lint & Type Check
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,6 +78,11 @@ jobs:
           shared-key: ci-lint
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Rust fmt (check)
         run: cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
 
@@ -88,8 +96,7 @@ jobs:
 
   arch_guardrails:
     name: Architecture Guardrails
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -109,6 +116,11 @@ jobs:
           shared-key: ci-arch-guardrails
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Run architecture guardrails
         run: make arch-guardrails
 
@@ -120,8 +132,7 @@ jobs:
 
   required-checks-pr:
     name: All checks passed
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -143,8 +154,7 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:

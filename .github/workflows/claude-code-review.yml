@@ -14,8 +14,7 @@ permissions:
 jobs:
   claude-review:
     name: Claude Code Review
-    runs-on:
-      group: withakay-selfhost
+    runs-on: withakay-selfhosted
     # Run on PR events or when someone comments @claude on a PR
     if: |
       github.event_name == 'pull_request' ||

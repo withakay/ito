@@ -131,7 +131,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
                 loaded_from,
             },
         )
-        .expect("worktrees instruction template should render");
+        .map_err(|e| to_cli_error(format!("failed to render worktrees instruction: {e}")))?;
 
         if want_json {
             let response = core_workflow::AgentInstructionResponse {
