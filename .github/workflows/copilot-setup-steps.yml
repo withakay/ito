@@ -29,10 +29,11 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Cache APT Packages - Blacksmith
-        uses: CoProcure/cache-apt-pkgs-action@v1
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           # space delimited list of APT packages to install
           packages: build-essential
+          version: 1.0
 
       - uses: jdx/mise-action@v3
         env:
