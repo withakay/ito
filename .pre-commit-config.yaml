@@ -94,3 +94,11 @@ repos:
         args: [arch-guardrails]
         pass_filenames: false
         files: ^(ito-rs/.*\.(rs|toml)|Makefile|\.pre-commit-config\.yaml|\.github/workflows/ci\.yml)$
+
+      - id: cargo-deny
+        name: cargo deny (license/advisory checks)
+        entry: make
+        language: system
+        args: [cargo-deny]
+        pass_filenames: false
+        files: ^ito-rs/.*\.(toml|lock)$

@@ -516,7 +516,7 @@ pub enum AgentCommand {
 
 #[derive(Args, Debug, Clone)]
 #[command(
-    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap"
+    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  worktrees      Guide for git worktree workflow (config-driven)\n  workflow       Alias for worktrees\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap"
 )]
 pub struct AgentInstructionArgs {
     /// Artifact id (e.g. bootstrap, apply, proposal)

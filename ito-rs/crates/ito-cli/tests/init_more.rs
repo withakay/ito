@@ -159,12 +159,13 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
     // - step 1: Enter
     // - tool multi-select: Enter to accept defaults
     // - step 3: Enter
+    // - worktree wizard: Enter (default: disable)
     let out = run_pty_interactive(
         rust_path,
         &["init", repo.path().to_string_lossy().as_ref()],
         repo.path(),
         home.path(),
-        "\n\n\n",
+        "\n\n\n\n",
     );
     assert_eq!(out.code, 0, "stdout={}", out.stdout);
 
@@ -175,6 +176,21 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
         repo.path()
             .join(".opencode/skills/ito-brainstorming/SKILL.md")
             .exists()
+    );
+
+    // Worktree config should be persisted to the per-dev overlay `.ito/config.local.json`.
+    let config_path = repo.path().join(".ito/config.local.json");
+    let config = std::fs::read_to_string(config_path).unwrap();
+    assert!(
+        config.contains("\"worktrees\""),
+        "expected worktree config to be written to project local config"
+    );
+
+    // The global config file should not be created/modified by init.
+    let global = home.path().join(".config/ito/config.json");
+    assert!(
+        !global.exists(),
+        "expected init to avoid writing global config.json"
     );
 }
 
@@ -362,14 +378,10 @@ fn init_renders_agents_md_without_raw_jinja2_syntax() {
         "AGENTS.md should not contain raw Jinja2 variable syntax: {{{{ ...\nGot:\n{agents}"
     );
 
-    // Without config, worktrees default to "not configured".
+    // Worktree guidance should delegate to the CLI instruction.
     assert!(
-        agents.contains("not configured"),
-        "AGENTS.md should contain 'not configured' worktree section\nGot:\n{agents}"
-    );
-    assert!(
-        agents.contains("Do NOT create git worktrees"),
-        "AGENTS.md should warn agents not to create worktrees\nGot:\n{agents}"
+        agents.contains("ito agent instruction worktrees"),
+        "AGENTS.md should delegate worktree guidance to 'ito agent instruction worktrees'\nGot:\n{agents}"
     );
 }
 
@@ -412,10 +424,10 @@ fn init_renders_skill_files_without_raw_jinja2_syntax() {
         "Skill file should not contain raw Jinja2 variable syntax\nGot:\n{skill}"
     );
 
-    // Without config, worktrees default to "not configured".
+    // Skill should delegate to the CLI instruction.
     assert!(
-        skill.contains("not configured"),
-        "Skill file should contain 'not configured' worktree section\nGot:\n{skill}"
+        skill.contains("ito agent instruction worktrees"),
+        "Skill file should delegate worktree guidance to 'ito agent instruction worktrees'\nGot:\n{skill}"
     );
 }
 
@@ -468,8 +480,8 @@ fn init_update_renders_agents_md_without_raw_jinja2() {
         "AGENTS.md should not contain raw Jinja2 after --update\nGot:\n{agents}"
     );
     assert!(
-        agents.contains("not configured"),
-        "AGENTS.md should have rendered 'not configured' section after --update\nGot:\n{agents}"
+        agents.contains("ito agent instruction worktrees"),
+        "AGENTS.md should delegate worktree guidance after --update\nGot:\n{agents}"
     );
 }
 

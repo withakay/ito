@@ -20,112 +20,20 @@ Note: Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are installed
 Add project-specific guidance in `.ito/user-guidance.md` (injected into agent instruction outputs) and/or below this managed block.
 
 Keep this managed block so 'ito update' can refresh the instructions.
-{% if enabled %}
 
-## Worktree Workflow
+## Worktrees
 
-**Strategy:** `{{ strategy }}`
-**Directory name:** `{{ layout_dir_name }}`
-**Default branch:** `{{ default_branch }}`
-**Integration mode:** `{{ integration_mode }}`
-{% if strategy == "checkout_subdir" %}
+Worktree workflow is **config-driven** so different developers can use different strategies without changing committed files.
 
-Worktrees live in a hidden subdirectory inside the checkout:
-
-```
-<project>/                          # {{ default_branch }} branch checkout
-├── .git/
-├── src/
-└── .{{ layout_dir_name }}/         # gitignored worktree directory
-    └── <change-name>/              # one worktree per change
-```
-
-To create a worktree for a change:
+Source of truth (prints the exact strategy + commands for *this machine*):
 
 ```bash
-# Ensure .{{ layout_dir_name }}/ is gitignored
-grep -qxF '.{{ layout_dir_name }}/' .gitignore 2>/dev/null || echo '.{{ layout_dir_name }}/' >> .gitignore
-
-# Create the worktree
-git worktree add ".{{ layout_dir_name }}/<change-name>" -b <change-name>
+ito agent instruction worktrees
 ```
 
-Do NOT ask the user where to create worktrees. Use `.{{ layout_dir_name }}/` inside the project root.
-{% elif strategy == "checkout_siblings" %}
+Per-developer overrides should go in `.ito/config.local.json` (gitignored).
 
-Worktrees live in a sibling directory next to the project checkout:
-
-```
-~/Code/
-├── <project>/                              # {{ default_branch }} branch checkout
-│   ├── .git/
-│   └── src/
-└── <project>-{{ layout_dir_name }}/        # sibling worktree directory
-    └── <change-name>/                      # one worktree per change
-```
-
-To create a worktree for a change:
-
-```bash
-PROJECT_NAME=$(basename "$(pwd)")
-WORKTREE_BASE="../${PROJECT_NAME}-{{ layout_dir_name }}"
-mkdir -p "$WORKTREE_BASE"
-
-git worktree add "${WORKTREE_BASE}/<change-name>" -b <change-name>
-```
-
-Do NOT ask the user where to create worktrees. Use `../<project>-{{ layout_dir_name }}/`.
-{% elif strategy == "bare_control_siblings" %}
-
-This project uses a bare/control repo layout with worktrees as siblings:
-
-```
-<project>/                              # bare/control repo
-├── .bare/                              # git object store
-├── .git                                # gitdir pointer
-├── {{ default_branch }}/               # main branch worktree
-└── {{ layout_dir_name }}/              # Ito-managed change worktrees
-    └── <change-name>/                  # one worktree per change
-```
-
-To create a worktree for a change:
-
-```bash
-mkdir -p "{{ layout_dir_name }}"
-git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
-```
-
-Do NOT ask the user where to create worktrees. Use `{{ layout_dir_name }}/` inside the bare repo root.
-{% endif %}
-{% if integration_mode == "commit_pr" %}
-
-**Integration:** Commit changes in the worktree, push the branch, and create a pull request.
-{% elif integration_mode == "merge_parent" %}
-
-**Integration:** Commit changes in the worktree, then merge the branch into `{{ default_branch }}`.
-{% endif %}
-
-After the change branch is merged, clean up:
-
-```bash
-git worktree remove <change-name> 2>/dev/null || true
-git branch -d <change-name> 2>/dev/null || true
-git worktree prune
-```
-{% else %}
-
-## Worktree Workflow
-
-Worktrees are **not configured** for this project. Do NOT create git worktrees unless the user explicitly requests it. Work in the current checkout.
-
-To enable worktrees, run: `ito init` and follow the worktree wizard, or set configuration directly:
-
-```bash
-ito config set worktrees.enabled true
-ito config set worktrees.strategy checkout_subdir
-ito update
-```
-{% endif %}
+Skill hint (if your harness supports skills): `ito-workflow`, `using-git-worktrees`.
 
 <!-- ITO:END -->
 

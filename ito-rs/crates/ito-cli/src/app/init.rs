@@ -1,11 +1,13 @@
 use crate::app::worktree_wizard::{
-    WorktreeWizardResult, load_worktree_result_from_config, run_worktree_wizard,
+    WorktreeWizardResult, load_worktree_result_from_config, prompt_worktree_wizard,
+    save_worktree_config,
 };
 use crate::cli::InitArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ConfigContext;
+use ito_config::ito_dir;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -155,7 +157,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
 
-    let worktree_result = resolve_worktree_config(ctx, is_interactive)?;
+    let (worktree_result, worktree_project_config_path, should_persist_worktree) =
+        resolve_worktree_config(ctx, target_path, is_interactive)?;
     let worktree_ctx = worktree_template_context(&worktree_result);
 
     let opts = InitOptions::new(tools, force, update);
@@ -167,6 +170,10 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(&worktree_ctx),
     )
     .map_err(to_cli_error)?;
+
+    if should_persist_worktree {
+        save_worktree_config(&worktree_project_config_path, &worktree_result)?;
+    }
 
     print_post_init_guidance(target_path);
 
@@ -228,25 +235,56 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
 /// config file, defaulting to "disabled" if no config exists.
 fn resolve_worktree_config(
     ctx: &ConfigContext,
+    target_path: &std::path::Path,
     interactive: bool,
-) -> CliResult<WorktreeWizardResult> {
-    let Some(config_path) = ito_config::global_config_path(ctx) else {
-        return Ok(WorktreeWizardResult {
+) -> CliResult<(WorktreeWizardResult, std::path::PathBuf, bool)> {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let project_config_path = ito_path.join("config.json");
+    let project_local_config_path = ito_path.join("config.local.json");
+    let global_config_path = ito_config::global_config_path(ctx);
+
+    if interactive {
+        let result = prompt_worktree_wizard()?;
+        // Worktree workflow is a per-developer preference; persist to the
+        // project-local (gitignored) config overlay by default.
+        return Ok((result, project_local_config_path, true));
+    }
+
+    // Non-interactive init: prefer per-dev project-local config overlay, then
+    // project config, then global config for backward compatibility.
+    let local_result = load_worktree_result_from_config(&project_local_config_path);
+    if local_result.enabled
+        || crate::app::worktree_wizard::is_worktree_configured(&project_local_config_path)
+    {
+        return Ok((local_result, project_local_config_path, false));
+    }
+
+    let project_result = load_worktree_result_from_config(&project_config_path);
+    if project_result.enabled
+        || crate::app::worktree_wizard::is_worktree_configured(&project_config_path)
+    {
+        return Ok((project_result, project_config_path, false));
+    }
+
+    if let Some(global_path) = global_config_path {
+        let global_result = load_worktree_result_from_config(&global_path);
+        if global_result.enabled
+            || crate::app::worktree_wizard::is_worktree_configured(&global_path)
+        {
+            return Ok((global_result, project_local_config_path, false));
+        }
+    }
+
+    Ok((
+        WorktreeWizardResult {
             ran: false,
             enabled: false,
             strategy: None,
             integration_mode: None,
-        });
-    };
-
-    if interactive {
-        if let Some(parent) = config_path.parent() {
-            let _ = ito_common::io::create_dir_all_std(parent);
-        }
-        return run_worktree_wizard(&config_path);
-    }
-
-    Ok(load_worktree_result_from_config(&config_path))
+        },
+        project_local_config_path,
+        false,
+    ))
 }
 
 /// Convert a [`WorktreeWizardResult`] into a [`WorktreeTemplateContext`].

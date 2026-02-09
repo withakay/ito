@@ -214,8 +214,8 @@ fn install_manifests_renders_worktree_skill_with_context() {
         "rendered skill should not contain Jinja2 block syntax"
     );
     assert!(
-        content.contains("not configured"),
-        "disabled context should produce 'not configured' output"
+        content.contains("ito agent instruction worktrees"),
+        "worktree skill should delegate guidance to the CLI"
     );
 }
 
@@ -242,12 +242,8 @@ fn install_manifests_renders_worktree_skill_enabled() {
         "rendered skill should not contain Jinja2 block syntax"
     );
     assert!(
-        content.contains("checkout_subdir"),
-        "enabled context should mention the strategy"
-    );
-    assert!(
-        content.contains("git worktree add"),
-        "enabled context should contain worktree commands"
+        content.contains("ito agent instruction worktrees"),
+        "worktree skill should delegate guidance to the CLI"
     );
 }
 

@@ -158,18 +158,9 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(text.contains("checkout_subdir"), "should mention strategy");
         assert!(
-            text.contains(".ito-worktrees/"),
-            "should contain subdir path"
-        );
-        assert!(
-            text.contains("git worktree add"),
-            "should contain worktree command"
-        );
-        assert!(
-            !text.contains("not configured"),
-            "should not say not configured"
+            text.contains("ito agent instruction worktrees"),
+            "should delegate worktree guidance to CLI"
         );
     }
 
@@ -191,16 +182,8 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(
-            text.contains("checkout_siblings"),
-            "should mention strategy"
-        );
-        assert!(
-            text.contains("<project>-worktrees/"),
-            "should contain sibling dir pattern"
-        );
-        assert!(
-            text.contains("merge the branch into `develop`"),
-            "should reference integration mode and branch"
+            text.contains("ito agent instruction worktrees"),
+            "should delegate worktree guidance to CLI"
         );
     }
 
@@ -222,13 +205,8 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(
-            text.contains("bare_control_siblings"),
-            "should mention strategy"
-        );
-        assert!(text.contains(".bare/"), "should describe bare repo layout");
-        assert!(
-            text.contains("ito-worktrees/<change-name>"),
-            "should contain worktree path"
+            text.contains("ito agent instruction worktrees"),
+            "should delegate worktree guidance to CLI"
         );
     }
 
@@ -243,14 +221,9 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(text.contains("not configured"), "should say not configured");
         assert!(
-            text.contains("Do NOT create git worktrees"),
-            "should warn agents not to create worktrees"
-        );
-        assert!(
-            !text.contains("git worktree add"),
-            "should not contain worktree add command"
+            text.contains("ito agent instruction worktrees"),
+            "should delegate worktree guidance to CLI"
         );
     }
 }
