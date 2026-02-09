@@ -226,14 +226,27 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
+/// Dispatch the `ito archive` command from parsed clap args.
+///
+/// Routes to batch mode when `--completed` is set, otherwise archives a single
+/// change via the legacy raw-args handler.
 pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     if args.completed {
         return handle_archive_completed(rt, args);
     }
 
+    let argv = build_single_archive_argv(args.change.as_deref(), args);
+    handle_archive(rt, &argv)
+}
+
+/// Build the argv vector for a single-change archive invocation.
+///
+/// Combines an optional change id with the shared flags (`-y`, `--skip-specs`,
+/// `--no-validate`) from `ArchiveArgs`.
+fn build_single_archive_argv(change_id: Option<&str>, args: &ArchiveArgs) -> Vec<String> {
     let mut argv: Vec<String> = Vec::new();
-    if let Some(change) = &args.change {
-        argv.push(change.clone());
+    if let Some(id) = change_id {
+        argv.push(id.to_string());
     }
     if args.yes {
         argv.push("-y".to_string());
@@ -244,7 +257,7 @@ pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult
     if args.no_validate {
         argv.push("--no-validate".to_string());
     }
-    handle_archive(rt, &argv)
+    argv
 }
 
 /// Archive all changes with `ChangeStatus::Complete`.
@@ -275,17 +288,7 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
         let change_id = &summary.id;
         eprintln!("Archiving '{}'...", change_id);
 
-        let mut argv: Vec<String> = vec![change_id.clone()];
-        if args.yes {
-            argv.push("-y".to_string());
-        }
-        if args.skip_specs {
-            argv.push("--skip-specs".to_string());
-        }
-        if args.no_validate {
-            argv.push("--no-validate".to_string());
-        }
-
+        let argv = build_single_archive_argv(Some(change_id), args);
         match handle_archive(rt, &argv) {
             Ok(()) => archived.push(change_id.clone()),
             Err(e) => {
