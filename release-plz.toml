@@ -1,0 +1,45 @@
+# release-plz configuration
+# https://release-plz.dev/docs/config
+#
+# NOTE: This file lives at the git repo root (not inside ito-rs/) so that
+# release-plz can find the .git directory when it clones to a temp dir.
+# The manifest_path is passed via CLI / GitHub Action inputs.
+#
+# IMPORTANT: Do NOT set git_only = true here. It causes release-plz to
+# miscalculate the repository path when --manifest-path points to a
+# subdirectory (ito-rs/Cargo.toml), resulting in "could not find repository"
+# errors during the worktree-spinning diff phase.
+
+[workspace]
+# Allow running with uncommitted changes (CI temp files, etc.)
+allow_dirty = true
+# Disable semver checks — no crates.io baseline exists yet for first publish
+semver_check = false
+# Defaults for all packages: publish to crates.io but no git tags/releases
+# (only ito-cli overrides these to create tags and GitHub releases)
+release = true
+git_tag_enable = false
+git_release_enable = false
+
+# ---- Library crates (published to crates.io, no git tags/releases) ----
+# These inherit workspace defaults: release = true, git_tag_enable = false,
+# git_release_enable = false. No [[package]] entry needed.
+
+# ---- Crates excluded from publishing ----
+
+[[package]]
+name = "ito-test-support"
+release = false
+
+# ---- The ito CLI binary — gets git tags and GitHub releases ----
+
+[[package]]
+name = "ito-cli"
+# Changelog lives in the repo root (relative to workspace root ito-rs/)
+changelog_path = "../CHANGELOG.md"
+git_tag_enable = true
+git_release_enable = true
+# Tag format: v0.24.0 (single version for the whole workspace)
+git_tag_name = "v{{ version }}"
+# Release name format
+git_release_name = "v{{ version }}"

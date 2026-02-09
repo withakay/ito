@@ -132,7 +132,7 @@ jobs:
 
   required-checks-pr:
     name: All checks passed
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -154,7 +154,7 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
