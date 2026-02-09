@@ -226,10 +226,27 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
+/// Dispatch the `ito archive` command from parsed clap args.
+///
+/// Routes to batch mode when `--completed` is set, otherwise archives a single
+/// change via the legacy raw-args handler.
 pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
+    if args.completed {
+        return handle_archive_completed(rt, args);
+    }
+
+    let argv = build_single_archive_argv(args.change.as_deref(), args);
+    handle_archive(rt, &argv)
+}
+
+/// Build the argv vector for a single-change archive invocation.
+///
+/// Combines an optional change id with the shared flags (`-y`, `--skip-specs`,
+/// `--no-validate`) from `ArchiveArgs`.
+fn build_single_archive_argv(change_id: Option<&str>, args: &ArchiveArgs) -> Vec<String> {
     let mut argv: Vec<String> = Vec::new();
-    if let Some(change) = &args.change {
-        argv.push(change.clone());
+    if let Some(id) = change_id {
+        argv.push(id.to_string());
     }
     if args.yes {
         argv.push("-y".to_string());
@@ -240,5 +257,62 @@ pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult
     if args.no_validate {
         argv.push("--no-validate".to_string());
     }
-    handle_archive(rt, &argv)
+    argv
+}
+
+/// Archive all changes with `ChangeStatus::Complete`.
+///
+/// Discovers completed changes via `FsChangeRepository::list_complete()`, then
+/// archives each one sequentially using the existing single-change flow.
+/// Reports per-change progress and a summary on completion.
+fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
+    let ito_path = rt.ito_path();
+    let changes_dir = core_paths::changes_dir(ito_path);
+
+    if !changes_dir.exists() {
+        return fail("No Ito changes directory found. Run 'ito init' first.");
+    }
+
+    let change_repo = FsChangeRepository::new(ito_path);
+    let completed = change_repo.list_complete().map_err(to_cli_error)?;
+
+    if completed.is_empty() {
+        eprintln!("No completed changes to archive.");
+        return Ok(());
+    }
+
+    let mut archived: Vec<String> = Vec::new();
+    let mut failed: Vec<(String, String)> = Vec::new();
+
+    for summary in &completed {
+        let change_id = &summary.id;
+        eprintln!("Archiving '{}'...", change_id);
+
+        let argv = build_single_archive_argv(Some(change_id), args);
+        match handle_archive(rt, &argv) {
+            Ok(()) => archived.push(change_id.clone()),
+            Err(e) => {
+                let msg = format!("{e}");
+                eprintln!("  ✖ Failed to archive '{}': {}", change_id, msg);
+                failed.push((change_id.clone(), msg));
+            }
+        }
+    }
+
+    // Print summary.
+    if failed.is_empty() {
+        eprintln!("Archived {} change(s).", archived.len());
+    } else {
+        eprintln!(
+            "Archived {} change(s), {} failed.",
+            archived.len(),
+            failed.len()
+        );
+    }
+
+    if !failed.is_empty() {
+        return fail(format!("Failed to archive {} change(s)", failed.len()));
+    }
+
+    Ok(())
 }

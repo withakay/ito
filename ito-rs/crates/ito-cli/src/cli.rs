@@ -912,8 +912,16 @@ pub struct UpdateArgs {
 #[derive(Args, Debug, Clone)]
 pub struct ArchiveArgs {
     /// Change id (directory name)
-    #[arg(value_name = "CHANGE")]
+    #[arg(
+        value_name = "CHANGE",
+        required_unless_present = "completed",
+        conflicts_with = "completed"
+    )]
     pub change: Option<String>,
+
+    /// Archive all completed changes (mutually exclusive with CHANGE)
+    #[arg(long = "completed", conflicts_with = "change")]
+    pub completed: bool,
 
     /// Skip confirmation prompts
     #[arg(short = 'y', long = "yes")]

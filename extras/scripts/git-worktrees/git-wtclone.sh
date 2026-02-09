@@ -30,7 +30,7 @@ FLAGS:
   -v, --verbose Verbose mode
   --version     Print version
 EOF
-  kill -INT $$
+  exit 1
 }
 
 die() {
