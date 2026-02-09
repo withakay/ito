@@ -144,7 +144,7 @@ jobs:
   required-checks-main:
     name: All checks passed
     runs-on:
-      group: withakay-selfhost
+      group: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
