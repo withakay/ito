@@ -160,7 +160,7 @@ cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 		exit 1; \
 	fi
 
-release: ## Trigger Release Please workflow (creates/updates release PR)
+release: ## Create/update release PR via release-plz
 	@set -e; \
 	if gh --version >/dev/null 2>&1; then \
 		:; \
@@ -182,28 +182,7 @@ release: ## Trigger Release Please workflow (creates/updates release PR)
 		echo "Wait for CI to finish, or rerun CI, then retry."; \
 		exit 1; \
 	fi; \
-	WORKFLOW=release-please.yml; \
-	gh workflow run "$$WORKFLOW" --ref main; \
-	echo "Triggered Release Please."; \
-	echo "Waiting for Release Please PR..."; \
-	SLEEP_SECS=2; \
-	MAX_TRIES=30; \
-	TRY=0; \
-	while [ "$$TRY" -lt "$$MAX_TRIES" ]; do \
-		PR_URL=$$(gh pr list --state open --head release-please--branches--main --json url -q '.[0].url' 2>/dev/null || true); \
-		if [ -z "$$PR_URL" ]; then \
-			PR_URL=$$(gh pr list --state open --label "autorelease: pending" --json url -q '.[0].url' 2>/dev/null || true); \
-		fi; \
-		if [ -n "$$PR_URL" ]; then \
-			echo "Release Please PR: $$PR_URL"; \
-			exit 0; \
-		fi; \
-		TRY=$$((TRY + 1)); \
-		sleep "$$SLEEP_SECS"; \
-	done; \
-	echo "Could not find Release Please PR yet."; \
-	echo "View runs: gh run list --workflow $$WORKFLOW --branch main --limit 5"; \
-	exit 1
+	$(MAKE) release-plz-release-pr
 
 version-bump: ## Bump workspace version (BUMP=none|patch|minor|major)
 	@set -e; \
@@ -212,7 +191,7 @@ version-bump: ## Bump workspace version (BUMP=none|patch|minor|major)
 	NEW_VERSION=$$(python3 "ito-rs/tools/version_bump.py" --manifest "$$MANIFEST" --stamp "$$STAMP" --bump "$(BUMP)"); \
 	echo "Bumped workspace version to $$NEW_VERSION"
 
-version-sync: ## Sync workspace/crate versions to Release Please + stamp
+version-sync: ## Sync workspace/crate versions to workspace version + stamp
 	@set -e; \
 	STAMP=$$(date +%Y%m%d%H%M); \
 	NEW_VERSION=$$(python3 "ito-rs/tools/sync_versions.py" --stamp "$$STAMP"); \
@@ -269,7 +248,7 @@ rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_D
 	fi; \
 	"$$INSTALL_DIR/ito" --version
 
-install: version-sync rust-install ## Sync version date + install Rust ito as 'ito'
+install: version-sync rust-install ## Sync workspace version stamp + install Rust ito as 'ito'
 
 dev: ## Build and install debug version with git info (fast iteration)
 	@set -e; \
