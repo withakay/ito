@@ -7,6 +7,7 @@ tools:
   - execute
   - edit
   - write
+model: "github-copilot/gpt-5.2-codex"
 ---
 
 You are a capable coding assistant for general development work.

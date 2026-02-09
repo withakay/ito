@@ -21,6 +21,49 @@ Add project-specific guidance in `.ito/user-guidance.md` (injected into agent in
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
+
+## Worktree Workflow
+
+**Strategy:** `bare_control_siblings`
+**Directory name:** `ito-worktrees`
+**Default branch:** `main`
+**Integration mode:** `commit_pr`
+
+
+This project uses a bare/control repo layout with worktrees as siblings:
+
+```
+<project>/                              # bare/control repo
+├── .bare/                              # git object store
+├── .git                                # gitdir pointer
+├── main/               # main branch worktree
+└── ito-worktrees/              # Ito-managed change worktrees
+    └── <change-name>/                  # one worktree per change
+```
+
+To create a worktree for a change:
+
+```bash
+mkdir -p "ito-worktrees"
+git worktree add "ito-worktrees/<change-name>" -b <change-name>
+```
+
+Do NOT ask the user where to create worktrees. Use `ito-worktrees/` inside the bare repo root.
+
+
+
+**Integration:** Commit changes in the worktree, push the branch, and create a pull request.
+
+
+After the change branch is merged, clean up:
+
+```bash
+git worktree remove <change-name> 2>/dev/null || true
+git branch -d <change-name> 2>/dev/null || true
+git worktree prune
+```
+
+
 <!-- ITO:END -->
 
 ## Architecture

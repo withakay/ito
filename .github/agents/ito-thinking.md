@@ -8,6 +8,7 @@ tools:
   - edit
   - write
   - fetch
+model: "github-copilot/gpt-5.2-codex"
 ---
 
 You are an expert coding assistant for complex problems requiring deep reasoning.

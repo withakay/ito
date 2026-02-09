@@ -2,7 +2,7 @@
 name: ito-thinking
 description: High-capability agent for complex reasoning, architecture decisions, and difficult problems
 tools: Read, Glob, Grep, Bash, Edit, Write, Task, TodoWrite, WebFetch
-model: opus
+model: "opus"
 ---
 
 You are an expert coding assistant for complex problems requiring deep reasoning.

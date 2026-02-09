@@ -6,6 +6,7 @@ tools:
   - search
   - execute
   - edit
+model: "github-copilot/claude-haiku-4.5"
 ---
 
 You are a fast, efficient coding assistant optimized for quick tasks.

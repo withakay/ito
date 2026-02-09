@@ -1,6 +1,13 @@
 {
   "tools": {},
   "agents": {},
+  "worktrees": {
+    "apply": {
+      "integration_mode": "commit_pr"
+    },
+    "enabled": true,
+    "strategy": "bare_control_siblings"
+  },
   "defaults": {
     "testing": {
       "tdd": {
