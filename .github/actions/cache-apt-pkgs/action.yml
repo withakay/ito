@@ -1,0 +1,62 @@
+name: "Cache APT Packages"
+description: "Install and cache apt packages across workflow runs"
+
+inputs:
+  packages:
+    description: "Space-separated list of apt packages to install"
+    required: true
+  cache-version:
+    description: "Cache version key suffix — bump to invalidate the cache"
+    required: false
+    default: "v1"
+  reinstall:
+    description: "Force reinstall even if packages are already present"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      id: apt-cache
+      with:
+        path: ~/apt-cache
+        key: apt-${{ inputs.packages }}-${{ runner.os }}-${{ inputs.cache-version }}
+
+    - name: Install apt packages
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        REINSTALL: ${{ inputs.reinstall }}
+      run: |
+        if [ "${{ steps.apt-cache.outputs.cache-hit }}" = "true" ] && [ -d ~/apt-cache ] && [ "$(ls -A ~/apt-cache 2>/dev/null)" ]; then
+          echo "::group::Restoring cached .deb packages"
+          sudo dpkg -i ~/apt-cache/*.deb 2>/dev/null || true
+          sudo apt-get install -f -y
+          echo "::endgroup::"
+        else
+          echo "::group::Installing packages: ${PACKAGES}"
+          sudo apt-get update
+
+          INSTALL_FLAGS="-y"
+          if [ "${REINSTALL}" = "true" ]; then
+            INSTALL_FLAGS="-y --reinstall"
+          fi
+
+          sudo apt-get install ${INSTALL_FLAGS} ${PACKAGES}
+          echo "::endgroup::"
+
+          echo "::group::Caching .deb files"
+          mkdir -p ~/apt-cache
+          # Copy all .deb files that were downloaded for the requested packages
+          for pkg in ${PACKAGES}; do
+            cp /var/cache/apt/archives/${pkg}*.deb ~/apt-cache/ 2>/dev/null || true
+          done
+          # Also grab common dependencies
+          for pattern in gcc g++ make dpkg-dev libc*-dev; do
+            cp /var/cache/apt/archives/${pattern}*.deb ~/apt-cache/ 2>/dev/null || true
+          done
+          echo "Cached $(ls ~/apt-cache/*.deb 2>/dev/null | wc -l) .deb files"
+          echo "::endgroup::"
+        fi
