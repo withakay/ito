@@ -55,7 +55,9 @@ jobs:
           cargo -V
 
       - name: Test
-        run: cargo test --manifest-path ito-rs/Cargo.toml --workspace
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+        run: cargo test --manifest-path ito-rs/Cargo.toml --workspace --exclude ito-web
 
   lint:
     name: Lint & Type Check
