@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,30 +42,19 @@ def _base_part(version: str) -> str:
     return f"{m.group('major')}.{m.group('minor')}.{m.group('patch')}"
 
 
-def _read_release_please_version(manifest_path: Path, component: str) -> str:
-    if not manifest_path.exists():
-        raise SystemExit(f"release-please manifest not found: {manifest_path}")
+def _read_workspace_version(workspace_manifest: Path) -> str:
+    try:
+        import tomllib  # py3.11+
+    except ModuleNotFoundError as e:
+        raise SystemExit(
+            "python3 must include tomllib (Python 3.11+) to run this script"
+        ) from e
 
-    data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise SystemExit(f"release-please manifest is not an object: {manifest_path}")
-
-    candidates = [
-        component,
-        component.rstrip("/"),
-        f"{component.rstrip('/')}/",  # with trailing slash
-        f"{component.rstrip('/')}".lstrip("./"),
-    ]
-    for key in candidates:
-        if key in data:
-            version = data[key]
-            if not isinstance(version, str) or not version:
-                raise SystemExit(f"invalid version for '{key}' in {manifest_path}")
-            return version
-
-    raise SystemExit(
-        f"component '{component}' not found in {manifest_path} (keys: {', '.join(sorted(map(str, data.keys())))})"
-    )
+    data = tomllib.loads(workspace_manifest.read_text(encoding="utf-8"))
+    version = data.get("workspace", {}).get("package", {}).get("version")
+    if not isinstance(version, str) or not version:
+        raise SystemExit(f"workspace package version not found in {workspace_manifest}")
+    return version
 
 
 def _replace_version_in_section(
@@ -74,7 +62,7 @@ def _replace_version_in_section(
     manifest: Path,
     section_header: str,
     allow_workspace_version: bool,
-    release_base: Semver,
+    base_version: Semver,
     new_version: str,
 ) -> tuple[bool, str | None]:
     text = manifest.read_text(encoding="utf-8").splitlines(True)
@@ -108,9 +96,9 @@ def _replace_version_in_section(
                     ov = m.group(1)
                     old_version = ov
                     old_base = _parse_base_semver(_base_part(ov))
-                    if old_base.as_tuple() > release_base.as_tuple():
+                    if old_base.as_tuple() > base_version.as_tuple():
                         raise SystemExit(
-                            f"{manifest}: version {old_version} is higher than release-please version {release_base}"
+                            f"{manifest}: version {old_version} is higher than workspace version {base_version}"
                         )
                     out.append(f'version = "{new_version}"\n')
                     replaced = True
@@ -155,17 +143,7 @@ def _read_workspace_members(workspace_manifest: Path) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sync Cargo versions to release-please manifest"
-    )
-    parser.add_argument(
-        "--release-please-manifest",
-        default=".release-please-manifest.json",
-        help="Path to .release-please-manifest.json",
-    )
-    parser.add_argument(
-        "--component",
-        default="ito-rs",
-        help="Component key in the release-please manifest (default: ito-rs)",
+        description="Sync Cargo versions to workspace version + stamp"
     )
     parser.add_argument(
         "--workspace-manifest",
@@ -178,21 +156,20 @@ def main() -> None:
     if not re.fullmatch(r"\d{12}", args.stamp):
         raise SystemExit(f"invalid stamp (expected YYYYMMDDHHMM): {args.stamp}")
 
-    manifest_path = Path(args.release_please_manifest)
     workspace_manifest = Path(args.workspace_manifest)
     if not workspace_manifest.exists():
         raise SystemExit(f"workspace manifest not found: {workspace_manifest}")
 
-    release_version = _read_release_please_version(manifest_path, args.component)
-    release_base = _parse_base_semver(_base_part(release_version))
-    new_version = f"{release_base}-local.{args.stamp}"
+    workspace_version = _read_workspace_version(workspace_manifest)
+    base_version = _parse_base_semver(_base_part(workspace_version))
+    new_version = f"{base_version}-local.{args.stamp}"
 
     # 1) Update workspace.package version
     _replace_version_in_section(
         manifest=workspace_manifest,
         section_header="[workspace.package]",
         allow_workspace_version=False,
-        release_base=release_base,
+        base_version=base_version,
         new_version=new_version,
     )
 
@@ -209,7 +186,7 @@ def main() -> None:
             manifest=member_manifest,
             section_header="[package]",
             allow_workspace_version=True,
-            release_base=release_base,
+            base_version=base_version,
             new_version=new_version,
         )
         if did_replace:

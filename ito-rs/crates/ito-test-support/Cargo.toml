@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Test utilities and helpers for Ito"
+publish = false
 
 [dependencies]
 chrono = { workspace = true }

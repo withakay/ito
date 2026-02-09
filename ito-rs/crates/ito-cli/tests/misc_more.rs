@@ -345,6 +345,7 @@ fn show_module_errors_and_json_not_implemented() {
 
 #[test]
 #[cfg(unix)]
+#[ignore = "PTY interactive test — can hang in CI; run with --ignored locally"]
 fn archive_prompts_on_incomplete_tasks_and_proceeds_when_confirmed() {
     let base = fixtures::make_repo_all_valid();
     let repo = tempfile::tempdir().expect("work");

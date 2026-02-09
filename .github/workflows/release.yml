@@ -3,13 +3,6 @@ name: Release
 on:
   release:
     types: [published]
-  # `release` events created by `GITHUB_TOKEN` (e.g. from release-please)
-  # may not trigger downstream workflows. Run after Release Please completes
-  # and derive the latest published tag.
-  workflow_run:
-    workflows: ["Release Please"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -22,7 +15,8 @@ permissions:
 jobs:
   meta:
     name: Resolve release tag
-    runs-on: withakay-selfhosted
+    runs-on:
+      group: withakay-selfhost
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       skip: ${{ steps.meta.outputs.skip }}
@@ -64,7 +58,8 @@ jobs:
     name: Check if release assets already exist
     needs: [meta]
     if: needs.meta.outputs.skip != 'true'
-    runs-on: withakay-selfhosted
+    runs-on:
+      group: withakay-selfhost
     outputs:
       present: ${{ steps.check.outputs.present }}
     steps:
@@ -113,7 +108,8 @@ jobs:
     name: Validate tag matches crate version
     needs: [meta, check_assets]
     if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
-    runs-on: withakay-selfhosted
+    runs-on:
+      group: withakay-selfhost
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -306,7 +302,8 @@ jobs:
     name: Upload release assets
     needs: [meta, check_assets, build]
     if: needs.meta.outputs.skip != 'true' && needs.check_assets.outputs.present != 'true'
-    runs-on: withakay-selfhosted
+    runs-on:
+      group: withakay-selfhost
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
