@@ -20,11 +20,12 @@ no-default-features = false
 # Advisories: deny known-vulnerable or unmaintained crates
 # ──────────────────────────────────────────────────────────────────────
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
-unsound = "warn"
-yanked = "warn"
-notice = "warn"
+# cargo-deny >=0.19 uses scope-based values: "all", "workspace", "transitive", "none".
+# All advisory types deny by default; these control which dependency scopes trigger failure.
+unmaintained = "workspace"
+unsound = "all"
+yanked = "workspace"
+notice = "none"
 ignore = []
 
 # ──────────────────────────────────────────────────────────────────────
