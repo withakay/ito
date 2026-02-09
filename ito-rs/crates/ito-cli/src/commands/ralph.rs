@@ -12,8 +12,8 @@ use ito_core::task_repository::FsTaskRepository;
 
 pub(crate) fn handle_loop(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        let loop_help = super::common::render_command_long_help(&["loop"], "ito loop");
-        let ralph_help = super::common::render_command_long_help(&["ralph"], "ito ralph");
+        let loop_help = crate::app::common::render_command_long_help(&["loop"], "ito loop");
+        let ralph_help = crate::app::common::render_command_long_help(&["ralph"], "ito ralph");
         println!("{loop_help}\n\n{ralph_help}");
         return Ok(());
     }
@@ -26,7 +26,7 @@ pub(crate) fn handle_ralph(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
             "{}",
-            super::common::render_command_long_help(&["ralph"], "ito ralph")
+            crate::app::common::render_command_long_help(&["ralph"], "ito ralph")
         );
         return Ok(());
     }
