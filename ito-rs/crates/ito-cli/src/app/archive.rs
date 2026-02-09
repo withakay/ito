@@ -227,6 +227,10 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
 }
 
 pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
+    if args.completed {
+        return handle_archive_completed(rt, args);
+    }
+
     let mut argv: Vec<String> = Vec::new();
     if let Some(change) = &args.change {
         argv.push(change.clone());
@@ -241,4 +245,71 @@ pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult
         argv.push("--no-validate".to_string());
     }
     handle_archive(rt, &argv)
+}
+
+/// Archive all changes with `ChangeStatus::Complete`.
+///
+/// Discovers completed changes via `FsChangeRepository::list_complete()`, then
+/// archives each one sequentially using the existing single-change flow.
+/// Reports per-change progress and a summary on completion.
+fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
+    let ito_path = rt.ito_path();
+    let changes_dir = core_paths::changes_dir(ito_path);
+
+    if !changes_dir.exists() {
+        return fail("No Ito changes directory found. Run 'ito init' first.");
+    }
+
+    let change_repo = FsChangeRepository::new(ito_path);
+    let completed = change_repo.list_complete().map_err(to_cli_error)?;
+
+    if completed.is_empty() {
+        eprintln!("No completed changes to archive.");
+        return Ok(());
+    }
+
+    let mut archived: Vec<String> = Vec::new();
+    let mut failed: Vec<(String, String)> = Vec::new();
+
+    for summary in &completed {
+        let change_id = &summary.id;
+        eprintln!("Archiving '{}'...", change_id);
+
+        let mut argv: Vec<String> = vec![change_id.clone()];
+        if args.yes {
+            argv.push("-y".to_string());
+        }
+        if args.skip_specs {
+            argv.push("--skip-specs".to_string());
+        }
+        if args.no_validate {
+            argv.push("--no-validate".to_string());
+        }
+
+        match handle_archive(rt, &argv) {
+            Ok(()) => archived.push(change_id.clone()),
+            Err(e) => {
+                let msg = format!("{e}");
+                eprintln!("  ✖ Failed to archive '{}': {}", change_id, msg);
+                failed.push((change_id.clone(), msg));
+            }
+        }
+    }
+
+    // Print summary.
+    if failed.is_empty() {
+        eprintln!("Archived {} change(s).", archived.len());
+    } else {
+        eprintln!(
+            "Archived {} change(s), {} failed.",
+            archived.len(),
+            failed.len()
+        );
+    }
+
+    if !failed.is_empty() {
+        return fail(format!("Failed to archive {} change(s)", failed.len()));
+    }
+
+    Ok(())
 }
