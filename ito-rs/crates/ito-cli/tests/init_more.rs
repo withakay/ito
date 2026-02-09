@@ -136,10 +136,14 @@ fn init_refuses_to_overwrite_existing_file_without_markers_when_not_forced() {
     );
 }
 
-// PTY-based interactive tests are skipped on Windows due to platform differences
-// in terminal handling that cause hangs. The underlying init logic is cross-platform.
+// PTY-based interactive tests are skipped on Windows and in CI due to platform
+// and timing differences in terminal handling that cause hangs. The dialoguer
+// multi-select widget uses raw-mode input which races with pre-buffered PTY
+// input in headless environments. The underlying init logic is cross-platform
+// and covered by the non-interactive tests above.
 #[test]
 #[cfg(unix)]
+#[ignore = "PTY interactive test hangs in CI; run locally with --include-ignored"]
 fn init_interactive_detects_tools_and_installs_adapter_files() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
