@@ -39,26 +39,50 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "Zlib",
-    "CC0-1.0",
     "BSL-1.0",
-    "OpenSSL",
 ]
 confidence-threshold = 0.8
-
-[[licenses.clarify]]
-crate = "ring"
-expression = "MIT AND ISC AND OpenSSL"
-license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 # ──────────────────────────────────────────────────────────────────────
 # Bans: general dependency hygiene
 # ──────────────────────────────────────────────────────────────────────
 [bans]
-multiple-versions = "warn"
+multiple-versions = "deny"
 wildcards = "allow"
 highlight = "all"
+
+# Transitive duplicates we cannot resolve — upstream crates pin different
+# major versions. Revisit when upgrading crossterm, rusqlite, miette, or
+# portable-pty.
+skip = [
+    # portable-pty pins bitflags 1.x; everything else uses 2.x
+    { crate = "bitflags@1", reason = "portable-pty transitive" },
+    # rusqlite→hashlink pins hashbrown 0.14; serde_yaml→indexmap uses 0.16
+    { crate = "hashbrown@0.14", reason = "rusqlite transitive" },
+    # crossterm/gethostname use rustix 0.38; tempfile/terminal_size use 1.x
+    { crate = "rustix@0.38", reason = "crossterm/gethostname transitive" },
+    { crate = "linux-raw-sys@0.4", reason = "follows rustix 0.38" },
+    # portable-pty→filedescriptor pins thiserror 1.x
+    { crate = "thiserror@1", reason = "portable-pty transitive" },
+    { crate = "thiserror-impl@1", reason = "follows thiserror 1.x" },
+    # miette uses unicode-width 0.1; console/indicatif/textwrap use 0.2
+    { crate = "unicode-width@0.1", reason = "miette transitive" },
+    # windows-sys ecosystem: crossterm/console/insta pin 0.59, tokio/clap
+    # pin 0.60, mio/console pin 0.61 — cascades to windows-targets and
+    # per-arch link crates
+    { crate = "windows-sys@0.59", reason = "crossterm/insta transitive" },
+    { crate = "windows-sys@0.60", reason = "tokio/clap transitive" },
+    { crate = "windows-targets@0.52", reason = "follows windows-sys 0.59" },
+    { crate = "windows_aarch64_gnullvm@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_aarch64_msvc@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_i686_gnu@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_i686_gnullvm@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_i686_msvc@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_x86_64_gnu@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_x86_64_gnullvm@0.52", reason = "follows windows-targets 0.52" },
+    { crate = "windows_x86_64_msvc@0.52", reason = "follows windows-targets 0.52" },
+]
 
 # ──────────────────────────────────────────────────────────────────────
 # Sources: restrict to crates.io

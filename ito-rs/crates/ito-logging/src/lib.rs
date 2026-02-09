@@ -279,7 +279,7 @@ fn load_or_create_salt(path: &Path) -> Option<[u8; 32]> {
     }
 
     let mut out = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut out);
+    rand::rng().fill_bytes(&mut out);
     if let Err(e) = std::fs::write(path, out) {
         log::debug!("telemetry: failed to write telemetry_salt: {e}");
         return None;
