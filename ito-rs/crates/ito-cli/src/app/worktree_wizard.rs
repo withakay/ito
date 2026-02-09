@@ -1,11 +1,12 @@
 //! Interactive worktree setup wizard for `ito init` and `ito update`.
 //!
-//! Guides the user through enabling worktrees, selecting a strategy, and
-//! choosing an integration mode. Choices are persisted to config immediately.
+//! This module is split into two parts:
+//! - prompting (collecting user choices)
+//! - persistence (writing choices to a config file)
 //!
-//! The [`WorktreeWizardResult`] carries the resolved config values so that
-//! downstream consumers (e.g., template rendering) can use them without
-//! re-reading the config file.
+//! This separation lets `ito init` render templates with the chosen worktree
+//! context *before* `.ito/config.json` exists, then persist to the project
+//! config after template installation.
 
 use crate::cli_error::{CliError, CliResult};
 use ito_core::config as core_config;
@@ -32,18 +33,10 @@ pub(crate) struct WorktreeWizardResult {
     pub integration_mode: Option<String>,
 }
 
-/// Run the interactive worktree setup wizard.
+/// Prompt the user for worktree configuration.
 ///
-/// Asks:
-/// 1. Whether to enable worktrees for this project
-/// 2. Which strategy to use (if enabled)
-/// 3. Which integration mode to prefer (if enabled)
-///
-/// Persists answers to the config file at `config_path` and prints the
-/// config file path and written keys.
-///
-/// Returns a result indicating what was chosen.
-pub(crate) fn run_worktree_wizard(config_path: &Path) -> CliResult<WorktreeWizardResult> {
+/// Returns the resolved worktree configuration choices.
+pub(crate) fn prompt_worktree_wizard() -> CliResult<WorktreeWizardResult> {
     println!("\n--- Worktree Configuration ---\n");
 
     // Question 1: Enable worktrees?
@@ -66,21 +59,6 @@ pub(crate) fn run_worktree_wizard(config_path: &Path) -> CliResult<WorktreeWizar
     let enabled = enable_idx == 1;
 
     if !enabled {
-        // Only persist enabled=false and exit
-        let mut config = core_config::read_json_config(config_path)
-            .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
-
-        let parts = core_config::json_split_path("worktrees.enabled");
-        core_config::json_set_path(&mut config, &parts, serde_json::Value::Bool(false))
-            .map_err(|e| CliError::msg(format!("Failed to set config: {e}")))?;
-
-        core_config::write_json_config(config_path, &config)
-            .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
-
-        println!("\nWorktree mode disabled.");
-        println!("Config file: {}", config_path.display());
-        println!("  worktrees.enabled = false\n");
-
         return Ok(WorktreeWizardResult {
             ran: true,
             enabled: false,
@@ -139,43 +117,93 @@ pub(crate) fn run_worktree_wizard(config_path: &Path) -> CliResult<WorktreeWizar
     };
     let integration_mode = mode_values[mode_idx];
 
-    // Persist all answers
-    let mut config = core_config::read_json_config(config_path)
-        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
-
-    let settings: &[(&str, serde_json::Value)] = &[
-        ("worktrees.enabled", serde_json::Value::Bool(true)),
-        (
-            "worktrees.strategy",
-            serde_json::Value::String(strategy.to_string()),
-        ),
-        (
-            "worktrees.apply.integration_mode",
-            serde_json::Value::String(integration_mode.to_string()),
-        ),
-    ];
-
-    for (key, value) in settings {
-        let parts = core_config::json_split_path(key);
-        core_config::json_set_path(&mut config, &parts, value.clone())
-            .map_err(|e| CliError::msg(format!("Failed to set config key '{key}': {e}")))?;
-    }
-
-    core_config::write_json_config(config_path, &config)
-        .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
-
-    println!("\nWorktree configuration saved.");
-    println!("Config file: {}", config_path.display());
-    println!("  worktrees.enabled = true");
-    println!("  worktrees.strategy = {strategy}");
-    println!("  worktrees.apply.integration_mode = {integration_mode}\n");
-
     Ok(WorktreeWizardResult {
         ran: true,
         enabled: true,
         strategy: Some(strategy.to_string()),
         integration_mode: Some(integration_mode.to_string()),
     })
+}
+
+/// Persist a [`WorktreeWizardResult`] to a JSON config file.
+///
+/// This only writes the `worktrees.*` keys and preserves any other existing
+/// keys in the file.
+pub(crate) fn persist_worktree_config(
+    config_path: &Path,
+    result: &WorktreeWizardResult,
+) -> CliResult<()> {
+    if let Some(parent) = config_path.parent() {
+        let _ = ito_common::io::create_dir_all_std(parent);
+    }
+
+    let mut config = core_config::read_json_config(config_path)
+        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
+
+    let enabled = serde_json::Value::Bool(result.enabled);
+    let enabled_parts = core_config::json_split_path("worktrees.enabled");
+    core_config::json_set_path(&mut config, &enabled_parts, enabled)
+        .map_err(|e| CliError::msg(format!("Failed to set config: {e}")))?;
+
+    if result.enabled {
+        let Some(strategy) = result.strategy.as_deref() else {
+            return Err(CliError::msg("Worktree wizard result missing strategy"));
+        };
+        let Some(integration_mode) = result.integration_mode.as_deref() else {
+            return Err(CliError::msg(
+                "Worktree wizard result missing integration_mode",
+            ));
+        };
+
+        let settings: &[(&str, serde_json::Value)] = &[
+            (
+                "worktrees.strategy",
+                serde_json::Value::String(strategy.to_string()),
+            ),
+            (
+                "worktrees.apply.integration_mode",
+                serde_json::Value::String(integration_mode.to_string()),
+            ),
+        ];
+
+        for (key, value) in settings {
+            let parts = core_config::json_split_path(key);
+            core_config::json_set_path(&mut config, &parts, value.clone())
+                .map_err(|e| CliError::msg(format!("Failed to set config key '{key}': {e}")))?;
+        }
+    }
+
+    core_config::write_json_config(config_path, &config)
+        .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
+
+    Ok(())
+}
+
+pub(crate) fn print_worktree_config_written(config_path: &Path, result: &WorktreeWizardResult) {
+    if !result.enabled {
+        println!("\nWorktree mode disabled.");
+        println!("Config file: {}", config_path.display());
+        println!("  worktrees.enabled = false\n");
+        return;
+    }
+
+    let strategy = result.strategy.as_deref().unwrap_or_default();
+    let integration_mode = result.integration_mode.as_deref().unwrap_or_default();
+
+    println!("\nWorktree configuration saved.");
+    println!("Config file: {}", config_path.display());
+    println!("  worktrees.enabled = true");
+    println!("  worktrees.strategy = {strategy}");
+    println!("  worktrees.apply.integration_mode = {integration_mode}\n");
+}
+
+pub(crate) fn save_worktree_config(
+    config_path: &Path,
+    result: &WorktreeWizardResult,
+) -> CliResult<()> {
+    persist_worktree_config(config_path, result)?;
+    print_worktree_config_written(config_path, result);
+    Ok(())
 }
 
 /// Check whether worktree strategy is already configured in the given config file.

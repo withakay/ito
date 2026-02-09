@@ -1,0 +1,100 @@
+## Worktrees
+
+Worktree workflow is intentionally **config-driven** so different developers can use different strategies without changing committed files.
+
+### Resolved Configuration
+
+- `worktrees.enabled`: `{{ worktree.enabled }}`
+- `worktrees.strategy`: `{{ worktree.strategy }}`
+- `worktrees.layout.dir_name`: `{{ worktree.layout_dir_name }}`
+- `worktrees.default_branch`: `{{ worktree.default_branch }}`
+- `worktrees.apply.integration_mode`: `{{ worktree.integration_mode }}`
+
+### Config Files Consulted (Low -> High)
+
+{% if loaded_from | length == 0 %}
+- (none) Using defaults.
+{% else %}
+{% for p in loaded_from %}
+- `{{ p }}`
+{% endfor %}
+{% endif %}
+
+Recommended per-developer override file: `{{ ito_dir_name }}/config.local.json` (gitignored)
+
+### Guidance
+
+{% if not worktree.enabled %}
+Worktrees are not enabled. Do NOT create git worktrees unless the user explicitly asks.
+
+To enable worktrees for *this developer*, create/update `{{ ito_dir_name }}/config.local.json`:
+
+```json
+{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "checkout_subdir",
+    "default_branch": "main",
+    "layout": { "dir_name": "ito-worktrees" },
+    "apply": { "integration_mode": "commit_pr" }
+  }
+}
+```
+{% else %}
+Use the commands below for the configured strategy.
+
+{% if worktree.strategy == "checkout_subdir" %}
+#### Strategy: `checkout_subdir`
+
+Worktrees live in a gitignored subdirectory inside the checkout:
+
+```bash
+BRANCH_NAME="<change-name>"
+mkdir -p ".{{ worktree.layout_dir_name }}"
+
+# Ensure the worktree directory is gitignored
+grep -qxF '.{{ worktree.layout_dir_name }}/' .gitignore 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> .gitignore
+
+git worktree add ".{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+```
+{% elif worktree.strategy == "checkout_siblings" %}
+#### Strategy: `checkout_siblings`
+
+Worktrees live in a sibling directory next to the checkout:
+
+```bash
+BRANCH_NAME="<change-name>"
+PROJECT_NAME=$(basename "$(pwd)")
+WORKTREE_BASE="../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
+mkdir -p "${WORKTREE_BASE}"
+
+git worktree add "${WORKTREE_BASE}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+```
+{% elif worktree.strategy == "bare_control_siblings" %}
+#### Strategy: `bare_control_siblings`
+
+This is a bare/control repo layout with worktrees as siblings:
+
+```bash
+BRANCH_NAME="<change-name>"
+mkdir -p "{{ worktree.layout_dir_name }}"
+git worktree add "{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+```
+{% endif %}
+
+#### Integration
+
+{% if worktree.integration_mode == "commit_pr" %}
+Commit on the worktree branch, push, and open a PR into `{{ worktree.default_branch }}`.
+{% elif worktree.integration_mode == "merge_parent" %}
+Commit on the worktree branch, then merge into `{{ worktree.default_branch }}`.
+{% endif %}
+
+#### Cleanup
+
+```bash
+git worktree remove "<worktree-path>" 2>/dev/null || true
+git branch -d "<change-name>" 2>/dev/null || true
+git worktree prune
+```
+{% endif %}

@@ -1,6 +1,5 @@
 ---
 source: crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 81
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -561,6 +560,8 @@ Options:
 Artifacts:
   bootstrap      Generate a tool bootstrap preamble
   project-setup  Guide for setting up a new project
+  worktrees      Guide for git worktree workflow (config-driven)
+  workflow       Alias for worktrees
   proposal       Show the change proposal
   specs          Show the specification deltas
   tasks          Show the implementation task list
@@ -571,6 +572,7 @@ Artifacts:
 Examples:
   ito agent instruction bootstrap --tool opencode
   ito agent instruction project-setup
+  ito agent instruction worktrees
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
 

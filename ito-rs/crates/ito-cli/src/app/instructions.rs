@@ -99,6 +99,54 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
+    if artifact == "worktrees" || artifact == "workflow" {
+        let ctx = rt.ctx();
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let worktree = worktree_config_from_merged(&cfg.merged);
+        let ito_dir_name = ito_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(".ito")
+            .to_string();
+        let loaded_from: Vec<String> = cfg
+            .loaded_from
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            ito_dir_name: String,
+            worktree: WorktreeConfig,
+            loaded_from: Vec<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/worktrees.md.j2",
+            &Ctx {
+                ito_dir_name,
+                worktree,
+                loaded_from,
+            },
+        )
+        .expect("worktrees instruction template should render");
+
+        if want_json {
+            let response = core_workflow::AgentInstructionResponse {
+                artifact_id: artifact.to_string(),
+                instruction,
+            };
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        print!("{instruction}");
+        return Ok(());
+    }
+
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
         // Special case: proposal without --change outputs creation guide
@@ -431,14 +479,7 @@ struct WorktreeConfig {
     default_branch: String,
 }
 
-fn load_worktree_config(
-    project_root: &Path,
-    ito_path: &Path,
-    ctx: &ito_config::ConfigContext,
-) -> WorktreeConfig {
-    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    let merged = cfg.merged;
-
+fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
     let mut out = WorktreeConfig {
         enabled: false,
         strategy: "checkout_subdir".to_string(),
@@ -512,6 +553,15 @@ fn load_worktree_config(
     }
 
     out
+}
+
+fn load_worktree_config(
+    project_root: &Path,
+    ito_path: &Path,
+    ctx: &ito_config::ConfigContext,
+) -> WorktreeConfig {
+    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+    worktree_config_from_merged(&cfg.merged)
 }
 
 fn print_apply_instructions_text(

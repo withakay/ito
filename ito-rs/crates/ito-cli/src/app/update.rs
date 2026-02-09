@@ -1,9 +1,11 @@
 use crate::app::worktree_wizard::{
-    is_worktree_configured, load_worktree_result_from_config, run_worktree_wizard,
+    WorktreeWizardResult, is_worktree_configured, load_worktree_result_from_config,
+    prompt_worktree_wizard, save_worktree_config,
 };
 use crate::cli::UpdateArgs;
 use crate::cli_error::{CliResult, to_cli_error};
 use crate::runtime::Runtime;
+use ito_config::ito_dir;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -36,7 +38,8 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
 
-    let worktree_ctx = resolve_update_worktree_config(ctx, is_interactive);
+    let (worktree_ctx, post_install_save) =
+        resolve_update_worktree_config(ctx, target_path, is_interactive)?;
 
     let tools: BTreeSet<String> = ito_core::installers::available_tool_ids()
         .iter()
@@ -53,6 +56,10 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     )
     .map_err(to_cli_error)?;
 
+    if let Some((path, result)) = post_install_save {
+        save_worktree_config(&path, &result)?;
+    }
+
     Ok(())
 }
 
@@ -62,44 +69,71 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// runs the wizard. Otherwise loads existing config, defaulting to disabled.
 fn resolve_update_worktree_config(
     ctx: &ito_config::ConfigContext,
+    target_path: &std::path::Path,
     interactive: bool,
-) -> WorktreeTemplateContext {
-    let Some(config_path) = ito_config::global_config_path(ctx) else {
-        return WorktreeTemplateContext::default();
+) -> CliResult<(
+    WorktreeTemplateContext,
+    Option<(std::path::PathBuf, WorktreeWizardResult)>,
+)> {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let project_config_path = ito_path.join("config.json");
+    let project_local_config_path = ito_path.join("config.local.json");
+    let global_config_path = ito_config::global_config_path(ctx);
+
+    let local_configured = is_worktree_configured(&project_local_config_path);
+    let project_configured = is_worktree_configured(&project_config_path);
+    let global_configured = global_config_path
+        .as_ref()
+        .is_some_and(|p| is_worktree_configured(p));
+
+    // Wizard runs only when neither project nor global worktree config exists.
+    let (result, should_save_to_project) =
+        if interactive && !local_configured && !project_configured && !global_configured {
+            (prompt_worktree_wizard()?, true)
+        } else if local_configured {
+            (
+                load_worktree_result_from_config(&project_local_config_path),
+                false,
+            )
+        } else if project_configured {
+            (
+                load_worktree_result_from_config(&project_config_path),
+                false,
+            )
+        } else if global_configured {
+            // Backward compatibility: load from global config, then migrate to project.
+            let global_path = global_config_path
+                .as_ref()
+                .expect("global_configured implies global_config_path");
+            (load_worktree_result_from_config(global_path), true)
+        } else {
+            (
+                WorktreeWizardResult {
+                    ran: false,
+                    enabled: false,
+                    strategy: None,
+                    integration_mode: None,
+                },
+                false,
+            )
+        };
+
+    let ctx_out = if result.enabled {
+        WorktreeTemplateContext {
+            enabled: true,
+            strategy: result.strategy.clone().unwrap_or_default(),
+            layout_dir_name: "ito-worktrees".to_string(),
+            integration_mode: result.integration_mode.clone().unwrap_or_default(),
+            default_branch: "main".to_string(),
+        }
+    } else {
+        WorktreeTemplateContext::default()
     };
 
-    // Interactive + not yet configured: run the wizard.
-    if interactive && !is_worktree_configured(&config_path) {
-        if let Some(parent) = config_path.parent() {
-            let _ = ito_common::io::create_dir_all_std(parent);
-        }
-        if let Ok(result) = run_worktree_wizard(&config_path) {
-            if result.enabled {
-                return WorktreeTemplateContext {
-                    enabled: true,
-                    strategy: result.strategy.unwrap_or_default(),
-                    layout_dir_name: "ito-worktrees".to_string(),
-                    integration_mode: result.integration_mode.unwrap_or_default(),
-                    default_branch: "main".to_string(),
-                };
-            }
-            return WorktreeTemplateContext::default();
-        }
-    }
-
-    // Non-interactive or already configured: load from config.
-    let result = load_worktree_result_from_config(&config_path);
-    if result.enabled {
-        return WorktreeTemplateContext {
-            enabled: true,
-            strategy: result.strategy.unwrap_or_default(),
-            layout_dir_name: "ito-worktrees".to_string(),
-            integration_mode: result.integration_mode.unwrap_or_default(),
-            default_branch: "main".to_string(),
-        };
-    }
-
-    WorktreeTemplateContext::default()
+    // Save to the per-developer overlay so two developers can have different
+    // worktree workflows without churn in committed config.
+    let post_install_save = should_save_to_project.then_some((project_local_config_path, result));
+    Ok((ctx_out, post_install_save))
 }
 
 pub(crate) fn handle_update_clap(rt: &Runtime, args: &UpdateArgs) -> CliResult<()> {

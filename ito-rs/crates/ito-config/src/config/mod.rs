@@ -28,6 +28,8 @@ pub mod types;
 const REPO_CONFIG_FILE_NAME: &str = "ito.json";
 const REPO_DOT_CONFIG_FILE_NAME: &str = ".ito.json";
 const ITO_DIR_CONFIG_FILE_NAME: &str = "config.json";
+const ITO_DIR_LOCAL_CONFIG_FILE_NAME: &str = "config.local.json";
+const PROJECT_LOCAL_CONFIG_PATH: &str = ".local/ito/config.json";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 /// Global (user-level) configuration.
@@ -267,11 +269,13 @@ pub fn project_config_paths(
     ito_path: &Path,
     ctx: &ConfigContext,
 ) -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = Vec::new();
-
-    out.push(project_root.join(REPO_CONFIG_FILE_NAME));
-    out.push(project_root.join(REPO_DOT_CONFIG_FILE_NAME));
-    out.push(ito_path.join(ITO_DIR_CONFIG_FILE_NAME));
+    let mut out: Vec<PathBuf> = vec![
+        project_root.join(REPO_CONFIG_FILE_NAME),
+        project_root.join(REPO_DOT_CONFIG_FILE_NAME),
+        ito_path.join(ITO_DIR_CONFIG_FILE_NAME),
+        ito_path.join(ITO_DIR_LOCAL_CONFIG_FILE_NAME),
+        project_root.join(PROJECT_LOCAL_CONFIG_PATH),
+    ];
     if let Some(p) = &ctx.project_dir {
         out.push(p.join(ITO_DIR_CONFIG_FILE_NAME));
     }
@@ -284,8 +288,10 @@ pub fn project_config_paths(
 /// Precedence (low -> high):
 /// 1) `<repo-root>/ito.json`
 /// 2) `<repo-root>/.ito.json`
-/// 3) `<itoDir>/config.json`
-/// 4) `$PROJECT_DIR/config.json` (when set)
+/// 3) `<itoDir>/config.json` (team/project defaults, typically committed)
+/// 4) `<itoDir>/config.local.json` (per-developer overrides, gitignored)
+/// 5) `<repo-root>/.local/ito/config.json` (optional per-developer overrides, gitignored)
+/// 6) `$PROJECT_DIR/config.json` (when set)
 pub fn load_cascading_project_config(
     project_root: &Path,
     ito_path: &Path,

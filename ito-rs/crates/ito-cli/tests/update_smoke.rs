@@ -100,10 +100,37 @@ fn update_renders_agents_md_without_jinja2_syntax() {
         !content.contains("{%"),
         "AGENTS.md should not contain raw Jinja2 block syntax after rendering"
     );
-    // Without worktree config, default context (disabled) should produce
-    // "not configured" text.
     assert!(
-        content.contains("not configured"),
-        "default worktree context should produce 'not configured' in AGENTS.md"
+        content.contains("ito agent instruction worktrees"),
+        "AGENTS.md should delegate worktree guidance to the CLI"
     );
+}
+
+#[test]
+fn update_preserves_project_config_and_project_md() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    // Seed user edits that must survive `ito update`.
+    write(
+        repo.path().join(".ito/project.md"),
+        "# My Project\n\nuser-edited project.md\n",
+    );
+    write(
+        repo.path().join(".ito/config.json"),
+        "{\n  \"custom\": true\n}\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let project_md = std::fs::read_to_string(repo.path().join(".ito/project.md")).unwrap();
+    assert!(project_md.contains("user-edited project.md"));
+
+    let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
+    assert!(config.contains("\"custom\": true"));
 }

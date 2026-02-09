@@ -89,8 +89,26 @@ pub fn install_default_templates(
         ensure_repo_gitignore_unignores_audit_events(project_root, &ito_dir)?;
     }
 
+    // Local (per-developer) config overlays should never be committed.
+    ensure_repo_gitignore_ignores_local_configs(project_root, &ito_dir)?;
+
     install_adapter_files(project_root, mode, opts, worktree_ctx)?;
     install_agent_templates(project_root, mode, opts)?;
+    Ok(())
+}
+
+fn ensure_repo_gitignore_ignores_local_configs(
+    project_root: &Path,
+    ito_dir: &str,
+) -> CoreResult<()> {
+    // Strategy/worktree settings are often personal preferences; users can keep
+    // them in a local overlay file.
+    let entry = format!("{ito_dir}/config.local.json");
+    ensure_gitignore_contains_line(project_root, &entry)?;
+
+    // Optional convention: keep local configs under `.local/`.
+    let entry = ".local/ito/config.json";
+    ensure_gitignore_contains_line(project_root, entry)?;
     Ok(())
 }
 
@@ -169,6 +187,8 @@ fn install_project_templates(
     let selected = &opts.tools;
     let current_date = Utc::now().format("%Y-%m-%d").to_string();
     let state_rel = format!("{ito_dir}/planning/STATE.md");
+    let project_md_rel = format!("{ito_dir}/project.md");
+    let config_json_rel = format!("{ito_dir}/config.json");
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
 
@@ -193,6 +213,17 @@ fn install_project_templates(
             bytes = render_project_template(&bytes, ctx).map_err(|e| {
                 CoreError::Validation(format!("Failed to render template {}: {}", rel.as_ref(), e))
             })?;
+        }
+
+        // Preserve project-owned config/docs on `ito update`.
+        // These files are explicitly user-editable (e.g. `ito init` tells users
+        // to edit `.ito/project.md` and `.ito/config.json`), so `ito update`
+        // must not clobber them once they exist.
+        if mode == InstallMode::Update
+            && (rel.as_ref() == project_md_rel || rel.as_ref() == config_json_rel)
+            && project_root.join(rel.as_ref()).exists()
+        {
+            continue;
         }
 
         let target = project_root.join(rel.as_ref());

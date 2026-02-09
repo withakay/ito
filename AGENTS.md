@@ -66,6 +66,37 @@ git worktree prune
 
 <!-- ITO:END -->
 
+## Worktree Usage
+
+This repo uses a **bare-repo-with-worktrees** layout. All work happens inside worktrees — there is no checked-out tree at the bare repo root.
+
+```
+ito/                          # bare/control repo root
+├── .bare/                    # git object store
+├── .git                      # gitdir pointer → .bare
+├── main/                     # locked worktree for the main branch
+└── ito-worktrees/            # feature/change worktrees
+    └── <branch-name>/
+```
+
+### Rules
+
+1. **The `main` worktree is locked and must not be removed.** It is protected with `git worktree lock`. Do not unlock, remove, or prune it. If the lock is missing, restore it:
+   ```bash
+   git worktree lock main --reason "Primary worktree - do not remove"
+   ```
+2. **Always create feature worktrees under `ito-worktrees/`:**
+   ```bash
+   git worktree add ito-worktrees/<branch-name> -b <branch-name>
+   ```
+3. **Clean up feature worktrees after merge** (never clean up `main`):
+   ```bash
+   git worktree remove ito-worktrees/<branch-name> 2>/dev/null || true
+   git branch -d <branch-name> 2>/dev/null || true
+   git worktree prune
+   ```
+4. **All git commands must be run from inside a worktree** (e.g., `main/` or `ito-worktrees/<branch>/`), not from the bare repo root, unless you are managing worktrees themselves.
+
 ## Architecture
 
 See [`.ito/architecture.md`](.ito/architecture.md) for the full architectural guidelines, including the layered (onion) architecture, crate structure, dependency rules, domain purity constraints, design patterns, and quality enforcement.
