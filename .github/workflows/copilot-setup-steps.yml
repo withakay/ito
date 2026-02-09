@@ -27,11 +27,32 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        id: apt-cache
         with:
-          packages: |
-            build-essential
-          version: "1"
+          path: ~/apt-cache
+          key: apt-build-essential-${{ runner.os }}-v1
+
+      - name: Install build-essential
+        run: |
+          if [ -d ~/apt-cache ] && [ "$(ls -A ~/apt-cache 2>/dev/null)" ]; then
+            echo "Restoring cached .deb packages..."
+            sudo dpkg -i ~/apt-cache/*.deb 2>/dev/null || true
+            sudo apt-get install -f -y
+          else
+            echo "Installing and caching packages..."
+            sudo apt-get update
+            sudo apt-get install -y --reinstall build-essential
+            mkdir -p ~/apt-cache
+            # Save downloaded .deb files for caching
+            cp /var/cache/apt/archives/build-essential*.deb ~/apt-cache/ 2>/dev/null || true
+            cp /var/cache/apt/archives/gcc*.deb ~/apt-cache/ 2>/dev/null || true
+            cp /var/cache/apt/archives/g++*.deb ~/apt-cache/ 2>/dev/null || true
+            cp /var/cache/apt/archives/make*.deb ~/apt-cache/ 2>/dev/null || true
+            cp /var/cache/apt/archives/dpkg-dev*.deb ~/apt-cache/ 2>/dev/null || true
+            cp /var/cache/apt/archives/libc*-dev*.deb ~/apt-cache/ 2>/dev/null || true
+          fi
 
       - uses: jdx/mise-action@v3
         env:
