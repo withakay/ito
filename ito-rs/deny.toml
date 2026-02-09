@@ -20,19 +20,18 @@ no-default-features = false
 # Advisories: deny known-vulnerable or unmaintained crates
 # ──────────────────────────────────────────────────────────────────────
 [advisories]
-# cargo-deny >=0.19 uses scope-based values: "all", "workspace", "transitive", "none".
-# All advisory types deny by default; these control which dependency scopes trigger failure.
-unmaintained = "workspace"
-unsound = "all"
-yanked = "workspace"
-notice = "none"
+# v2: all advisory types (vulnerability, unmaintained, unsound, notice)
+# default to deny. No per-type overrides needed.
+version = 2
 ignore = []
 
 # ──────────────────────────────────────────────────────────────────────
 # Licenses: allow only OSS-compatible licenses
 # ──────────────────────────────────────────────────────────────────────
 [licenses]
-unlicensed = "deny"
+# v2: unlisted licenses are denied by default. copyleft, allow-osi-fsf-free,
+# default, and unlicensed fields are removed.
+version = 2
 allow = [
     "MIT",
     "Apache-2.0",
@@ -46,9 +45,6 @@ allow = [
     "BSL-1.0",
     "OpenSSL",
 ]
-copyleft = "deny"
-allow-osi-fsf-free = "neither"
-default = "deny"
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
