@@ -15,6 +15,12 @@ Ito SHALL provide a `project-setup` instruction artifact that guides an agent th
 - **THEN** it produces a default set of dev command entrypoints (build/test/lint/help)
 - **AND** it does not overwrite an existing `Makefile` without explicit confirmation
 
+#### Scenario: Setup workflow marks setup as complete
+
+- **GIVEN** `.ito/project.md` contains `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->`
+- **WHEN** an agent completes the project setup workflow
+- **THEN** `.ito/project.md` is updated to contain `<!-- ITO:PROJECT_SETUP:COMPLETE -->`
+
 #### Scenario: Setup workflow supports Windows-friendly entrypoint
 
 - **WHEN** the project setup workflow targets Windows environments
