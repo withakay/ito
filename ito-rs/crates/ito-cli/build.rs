@@ -11,11 +11,20 @@ fn main() {
         .dirty(true)
         .build();
 
+    // In bare/control-repo + worktree layouts, build scripts may run with a CWD
+    // that is not a git worktree (e.g., the bare repo root). Force vergen-gitcl
+    // to run git commands from the crate directory so branch/SHA metadata is
+    // available during local development builds.
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").map(std::path::PathBuf::from);
+
     let mut emitter = Emitter::default();
     if let Ok(build) = build {
         let _ = emitter.add_instructions(&build);
     }
-    if let Ok(gitcl) = gitcl {
+    if let Ok(mut gitcl) = gitcl {
+        if let Some(dir) = manifest_dir {
+            let _ = gitcl.at_path(dir);
+        }
         let _ = emitter.add_instructions(&gitcl);
     }
     let _ = emitter.emit();
