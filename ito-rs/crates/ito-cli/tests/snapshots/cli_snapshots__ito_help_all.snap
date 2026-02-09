@@ -310,6 +310,9 @@ Arguments:
           Change id (directory name)
 
 Options:
+      --completed
+          Archive all completed changes (mutually exclusive with CHANGE)
+
   -y, --yes
           Skip confirmation prompts
 
