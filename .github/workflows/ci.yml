@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: withakay-selfhosted
             shell: bash
             label: linux-bash
           - os: macos-latest
@@ -41,8 +41,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install build-essential
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -61,15 +67,18 @@ jobs:
 
   lint:
     name: Lint & Type Check
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
         with:
-          components: rustfmt, clippy
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -89,13 +98,18 @@ jobs:
 
   arch_guardrails:
     name: Architecture Guardrails
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -113,7 +127,7 @@ jobs:
 
   required-checks-pr:
     name: All checks passed
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     needs: [test_matrix, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -135,7 +149,7 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     needs: [test_matrix, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
