@@ -18,7 +18,7 @@ jobs:
   test_matrix:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +44,11 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Print environment diagnostics
         run: |
           rustc -V
@@ -67,6 +72,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
+
       - name: Rust fmt (check)
         run: cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
 
@@ -87,6 +97,11 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ito-rs -> target
 
       - name: Run architecture guardrails
         run: make arch-guardrails
