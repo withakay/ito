@@ -39,9 +39,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }} # [default: ${{ github.token }}] GitHub token for API authentication
 
       - run: |
-          mise use rust
-
-      - uses: j178/prek-action@v1
-
-      - run: |
           make init
