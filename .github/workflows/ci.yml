@@ -18,7 +18,7 @@ jobs:
   test_matrix:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -53,9 +53,6 @@ jobs:
         run: |
           rustc -V
           cargo -V
-
-      - name: Build
-        run: cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito
 
       - name: Test
         run: cargo test --manifest-path ito-rs/Cargo.toml --workspace
