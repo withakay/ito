@@ -26,7 +26,15 @@ jobs:
     # If you do not check out your code, Copilot will do this for you.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - run: |
+          uv python install 3.14
+          uv use 3.14
+          source .venv/bin/activate
 
       - uses: jdx/mise-action@v3
         env:
@@ -34,7 +42,7 @@ jobs:
         with:
           version: 2024.10.0 # [default: latest] mise version to install
           install: true # [default: true] run `mise install`
-          install_args: "rust python" # [default: ""] additional arguments to `mise install`
+          install_args: "rust" # [default: ""] additional arguments to `mise install`
           cache: true # [default: true] cache mise using GitHub's cache
           experimental: true # [default: false] enable experimental features
           log_level: debug # [default: info] log level
@@ -47,9 +55,10 @@ jobs:
             shellcheck = "0.9.0"
           reshim: false # [default: false] run `mise reshim -f`
           github_token: ${{ secrets.GITHUB_TOKEN }} # [default: ${{ github.token }}] GitHub token for API authentication
+
       - run: |
           mise use rust
-          mise use python
+
       - uses: j178/prek-action@v1
       - run: |
           make init
