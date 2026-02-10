@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::time::Duration;
 
 use ito_test_support::run_rust_candidate;
 
@@ -11,6 +10,32 @@ fn write(path: impl AsRef<Path>, contents: &str) {
     std::fs::write(path, contents).expect("fixture file should write");
 }
 
+/// Creates a change entry under `repo/.ito/changes/{id}/` with fixture content.
+///
+/// The function writes three files for the change:
+/// - `proposal.md` with a fixed proposal header,
+/// - `tasks.md` with the provided `tasks` content,
+/// - `specs/alpha/spec.md` with a fixed spec containing requirements and a scenario.
+///
+/// # Parameters
+///
+/// - `repo`: filesystem path to the repository root where `.ito/changes` will be created.
+/// - `id`: identifier for the change; used as the directory name under `.ito/changes`.
+/// - `tasks`: content to write into the change's `tasks.md`.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use tempfile::tempdir;
+///
+/// let tmp = tempdir().unwrap();
+/// let repo = tmp.path();
+/// make_change(repo, "000-01_example", "- [ ] example task\n");
+/// assert!(repo.join(".ito/changes/000-01_example/proposal.md").exists());
+/// assert!(repo.join(".ito/changes/000-01_example/tasks.md").exists());
+/// assert!(repo.join(".ito/changes/000-01_example/specs/alpha/spec.md").exists());
+/// ```
 fn make_change(repo: &Path, id: &str, tasks: &str) {
     write(
         repo.join(".ito/changes").join(id).join("proposal.md"),
@@ -27,6 +52,51 @@ fn make_change(repo: &Path, id: &str, tasks: &str) {
     );
 }
 
+/// Set the modification time for `dir` and all files and subdirectories inside it recursively.
+///
+/// This will update the mtime of `dir` itself and every entry contained within it. The function
+/// will panic if reading the directory or setting any file's modification time fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use filetime::FileTime;
+///
+/// let tmp = tempfile::tempdir().unwrap();
+/// let dir = tmp.path().join("foo");
+/// std::fs::create_dir_all(&dir).unwrap();
+/// let t = FileTime::from_unix_time(1_600_000_000, 0);
+/// set_mtime_recursive(Path::new(&dir), t);
+/// ```
+fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
+    filetime::set_file_mtime(dir, time).expect("set dir mtime");
+    for entry in std::fs::read_dir(dir).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        let path = entry.path();
+        filetime::set_file_mtime(&path, time).expect("set entry mtime");
+        if path.is_dir() {
+            set_mtime_recursive(&path, time);
+        }
+    }
+}
+
+/// Create a temporary repository fixture containing three change entries with deterministic mtimes.
+///
+/// The repository includes a README.md and three changes under `.ito/changes/`:
+/// - `000-01_old-pending` (one pending task)
+/// - `000-02_mid-partial` (one completed and one pending task)
+/// - `000-03_new-complete` (one completed task)
+///
+/// Modification times for each change directory are set deterministically so tests that sort by recency behave consistently.
+///
+/// # Examples
+///
+/// ```
+/// let repo = make_repo();
+/// assert!(repo.path().join("README.md").exists());
+/// assert!(repo.path().join(".ito/changes/000-01_old-pending").exists());
+/// ```
 fn make_repo() -> tempfile::TempDir {
     let repo = tempfile::tempdir().expect("repo");
     write(repo.path().join("README.md"), "# temp\n");
@@ -36,20 +106,28 @@ fn make_repo() -> tempfile::TempDir {
         "000-01_old-pending",
         "## 1. Implementation\n- [ ] 1.1 pending\n",
     );
-    std::thread::sleep(Duration::from_millis(20));
 
     make_change(
         repo.path(),
         "000-02_mid-partial",
         "## 1. Implementation\n- [x] 1.1 done\n- [ ] 1.2 pending\n",
     );
-    std::thread::sleep(Duration::from_millis(20));
 
     make_change(
         repo.path(),
         "000-03_new-complete",
         "## 1. Implementation\n- [x] 1.1 done\n",
     );
+
+    // Set explicit mtimes recursively so sort-by-recent is deterministic without sleeping.
+    // last_modified_recursive() walks all files, so every entry must be set.
+    let changes = repo.path().join(".ito/changes");
+    let t1 = filetime::FileTime::from_unix_time(1_000_000, 0);
+    let t2 = filetime::FileTime::from_unix_time(2_000_000, 0);
+    let t3 = filetime::FileTime::from_unix_time(3_000_000, 0);
+    set_mtime_recursive(&changes.join("000-01_old-pending"), t1);
+    set_mtime_recursive(&changes.join("000-02_mid-partial"), t2);
+    set_mtime_recursive(&changes.join("000-03_new-complete"), t3);
 
     repo
 }

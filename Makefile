@@ -8,13 +8,13 @@ COVERAGE_TARGET ?= 90
 
 .PHONY: \
 	init \
-	build test test-watch test-coverage lint check check-max-lines clean help \
+	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
 	fmt clippy \
 	arch-guardrails cargo-deny \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
-	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install \
+	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
 	dev docs docs-open
 
 init: ## Initialize development environment (check rust, install prek hooks)
@@ -92,6 +92,12 @@ build: ## Build the project
 
 test: ## Run tests
 	$(MAKE) rust-test
+
+test-timed: ## Run tests with per-crate timing
+	$(MAKE) rust-test-timed
+
+test-affected: ## Run tests only for crates affected by recent changes
+	bash ito-rs/tools/test-affected.sh
 
 test-watch: ## Run tests in watch mode (requires cargo-watch)
 	@set -e; \
@@ -212,8 +218,27 @@ rust-build: ## Build Rust ito (debug)
 rust-build-release: ## Build Rust ito (release)
 	cargo build -p ito-cli --bin ito --release
 
-rust-test: ## Run Rust tests
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace
+rust-test: ## Run Rust tests (prefers nextest when available)
+	@set -e; \
+	if cargo nextest --version >/dev/null 2>&1; then \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --workspace; \
+	else \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
+	fi
+
+rust-test-timed: ## Run Rust tests with timing
+	@set -e; \
+	START=$$(date +%s); \
+	if cargo nextest --version >/dev/null 2>&1; then \
+		echo "Running tests with nextest..."; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --workspace; \
+	else \
+		echo "Running tests with cargo test..."; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
+	fi; \
+	END=$$(date +%s); \
+	echo ""; \
+	echo "Total wall time: $$(( END - START ))s"
 
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \

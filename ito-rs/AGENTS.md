@@ -77,6 +77,21 @@ All of these run in CI and as pre-commit/pre-push hooks via `prek`:
 - **Mocking policy**: "Mocking should give you the ick." Prefer real implementations, in-memory fakes, or `ito-test-support` mock repositories. Extensive mocking indicates tight coupling.
 - **Integration tests** alongside unit tests — use `ito-test-support` for PTY helpers, snapshot normalization, and mock repos.
 
+### Expected Test Execution Times
+
+The full test suite (`make test`) should complete in **under 10 seconds**. Individual crate tests typically run in 1-2 seconds. Use `make test-timed` to see per-crate wall-clock times.
+
+| Benchmark | Expected | Alert Threshold |
+|---|---|---|
+| Full suite (`make test`) | ~5s | > 10s |
+| Harness opencode tests (`cargo test -p ito-core --test harness_opencode`) | ~1s | > 5s |
+| Any single crate | < 2s | > 5s |
+
+If tests exceed these thresholds, investigate before merging. Common causes:
+- Timeout monitor threads not exiting cleanly (see `process_done` flag pattern in opencode harness)
+- Blocking I/O in tests without timeouts
+- Missing test parallelism
+
 ## Repository Pattern
 
 Use repository abstractions for all data access — never parse markdown files directly:
