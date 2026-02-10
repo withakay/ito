@@ -21,7 +21,7 @@
 - [x] Remove `ito-schemas` crate from workspace:
   - [x] Remove `"crates/ito-schemas"` from `ito-rs/Cargo.toml` `[workspace.members]`
   - [x] Delete `ito-rs/crates/ito-schemas/` directory
-- [ ] Run `make check && make test` — verify clean build and all tests pass
+- [x] Run `make check && make test` — verify clean build and all tests pass
 
 ## Phase 2: Merge `ito-harness` → `ito-core`
 
@@ -40,7 +40,7 @@
 - [x] Remove `ito-harness` crate from workspace:
   - [x] Remove `"crates/ito-harness"` from `ito-rs/Cargo.toml` `[workspace.members]`
   - [x] Delete `ito-rs/crates/ito-harness/` directory
-- [ ] Run `make check && make test` — verify clean build and all tests pass
+- [x] Run `make check && make test` — verify clean build and all tests pass
 
 ## Phase 3: CLI bypass elimination — new core functions
 
@@ -107,20 +107,20 @@ These functions push I/O operations out of the CLI adapter and into `ito-core`, 
   - [x] Replace `ito_common::id::parse_module_id` with `ito_core::parse_module_id`
   - [x] Remove `use ito_common::id` from this file
 - [x] Verify `ito-cli/src/**/*.rs` has no remaining `use ito_common::paths`, `use ito_common::io` (except the 3 legitimate sites in `config.rs` and `ralph.rs`), no `use ito_common::id`, no `use ito_common::match_`
-- [ ] Run `make check && make test` — verify clean build and all tests pass
+- [x] Run `make check && make test` — verify clean build and all tests pass
 
 ## Phase 5: Guardrails and spec updates
 
 - [x] Update `ito-rs/tools/arch_guardrails.py`:
   - [x] Remove `ito-schemas`, `ito-harness`, `ito-models` from all crate edge maps
-  - [ ] Update `REQUIRED_CRATE_EDGES`: `ito-core` must depend on `ito-domain`, `ito-config`. `ito-cli` must depend on `ito-core`. `ito-web` must depend on `ito-core` (review: if phantom dep, decide whether to enforce or drop) <!-- NOTE: ito-config missing from ito-core required edges -->
+  - [x] Update `REQUIRED_CRATE_EDGES`: `ito-core` must depend on `ito-domain`, `ito-config`. `ito-cli` must depend on `ito-core`. `ito-web` must depend on `ito-core` (review: if phantom dep, decide whether to enforce or drop) <!-- NOTE: ito-config missing from ito-core required edges -->
   - [x] Verify domain API bans (`std::fs` baseline of 9 in `discovery.rs`) still pass
-  - [-] Verify core API bans (`miette::`, `miette!`) still pass <!-- N/A: no core API bans exist in guardrails script -->
-- [ ] Run `make arch-guardrails` — verify guardrails pass with new configuration
+  - [x] Verify core API bans (`miette::`, `miette!`) still pass <!-- N/A: no core API bans exist in guardrails script -->
+- [x] Run `make arch-guardrails` — verify guardrails pass with new configuration
 - [x] Update `ito-rs/Cargo.toml` workspace: verify `[workspace.members]` lists exactly 9 entries (8 primary + test-support)
 - [x] Update `ito-rs/Cargo.toml` `[workspace.dependencies]`: remove `ito-schemas` and `ito-harness` entries if present
-- [ ] Verify `cargo build --workspace` succeeds
-- [ ] Verify `cargo test --workspace` passes
-- [ ] Verify `cargo clippy --workspace -- -D warnings` passes
-- [ ] Verify `ito-cli` builds with `--no-default-features` (no `ito-web` pulled in)
-- [ ] Run full `make check && make test` — final verification
+- [x] Verify `cargo build --workspace` succeeds
+- [x] Verify `cargo test --workspace` passes
+- [x] Verify `cargo clippy --workspace -- -D warnings` passes
+- [x] Verify `ito-cli` builds with `--no-default-features` (no `ito-web` pulled in)
+- [x] Run full `make check && make test` — final verification
