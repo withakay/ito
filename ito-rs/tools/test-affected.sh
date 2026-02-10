@@ -70,13 +70,13 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 # Dependency graph (A depends on B means: if B changes, test A):
 #   ito-common      -> ito-config, ito-domain, ito-core, ito-cli
 #   ito-config      -> ito-core, ito-cli
-#   ito-domain      -> ito-core, ito-cli
+#   ito-domain      -> ito-core, ito-test-support
 #   ito-templates   -> ito-core, ito-cli
 #   ito-logging     -> ito-cli
 #   ito-core        -> ito-cli
 #   ito-cli         -> (leaf)
 #   ito-web         -> (leaf)
-#   ito-test-support -> ito-core (dev), ito-cli (dev), ito-domain (dev)
+#   ito-test-support -> ito-cli (dev)
 
 declare -A DEPENDENTS
 DEPENDENTS[ito-common]="ito-config ito-domain ito-core ito-cli"
