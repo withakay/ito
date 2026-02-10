@@ -130,6 +130,6 @@ ______________________________________________________________________
   - Confirm the pipeline works in practice: release PR created, merge produces tags, canonical tag triggers artifact upload, and Homebrew update runs.
 - **Done When**: Maintainer confirms the end-to-end run is acceptable.
 - **Updated At**: 2026-02-10
-- **Status**: [ ] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
