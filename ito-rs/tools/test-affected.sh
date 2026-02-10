@@ -71,23 +71,23 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 #   ito-common      -> ito-config, ito-domain, ito-core, ito-cli
 #   ito-config      -> ito-core, ito-cli
 #   ito-domain      -> ito-core, ito-test-support
-#   ito-templates   -> ito-core, ito-cli
+#   ito-templates   -> ito-core, ito-web
 #   ito-logging     -> ito-cli
-#   ito-core        -> ito-cli
+#   ito-core        -> ito-cli, ito-web
 #   ito-cli         -> (leaf)
-#   ito-web         -> (leaf)
+#   ito-web         -> ito-cli (optional dependency with default feature)
 #   ito-test-support -> ito-cli (dev)
 
 declare -A DEPENDENTS
 DEPENDENTS[ito-common]="ito-config ito-domain ito-core ito-cli"
 DEPENDENTS[ito-config]="ito-core ito-cli"
 DEPENDENTS[ito-domain]="ito-core ito-test-support"
-DEPENDENTS[ito-templates]="ito-core ito-cli"
+DEPENDENTS[ito-templates]="ito-core ito-web"
 DEPENDENTS[ito-logging]="ito-cli"
-DEPENDENTS[ito-core]="ito-cli"
+DEPENDENTS[ito-core]="ito-cli ito-web"
 DEPENDENTS[ito-test-support]="ito-cli"
 DEPENDENTS[ito-cli]=""
-DEPENDENTS[ito-web]=""
+DEPENDENTS[ito-web]="ito-cli"
 
 # BFS worklist to collect transitive dependents.
 # Seed with the directly changed crates, then expand until stable.
@@ -110,7 +110,6 @@ while [ ${#worklist[@]} -gt 0 ]; do
 done
 
 AFFECTED_CRATES=("${!affected_set[@]}")
-
 echo "Affected crates (with dependents): ${AFFECTED_CRATES[*]}"
 
 # Step 4: Build the test command
