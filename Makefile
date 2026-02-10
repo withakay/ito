@@ -234,24 +234,14 @@ rust-test-timed: ## Run Rust tests with timing
 		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --workspace; \
 	else \
 		echo "Running tests with cargo test..."; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace 2>&1 \
+			| while IFS= read -r line; do \
+				echo "$$line"; \
+				case "$$line" in \
+					*"test result:"*) ;; \
+				esac; \
+			done; \
 	fi; \
-	END=$$(date +%s); \
-	echo ""; \
-	echo "Total wall time: $$(( END - START ))s"
-
-rust-test-timed: ## Run Rust tests with per-crate timing
-	@set -e; \
-	echo "Running tests with per-crate timing..."; \
-	echo ""; \
-	START=$$(date +%s); \
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace 2>&1 \
-		| while IFS= read -r line; do \
-			echo "$$line"; \
-			case "$$line" in \
-				*"test result:"*) ;; \
-			esac; \
-		done; \
 	END=$$(date +%s); \
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"
