@@ -43,6 +43,7 @@ git_release_enable = false
 [[package]]
 name = "ito-test-support"
 release = false
+publish = false
 
 # ---- The ito CLI binary — gets git tags (GitHub Releases are handled by cargo-dist) ----
 
