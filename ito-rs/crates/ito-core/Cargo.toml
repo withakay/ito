@@ -26,5 +26,6 @@ ito-templates = { workspace = true }
 miette = { workspace = true }
 
 [dev-dependencies]
+filetime = { workspace = true }
 miette = { workspace = true }
 tempfile = { workspace = true }

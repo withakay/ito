@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::time::Duration;
 
 use ito_test_support::run_rust_candidate;
 
@@ -36,20 +35,27 @@ fn make_repo() -> tempfile::TempDir {
         "000-01_old-pending",
         "## 1. Implementation\n- [ ] 1.1 pending\n",
     );
-    std::thread::sleep(Duration::from_millis(20));
 
     make_change(
         repo.path(),
         "000-02_mid-partial",
         "## 1. Implementation\n- [x] 1.1 done\n- [ ] 1.2 pending\n",
     );
-    std::thread::sleep(Duration::from_millis(20));
 
     make_change(
         repo.path(),
         "000-03_new-complete",
         "## 1. Implementation\n- [x] 1.1 done\n",
     );
+
+    // Set explicit mtimes so sort-by-recent is deterministic without sleeping.
+    let changes = repo.path().join(".ito/changes");
+    let t1 = filetime::FileTime::from_unix_time(1_000_000, 0);
+    let t2 = filetime::FileTime::from_unix_time(2_000_000, 0);
+    let t3 = filetime::FileTime::from_unix_time(3_000_000, 0);
+    filetime::set_file_mtime(changes.join("000-01_old-pending"), t1).unwrap();
+    filetime::set_file_mtime(changes.join("000-02_mid-partial"), t2).unwrap();
+    filetime::set_file_mtime(changes.join("000-03_new-complete"), t3).unwrap();
 
     repo
 }

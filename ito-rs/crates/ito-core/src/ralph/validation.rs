@@ -395,7 +395,8 @@ mod tests {
     #[test]
     fn shell_timeout_is_failure() {
         let td = tempfile::tempdir().unwrap();
-        let out = run_shell_with_timeout(td.path(), "sleep 10", Duration::from_millis(50)).unwrap();
+        let out =
+            run_shell_with_timeout(td.path(), "sleep 0.1", Duration::from_millis(50)).unwrap();
         assert!(out.timed_out);
         assert!(!out.success);
     }
