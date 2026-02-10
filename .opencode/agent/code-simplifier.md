@@ -133,5 +133,5 @@ After making changes, provide a summary:
 
 Always run after making changes:
 ```bash
-cargo check --manifest-path ito-rs/Cargo.toml
+cargo check --manifest-path Cargo.toml
 ```

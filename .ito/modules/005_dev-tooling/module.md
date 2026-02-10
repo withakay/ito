@@ -19,3 +19,4 @@
 - [x] 005-11_task-repository-pattern
 - [x] 005-12_change-module-repositories
 - [ ] 005-14_enable-crates-io-publishing
+- [ ] 005-15_automated-rust-releases

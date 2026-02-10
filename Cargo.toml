@@ -1,14 +1,14 @@
 [workspace]
 members = [
-  "crates/ito-cli",
-  "crates/ito-common",
-  "crates/ito-config",
-  "crates/ito-core",
-  "crates/ito-domain",
-  "crates/ito-logging",
-  "crates/ito-templates",
-  "crates/ito-test-support",
-  "crates/ito-web",
+  "ito-rs/crates/ito-cli",
+  "ito-rs/crates/ito-common",
+  "ito-rs/crates/ito-config",
+  "ito-rs/crates/ito-core",
+  "ito-rs/crates/ito-domain",
+  "ito-rs/crates/ito-logging",
+  "ito-rs/crates/ito-templates",
+  "ito-rs/crates/ito-test-support",
+  "ito-rs/crates/ito-web",
 ]
 resolver = "3"
 
@@ -20,13 +20,13 @@ repository = "https://github.com/withakay/ito"
 
 [workspace.dependencies]
 # Internal crates
-ito-common = { path = "crates/ito-common", version = "0.1.0" }
-ito-config = { path = "crates/ito-config", version = "0.1.0" }
-ito-core = { path = "crates/ito-core", version = "0.1.0" }
-ito-domain = { path = "crates/ito-domain", version = "0.1.0" }
-ito-logging = { path = "crates/ito-logging", version = "0.1.0" }
-ito-templates = { path = "crates/ito-templates", version = "0.1.0" }
-ito-web = { path = "crates/ito-web", version = "0.1.0" }
+ito-common = { path = "ito-rs/crates/ito-common", version = "0.1.0" }
+ito-config = { path = "ito-rs/crates/ito-config", version = "0.1.0" }
+ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.0" }
+ito-domain = { path = "ito-rs/crates/ito-domain", version = "0.1.0" }
+ito-logging = { path = "ito-rs/crates/ito-logging", version = "0.1.0" }
+ito-templates = { path = "ito-rs/crates/ito-templates", version = "0.1.0" }
+ito-web = { path = "ito-rs/crates/ito-web", version = "0.1.0" }
 
 # External dependencies
 clap = { version = "4.5.23", features = ["derive"] }
@@ -82,3 +82,8 @@ opt-level = 1
 [workspace.dependencies.vergen-gitcl]
 version = "9"
 features = ["build"]
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

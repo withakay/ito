@@ -21,7 +21,7 @@ jobs:
     if: |
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
-    runs-on: withakay-selfhosted
+    runs-on: ubuntu-latest
     env:
       TAP_REPO: withakay/homebrew-ito
       FORMULA_PATH: Formula/ito.rb
@@ -68,9 +68,10 @@ jobs:
           TAG="${{ steps.meta.outputs.tag }}"
           BASE="https://github.com/${OWNER_REPO}/releases/download/${TAG}"
 
-          MAC_ARM64_URL="$BASE/ito-${TAG}-aarch64-apple-darwin.tar.gz"
-          LINUX_X64_URL="$BASE/ito-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
-          LINUX_ARM64_URL="$BASE/ito-${TAG}-aarch64-unknown-linux-gnu.tar.gz"
+          MAC_ARM64_URL="$BASE/ito-cli-aarch64-apple-darwin.tar.xz"
+          MAC_X64_URL="$BASE/ito-cli-x86_64-apple-darwin.tar.xz"
+          LINUX_X64_URL="$BASE/ito-cli-x86_64-unknown-linux-gnu.tar.xz"
+          LINUX_ARM64_URL="$BASE/ito-cli-aarch64-unknown-linux-gnu.tar.xz"
 
           sha() {
             local url="$1"
@@ -104,10 +105,12 @@ jobs:
           }
 
           echo "mac_arm64_url=$MAC_ARM64_URL" >> "$GITHUB_OUTPUT"
+          echo "mac_x64_url=$MAC_X64_URL" >> "$GITHUB_OUTPUT"
           echo "linux_x64_url=$LINUX_X64_URL" >> "$GITHUB_OUTPUT"
           echo "linux_arm64_url=$LINUX_ARM64_URL" >> "$GITHUB_OUTPUT"
 
           echo "mac_arm64_sha256=$(sha "$MAC_ARM64_URL")" >> "$GITHUB_OUTPUT"
+          echo "mac_x64_sha256=$(sha "$MAC_X64_URL")" >> "$GITHUB_OUTPUT"
           echo "linux_x64_sha256=$(sha "$LINUX_X64_URL")" >> "$GITHUB_OUTPUT"
           echo "linux_arm64_sha256=$(sha "$LINUX_ARM64_URL")" >> "$GITHUB_OUTPUT"
 
@@ -126,23 +129,28 @@ jobs:
           VERSION="${{ steps.meta.outputs.version }}"
 
           MAC_ARM64_URL="${{ steps.sha.outputs.mac_arm64_url }}"
+          MAC_X64_URL="${{ steps.sha.outputs.mac_x64_url }}"
           LINUX_X64_URL="${{ steps.sha.outputs.linux_x64_url }}"
           LINUX_ARM64_URL="${{ steps.sha.outputs.linux_arm64_url }}"
 
           MAC_ARM64_SHA256="${{ steps.sha.outputs.mac_arm64_sha256 }}"
+          MAC_X64_SHA256="${{ steps.sha.outputs.mac_x64_sha256 }}"
           LINUX_X64_SHA256="${{ steps.sha.outputs.linux_x64_sha256 }}"
           LINUX_ARM64_SHA256="${{ steps.sha.outputs.linux_arm64_sha256 }}"
 
           : "${VERSION:?missing version}"
           : "${MAC_ARM64_URL:?missing mac arm64 url}"
+          : "${MAC_X64_URL:?missing mac x64 url}"
           : "${LINUX_X64_URL:?missing linux x64 url}"
           : "${LINUX_ARM64_URL:?missing linux arm64 url}"
           : "${MAC_ARM64_SHA256:?missing mac arm64 sha256}"
+          : "${MAC_X64_SHA256:?missing mac x64 sha256}"
           : "${LINUX_X64_SHA256:?missing linux x64 sha256}"
           : "${LINUX_ARM64_SHA256:?missing linux arm64 sha256}"
 
           export VERSION
           export MAC_ARM64_URL MAC_ARM64_SHA256
+          export MAC_X64_URL MAC_X64_SHA256
           export LINUX_X64_URL LINUX_X64_SHA256
           export LINUX_ARM64_URL LINUX_ARM64_SHA256
 
@@ -164,8 +172,15 @@ jobs:
             version "$version"
 
             on_macos do
-              url "$mac_arm64_url"
-              sha256 "$mac_arm64_sha256"
+              on_intel do
+                url "$mac_x64_url"
+                sha256 "$mac_x64_sha256"
+              end
+
+              on_arm do
+                url "$mac_arm64_url"
+                sha256 "$mac_arm64_sha256"
+              end
             end
 
             on_linux do
@@ -193,9 +208,7 @@ jobs:
 
             def install
               if build.head?
-                cd "ito-rs" do
-                  system "cargo", "install", *std_cargo_args(path: "crates/ito-cli")
-                end
+                system "cargo", "install", *std_cargo_args(path: "ito-rs/crates/ito-cli")
               else
                 bin.install "ito"
               end
@@ -217,6 +230,8 @@ jobs:
               "version": os.environ["VERSION"],
               "mac_arm64_url": os.environ["MAC_ARM64_URL"],
               "mac_arm64_sha256": os.environ["MAC_ARM64_SHA256"],
+              "mac_x64_url": os.environ["MAC_X64_URL"],
+              "mac_x64_sha256": os.environ["MAC_X64_SHA256"],
               "linux_x64_url": os.environ["LINUX_X64_URL"],
               "linux_x64_sha256": os.environ["LINUX_X64_SHA256"],
               "linux_arm64_url": os.environ["LINUX_ARM64_URL"],
