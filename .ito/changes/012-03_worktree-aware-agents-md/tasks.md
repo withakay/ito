@@ -123,8 +123,8 @@ ______________________________________________________________________
   In `install_project_templates()`, when processing AGENTS.md, render it via the new `render_project_template()` function with the worktree config before passing to `write_one()`. The managed block mechanism must still work correctly — the rendered content replaces the block between markers. Handle the case where no worktree config is provided (default to disabled).
 - **Verify**: `cargo test --workspace -p ito-core`
 - **Done When**: AGENTS.md is rendered with worktree config during init and update
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-10
+- **Status**: [x] complete
 
 ### Task 3.2: Render skills via Jinja2 in the installer
 
@@ -134,8 +134,8 @@ ______________________________________________________________________
   In `install_manifests()`, when writing skill files, check if the content contains Jinja2 syntax (`{%` or `{{`). If so, render via `render_project_template()` with worktree config before writing. If not, write verbatim (preserving current behavior). The worktree config must be threaded through from `install_adapter_files()`.
 - **Verify**: `cargo test --workspace -p ito-core`
 - **Done When**: Skills with Jinja2 syntax are rendered; skills without are unchanged
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-10
+- **Status**: [x] complete
 
 ### Task 3.3: Update ito update to pass worktree config
 
@@ -145,8 +145,8 @@ ______________________________________________________________________
   Ensure `ito update` loads the current worktree config from global config and passes it to the installer, so that AGENTS.md and skills are re-rendered with current config on update.
 - **Verify**: `cargo test --workspace -p ito-cli`
 - **Done When**: `ito update` renders templates with current worktree config
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-10
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -166,8 +166,8 @@ ______________________________________________________________________
   4. Verify user content outside managed block is preserved through re-rendering
 - **Verify**: `cargo test --workspace -p ito-cli`
 - **Done When**: All existing tests pass; new integration tests cover the 4 scenarios above
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-10
+- **Status**: [x] complete
 
 ### Task 4.2: End-to-end verification
 
@@ -177,8 +177,8 @@ ______________________________________________________________________
   Run `make check && make test` to verify all workspace tests pass, clippy is clean, and docs build. Manually inspect a rendered AGENTS.md and skill to confirm the output reads naturally and contains precise, actionable worktree instructions.
 - **Verify**: `make check && make test`
 - **Done When**: Full CI-equivalent passes; rendered output reviewed and approved
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-10
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
