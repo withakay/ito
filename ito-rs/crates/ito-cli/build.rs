@@ -31,8 +31,8 @@ fn main() {
 
     // Keep `ito --version` in sync with the workspace version.
     // This avoids touching `crates/ito-cli/Cargo.toml` (release-please managed)
-    // while still reflecting local version bumps in `ito-rs/Cargo.toml`.
-    let workspace_manifest = Path::new("../../Cargo.toml");
+    // while still reflecting local version bumps in the root workspace `Cargo.toml`.
+    let workspace_manifest = Path::new("../../../Cargo.toml");
     println!("cargo:rerun-if-changed={}", workspace_manifest.display());
 
     let Ok(contents) = std::fs::read_to_string(workspace_manifest) else {

@@ -32,13 +32,13 @@ jobs:
         name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ito-rs -> target
+          workspaces: . -> target
           shared-key: release-plz
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
           command: release
-          manifest_path: ito-rs/Cargo.toml
+          manifest_path: Cargo.toml
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -62,7 +62,7 @@ jobs:
         uses: release-plz/action@v0.5
         with:
           command: release-pr
-          manifest_path: ito-rs/Cargo.toml
+          manifest_path: Cargo.toml
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

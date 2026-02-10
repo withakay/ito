@@ -4,7 +4,7 @@
 # Rust ecosystem tooling, reducing reliance on bespoke scripts.
 #
 # Install: cargo install cargo-deny
-# Run:     cargo deny --manifest-path ito-rs/Cargo.toml check
+# Run:     cargo deny --manifest-path Cargo.toml check
 #
 # Migration note (015-13): Dependency *direction* enforcement (onion
 # architecture layers) stays in arch_guardrails.py because cargo-deny
