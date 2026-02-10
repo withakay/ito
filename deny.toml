@@ -82,6 +82,9 @@ skip = [
     { crate = "windows_x86_64_gnu@0.52", reason = "follows windows-targets 0.52" },
     { crate = "windows_x86_64_gnullvm@0.52", reason = "follows windows-targets 0.52" },
     { crate = "windows_x86_64_msvc@0.52", reason = "follows windows-targets 0.52" },
+
+    # tempfile pulls getrandom 0.4 while rand/uuid still pull 0.3
+    { crate = "getrandom@0.3", reason = "tempfile vs rand/uuid transitive" },
 ]
 
 # ──────────────────────────────────────────────────────────────────────
