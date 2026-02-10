@@ -2,18 +2,18 @@
 
 ## Fix Hanging Tests
 
-- [ ] Add `process_done: Arc<AtomicBool>` to `monitor_timeout` function signature
-- [ ] Update `monitor_timeout` loop to check `process_done` and exit early
-- [ ] Set `process_done = true` after `child.wait()` in `OpencodeHarness::run()`
-- [ ] Join monitor thread after setting the done flag
+- [x] Add `process_done: Arc<AtomicBool>` to `monitor_timeout` function signature
+- [x] Update `monitor_timeout` loop to check `process_done` and exit early
+- [x] Set `process_done = true` after `child.wait()` in `OpencodeHarness::run()`
+- [x] Join monitor thread after setting the done flag
 
 ## Validation
 
-- [ ] Verify `cargo test -p ito-harness --test opencode` completes in < 5 seconds
-- [ ] Verify full `cargo test` completes in < 60 seconds
-- [ ] Run tests multiple times to ensure no race conditions
+- [x] Verify `cargo test -p ito-core --test harness_opencode` completes in < 5 seconds (1.00s)
+- [x] Verify full `cargo test` completes in < 60 seconds (~5.1s)
+- [x] Run tests multiple times to ensure no race conditions
 
 ## Optional Improvements
 
-- [ ] Add `cargo test -- --show-time` to Makefile test target
+- [x] Add `make test-timed` target to Makefile for test timing visibility
 - [ ] Document expected test execution times in AGENTS.md or CONTRIBUTING.md
