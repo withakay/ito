@@ -18,6 +18,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - moar docs
 - add CHANGELOG.md templates for all crates
 - The big reset
-# Changelog
-
-All notable changes to this project will be documented in this file.
