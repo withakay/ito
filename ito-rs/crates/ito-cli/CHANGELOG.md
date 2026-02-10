@@ -24,6 +24,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - simplify changelog files and prepare for release-plz
 - add vergen for git metadata in debug builds
 - The big reset
-# Changelog
-
-All notable changes to this project will be documented in this file.
