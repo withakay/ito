@@ -217,7 +217,7 @@ impl ProcessRunner for SystemProcessRunner {
                 break;
             }
 
-            thread::sleep(Duration::from_millis(50));
+            thread::sleep(Duration::from_millis(10));
         }
 
         let stdout =

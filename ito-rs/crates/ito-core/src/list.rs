@@ -603,12 +603,18 @@ bar
             "000-01_alpha",
             "## 1. Implementation\n- [ ] 1.1 todo\n",
         );
-        std::thread::sleep(std::time::Duration::from_millis(15));
         make_change(
             repo.path(),
             "000-02_beta",
             "## 1. Implementation\n- [ ] 1.1 todo\n",
         );
+        // Set explicit mtimes so sort-by-recent is deterministic without sleeping.
+        let alpha_dir = repo.path().join(".ito/changes/000-01_alpha");
+        let beta_dir = repo.path().join(".ito/changes/000-02_beta");
+        let earlier = filetime::FileTime::from_unix_time(1_000_000, 0);
+        let later = filetime::FileTime::from_unix_time(2_000_000, 0);
+        filetime::set_file_mtime(&alpha_dir, earlier).expect("set alpha mtime");
+        filetime::set_file_mtime(&beta_dir, later).expect("set beta mtime");
 
         let change_repo = crate::change_repository::FsChangeRepository::new(&ito_path);
 
