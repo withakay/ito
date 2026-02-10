@@ -134,7 +134,7 @@ jobs:
         uses: taiki-e/install-action@cargo-deny
 
       - name: Run cargo-deny (license/advisory checks)
-        run: cargo deny --manifest-path Cargo.toml check
+        run: cargo deny check
 
   required-checks-pr:
     name: All checks passed

@@ -153,7 +153,7 @@ arch-guardrails: ## Run architecture guardrail checks
 cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 	@set -e; \
 	if cargo deny --version >/dev/null 2>&1; then \
-		cargo deny --manifest-path Cargo.toml check; \
+		cargo deny check; \
 	else \
 		echo "cargo-deny is not installed."; \
 		echo "Install: cargo install cargo-deny"; \
@@ -266,7 +266,7 @@ dev: ## Build and install debug version with git info (fast iteration)
 release-plz-update: ## Run release-plz update (bump versions based on commits)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz update --manifest-path Cargo.toml --config release-plz.toml; \
+		release-plz update --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \
@@ -276,7 +276,7 @@ release-plz-update: ## Run release-plz update (bump versions based on commits)
 release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz release-pr --manifest-path Cargo.toml --git-token `gh auth token` --config release-plz.toml; \
+		release-plz release-pr --git-token `gh auth token` --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \

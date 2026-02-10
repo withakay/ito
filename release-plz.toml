@@ -29,7 +29,7 @@ publish_allow_dirty = false
 # Disable semver checks — no crates.io baseline exists yet for first publish
 semver_check = false
 # Defaults for all packages: publish to crates.io but no git tags/releases
-# (only ito-cli overrides these to create tags and GitHub releases)
+# (ito-cli only enables git tags; GitHub Releases are handled by cargo-dist)
 release = true
 git_tag_enable = false
 git_release_enable = false
@@ -44,7 +44,7 @@ git_release_enable = false
 name = "ito-test-support"
 release = false
 
-# ---- The ito CLI binary — gets git tags and GitHub releases ----
+# ---- The ito CLI binary — gets git tags (GitHub Releases are handled by cargo-dist) ----
 
 [[package]]
 name = "ito-cli"

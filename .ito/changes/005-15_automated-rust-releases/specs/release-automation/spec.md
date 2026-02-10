@@ -51,13 +51,13 @@ The system SHALL produce cross-platform release artifacts and attach them to the
 - **THEN** CI builds and packages release artifacts for supported targets
 - **AND** CI uploads artifacts and checksums to the GitHub Release for that tag
 
-### Requirement: Release automation supports a subdirectory Cargo workspace
+### Requirement: Release automation supports a root workspace with nested crate directories
 
-The release automation MUST work in a monorepo where Rust crates may live under subdirectories, and MUST not rely on a single hard-coded workspace location.
+The release automation MUST work with a root-level Cargo workspace where member crates are organized under subdirectories (e.g., `ito-rs/crates/`).
 
-#### Scenario: Workflows use an explicit manifest path
+#### Scenario: Workflows reference the root workspace with nested members
 
-- **GIVEN** Rust crates live under `ito-rs/` (or equivalent)
+- **GIVEN** the workspace manifest is `Cargo.toml` at the repository root and member crates live under `ito-rs/crates/`
 - **WHEN** release automation runs in CI
-- **THEN** workflows use an explicit `manifest_path` / `--manifest-path` and/or a root workspace configuration
-- **AND** no step assumes crates are located at the git root
+- **THEN** workflows reference the root workspace (implicitly by running at repo root, or explicitly via `manifest_path` / `--manifest-path`)
+- **AND** no step assumes crates are located at the repository root
