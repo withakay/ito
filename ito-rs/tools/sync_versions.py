@@ -147,7 +147,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--workspace-manifest",
-        default="ito-rs/Cargo.toml",
+        default="Cargo.toml",
         help="Path to the workspace Cargo.toml",
     )
     parser.add_argument("--stamp", required=True, help="YYYYMMDDHHMM")
