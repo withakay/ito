@@ -8,7 +8,7 @@ on:
 jobs:
   release-plz-release:
     name: Release-plz release
-    runs-on: withakay-selfhosted
+    runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'withakay' }}
     permissions:
       contents: write
@@ -45,7 +45,7 @@ jobs:
 
   release-plz-pr:
     name: Release-plz PR
-    runs-on: withakay-selfhosted
+    runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'withakay' }}
     permissions:
       pull-requests: write
