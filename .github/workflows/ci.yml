@@ -34,6 +34,11 @@ jobs:
       - name: Setup toolchain (mise)
         uses: jdx/mise-action@v3
 
+      - name: Install Rust components (rustfmt, clippy)
+        run: |
+          set -eu
+          rustup component add rustfmt clippy
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
