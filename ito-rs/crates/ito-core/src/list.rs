@@ -475,6 +475,26 @@ mod tests {
         std::fs::write(path, contents).expect("test fixture should write");
     }
 
+    /// Create a minimal change fixture under the repository root for the given change id.
+    ///
+    /// This writes three files for a change named `id` beneath `root/.ito/changes/<id>`:
+    /// - `proposal.md` with a simple proposal template,
+    /// - `tasks.md` containing the provided `tasks` text,
+    /// - `specs/alpha/spec.md` containing a small example requirement.
+    ///
+    /// # Parameters
+    ///
+    /// - `root`: Path to the repository root where the `.ito` directory will be created.
+    /// - `id`: Folder name for the change (used as the change identifier directory).
+    /// - `tasks`: Text to write into `tasks.md`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let tmp = tempfile::tempdir().unwrap();
+    /// make_change(tmp.path(), "000-01_alpha", "- [ ] task1");
+    /// assert!(tmp.path().join(".ito/changes/000-01_alpha/tasks.md").exists());
+    /// ```
     fn make_change(root: &Path, id: &str, tasks: &str) {
         write(
             root.join(".ito/changes").join(id).join("proposal.md"),
@@ -491,8 +511,24 @@ mod tests {
         );
     }
 
-    /// Set mtime on `dir` and every file/subdirectory within it recursively.
-    /// Needed because `last_modified_recursive` walks all entries.
+    /// Recursively sets the filesystem modification time for a directory and all entries within it.
+    ///
+    /// Traverses `dir`, sets the mtime of `dir` itself and every file and subdirectory it contains to `time`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs::{create_dir_all, File};
+    /// use tempfile::tempdir;
+    /// use filetime::FileTime;
+    ///
+    /// let td = tempdir().unwrap();
+    /// let nested = td.path().join("a/b");
+    /// create_dir_all(&nested).unwrap();
+    /// File::create(nested.join("f.txt")).unwrap();
+    /// let ft = FileTime::from_unix_time(1_600_000_000, 0);
+    /// set_mtime_recursive(td.path(), ft);
+    /// ```
     fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
         filetime::set_file_mtime(dir, time).expect("set dir mtime");
         for entry in std::fs::read_dir(dir).expect("read dir") {
