@@ -87,6 +87,7 @@ fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
 /// - `000-01_old-pending` (one pending task)
 /// - `000-02_mid-partial` (one completed and one pending task)
 /// - `000-03_new-complete` (one completed task)
+///
 /// Modification times for each change directory are set deterministically so tests that sort by recency behave consistently.
 ///
 /// # Examples
