@@ -25,19 +25,20 @@ make help             # Show all available targets
 ## Workspace Structure
 
 ```
-ito-rs/
+./
 ├── Cargo.toml                    # Workspace root (resolver v3, edition 2024)
-├── tools/                        # Guardrail scripts (arch_guardrails.py, check_max_lines.py)
-└── crates/
-    ├── ito-common/               # Layer 0: Shared utilities (leaf crate)
-    ├── ito-config/               # Layer 0: Configuration loading
-    ├── ito-domain/               # Layer 1: Domain models & repository ports
-    ├── ito-templates/            # Layer 1: Embedded template assets
-    ├── ito-logging/              # Layer 1: Telemetry (append-only JSONL)
-    ├── ito-core/                 # Layer 2: Business logic & orchestration
-    ├── ito-test-support/         # Support: Test utilities
-    ├── ito-cli/                  # Layer 3 (Adapter): CLI binary
-    └── ito-web/                  # Layer 3 (Adapter): Web server UI
+└── ito-rs/
+    ├── tools/                    # Guardrail scripts (arch_guardrails.py, check_max_lines.py)
+    └── crates/
+        ├── ito-common/           # Layer 0: Shared utilities (leaf crate)
+        ├── ito-config/           # Layer 0: Configuration loading
+        ├── ito-domain/           # Layer 1: Domain models & repository ports
+        ├── ito-templates/        # Layer 1: Embedded template assets
+        ├── ito-logging/          # Layer 1: Telemetry (append-only JSONL)
+        ├── ito-core/             # Layer 2: Business logic & orchestration
+        ├── ito-test-support/     # Support: Test utilities
+        ├── ito-cli/              # Layer 3 (Adapter): CLI binary
+        └── ito-web/              # Layer 3 (Adapter): Web server UI
 ```
 
 See [`.ito/architecture.md`](../.ito/architecture.md#crate-structure) for the full crate table with spec references.
@@ -134,7 +135,7 @@ Each layer owns its error type:
 ## Adding a New Crate
 
 1. Create the crate under `crates/`
-2. Add it to the workspace `members` list in `ito-rs/Cargo.toml`
+2. Add it to the workspace `members` list in `Cargo.toml`
 3. Use `workspace.package` for version, edition, license, repository
 4. Respect the layering — check which layer the crate belongs to and only depend on crates at the same or lower layer
 5. Add `#![warn(missing_docs)]` to `lib.rs`

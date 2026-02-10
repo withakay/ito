@@ -3,20 +3,33 @@
 #
 # NOTE: This file lives at the git repo root (not inside ito-rs/) so that
 # release-plz can find the .git directory when it clones to a temp dir.
-# The manifest_path is passed via CLI / GitHub Action inputs.
+# The manifest_path is passed via CLI / GitHub Action inputs (repo root `Cargo.toml`).
 #
-# IMPORTANT: Do NOT set git_only = true here. It causes release-plz to
-# miscalculate the repository path when --manifest-path points to a
-# subdirectory (ito-rs/Cargo.toml), resulting in "could not find repository"
-# errors during the worktree-spinning diff phase.
+# IMPORTANT: Do NOT set git_only = true here. It can cause release-plz to
+# miscalculate repository paths during diff/worktree operations.
 
 [workspace]
-# Allow running with uncommitted changes (CI temp files, etc.)
-allow_dirty = true
+# git-cliff configuration
+changelog_config = "cliff.toml"
+
+# enable changelog updates
+changelog_update = true
+
+# update dependencies with `cargo update`
+dependencies_update = true
+
+# labels for the release PR
+pr_labels = ["release"]
+
+# disallow updating repositories with uncommitted changes
+allow_dirty = false
+
+# disallow packaging with uncommitted changes
+publish_allow_dirty = false
 # Disable semver checks — no crates.io baseline exists yet for first publish
 semver_check = false
 # Defaults for all packages: publish to crates.io but no git tags/releases
-# (only ito-cli overrides these to create tags and GitHub releases)
+# (ito-cli only enables git tags; GitHub Releases are handled by cargo-dist)
 release = true
 git_tag_enable = false
 git_release_enable = false
@@ -31,14 +44,14 @@ git_release_enable = false
 name = "ito-test-support"
 release = false
 
-# ---- The ito CLI binary — gets git tags and GitHub releases ----
+# ---- The ito CLI binary — gets git tags (GitHub Releases are handled by cargo-dist) ----
 
 [[package]]
 name = "ito-cli"
-# Changelog lives in the repo root (relative to workspace root ito-rs/)
-changelog_path = "../CHANGELOG.md"
+# Changelog lives in the repo root
+changelog_path = "CHANGELOG.md"
 git_tag_enable = true
-git_release_enable = true
+git_release_enable = false
 # Tag format: v0.24.0 (single version for the whole workspace)
 git_tag_name = "v{{ version }}"
 # Release name format
