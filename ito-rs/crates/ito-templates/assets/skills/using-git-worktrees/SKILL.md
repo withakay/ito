@@ -9,17 +9,61 @@ description: Use when starting feature work that needs isolation from current wo
 
 Git worktrees create isolated workspaces that share the same repository, allowing work on multiple branches simultaneously.
 
-**Important:** Worktree layout and integration strategy are **config-driven** and can be different per developer.
+{% if enabled %}
+**Configured strategy:** `{{ strategy }}`
+**Directory name:** `{{ layout_dir_name }}`
+**Default branch:** `{{ default_branch }}`
+**Integration mode:** `{{ integration_mode }}`
 
-## Source Of Truth
+## Worktree Location
 
-Always retrieve the exact strategy + commands for the current repo before creating a worktree:
+{% if strategy == "checkout_subdir" %}
+Worktrees live under:
 
 ```bash
-ito agent instruction worktrees
+<project-root>/{{ layout_dir_name }}/<change-name>/
 ```
 
-Follow the printed instructions exactly.
+Create a worktree:
+
+```bash
+mkdir -p "{{ layout_dir_name }}"
+git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% elif strategy == "checkout_siblings" %}
+Worktrees live under a sibling directory:
+
+```bash
+<project-root>/
+../<project-name>-{{ layout_dir_name }}/<change-name>/
+```
+
+Create a worktree:
+
+```bash
+mkdir -p "../<project-name>-{{ layout_dir_name }}"
+git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% elif strategy == "bare_control_siblings" %}
+Worktrees live under the bare/control layout:
+
+```bash
+<project>/
+|-- {{ default_branch }}/
+`-- {{ layout_dir_name }}/<change-name>/
+```
+
+Create a worktree:
+
+```bash
+mkdir -p "{{ layout_dir_name }}"
+git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% else %}
+Use the configured strategy and directory values above.
+{% endif %}
+
+Do NOT ask the user where to create worktrees.
 
 ## Safety Checks
 
@@ -36,6 +80,14 @@ git worktree remove "<worktree-path>" 2>/dev/null || true
 git branch -d "<branch-name>" 2>/dev/null || true
 git worktree prune
 ```
+
+{% else %}
+Worktrees are not configured for this project.
+
+- Do NOT create git worktrees by default.
+- Work in the current checkout.
+- Only use worktrees when the user explicitly requests that workflow.
+{% endif %}
 
 ## Integration
 

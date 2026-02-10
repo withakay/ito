@@ -158,10 +158,9 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(
-            text.contains("ito agent instruction worktrees"),
-            "should delegate worktree guidance to CLI"
-        );
+        assert!(text.contains("## Worktree Workflow"));
+        assert!(text.contains("**Strategy:** `checkout_subdir`"));
+        assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
     }
 
     #[test]
@@ -181,10 +180,11 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(
-            text.contains("ito agent instruction worktrees"),
-            "should delegate worktree guidance to CLI"
-        );
+        assert!(text.contains("**Strategy:** `checkout_siblings`"));
+        assert!(text.contains("../<project-name>-worktrees/<change-name>/"));
+        assert!(text.contains(
+            "git worktree add \"../<project-name>-worktrees/<change-name>\" -b <change-name>"
+        ));
     }
 
     #[test]
@@ -204,10 +204,9 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(
-            text.contains("ito agent instruction worktrees"),
-            "should delegate worktree guidance to CLI"
-        );
+        assert!(text.contains("**Strategy:** `bare_control_siblings`"));
+        assert!(text.contains(".bare/"));
+        assert!(text.contains("ito-worktrees/"));
     }
 
     #[test]
@@ -221,9 +220,7 @@ mod tests {
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
-        assert!(
-            text.contains("ito agent instruction worktrees"),
-            "should delegate worktree guidance to CLI"
-        );
+        assert!(text.contains("Worktrees are not configured for this project."));
+        assert!(text.contains("Do NOT create git worktrees by default."));
     }
 }
