@@ -236,6 +236,7 @@ pub fn install_manifests(
                 }
             }
         }
+
         let bytes = if should_render_skill {
             render_project_template(raw_bytes, ctx).map_err(|e| {
                 CoreError::Validation(format!(
