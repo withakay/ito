@@ -491,6 +491,20 @@ mod tests {
         );
     }
 
+    /// Set mtime on `dir` and every file/subdirectory within it recursively.
+    /// Needed because `last_modified_recursive` walks all entries.
+    fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
+        filetime::set_file_mtime(dir, time).expect("set dir mtime");
+        for entry in std::fs::read_dir(dir).expect("read dir") {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            filetime::set_file_mtime(&path, time).expect("set entry mtime");
+            if path.is_dir() {
+                set_mtime_recursive(&path, time);
+            }
+        }
+    }
+
     #[test]
     fn counts_requirements_from_headings() {
         let md = r#"
@@ -608,13 +622,14 @@ bar
             "000-02_beta",
             "## 1. Implementation\n- [ ] 1.1 todo\n",
         );
-        // Set explicit mtimes so sort-by-recent is deterministic without sleeping.
+        // Set explicit mtimes recursively so sort-by-recent is deterministic without sleeping.
+        // last_modified_recursive() walks all files, so we must set mtime on every entry.
         let alpha_dir = repo.path().join(".ito/changes/000-01_alpha");
         let beta_dir = repo.path().join(".ito/changes/000-02_beta");
         let earlier = filetime::FileTime::from_unix_time(1_000_000, 0);
         let later = filetime::FileTime::from_unix_time(2_000_000, 0);
-        filetime::set_file_mtime(&alpha_dir, earlier).expect("set alpha mtime");
-        filetime::set_file_mtime(&beta_dir, later).expect("set beta mtime");
+        set_mtime_recursive(&alpha_dir, earlier);
+        set_mtime_recursive(&beta_dir, later);
 
         let change_repo = crate::change_repository::FsChangeRepository::new(&ito_path);
 

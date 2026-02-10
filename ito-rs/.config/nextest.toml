@@ -14,5 +14,5 @@ status-level = "pass"
 # Mark tests as slow after 30s (default 60s).
 slow-timeout = { period = "30s" }
 
-# Retry flaky tests once.
+# No retries — flaky tests should be fixed, not retried.
 retries = 0

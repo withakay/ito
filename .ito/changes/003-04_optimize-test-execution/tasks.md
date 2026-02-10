@@ -16,6 +16,13 @@ ito tasks complete 003-04_optimize-test-execution 1.1
 
 ______________________________________________________________________
 
+## Baseline
+
+Measured 2026-02-10 (3 runs, median):
+
+- `cargo test --workspace`: **5.51s**
+- `cargo nextest run --workspace`: **3.06s** (after optimizations)
+
 ## Wave 1
 
 - **Depends On**: None
