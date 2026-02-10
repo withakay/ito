@@ -96,6 +96,9 @@ test: ## Run tests
 test-timed: ## Run tests with per-crate timing
 	$(MAKE) rust-test-timed
 
+test-affected: ## Run tests only for crates affected by recent changes
+	bash ito-rs/tools/test-affected.sh
+
 test-watch: ## Run tests in watch mode (requires cargo-watch)
 	@set -e; \
 	if cargo watch -V >/dev/null 2>&1; then \
@@ -215,21 +218,30 @@ rust-build: ## Build Rust ito (debug)
 rust-build-release: ## Build Rust ito (release)
 	cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito --release
 
-rust-test: ## Run Rust tests
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace
-
-rust-test-timed: ## Run Rust tests with per-crate timing
+rust-test: ## Run Rust tests (prefers nextest when available)
 	@set -e; \
-	echo "Running tests with per-crate timing..."; \
-	echo ""; \
+	if cargo nextest --version >/dev/null 2>&1; then \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --manifest-path ito-rs/Cargo.toml --workspace; \
+	else \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace; \
+	fi
+
+rust-test-timed: ## Run Rust tests with timing
+	@set -e; \
 	START=$$(date +%s); \
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace 2>&1 \
-		| while IFS= read -r line; do \
-			echo "$$line"; \
-			case "$$line" in \
-				*"test result:"*) ;; \
-			esac; \
-		done; \
+	if cargo nextest --version >/dev/null 2>&1; then \
+		echo "Running tests with nextest..."; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --manifest-path ito-rs/Cargo.toml --workspace; \
+	else \
+		echo "Running tests with cargo test..."; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace 2>&1 \
+			| while IFS= read -r line; do \
+				echo "$$line"; \
+				case "$$line" in \
+					*"test result:"*) ;; \
+				esac; \
+			done; \
+	fi; \
 	END=$$(date +%s); \
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"

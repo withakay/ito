@@ -1,0 +1,18 @@
+# Nextest configuration for the ito-rs workspace.
+# See https://nexte.st/docs/configuration/
+
+[store]
+dir = "target/nextest"
+
+[profile.default]
+# Don't stop on first failure — run all tests and report.
+fail-fast = false
+
+# Show pass/fail status for all tests.
+status-level = "pass"
+
+# Mark tests as slow after 30s (default 60s).
+slow-timeout = { period = "30s" }
+
+# Retry flaky tests once.
+retries = 0
