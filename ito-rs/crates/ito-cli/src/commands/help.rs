@@ -2,6 +2,29 @@ use crate::cli::HelpArgs;
 use crate::cli_error::CliResult;
 use clap::CommandFactory;
 
+/// Collects the stable set of CLI command paths (as parts) for which help text should be emitted.
+///
+/// This returns the base command plus a curated list of top-level and nested commands
+/// that exist in the current clap command tree. Deprecated aliases are intentionally
+/// excluded so the output remains stable and user-facing.
+///
+/// # Returns
+///
+/// A vector of command paths where each entry is a `Vec<String>` of path parts.
+/// The first entry is an empty `Vec` representing the base command; subsequent entries
+/// are the subcommand path segments (e.g., `["agent", "instruction"]`).
+///
+/// # Examples
+///
+/// ```
+/// let parts = help_all_parts();
+/// // first entry is the base command
+/// assert!(parts.first().map(|p| p.is_empty()).unwrap_or(false));
+/// // each entry is a vector of strings representing the command path
+/// for entry in parts {
+///     let _path: Vec<String> = entry;
+/// }
+/// ```
 fn help_all_parts() -> Vec<Vec<String>> {
     // Keep output stable and user-facing (exclude deprecated aliases like
     // `templates`, `instructions`, `loop`, etc.), while still deriving help

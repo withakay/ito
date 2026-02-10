@@ -3,6 +3,23 @@ use ito_core::workflow::{
     SchemaSource, export_embedded_schemas, resolve_instructions, resolve_schema,
 };
 
+/// Verifies that resolving the "spec-driven" schema yields the embedded schema when no project or user overrides exist.
+///
+/// The test creates a temporary project directory, constructs a `ConfigContext` that points to it,
+/// calls `resolve_schema(Some("spec-driven"), &ctx)`, and asserts the resolution source is
+/// `SchemaSource::Embedded` and the resolved schema's name is `"spec-driven"`.
+///
+/// # Examples
+///
+/// ```
+/// let ctx = ConfigContext {
+///     project_dir: Some(tempfile::tempdir().unwrap().path().to_path_buf()),
+///     ..Default::default()
+/// };
+/// let resolved = resolve_schema(Some("spec-driven"), &ctx).unwrap();
+/// assert_eq!(resolved.source, SchemaSource::Embedded);
+/// assert_eq!(resolved.schema.name, "spec-driven");
+/// ```
 #[test]
 fn resolve_schema_uses_embedded_when_no_overrides_exist() {
     let project = tempfile::tempdir().expect("tempdir should succeed");
@@ -16,6 +33,24 @@ fn resolve_schema_uses_embedded_when_no_overrides_exist() {
     assert_eq!(resolved.schema.name, "spec-driven");
 }
 
+/// Verifies that a project-local schema file takes precedence over a user/home override.
+///
+/// The test creates both a project and a user schema for the same name and asserts that
+/// `resolve_schema` resolves to the project source and returns the project's schema data.
+///
+/// # Examples
+///
+/// ```
+/// // Create a ConfigContext with project and home directories and call resolve_schema.
+/// // The project schema should be preferred when both exist.
+/// let ctx = ConfigContext {
+///     project_dir: Some(std::path::PathBuf::from("/path/to/project")),
+///     home_dir: Some(std::path::PathBuf::from("/path/to/home")),
+///     ..Default::default()
+/// };
+/// let resolved = resolve_schema(Some("spec-driven"), &ctx).unwrap();
+/// assert_eq!(resolved.source, SchemaSource::Project);
+/// ```
 #[test]
 fn resolve_schema_prefers_project_over_user_override() {
     let root = tempfile::tempdir().expect("tempdir should succeed");
