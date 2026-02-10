@@ -84,7 +84,7 @@ ______________________________________________________________________
 - **Verify**: `cargo nextest run --workspace` (if nextest installed)
 - **Done When**: Nextest config file exists and is respected
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Update Makefile to prefer nextest
 
@@ -94,7 +94,7 @@ ______________________________________________________________________
 - **Verify**: `make test` uses nextest when available
 - **Done When**: Makefile updated, both paths work
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Add `[profile.test]` optimisation
 
@@ -104,7 +104,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test --workspace` still passes
 - **Done When**: Test profile optimisation active, no build regressions
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -120,7 +120,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh` runs successfully
 - **Done When**: Script correctly identifies affected crates and runs their tests
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Add `make test-affected` target
 
@@ -130,7 +130,7 @@ ______________________________________________________________________
 - **Verify**: `make test-affected`
 - **Done When**: Target works and only tests affected crates
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.3: Verify 25% reduction target
 
@@ -140,7 +140,7 @@ ______________________________________________________________________
 - **Verify**: Timing comparison
 - **Done When**: 25% reduction achieved or documented why not
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.4: Run full quality gate
 
@@ -150,4 +150,4 @@ ______________________________________________________________________
 - **Verify**: `make check && make test`
 - **Done When**: Clean build, all tests pass, no clippy warnings
 - **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
