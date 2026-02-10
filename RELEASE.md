@@ -2,149 +2,96 @@
 
 This repo ships Ito via:
 
-- GitHub Releases (binary archives + checksums)
+- GitHub Releases (cross-platform archives + installers)
 - Homebrew formula updates (in a separate tap repo)
 
-The process is largely driven by GitHub Actions workflows under `.github/workflows/`.
+The release pipeline is CI-driven and designed to match the "automated rust releases" flow:
+
+- release-plz: version/changelog PR + crates.io publishing + version tag
+- cargo-dist: build/package binaries + create GitHub Release + upload assets
 
 ## Workflows Involved
 
-### 1) `Release Please` (`.github/workflows/release-please.yml`)
+### 1) Release PR + publishing (release-plz)
 
-Trigger:
+Workflow: `/.github/workflows/release-plz.yml`
 
-- Successful completion of the `CI` workflow on `main` (`workflow_run`)
-- Manual run (`workflow_dispatch`)
+- Trigger: push to `main`
+- What it does:
+  - Maintains a release PR (version bumps + `CHANGELOG.md` updates)
+  - After that PR is merged, publishes crates to crates.io
+  - Creates a version tag `vX.Y.Z`
 
-What it does:
+### 2) Build + GitHub Release assets (cargo-dist)
 
-- Runs `googleapis/release-please-action@v4` using `release-please-config.json` and `.release-please-manifest.json`.
-- Maintains `CHANGELOG.md` and version bumps for the `ito-rs/` package (release type: Rust).
+Workflow: `/.github/workflows/release.yml`
 
-Notes:
+- Trigger: tag push (version-like tags such as `vX.Y.Z`)
+- What it does:
+  - Runs `dist` to build and package artifacts
+  - Creates/updates the GitHub Release for the tag
+  - Uploads artifacts including:
+    - `ito-cli-<target>.tar.xz` / `ito-cli-<target>.zip`
+    - `ito-cli-installer.sh` (curl | sh)
+    - `ito-cli-installer.ps1` (irm | iex)
+    - checksums (`*.sha256`, `sha256.sum`)
+- Binary naming:
+  - The installed executable is `ito` (or `ito.exe` on Windows)
 
-- This workflow manages the *version/changelog PR* lifecycle.
-- The current manifest version is stored in `.release-please-manifest.json` (example: `0.20.8`).
+### 3) Update Homebrew formula
 
-### 2) `Release` (`.github/workflows/release.yml`)
+Workflow: `/.github/workflows/homebrew.yml`
 
-Triggers:
+- Trigger: GitHub release event `published`
+- What it does:
+  - Calls the reusable workflow `/.github/workflows/update-homebrew.yml`
+  - Downloads cargo-dist artifacts from the release and computes sha256
+  - Updates `withakay/homebrew-ito` formula `Formula/ito.rb` and pushes to `main`
 
-- GitHub release event: `published`
-- Manual run (`workflow_dispatch`) with an explicit `tag` input
+### 4) Polish release notes
 
-What it does:
+Workflow: `/.github/workflows/polish-release-notes.yml`
 
-1. Resolves the tag (`vX.Y.Z`) from the release event (or input).
-2. Validates the git tag matches the Rust crate version:
-   - Compares `vX.Y.Z` (tag) to the `ito-cli` crate version from `cargo metadata` in `ito-rs/Cargo.toml`.
-3. Builds release binaries for:
-   - macOS x86_64 (`x86_64-apple-darwin`)
-   - macOS arm64 (`aarch64-apple-darwin`)
-   - Linux x86_64 (`x86_64-unknown-linux-gnu`)
-   - Linux arm64 (`aarch64-unknown-linux-gnu`, built via `cross`)
-   - Windows x86_64 (`x86_64-pc-windows-msvc`)
-4. Packages artifacts:
-   - `ito-vX.Y.Z-<target>.tar.gz` (macOS/Linux)
-   - `ito-vX.Y.Z-<target>.zip` (Windows)
-   - `ito-vX.Y.Z-<target>.sha256` (per-asset checksums)
-   - `sha256sums.txt` (concatenation of the per-asset `.sha256` files)
-5. Uploads the packaged artifacts to the existing GitHub release for the tag.
-
-Notes:
-
-- The GitHub release itself is created by `Release Please` when the release PR is merged.
-
-### 3) `Polish Release Notes` (`.github/workflows/polish-release-notes.yml`)
-
-Trigger:
-
-- GitHub release event: `published`
-
-What it does:
-
-- Fetches the current release body via `gh release view`.
-- Uses `anthropics/claude-code-action@v1` to rewrite the changelog-style notes into structured release notes.
-- Updates the release title and notes via `gh release edit`.
-
-Notes:
-
-- Only runs on the upstream repo (`withakay/ito`), not forks.
-- Requires `CLAUDE_CODE_OAUTH_TOKEN`.
-
-### 4) `Update Homebrew Formula` (`.github/workflows/update-homebrew.yml`)
-
-Triggers:
-
-- GitHub release event: `published`
-- Tag push event: `v*`
-- Manual run (`workflow_dispatch`) with an explicit `tag` input
-
-What it does:
-
-- Computes `sha256` checksums for the platform release archives (macOS + Linux):
-  - `https://github.com/withakay/ito/releases/download/<TAG>/ito-<TAG>-x86_64-apple-darwin.tar.gz`
-  - `https://github.com/withakay/ito/releases/download/<TAG>/ito-<TAG>-aarch64-apple-darwin.tar.gz`
-  - `https://github.com/withakay/ito/releases/download/<TAG>/ito-<TAG>-x86_64-unknown-linux-gnu.tar.gz`
-  - `https://github.com/withakay/ito/releases/download/<TAG>/ito-<TAG>-aarch64-unknown-linux-gnu.tar.gz`
-- Checks out the tap repo `withakay/homebrew-ito`.
-- Rewrites `Formula/ito.rb` with the new `version` + per-arch `url`/`sha256` blocks.
-- Commits and pushes to the tap repo’s `main`.
-
-Notes:
-
-- Requires `HOMEBREW_TAP_TOKEN`.
+- Trigger: GitHub release event `published`
+- What it does:
+  - Rewrites cargo-dist/release notes into developer-facing release notes
+  - Updates the GitHub Release title/body
 
 ## Step-by-Step Release Checklist
 
 ### 0) Pre-flight
 
-- Make sure CI is green on `main`.
-- Locally, run:
-  - `make check` (runs `prek run --all-files`)
+- Ensure CI is green on `main`.
+- Locally (optional but recommended):
+  - `make check`
   - `make test`
 
-### 1) Cut the version/changelog PR (Release Please)
+### 1) Cut and merge a release PR
 
 - Merge normal feature/fix PRs into `main`.
-- After `CI` completes successfully on `main`, the `Release Please` workflow will open or update a release PR.
-- To manually (re)trigger it from your machine: `make release`.
-- Review that PR (version bump + `CHANGELOG.md` updates) and merge it.
+- The release-plz workflow will open/update a release PR.
+- Review and merge that PR.
 
-### 2) Merge the Release Please PR
+### 2) Wait for automation
 
-Merging the release PR causes `Release Please` to:
+After the release PR merge:
 
-- Create the version tag `vX.Y.Z`.
-- Create/publish the corresponding GitHub release.
+- release-plz publishes to crates.io and creates tag `vX.Y.Z`
+- cargo-dist builds artifacts and publishes a GitHub Release for `vX.Y.Z`
+- Homebrew and release-note polishing run off the published release
 
-### 3) Wait for automation to finish
+### 3) Post-release checks
 
-Publishing the GitHub release triggers:
-
-- `Release` (builds + uploads archives/checksums)
-- `Update Homebrew Formula` (bumps `withakay/homebrew-ito`)
-- `Polish Release Notes` (if enabled/credentialed)
-
-If `Release` fails at “Validate tag matches crate version”, fix the version mismatch and rerun.
-
-### 4) Post-release checks
-
-- Verify Homebrew tap:
-  - `withakay/homebrew-ito` has the updated `Formula/ito.rb`
-- Verify assets on GitHub release:
-  - Archives + `.sha256` files + `sha256sums.txt` are present
+- GitHub Release contains expected cargo-dist assets and installers
+- Homebrew tap `withakay/homebrew-ito` has an updated `Formula/ito.rb`
 
 ## Required Secrets / Credentials
 
-GitHub Actions needs these repository secrets for a full release:
+Repository secrets used by CI:
 
-- `CLAUDE_CODE_OAUTH_TOKEN`: polish release notes after publishing
-- `HOMEBREW_TAP_TOKEN`: push updates to `withakay/homebrew-ito`
+- `RELEASE_PLZ_TOKEN`: PAT used by release-plz to create tags/PRs without blocking tag-triggered workflows
+- `CARGO_REGISTRY_TOKEN`: crates.io publishing token
+- `HOMEBREW_TAP_TOKEN`: pushes formula updates to `withakay/homebrew-ito`
+- `CLAUDE_CODE_OAUTH_TOKEN`: optional; polishes release notes
 
-The workflows also use `secrets.GITHUB_TOKEN` for creating/editing GitHub releases.
-
-## Versioning Notes
-
-- Tags are `vX.Y.Z`.
-- The release workflow enforces that the tag matches the `ito-cli` crate version.
+`RELEASE_PLEASE_TOKEN` exists but is unused (Release Please is not part of this pipeline).
