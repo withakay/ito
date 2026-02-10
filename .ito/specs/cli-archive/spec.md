@@ -1,216 +1,66 @@
-# CLI Archive Command Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Batch Archive Completed Changes
 
-The archive command moves completed changes from the active changes directory to the archive folder with date-based naming, following Ito conventions.
+The archive command SHALL support a `--completed` flag that discovers and archives all changes whose tasks are fully complete.
 
-## Command Syntax
+#### Scenario: Archive all completed changes
 
-```bash
-ito archive [change-name] [--yes|-y]
-```
+- **WHEN** executing `ito archive --completed`
+- **THEN** the system SHALL query `ChangeRepository::list_complete()` to find all changes with `ChangeStatus::Complete`
+- **AND** archive each change sequentially using the standard single-change archive flow (validation, spec updates, move)
+- **AND** display per-change progress (change name and result)
+- **AND** display a summary on completion showing total archived and any failures
 
-Options:
+#### Scenario: No completed changes found
 
-- `--yes`, `-y`: Skip confirmation prompts (for automation)
+- **WHEN** executing `ito archive --completed` and no changes have `ChangeStatus::Complete`
+- **THEN** display a message "No completed changes to archive." and exit successfully
 
-## Requirements
+#### Scenario: Combined with --yes flag
 
-### Requirement: Change Selection
+- **WHEN** executing `ito archive --completed --yes`
+- **THEN** skip all per-change confirmation prompts (task warnings, spec update confirmations)
+- **AND** archive each completed change non-interactively
 
-The command SHALL support both interactive and direct change selection methods.
+#### Scenario: Combined with --skip-specs flag
 
-#### Scenario: Interactive selection
+- **WHEN** executing `ito archive --completed --skip-specs`
+- **THEN** skip spec updates for every archived change
 
-- **WHEN** no change-name is provided
-- **THEN** display interactive list of available changes (excluding archive/)
-- **AND** allow user to select one
+#### Scenario: Combined with --no-validate flag
 
-#### Scenario: Direct selection
+- **WHEN** executing `ito archive --completed --no-validate`
+- **THEN** skip task completion validation for every archived change
 
-- **WHEN** change-name is provided
-- **THEN** use that change directly
-- **AND** validate it exists
+#### Scenario: Partial failure during batch archive
 
-### Requirement: Task Completion Check
+- **WHEN** one change fails to archive during batch mode (e.g., archive name collision, filesystem error)
+- **THEN** report the error for that change
+- **AND** continue archiving remaining changes
+- **AND** include the failure in the summary
+- **AND** exit with non-zero status if any change failed
 
-The command SHALL verify task completion status before archiving to prevent premature archival.
+### Requirement: Mutual Exclusivity of --completed and CHANGE Argument
 
-#### Scenario: Incomplete tasks found
+The `--completed` flag and the positional `CHANGE` argument SHALL be mutually exclusive.
 
-- **WHEN** incomplete tasks are found (marked with `- [ ]`)
-- **THEN** display all incomplete tasks to the user
-- **AND** prompt for confirmation to continue
-- **AND** default to "No" for safety
+#### Scenario: Both --completed and CHANGE provided
 
-#### Scenario: All tasks complete
+- **WHEN** executing `ito archive some-change --completed`
+- **THEN** the CLI SHALL reject the invocation with an error message explaining the conflict
+- **AND** exit with non-zero status
 
-- **WHEN** all tasks are complete OR no tasks.md exists
-- **THEN** proceed with archiving without prompting
+### Requirement: Batch Archive Summary Output
 
-### Requirement: Archive Process
+The batch archive mode SHALL provide a clear summary of results.
 
-The archive operation SHALL follow a structured process to safely move changes to the archive.
+#### Scenario: All changes archived successfully
 
-#### Scenario: Performing archive
+- **WHEN** all completed changes are archived without error
+- **THEN** display: "Archived N change(s)." followed by the list of archived change names
 
-- **WHEN** archiving a change
-- **THEN** execute these steps:
-  1. Create archive/ directory if it doesn't exist
-  1. Generate target name as `YYYY-MM-DD-[change-name]` using current date
-  1. Check if target directory already exists
-  1. Update main specs from the change's future state specs (see Spec Update Process below)
-  1. Move the entire change directory to the archive location
+#### Scenario: Some changes failed
 
-#### Scenario: Archive already exists
-
-- **WHEN** target archive already exists
-- **THEN** fail with error message
-- **AND** do not overwrite existing archive
-
-#### Scenario: Successful archive
-
-- **WHEN** move succeeds
-- **THEN** display success message with archived name and list of updated specs
-
-### Requirement: Spec Update Process
-
-Before moving the change to archive, the command SHALL apply delta changes to main specs to reflect the deployed reality.
-
-#### Scenario: Applying delta changes
-
-- **WHEN** archiving a change with delta-based specs
-- **THEN** parse and apply delta changes as defined in ito-conventions
-- **AND** validate all operations before applying
-
-#### Scenario: Validating delta changes
-
-- **WHEN** processing delta changes
-- **THEN** perform validations as specified in ito-conventions
-- **AND** if validation fails, show specific errors and abort
-
-#### Scenario: Conflict detection
-
-- **WHEN** applying deltas would create duplicate requirement headers
-- **THEN** abort with error message showing the conflict
-- **AND** suggest manual resolution
-
-### Requirement: Confirmation Behavior
-
-The spec update confirmation SHALL provide clear visibility into changes before they are applied.
-
-#### Scenario: Displaying confirmation
-
-- **WHEN** prompting for confirmation
-- **THEN** display a clear summary showing:
-  - Which specs will be created (new capabilities)
-  - Which specs will be updated (existing capabilities)
-  - The source path for each spec
-- **AND** format the confirmation prompt as:
-  ```
-  The following specs will be updated:
-
-  NEW specs to be created:
-    - cli-archive (from changes/add-archive-command/specs/cli-archive/spec.md)
-
-  EXISTING specs to be updated:
-    - cli-init (from changes/update-init-command/specs/cli-init/spec.md)
-
-  Update 2 specs and archive 'add-archive-command'? [y/N]:
-  ```
-
-#### Scenario: Handling confirmation response
-
-- **WHEN** waiting for user confirmation
-- **THEN** default to "No" for safety (require explicit "y" or "yes")
-- **AND** skip confirmation when `--yes` or `-y` flag is provided
-
-#### Scenario: User declines confirmation
-
-- **WHEN** user declines the confirmation
-- **THEN** abort the entire archive operation
-- **AND** display message: "Archive cancelled. No changes were made."
-- **AND** exit with non-zero status code
-
-### Requirement: Error Conditions
-
-The command SHALL handle various error conditions gracefully.
-
-#### Scenario: Handling errors
-
-- **WHEN** errors occur
-- **THEN** handle the following conditions:
-  - Missing ito/changes/ directory
-  - Change not found
-  - Archive target already exists
-  - File system permissions issues
-
-### Requirement: Skip Specs Option
-
-The archive command SHALL support a `--skip-specs` flag that skips all spec update operations and proceeds directly to archiving.
-
-#### Scenario: Skipping spec updates with flag
-
-- **WHEN** executing `ito archive <change> --skip-specs`
-- **THEN** skip spec discovery and update confirmation
-- **AND** proceed directly to moving the change to archive
-- **AND** display a message indicating specs were skipped
-
-### Requirement: Non-blocking confirmation
-
-The archive operation SHALL proceed when the user declines spec updates instead of cancelling the entire operation.
-
-#### Scenario: User declines spec update confirmation
-
-- **WHEN** the user declines spec update confirmation
-- **THEN** skip spec updates
-- **AND** continue with the archive operation
-- **AND** display a success message indicating specs were not updated
-
-### Requirement: Display Output
-
-The command SHALL provide clear feedback about delta operations.
-
-#### Scenario: Showing delta application
-
-- **WHEN** applying delta changes
-- **THEN** display for each spec:
-  - Number of requirements added
-  - Number of requirements modified
-  - Number of requirements removed
-  - Number of requirements renamed
-- **AND** use standard output symbols (+ ~ - →) as defined in ito-conventions:
-  ```
-  Applying changes to specs/user-auth/spec.md:
-    + 2 added
-    ~ 3 modified
-    - 1 removed
-    → 1 renamed
-  ```
-
-### Requirement: Archive Validation
-
-The archive command SHALL validate changes before applying them to ensure data integrity.
-
-#### Scenario: Pre-archive validation
-
-- **WHEN** executing `ito archive change-name`
-- **THEN** validate the change structure first
-- **AND** only proceed if validation passes
-- **AND** show validation errors if it fails
-
-#### Scenario: Force archive without validation
-
-- **WHEN** executing `ito archive change-name --no-validate`
-- **THEN** skip validation (unsafe mode)
-- **AND** show warning about skipping validation
-
-## Why These Decisions
-
-**Interactive selection**: Reduces typing and helps users see available changes
-**Task checking**: Prevents accidental archiving of incomplete work
-**Date prefixing**: Maintains chronological order and prevents naming conflicts
-**No overwrite**: Preserves historical archives and prevents data loss
-**Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
-**Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
-**--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use
+- **WHEN** some changes fail during batch archive
+- **THEN** display: "Archived N change(s), M failed." followed by the list of successes and failures
