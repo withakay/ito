@@ -96,7 +96,7 @@ test: ## Run tests
 test-watch: ## Run tests in watch mode (requires cargo-watch)
 	@set -e; \
 	if cargo watch -V >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo watch -x "test --manifest-path ito-rs/Cargo.toml --workspace"; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo watch -x "test --workspace"; \
 	else \
 		echo "cargo-watch is not installed."; \
 		echo "Install: cargo install cargo-watch"; \
@@ -111,7 +111,7 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
 		echo "  Excluded crates: ito-web (no tests yet)"; \
 		echo ""; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
@@ -125,10 +125,10 @@ lint: ## Run linter
 	$(MAKE) rust-lint
 
 fmt: ## Run cargo fmt (auto-fix)
-	cargo fmt --manifest-path ito-rs/Cargo.toml --all
+	cargo fmt --all
 
 clippy: ## Run cargo clippy
-	cargo clippy --manifest-path ito-rs/Cargo.toml --workspace --all-targets -- \
+	cargo clippy --workspace --all-targets -- \
 		-D warnings \
 		-D clippy::dbg_macro \
 		-D clippy::todo \
@@ -153,7 +153,7 @@ arch-guardrails: ## Run architecture guardrail checks
 cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 	@set -e; \
 	if cargo deny --version >/dev/null 2>&1; then \
-		cargo deny --manifest-path ito-rs/Cargo.toml check; \
+		cargo deny check; \
 	else \
 		echo "cargo-deny is not installed."; \
 		echo "Install: cargo install cargo-deny"; \
@@ -186,7 +186,7 @@ release: ## Create/update release PR via release-plz
 
 version-bump: ## Bump workspace version (BUMP=none|patch|minor|major)
 	@set -e; \
-	MANIFEST="ito-rs/Cargo.toml"; \
+	MANIFEST="Cargo.toml"; \
 	STAMP=$$(date +%Y%m%d%H%M); \
 	NEW_VERSION=$$(python3 "ito-rs/tools/version_bump.py" --manifest "$$MANIFEST" --stamp "$$STAMP" --bump "$(BUMP)"); \
 	echo "Bumped workspace version to $$NEW_VERSION"
@@ -207,30 +207,30 @@ version-bump-major: ## Bump major version (x.y.z -> (x+1).0.0) + stamp
 	$(MAKE) version-bump BUMP=major
 
 rust-build: ## Build Rust ito (debug)
-	cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito
+	cargo build -p ito-cli --bin ito
 
 rust-build-release: ## Build Rust ito (release)
-	cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito --release
+	cargo build -p ito-cli --bin ito --release
 
 rust-test: ## Run Rust tests
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace
+	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace
 
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --manifest-path ito-rs/Cargo.toml --workspace --tests \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
 		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
 	fi
 
 rust-lint: ## Run Rust fmt/clippy
-	cargo fmt --manifest-path ito-rs/Cargo.toml --all -- --check
-	cargo clippy --manifest-path ito-rs/Cargo.toml --workspace --all-targets -- \
+	cargo fmt --all -- --check
+	cargo clippy --workspace --all-targets -- \
 		-D warnings \
 		-D clippy::dbg_macro \
 		-D clippy::todo \
@@ -241,7 +241,7 @@ rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_D
 	$(MAKE) rust-build-release; \
 	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
 	mkdir -p "$$INSTALL_DIR"; \
-	cp "ito-rs/target/release/ito" "$$INSTALL_DIR/ito"; \
+	cp "target/release/ito" "$$INSTALL_DIR/ito"; \
 	chmod +x "$$INSTALL_DIR/ito"; \
 	if [ "$$(uname -s)" = "Darwin" ]; then \
 		codesign --force --sign - "$$INSTALL_DIR/ito"; \
@@ -252,10 +252,10 @@ install: version-sync rust-install ## Sync workspace version stamp + install Rus
 
 dev: ## Build and install debug version with git info (fast iteration)
 	@set -e; \
-	cargo build --manifest-path ito-rs/Cargo.toml -p ito-cli --bin ito; \
+	cargo build -p ito-cli --bin ito; \
 	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
 	mkdir -p "$$INSTALL_DIR"; \
-	cp "ito-rs/target/debug/ito" "$$INSTALL_DIR/ito"; \
+	cp "target/debug/ito" "$$INSTALL_DIR/ito"; \
 	chmod +x "$$INSTALL_DIR/ito"; \
 	if [ "$$(uname -s)" = "Darwin" ]; then \
 		codesign --force --sign - "$$INSTALL_DIR/ito"; \
@@ -266,7 +266,7 @@ dev: ## Build and install debug version with git info (fast iteration)
 release-plz-update: ## Run release-plz update (bump versions based on commits)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz update --manifest-path ito-rs/Cargo.toml --config release-plz.toml; \
+		release-plz update --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \
@@ -276,7 +276,7 @@ release-plz-update: ## Run release-plz update (bump versions based on commits)
 release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 	@set -e; \
 	if release-plz --version >/dev/null 2>&1; then \
-		release-plz release-pr --manifest-path ito-rs/Cargo.toml --git-token `gh auth token` --config release-plz.toml; \
+		release-plz release-pr --git-token `gh auth token` --config release-plz.toml; \
 	else \
 		echo "release-plz is not installed."; \
 		echo "Install: cargo install release-plz"; \
@@ -284,13 +284,13 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 	fi
 
 docs: ## Build Rust documentation (warns on missing docs)
-	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path ito-rs/Cargo.toml --workspace --no-deps
+	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 docs-open: ## Build and open Rust documentation in browser
-	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path ito-rs/Cargo.toml --workspace --no-deps --open
+	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
 
 clean: ## Remove build artifacts
-	rm -rf ito-rs/target
+	rm -rf target ito-rs/target
 
 help: ## Show this help message
 	@echo "Available targets:" \

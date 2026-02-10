@@ -9,7 +9,7 @@ Where possible, checks delegate to Cargo-native commands.  Only checks
 that *require* custom logic remain here.
 
 See also:
-  - ito-rs/deny.toml          (cargo-deny: license/advisory checks)
+  - deny.toml                 (cargo-deny: license/advisory checks)
   - .pre-commit-config.yaml   (prek hooks including this script)
   - Makefile                   (arch-guardrails target)
 
@@ -27,7 +27,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WORKSPACE_MANIFEST = REPO_ROOT / "ito-rs" / "Cargo.toml"
+WORKSPACE_MANIFEST = REPO_ROOT / "Cargo.toml"
 
 
 # ── Onion layer dependency rules ─────────────────────────────────────
