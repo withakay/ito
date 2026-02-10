@@ -171,9 +171,10 @@ impl ProcessRunner for SystemProcessRunner {
     ///
     /// ```
     /// use std::time::Duration;
+    /// use ito_core::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
     ///
-    /// let runner = crate::SystemProcessRunner::default();
-    /// let req = crate::ProcessRequest::new("sh")
+    /// let runner = SystemProcessRunner::default();
+    /// let req = ProcessRequest::new("sh")
     ///     .arg("-c")
     ///     .arg("echo hello; sleep 0.01; echo world");
     /// let out = runner.run_with_timeout(&req, Duration::from_secs(1)).unwrap();
