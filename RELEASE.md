@@ -24,7 +24,7 @@ Workflow: `/.github/workflows/release-plz.yml`
 
 ### 2) Build + GitHub Release assets (cargo-dist)
 
-Workflow: `/.github/workflows/release.yml`
+Workflow: `/.github/workflows/v-release.yml`
 
 - Trigger: tag push (version-like tags such as `vX.Y.Z`)
 - What it does:

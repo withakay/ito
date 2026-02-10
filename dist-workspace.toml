@@ -8,6 +8,10 @@ cargo-dist-version = "0.30.3"
 # CI backends to support
 ci = "github"
 
+# Only run release automation for tags that start with "v" (e.g. v0.1.0).
+# This prevents dist from triggering on legacy/component tags that merely contain a semver substring.
+tag-namespace = "v"
+
 # Only distribute the primary CLI app.
 packages = ["ito-cli"]
 # The installers to generate for each app

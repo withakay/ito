@@ -25,11 +25,11 @@ ______________________________________________________________________
 
 ### Task 1.1: Inventory current release pipeline and existing Ito changes
 
-- **Files**: `RELEASE.md`, `.github/workflows/release-plz.yml`, `.github/workflows/release.yml`, `release-plz.toml`, `.ito/changes/005-14_enable-crates-io-publishing/proposal.md`
+- **Files**: `RELEASE.md`, `.github/workflows/release-plz.yml`, `.github/workflows/v-release.yml`, `release-plz.toml`, `.ito/changes/005-14_enable-crates-io-publishing/proposal.md`
 - **Dependencies**: None
 - **Action**:
   - Document the current source of truth for: versioning, changelog, tag creation, crates.io publish, artifact building, Homebrew updates.
-  - Identify which parts already match the Orhun flow and where assumptions break due to the `ito-rs/` workspace layout.
+  - Identify assumptions in release tooling/workflows that break with our layout (crates under `ito-rs/`, workspace at repo root).
 - **Verify**: `ito show 005-14_enable-crates-io-publishing`
 - **Done When**: A short written inventory exists in the design/proposal (or linked notes) and open gaps are listed.
 - **Updated At**: 2026-02-10
@@ -37,12 +37,10 @@ ______________________________________________________________________
 
 ### Task 1.2: Implement root `Cargo.toml` virtual workspace
 
-- **Files**: `ito-rs/Cargo.toml`, `Cargo.toml` (repo root)
+- **Files**: `Cargo.toml` (repo root)
 - **Dependencies**: Task 1.1
 - **Action**:
   - Create root `Cargo.toml` with a virtual workspace that references `ito-rs/crates/*` members.
-  - Move shared workspace settings (`workspace.package`, `workspace.dependencies`, resolver) from `ito-rs/Cargo.toml` into the root workspace.
-  - Decide what to do with `ito-rs/Cargo.toml` to avoid two sources of truth (remove it or replace it with an explicit shim).
 - **Verify**: `cargo metadata` succeeds from repo root and workspace builds/tests can be invoked with root as the canonical workspace.
 - **Done When**: Root `Cargo.toml` is the single authoritative workspace entrypoint.
 - **Updated At**: 2026-02-10
@@ -50,11 +48,11 @@ ______________________________________________________________________
 
 ### Task 1.3: Define cargo-dist + git-cliff integration plan
 
-- **Files**: `ito-rs/Cargo.toml`, (new) `cliff.toml`, `.github/workflows/release.yml`
+- **Files**: `Cargo.toml`, (new) `cliff.toml`, (generated) `.github/workflows/v-release.yml`
 - **Dependencies**: Task 1.2
 - **Action**:
   - Specify where changelog config and changelog output live and how release-plz will update them.
-  - Specify whether cargo-dist replaces `/.github/workflows/release.yml` or is integrated into it.
+  - Specify whether cargo-dist replaces existing release workflows or is integrated into them.
 - **Verify**: Plan is captured in `/.ito/changes/005-15_automated-rust-releases/design.md` with explicit workflow triggers.
 - **Done When**: The intended workflow graph is unambiguous.
 - **Updated At**: 2026-02-10
@@ -72,8 +70,8 @@ ______________________________________________________________________
 - **Dependencies**: None
 - **Action**:
   - Add `cliff.toml` and configure release-plz to use it for changelog generation/updates.
-  - Ensure paths work when the workspace root is `ito-rs/` and changelog is at repo root.
-- **Verify**: `release-plz update --manifest-path ito-rs/Cargo.toml` (local dry-run) and/or CI run.
+  - Ensure paths work when the workspace root is the repository root and changelog is at repo root.
+- **Verify**: `release-plz update --manifest-path Cargo.toml` (local dry-run) and/or CI run.
 - **Done When**: release-plz produces deterministic changelog edits.
 - **Updated At**: 2026-02-10
 - **Status**: [x] complete
@@ -81,6 +79,7 @@ ______________________________________________________________________
 ### Task 2.2: Ensure ito-cli installs as `ito`
 
 - **Files**: `ito-rs/crates/ito-cli/Cargo.toml`, `ito-rs/crates/ito-cli/src/main.rs`, `.github/workflows/release.yml` (or cargo-dist workflow)
+- **Files**: `ito-rs/crates/ito-cli/Cargo.toml`, `ito-rs/crates/ito-cli/src/main.rs`, (generated) `.github/workflows/v-release.yml`
 - **Dependencies**: None
 - **Action**:
   - Ensure the `ito-cli` crate produces a binary named `ito`.
@@ -92,7 +91,7 @@ ______________________________________________________________________
 
 ### Task 2.3: Integrate cargo-dist for packaging and GitHub release assets
 
-- **Files**: `ito-rs/Cargo.toml`, `.github/workflows/release.yml` (or new cargo-dist workflows)
+- **Files**: `Cargo.toml`, `dist-workspace.toml`, (generated) `.github/workflows/v-release.yml`
 - **Dependencies**: Task 2.1
 - **Action**:
   - Add cargo-dist metadata to the Rust workspace.
@@ -124,7 +123,7 @@ ______________________________________________________________________
 ### Task 3.1: Validate end-to-end release flow in a branch
 
 - **Type**: checkpoint (requires human approval before proceeding)
-- **Files**: `.github/workflows/release-plz.yml`, `.github/workflows/release.yml`, `release-plz.toml`, `ito-rs/Cargo.toml`, `RELEASE.md`
+- **Files**: `.github/workflows/release-plz.yml`, (generated) `.github/workflows/v-release.yml`, `release-plz.toml`, `Cargo.toml`, `RELEASE.md`
 - **Dependencies**: None
 - **Action**:
   - Confirm the pipeline works in practice: release PR created, merge produces tags, canonical tag triggers artifact upload, and Homebrew update runs.
