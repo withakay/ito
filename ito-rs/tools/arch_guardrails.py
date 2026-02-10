@@ -44,7 +44,7 @@ FORBIDDEN_CRATE_EDGES: dict[str, set[str]] = {
 }
 
 REQUIRED_CRATE_EDGES: dict[str, set[str]] = {
-    "ito-core": {"ito-domain"},
+    "ito-core": {"ito-domain", "ito-config"},
     "ito-cli": {"ito-core"},
     "ito-web": {"ito-core"},
 }
