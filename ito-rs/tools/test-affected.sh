@@ -91,25 +91,32 @@ DEPENDENTS[ito-web]="ito-cli"
 
 # BFS worklist to collect transitive dependents.
 # Seed with the directly changed crates, then expand until stable.
-declare -A affected_set
-for crate in "${CHANGED_CRATES[@]}"; do
-    affected_set[$crate]=1
-done
+AFFECTED_CRATES=()
+WORKLIST=("${CHANGED_CRATES[@]}")
 
-worklist=("${CHANGED_CRATES[@]}")
-while [ ${#worklist[@]} -gt 0 ]; do
-    crate=${worklist[0]}
-    worklist=("${worklist[@]:1}")
+while [ ${#WORKLIST[@]} -gt 0 ]; do
+    crate="${WORKLIST[0]}"
+    WORKLIST=("${WORKLIST[@]:1}")
 
+    # Skip if already seen
+    found=0
+    for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
+        [ "$existing" = "$crate" ] && found=1 && break
+    done
+    [ "$found" -eq 1 ] && continue
+
+    AFFECTED_CRATES+=("$crate")
+
+    # Enqueue direct dependents for further expansion
     for dep in ${DEPENDENTS[$crate]:-}; do
-        if [[ -z "${affected_set[$dep]}" ]]; then
-            affected_set[$dep]=1
-            worklist+=("$dep")
-        fi
+        found=0
+        for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
+            [ "$existing" = "$dep" ] && found=1 && break
+        done
+        [ "$found" -eq 0 ] && WORKLIST+=("$dep")
     done
 done
 
-AFFECTED_CRATES=("${!affected_set[@]}")
 echo "Affected crates (with dependents): ${AFFECTED_CRATES[*]}"
 
 # Step 4: Build the test command
