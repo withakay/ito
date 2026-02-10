@@ -232,6 +232,10 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Workflow(WorkflowArgs),
 
+    /// Manage embedded template assets
+    #[command(name = "x-templates", visible_alias = "templates", hide = true)]
+    Templates(TemplatesArgs),
+
     // ─── Local Docs Server ──────────────────────────────────────────────────────
     /// Serve local Ito artifacts and docs over HTTP
     ///
@@ -438,6 +442,44 @@ pub enum StateAction {
 pub struct WorkflowArgs {
     #[command(subcommand)]
     pub action: Option<WorkflowAction>,
+}
+
+/// Manage embedded template assets.
+#[derive(Args, Debug, Clone)]
+#[command(subcommand_required = true, arg_required_else_help = true)]
+#[command(disable_help_subcommand = true)]
+pub struct TemplatesArgs {
+    #[command(subcommand)]
+    pub action: Option<TemplatesAction>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum TemplatesAction {
+    /// Manage workflow schema assets
+    Schemas(TemplatesSchemasArgs),
+}
+
+/// Manage workflow schema assets.
+#[derive(Args, Debug, Clone)]
+#[command(subcommand_required = true, arg_required_else_help = true)]
+#[command(disable_help_subcommand = true)]
+pub struct TemplatesSchemasArgs {
+    #[command(subcommand)]
+    pub action: Option<TemplatesSchemasAction>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum TemplatesSchemasAction {
+    /// Export embedded schemas to a directory
+    Export {
+        /// Destination directory path
+        #[arg(short = 'f', long = "to", value_name = "PATH")]
+        to: std::path::PathBuf,
+
+        /// Overwrite existing files
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand, Debug, Clone)]

@@ -10,9 +10,15 @@
 use ito_templates::ITO_END_MARKER;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+mod schema_assets;
+pub use schema_assets::{ExportSchemasResult, export_embedded_schemas};
+use schema_assets::{
+    embedded_schema_names, load_embedded_schema_yaml, package_schemas_dir, project_schemas_dir,
+    read_schema_template, user_schemas_dir,
+};
 
 use ito_common::fs::StdFs;
 use ito_common::paths;
@@ -244,18 +250,24 @@ pub struct AgentInstructionResponse {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Where a schema was resolved from.
 pub enum SchemaSource {
-    /// Schema provided by the Ito package/repository.
-    Package,
+    /// Schema provided by the current project (`.ito/templates/schemas`).
+    Project,
     /// Schema provided by the user (XDG data dir).
     User,
+    /// Schema provided by embedded assets in `ito-templates`.
+    Embedded,
+    /// Schema provided by the legacy package/repository filesystem path.
+    Package,
 }
 
 impl SchemaSource {
     /// Return a stable string identifier for serialization.
     pub fn as_str(self) -> &'static str {
         match self {
-            SchemaSource::Package => "package",
+            SchemaSource::Project => "project",
             SchemaSource::User => "user",
+            SchemaSource::Embedded => "embedded",
+            SchemaSource::Package => "package",
         }
     }
 }
@@ -369,11 +381,15 @@ pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
     ito_domain::discovery::list_change_dir_names(&fs, ito_path).unwrap_or_default()
 }
 
-/// List available schema names from package and user schema directories.
+/// List available schema names from project, user, embedded, and package directories.
 pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
     let fs = StdFs;
-    for dir in [Some(package_schemas_dir()), user_schemas_dir(ctx)] {
+    for dir in [
+        project_schemas_dir(ctx),
+        user_schemas_dir(ctx),
+        Some(package_schemas_dir()),
+    ] {
         let Some(dir) = dir else { continue };
         let Ok(names) = ito_domain::discovery::list_dir_names(&fs, &dir) else {
             continue;
@@ -385,17 +401,35 @@ pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
             }
         }
     }
+
+    for name in embedded_schema_names() {
+        set.insert(name);
+    }
+
     set.into_iter().collect()
 }
 
 /// Resolve a schema name into a [`ResolvedSchema`].
 ///
-/// User schemas take precedence over package schemas.
+/// Resolution precedence is project-local -> user -> embedded -> package.
 pub fn resolve_schema(
     schema_name: Option<&str>,
     ctx: &ConfigContext,
 ) -> Result<ResolvedSchema, WorkflowError> {
     let name = schema_name.unwrap_or(default_schema_name());
+
+    let project_dir = project_schemas_dir(ctx).map(|d| d.join(name));
+    if let Some(d) = project_dir
+        && d.join("schema.yaml").exists()
+    {
+        let schema = load_schema_yaml(&d)?;
+        return Ok(ResolvedSchema {
+            schema,
+            schema_dir: d,
+            source: SchemaSource::Project,
+        });
+    }
+
     let user_dir = user_schemas_dir(ctx).map(|d| d.join(name));
     if let Some(d) = user_dir
         && d.join("schema.yaml").exists()
@@ -405,6 +439,14 @@ pub fn resolve_schema(
             schema,
             schema_dir: d,
             source: SchemaSource::User,
+        });
+    }
+
+    if let Some(schema) = load_embedded_schema_yaml(name)? {
+        return Ok(ResolvedSchema {
+            schema,
+            schema_dir: PathBuf::from(format!("embedded://schemas/{name}")),
+            source: SchemaSource::Embedded,
         });
     }
 
@@ -556,18 +598,27 @@ pub fn resolve_templates(
     ctx: &ConfigContext,
 ) -> Result<(String, BTreeMap<String, TemplateInfo>), WorkflowError> {
     let resolved = resolve_schema(schema_name, ctx)?;
-    let templates_dir = resolved.schema_dir.join("templates");
 
     let mut templates: BTreeMap<String, TemplateInfo> = BTreeMap::new();
     for a in &resolved.schema.artifacts {
+        let path = if resolved.source == SchemaSource::Embedded {
+            format!(
+                "embedded://schemas/{}/templates/{}",
+                resolved.schema.name, a.template
+            )
+        } else {
+            resolved
+                .schema_dir
+                .join("templates")
+                .join(&a.template)
+                .to_string_lossy()
+                .to_string()
+        };
         templates.insert(
             a.id.clone(),
             TemplateInfo {
                 source: resolved.source.as_str().to_string(),
-                path: templates_dir
-                    .join(&a.template)
-                    .to_string_lossy()
-                    .to_string(),
+                path,
             },
         );
     }
@@ -602,7 +653,6 @@ pub fn resolve_instructions(
         .find(|a| a.id == artifact_id)
         .ok_or_else(|| WorkflowError::ArtifactNotFound(artifact_id.to_string()))?;
 
-    let templates_dir = resolved.schema_dir.join("templates");
     let done_by_id = compute_done_by_id(&change_dir, &resolved.schema);
 
     let deps: Vec<DependencyInfo> = a
@@ -630,7 +680,7 @@ pub fn resolve_instructions(
         .collect();
     unlocks.sort();
 
-    let template = ito_common::io::read_to_string_std(&templates_dir.join(&a.template))?;
+    let template = read_schema_template(&resolved, &a.template)?;
 
     Ok(InstructionsResponse {
         change_name: change.to_string(),
@@ -1013,27 +1063,6 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     }
 
     Ok(Some(content.to_string()))
-}
-
-fn package_schemas_dir() -> PathBuf {
-    // In this repo, schemas live at the repository root.
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir
-        .ancestors()
-        .nth(3)
-        .unwrap_or(manifest_dir.as_path());
-    root.join("schemas")
-}
-
-fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
-    let data_home = match env::var("XDG_DATA_HOME") {
-        Ok(v) if !v.trim().is_empty() => Some(PathBuf::from(v)),
-        _ => ctx
-            .home_dir
-            .as_ref()
-            .map(|h| h.join(".local").join("share")),
-    }?;
-    Some(data_home.join("ito").join("schemas"))
 }
 
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
