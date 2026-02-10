@@ -159,6 +159,29 @@ impl ProcessRunner for SystemProcessRunner {
         })
     }
 
+    /// Executes the given process request and returns its captured output, enforcing the supplied timeout.
+    ///
+    /// On timeout the child process is killed; any output written before termination is returned and `timed_out` is set to `true`.
+    ///
+    /// # Returns
+    ///
+    /// A `ProcessOutput` containing the process exit code (or -1 if unavailable), a `success` flag (false if timed out or exit indicates failure), captured `stdout` and `stderr` as `String`s, and `timed_out` indicating whether the process was terminated due to the timeout.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use ito_core::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
+    ///
+    /// let runner = SystemProcessRunner::default();
+    /// let req = ProcessRequest::new("sh")
+    ///     .arg("-c")
+    ///     .arg("echo hello; sleep 0.01; echo world");
+    /// let out = runner.run_with_timeout(&req, Duration::from_secs(1)).unwrap();
+    /// assert!(out.stdout.contains("hello"));
+    /// assert!(out.stdout.contains("world"));
+    /// assert!(!out.timed_out);
+    /// ```
     fn run_with_timeout(
         &self,
         request: &ProcessRequest,
@@ -217,7 +240,7 @@ impl ProcessRunner for SystemProcessRunner {
                 break;
             }
 
-            thread::sleep(Duration::from_millis(50));
+            thread::sleep(Duration::from_millis(10));
         }
 
         let stdout =
