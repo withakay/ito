@@ -26,6 +26,20 @@ fn make_change(repo: &Path, id: &str, tasks: &str) {
     );
 }
 
+/// Set mtime on `dir` and every file/subdirectory within it recursively.
+/// Needed because `last_modified_recursive` walks all entries.
+fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
+    filetime::set_file_mtime(dir, time).expect("set dir mtime");
+    for entry in std::fs::read_dir(dir).expect("read dir") {
+        let entry = entry.expect("dir entry");
+        let path = entry.path();
+        filetime::set_file_mtime(&path, time).expect("set entry mtime");
+        if path.is_dir() {
+            set_mtime_recursive(&path, time);
+        }
+    }
+}
+
 fn make_repo() -> tempfile::TempDir {
     let repo = tempfile::tempdir().expect("repo");
     write(repo.path().join("README.md"), "# temp\n");
@@ -48,14 +62,15 @@ fn make_repo() -> tempfile::TempDir {
         "## 1. Implementation\n- [x] 1.1 done\n",
     );
 
-    // Set explicit mtimes so sort-by-recent is deterministic without sleeping.
+    // Set explicit mtimes recursively so sort-by-recent is deterministic without sleeping.
+    // last_modified_recursive() walks all files, so every entry must be set.
     let changes = repo.path().join(".ito/changes");
     let t1 = filetime::FileTime::from_unix_time(1_000_000, 0);
     let t2 = filetime::FileTime::from_unix_time(2_000_000, 0);
     let t3 = filetime::FileTime::from_unix_time(3_000_000, 0);
-    filetime::set_file_mtime(changes.join("000-01_old-pending"), t1).unwrap();
-    filetime::set_file_mtime(changes.join("000-02_mid-partial"), t2).unwrap();
-    filetime::set_file_mtime(changes.join("000-03_new-complete"), t3).unwrap();
+    set_mtime_recursive(&changes.join("000-01_old-pending"), t1);
+    set_mtime_recursive(&changes.join("000-02_mid-partial"), t2);
+    set_mtime_recursive(&changes.join("000-03_new-complete"), t3);
 
     repo
 }

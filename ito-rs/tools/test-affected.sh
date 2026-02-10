@@ -24,7 +24,10 @@ BASE_REF="${1:-HEAD~1}"
 # Step 1: Find changed files under ito-rs/ relative to repo root.
 # We strip the leading "ito-rs/" prefix so paths look like "crates/<name>/...".
 REPO_ROOT="$(cd "$WORKSPACE_DIR/.." && pwd)"
-RAW_FILES=$(cd "$REPO_ROOT" && git diff --name-only "$BASE_REF" -- ito-rs/ 2>/dev/null || true)
+RAW_FILES=$(cd "$REPO_ROOT" && git diff --name-only "$BASE_REF" -- ito-rs/ 2>/dev/null) || {
+    echo "ERROR: git diff failed for base ref '$BASE_REF'. Is it a valid ref?" >&2
+    exit 1
+}
 CHANGED_FILES=$(echo "$RAW_FILES" | sed 's|^ito-rs/||')
 
 if [ -z "$CHANGED_FILES" ]; then
@@ -60,7 +63,9 @@ fi
 echo "Changed crates: ${CHANGED_CRATES[*]}"
 
 # Step 3: Expand to transitive dependents using the known dependency graph.
-# This is hardcoded based on the workspace structure — cheaper than parsing cargo metadata.
+# This is hardcoded for speed — avoids a `cargo metadata` call (~1-2s overhead).
+# NOTE: Update this map when crates are added/removed or dependencies change.
+# You can verify with: cargo metadata --format-version 1 | jq '.packages[].dependencies'
 #
 # Dependency graph (A depends on B means: if B changes, test A):
 #   ito-common      -> ito-config, ito-domain, ito-core, ito-cli
@@ -84,22 +89,31 @@ DEPENDENTS[ito-test-support]="ito-core ito-cli ito-domain"
 DEPENDENTS[ito-cli]=""
 DEPENDENTS[ito-web]=""
 
+# BFS worklist to collect transitive dependents.
+# Seed with the directly changed crates, then expand until stable.
 AFFECTED_CRATES=()
-for crate in "${CHANGED_CRATES[@]}"; do
-    # Add the changed crate itself
+WORKLIST=("${CHANGED_CRATES[@]}")
+
+while [ ${#WORKLIST[@]} -gt 0 ]; do
+    crate="${WORKLIST[0]}"
+    WORKLIST=("${WORKLIST[@]:1}")
+
+    # Skip if already seen
     found=0
     for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
         [ "$existing" = "$crate" ] && found=1 && break
     done
-    [ "$found" -eq 0 ] && AFFECTED_CRATES+=("$crate")
+    [ "$found" -eq 1 ] && continue
 
-    # Add its dependents
+    AFFECTED_CRATES+=("$crate")
+
+    # Enqueue direct dependents for further expansion
     for dep in ${DEPENDENTS[$crate]:-}; do
         found=0
         for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
             [ "$existing" = "$dep" ] && found=1 && break
         done
-        [ "$found" -eq 0 ] && AFFECTED_CRATES+=("$dep")
+        [ "$found" -eq 0 ] && WORKLIST+=("$dep")
     done
 done
 
@@ -116,8 +130,8 @@ export RUSTFLAGS
 
 if cargo nextest --version >/dev/null 2>&1; then
     echo "Running: cargo nextest run ${PKG_FLAGS[*]}"
-    cargo nextest run --manifest-path "$WORKSPACE_DIR/Cargo.toml" "${PKG_FLAGS[@]}"
+    cargo nextest run --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_FLAGS[@]}"
 else
     echo "Running: cargo test ${PKG_FLAGS[*]}"
-    cargo test --manifest-path "$WORKSPACE_DIR/Cargo.toml" "${PKG_FLAGS[@]}"
+    cargo test --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_FLAGS[@]}"
 fi
