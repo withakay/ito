@@ -70,34 +70,27 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 # Dependency graph (A depends on B means: if B changes, test A):
 #   ito-common      -> ito-config, ito-domain, ito-core, ito-cli
 #   ito-config      -> ito-core, ito-cli
-#   ito-domain      -> ito-core, ito-cli
+#   ito-domain      -> ito-core, ito-test-support
 #   ito-templates   -> ito-core, ito-cli
 #   ito-logging     -> ito-cli
 #   ito-core        -> ito-cli
 #   ito-cli         -> (leaf)
 #   ito-web         -> (leaf)
-#   ito-test-support -> ito-core (dev), ito-cli (dev), ito-domain (dev)
+#   ito-test-support -> ito-cli (dev)
 
 declare -A DEPENDENTS
 DEPENDENTS[ito-common]="ito-config ito-domain ito-core ito-cli"
 DEPENDENTS[ito-config]="ito-core ito-cli"
-DEPENDENTS[ito-domain]="ito-core ito-cli"
+DEPENDENTS[ito-domain]="ito-core ito-test-support"
 DEPENDENTS[ito-templates]="ito-core ito-cli"
 DEPENDENTS[ito-logging]="ito-cli"
 DEPENDENTS[ito-core]="ito-cli"
-DEPENDENTS[ito-test-support]="ito-core ito-cli ito-domain"
+DEPENDENTS[ito-test-support]="ito-cli"
 DEPENDENTS[ito-cli]=""
 DEPENDENTS[ito-web]=""
 
 # BFS worklist to collect transitive dependents.
 # Seed with the directly changed crates, then expand until stable.
-AFFECTED_CRATES=()
-WORKLIST=("${CHANGED_CRATES[@]}")
-
-while [ ${#WORKLIST[@]} -gt 0 ]; do
-    crate="${WORKLIST[0]}"
-    WORKLIST=("${WORKLIST[@]:1}")
-
 declare -A affected_set
 for crate in "${CHANGED_CRATES[@]}"; do
     affected_set[$crate]=1
