@@ -8,6 +8,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ConfigContext;
 use ito_config::ito_dir;
+use ito_config::load_cascading_project_config;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -313,4 +314,6 @@ fn worktree_template_context(
             .unwrap_or(defaults.integration_mode),
         default_branch: defaults.default_branch,
     }
+
+    defaults
 }
