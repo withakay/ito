@@ -16,4 +16,4 @@
 ## Optional Improvements
 
 - [x] Add `make test-timed` target to Makefile for test timing visibility
-- [ ] Document expected test execution times in AGENTS.md or CONTRIBUTING.md
+- [x] Document expected test execution times in AGENTS.md or CONTRIBUTING.md
