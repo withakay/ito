@@ -27,8 +27,6 @@ fn help_all_parts() -> Vec<Vec<String>> {
         &["agent", "instruction"],
         &["ralph"],
         &["status"],
-        &["x-templates"],
-        &["x-schemas"],
         &["completions"],
         &["stats"],
         &["agent-config"],

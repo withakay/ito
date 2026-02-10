@@ -10,6 +10,7 @@ pub(crate) mod serve;
 pub(crate) mod state;
 pub(crate) mod stats;
 pub(crate) mod tasks;
+pub(crate) mod templates;
 pub(crate) mod workflow;
 
 pub(crate) use audit::handle_audit_clap;
@@ -27,4 +28,5 @@ pub(crate) use serve::handle_serve_clap;
 pub(crate) use state::handle_state_clap;
 pub(crate) use stats::handle_stats_clap;
 pub(crate) use tasks::handle_tasks_clap;
+pub(crate) use templates::handle_templates_clap;
 pub(crate) use workflow::handle_workflow_clap;

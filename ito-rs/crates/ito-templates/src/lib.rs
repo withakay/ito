@@ -28,6 +28,7 @@ static SKILLS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/skill
 static ADAPTERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/adapters");
 static COMMANDS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/commands");
 static AGENTS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/agents");
+static SCHEMAS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/schemas");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// A file embedded in the `ito-templates` assets.
@@ -71,6 +72,16 @@ pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
 /// Return all embedded shared command files.
 pub fn commands_files() -> Vec<EmbeddedFile> {
     dir_files(&COMMANDS_DIR)
+}
+
+/// Return all embedded workflow schema files.
+pub fn schema_files() -> Vec<EmbeddedFile> {
+    dir_files(&SCHEMAS_DIR)
+}
+
+/// Get a specific schema file by relative path (e.g., "spec-driven/schema.yaml").
+pub fn get_schema_file(path: &str) -> Option<&'static [u8]> {
+    SCHEMAS_DIR.get_file(path).map(|f| f.contents())
 }
 
 /// Get a specific command file by path (e.g., "ito-apply.md")
@@ -306,6 +317,25 @@ mod tests {
     fn default_home_files_returns_a_vec() {
         // The default home templates may be empty, but should still be loadable.
         let _ = default_home_files();
+    }
+
+    #[test]
+    fn schema_files_contains_builtins() {
+        let files = schema_files();
+        assert!(!files.is_empty());
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "spec-driven/schema.yaml")
+        );
+        assert!(files.iter().any(|f| f.relative_path == "tdd/schema.yaml"));
+    }
+
+    #[test]
+    fn get_schema_file_returns_contents() {
+        let file = get_schema_file("spec-driven/schema.yaml").expect("schema should exist");
+        let text = std::str::from_utf8(file).expect("schema should be utf8");
+        assert!(text.contains("name: spec-driven"));
     }
 
     #[test]

@@ -147,6 +147,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_workflow_clap(&rt, args),
             );
         }
+        Some(Commands::Templates(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || commands::handle_templates_clap(&rt, args),
+            );
+        }
         Some(Commands::Status(args)) => {
             return util::with_logging(
                 &rt,
