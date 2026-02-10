@@ -240,6 +240,22 @@ rust-test-timed: ## Run Rust tests with timing
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"
 
+rust-test-timed: ## Run Rust tests with per-crate timing
+	@set -e; \
+	echo "Running tests with per-crate timing..."; \
+	echo ""; \
+	START=$$(date +%s); \
+	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace 2>&1 \
+		| while IFS= read -r line; do \
+			echo "$$line"; \
+			case "$$line" in \
+				*"test result:"*) ;; \
+			esac; \
+		done; \
+	END=$$(date +%s); \
+	echo ""; \
+	echo "Total wall time: $$(( END - START ))s"
+
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
