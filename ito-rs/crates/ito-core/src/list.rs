@@ -511,8 +511,24 @@ mod tests {
         );
     }
 
-    /// Set mtime on `dir` and every file/subdirectory within it recursively.
-    /// Needed because `last_modified_recursive` walks all entries.
+    /// Recursively sets the filesystem modification time for a directory and all entries within it.
+    ///
+    /// Traverses `dir`, sets the mtime of `dir` itself and every file and subdirectory it contains to `time`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs::{create_dir_all, File};
+    /// use tempfile::tempdir;
+    /// use filetime::FileTime;
+    ///
+    /// let td = tempdir().unwrap();
+    /// let nested = td.path().join("a/b");
+    /// create_dir_all(&nested).unwrap();
+    /// File::create(nested.join("f.txt")).unwrap();
+    /// let ft = FileTime::from_unix_time(1_600_000_000, 0);
+    /// set_mtime_recursive(td.path(), ft);
+    /// ```
     fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
         filetime::set_file_mtime(dir, time).expect("set dir mtime");
         for entry in std::fs::read_dir(dir).expect("read dir") {
