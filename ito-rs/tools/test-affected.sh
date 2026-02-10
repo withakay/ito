@@ -98,24 +98,25 @@ while [ ${#WORKLIST[@]} -gt 0 ]; do
     crate="${WORKLIST[0]}"
     WORKLIST=("${WORKLIST[@]:1}")
 
-    # Skip if already seen
-    found=0
-    for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
-        [ "$existing" = "$crate" ] && found=1 && break
-    done
-    [ "$found" -eq 1 ] && continue
+declare -A affected_set
+for crate in "${CHANGED_CRATES[@]}"; do
+    affected_set[$crate]=1
+done
 
-    AFFECTED_CRATES+=("$crate")
+worklist=("${CHANGED_CRATES[@]}")
+while [ ${#worklist[@]} -gt 0 ]; do
+    crate=${worklist[0]}
+    worklist=("${worklist[@]:1}")
 
-    # Enqueue direct dependents for further expansion
     for dep in ${DEPENDENTS[$crate]:-}; do
-        found=0
-        for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
-            [ "$existing" = "$dep" ] && found=1 && break
-        done
-        [ "$found" -eq 0 ] && WORKLIST+=("$dep")
+        if [[ -z "${affected_set[$dep]}" ]]; then
+            affected_set[$dep]=1
+            worklist+=("$dep")
+        fi
     done
 done
+
+AFFECTED_CRATES=("${!affected_set[@]}")
 
 echo "Affected crates (with dependents): ${AFFECTED_CRATES[*]}"
 
