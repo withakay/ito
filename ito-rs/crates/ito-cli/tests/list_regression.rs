@@ -52,8 +52,23 @@ fn make_change(repo: &Path, id: &str, tasks: &str) {
     );
 }
 
-/// Set mtime on `dir` and every file/subdirectory within it recursively.
-/// Needed because `last_modified_recursive` walks all entries.
+/// Set the modification time for `dir` and all files and subdirectories inside it recursively.
+///
+/// This will update the mtime of `dir` itself and every entry contained within it. The function
+/// will panic if reading the directory or setting any file's modification time fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use filetime::FileTime;
+///
+/// let tmp = tempfile::tempdir().unwrap();
+/// let dir = tmp.path().join("foo");
+/// std::fs::create_dir_all(&dir).unwrap();
+/// let t = FileTime::from_unix_time(1_600_000_000, 0);
+/// set_mtime_recursive(Path::new(&dir), t);
+/// ```
 fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
     filetime::set_file_mtime(dir, time).expect("set dir mtime");
     for entry in std::fs::read_dir(dir).expect("read dir") {
@@ -66,6 +81,21 @@ fn set_mtime_recursive(dir: &Path, time: filetime::FileTime) {
     }
 }
 
+/// Create a temporary repository fixture containing three change entries with deterministic mtimes.
+///
+/// The repository includes a README.md and three changes under `.ito/changes/`:
+/// - `000-01_old-pending` (one pending task)
+/// - `000-02_mid-partial` (one completed and one pending task)
+/// - `000-03_new-complete` (one completed task)
+/// Modification times for each change directory are set deterministically so tests that sort by recency behave consistently.
+///
+/// # Examples
+///
+/// ```
+/// let repo = make_repo();
+/// assert!(repo.path().join("README.md").exists());
+/// assert!(repo.path().join(".ito/changes/000-01_old-pending").exists());
+/// ```
 fn make_repo() -> tempfile::TempDir {
     let repo = tempfile::tempdir().expect("repo");
     write(repo.path().join("README.md"), "# temp\n");
