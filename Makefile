@@ -8,13 +8,13 @@ COVERAGE_TARGET ?= 90
 
 .PHONY: \
 	init \
-	build test test-watch test-coverage lint check check-max-lines clean help \
+	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
 	fmt clippy \
 	arch-guardrails cargo-deny \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
-	rust-build rust-build-release rust-test rust-test-coverage rust-lint rust-install install \
+	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
 	dev docs docs-open
 
 init: ## Initialize development environment (check rust, install prek hooks)
@@ -92,6 +92,9 @@ build: ## Build the project
 
 test: ## Run tests
 	$(MAKE) rust-test
+
+test-timed: ## Run tests with per-crate timing
+	$(MAKE) rust-test-timed
 
 test-watch: ## Run tests in watch mode (requires cargo-watch)
 	@set -e; \
@@ -214,6 +217,22 @@ rust-build-release: ## Build Rust ito (release)
 
 rust-test: ## Run Rust tests
 	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace
+
+rust-test-timed: ## Run Rust tests with per-crate timing
+	@set -e; \
+	echo "Running tests with per-crate timing..."; \
+	echo ""; \
+	START=$$(date +%s); \
+	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --manifest-path ito-rs/Cargo.toml --workspace 2>&1 \
+		| while IFS= read -r line; do \
+			echo "$$line"; \
+			case "$$line" in \
+				*"test result:"*) ;; \
+			esac; \
+		done; \
+	END=$$(date +%s); \
+	echo ""; \
+	echo "Total wall time: $$(( END - START ))s"
 
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
