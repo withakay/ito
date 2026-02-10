@@ -16,6 +16,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ⚡ Performance
 
 - Optimize test execution speed (44% reduction) + archive 015-14 ([#9](https://github.com/withakay/ito/pull/9))
-# Changelog
-
-All notable changes to this project will be documented in this file.
