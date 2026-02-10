@@ -58,6 +58,8 @@ highlight = "all"
 skip = [
     # portable-pty pins bitflags 1.x; everything else uses 2.x
     { crate = "bitflags@1", reason = "portable-pty transitive" },
+    # tempfile 3.25 pulls getrandom 0.4 while rand/uuid currently use 0.3
+    { crate = "getrandom@0.4", reason = "tempfile transitive" },
     # rusqlite→hashlink pins hashbrown 0.14; serde_yaml→indexmap uses 0.16
     { crate = "hashbrown@0.14", reason = "rusqlite transitive" },
     # crossterm/gethostname use rustix 0.38; tempfile/terminal_size use 1.x
