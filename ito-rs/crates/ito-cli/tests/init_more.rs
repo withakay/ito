@@ -382,10 +382,10 @@ fn init_renders_agents_md_without_raw_jinja2_syntax() {
         "AGENTS.md should not contain raw Jinja2 variable syntax: {{{{ ...\nGot:\n{agents}"
     );
 
-    // Worktree guidance should delegate to the CLI instruction.
+    // Worktree guidance should render explicit disabled-state guidance by default.
     assert!(
-        agents.contains("ito agent instruction worktrees"),
-        "AGENTS.md should delegate worktree guidance to 'ito agent instruction worktrees'\nGot:\n{agents}"
+        agents.contains("Worktrees are not configured for this project."),
+        "AGENTS.md should render explicit disabled-state worktree guidance\nGot:\n{agents}"
     );
 }
 
@@ -428,10 +428,10 @@ fn init_renders_skill_files_without_raw_jinja2_syntax() {
         "Skill file should not contain raw Jinja2 variable syntax\nGot:\n{skill}"
     );
 
-    // Skill should delegate to the CLI instruction.
+    // Skill should render explicit disabled-state guidance by default.
     assert!(
-        skill.contains("ito agent instruction worktrees"),
-        "Skill file should delegate worktree guidance to 'ito agent instruction worktrees'\nGot:\n{skill}"
+        skill.contains("Worktrees are not configured for this project."),
+        "Skill file should render disabled-state worktree guidance\nGot:\n{skill}"
     );
 }
 
@@ -484,8 +484,8 @@ fn init_update_renders_agents_md_without_raw_jinja2() {
         "AGENTS.md should not contain raw Jinja2 after --update\nGot:\n{agents}"
     );
     assert!(
-        agents.contains("ito agent instruction worktrees"),
-        "AGENTS.md should delegate worktree guidance after --update\nGot:\n{agents}"
+        agents.contains("Worktrees are not configured for this project."),
+        "AGENTS.md should render disabled-state guidance after --update\nGot:\n{agents}"
     );
 }
 
