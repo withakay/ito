@@ -124,8 +124,8 @@ export RUSTFLAGS
 
 if cargo nextest --version >/dev/null 2>&1; then
     echo "Running: cargo nextest run ${PKG_FLAGS[*]}"
-    cargo nextest run --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_FLAGS[@]}"
+    cargo nextest run --manifest-path "$WORKSPACE_DIR/Cargo.toml" "${PKG_FLAGS[@]}"
 else
     echo "Running: cargo test ${PKG_FLAGS[*]}"
-    cargo test --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_FLAGS[@]}"
+    cargo test --manifest-path "$WORKSPACE_DIR/Cargo.toml" "${PKG_FLAGS[@]}"
 fi
