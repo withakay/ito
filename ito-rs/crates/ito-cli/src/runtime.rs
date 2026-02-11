@@ -9,6 +9,7 @@ use std::sync::OnceLock;
 
 fn resolve_runtime_root() -> PathBuf {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let fallback = || find_nearest_ito_root(&cwd).unwrap_or_else(|| cwd.clone());
     let mut command = std::process::Command::new("git");
     command
         .args(["rev-parse", "--show-toplevel"])
@@ -22,15 +23,15 @@ fn resolve_runtime_root() -> PathBuf {
     let output = command.output();
 
     let Ok(output) = output else {
-        return find_nearest_ito_root(&cwd).unwrap_or(cwd);
+        return fallback();
     };
     if !output.status.success() {
-        return find_nearest_ito_root(&cwd).unwrap_or(cwd);
+        return fallback();
     }
 
     let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if root.is_empty() {
-        return find_nearest_ito_root(&cwd).unwrap_or(cwd);
+        return fallback();
     }
     PathBuf::from(root)
 }

@@ -226,10 +226,9 @@ fn is_valid_branch_name(value: &str) -> bool {
         if ch.is_ascii_control() || ch == ' ' {
             return false;
         }
-
-        match ch {
-            '~' | '^' | ':' | '?' | '*' | '[' | '\\' => return false,
-            _ => {}
+        if ch == '~' || ch == '^' || ch == ':' || ch == '?' || ch == '*' || ch == '[' || ch == '\\'
+        {
+            return false;
         }
     }
 
