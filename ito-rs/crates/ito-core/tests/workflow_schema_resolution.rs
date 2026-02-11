@@ -1,0 +1,215 @@
+use ito_config::ConfigContext;
+use ito_core::workflow::{
+    SchemaSource, WorkflowError, export_embedded_schemas, resolve_instructions, resolve_schema,
+    resolve_templates,
+};
+
+/// Verifies that resolving the "spec-driven" schema yields the embedded schema when no project or user overrides exist.
+///
+/// The test creates a temporary project directory, constructs a `ConfigContext` that points to it,
+/// calls `resolve_schema(Some("spec-driven"), &ctx)`, and asserts the resolution source is
+/// `SchemaSource::Embedded` and the resolved schema's name is `"spec-driven"`.
+///
+/// # Examples
+///
+/// ```
+/// let ctx = ConfigContext {
+///     project_dir: Some(tempfile::tempdir().unwrap().path().to_path_buf()),
+///     ..Default::default()
+/// };
+/// let resolved = resolve_schema(Some("spec-driven"), &ctx).unwrap();
+/// assert_eq!(resolved.source, SchemaSource::Embedded);
+/// assert_eq!(resolved.schema.name, "spec-driven");
+/// ```
+#[test]
+fn resolve_schema_uses_embedded_when_no_overrides_exist() {
+    let project = tempfile::tempdir().expect("tempdir should succeed");
+    let ctx = ConfigContext {
+        project_dir: Some(project.path().to_path_buf()),
+        ..Default::default()
+    };
+
+    let resolved = resolve_schema(Some("spec-driven"), &ctx).expect("schema should resolve");
+    assert_eq!(resolved.source, SchemaSource::Embedded);
+    assert_eq!(resolved.schema.name, "spec-driven");
+}
+
+/// Verifies that a project-local schema file takes precedence over a user/home override.
+///
+/// The test creates both a project and a user schema for the same name and asserts that
+/// `resolve_schema` resolves to the project source and returns the project's schema data.
+///
+/// # Examples
+///
+/// ```
+/// // Create a ConfigContext with project and home directories and call resolve_schema.
+/// // The project schema should be preferred when both exist.
+/// let ctx = ConfigContext {
+///     project_dir: Some(std::path::PathBuf::from("/path/to/project")),
+///     home_dir: Some(std::path::PathBuf::from("/path/to/home")),
+///     ..Default::default()
+/// };
+/// let resolved = resolve_schema(Some("spec-driven"), &ctx).unwrap();
+/// assert_eq!(resolved.source, SchemaSource::Project);
+/// ```
+#[test]
+fn resolve_schema_prefers_project_over_user_override() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let project = root.path().join("project");
+    let home = root.path().join("home");
+
+    std::fs::create_dir_all(project.join(".ito/templates/schemas/spec-driven"))
+        .expect("project schema dir");
+    std::fs::create_dir_all(home.join(".local/share/ito/schemas/spec-driven"))
+        .expect("user schema dir");
+
+    std::fs::write(
+        project.join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\ndescription: project\nartifacts: []\n",
+    )
+    .expect("write project schema");
+    std::fs::write(
+        home.join(".local/share/ito/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\ndescription: user\nartifacts: []\n",
+    )
+    .expect("write user schema");
+
+    let ctx = ConfigContext {
+        project_dir: Some(project),
+        home_dir: Some(home),
+        ..Default::default()
+    };
+
+    let resolved = resolve_schema(Some("spec-driven"), &ctx).expect("schema should resolve");
+    assert_eq!(resolved.source, SchemaSource::Project);
+    assert_eq!(resolved.schema.description.as_deref(), Some("project"));
+}
+
+#[test]
+fn resolve_instructions_reads_embedded_templates() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/demo-change")).expect("create change dir");
+
+    let ctx = ConfigContext {
+        project_dir: Some(root.path().to_path_buf()),
+        ..Default::default()
+    };
+
+    let out = resolve_instructions(
+        &ito_path,
+        "demo-change",
+        Some("spec-driven"),
+        "proposal",
+        &ctx,
+    )
+    .expect("instructions should resolve");
+
+    assert!(out.template.contains("## Why"));
+}
+
+#[test]
+fn export_embedded_schemas_writes_then_skips_without_force() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let out_dir = root.path().join("schemas-out");
+
+    let first = export_embedded_schemas(&out_dir, false).expect("first export should succeed");
+    assert!(first.written > 0);
+    assert_eq!(first.skipped, 0);
+
+    let second = export_embedded_schemas(&out_dir, false).expect("second export should succeed");
+    assert!(second.skipped > 0);
+
+    let forced = export_embedded_schemas(&out_dir, true).expect("forced export should succeed");
+    assert!(forced.written > 0);
+    assert_eq!(forced.skipped, 0);
+}
+
+#[test]
+fn resolve_schema_rejects_path_traversal_name() {
+    let ctx = ConfigContext::default();
+    let err = resolve_schema(Some("../spec-driven"), &ctx).expect_err("should reject traversal");
+    match err {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "../spec-driven"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_schema_rejects_absolute_and_backslash_names() {
+    let ctx = ConfigContext::default();
+
+    let absolute = resolve_schema(Some("/etc"), &ctx).expect_err("should reject absolute path");
+    match absolute {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "/etc"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+
+    let backslash =
+        resolve_schema(Some("..\\spec-driven"), &ctx).expect_err("should reject backslashes");
+    match backslash {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "..\\spec-driven"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_templates_rejects_traversal_template_path() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let project = root.path().join("project");
+    std::fs::create_dir_all(project.join(".ito/templates/schemas/spec-driven/templates"))
+        .expect("schema dir should exist");
+
+    std::fs::write(
+        project.join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\nartifacts:\n  - id: proposal\n    generates: proposal.md\n    template: ../escape.md\n",
+    )
+    .expect("schema write should succeed");
+
+    let ctx = ConfigContext {
+        project_dir: Some(project),
+        ..Default::default()
+    };
+
+    let err = resolve_templates(Some("spec-driven"), &ctx).expect_err("should reject traversal");
+    match err {
+        WorkflowError::Io(io_err) => assert_eq!(io_err.kind(), std::io::ErrorKind::InvalidInput),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_instructions_rejects_traversal_template_path() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    let change_dir = ito_path.join("changes/demo-change");
+    std::fs::create_dir_all(&change_dir).expect("change dir should exist");
+
+    let project = root.path().join("project");
+    std::fs::create_dir_all(project.join(".ito/templates/schemas/spec-driven/templates"))
+        .expect("schema dir should exist");
+    std::fs::write(
+        project.join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\nartifacts:\n  - id: proposal\n    generates: proposal.md\n    template: ../../secret.md\n",
+    )
+    .expect("schema write should succeed");
+
+    let ctx = ConfigContext {
+        project_dir: Some(project),
+        ..Default::default()
+    };
+
+    let err = resolve_instructions(
+        &ito_path,
+        "demo-change",
+        Some("spec-driven"),
+        "proposal",
+        &ctx,
+    )
+    .expect_err("should reject traversal");
+
+    match err {
+        WorkflowError::Io(io_err) => assert_eq!(io_err.kind(), std::io::ErrorKind::InvalidInput),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
