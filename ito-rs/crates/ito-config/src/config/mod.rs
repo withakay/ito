@@ -633,5 +633,55 @@ mod tests {
         assert_eq!(copy[0].as_str(), Some(".new"));
     }
 
+    #[test]
+    fn coordination_branch_defaults_exist_in_cascading_config() {
+        let repo = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let changes = r.merged.get("changes").expect("changes key should exist");
+        let coordination = changes
+            .get("coordination_branch")
+            .expect("coordination_branch key should exist");
+
+        assert_eq!(
+            coordination.get("enabled").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            coordination.get("name").and_then(|v| v.as_str()),
+            Some("ito/internal/changes")
+        );
+    }
+
+    #[test]
+    fn coordination_branch_defaults_can_be_overridden() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"changes":{"coordination_branch":{"enabled":false,"name":"team/internal/coord"}}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let changes = r.merged.get("changes").expect("changes key should exist");
+        let coordination = changes
+            .get("coordination_branch")
+            .expect("coordination_branch key should exist");
+
+        assert_eq!(
+            coordination.get("enabled").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            coordination.get("name").and_then(|v| v.as_str()),
+            Some("team/internal/coord")
+        );
+    }
+
     // ito_dir tests live in crate::ito_dir.
 }

@@ -6,7 +6,7 @@
 #![warn(missing_docs)]
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 /// In-memory mock implementations of domain repository traits for unit testing.
@@ -53,9 +53,50 @@ pub fn rust_candidate_command(program: &Path) -> Command {
 /// This sets a small collection of environment variables to improve determinism
 /// in snapshots (e.g. disable color and interactivity).
 pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path) -> CmdOutput {
-    let mut cmd = rust_candidate_command(program);
+    let program = resolve_candidate_program(program);
+    let mut cmd = rust_candidate_command(&program);
     cmd.args(args);
     run_with_env(&mut cmd, cwd, home)
+}
+
+fn resolve_candidate_program(program: &Path) -> PathBuf {
+    if program.exists() {
+        return program.to_path_buf();
+    }
+
+    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ito") {
+        let path = PathBuf::from(path);
+        if path.exists() {
+            return path;
+        }
+    }
+
+    let Some(parent) = program.parent() else {
+        return program.to_path_buf();
+    };
+    let deps = parent.join("deps");
+    let Ok(entries) = std::fs::read_dir(&deps) else {
+        return program.to_path_buf();
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|v| v.to_str()) else {
+            continue;
+        };
+        if !name.starts_with("ito-") {
+            continue;
+        }
+        if name.ends_with(".d") || name.ends_with(".rlib") || name.ends_with(".rmeta") {
+            continue;
+        }
+        return path;
+    }
+
+    program.to_path_buf()
 }
 
 fn run_with_env(cmd: &mut Command, cwd: &Path, home: &Path) -> CmdOutput {
