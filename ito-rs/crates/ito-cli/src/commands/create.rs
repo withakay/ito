@@ -2,7 +2,7 @@ use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
-use ito_config::load_cascading_project_config;
+use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::git::{
     CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
@@ -14,21 +14,23 @@ fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    resolve_coordination_branch_settings(&merged)
+}
 
-    let enabled = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("enabled"))
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(true);
-    let name = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("name"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("ito/internal/changes")
-        .to_string();
-    (enabled, name)
+fn sync_coordination_if_enabled(ito_path: &Path, coord_enabled: bool, coord_branch: &str) {
+    if !coord_enabled {
+        return;
+    }
+
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    if let Err(err) = fetch_coordination_branch(project_root, coord_branch)
+        && err.kind != CoordinationGitErrorKind::RemoteMissing
+    {
+        eprintln!(
+            "Warning: failed to sync coordination branch '{}' before create: {}",
+            coord_branch, err.message
+        );
+    }
 }
 
 fn print_change_created_message(
@@ -196,17 +198,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             );
 
             let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-            if coord_enabled {
-                let project_root = ito_path.parent().unwrap_or(ito_path);
-                if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
-                    && err.kind != CoordinationGitErrorKind::RemoteMissing
-                {
-                    eprintln!(
-                        "Warning: failed to sync coordination branch '{}' before create: {}",
-                        coord_branch, err.message
-                    );
-                }
-            }
+            sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
 
             match core_create::create_change(
                 ito_path,
@@ -325,17 +317,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
 
     let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-    if coord_enabled {
-        let project_root = ito_path.parent().unwrap_or(ito_path);
-        if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
-            && err.kind != CoordinationGitErrorKind::RemoteMissing
-        {
-            eprintln!(
-                "Warning: failed to sync coordination branch '{}' before create: {}",
-                coord_branch, err.message
-            );
-        }
-    }
+    sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
 
     match core_create::create_change(
         ito_path,

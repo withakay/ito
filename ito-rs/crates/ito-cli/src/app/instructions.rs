@@ -2,7 +2,7 @@ use crate::cli::{AgentArgs, AgentCommand, AgentInstructionArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::load_cascading_project_config;
+use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::module_repository::FsModuleRepository;
@@ -324,20 +324,7 @@ fn load_coordination_branch_settings(
     ctx: &ito_config::ConfigContext,
 ) -> (bool, String) {
     let merged = load_cascading_project_config(project_root, ito_path, ctx).merged;
-    let enabled = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("enabled"))
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(true);
-    let name = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("name"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("ito/internal/changes")
-        .to_string();
-    (enabled, name)
+    resolve_coordination_branch_settings(&merged)
 }
 
 fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {

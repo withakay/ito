@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::errors::{CoreError, CoreResult};
 use crate::process::{ProcessOutput, ProcessRequest, ProcessRunner, SystemProcessRunner};
+use ito_domain::tasks::tasks_path_checked;
 
 /// Error category for coordination branch git operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,6 +115,8 @@ pub(crate) fn fetch_coordination_branch_with_runner(
     repo_root: &Path,
     branch: &str,
 ) -> Result<(), CoordinationGitError> {
+    validate_coordination_branch_name(branch)?;
+
     let request = ProcessRequest::new("git")
         .args(["fetch", "origin", branch])
         .current_dir(repo_root);
@@ -151,6 +154,8 @@ pub(crate) fn push_coordination_branch_with_runner(
     local_ref: &str,
     branch: &str,
 ) -> Result<(), CoordinationGitError> {
+    validate_coordination_branch_name(branch)?;
+
     let refspec = format!("{local_ref}:refs/heads/{branch}");
     let request = ProcessRequest::new("git")
         .args(["push", "origin", &refspec])
@@ -202,7 +207,24 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
         return Ok(());
     }
 
-    let source_change_dir = ito_path.join("changes").join(change_id);
+    validate_coordination_branch_name(branch)?;
+
+    let Some(tasks_path) = tasks_path_checked(ito_path, change_id) else {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!("invalid change id path segment: '{change_id}'"),
+        ));
+    };
+    let Some(source_change_dir) = tasks_path.parent() else {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to derive change directory from '{}'",
+                tasks_path.display()
+            ),
+        ));
+    };
+
     if !source_change_dir.exists() {
         return Err(CoordinationGitError::new(
             CoordinationGitErrorKind::CommandFailed,
@@ -234,28 +256,31 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
     };
 
     let fetch_result = fetch_coordination_branch_with_runner(runner, repo_root, branch);
-    if let Ok(()) = fetch_result {
-        let checkout_target = format!("origin/{branch}");
-        let checkout = run_git(
-            runner,
-            ProcessRequest::new("git")
-                .args(["checkout", "--detach", &checkout_target])
-                .current_dir(&worktree_path),
-            "checkout coordination branch",
-        )?;
-        if !checkout.success {
-            return Err(CoordinationGitError::new(
-                CoordinationGitErrorKind::CommandFailed,
-                format!(
-                    "failed to checkout coordination branch '{branch}' ({})",
-                    render_output(&checkout),
-                ),
-            ));
+    match fetch_result {
+        Ok(()) => {
+            let checkout_target = format!("origin/{branch}");
+            let checkout = run_git(
+                runner,
+                ProcessRequest::new("git")
+                    .args(["checkout", "--detach", &checkout_target])
+                    .current_dir(&worktree_path),
+                "checkout coordination branch",
+            )?;
+            if !checkout.success {
+                return Err(CoordinationGitError::new(
+                    CoordinationGitErrorKind::CommandFailed,
+                    format!(
+                        "failed to checkout coordination branch '{branch}' ({})",
+                        render_output(&checkout),
+                    ),
+                ));
+            }
         }
-    } else if let Err(err) = fetch_result
-        && err.kind != CoordinationGitErrorKind::RemoteMissing
-    {
-        return Err(err);
+        Err(err) => {
+            if err.kind != CoordinationGitErrorKind::RemoteMissing {
+                return Err(err);
+            }
+        }
     }
 
     let target_change_dir = worktree_path.join(".ito").join("changes").join(change_id);
@@ -270,7 +295,7 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
             )
         })?;
     }
-    copy_dir_recursive(&source_change_dir, &target_change_dir).map_err(|err| {
+    copy_dir_recursive(source_change_dir, &target_change_dir).map_err(|err| {
         CoordinationGitError::new(
             CoordinationGitErrorKind::CommandFailed,
             format!("failed to copy change into reservation worktree: {err}"),
@@ -300,6 +325,13 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
         "check staged changes",
     )?;
     if staged.success {
+        if let Err(err) = cleanup.cleanup_with_runner(runner) {
+            eprintln!(
+                "Warning: failed to remove temporary coordination worktree '{}': {}",
+                cleanup.worktree_path.display(),
+                err.message
+            );
+        }
         drop(cleanup);
         return Ok(());
     }
@@ -332,6 +364,13 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
     }
 
     let push = push_coordination_branch_with_runner(runner, &worktree_path, "HEAD", branch);
+    if let Err(err) = cleanup.cleanup_with_runner(runner) {
+        eprintln!(
+            "Warning: failed to remove temporary coordination worktree '{}': {}",
+            cleanup.worktree_path.display(),
+            err.message
+        );
+    }
     drop(cleanup);
     push
 }
@@ -368,7 +407,15 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> std::io::Result<()> {
         let entry = entry?;
         let source_path = entry.path();
         let target_path = target.join(entry.file_name());
-        let file_type = entry.file_type()?;
+        let metadata = fs::symlink_metadata(&source_path)?;
+        let file_type = metadata.file_type();
+        if file_type.is_symlink() {
+            eprintln!(
+                "Warning: skipped symlink while reserving coordination change: {}",
+                source_path.display()
+            );
+            continue;
+        }
         if file_type.is_dir() {
             copy_dir_recursive(&source_path, &target_path)?;
             continue;
@@ -399,9 +446,93 @@ fn unique_temp_worktree_path() -> std::path::PathBuf {
     std::env::temp_dir().join(format!("ito-coordination-{pid}-{nanos}"))
 }
 
+fn validate_coordination_branch_name(branch: &str) -> Result<(), CoordinationGitError> {
+    if branch.is_empty()
+        || branch.starts_with('-')
+        || branch.starts_with('/')
+        || branch.ends_with('/')
+    {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!("invalid coordination branch name '{branch}'"),
+        ));
+    }
+    if branch.contains("..")
+        || branch.contains("@{")
+        || branch.contains("//")
+        || branch.ends_with('.')
+        || branch.ends_with(".lock")
+    {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!("invalid coordination branch name '{branch}'"),
+        ));
+    }
+
+    for ch in branch.chars() {
+        if ch.is_ascii_control() || ch == ' ' {
+            return Err(CoordinationGitError::new(
+                CoordinationGitErrorKind::CommandFailed,
+                format!("invalid coordination branch name '{branch}'"),
+            ));
+        }
+        if ch == '~' || ch == '^' || ch == ':' || ch == '?' || ch == '*' || ch == '[' || ch == '\\'
+        {
+            return Err(CoordinationGitError::new(
+                CoordinationGitErrorKind::CommandFailed,
+                format!("invalid coordination branch name '{branch}'"),
+            ));
+        }
+    }
+
+    for segment in branch.split('/') {
+        if segment.is_empty()
+            || segment.starts_with('.')
+            || segment.ends_with('.')
+            || segment.ends_with(".lock")
+        {
+            return Err(CoordinationGitError::new(
+                CoordinationGitErrorKind::CommandFailed,
+                format!("invalid coordination branch name '{branch}'"),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 struct WorktreeCleanup {
     repo_root: std::path::PathBuf,
     worktree_path: std::path::PathBuf,
+}
+
+impl WorktreeCleanup {
+    fn cleanup_with_runner(&self, runner: &dyn ProcessRunner) -> Result<(), CoordinationGitError> {
+        let output = run_git(
+            runner,
+            ProcessRequest::new("git")
+                .args([
+                    "worktree",
+                    "remove",
+                    "--force",
+                    self.worktree_path.to_string_lossy().as_ref(),
+                ])
+                .current_dir(&self.repo_root),
+            "worktree remove",
+        )?;
+        if output.success {
+            return Ok(());
+        }
+
+        Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to remove temporary worktree '{}' ({})",
+                self.worktree_path.display(),
+                render_output(&output)
+            ),
+        ))
+    }
 }
 
 impl Drop for WorktreeCleanup {
