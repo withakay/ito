@@ -125,3 +125,11 @@ If you want agents to learn new workflows (e.g., task tracking), update the embe
 ## Rust Development
 
 See [`ito-rs/AGENTS.md`](ito-rs/AGENTS.md) for all Rust-specific guidance: development commands, coding conventions, testing policy, quality gates, dependency rules, and git hooks.
+
+## Pull Request Titles
+
+When creating a PR for a specific Ito change, include the change ID in the PR title to simplify reconciliation.
+
+- Format: `<type>(<change-id>): <short summary>`
+- Example: `feat(001-23): My cool change`
+- If no change ID applies, use normal conventional commit style without a change-id scope.
