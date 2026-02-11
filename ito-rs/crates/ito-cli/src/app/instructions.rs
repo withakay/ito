@@ -178,11 +178,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let testing_policy = load_testing_policy(project_root, ito_path, ctx);
 
-<<<<<<< HEAD
-    let user_guidance = match core_workflow::load_composed_user_guidance(ito_path, artifact) {
-=======
-    let user_guidance = match core_templates::load_user_guidance(ito_path) {
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
+    let user_guidance = match core_templates::load_composed_user_guidance(ito_path, artifact) {
         Ok(v) => v,
         Err(e) => {
             eprintln!(

@@ -220,7 +220,6 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Config(ConfigArgs),
 
-<<<<<<< HEAD
     /// Legacy workflow command namespace (no-op)
     ///
     /// `ito workflow` and its subcommands are retained as compatibility no-ops.
@@ -236,9 +235,6 @@ pub enum Commands {
     /// Manage embedded template assets
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]
     Templates(TemplatesArgs),
-
-=======
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
     // ─── Local Docs Server ──────────────────────────────────────────────────────
     /// Serve local Ito artifacts and docs over HTTP
     ///
@@ -439,7 +435,6 @@ pub enum StateAction {
     },
 }
 
-<<<<<<< HEAD
 /// Legacy workflow compatibility surface.
 #[derive(Args, Debug, Clone)]
 #[command(disable_help_subcommand = true)]
@@ -527,9 +522,6 @@ pub enum WorkflowAction {
         workflow_name: Vec<String>,
     },
 }
-
-=======
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
 /// Initialize Ito instruction files in a project directory.
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
