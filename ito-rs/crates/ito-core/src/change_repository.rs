@@ -460,7 +460,12 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
     }
 
     fn exists(&self, id: &str) -> bool {
-        matches!(self.resolve_target(id), ChangeTargetResolution::Unique(_))
+        let resolution = self.resolve_target(id);
+        match resolution {
+            ChangeTargetResolution::Unique(_) => true,
+            ChangeTargetResolution::Ambiguous(_) => false,
+            ChangeTargetResolution::NotFound => false,
+        }
     }
 
     fn get(&self, id: &str) -> DomainResult<Change> {
