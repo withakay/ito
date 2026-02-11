@@ -1,6 +1,7 @@
 use ito_config::ConfigContext;
 use ito_core::workflow::{
-    SchemaSource, export_embedded_schemas, resolve_instructions, resolve_schema,
+    export_embedded_schemas, resolve_instructions, resolve_schema, resolve_templates, SchemaSource,
+    WorkflowError,
 };
 
 /// Verifies that resolving the "spec-driven" schema yields the embedded schema when no project or user overrides exist.
@@ -122,4 +123,75 @@ fn export_embedded_schemas_writes_then_skips_without_force() {
     let forced = export_embedded_schemas(&out_dir, true).expect("forced export should succeed");
     assert!(forced.written > 0);
     assert_eq!(forced.skipped, 0);
+}
+
+#[test]
+fn resolve_schema_rejects_path_traversal_name() {
+    let ctx = ConfigContext::default();
+    let err = resolve_schema(Some("../spec-driven"), &ctx).expect_err("should reject traversal");
+    match err {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "../spec-driven"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_templates_rejects_traversal_template_path() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let project = root.path().join("project");
+    std::fs::create_dir_all(project.join(".ito/templates/schemas/spec-driven/templates"))
+        .expect("schema dir should exist");
+
+    std::fs::write(
+        project.join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\nartifacts:\n  - id: proposal\n    generates: proposal.md\n    template: ../escape.md\n",
+    )
+    .expect("schema write should succeed");
+
+    let ctx = ConfigContext {
+        project_dir: Some(project),
+        ..Default::default()
+    };
+
+    let err = resolve_templates(Some("spec-driven"), &ctx).expect_err("should reject traversal");
+    match err {
+        WorkflowError::Io(io_err) => assert_eq!(io_err.kind(), std::io::ErrorKind::InvalidInput),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_instructions_rejects_traversal_template_path() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    let change_dir = ito_path.join("changes/demo-change");
+    std::fs::create_dir_all(&change_dir).expect("change dir should exist");
+
+    let project = root.path().join("project");
+    std::fs::create_dir_all(project.join(".ito/templates/schemas/spec-driven/templates"))
+        .expect("schema dir should exist");
+    std::fs::write(
+        project.join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        "name: spec-driven\nversion: 1\nartifacts:\n  - id: proposal\n    generates: proposal.md\n    template: ../../secret.md\n",
+    )
+    .expect("schema write should succeed");
+
+    let ctx = ConfigContext {
+        project_dir: Some(project),
+        ..Default::default()
+    };
+
+    let err = resolve_instructions(
+        &ito_path,
+        "demo-change",
+        Some("spec-driven"),
+        "proposal",
+        &ctx,
+    )
+    .expect_err("should reject traversal");
+
+    match err {
+        WorkflowError::Io(io_err) => assert_eq!(io_err.kind(), std::io::ErrorKind::InvalidInput),
+        other => panic!("unexpected error: {other:?}"),
+    }
 }
