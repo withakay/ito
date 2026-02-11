@@ -99,7 +99,9 @@ mod tests {
     #[test]
     fn template_fetchers_work_for_known_and_unknown_paths() {
         let templates = list_instruction_templates();
-        let known = templates[0];
+        let known = *templates
+            .first()
+            .expect("expected at least one embedded instruction template");
 
         let bytes = get_instruction_template_bytes(known);
         assert!(bytes.is_some());
