@@ -39,6 +39,7 @@ pub(crate) fn handle_templates_clap(rt: &Runtime, args: &TemplatesArgs) -> CliRe
                     if !force && result.skipped > 0 {
                         println!("Use --force to overwrite skipped files.");
                     }
+                    // Reserved for future runtime-dependent behavior in this handler.
                     let _ = rt;
                     Ok(())
                 }
