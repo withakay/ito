@@ -3,10 +3,9 @@ use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::workflow;
 
-/// Handle the `templates` CLI subcommands and perform the requested templates action.
+/// Handle top-level `templates` CLI subcommands and perform the requested action.
 ///
-/// On success prints the export destination and counts of written and skipped files; if files
-/// were skipped and the `--force` flag was not provided, prints a hint to use `--force`.
+/// Currently supports exporting embedded schemas. When exporting, prints the export destination and the counts of written and skipped files. If files were skipped and `force` is false, prints a hint to use `--force`.
 ///
 /// # Examples
 ///
@@ -15,7 +14,7 @@ use ito_core::workflow;
 /// use crate::cli::{TemplatesArgs, TemplatesAction, TemplatesSchemasAction};
 ///
 /// let rt = Runtime::new();
-/// // construct args so that args.action is Some(TemplatesAction::Schemas(...))
+/// // construct args so that args.action is Some(TemplatesAction::Schemas(...)))
 /// let args = TemplatesArgs { /* populate with Schemas -> Export */ };
 /// handle_templates_clap(&rt, &args).unwrap();
 /// ```
