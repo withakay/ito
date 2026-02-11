@@ -15,6 +15,15 @@ pub use ito_domain::tasks::{
     update_enhanced_task_status,
 };
 
+fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
+    let Some(path) = ito_domain::tasks::tasks_path_checked(ito_path, change_id) else {
+        return Err(CoreError::validation(format!(
+            "invalid change id path segment: \"{change_id}\""
+        )));
+    };
+    Ok(path)
+}
+
 /// Ready task list for a single change.
 #[derive(Debug, Clone)]
 pub struct ReadyTasksForChange {
@@ -40,7 +49,9 @@ pub fn list_ready_tasks_across_changes(
             continue;
         }
 
-        let path = tasks_path(ito_path, &summary.id);
+        let Ok(path) = checked_tasks_path(ito_path, &summary.id) else {
+            continue;
+        };
         let Ok(contents) = ito_common::io::read_to_string(&path) else {
             continue;
         };
@@ -89,7 +100,7 @@ pub struct TaskStatusResult {
 ///
 /// Returns the path to the created file and whether it already existed.
 pub fn init_tasks(ito_path: &Path, change_id: &str) -> CoreResult<(PathBuf, bool)> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
 
     if path.exists() {
         return Ok((path, true));
@@ -113,7 +124,7 @@ pub fn init_tasks(ito_path: &Path, change_id: &str) -> CoreResult<(PathBuf, bool
 ///
 /// Reads and parses the tasks.md file, computes ready/blocked tasks.
 pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatusResult> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
 
     if !path.exists() {
         return Err(CoreError::not_found(format!(
@@ -186,7 +197,7 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
 ///
 /// Validates preconditions and updates the tasks.md file.
 pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -303,7 +314,7 @@ pub fn complete_task(
     task_id: &str,
     _note: Option<String>,
 ) -> CoreResult<TaskItem> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -354,7 +365,7 @@ pub fn shelve_task(
     task_id: &str,
     _reason: Option<String>,
 ) -> CoreResult<TaskItem> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -407,7 +418,7 @@ pub fn shelve_task(
 ///
 /// Only supported for enhanced format. Validates preconditions and updates the tasks.md file.
 pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -466,7 +477,7 @@ pub fn add_task(
     wave: Option<u32>,
 ) -> CoreResult<TaskItem> {
     let wave = wave.unwrap_or(1);
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -552,7 +563,7 @@ pub fn add_task(
 ///
 /// Returns the full task details.
 pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -577,7 +588,7 @@ pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<
 
 /// Read the raw markdown contents of a change's tasks.md file.
 pub fn read_tasks_markdown(ito_path: &Path, change_id: &str) -> CoreResult<String> {
-    let path = tasks_path(ito_path, change_id);
+    let path = checked_tasks_path(ito_path, change_id)?;
     ito_common::io::read_to_string(&path).map_err(|e| {
         CoreError::io(
             format!("reading tasks.md for \"{change_id}\""),
@@ -699,5 +710,14 @@ mod tests {
             msg.contains("tasks.md"),
             "error should mention tasks.md, got: {msg}"
         );
+    }
+
+    #[test]
+    fn read_tasks_markdown_rejects_traversal_like_change_id() {
+        let repo = tempfile::tempdir().expect("repo tempdir");
+        let ito_path = repo.path().join(".ito");
+
+        let result = super::read_tasks_markdown(&ito_path, "../escape");
+        assert!(result.is_err(), "traversal-like ids should fail");
     }
 }
