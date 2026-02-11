@@ -474,9 +474,9 @@ checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
 name = "deranged"
-version = "0.5.5"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
+checksum = "cc3dc5ad92c2e2d1c193bbbbdf2ea477cb81331de4f3103f267ca18368b988c4"
 dependencies = [
  "powerfmt",
 ]
@@ -1030,7 +1030,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1059,14 +1059,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "filetime",
@@ -1099,7 +1099,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "hex",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1138,7 +1138,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1149,7 +1149,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "axum-extra",
