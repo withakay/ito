@@ -1,3 +1,5 @@
+//! Change ID parsing and normalization.
+
 use std::fmt;
 
 use super::IdParseError;
@@ -55,6 +57,13 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         ));
     }
 
+    if trimmed.len() > 256 {
+        return Err(IdParseError::new(
+            format!("Change ID is too long: {} bytes (max 256)", trimmed.len()),
+            Some("Provide a shorter change ID in the form \"NNN-NN_name\""),
+        ));
+    }
+
     // Match TS hint for the common mistake: using '_' between module and change number.
     // Example: "001_02_name" (should be "001-02_name").
     if trimmed.contains('_') && !trimmed.contains('-') {
@@ -62,12 +71,23 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         let a = parts.next().unwrap_or("");
         let b = parts.next().unwrap_or("");
         let c = parts.next().unwrap_or("");
-        if !a.is_empty()
-            && !b.is_empty()
-            && !c.is_empty()
-            && a.chars().all(|ch| ch.is_ascii_digit())
-            && b.chars().all(|ch| ch.is_ascii_digit())
-        {
+        let mut a_all_digits = true;
+        for ch in a.chars() {
+            if !ch.is_ascii_digit() {
+                a_all_digits = false;
+                break;
+            }
+        }
+
+        let mut b_all_digits = true;
+        for ch in b.chars() {
+            if !ch.is_ascii_digit() {
+                b_all_digits = false;
+                break;
+            }
+        }
+
+        if !a.is_empty() && !b.is_empty() && !c.is_empty() && a_all_digits && b_all_digits {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
                 Some(
@@ -79,16 +99,29 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
 
     // TS: const FLEXIBLE_CHANGE_PATTERN = /^(\d+)-(\d+)_([a-z][a-z0-9-]*)$/i;
     let Some((left, name_part)) = trimmed.split_once('_') else {
-        if trimmed.split_once('-').is_some_and(|(a, b)| {
-            !a.is_empty()
-                && !b.is_empty()
-                && a.chars().all(|c| c.is_ascii_digit())
-                && b.chars().all(|c| c.is_ascii_digit())
-        }) {
-            return Err(IdParseError::new(
-                format!("Change ID missing name: \"{input}\""),
-                Some("Change IDs require a name suffix (e.g., \"001-02_my-change\")"),
-            ));
+        if let Some((a, b)) = trimmed.split_once('-') {
+            let mut a_all_digits = true;
+            for c in a.chars() {
+                if !c.is_ascii_digit() {
+                    a_all_digits = false;
+                    break;
+                }
+            }
+
+            let mut b_all_digits = true;
+            for c in b.chars() {
+                if !c.is_ascii_digit() {
+                    b_all_digits = false;
+                    break;
+                }
+            }
+
+            if !a.is_empty() && !b.is_empty() && a_all_digits && b_all_digits {
+                return Err(IdParseError::new(
+                    format!("Change ID missing name: \"{input}\""),
+                    Some("Change IDs require a name suffix (e.g., \"001-02_my-change\")"),
+                ));
+            }
         }
         return Err(IdParseError::new(
             format!("Invalid change ID format: \"{input}\""),
@@ -107,10 +140,23 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         ));
     };
 
-    if module_part.is_empty()
-        || change_part.is_empty()
-        || !module_part.chars().all(|c| c.is_ascii_digit())
-        || !change_part.chars().all(|c| c.is_ascii_digit())
+    let mut module_all_digits = true;
+    for c in module_part.chars() {
+        if !c.is_ascii_digit() {
+            module_all_digits = false;
+            break;
+        }
+    }
+
+    let mut change_all_digits = true;
+    for c in change_part.chars() {
+        if !c.is_ascii_digit() {
+            change_all_digits = false;
+            break;
+        }
+    }
+
+    if module_part.is_empty() || change_part.is_empty() || !module_all_digits || !change_all_digits
     {
         return Err(IdParseError::new(
             format!("Invalid change ID format: \"{input}\""),
@@ -233,5 +279,12 @@ mod tests {
                 "Change IDs use \"-\" between module and change number (e.g., \"001-02_name\" not \"001_02_name\")"
             )
         );
+    }
+
+    #[test]
+    fn parse_change_id_rejects_overlong_input() {
+        let input = format!("001-01_{}", "a".repeat(300));
+        let err = parse_change_id(&input).expect_err("overlong change id should fail");
+        assert!(err.error.contains("too long"));
     }
 }

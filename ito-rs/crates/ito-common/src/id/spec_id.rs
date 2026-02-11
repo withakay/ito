@@ -1,3 +1,5 @@
+//! Spec ID parsing.
+
 use std::fmt;
 
 use super::IdParseError;
@@ -39,6 +41,20 @@ pub fn parse_spec_id(input: &str) -> Result<ParsedSpecId, IdParseError> {
         ));
     }
 
+    if trimmed.len() > 256 {
+        return Err(IdParseError::new(
+            format!("Spec ID is too long: {} bytes (max 256)", trimmed.len()),
+            Some("Provide a shorter spec ID"),
+        ));
+    }
+
+    if trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains("..") {
+        return Err(IdParseError::new(
+            format!("Invalid spec ID format: \"{input}\""),
+            Some("Spec IDs must be a single path segment and cannot contain traversal tokens"),
+        ));
+    }
+
     // TS accepts any directory name with a spec.md inside it. We treat the ID
     // as the directory name and do not normalize it.
     Ok(ParsedSpecId {
@@ -54,5 +70,11 @@ mod tests {
     fn parse_spec_id_preserves_value() {
         let parsed = parse_spec_id("cli-init").unwrap();
         assert_eq!(parsed.spec_id.as_str(), "cli-init");
+    }
+
+    #[test]
+    fn parse_spec_id_rejects_path_traversal_sequences() {
+        let err = parse_spec_id("../secrets").expect_err("path traversal should fail");
+        assert!(err.error.contains("Invalid spec ID format"));
     }
 }
