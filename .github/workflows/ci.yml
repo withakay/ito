@@ -18,7 +18,7 @@ jobs:
   test:
     name: Test (linux)
     #runs-on: withakay-selfhosted
-    runs-on: namespace-default-profile
+    runs-on: namespace-profile-linux-amd64-4c8gb
     timeout-minutes: 15
 
     steps:
@@ -62,7 +62,7 @@ jobs:
   lint:
     name: Lint & Type Check
     # runs-on: withakay-selfhosted
-    runs-on: namespace-default-profile
+    runs-on: namespace-profile-linux-amd64-4c8gb
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
   arch_guardrails:
     name: Architecture Guardrails
     # runs-on: withakay-selfhosted
-    runs-on: namespace-default-profile
+    runs-on: namespace-profile-linux-amd64-4c8gb
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -157,7 +157,7 @@ jobs:
   required-checks-pr:
     name: All checks passed
     # runs-on: ubuntu-latest
-    runs-on: namespace-default-profile
+    runs-on: namespace-profile-linux-amd64-4c8gb
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -180,7 +180,7 @@ jobs:
   required-checks-main:
     name: All checks passed
     # runs-on: withakay-selfhosted
-    runs-on: namespace-default-profile
+    runs-on: namespace-profile-linux-amd64-4c8gb
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
