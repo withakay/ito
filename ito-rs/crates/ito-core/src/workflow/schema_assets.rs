@@ -6,10 +6,11 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Resolve the repository's top-level `schemas` directory.
+/// Repository root's `schemas` directory path.
 ///
-/// Returns a `PathBuf` pointing to the repository root's `schemas` subdirectory
-/// as derived from the crate manifest directory.
+/// Returns a `PathBuf` pointing to the repository root's `schemas` subdirectory.
+/// The repository root is derived from `CARGO_MANIFEST_DIR` by walking up three parent
+/// directories; if that ancestor is not present, the manifest directory itself is used.
 ///
 /// # Examples
 ///
@@ -53,12 +54,12 @@ pub(super) fn project_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     )
 }
 
-/// Resolve the per-user schemas directory following XDG conventions.
+/// Resolves the per-user schemas directory using XDG conventions.
 ///
-/// If the `XDG_DATA_HOME` environment variable is set and not empty, its value is used
-/// as the data home; otherwise the function falls back to `ctx.home_dir` joined with
-/// `.local/share`. When a data home can be determined, returns that path appended with
-/// `ito/schemas`. Returns `None` if neither `XDG_DATA_HOME` nor `ctx.home_dir` are available.
+/// If the `XDG_DATA_HOME` environment variable is set and not empty, its value is used;
+/// otherwise the function falls back to `ctx.home_dir` joined with `.local/share`.
+/// When a data home can be determined, the function returns that path with `ito/schemas` appended.
+/// Returns `None` if neither `XDG_DATA_HOME` nor `ctx.home_dir` are available.
 ///
 /// # Examples
 ///
@@ -80,21 +81,19 @@ pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     Some(data_home.join("ito").join("schemas"))
 }
 
-/// List the top-level names of embedded schemas included in the binary.
+/// Lists top-level embedded schema names included in the binary.
 ///
-/// Each name is the first path segment (the directory containing the schema files).
-/// The returned vector is deduplicated and sorted in ascending order.
+/// Each entry is the first path segment of an embedded file's relative path (the directory containing a schema's files).
 ///
 /// # Returns
 ///
-/// `Vec<String>` containing deduplicated, sorted top-level schema names; each string is non-empty.
+/// `Vec<String>` of unique, non-empty top-level schema names sorted in ascending order.
 ///
 /// # Examples
 ///
 /// ```
 /// let names = embedded_schema_names();
 /// assert!(names.iter().all(|n| !n.is_empty()));
-/// // names is sorted and contains unique entries
 /// for w in names.windows(2) {
 ///     assert!(w[0] <= w[1]);
 /// }
@@ -113,16 +112,18 @@ pub(super) fn embedded_schema_names() -> Vec<String> {
     names.into_iter().collect()
 }
 
-/// Load the embedded schema manifest for a schema name.
+/// Load an embedded schema's `schema.yaml` by schema name.
 ///
 /// Attempts to read `{name}/schema.yaml` from the embedded assets and deserialize it into
-/// `SchemaYaml`. Returns `Ok(Some(schema))` if the file exists and parses successfully,
-/// `Ok(None)` if the embedded file is not present, and `Err(WorkflowError)` on UTF-8
-/// validation or YAML deserialization errors.
+/// `SchemaYaml`.
+///
+/// Returns `Ok(Some(schema))` when the file exists and parses successfully, `Ok(None)` when the
+/// embedded file is not present, and `Err(WorkflowError)` if the embedded bytes are not valid UTF-8
+/// or if YAML deserialization (or other I/O) fails.
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// let res = load_embedded_schema_yaml("example-schema").unwrap();
 /// if let Some(schema) = res {
 ///     // use `schema`
@@ -144,22 +145,20 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
     Ok(Some(schema))
 }
 
-/// Load a schema template's contents for a resolved schema.
+/// Load a schema template string for a resolved schema.
 ///
-/// When `resolved.source` is `SchemaSource::Embedded`, the template is read from the
-/// embedded asset at `{schema}/templates/{template}`. Otherwise the template is read
-/// from the filesystem at `<schema_dir>/templates/<template>`.
+/// Loads the template from the embedded asset bundle at `{schema}/templates/{template}` when
+/// the resolved schema's source is `SchemaSource::Embedded`; otherwise reads
+/// `<schema_dir>/templates/<template>` from the filesystem.
 ///
-/// # Returns
-///
-/// `String` with the template contents. Returns `Err(WorkflowError)` if the embedded
-/// template is missing, the embedded bytes are not valid UTF-8, or a filesystem I/O
-/// error occurs when reading a non-embedded template.
+/// Returns the template contents as a `String`. Returns a `WorkflowError` if the embedded
+/// template is missing, the embedded bytes are not valid UTF-8, or a filesystem I/O error
+/// occurs when reading a non-embedded template.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// // `resolved` is a ResolvedSchema obtained from configuration or discovery.
+/// // `resolved` is a ResolvedSchema obtained from your configuration or discovery logic.
 /// // let content = read_schema_template(&resolved, "main.tpl")?;
 /// ```
 pub(super) fn read_schema_template(

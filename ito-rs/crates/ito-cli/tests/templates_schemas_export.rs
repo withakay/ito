@@ -34,20 +34,13 @@ fn templates_schemas_export_writes_embedded_files() {
     assert!(target.join("tdd/schema.yaml").exists());
 }
 
-/// Verifies that exporting template schemas does not overwrite existing files unless `--force` is used,
-/// and that using `--force` replaces modified files with the embedded defaults.
+/// Ensures exporting embedded template schemas does not overwrite existing files unless `--force` is used, and that using `--force` restores embedded defaults.
 ///
-/// This test:
-/// 1. Exports embedded templates/schemas to a temporary target directory.
-/// 2. Modifies `spec-driven/schema.yaml`.
-/// 3. Exports again without `--force` and asserts the export reports a skip and the modified file remains.
-/// 4. Exports with `--force` and asserts the file was replaced with the default content.
+/// The test performs an initial export to a temporary target, mutates `spec-driven/schema.yaml`, verifies a subsequent non-forced export reports a skip and preserves the modification, then verifies a forced export replaces the file with the embedded default.
 ///
 /// # Examples
 ///
 /// ```
-/// // Creates a tempdir, performs an initial export, modifies a generated file,
-/// // checks that a subsequent non-forced export skips overwriting, then forces an overwrite.
 /// let td = tempfile::tempdir().expect("tempdir");
 /// let target = td.path().join(".ito/templates/schemas");
 ///
@@ -101,7 +94,6 @@ fn templates_schemas_export_writes_embedded_files() {
 /// assert!(!forced_content.contains("description: modified"));
 /// assert!(forced_content.contains("description: Default Ito workflow"));
 /// ```
-#[test]
 fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
     let td = tempfile::tempdir().expect("tempdir");
     let target = td.path().join(".ito/templates/schemas");
