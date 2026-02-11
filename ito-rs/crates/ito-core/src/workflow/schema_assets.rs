@@ -89,7 +89,7 @@ pub(super) fn project_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
 pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     let data_home = match env::var("XDG_DATA_HOME") {
         Ok(v) if !v.trim().is_empty() => Some(PathBuf::from(v)),
-        _ => ctx
+        Ok(_) | Err(_) => ctx
             .home_dir
             .as_ref()
             .map(|h| h.join(".local").join("share")),
