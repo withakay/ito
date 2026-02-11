@@ -164,6 +164,28 @@ pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
+/// Render help for all commands either as JSON or as formatted human-readable text.
+///
+/// When `json_output` is true, delegates to the JSON output path; otherwise prints a human-readable
+/// reference of all stable, non-deprecated command help entries.
+///
+/// # Parameters
+///
+/// - `json_output`: If `true`, produce machine-readable JSON; if `false`, produce human-readable text.
+///
+/// # Returns
+///
+/// `Ok(())` on success, or an error wrapped in `CliResult` on failure.
+///
+/// # Examples
+///
+/// ```
+/// // Request human-readable output
+/// let _ = handle_help_all_flags(false);
+///
+/// // Request JSON output
+/// let _ = handle_help_all_flags(true);
+/// ```
 pub(crate) fn handle_help_all_flags(json_output: bool) -> CliResult<()> {
     if json_output {
         return handle_help_all(&["--json".to_string()]);
