@@ -189,9 +189,61 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        "changes.coordination_branch.name" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value.",
+                    path,
+                )));
+            };
+            if !is_valid_branch_name(s) {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Provide a valid git branch name.",
+                    s, path,
+                )));
+            }
+        }
         _ => {}
     }
     Ok(())
+}
+
+fn is_valid_branch_name(value: &str) -> bool {
+    if value.is_empty() || value.starts_with('-') || value.starts_with('/') || value.ends_with('/')
+    {
+        return false;
+    }
+    if value.contains("..")
+        || value.contains("@{")
+        || value.contains("//")
+        || value.ends_with('.')
+        || value.ends_with(".lock")
+    {
+        return false;
+    }
+
+    for ch in value.chars() {
+        if ch.is_ascii_control() || ch == ' ' {
+            return false;
+        }
+
+        match ch {
+            '~' | '^' | ':' | '?' | '*' | '[' | '\\' => return false,
+            _ => {}
+        }
+    }
+
+    for segment in value.split('/') {
+        if segment.is_empty()
+            || segment.starts_with('.')
+            || segment.ends_with('.')
+            || segment.ends_with(".lock")
+        {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Validate that a worktree strategy string is one of the supported values.
@@ -384,6 +436,33 @@ mod tests {
         assert!(is_valid_integration_mode("merge_parent"));
         assert!(!is_valid_integration_mode("squash"));
         assert!(!is_valid_integration_mode(""));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_valid_coordination_branch_name() {
+        let parts = ["changes", "coordination_branch", "name"];
+        let value = json!("ito/internal/changes");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_coordination_branch_name() {
+        let parts = ["changes", "coordination_branch", "name"];
+        let value = json!("--ito-changes");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("changes.coordination_branch.name"));
+    }
+
+    #[test]
+    fn validate_config_value_rejects_lock_suffix_in_path_segment() {
+        let parts = ["changes", "coordination_branch", "name"];
+        let value = json!("foo.lock/bar");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("changes.coordination_branch.name"));
     }
 
     #[test]
