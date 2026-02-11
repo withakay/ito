@@ -1,4 +1,8 @@
-//! ito-web standalone binary for testing.
+//! Standalone binary for running the web UI outside of `ito-cli`.
+//!
+//! Useful during development — it launches the same [`ito_web::serve`] server
+//! but with its own CLI argument parser so it can be invoked directly via
+//! `cargo run -p ito-web`.
 
 use clap::Parser;
 use std::path::PathBuf;
