@@ -203,7 +203,7 @@ fn resolve_session_id(ito_path: Option<&Path>) -> String {
             Ok(SessionState {
                 session_id,
                 created_at: _,
-            }) if !session_id.trim().is_empty() => {
+            }) if is_safe_session_id(&session_id) => {
                 return session_id;
             }
             Ok(_) => {}
@@ -231,6 +231,28 @@ fn new_session_id() -> String {
     let ts = Utc::now().timestamp();
     let rand = uuid::Uuid::new_v4().simple().to_string();
     format!("{ts}-{rand}")
+}
+
+fn is_safe_session_id(session_id: &str) -> bool {
+    let session_id = session_id.trim();
+    if session_id.is_empty() {
+        return false;
+    }
+    if session_id.len() > 128 {
+        return false;
+    }
+    if session_id.contains('/') || session_id.contains('\\') || session_id.contains("..") {
+        return false;
+    }
+
+    for c in session_id.chars() {
+        if c.is_ascii_alphanumeric() || c == '-' {
+            continue;
+        }
+        return false;
+    }
+
+    true
 }
 
 fn log_file_path(config_dir: &Path, project_id: &str, session_id: &str) -> PathBuf {
@@ -298,5 +320,21 @@ fn logging_disabled() -> bool {
     match v.as_str() {
         "1" | "true" | "yes" => true,
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsafe_session_ids_are_rejected() {
+        assert!(!is_safe_session_id(""));
+        assert!(!is_safe_session_id("../escape"));
+        assert!(!is_safe_session_id("a/b"));
+        assert!(!is_safe_session_id("abc def"));
+        assert!(is_safe_session_id(
+            "1739330000-550e8400e29b41d4a716446655440000"
+        ));
     }
 }
