@@ -69,22 +69,72 @@ pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
     ADAPTERS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Return all embedded shared command files.
+/// Lists embedded shared command files.
+///
+/// # Examples
+///
+/// ```
+/// let files = commands_files();
+/// // every entry has a non-empty relative path and contents
+/// assert!(files.iter().all(|f| !f.relative_path.is_empty() && !f.contents.is_empty()));
+/// ```
 pub fn commands_files() -> Vec<EmbeddedFile> {
     dir_files(&COMMANDS_DIR)
 }
 
-/// Return all embedded workflow schema files.
+/// List embedded workflow schema files.
+///
+/// Returns a `Vec<EmbeddedFile>` containing entries for each file embedded under the crate's
+/// schemas asset directory.
+///
+/// # Examples
+///
+/// ```
+/// let files = schema_files();
+/// // each entry has a non-empty relative path and contents
+/// assert!(files.iter().all(|f| !f.relative_path.is_empty() && !f.contents.is_empty()));
+/// ```
 pub fn schema_files() -> Vec<EmbeddedFile> {
     dir_files(&SCHEMAS_DIR)
 }
 
-/// Get a specific schema file by relative path (e.g., "spec-driven/schema.yaml").
+/// Retrieve the contents of an embedded schema file by its path relative to the schemas root.
+///
+/// The `path` is relative to the embedded schemas directory, for example `"spec-driven/schema.yaml"`.
+///
+/// # Returns
+///
+/// `Some(&[u8])` with the file contents if a matching embedded schema exists, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// let bytes = get_schema_file("spec-driven/schema.yaml").expect("schema should exist");
+/// let text = std::str::from_utf8(bytes).unwrap();
+/// assert!(text.contains("schema"));
+/// ```
 pub fn get_schema_file(path: &str) -> Option<&'static [u8]> {
     SCHEMAS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Get a specific command file by path (e.g., "ito-apply.md")
+/// Retrieve the embedded command file contents for a given relative path.
+///
+/// `path` is interpreted relative to the commands asset root (for example, `"ito-apply.md"`).
+///
+/// # Returns
+///
+/// `Some(&[u8])` containing the file contents if a file at `path` exists, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// let contents = get_command_file("ito-apply.md");
+/// if let Some(bytes) = contents {
+///     // use `bytes` (e.g., convert to string)
+///     let s = std::str::from_utf8(bytes).unwrap();
+///     assert!(s.contains("ito apply"));
+/// }
+/// ```
 pub fn get_command_file(path: &str) -> Option<&'static [u8]> {
     COMMANDS_DIR.get_file(path).map(|f| f.contents())
 }

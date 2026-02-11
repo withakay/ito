@@ -3,6 +3,22 @@ use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::workflow;
 
+/// Handle the `templates` CLI subcommands and perform the requested templates action.
+///
+/// On success prints the export destination and counts of written and skipped files; if files
+/// were skipped and the `--force` flag was not provided, prints a hint to use `--force`.
+///
+/// # Examples
+///
+/// ```no_run
+/// use crate::runtime::Runtime;
+/// use crate::cli::{TemplatesArgs, TemplatesAction, TemplatesSchemasAction};
+///
+/// let rt = Runtime::new();
+/// // construct args so that args.action is Some(TemplatesAction::Schemas(...))
+/// let args = TemplatesArgs { /* populate with Schemas -> Export */ };
+/// handle_templates_clap(&rt, &args).unwrap();
+/// ```
 pub(crate) fn handle_templates_clap(rt: &Runtime, args: &TemplatesArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
         return Err(CliError::msg("Missing required templates subcommand"));
