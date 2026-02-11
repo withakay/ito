@@ -117,7 +117,7 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
 		echo "  Excluded crates: ito-web (no tests yet)"; \
 		echo ""; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
+		CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-1} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
