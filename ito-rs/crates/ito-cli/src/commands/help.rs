@@ -2,6 +2,29 @@ use crate::cli::HelpArgs;
 use crate::cli_error::CliResult;
 use clap::CommandFactory;
 
+/// Collects the stable set of CLI command paths (as parts) for which help text should be emitted.
+///
+/// This returns the base command plus a curated list of top-level and nested commands
+/// that exist in the current clap command tree. Deprecated aliases are intentionally
+/// excluded so the output remains stable and user-facing.
+///
+/// # Returns
+///
+/// A vector of command paths where each entry is a `Vec<String>` of path parts.
+/// The first entry is an empty `Vec` representing the base command; subsequent entries
+/// are the subcommand path segments (e.g., `["agent", "instruction"]`).
+///
+/// # Examples
+///
+/// ```ignore
+/// let parts = help_all_parts();
+/// // first entry is the base command
+/// assert!(parts.first().map(|p| p.is_empty()).unwrap_or(false));
+/// // each entry is a vector of strings representing the command path
+/// for entry in parts {
+///     let _path: Vec<String> = entry;
+/// }
+/// ```
 fn help_all_parts() -> Vec<Vec<String>> {
     // Keep output stable and user-facing (exclude deprecated aliases like
     // `templates`, `instructions`, `loop`, etc.), while still deriving help
@@ -27,8 +50,6 @@ fn help_all_parts() -> Vec<Vec<String>> {
         &["agent", "instruction"],
         &["ralph"],
         &["status"],
-        &["x-templates"],
-        &["x-schemas"],
         &["completions"],
         &["stats"],
         &["agent-config"],
@@ -78,6 +99,22 @@ pub(crate) fn handle_help_clap(args: &HelpArgs) -> CliResult<()> {
     Ok(())
 }
 
+/// Prints help entries for all stable CLI commands.
+///
+/// When the provided `args` slice contains `"--json"`, emits a JSON document with a
+/// top-level `version` and a `commands` array where each entry has `path` and `help`.
+/// Otherwise prints a human-readable reference with a header, per-command sections,
+/// and a footer describing how to get detailed help for a specific command.
+///
+/// # Examples
+///
+/// ```
+/// // Print human-readable reference
+/// let _ = handle_help_all(&[]).unwrap();
+///
+/// // Print JSON output
+/// let _ = handle_help_all(&["--json".to_string()]).unwrap();
+/// ```
 pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
     let json_output = args.iter().any(|a| a == "--json");
 
@@ -143,6 +180,27 @@ pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
+/// Render the help reference for all stable, non-deprecated commands.
+///
+/// When `json_output` is `true`, produce machine-readable JSON containing each command's
+/// path and long help text. When `false`, print a human-readable formatted reference
+/// with separators and per-command help text.
+///
+/// `json_output` controls the output format.
+///
+/// # Returns
+///
+/// `Ok(())` on success, or an error wrapped in `CliResult` on failure.
+///
+/// # Examples
+///
+/// ```
+/// // Print human-readable reference
+/// let _ = crate::help::handle_help_all_flags(false);
+///
+/// // Print JSON output
+/// let _ = crate::help::handle_help_all_flags(true);
+/// ```
 pub(crate) fn handle_help_all_flags(json_output: bool) -> CliResult<()> {
     if json_output {
         return handle_help_all(&["--json".to_string()]);

@@ -1,211 +1,72 @@
 # Schema Customization
 
-This document describes how users can customize Ito schemas and templates, the current manual process, and the gap that needs to be addressed.
+This document describes how Ito resolves workflow schemas and how to export and customize them.
 
-______________________________________________________________________
+## Resolution Order
 
-## Overview
+When Ito resolves a schema name (for example `spec-driven`), it checks locations in this order:
 
-Ito uses a 2-level schema resolution system following the XDG Base Directory Specification:
+1. **Project-local override**: `.ito/templates/schemas/<name>/`
+2. **User override**: `${XDG_DATA_HOME}/ito/schemas/<name>/` (or `~/.local/share/ito/schemas/<name>/`)
+3. **Embedded built-in**: bundled with Ito in `ito-templates/assets/schemas/<name>/`
+4. **Legacy package fallback**: package `schemas/<name>/` (compatibility path)
 
-1. **User override**: `${XDG_DATA_HOME}/ito/schemas/<name>/`
-1. **Package built-in**: `<npm-package>/schemas/<name>/`
+This means a repo can ship a shared project override while each developer can still keep personal overrides.
 
-When a schema is requested (e.g., `spec-driven`), the resolver checks the user directory first. If found, that entire schema directory is used. Otherwise, it falls back to the package's built-in schema.
+## Export Built-in Schemas
 
-______________________________________________________________________
-
-## Current Manual Process
-
-To override the default `spec-driven` schema, a user must:
-
-### 1. Determine the correct directory path
-
-| Platform | Path |
-|----------|------|
-| macOS/Linux | `~/.local/share/ito/schemas/` |
-| Windows | `%LOCALAPPDATA%\ito\schemas\` |
-| All (if set) | `$XDG_DATA_HOME/ito/schemas/` |
-
-### 2. Create the directory structure
+Use the templates command to write embedded defaults to disk:
 
 ```bash
-# macOS/Linux example
-mkdir -p ~/.local/share/ito/schemas/spec-driven/templates
+ito templates schemas export -f ".ito/templates/schemas"
 ```
 
-### 3. Find and copy the default schema files
+The export writes one directory per schema, each containing:
 
-The user must locate the installed npm package to copy the defaults:
+- `schema.yaml`
+- `templates/*.md`
+
+Example output layout:
+
+```text
+.ito/templates/schemas/
+  spec-driven/
+    schema.yaml
+    templates/
+      proposal.md
+      spec.md
+      design.md
+      tasks.md
+  tdd/
+    schema.yaml
+    templates/
+      spec.md
+      test.md
+      implementation.md
+      docs.md
+```
+
+## Overwrite Behavior
+
+- Without `--force`, existing files are preserved and reported as skipped.
+- With `--force`, existing files are overwritten with embedded defaults.
 
 ```bash
-# Find the package location (varies by install method)
-npm list -g ito --parseable
-# or
-which ito && readlink -f $(which ito)
+# Safe export (no overwrites)
+ito templates schemas export -f ".ito/templates/schemas"
 
-# Copy files from the package's schemas/ directory
-cp <package-path>/schemas/spec-driven/schema.yaml ~/.local/share/ito/schemas/spec-driven/
-cp <package-path>/schemas/spec-driven/templates/*.md ~/.local/share/ito/schemas/spec-driven/templates/
+# Force overwrite
+ito templates schemas export -f ".ito/templates/schemas" --force
 ```
 
-### 4. Modify the copied files
+## Typical Workflow
 
-Edit `schema.yaml` to change the workflow structure:
+1. Export built-ins into project-local path.
+2. Edit `.ito/templates/schemas/<name>/schema.yaml` and template files.
+3. Commit project-local schema overrides if they are team conventions.
+4. Keep personal-only customizations in `${XDG_DATA_HOME}/ito/schemas/`.
 
-```yaml
-name: spec-driven
-version: 1
-description: My custom workflow
-artifacts:
-  - id: proposal
-    generates: proposal.md
-    description: Initial proposal
-    template: proposal.md
-    requires: []
-  # Add, remove, or modify artifacts...
-```
+## Notes
 
-Edit templates in `templates/` to customize the content guidance.
-
-### 5. Verify the override is active
-
-Currently there's no command to verify which schema is being used. Users must trust that the file exists in the right location.
-
-______________________________________________________________________
-
-## Gap Analysis
-
-The current process has several friction points:
-
-| Issue | Impact |
-|-------|--------|
-| **Path discovery** | Users must know XDG conventions and platform-specific paths |
-| **Package location** | Finding the npm package path varies by install method (global, local, pnpm, yarn, volta, etc.) |
-| **No scaffolding** | Users must manually create directories and copy files |
-| **No verification** | No way to confirm which schema is actually being resolved |
-| **No diffing** | When upgrading ito, users can't see what changed in built-in templates |
-| **Full copy required** | Must copy entire schema even to change one template |
-
-### User Stories Not Currently Supported
-
-1. *"I want to add a `research` artifact before `proposal`"* — requires manual copy and edit
-1. *"I want to customize just the proposal template"* — must copy entire schema
-1. *"I want to see what the default schema looks like"* — must find package path
-1. *"I want to revert to defaults"* — must delete files and hope paths are correct
-1. *"I upgraded ito, did the templates change?"* — no way to diff
-
-______________________________________________________________________
-
-## Proposed Solution: Schema Configurator
-
-A CLI command (or set of commands) that handles path resolution and file operations for users.
-
-### Option A: Single `ito schema` command
-
-```bash
-# List available schemas (built-in and user overrides)
-ito schema list
-
-# Show where a schema resolves from
-ito schema which spec-driven
-# Output: /Users/me/.local/share/ito/schemas/spec-driven/ (user override)
-# Output: /usr/local/lib/node_modules/ito/schemas/spec-driven/ (built-in)
-
-# Copy a built-in schema to user directory for customization
-ito schema copy spec-driven
-# Creates ~/.local/share/ito/schemas/spec-driven/ with all files
-
-# Show diff between user override and built-in
-ito schema diff spec-driven
-
-# Remove user override (revert to built-in)
-ito schema reset spec-driven
-
-# Validate a schema
-ito schema validate spec-driven
-```
-
-### Option B: Dedicated `ito customize` command
-
-```bash
-# Interactive schema customization
-ito customize
-# Prompts: Which schema? What do you want to change? etc.
-
-# Copy and open for editing
-ito customize spec-driven
-# Copies to user dir, prints path, optionally opens in $EDITOR
-```
-
-### Option C: Init-time schema selection
-
-```bash
-# During project init, offer schema customization
-ito init
-# ? Select a workflow schema:
-#   > spec-driven (default)
-#     tdd
-#     minimal
-#     custom (copy and edit)
-```
-
-### Recommended Approach
-
-**Option A** provides the most flexibility and follows Unix conventions (subcommands for discrete operations). Key commands in priority order:
-
-1. `ito schema list` — see what's available
-1. `ito schema which <name>` — debug resolution
-1. `ito schema copy <name>` — scaffold customization
-1. `ito schema diff <name>` — compare with built-in
-1. `ito schema reset <name>` — revert to defaults
-
-______________________________________________________________________
-
-## Implementation Considerations
-
-### Path Resolution
-
-The resolver already exists in `src/core/artifact-graph/resolver.ts`:
-
-```typescript
-export function getPackageSchemasDir(): string { ... }
-export function getUserSchemasDir(): string { ... }
-export function getSchemaDir(name: string): string | null { ... }
-export function listSchemas(): string[] { ... }
-```
-
-New commands would leverage these existing functions.
-
-### File Operations
-
-- Copy should preserve file permissions
-- Copy should not overwrite existing user files without `--force`
-- Reset should prompt for confirmation
-
-### Template-Only Overrides
-
-A future enhancement could support overriding individual templates without copying the entire schema. This would require changes to the resolution logic:
-
-```
-Current: schema dir (user) OR schema dir (built-in)
-Future:  schema.yaml from user OR built-in
-         + each template from user OR built-in (independent fallback)
-```
-
-This adds complexity but enables the "I just want to change one template" use case.
-
-______________________________________________________________________
-
-## Related Documents
-
-- [Schema Workflow Gaps](./schema-workflow-gaps.md) — End-to-end workflow analysis and phased implementation plan
-
-## Related Files
-
-| File | Purpose |
-|------|---------|
-| `src/core/artifact-graph/resolver.ts` | Schema resolution logic |
-| `src/core/artifact-graph/instruction-loader.ts` | Template loading |
-| `src/core/global-config.ts` | XDG path helpers |
-| `schemas/spec-driven/` | Default schema and templates |
+- `$schema` JSON metadata in config files is unrelated to workflow schema resolution.
+- If a schema cannot be found, run `ito workflow list` to inspect what is currently resolvable.

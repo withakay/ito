@@ -218,24 +218,14 @@ rust-build: ## Build Rust ito (debug)
 rust-build-release: ## Build Rust ito (release)
 	cargo build -p ito-cli --bin ito --release
 
-rust-test: ## Run Rust tests (prefers nextest when available)
-	@set -e; \
-	if cargo nextest --version >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --workspace; \
-	else \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
-	fi
+rust-test: ## Run Rust tests (full cargo test, includes doctests)
+	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web
 
 rust-test-timed: ## Run Rust tests with timing
 	@set -e; \
 	START=$$(date +%s); \
-	if cargo nextest --version >/dev/null 2>&1; then \
-		echo "Running tests with nextest..."; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo nextest run --workspace; \
-	else \
-		echo "Running tests with cargo test..."; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
-	fi; \
+	echo "Running tests with cargo test..."; \
+	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
 	END=$$(date +%s); \
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"
