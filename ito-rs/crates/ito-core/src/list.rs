@@ -60,7 +60,6 @@ pub struct ChangeListItem {
     #[serde(rename = "workStatus")]
     pub work_status: String,
     /// True when no remaining work (complete or paused)
-    /// True when no remaining work (complete or paused)
     pub completed: bool,
 }
 
@@ -365,29 +364,43 @@ fn count_requirements_in_spec_markdown(content: &str) -> u32 {
 
 fn is_completed(s: &ChangeSummary) -> bool {
     use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Complete | ChangeWorkStatus::Paused
-    )
+    let status = s.work_status();
+    match status {
+        ChangeWorkStatus::Complete => true,
+        ChangeWorkStatus::Paused => true,
+        ChangeWorkStatus::Draft => false,
+        ChangeWorkStatus::Ready => false,
+        ChangeWorkStatus::InProgress => false,
+    }
 }
 
 fn is_partial(s: &ChangeSummary) -> bool {
     use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.total_tasks > 0
+    let in_active_progress_bucket = match s.work_status() {
+        ChangeWorkStatus::Ready => true,
+        ChangeWorkStatus::InProgress => true,
+        ChangeWorkStatus::Draft => false,
+        ChangeWorkStatus::Paused => false,
+        ChangeWorkStatus::Complete => false,
+    };
+
+    in_active_progress_bucket
+        && s.total_tasks > 0
         && s.completed_tasks > 0
         && s.completed_tasks < s.total_tasks
 }
 
 fn is_pending(s: &ChangeSummary) -> bool {
     use ito_domain::changes::ChangeWorkStatus;
-    matches!(
-        s.work_status(),
-        ChangeWorkStatus::Ready | ChangeWorkStatus::InProgress
-    ) && s.total_tasks > 0
-        && s.completed_tasks == 0
+    let in_active_progress_bucket = match s.work_status() {
+        ChangeWorkStatus::Ready => true,
+        ChangeWorkStatus::InProgress => true,
+        ChangeWorkStatus::Draft => false,
+        ChangeWorkStatus::Paused => false,
+        ChangeWorkStatus::Complete => false,
+    };
+
+    in_active_progress_bucket && s.total_tasks > 0 && s.completed_tasks == 0
 }
 
 fn parse_sections(content: &str) -> Vec<Section> {
