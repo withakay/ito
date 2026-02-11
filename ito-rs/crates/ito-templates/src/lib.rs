@@ -189,14 +189,38 @@ fn collect_dir_files(dir: &'static Dir<'static>, out: &mut Vec<EmbeddedFile>) {
 ///
 /// Empty inputs default to `.ito`. Non-dotted names are prefixed with `.`.
 pub fn normalize_ito_dir(ito_dir: &str) -> String {
+    let ito_dir = ito_dir.trim();
     if ito_dir.is_empty() {
         return ".ito".to_string();
     }
+
+    if !is_safe_ito_dir_name(ito_dir) {
+        return ".ito".to_string();
+    }
+
     if ito_dir.starts_with('.') {
         ito_dir.to_string()
     } else {
         format!(".{ito_dir}")
     }
+}
+
+fn is_safe_ito_dir_name(ito_dir: &str) -> bool {
+    if ito_dir.len() > 128 {
+        return false;
+    }
+    if ito_dir.contains('/') || ito_dir.contains('\\') || ito_dir.contains("..") {
+        return false;
+    }
+
+    for c in ito_dir.chars() {
+        if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+            continue;
+        }
+        return false;
+    }
+
+    true
 }
 
 /// Rewrite a relative template path for a custom Ito directory.
@@ -418,6 +442,13 @@ mod tests {
     #[test]
     fn normalize_ito_dir_empty_defaults_to_dot_ito() {
         assert_eq!(normalize_ito_dir(""), ".ito");
+    }
+
+    #[test]
+    fn normalize_ito_dir_rejects_traversal_and_path_separators() {
+        assert_eq!(normalize_ito_dir("../escape"), ".ito");
+        assert_eq!(normalize_ito_dir("a/b"), ".ito");
+        assert_eq!(normalize_ito_dir("a\\b"), ".ito");
     }
 
     #[test]
