@@ -24,7 +24,14 @@ pub const TOOL_OPENCODE: &str = "opencode";
 
 const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 
-/// Return the set of supported tool ids.
+/// Lists the supported tool IDs.
+///
+/// # Examples
+///
+/// ```
+/// let ids = available_tool_ids();
+/// assert_eq!(ids.len(), 4);
+/// ```
 pub fn available_tool_ids() -> &'static [&'static str] {
     &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
 }
@@ -177,6 +184,30 @@ fn gitignore_has_exact_line(contents: &str, entry: &str) -> bool {
     contents.lines().map(|l| l.trim()).any(|l| l == entry)
 }
 
+/// Installs the default project templates into the repository, rendering and writing each template
+/// file from the built-in template set into the given project root.
+///
+/// For each template this performs the following user-visible behaviors:
+/// - Skips templates that are not applicable to the selected tool set.
+/// - Replaces the placeholder `__CURRENT_DATE__` in the planning STATE.md file with the current date.
+/// - Replaces the config schema release-tag placeholder in `config.json` with the computed release tag.
+/// - Renders `AGENTS.md` with the provided worktree template context (other templates are not processed
+///   with the worktree renderer to avoid accidental interpretation of user-facing `{{` markers).
+/// - When running in `InstallMode::Update`, preserves existing `.ito/project.md` and `.ito/config.json`
+///   by skipping installation of those files if they already exist in the project.
+/// - Writes or updates files via the module's marker-aware writer so managed blocks can be updated
+///   without clobbering user edits.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::collections::BTreeSet;
+/// use std::path::Path;
+///
+/// let tools = BTreeSet::new();
+/// let opts = InitOptions::new(tools, false, false);
+/// let _ = install_project_templates(Path::new("."), ".ito", InstallMode::Init, &opts, None);
+/// ```
 fn install_project_templates(
     project_root: &Path,
     ito_dir: &str,
@@ -242,6 +273,17 @@ fn install_project_templates(
     Ok(())
 }
 
+/// Compute the release tag used in rendered templates, ensuring it begins with `v`.
+///
+/// Reads the compile-time `ITO_WORKSPACE_VERSION` if present, otherwise uses `CARGO_PKG_VERSION`.
+/// If the chosen version already starts with `v` it is returned unchanged; otherwise `v` is prefixed.
+///
+/// # Examples
+///
+/// ```
+/// let tag = release_tag();
+/// assert!(tag.starts_with('v'));
+/// ```
 fn release_tag() -> String {
     let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     if version.starts_with('v') {
@@ -251,6 +293,35 @@ fn release_tag() -> String {
     format!("v{version}")
 }
 
+/// Determines whether a project template file (given by its path relative to the Ito directory)
+/// should be installed for the provided set of enabled tool IDs.
+///
+/// Rules:
+/// - Always install "AGENTS.md" and any path under ".ito/".
+/// - Install tool-specific assets only when the corresponding tool ID is present in `tools`:
+///   - "CLAUDE.md" or any path under ".claude/" requires the Claude tool ID.
+///   - Any path under ".opencode/" requires the OpenCode tool ID.
+///   - Any path under ".github/" requires the GitHub Copilot tool ID.
+///   - Any path under ".codex/" requires the Codex tool ID.
+/// - Any other paths are not installed.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::BTreeSet;
+///
+/// let mut tools = BTreeSet::new();
+/// tools.insert("claude".to_string());
+///
+/// assert!(should_install_project_rel("AGENTS.md", &tools));
+/// assert!(should_install_project_rel(".ito/config.json", &tools));
+/// assert!(should_install_project_rel("CLAUDE.md", &tools));
+/// assert!(!should_install_project_rel(".opencode/manifest.json", &tools));
+/// ```
+///
+/// # Returns
+///
+/// `true` if the file at `rel` should be installed given `tools`, `false` otherwise.
 fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {
     // Always install Ito project assets.
     if rel == "AGENTS.md" {
