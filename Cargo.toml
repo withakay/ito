@@ -17,6 +17,7 @@ version = "0.1.1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/withakay/ito"
+homepage = "https://github.com/withakay/ito"
 
 [workspace.dependencies]
 # Internal crates
