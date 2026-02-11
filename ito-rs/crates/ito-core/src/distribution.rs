@@ -224,11 +224,18 @@ pub fn install_manifests(
         // Render skill templates that opt into worktree Jinja2 variables. We
         // intentionally avoid rendering arbitrary `{{ ... }}` placeholders used
         // by non-template skills (e.g. research prompts).
-        let should_render_skill = manifest.asset_type == AssetType::Skill
-            && raw_bytes
-                .split(|b| *b == b'\n')
-                .filter_map(|line| std::str::from_utf8(line).ok())
-                .any(skill_line_uses_worktree_template_syntax);
+        let mut should_render_skill = false;
+        if manifest.asset_type == AssetType::Skill {
+            for line in raw_bytes.split(|b| *b == b'\n') {
+                let Ok(line) = std::str::from_utf8(line) else {
+                    continue;
+                };
+                if skill_line_uses_worktree_template_syntax(line) {
+                    should_render_skill = true;
+                    break;
+                }
+            }
+        }
         let bytes = if should_render_skill {
             render_project_template(raw_bytes, ctx).map_err(|e| {
                 CoreError::Validation(format!(
@@ -257,9 +264,18 @@ fn skill_line_uses_worktree_template_syntax(line: &str) -> bool {
     }
 
     // Variable-only templates are supported for the worktree context keys.
-    line.contains("{{ enabled")
-        || line.contains("{{ strategy")
-        || line.contains("{{ layout_dir_name")
-        || line.contains("{{ integration_mode")
-        || line.contains("{{ default_branch")
+    const WORKTREE_VARS: &[&str] = &[
+        "{{ enabled",
+        "{{ strategy",
+        "{{ layout_dir_name",
+        "{{ integration_mode",
+        "{{ default_branch",
+    ];
+
+    for var in WORKTREE_VARS {
+        if line.contains(var) {
+            return true;
+        }
+    }
+    false
 }

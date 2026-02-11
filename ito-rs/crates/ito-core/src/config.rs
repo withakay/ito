@@ -6,6 +6,8 @@
 use std::path::Path;
 
 use crate::errors::{CoreError, CoreResult};
+use ito_config::ConfigContext;
+use ito_config::load_cascading_project_config;
 use ito_config::types::{IntegrationMode, WorktreeStrategy};
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
@@ -202,6 +204,67 @@ pub fn is_valid_integration_mode(s: &str) -> bool {
     IntegrationMode::parse_value(s).is_some()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Resolved defaults used when rendering worktree-aware templates.
+pub struct WorktreeTemplateDefaults {
+    /// Worktree strategy (e.g., `checkout_subdir`).
+    pub strategy: String,
+    /// Directory name used by the strategy layout.
+    pub layout_dir_name: String,
+    /// Integration mode for applying changes.
+    pub integration_mode: String,
+    /// Default branch name.
+    pub default_branch: String,
+}
+
+/// Resolve effective worktree defaults from cascading project configuration.
+///
+/// Falls back to built-in defaults when keys are not configured.
+pub fn resolve_worktree_template_defaults(
+    target_path: &Path,
+    ctx: &ConfigContext,
+) -> WorktreeTemplateDefaults {
+    let ito_path = ito_config::ito_dir::get_ito_path(target_path, ctx);
+    let merged = load_cascading_project_config(target_path, &ito_path, ctx).merged;
+
+    let mut defaults = WorktreeTemplateDefaults {
+        strategy: "checkout_subdir".to_string(),
+        layout_dir_name: "ito-worktrees".to_string(),
+        integration_mode: "commit_pr".to_string(),
+        default_branch: "main".to_string(),
+    };
+
+    if let Some(wt) = merged.get("worktrees") {
+        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.strategy = v.to_string();
+        }
+
+        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.default_branch = v.to_string();
+        }
+
+        if let Some(layout) = wt.get("layout")
+            && let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.layout_dir_name = v.to_string();
+        }
+
+        if let Some(apply) = wt.get("apply")
+            && let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.integration_mode = v.to_string();
+        }
+    }
+
+    defaults
+}
+
 /// Remove a key at a dot-delimited path in a JSON object.
 ///
 /// Returns `true` if a key was removed, `false` if the path didn't exist.
@@ -317,5 +380,61 @@ mod tests {
         assert!(is_valid_integration_mode("merge_parent"));
         assert!(!is_valid_integration_mode("squash"));
         assert!(!is_valid_integration_mode(""));
+    }
+
+    #[test]
+    fn resolve_worktree_template_defaults_uses_defaults_when_missing() {
+        let project = tempfile::tempdir().expect("tempdir should succeed");
+        let ctx = ConfigContext {
+            project_dir: Some(project.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        let resolved = resolve_worktree_template_defaults(project.path(), &ctx);
+        assert_eq!(
+            resolved,
+            WorktreeTemplateDefaults {
+                strategy: "checkout_subdir".to_string(),
+                layout_dir_name: "ito-worktrees".to_string(),
+                integration_mode: "commit_pr".to_string(),
+                default_branch: "main".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_worktree_template_defaults_reads_overrides() {
+        let project = tempfile::tempdir().expect("tempdir should succeed");
+        let ito_dir = project.path().join(".ito");
+        std::fs::create_dir_all(&ito_dir).expect("create .ito should succeed");
+        std::fs::write(
+            ito_dir.join("config.json"),
+            r#"{
+  "worktrees": {
+    "strategy": "bare_control_siblings",
+    "default_branch": "develop",
+    "layout": { "dir_name": "wt" },
+    "apply": { "integration_mode": "merge_parent" }
+  }
+}
+"#,
+        )
+        .expect("write config should succeed");
+
+        let ctx = ConfigContext {
+            project_dir: Some(project.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        let resolved = resolve_worktree_template_defaults(project.path(), &ctx);
+        assert_eq!(
+            resolved,
+            WorktreeTemplateDefaults {
+                strategy: "bare_control_siblings".to_string(),
+                layout_dir_name: "wt".to_string(),
+                integration_mode: "merge_parent".to_string(),
+                default_branch: "develop".to_string(),
+            }
+        );
     }
 }
