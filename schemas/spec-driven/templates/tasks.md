@@ -81,6 +81,24 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
+## Wave 4 (Review)
+
+- **Depends On**: Wave 3
+
+### Task 4.1: Review before archive
+
+- **Type**: checkpoint (requires human approval before proceeding)
+- **Files**: <!-- relevant files for review -->
+- **Dependencies**: None (Wave 4 already depends on Wave 3)
+- **Action**:
+  Run `ito agent instruction review --change <!-- CHANGE_ID -->`, apply feedback,
+  and confirm readiness to archive.
+- **Done When**: Review feedback is addressed and reviewer confirms readiness
+- **Updated At**: <!-- YYYY-MM-DD -->
+- **Status**: [ ] pending
+
+______________________________________________________________________
+
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet

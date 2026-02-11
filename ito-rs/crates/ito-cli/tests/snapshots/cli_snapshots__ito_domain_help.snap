@@ -1,23 +1,26 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 124
 expression: "snapshot(&[\"workflow\", \"--help\"])"
 ---
-Initialize and inspect workflow definitions
+Legacy workflow command namespace (no-op)
 
-Workflows define the artifact structure for changes (proposal, specs, tasks).
-Use 'init' to create custom workflows or 'list' to see available schemas.
+`ito workflow` and its subcommands are retained as compatibility no-ops.
+Use `ito agent instruction <artifact>` and `ito tasks ...` for active workflows.
 
 Examples:
-  ito workflow list
-  ito workflow show spec-driven
-  ito workflow init
+  ito workflow
+  ito agent instruction apply --change 005-01_add-auth
+  ito tasks status 005-01_add-auth
 
-Usage: ito workflow [OPTIONS] <COMMAND>
+Usage: ito workflow [OPTIONS] [COMMAND]
 
 Commands:
-  init  Initialize workflow templates
-  list  List available workflows
-  show  Show workflow details
+  init    Legacy no-op
+  list    Legacy no-op
+  show    Legacy no-op
+  run     Legacy no-op
+  status  Legacy no-op
 
 Options:
       --no-color
