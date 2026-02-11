@@ -81,3 +81,48 @@ pub fn with_metadata(mut i: ValidationIssue, metadata: serde_json::Value) -> Val
     i.metadata = Some(metadata);
     i
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constructors_set_expected_fields() {
+        let err = error("spec.md", "missing requirement");
+        let warn = warning("spec.md", "brief purpose");
+        let info_issue = info("spec.md", "looks good");
+
+        assert_eq!(err.level, LEVEL_ERROR);
+        assert_eq!(err.path, "spec.md");
+        assert_eq!(err.message, "missing requirement");
+        assert_eq!(err.line, None);
+        assert_eq!(err.column, None);
+        assert_eq!(err.metadata, None);
+
+        assert_eq!(warn.level, LEVEL_WARNING);
+        assert_eq!(info_issue.level, LEVEL_INFO);
+    }
+
+    #[test]
+    fn location_helpers_set_line_and_column() {
+        let base = issue(LEVEL_WARNING, "tasks.md", "task warning");
+
+        let with_line_only = with_line(base.clone(), 8);
+        assert_eq!(with_line_only.line, Some(8));
+        assert_eq!(with_line_only.column, None);
+
+        let with_both = with_loc(base, 11, 3);
+        assert_eq!(with_both.line, Some(11));
+        assert_eq!(with_both.column, Some(3));
+    }
+
+    #[test]
+    fn metadata_helper_attaches_json_context() {
+        let base = issue(LEVEL_ERROR, "config.json", "invalid value");
+        let metadata = serde_json::json!({ "expected": "string", "actual": 42 });
+
+        let enriched = with_metadata(base, metadata.clone());
+
+        assert_eq!(enriched.metadata, Some(metadata));
+    }
+}
