@@ -236,38 +236,8 @@ pub struct ExportSchemasResult {
 }
 
 /// Export all embedded schema files into a target directory.
-
 ///
-
-/// Existing destination files are not overwritten unless `force` is `true`; when `force` is
-
-/// `false`, existing files are counted as skipped and left unchanged.
-
-///
-
-/// # Returns
-
-///
-
-/// `ExportSchemasResult` with `written` files written and `skipped` files skipped due to existing destinations.
-
-///
-
-/// # Examples
-
-///
-
-/// ```
-
-/// use std::path::Path;
-
-/// // Export embedded schemas into "./out_schemas", do not overwrite existing files.
-
-/// let result = ito_core::workflow::schema_assets::export_embedded_schemas(Path::new("./out_schemas"), false).unwrap();
-
-/// assert!(result.written + result.skipped >= 0);
-
-/// ```
+/// Existing destination files are not overwritten unless `force` is `true`.
 pub fn export_embedded_schemas(
     to_dir: &Path,
     force: bool,
