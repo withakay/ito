@@ -59,38 +59,46 @@ pub fn adapters_files() -> Vec<EmbeddedFile> {
     dir_files(&ADAPTERS_DIR)
 }
 
-/// Retrieves an embedded skill file by its relative path (e.g., "brainstorming/SKILL.md").
+/// Retrieves an embedded skill file by its path within the skills assets.
 ///
-/// Returns `Some(&[u8])` with the file contents if the path exists, `None` otherwise.
+/// The `path` should be the file's path relative to the skills root (for example
+/// "brainstorming/SKILL.md").
+///
+/// # Returns
+///
+/// `Some(&[u8])` with the file contents if a file exists at `path`, `None` otherwise.
 ///
 /// # Examples
 ///
 /// ```
-/// if let Some(bytes) = get_skill_file("brainstorming/SKILL.md") {
-///     assert!(!bytes.is_empty());
+/// let contents = get_skill_file("brainstorming/SKILL.md");
+/// if let Some(bytes) = contents {
+///     let text = std::str::from_utf8(bytes).unwrap();
+///     assert!(text.contains("Skill"));
 /// }
 /// ```
 pub fn get_skill_file(path: &str) -> Option<&'static [u8]> {
     SKILLS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Fetches an embedded adapter file by its relative path within the adapters assets.
+/// Retrieves an embedded adapter file by its relative path within the adapters assets.
+///
+/// Returns `Some(&[u8])` with the file contents if the path exists, `None` otherwise.
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
 /// let bytes = get_adapter_file("claude/session-start.sh").expect("adapter exists");
 /// assert!(!bytes.is_empty());
 /// ```
-///
-/// Returns `Some(&[u8])` with the file contents if the path exists in the adapters assets, `None` otherwise.
 pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
     ADAPTERS_DIR.get_file(path).map(|f| f.contents())
 }
 
 /// Lists embedded shared command files.
 ///
-/// Returns a vector of `EmbeddedFile` entries for all files embedded under the commands assets directory.
+/// Returns a vector of `EmbeddedFile` entries for every file embedded under the commands asset directory,
+/// each with a `relative_path` (path relative to the commands root) and `contents`.
 ///
 /// # Examples
 ///
@@ -117,9 +125,9 @@ pub fn schema_files() -> Vec<EmbeddedFile> {
     dir_files(&SCHEMAS_DIR)
 }
 
-/// Get the embedded schema file contents for a path relative to the schemas root.
+/// Returns the contents of an embedded schema file identified by its path relative to the schemas root.
 ///
-/// The `path` should be specified relative to the embedded schemas directory, for example `"spec-driven/schema.yaml"`.
+/// The `path` is relative to the embedded schemas directory, for example `"spec-driven/schema.yaml"`.
 ///
 /// # Returns
 ///
@@ -127,7 +135,7 @@ pub fn schema_files() -> Vec<EmbeddedFile> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
 /// let bytes = get_schema_file("spec-driven/schema.yaml").expect("schema should exist");
 /// let text = std::str::from_utf8(bytes).unwrap();
 /// assert!(text.contains("schema"));
@@ -138,17 +146,13 @@ pub fn get_schema_file(path: &str) -> Option<&'static [u8]> {
 
 /// Fetches the contents of an embedded command file by its path relative to the commands asset root.
 ///
-/// # Arguments
-///
-/// * `path` - Relative path under the embedded commands directory (for example `"ito-apply.md"`).
-///
 /// # Returns
 ///
 /// `Some(&[u8])` with the file contents if a file at `path` exists, `None` otherwise.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// let contents = get_command_file("ito-apply.md");
 /// if let Some(bytes) = contents {
 ///     let s = std::str::from_utf8(bytes).unwrap();
