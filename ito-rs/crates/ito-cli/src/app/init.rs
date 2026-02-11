@@ -8,6 +8,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ConfigContext;
 use ito_config::ito_dir;
+use ito_config::load_cascading_project_config;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -159,7 +160,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let (worktree_result, worktree_project_config_path, should_persist_worktree) =
         resolve_worktree_config(ctx, target_path, is_interactive)?;
-    let worktree_ctx = worktree_template_context(&worktree_result);
+    let worktree_ctx = worktree_template_context(&worktree_result, target_path, ctx);
 
     let opts = InitOptions::new(tools, force, update);
     install_default_templates(
@@ -292,16 +293,78 @@ fn resolve_worktree_config(
 /// Maps the wizard's raw string fields into the context struct that templates
 /// consume. Falls back to the disabled default when the wizard result indicates
 /// worktrees are not enabled.
-fn worktree_template_context(result: &WorktreeWizardResult) -> WorktreeTemplateContext {
+fn worktree_template_context(
+    result: &WorktreeWizardResult,
+    target_path: &std::path::Path,
+    ctx: &ConfigContext,
+) -> WorktreeTemplateContext {
     if !result.enabled {
         return WorktreeTemplateContext::default();
     }
 
+    let defaults = load_worktree_template_defaults(target_path, ctx);
+
     WorktreeTemplateContext {
         enabled: true,
-        strategy: result.strategy.clone().unwrap_or_default(),
-        layout_dir_name: "ito-worktrees".to_string(),
-        integration_mode: result.integration_mode.clone().unwrap_or_default(),
-        default_branch: "main".to_string(),
+        strategy: result.strategy.clone().unwrap_or(defaults.strategy),
+        layout_dir_name: defaults.layout_dir_name,
+        integration_mode: result
+            .integration_mode
+            .clone()
+            .unwrap_or(defaults.integration_mode),
+        default_branch: defaults.default_branch,
     }
+}
+
+#[derive(Debug, Clone)]
+struct WorktreeTemplateDefaults {
+    strategy: String,
+    layout_dir_name: String,
+    integration_mode: String,
+    default_branch: String,
+}
+
+fn load_worktree_template_defaults(
+    target_path: &std::path::Path,
+    ctx: &ConfigContext,
+) -> WorktreeTemplateDefaults {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let merged = load_cascading_project_config(target_path, &ito_path, ctx).merged;
+
+    let mut defaults = WorktreeTemplateDefaults {
+        strategy: "checkout_subdir".to_string(),
+        layout_dir_name: "ito-worktrees".to_string(),
+        integration_mode: "commit_pr".to_string(),
+        default_branch: "main".to_string(),
+    };
+
+    if let Some(wt) = merged.get("worktrees") {
+        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.strategy = v.to_string();
+        }
+
+        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.default_branch = v.to_string();
+        }
+
+        if let Some(layout) = wt.get("layout")
+            && let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.layout_dir_name = v.to_string();
+        }
+
+        if let Some(apply) = wt.get("apply")
+            && let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
+            && !v.is_empty()
+        {
+            defaults.integration_mode = v.to_string();
+        }
+    }
+
+    defaults
 }

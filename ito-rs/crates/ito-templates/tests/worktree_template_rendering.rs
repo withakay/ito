@@ -102,10 +102,9 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 fn agents_md_checkout_subdir() {
     let text = render_text(agents_md_bytes(), &checkout_subdir_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("## Worktree Workflow"));
+    assert!(text.contains("**Strategy:** `checkout_subdir`"));
+    assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_subdir");
 }
@@ -114,9 +113,10 @@ fn agents_md_checkout_subdir() {
 fn agents_md_checkout_siblings() {
     let text = render_text(agents_md_bytes(), &checkout_siblings_ctx());
 
+    assert!(text.contains("**Strategy:** `checkout_siblings`"));
+    assert!(text.contains("../<project-name>-wt/<change-name>/"));
     assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
+        text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
     );
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_siblings");
@@ -126,10 +126,9 @@ fn agents_md_checkout_siblings() {
 fn agents_md_bare_control_siblings() {
     let text = render_text(agents_md_bytes(), &bare_control_siblings_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("**Strategy:** `bare_control_siblings`"));
+    assert!(text.contains(".bare/"));
+    assert!(text.contains("ito-worktrees/"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
 }
@@ -138,10 +137,8 @@ fn agents_md_bare_control_siblings() {
 fn agents_md_disabled() {
     let text = render_text(agents_md_bytes(), &disabled_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("Worktrees are not configured for this project."));
+    assert!(text.contains("Do NOT create git worktrees by default."));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_disabled");
 }
@@ -154,10 +151,8 @@ fn agents_md_disabled() {
 fn skill_checkout_subdir() {
     let text = render_text(skill_md_bytes(), &checkout_subdir_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("**Configured strategy:** `checkout_subdir`"));
+    assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_subdir");
 }
@@ -166,9 +161,10 @@ fn skill_checkout_subdir() {
 fn skill_checkout_siblings() {
     let text = render_text(skill_md_bytes(), &checkout_siblings_ctx());
 
+    assert!(text.contains("**Configured strategy:** `checkout_siblings`"));
+    assert!(text.contains("../<project-name>-wt/<change-name>/"));
     assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
+        text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
     );
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_siblings");
@@ -178,10 +174,9 @@ fn skill_checkout_siblings() {
 fn skill_bare_control_siblings() {
     let text = render_text(skill_md_bytes(), &bare_control_siblings_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
+    assert!(text.contains("<project>/"));
+    assert!(text.contains("ito-worktrees/"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
 }
@@ -190,10 +185,8 @@ fn skill_bare_control_siblings() {
 fn skill_disabled() {
     let text = render_text(skill_md_bytes(), &disabled_ctx());
 
-    assert!(
-        text.contains("ito agent instruction worktrees"),
-        "should delegate worktree guidance to CLI"
-    );
+    assert!(text.contains("Worktrees are not configured for this project."));
+    assert!(text.contains("Work in the current checkout."));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_disabled");
 }

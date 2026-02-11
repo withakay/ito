@@ -101,8 +101,8 @@ fn update_renders_agents_md_without_jinja2_syntax() {
         "AGENTS.md should not contain raw Jinja2 block syntax after rendering"
     );
     assert!(
-        content.contains("ito agent instruction worktrees"),
-        "AGENTS.md should delegate worktree guidance to the CLI"
+        content.contains("Worktrees are not configured for this project."),
+        "AGENTS.md should render explicit disabled-state worktree guidance"
     );
 }
 
