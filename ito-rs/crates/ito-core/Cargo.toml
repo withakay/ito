@@ -14,10 +14,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 rusqlite = { workspace = true }
-uuid = { workspace = true }
 walkdir = { workspace = true }
-pulldown-cmark = { workspace = true }
-schemars = { workspace = true }
 regex = { workspace = true }
 tracing = { workspace = true }
 ito-common = { workspace = true }
@@ -28,5 +25,4 @@ miette = { workspace = true }
 
 [dev-dependencies]
 filetime = { workspace = true }
-miette = { workspace = true }
 tempfile = { workspace = true }
