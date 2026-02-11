@@ -39,6 +39,59 @@ pub fn count_tasks(wf: &WorkflowDefinition) -> usize {
     wf.waves.iter().map(|w| w.tasks.len()).sum()
 }
 
-// Workflow templates (research, execute, review) and I/O functions
-// (init_workflow_structure, list_workflows, load_workflow) live in
-// `ito_core::workflow_templates`.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn path_helpers_build_expected_locations() {
+        let ito_path = Path::new("/tmp/project/.ito");
+        assert_eq!(
+            workflows_dir(ito_path),
+            Path::new("/tmp/project/.ito/workflows")
+        );
+        assert_eq!(
+            workflow_state_dir(ito_path),
+            Path::new("/tmp/project/.ito/workflows/.state")
+        );
+        assert_eq!(
+            commands_dir(ito_path),
+            Path::new("/tmp/project/.ito/commands")
+        );
+        assert_eq!(
+            workflow_file_path(ito_path, "research"),
+            Path::new("/tmp/project/.ito/workflows/research.yaml")
+        );
+    }
+
+    #[test]
+    fn parse_and_count_tasks_from_yaml() {
+        let yaml = r#"
+version: "1"
+id: research
+name: Research Workflow
+waves:
+  - id: discover
+    name: Discover
+    tasks:
+      - id: t1
+        name: Read code
+        agent: execution
+        prompt: Read repository structure
+      - id: t2
+        name: Gather context
+        agent: execution
+        prompt: Gather design context
+"#;
+
+        let wf = parse_workflow(yaml).expect("workflow should parse");
+        assert_eq!(count_tasks(&wf), 2);
+    }
+
+    #[test]
+    fn parse_workflow_returns_error_for_invalid_yaml() {
+        let err = parse_workflow("not: [valid").expect_err("invalid yaml should fail");
+        assert!(!err.trim().is_empty());
+    }
+}

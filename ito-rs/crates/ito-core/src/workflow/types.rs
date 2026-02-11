@@ -313,3 +313,16 @@ pub struct ApplyYaml {
     /// Optional instruction text displayed during apply.
     pub instruction: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SchemaSource;
+
+    #[test]
+    fn schema_source_as_str_returns_expected_labels() {
+        assert_eq!(SchemaSource::Project.as_str(), "project");
+        assert_eq!(SchemaSource::User.as_str(), "user");
+        assert_eq!(SchemaSource::Embedded.as_str(), "embedded");
+        assert_eq!(SchemaSource::Package.as_str(), "package");
+    }
+}
