@@ -1,3 +1,5 @@
+//! Identifier parsing and lightweight ID heuristics.
+
 mod change_id;
 mod error;
 mod module_id;
@@ -13,20 +15,47 @@ pub use spec_id::{ParsedSpecId, SpecId};
 
 /// Quick heuristic used by CLI prompts to detect a likely change id.
 pub fn looks_like_change_id(input: &str) -> bool {
-    input
-        .trim()
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .count()
-        > 0
-        && input.contains('-')
-        && input.contains('_')
+    let input = input.trim();
+    if input.is_empty() {
+        return false;
+    }
+
+    let mut digit_prefix_len = 0usize;
+    let mut has_hyphen = false;
+    let mut has_underscore = false;
+
+    for ch in input.chars() {
+        if ch.is_ascii_digit() && digit_prefix_len == 0 {
+            digit_prefix_len = 1;
+            continue;
+        }
+
+        if ch.is_ascii_digit() && digit_prefix_len > 0 {
+            digit_prefix_len += 1;
+            continue;
+        }
+
+        if digit_prefix_len == 0 {
+            break;
+        }
+
+        match ch {
+            '-' => has_hyphen = true,
+            '_' => has_underscore = true,
+            _ => {}
+        }
+    }
+
+    digit_prefix_len > 0 && has_hyphen && has_underscore
 }
 
 /// Quick heuristic used by CLI prompts to detect a likely module id.
 pub fn looks_like_module_id(input: &str) -> bool {
-    let t = input.trim();
-    !t.is_empty() && t.chars().next().is_some_and(|c| c.is_ascii_digit())
+    let input = input.trim();
+    let Some(first) = input.chars().next() else {
+        return false;
+    };
+    first.is_ascii_digit()
 }
 
 #[cfg(test)]
