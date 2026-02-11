@@ -1,8 +1,19 @@
+//! Relational validation for task and wave dependencies.
+//!
+//! Validates invariants like:
+//! - No dependency cycles (tasks or waves).
+//! - Dependencies must exist.
+//! - Tasks cannot depend on tasks in future waves.
+//! - Tasks cannot depend on shelved tasks (unless shelved themselves).
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::cycle::find_cycle_path;
 use super::{DiagnosticLevel, TaskDiagnostic, TaskItem, WaveInfo};
 
+/// Validate relational invariants using an in-memory SQLite database.
+///
+/// Returns a list of diagnostics for any violations found.
 pub(super) fn validate_relational(tasks: &[TaskItem], waves: &[WaveInfo]) -> Vec<TaskDiagnostic> {
     let mut diagnostics: Vec<TaskDiagnostic> = Vec::new();
 
