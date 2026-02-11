@@ -276,6 +276,12 @@ fn write_one(
         && let Some(block) = ito_templates::extract_managed_block(text)
     {
         if target.exists() {
+            if mode == InstallMode::Init && opts.force {
+                ito_common::io::write_std(target, rendered_bytes)
+                    .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+                return Ok(());
+            }
+
             if mode == InstallMode::Init && !opts.force && !opts.update {
                 // If the file exists but doesn't contain Ito markers, mimic TS init behavior:
                 // refuse to overwrite without --force or --update.

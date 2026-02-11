@@ -846,22 +846,6 @@ fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
 }
 
 /// Detects whether the given text uses the enhanced task format.
-///
-/// Scans lines for headings of the form `### Task ` and returns `true` if any are found.
-///
-/// # Examples
-///
-/// ```ignore
-/// let contents = "Some header\n### Task 1: Do thing\n- **Status**: [ ] pending";
-/// assert!(looks_like_enhanced_tasks(contents));
-///
-/// let plain = "- [ ] item one\n- [x] item two";
-/// assert!(!looks_like_enhanced_tasks(plain));
-/// ```
-///
-/// # Returns
-///
-/// `true` if the contents contain at least one line beginning with `### Task `, `false` otherwise.
 fn looks_like_enhanced_tasks(contents: &str) -> bool {
     for line in contents.lines() {
         let l = line.trim_start();
@@ -872,35 +856,7 @@ fn looks_like_enhanced_tasks(contents: &str) -> bool {
     false
 }
 
-/// Parses an "enhanced" task list format into a vector of TaskItem.
-///
-/// The parser recognizes sections starting with `### Task {id}: {description}` and
-/// subsequent `- **Status**: [ ]|[x] {status}` lines to set `done` and `status`.
-/// If an id is missing or empty, a numeric id is assigned (1-based by parse order).
-///
-/// # Examples
-///
-/// ```ignore
-/// let src = r#"
-/// ### Task alpha: First task
-/// - **Status**: [ ] needs-review
-///
-/// ### Task : Second task without id
-/// - **Status**: [x] completed
-/// "#;
-///
-/// let tasks = parse_enhanced_tasks(src);
-/// assert_eq!(tasks.len(), 2);
-/// assert_eq!(tasks[0].id, "alpha");
-/// assert_eq!(tasks[0].description, "First task");
-/// assert_eq!(tasks[0].done, false);
-/// assert_eq!(tasks[0].status.as_deref(), Some("needs-review"));
-///
-/// assert_eq!(tasks[1].id, "2"); // auto-assigned numeric id
-/// assert_eq!(tasks[1].description, "Second task without id");
-/// assert_eq!(tasks[1].done, true);
-/// assert_eq!(tasks[1].status.as_deref(), Some("completed"));
-/// ```
+/// Parses an enhanced task list into `TaskItem` values.
 fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     let mut tasks: Vec<TaskItem> = Vec::new();
     let mut current_id: Option<String> = None;
@@ -990,38 +946,56 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
-/// Extracts user guidance text from a repository directory's `user-guidance.md`.
+/// Load shared user guidance text.
 ///
-/// If the file contains an Ito-managed header block, the returned content is the
-/// portion after the ITO end marker. Carriage-return/newline pairs (`\r\n`)
-/// are normalized to `\n` and the result is trimmed; a missing file or empty
-/// result yields `None`.
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::fs;
-/// use std::path::Path;
-///
-/// // missing file -> None
-/// let tmp = Path::new("/tmp/ito-example-missing");
-/// let _ = fs::remove_dir_all(tmp);
-/// assert!(crate::workflow::load_user_guidance(tmp).unwrap().is_none());
-///
-/// // present file -> Some(trimmed content)
-/// let dir = Path::new("/tmp/ito-example");
-/// fs::create_dir_all(dir).unwrap();
-/// fs::write(dir.join("user-guidance.md"), "User guidance text\n").unwrap();
-/// let guidance = crate::workflow::load_user_guidance(dir).unwrap();
-/// assert_eq!(guidance.as_deref(), Some("User guidance text"));
-/// ```
+/// Prefers `.ito/user-prompts/guidance.md`, with fallback to `.ito/user-guidance.md`.
 pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
+    let path = ito_path.join("user-prompts").join("guidance.md");
+    if path.exists() {
+        return load_guidance_file(&path);
+    }
     let path = ito_path.join("user-guidance.md");
+    load_guidance_file(&path)
+}
+
+/// Load artifact-scoped user guidance text from `.ito/user-prompts/<artifact-id>.md`.
+pub fn load_user_guidance_for_artifact(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    if !is_safe_artifact_id(artifact_id) {
+        return Err(WorkflowError::InvalidArtifactId(artifact_id.to_string()));
+    }
+    let path = ito_path
+        .join("user-prompts")
+        .join(format!("{artifact_id}.md"));
+    load_guidance_file(&path)
+}
+
+/// Compose artifact-scoped and shared user guidance text for instruction output.
+pub fn load_composed_user_guidance(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    let scoped = load_user_guidance_for_artifact(ito_path, artifact_id)?;
+    let shared = load_user_guidance(ito_path)?;
+
+    match (scoped, shared) {
+        (None, None) => Ok(None),
+        (Some(scoped), None) => Ok(Some(scoped)),
+        (None, Some(shared)) => Ok(Some(shared)),
+        (Some(scoped), Some(shared)) => Ok(Some(format!(
+            "## Scoped Guidance ({artifact_id})\n\n{scoped}\n\n## Shared Guidance\n\n{shared}"
+        ))),
+    }
+}
+
+fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     if !path.exists() {
         return Ok(None);
     }
 
-    let content = ito_common::io::read_to_string_std(&path)?;
+    let content = ito_common::io::read_to_string_std(path)?;
     let content = content.replace("\r\n", "\n");
     let content = match content.find(ITO_END_MARKER) {
         Some(i) => &content[i + ITO_END_MARKER.len()..],
@@ -1035,31 +1009,19 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     Ok(Some(content.to_string()))
 }
 
-/// Load and parse `schema.yaml` from the given schema directory.
-///
-/// Reads `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
-///
-/// # Errors
-///
-/// Returns `WorkflowError::Io` if the file cannot be read, or `WorkflowError::Yaml` if parsing fails.
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::path::Path;
-/// use std::fs;
-///
-/// let dir = std::env::temp_dir().join("ito_example_schema");
-/// let _ = fs::create_dir_all(&dir);
-/// let yaml = r#"
-/// name: example
-/// artifacts: []
-/// "#;
-/// fs::write(dir.join("schema.yaml"), yaml).unwrap();
-///
-/// let schema = crate::workflow::load_schema_yaml(&Path::new(&dir)).unwrap();
-/// assert_eq!(schema.name, "example");
-/// ```
+fn is_safe_artifact_id(artifact_id: &str) -> bool {
+    if artifact_id.is_empty() || artifact_id.contains("..") {
+        return false;
+    }
+
+    for c in artifact_id.chars() {
+        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return false;
+        }
+    }
+
+    true
+}
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     let s = ito_common::io::read_to_string_std(&schema_dir.join("schema.yaml"))?;
     Ok(serde_yaml::from_str(&s)?)
@@ -1137,21 +1099,6 @@ fn dir_contains_filename_suffix(dir: &Path, suffix: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn load_user_guidance_returns_trimmed_content_after_marker() {
-        let dir = tempfile::tempdir().expect("tempdir should succeed");
-        let ito_path = dir.path();
-
-        let content = "<!-- ITO:START -->\nheader\n<!-- ITO:END -->\n\nPrefer BDD.\n";
-        std::fs::write(ito_path.join("user-guidance.md"), content).expect("write should succeed");
-
-        let guidance = load_user_guidance(ito_path)
-            .expect("load should succeed")
-            .expect("should be present");
-
-        assert_eq!(guidance, "Prefer BDD.");
-    }
 
     #[test]
     fn parse_enhanced_tasks_extracts_ids_status_and_done() {

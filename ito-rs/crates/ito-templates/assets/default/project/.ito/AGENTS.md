@@ -7,7 +7,7 @@ Instructions for AI coding assistants using Ito for spec-driven development.
 Some project files are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten (especially with `--force`).
 
 - Default guidance lives in: `.ito/AGENTS.md`
-- Project-specific guidance belongs in: `.ito/user-guidance.md`, `AGENTS.md`, and/or `CLAUDE.md`
+- Project-specific guidance belongs in: `.ito/user-prompts/guidance.md`, `.ito/user-prompts/<artifact>.md`, `AGENTS.md`, and/or `CLAUDE.md`
 - Tool prompt wiring lives in: `.opencode/`, `.github/`, `.codex/` (and `.claude/` if present)
 
 ## TL;DR Quick Checklist
