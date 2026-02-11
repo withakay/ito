@@ -6,6 +6,17 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Computes the repository's top-level schemas directory.
+///
+/// Returns the path to the repository's `schemas` directory (the repository root
+/// resolved from the crate manifest, joined with `schemas`).
+///
+/// # Examples
+///
+/// ```
+/// let dir = package_schemas_dir();
+/// assert!(dir.ends_with("schemas"));
+/// ```
 pub(super) fn package_schemas_dir() -> PathBuf {
     // In this repo, schemas live at the repository root.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -16,6 +27,22 @@ pub(super) fn package_schemas_dir() -> PathBuf {
     root.join("schemas")
 }
 
+/// Compute the project-specific schemas directory when a project directory is configured.
+///
+/// If `ctx.project_dir` is present, returns `Some(path)` where `path` is `project_dir/.ito/templates/schemas`;
+/// returns `None` when no project directory is set.
+///
+/// # Examples
+///
+/// ```
+/// # use std::path::PathBuf;
+/// # use crate::workflow::schema_assets::project_schemas_dir;
+/// # use crate::ConfigContext;
+/// // Construct a ConfigContext with a project_dir for the example.
+/// let ctx = ConfigContext { project_dir: Some(PathBuf::from("/repo")), ..Default::default() };
+/// let dir = project_schemas_dir(&ctx);
+/// assert_eq!(dir.unwrap(), PathBuf::from("/repo/.ito/templates/schemas"));
+/// ```
 pub(super) fn project_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     Some(
         ctx.project_dir
@@ -26,6 +53,22 @@ pub(super) fn project_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     )
 }
 
+/// Resolve the per-user schemas directory following XDG conventions.
+///
+/// If the `XDG_DATA_HOME` environment variable is set and not empty, its value is used
+/// as the data home; otherwise the function falls back to `ctx.home_dir` joined with
+/// `.local/share`. When a data home can be determined, returns that path appended with
+/// `ito/schemas`. Returns `None` if neither `XDG_DATA_HOME` nor `ctx.home_dir` are available.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// // Construct a minimal ConfigContext with a home_dir for the example.
+/// let ctx = ConfigContext { home_dir: Some(PathBuf::from("/home/alice")), ..Default::default() };
+/// let dir = user_schemas_dir(&ctx).unwrap();
+/// assert!(dir.ends_with("ito/schemas"));
+/// ```
 pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     let data_home = match env::var("XDG_DATA_HOME") {
         Ok(v) if !v.trim().is_empty() => Some(PathBuf::from(v)),
@@ -37,6 +80,18 @@ pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     Some(data_home.join("ito").join("schemas"))
 }
 
+/// List the names of embedded schemas available in the binary.
+///
+/// The result is deduplicated and returned in sorted order; each name is the
+/// top-level path segment for an embedded schema (the directory containing its files).
+///
+/// # Examples
+///
+/// ```
+/// let names = embedded_schema_names();
+/// // names is a sorted list of non-empty schema identifiers
+/// assert!(names.iter().all(|n| !n.is_empty()));
+/// ```
 pub(super) fn embedded_schema_names() -> Vec<String> {
     let mut names: BTreeSet<String> = BTreeSet::new();
     for file in schema_files() {
@@ -51,6 +106,23 @@ pub(super) fn embedded_schema_names() -> Vec<String> {
     names.into_iter().collect()
 }
 
+/// Load an embedded schema's `schema.yaml` by schema name.
+///
+/// Attempts to read `{name}/schema.yaml` from the embedded assets and deserialize it into
+/// `SchemaYaml`.
+///
+/// Returns `Ok(Some(schema))` when the file exists and parses successfully, `Ok(None)` when the
+/// embedded file is not present, and `Err(WorkflowError)` if the embedded bytes are not valid UTF-8
+/// or if YAML deserialization (or other I/O) fails.
+///
+/// # Examples
+///
+/// ```no_run
+/// let res = load_embedded_schema_yaml("example-schema").unwrap();
+/// if let Some(schema) = res {
+///     // use `schema`
+/// }
+/// ```
 pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>, WorkflowError> {
     let path = format!("{name}/schema.yaml");
     let Some(bytes) = get_schema_file(&path) else {
@@ -67,6 +139,24 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
     Ok(Some(schema))
 }
 
+/// Read the content of a schema template for a resolved schema.
+///
+/// This will load the template from the embedded asset bundle when the
+/// resolved schema's source is `SchemaSource::Embedded`, or read it from the
+/// filesystem under `<schema_dir>/templates/<template>` otherwise.
+///
+/// # Returns
+///
+/// The template contents as a `String`, or a `WorkflowError` if the embedded
+/// template is missing, the embedded bytes are not valid UTF-8, or a filesystem
+/// I/O error occurs when reading a non-embedded template.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Read a template (example usage; `resolved` is a ResolvedSchema from your context)
+/// // let content = read_schema_template(&resolved, "main.tpl")?;
+/// ```
 pub(super) fn read_schema_template(
     resolved: &ResolvedSchema,
     template: &str,
@@ -101,7 +191,39 @@ pub struct ExportSchemasResult {
     pub skipped: usize,
 }
 
-/// Export embedded schemas to a filesystem directory.
+/// Export all embedded schema files into a target directory.
+
+///
+
+/// Existing destination files are not overwritten unless `force` is `true`; when `force` is
+
+/// `false`, existing files are counted as skipped and left unchanged.
+
+///
+
+/// # Returns
+
+///
+
+/// `ExportSchemasResult` with `written` files written and `skipped` files skipped due to existing destinations.
+
+///
+
+/// # Examples
+
+///
+
+/// ```
+
+/// use std::path::Path;
+
+/// // Export embedded schemas into "./out_schemas", do not overwrite existing files.
+
+/// let result = ito_core::workflow::schema_assets::export_embedded_schemas(Path::new("./out_schemas"), false).unwrap();
+
+/// assert!(result.written + result.skipped >= 0);
+
+/// ```
 pub fn export_embedded_schemas(
     to_dir: &Path,
     force: bool,
