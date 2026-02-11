@@ -116,6 +116,28 @@ Merge semantics:
 
 Note: `projectPath` (the Ito working directory name) is resolved from repo-level config and global config. It does not consult `<ito-dir>/config.json` to avoid a resolution cycle.
 
+### JSON schema metadata (`$schema`)
+
+Generated project config includes a `$schema` field for editor autocomplete and validation.
+
+- Canonical schema artifact path in this repo: `schemas/ito-config.schema.json`
+- Generated config reference format:
+  - `https://raw.githubusercontent.com/withakay/ito/v<version>/schemas/ito-config.schema.json`
+- Runtime behavior:
+  - Ito ignores the `$schema` field when loading config
+
+Regenerate/update the committed schema artifact:
+
+```bash
+make config-schema
+```
+
+Verify the committed schema is current (used by CI):
+
+```bash
+make config-schema-check
+```
+
 Related commands (planned):
 
 ```bash

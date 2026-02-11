@@ -208,6 +208,17 @@ ito agent-config get tools.opencode.default_model
 ito agent-config set agents.review.model_preference powerful
 ```
 
+Generated `.ito/config.json` includes a `$schema` reference to the versioned schema artifact in this repository:
+
+- `https://raw.githubusercontent.com/withakay/ito/v<version>/schemas/ito-config.schema.json`
+
+Keep the committed schema artifact up-to-date with:
+
+```bash
+make config-schema
+make config-schema-check
+```
+
 ## Slash Commands (Where Supported)
 
 Ito installs slash commands for tools that support them.
