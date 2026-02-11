@@ -28,13 +28,14 @@ pub fn get_ito_dir_name_fs<F: FileSystem>(
     // 2. Repo-level .ito.json projectPath
     // 3. Global config (~/.config/ito/config.json) projectPath
     // 4. Default: '.ito'
-    if let Some(project_path) = load_repo_project_path_override_fs(fs, project_root) {
+    if let Some(project_path) = load_repo_project_path_override_fs(fs, project_root)
+        && let Some(project_path) = sanitize_ito_dir_name(&project_path)
+    {
         return project_path;
     }
 
-    if let Some(project_path) = load_global_config_fs(fs, ctx)
-        .project_path
-        .filter(|s| !s.trim().is_empty())
+    if let Some(project_path) = load_global_config_fs(fs, ctx).project_path
+        && let Some(project_path) = sanitize_ito_dir_name(&project_path)
     {
         return project_path;
     }
@@ -108,6 +109,27 @@ fn lexical_normalize(path: &Path) -> PathBuf {
     out
 }
 
+fn sanitize_ito_dir_name(input: &str) -> Option<String> {
+    let input = input.trim();
+    if input.is_empty() {
+        return None;
+    }
+
+    if input.len() > 128 {
+        return None;
+    }
+
+    if input.contains('/') || input.contains('\\') || input.contains("..") {
+        return None;
+    }
+
+    if Path::new(input).is_absolute() {
+        return None;
+    }
+
+    Some(input.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +198,27 @@ mod tests {
 
         let ito_path = get_ito_path(&p, &ctx);
         assert!(ito_path.ends_with("b/.ito"));
+    }
+
+    #[test]
+    fn invalid_repo_project_path_falls_back_to_default() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(
+            td.path().join("ito.json"),
+            "{\"projectPath\":\"../escape\"}",
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        assert_eq!(get_ito_dir_name(td.path(), &ctx), ".ito");
+    }
+
+    #[test]
+    fn sanitize_rejects_path_separators_and_overlong_values() {
+        assert_eq!(sanitize_ito_dir_name(".ito"), Some(".ito".to_string()));
+        assert_eq!(sanitize_ito_dir_name("../x"), None);
+        assert_eq!(sanitize_ito_dir_name("a/b"), None);
+        assert_eq!(sanitize_ito_dir_name("a\\b"), None);
+        assert_eq!(sanitize_ito_dir_name(&"a".repeat(129)), None);
     }
 }
