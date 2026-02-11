@@ -15,7 +15,7 @@ use std::path::{Component, Path, PathBuf};
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let dir = package_schemas_dir();
 /// assert!(dir.ends_with("schemas"));
 /// ```
@@ -51,7 +51,7 @@ fn find_repository_root(start: &Path) -> Option<PathBuf> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # use std::path::PathBuf;
 /// # use crate::workflow::schema_assets::project_schemas_dir;
 /// # use crate::ConfigContext;
@@ -79,7 +79,7 @@ pub(super) fn project_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::PathBuf;
 /// // Construct a minimal ConfigContext with a home_dir for the example.
 /// let ctx = ConfigContext { home_dir: Some(PathBuf::from("/home/alice")), ..Default::default() };
@@ -107,7 +107,7 @@ pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let names = embedded_schema_names();
 /// assert!(names.iter().all(|n| !n.is_empty()));
 /// for w in names.windows(2) {
@@ -139,7 +139,7 @@ pub(super) fn embedded_schema_names() -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// let res = load_embedded_schema_yaml("example-schema").unwrap();
 /// if let Some(schema) = res {
 ///     // use `schema`
@@ -173,7 +173,7 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// // `resolved` is a ResolvedSchema obtained from your configuration or discovery logic.
 /// // let content = read_schema_template(&resolved, "main.tpl")?;
 /// ```

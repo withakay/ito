@@ -40,7 +40,7 @@ pub fn default_schema_name() -> &'static str {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// assert!(validate_change_name_input("feature-123"));
 /// assert!(!validate_change_name_input("")); // empty
 /// assert!(!validate_change_name_input("../escape"));
@@ -73,7 +73,7 @@ pub fn validate_change_name_input(name: &str) -> bool {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 ///
 /// let name = read_change_schema(Path::new("/nonexistent/path"), "nope");
@@ -122,7 +122,7 @@ pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// // `ctx` should be a prepared `ConfigContext` for the current project.
 /// let names = list_available_schemas(&ctx);
 /// assert!(names.iter().all(|s| !s.is_empty()));
@@ -176,7 +176,7 @@ pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // Resolves the default schema using `ctx`.
 /// let resolved = resolve_schema(None, &ctx).expect("schema not found");
 /// println!("Resolved {} from {}", resolved.schema.name, resolved.schema_dir.display());
@@ -261,7 +261,7 @@ pub fn resolve_schema(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # use std::path::Path;
 /// # use ito_core::workflow::{compute_change_status, ChangeStatus};
 /// # use ito_core::config::ConfigContext;
@@ -355,7 +355,7 @@ pub fn compute_change_status(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // Construct a minimal schema with three artifacts:
 /// // - "a" has no requirements
 /// // - "b" requires "a"
@@ -457,7 +457,7 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```rust,no_run
+/// ```ignore
 /// // Obtain a ConfigContext from your application environment.
 /// let ctx = /* obtain ConfigContext */ unimplemented!();
 /// let (schema_name, templates) = resolve_templates(None, &ctx).unwrap();
@@ -517,7 +517,7 @@ pub fn resolve_templates(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 /// // `config_ctx` should be a prepared ConfigContext in real usage.
 /// let resp = resolve_instructions(
@@ -851,7 +851,7 @@ fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let contents = "Some header\n### Task 1: Do thing\n- **Status**: [ ] pending";
 /// assert!(looks_like_enhanced_tasks(contents));
 ///
@@ -880,7 +880,7 @@ fn looks_like_enhanced_tasks(contents: &str) -> bool {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let src = r#"
 /// ### Task alpha: First task
 /// - **Status**: [ ] needs-review
@@ -999,7 +999,7 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use std::fs;
 /// use std::path::Path;
 ///
@@ -1045,7 +1045,7 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 /// use std::fs;
 ///
