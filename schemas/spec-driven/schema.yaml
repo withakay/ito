@@ -9,6 +9,10 @@ artifacts:
     instruction: |
       Create the proposal document that establishes WHY this change is needed.
 
+      Start with focused research framing before writing: identify current behavior,
+      constraints, relevant existing specs, and major trade-offs. Capture only the
+      findings needed to produce a high-quality proposal.
+
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
@@ -147,7 +151,9 @@ apply:
   requires: [tasks]
   tracks: tasks.md
   instruction: |
-    Read context files and work through pending tasks.
+    Read context files and work through pending tasks as a staged execution flow.
+    Treat each wave as a checkpointed implementation stage: implement, verify,
+    and update task status before moving forward.
 
     Testing Policy:
     - Follow a disciplined RED/GREEN/REFACTOR loop while implementing each task.
@@ -159,5 +165,10 @@ apply:
     - `ito tasks start <change-id> <task-id>`
     - `ito tasks complete <change-id> <task-id>`
     - `ito tasks status <change-id>`
+
+    Include a review stage before archive:
+    - run `ito agent instruction review --change <change-id>` once implementation
+      tasks are complete and verification is green
+    - resolve review feedback before final archive preparation
 
     Pause if you hit blockers or need clarification.

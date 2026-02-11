@@ -182,19 +182,20 @@ Adversarial review is multi-perspective by default:
 
 Outputs are written into the change folder under `reviews/`.
 
-### 5) Workflow Orchestration (`ito workflow`)
+### 5) Workflow Instructions (`ito agent instruction`)
 
-Workflows are YAML files with waves, tasks, and optional checkpoints.
+Ito workflow execution is instruction- and skill-driven.
 
 ```bash
-ito workflow init
-ito workflow list
-ito workflow show research
-ito workflow run research --tool opencode -v topic="your topic"
-ito workflow status research
+ito agent instruction proposal --change <change-id>
+ito agent instruction specs --change <change-id>
+ito agent instruction tasks --change <change-id>
+ito agent instruction apply --change <change-id>
+ito agent instruction review --change <change-id>
+ito agent instruction archive --change <change-id>
 ```
 
-This generates tool-specific execution instructions (OpenCode / Claude Code / Codex) and tracks progress in `.ito/workflows/.state/`.
+Use `ito tasks` commands to track and execute task progress.
 
 ## Agent Configuration (`ito agent-config`)
 
@@ -273,7 +274,7 @@ Configure in `.ito/config.json` under `serve`:
 ## Test Plan
 
 - [ ] Run `ito init` and verify `.ito/planning/` + `.ito/research/` templates exist
-- [ ] Run `ito workflow init` and verify `.ito/workflows/*.yaml` are created
+- [ ] Run `ito agent instruction apply --change <change-id>` and verify task guidance is generated
 - [ ] Verify research and review slash commands are available in at least one supported tool
 - [ ] Run `make build` to verify the Rust CLI builds
 

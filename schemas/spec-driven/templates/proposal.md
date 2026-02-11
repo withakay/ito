@@ -2,6 +2,9 @@
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
 
+<!-- Before writing, capture the minimum research context needed: current behavior,
+     relevant existing specs, constraints, and key trade-offs. -->
+
 ## What Changes
 
 <!-- Describe what will change. Be specific about new capabilities, modifications, or removals. -->

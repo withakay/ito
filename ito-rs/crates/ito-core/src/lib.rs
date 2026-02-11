@@ -77,9 +77,6 @@ pub mod validate;
 /// Workflow execution and planning.
 pub mod workflow;
 
-/// Workflow template I/O: init, list, load workflow files from disk.
-pub mod workflow_templates;
-
 // Re-export domain types for CLI convenience
 pub use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 pub use ito_domain::tasks::TaskRepository as DomainTaskRepository;
