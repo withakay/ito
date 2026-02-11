@@ -13,7 +13,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/withakay/ito"
@@ -21,13 +21,13 @@ homepage = "https://github.com/withakay/ito"
 
 [workspace.dependencies]
 # Internal crates
-ito-common = { path = "ito-rs/crates/ito-common", version = "0.1.1" }
-ito-config = { path = "ito-rs/crates/ito-config", version = "0.1.1" }
-ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.1" }
-ito-domain = { path = "ito-rs/crates/ito-domain", version = "0.1.1" }
-ito-logging = { path = "ito-rs/crates/ito-logging", version = "0.1.1" }
-ito-templates = { path = "ito-rs/crates/ito-templates", version = "0.1.1" }
-ito-web = { path = "ito-rs/crates/ito-web", version = "0.1.1" }
+ito-common = { path = "ito-rs/crates/ito-common", version = "0.1.2" }
+ito-config = { path = "ito-rs/crates/ito-config", version = "0.1.2" }
+ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.2" }
+ito-domain = { path = "ito-rs/crates/ito-domain", version = "0.1.2" }
+ito-logging = { path = "ito-rs/crates/ito-logging", version = "0.1.2" }
+ito-templates = { path = "ito-rs/crates/ito-templates", version = "0.1.2" }
+ito-web = { path = "ito-rs/crates/ito-web", version = "0.1.2" }
 
 # External dependencies
 clap = { version = "4.5.23", features = ["derive"] }
