@@ -40,6 +40,12 @@ pub struct RalphState {
 
 /// Return the on-disk directory for Ralph state for `change_id`.
 pub fn ralph_state_dir(ito_path: &Path, change_id: &str) -> PathBuf {
+    if !is_safe_change_id_segment(change_id) {
+        return ito_path
+            .join(".state")
+            .join("ralph")
+            .join("invalid-change-id");
+    }
     ito_path.join(".state").join("ralph").join(change_id)
 }
 
@@ -130,4 +136,30 @@ pub fn clear_context(ito_path: &Path, change_id: &str) -> CoreResult<()> {
     ito_common::io::write_std(&p, "")
         .map_err(|e| CoreError::io(format!("writing {}", p.display()), e))?;
     Ok(())
+}
+
+fn is_safe_change_id_segment(change_id: &str) -> bool {
+    let change_id = change_id.trim();
+    if change_id.is_empty() {
+        return false;
+    }
+    if change_id.len() > 256 {
+        return false;
+    }
+    if change_id.contains('/') || change_id.contains('\\') || change_id.contains("..") {
+        return false;
+    }
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ralph_state_dir_uses_safe_fallback_for_invalid_change_ids() {
+        let ito = std::path::Path::new("/tmp/repo/.ito");
+        let path = ralph_state_dir(ito, "../escape");
+        assert!(path.ends_with(".state/ralph/invalid-change-id"));
+    }
 }
