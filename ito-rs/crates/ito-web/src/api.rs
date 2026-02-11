@@ -1,6 +1,6 @@
 //! File system API endpoints.
 
-use axum::extract::Query;
+use axum::extract::{DefaultBodyLimit, Query};
 use axum::{
     Router,
     extract::{Path, State},
@@ -9,8 +9,16 @@ use axum::{
     routing::get,
 };
 use serde::{Deserialize, Serialize};
-use std::path::{Path as StdPath, PathBuf};
+use std::path::{Component, Path as StdPath, PathBuf};
 use std::sync::Arc;
+
+const MAX_SAVE_BYTES: usize = 2_000_000;
+const MAX_READ_BYTES: u64 = 10_000_000;
+// JSON encoding can significantly exceed the decoded `content` size (escaping, \uXXXX).
+const MAX_REQUEST_BODY_BYTES: usize = MAX_SAVE_BYTES * 8;
+const MAX_REL_PATH_BYTES: usize = 1024;
+const MAX_PATH_COMPONENTS: usize = 64;
+const MAX_LIST_ENTRIES: usize = 20_000;
 
 #[derive(Clone)]
 struct AppState {
@@ -59,6 +67,8 @@ pub fn router(root: PathBuf) -> Router {
         .route("/templates/source", get(get_template_source))
         .route("/templates/render", axum::routing::post(render_template))
         .with_state(state)
+        // Avoid parsing arbitrarily large JSON bodies.
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
 }
 
 #[derive(Debug, Serialize)]
@@ -196,16 +206,20 @@ async fn list_directory(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     {
+        if entries.len() >= MAX_LIST_ENTRIES {
+            return Err((
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!("directory contains more than {MAX_LIST_ENTRIES} entries"),
+            ));
+        }
+
         let name = entry.file_name().to_string_lossy().to_string();
 
         // Skip hidden files and common unwanted directories
         if name.starts_with('.') && name != ".ito" {
             continue;
         }
-        if matches!(
-            name.as_str(),
-            "node_modules" | "target" | "__pycache__" | ".git"
-        ) {
+        if name == "node_modules" || name == "target" || name == "__pycache__" || name == ".git" {
             continue;
         }
 
@@ -251,6 +265,16 @@ async fn read_file(
 ) -> Result<Json<FileResponse>, (StatusCode, String)> {
     let full_path = safe_path(&state.root, &path)?;
 
+    let metadata = tokio::fs::metadata(&full_path)
+        .await
+        .map_err(|e| (StatusCode::NOT_FOUND, format!("Cannot read file: {e}")))?;
+    if metadata.len() > MAX_READ_BYTES {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!("file content exceeds {MAX_READ_BYTES} bytes"),
+        ));
+    }
+
     let content = tokio::fs::read_to_string(&full_path)
         .await
         .map_err(|e| (StatusCode::NOT_FOUND, format!("Cannot read file: {e}")))?;
@@ -270,6 +294,13 @@ async fn save_file(
     Path(path): Path<String>,
     Json(body): Json<SaveRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.content.len() > MAX_SAVE_BYTES {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!("file content exceeds {} bytes", MAX_SAVE_BYTES),
+        ));
+    }
+
     let full_path = safe_path(&state.root, &path)?;
 
     tokio::fs::write(&full_path, &body.content)
@@ -287,6 +318,36 @@ async fn save_file(
 /// Safely resolve a path within the root directory.
 fn safe_path(root: &StdPath, path: &str) -> Result<PathBuf, (StatusCode, String)> {
     let path = path.trim_start_matches('/');
+
+    if path.len() > MAX_REL_PATH_BYTES {
+        return Err((StatusCode::BAD_REQUEST, "path too long".to_string()));
+    }
+    if path.contains('\\') || path.contains('\0') {
+        return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
+    }
+
+    let mut components_seen = 0usize;
+    for component in StdPath::new(path).components() {
+        components_seen += 1;
+        if components_seen > MAX_PATH_COMPONENTS {
+            return Err((StatusCode::BAD_REQUEST, "path too deep".to_string()));
+        }
+
+        match component {
+            Component::Normal(_) => {}
+            Component::CurDir => {}
+            Component::ParentDir => {
+                return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
+            }
+            Component::RootDir => {
+                return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
+            }
+            Component::Prefix(_) => {
+                return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
+            }
+        }
+    }
+
     let full = root.join(path);
 
     // Ensure the path doesn't escape the root via ..
