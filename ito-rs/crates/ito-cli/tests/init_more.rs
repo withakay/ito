@@ -8,6 +8,16 @@ use ito_test_support::run_rust_candidate;
 #[cfg(unix)]
 use ito_test_support::pty::run_pty_interactive;
 
+/// Compute the release-tag string used in config schema references.
+///
+/// Uses the `ITO_WORKSPACE_VERSION` compile-time environment variable when present; otherwise falls back to the crate version from `CARGO_PKG_VERSION`. The result always begins with a leading `v` (for example, `v1.2.3`).
+///
+/// # Examples
+///
+/// ```
+/// let tag = expected_release_tag();
+/// assert!(tag.starts_with('v'));
+/// ```
 fn expected_release_tag() -> String {
     let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     let Some(version) = version.strip_prefix('v') else {
@@ -55,6 +65,18 @@ fn init_with_tools_none_installs_ito_skeleton() {
     assert!(repo.path().join(".ito/user-prompts/tasks.md").exists());
 }
 
+/// Verifies that running `ito init` writes a .ito/config.json whose `$schema` URL embeds the release tag.
+///
+/// The test runs `ito init` in a temporary repository, reads `.ito/config.json`, and asserts that the
+/// `$schema` property contains a release-tagged URL of the form
+/// `https://raw.githubusercontent.com/withakay/ito/v<version>/schemas/ito-config.schema.json`.
+///
+/// # Examples
+///
+/// ```
+/// // This test demonstrates the expected assertion: generated config.json must reference a release-tagged schema.
+/// // The actual test runs the CLI and inspects `.ito/config.json` in a temporary repository.
+/// ```
 #[test]
 fn init_writes_config_with_release_tag_schema_reference() {
     let base = fixtures::make_empty_repo();
