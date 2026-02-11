@@ -30,8 +30,11 @@ pub fn nearest_matches(input: &str, candidates: &[String], max: usize) -> Vec<St
     scored.sort_by(|a, b| a.distance.cmp(&b.distance).then(a.index.cmp(&b.index)));
 
     let mut out = Vec::new();
-    for s in scored.into_iter().take(max) {
-        out.push(s.candidate);
+    for (idx, candidate) in scored.into_iter().enumerate() {
+        if idx >= max {
+            break;
+        }
+        out.push(candidate.candidate);
     }
     out
 }
@@ -47,8 +50,9 @@ pub fn levenshtein(a: &str, b: &str) -> usize {
     for (i, row) in dp.iter_mut().enumerate() {
         row[0] = i;
     }
-    for (j, cell) in dp[0].iter_mut().enumerate() {
-        *cell = j;
+
+    for (j, value) in dp[0].iter_mut().enumerate() {
+        *value = j;
     }
 
     for i in 1..=m {
