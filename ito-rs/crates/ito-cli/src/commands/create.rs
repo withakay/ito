@@ -17,6 +17,22 @@ fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     resolve_coordination_branch_settings(&merged)
 }
 
+fn sync_coordination_if_enabled(ito_path: &Path, coord_enabled: bool, coord_branch: &str) {
+    if !coord_enabled {
+        return;
+    }
+
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    if let Err(err) = fetch_coordination_branch(project_root, coord_branch)
+        && err.kind != CoordinationGitErrorKind::RemoteMissing
+    {
+        eprintln!(
+            "Warning: failed to sync coordination branch '{}' before create: {}",
+            coord_branch, err.message
+        );
+    }
+}
+
 fn print_change_created_message(
     ito_path: &Path,
     change_id: &str,
@@ -182,17 +198,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             );
 
             let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-            if coord_enabled {
-                let project_root = ito_path.parent().unwrap_or(ito_path);
-                if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
-                    && err.kind != CoordinationGitErrorKind::RemoteMissing
-                {
-                    eprintln!(
-                        "Warning: failed to sync coordination branch '{}' before create: {}",
-                        coord_branch, err.message
-                    );
-                }
-            }
+            sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
 
             match core_create::create_change(
                 ito_path,
@@ -311,17 +317,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
 
     let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-    if coord_enabled {
-        let project_root = ito_path.parent().unwrap_or(ito_path);
-        if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
-            && err.kind != CoordinationGitErrorKind::RemoteMissing
-        {
-            eprintln!(
-                "Warning: failed to sync coordination branch '{}' before create: {}",
-                coord_branch, err.message
-            );
-        }
-    }
+    sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
 
     match core_create::create_change(
         ito_path,

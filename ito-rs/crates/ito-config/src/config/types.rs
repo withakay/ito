@@ -69,7 +69,7 @@ pub struct CoordinationBranchConfig {
         description = "Enable change coordination branch synchronization"
     )]
     /// Enable change coordination branch synchronization.
-    pub enabled: bool,
+    pub enabled: CoordinationBranchEnabled,
 
     #[serde(default = "CoordinationBranchConfig::default_name")]
     #[schemars(
@@ -80,9 +80,15 @@ pub struct CoordinationBranchConfig {
     pub name: String,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[schemars(description = "Boolean wrapper for coordination branch enablement")]
+/// Type-safe wrapper for `coordination_branch.enabled`.
+pub struct CoordinationBranchEnabled(pub bool);
+
 impl CoordinationBranchConfig {
-    fn default_enabled() -> bool {
-        true
+    fn default_enabled() -> CoordinationBranchEnabled {
+        CoordinationBranchEnabled(true)
     }
 
     fn default_name() -> String {
