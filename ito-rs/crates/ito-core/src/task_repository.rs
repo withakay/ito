@@ -5,7 +5,8 @@ use std::path::Path;
 use ito_common::fs::{FileSystem, StdFs};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::tasks::{
-    TaskRepository as DomainTaskRepository, TasksParseResult, parse_tasks_tracking_file, tasks_path,
+    TaskRepository as DomainTaskRepository, TasksParseResult, parse_tasks_tracking_file,
+    tasks_path_checked,
 };
 
 /// Filesystem-backed implementation of the domain `TaskRepository` port.
@@ -30,7 +31,9 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
 
 impl<F: FileSystem> DomainTaskRepository for FsTaskRepository<'_, F> {
     fn load_tasks(&self, change_id: &str) -> DomainResult<TasksParseResult> {
-        let path = tasks_path(self.ito_path, change_id);
+        let Some(path) = tasks_path_checked(self.ito_path, change_id) else {
+            return Ok(TasksParseResult::empty());
+        };
         if !self.fs.is_file(&path) {
             return Ok(TasksParseResult::empty());
         }
