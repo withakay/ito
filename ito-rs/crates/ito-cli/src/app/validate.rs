@@ -1,3 +1,5 @@
+//! CLI adapter for validation commands.
+
 use crate::cli::{ValidateArgs, ValidateCommand, ValidateItemType};
 use crate::cli_error::{CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
@@ -39,9 +41,17 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let want_audit_only = args.iter().any(|a| a == "--audit");
     let skip_audit = args.iter().any(|a| a == "--no-audit");
     let typ = parse_string_flag(args, "--type");
-    let bulk = args
-        .iter()
-        .any(|a| matches!(a.as_str(), "--all" | "--changes" | "--specs" | "--modules"));
+    #[allow(clippy::match_like_matches_macro)]
+    let bulk = args.iter().any(|a| {
+        let arg = a.as_str();
+        match arg {
+            "--all" => true,
+            "--changes" => true,
+            "--specs" => true,
+            "--modules" => true,
+            _ => false,
+        }
+    });
 
     let item = super::common::last_positional(args);
     if item.is_none() && !bulk {

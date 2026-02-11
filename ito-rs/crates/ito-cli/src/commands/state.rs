@@ -1,3 +1,5 @@
+//! CLI adapter for `ito state` subcommands.
+
 use crate::cli::{StateAction, StateArgs};
 use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
@@ -21,7 +23,7 @@ pub(crate) fn handle_state_clap(rt: &Runtime, args: &StateArgs) -> CliResult<()>
         )));
     }
 
-    if matches!(action, StateAction::Show) {
+    if let StateAction::Show = action {
         let contents = state::read_state(ito_path).map_err(to_cli_error)?;
         print!("{contents}");
         return Ok(());
