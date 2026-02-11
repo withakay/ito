@@ -3,7 +3,7 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::workflow as core_workflow;
+use ito_core::templates as core_templates;
 
 pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -43,15 +43,15 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Err(msg) => return fail(msg),
     };
     let status =
-        match core_workflow::compute_change_status(ito_path, &change, schema.as_deref(), ctx) {
+        match core_templates::compute_change_status(ito_path, &change, schema.as_deref(), ctx) {
             Ok(s) => s,
-            Err(core_workflow::WorkflowError::InvalidChangeName) => {
+            Err(core_templates::TemplatesError::InvalidChangeName) => {
                 return fail("Invalid change name");
             }
-            Err(core_workflow::WorkflowError::ChangeNotFound(name)) => {
+            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
                 return fail(format!("Change '{name}' not found"));
             }
-            Err(core_workflow::WorkflowError::SchemaNotFound(name)) => {
+            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
                 return fail(super::common::schema_not_found_message(ctx, &name));
             }
             Err(e) => {

@@ -39,6 +39,7 @@ pub fn count_tasks(wf: &WorkflowDefinition) -> usize {
     wf.waves.iter().map(|w| w.tasks.len()).sum()
 }
 
+<<<<<<< HEAD
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,3 +96,6 @@ waves:
         assert!(!err.trim().is_empty());
     }
 }
+=======
+// Workflow templates and filesystem I/O are adapter-layer concerns.
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)

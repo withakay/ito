@@ -220,6 +220,7 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Config(ConfigArgs),
 
+<<<<<<< HEAD
     /// Legacy workflow command namespace (no-op)
     ///
     /// `ito workflow` and its subcommands are retained as compatibility no-ops.
@@ -236,6 +237,8 @@ pub enum Commands {
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]
     Templates(TemplatesArgs),
 
+=======
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
     // ─── Local Docs Server ──────────────────────────────────────────────────────
     /// Serve local Ito artifacts and docs over HTTP
     ///
@@ -436,6 +439,7 @@ pub enum StateAction {
     },
 }
 
+<<<<<<< HEAD
 /// Legacy workflow compatibility surface.
 #[derive(Args, Debug, Clone)]
 #[command(disable_help_subcommand = true)]
@@ -524,6 +528,8 @@ pub enum WorkflowAction {
     },
 }
 
+=======
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
 /// Initialize Ito instruction files in a project directory.
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -583,7 +589,7 @@ pub enum AgentCommand {
 
 #[derive(Args, Debug, Clone)]
 #[command(
-    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  worktrees      Guide for git worktree workflow (config-driven)\n  workflow       Alias for worktrees\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap"
+    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  worktrees      Guide for git worktree workflow (config-driven)\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap"
 )]
 pub struct AgentInstructionArgs {
     /// Artifact id (e.g. bootstrap, apply, proposal)

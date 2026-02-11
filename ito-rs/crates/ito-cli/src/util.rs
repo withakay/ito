@@ -83,8 +83,7 @@ pub(crate) fn command_id_from_args(args: &[String]) -> String {
     parts.push(cmd);
 
     match cmd {
-        "create" | "new" | "plan" | "state" | "tasks" | "workflow" | "config" | "serve"
-        | "agent-config" => {
+        "create" | "new" | "plan" | "state" | "tasks" | "config" | "serve" | "agent-config" => {
             if let Some(sub) = positional.get(1).copied()
                 && !sub.starts_with('-')
             {
