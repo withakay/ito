@@ -74,13 +74,11 @@ pub mod state;
 /// Validation utilities for on-disk state.
 pub mod validate;
 
-<<<<<<< HEAD
-/// Workflow execution and planning.
-pub mod workflow;
-=======
 /// Schema templates execution and planning.
 pub mod templates;
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
+
+/// Backward-compatible alias to schema/template workflow helpers.
+pub use templates as workflow;
 
 // Re-export domain types for CLI convenience
 pub use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
