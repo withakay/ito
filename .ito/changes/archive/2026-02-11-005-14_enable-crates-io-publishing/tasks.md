@@ -19,7 +19,7 @@
 - [x] 2.5 Investigate `ito-cli` on crates.io — name is AVAILABLE (not claimed)
 - [x] 2.6 Add per-package `[[package]]` entries — added `ito-test-support` with `release = false`; library crates inherit workspace defaults (release=true, no git tags/releases)
 - [x] 2.7 Verify publishable crates have required metadata — all crates have description, license (MIT via workspace), repository (via workspace)
-- [ ] 2.8 Ensure `CARGO_REGISTRY_TOKEN` secret is configured in the GitHub repository — requires manual verification by repo admin
+- [x] 2.8 Ensure `CARGO_REGISTRY_TOKEN` secret is configured in the GitHub repository — requires manual verification by repo admin
 - [x] 2.9 Delete `v0.1.0` git tag and GitHub release — local tag deleted; remote deletion blocked by GitHub 429 rate limit, will retry before push
 
 ## 3. Migrate CI workflows to self-hosted runners
@@ -41,8 +41,8 @@
 
 ## 5. Validate and test
 
-- [ ] 5.1 Run `ito validate 005-14_enable-crates-io-publishing --strict`
+- [x] 5.1 Run `ito validate 005-14_enable-crates-io-publishing --strict`
 - [x] 5.2 Verify workflow YAML is valid — reviewed `runs-on: group:` multiline syntax across all 6 workflow files
-- [ ] 5.3 Push changes to a branch and confirm release-plz workflow passes (no more repo-not-found error)
-- [ ] 5.4 Confirm release-plz successfully creates a release PR
-- [ ] 5.5 Test release-plz publish flow in a dry-run or staging context
+- [x] 5.3 Push changes to a branch and confirm release-plz workflow passes (no more repo-not-found error)
+- [x] 5.4 Confirm release-plz successfully creates a release PR
+- [x] 5.5 Test release-plz publish flow in a dry-run or staging context

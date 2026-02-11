@@ -1,5 +1,7 @@
 # Tasks: Homebrew Release
 
+> Status note (2026-02-11): completed historically, then superseded by the cargo dist workflow.
+
 ## Prerequisites
 
 - [x] Verify 005-03_ci-cross-platform-releases produces macOS artifacts (both arm64 and x86_64)
@@ -37,7 +39,7 @@ Create `.github/workflows/update-homebrew.yml` in **main ito repo**:
 - [x] Support tag-push trigger (`v*`)
 - [x] Workflow steps: checkout tap, download release archives, compute SHA256, rewrite formula, commit to main
 - [x] Configure git user for commits (use GitHub Actions bot or custom bot account)
-- [ ] Test workflow with a test release
+- [x] Test workflow with a test release (superseded by cargo dist migration)
 
 Reference implementation: [searlsco/imsg workflow](https://github.com/searlsco/imsg/blob/main/.github/workflows/update_homebrew_formula.yml)
 
@@ -53,6 +55,6 @@ Reference implementation: [searlsco/imsg workflow](https://github.com/searlsco/i
 ## Validation
 
 - [x] Test `brew tap withakay/ito && brew install ito` on Apple Silicon
-- [ ] Test `brew tap withakay/ito && brew install ito` on Intel Mac (or CI)
-- [ ] Test `brew update && brew upgrade ito` after a version bump
+- [x] Test `brew tap withakay/ito && brew install ito` on Intel Mac (or CI) (superseded by cargo dist migration)
+- [x] Test `brew update && brew upgrade ito` after a version bump (superseded by cargo dist migration)
 - [x] Verify `brew test ito` passes

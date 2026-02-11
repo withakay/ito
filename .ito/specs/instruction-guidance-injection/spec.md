@@ -1,36 +1,41 @@
-# Instruction Guidance Injection Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Artifact-scoped guidance injection
 
-Define the `instruction-guidance-injection` capability, including required behavior and validation scenarios, so it remains stable and testable.
+Instruction generation SHALL inject artifact-scoped guidance from `.ito/user-prompts/<artifact-id>.md` when present.
 
+#### Scenario: Proposal includes proposal-scoped guidance
 
-## Requirements
-
-### Requirement: Guidance is included in instruction artifacts
-
-When `.ito/user-guidance.md` exists, `ito agent instruction <artifact>` SHALL include the guidance content in its output.
-
-#### Scenario: Proposal instructions include guidance
-
-- **GIVEN** `.ito/user-guidance.md` contains guidance text
+- **GIVEN** `.ito/user-prompts/proposal.md` contains guidance text
 - **WHEN** a user runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the output includes a user guidance block
-- **AND** the block includes the guidance text
+- **THEN** the output includes the proposal-scoped guidance text
 
-#### Scenario: No guidance file means no injected section
+#### Scenario: Apply includes apply-scoped guidance
 
-- **GIVEN** `.ito/user-guidance.md` does not exist
+- **GIVEN** `.ito/user-prompts/apply.md` contains guidance text
+- **WHEN** a user runs `ito agent instruction apply --change "<change-id>"`
+- **THEN** the output includes the apply-scoped guidance text
+
+#### Scenario: No artifact-scoped file falls back cleanly
+
+- **GIVEN** `.ito/user-prompts/<artifact-id>.md` does not exist
+- **WHEN** a user runs `ito agent instruction <artifact-id> --change "<change-id>"`
+- **THEN** instruction generation proceeds without artifact-scoped guidance errors
+
+### Requirement: Shared and scoped guidance composition
+
+When both shared and scoped guidance are available, instruction output SHALL include both as additive guidance.
+
+#### Scenario: Output includes both shared and scoped guidance
+
+- **GIVEN** `.ito/user-prompts/guidance.md` and `.ito/user-prompts/proposal.md` both exist
 - **WHEN** a user runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the output does not include a user guidance block
+- **THEN** the output includes guidance from both files
+- **AND** schema-defined requirements remain unchanged and authoritative
 
-### Requirement: Schema instructions remain authoritative
+#### Scenario: Legacy shared guidance is used when new shared file is absent
 
-User guidance MUST be treated as additive and MUST NOT weaken or contradict schema-defined requirements.
-
-#### Scenario: Conflicting guidance does not change requirements
-
-- **GIVEN** the schema requires a specific section or format
-- **AND** the user guidance requests a different format
-- **WHEN** an instruction artifact is generated
-- **THEN** schema-required content remains present and unchanged
+- **GIVEN** `.ito/user-prompts/guidance.md` does not exist
+- **AND** `.ito/user-guidance.md` exists
+- **WHEN** a user runs `ito agent instruction apply --change "<change-id>"`
+- **THEN** the output includes shared guidance from `.ito/user-guidance.md`
