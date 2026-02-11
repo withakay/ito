@@ -307,11 +307,11 @@ pub fn load_cascading_project_config(
 pub fn resolve_coordination_branch_settings(merged: &Value) -> (bool, String) {
     let Ok(cfg) = serde_json::from_value::<types::ItoConfig>(merged.clone()) else {
         let defaults = types::CoordinationBranchConfig::default();
-        return (defaults.enabled, defaults.name);
+        return (defaults.enabled.0, defaults.name);
     };
 
     (
-        cfg.changes.coordination_branch.enabled,
+        cfg.changes.coordination_branch.enabled.0,
         cfg.changes.coordination_branch.name,
     )
 }

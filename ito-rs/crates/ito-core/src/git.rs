@@ -325,6 +325,13 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
         "check staged changes",
     )?;
     if staged.success {
+        if let Err(err) = cleanup.cleanup_with_runner(runner) {
+            eprintln!(
+                "Warning: failed to remove temporary coordination worktree '{}': {}",
+                cleanup.worktree_path.display(),
+                err.message
+            );
+        }
         drop(cleanup);
         return Ok(());
     }
@@ -357,6 +364,13 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
     }
 
     let push = push_coordination_branch_with_runner(runner, &worktree_path, "HEAD", branch);
+    if let Err(err) = cleanup.cleanup_with_runner(runner) {
+        eprintln!(
+            "Warning: failed to remove temporary coordination worktree '{}': {}",
+            cleanup.worktree_path.display(),
+            err.message
+        );
+    }
     drop(cleanup);
     push
 }
@@ -490,6 +504,35 @@ fn validate_coordination_branch_name(branch: &str) -> Result<(), CoordinationGit
 struct WorktreeCleanup {
     repo_root: std::path::PathBuf,
     worktree_path: std::path::PathBuf,
+}
+
+impl WorktreeCleanup {
+    fn cleanup_with_runner(&self, runner: &dyn ProcessRunner) -> Result<(), CoordinationGitError> {
+        let output = run_git(
+            runner,
+            ProcessRequest::new("git")
+                .args([
+                    "worktree",
+                    "remove",
+                    "--force",
+                    self.worktree_path.to_string_lossy().as_ref(),
+                ])
+                .current_dir(&self.repo_root),
+            "worktree remove",
+        )?;
+        if output.success {
+            return Ok(());
+        }
+
+        Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to remove temporary worktree '{}' ({})",
+                self.worktree_path.display(),
+                render_output(&output)
+            ),
+        ))
+    }
 }
 
 impl Drop for WorktreeCleanup {
