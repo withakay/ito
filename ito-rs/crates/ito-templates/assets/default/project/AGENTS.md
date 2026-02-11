@@ -21,19 +21,78 @@ Add project-specific guidance in `.ito/user-guidance.md` (injected into agent in
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
-## Worktrees
+## Worktree Workflow
 
-Worktree workflow is **config-driven** so different developers can use different strategies without changing committed files.
+{% if enabled %}
+**Strategy:** `{{ strategy }}`
+**Directory name:** `{{ layout_dir_name }}`
+**Default branch:** `{{ default_branch }}`
+**Integration mode:** `{{ integration_mode }}`
 
-Source of truth (prints the exact strategy + commands for *this machine*):
+{% if strategy == "checkout_subdir" %}
+This project uses in-repo worktrees under a dedicated subdirectory:
 
 ```bash
-ito agent instruction worktrees
+<project-root>/{{ layout_dir_name }}/<change-name>/
 ```
 
-Per-developer overrides should go in `.ito/config.local.json` (gitignored).
+To create a worktree for a change:
 
-Skill hint (if your harness supports skills): `ito-workflow`, `using-git-worktrees`.
+```bash
+mkdir -p "{{ layout_dir_name }}"
+git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% elif strategy == "checkout_siblings" %}
+This project uses sibling-directory worktrees:
+
+```bash
+<project-root>/
+../<project-name>-{{ layout_dir_name }}/<change-name>/
+```
+
+To create a worktree for a change:
+
+```bash
+mkdir -p "../<project-name>-{{ layout_dir_name }}"
+git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% elif strategy == "bare_control_siblings" %}
+This project uses a bare/control repo layout with worktrees as siblings:
+
+```bash
+<project>/                              # bare/control repo
+|-- .bare/                              # git object store
+|-- .git                                # gitdir pointer
+|-- {{ default_branch }}/               # {{ default_branch }} branch worktree
+`-- {{ layout_dir_name }}/              # change worktrees
+    `-- <change-name>/
+```
+
+To create a worktree for a change:
+
+```bash
+mkdir -p "{{ layout_dir_name }}"
+git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+```
+{% else %}
+This project uses a custom worktree strategy. Use the configured values above.
+{% endif %}
+
+Do NOT ask the user where to create worktrees. Use the configured locations above.
+
+After the change branch is merged, clean up:
+
+```bash
+git worktree remove <change-name> 2>/dev/null || true
+git branch -d <change-name> 2>/dev/null || true
+git worktree prune
+```
+{% else %}
+Worktrees are not configured for this project.
+
+- Do NOT create git worktrees by default.
+- Work in the current checkout unless the user explicitly requests a worktree workflow.
+{% endif %}
 
 <!-- ITO:END -->
 

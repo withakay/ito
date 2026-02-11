@@ -214,8 +214,8 @@ fn install_manifests_renders_worktree_skill_with_context() {
         "rendered skill should not contain Jinja2 block syntax"
     );
     assert!(
-        content.contains("ito agent instruction worktrees"),
-        "worktree skill should delegate guidance to the CLI"
+        content.contains("Worktrees are not configured for this project."),
+        "disabled context should render explicit non-worktree guidance"
     );
 }
 
@@ -242,8 +242,30 @@ fn install_manifests_renders_worktree_skill_enabled() {
         "rendered skill should not contain Jinja2 block syntax"
     );
     assert!(
-        content.contains("ito agent instruction worktrees"),
-        "worktree skill should delegate guidance to the CLI"
+        content.contains("**Configured strategy:** `checkout_subdir`"),
+        "enabled context should render strategy-specific guidance"
+    );
+}
+
+#[test]
+fn install_manifests_keeps_non_worktree_placeholders_verbatim() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path().join("project");
+
+    let manifests = claude_manifests(&project_root);
+    let ctx = WorktreeTemplateContext::default();
+    install_manifests(&manifests, Some(&ctx)).unwrap();
+
+    let research_skill = project_root.join(".claude/skills/ito-research/research-stack.md");
+    assert!(
+        research_skill.exists(),
+        "research skill file should be installed"
+    );
+
+    let content = std::fs::read_to_string(research_skill).unwrap();
+    assert!(
+        content.contains("{{topic}}"),
+        "non-worktree template placeholders should remain verbatim"
     );
 }
 

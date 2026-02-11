@@ -221,12 +221,15 @@ pub fn install_manifests(
             })?,
         };
 
-        // Render worktree-aware skill templates with worktree config. Only
-        // the using-git-worktrees skill uses Jinja2 for worktree rendering;
-        // other skills (e.g., research/) may contain `{{` as user-facing
-        // prompt placeholders that must NOT be processed by minijinja.
-        let is_worktree_skill = manifest.source.starts_with("using-git-worktrees/");
-        let bytes = if manifest.asset_type == AssetType::Skill && is_worktree_skill {
+        // Render skill templates that opt into worktree Jinja2 variables. We
+        // intentionally avoid rendering arbitrary `{{ ... }}` placeholders used
+        // by non-template skills (e.g. research prompts).
+        let should_render_skill = manifest.asset_type == AssetType::Skill
+            && raw_bytes
+                .split(|b| *b == b'\n')
+                .filter_map(|line| std::str::from_utf8(line).ok())
+                .any(skill_line_uses_worktree_template_syntax);
+        let bytes = if should_render_skill {
             render_project_template(raw_bytes, ctx).map_err(|e| {
                 CoreError::Validation(format!(
                     "Failed to render skill template {}: {}",
@@ -246,4 +249,17 @@ pub fn install_manifests(
             .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
     }
     Ok(())
+}
+
+fn skill_line_uses_worktree_template_syntax(line: &str) -> bool {
+    if line.contains("{%") {
+        return true;
+    }
+
+    // Variable-only templates are supported for the worktree context keys.
+    line.contains("{{ enabled")
+        || line.contains("{{ strategy")
+        || line.contains("{{ layout_dir_name")
+        || line.contains("{{ integration_mode")
+        || line.contains("{{ default_branch")
 }
