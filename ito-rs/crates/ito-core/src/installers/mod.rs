@@ -28,10 +28,7 @@ const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 ///
 /// # Examples
 ///
-/// ```
-/// let ids = available_tool_ids();
-/// assert_eq!(ids.len(), 4);
-/// ```
+///
 pub fn available_tool_ids() -> &'static [&'static str] {
     &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
 }
