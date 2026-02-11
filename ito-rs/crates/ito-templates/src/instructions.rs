@@ -85,4 +85,38 @@ mod tests {
         let err = render_template_str("hello {{ missing }}", &Ctx {}).unwrap_err();
         assert_eq!(err.kind(), minijinja::ErrorKind::UndefinedError);
     }
+
+    #[test]
+    fn list_instruction_templates_is_sorted_and_non_empty() {
+        let templates = list_instruction_templates();
+        assert!(!templates.is_empty());
+
+        let mut sorted = templates.clone();
+        sorted.sort_unstable();
+        assert_eq!(templates, sorted);
+    }
+
+    #[test]
+    fn template_fetchers_work_for_known_and_unknown_paths() {
+        let templates = list_instruction_templates();
+        let known = templates[0];
+
+        let bytes = get_instruction_template_bytes(known);
+        assert!(bytes.is_some());
+
+        let text = get_instruction_template(known);
+        assert!(text.is_some());
+
+        assert_eq!(get_instruction_template_bytes("missing/template.md"), None);
+        assert_eq!(get_instruction_template("missing/template.md"), None);
+    }
+
+    #[test]
+    fn render_instruction_template_returns_not_found_for_missing_template() {
+        #[derive(Serialize)]
+        struct Ctx {}
+
+        let err = render_instruction_template("missing/template.md", &Ctx {}).unwrap_err();
+        assert_eq!(err.kind(), minijinja::ErrorKind::TemplateNotFound);
+    }
 }
