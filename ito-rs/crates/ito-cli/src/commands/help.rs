@@ -39,7 +39,6 @@ fn help_all_parts() -> Vec<Vec<String>> {
         &["tasks"],
         &["plan"],
         &["state"],
-        &["workflow"],
         &["list"],
         &["archive"],
         &["config"],

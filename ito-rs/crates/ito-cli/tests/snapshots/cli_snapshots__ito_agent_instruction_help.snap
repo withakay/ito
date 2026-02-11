@@ -1,5 +1,6 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 101
 expression: "snapshot(&[\"agent\", \"instruction\", \"-h\"])"
 ---
 Generate enriched instructions
@@ -22,7 +23,6 @@ Artifacts:
   bootstrap      Generate a tool bootstrap preamble
   project-setup  Guide for setting up a new project
   worktrees      Guide for git worktree workflow (config-driven)
-  workflow       Alias for worktrees
   proposal       Show the change proposal
   specs          Show the specification deltas
   tasks          Show the implementation task list

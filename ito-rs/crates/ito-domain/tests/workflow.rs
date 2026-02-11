@@ -1,4 +1,5 @@
 use ito_domain::workflow;
+use std::path::Path;
 
 #[test]
 fn parse_workflow_extracts_waves_and_tasks() {
@@ -30,4 +31,32 @@ waves:
     assert_eq!(wf.id, "test");
     assert_eq!(wf.waves.len(), 2);
     assert_eq!(workflow::count_tasks(&wf), 3);
+}
+
+#[test]
+fn workflow_path_helpers_build_expected_locations() {
+    let ito_path = Path::new("/tmp/project/.ito");
+
+    assert_eq!(
+        workflow::workflows_dir(ito_path),
+        Path::new("/tmp/project/.ito/workflows")
+    );
+    assert_eq!(
+        workflow::workflow_state_dir(ito_path),
+        Path::new("/tmp/project/.ito/workflows/.state")
+    );
+    assert_eq!(
+        workflow::commands_dir(ito_path),
+        Path::new("/tmp/project/.ito/commands")
+    );
+    assert_eq!(
+        workflow::workflow_file_path(ito_path, "research"),
+        Path::new("/tmp/project/.ito/workflows/research.yaml")
+    );
+}
+
+#[test]
+fn parse_workflow_returns_error_for_invalid_yaml() {
+    let err = workflow::parse_workflow("not: [valid").expect_err("should fail parsing");
+    assert!(!err.trim().is_empty());
 }

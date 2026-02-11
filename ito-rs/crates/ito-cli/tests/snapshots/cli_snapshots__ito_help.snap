@@ -22,7 +22,10 @@ Commands:
   init         Set up Ito in a project
   update       Refresh Ito instruction files and AI tool configs
   config       Read and write global Ito settings
+<<<<<<< HEAD
   workflow     Legacy workflow command namespace (no-op)
+=======
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
   serve        Serve local Ito artifacts and docs over HTTP
   audit        Query, validate, and manage the audit event log
   completions  Output shell completion scripts
