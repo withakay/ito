@@ -99,6 +99,27 @@ pub(crate) fn handle_help_clap(args: &HelpArgs) -> CliResult<()> {
     Ok(())
 }
 
+/// Render and print help text for all known CLI commands, optionally producing JSON output.
+///
+/// Inspect the internal set of validated command paths, render each command's long help,
+/// and print either a human-readable reference or a JSON document when `--json` is present
+/// in `args`.
+///
+/// The `args` slice is consulted only for the presence of the `--json` flag; other values are ignored.
+///
+/// # Returns
+///
+/// `Ok(())` on success.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Print human-readable reference:
+/// let _ = crate::help::handle_help_all(&[]);
+///
+/// // Print JSON output:
+/// let _ = crate::help::handle_help_all(&["--json".to_string()]);
+/// ```
 pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
     let json_output = args.iter().any(|a| a == "--json");
 
@@ -164,14 +185,15 @@ pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
-/// Render help for all commands either as JSON or as formatted human-readable text.
+/// Produce help for every stable command, either as pretty JSON or as human-readable text.
 ///
-/// When `json_output` is true, delegates to the JSON output path; otherwise prints a human-readable
-/// reference of all stable, non-deprecated command help entries.
+/// If `json_output` is true, prints a JSON object containing each command path and its long
+/// help text. If false, prints a formatted human-readable reference with headings and help
+/// blocks for each command.
 ///
 /// # Parameters
 ///
-/// - `json_output`: If `true`, produce machine-readable JSON; if `false`, produce human-readable text.
+/// - `json_output`: When `true`, emit machine-readable JSON; when `false`, emit human-readable text.
 ///
 /// # Returns
 ///
@@ -180,11 +202,11 @@ pub(crate) fn handle_help_all(args: &[String]) -> CliResult<()> {
 /// # Examples
 ///
 /// ```
-/// // Request human-readable output
-/// let _ = handle_help_all_flags(false);
+/// // Human-readable output
+/// let _ = crate::commands::help::handle_help_all_flags(false);
 ///
-/// // Request JSON output
-/// let _ = handle_help_all_flags(true);
+/// // JSON output
+/// let _ = crate::commands::help::handle_help_all_flags(true);
 /// ```
 pub(crate) fn handle_help_all_flags(json_output: bool) -> CliResult<()> {
     if json_output {

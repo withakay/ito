@@ -353,7 +353,25 @@ pub fn default_schema_name() -> &'static str {
     "spec-driven"
 }
 
-/// Validate a user-provided change id for safe filesystem access.
+/// Checks whether a change name is safe to use as a filesystem directory name.
+///
+/// The name is considered safe when it is non-empty, does not contain path
+/// separators (`/` or `\`), does not start with a path separator, and does not
+/// contain the parent-directory token `..`.
+///
+/// # Returns
+///
+/// `true` if the name is a single, non-empty path segment without separators or
+/// `..`, `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// assert!(validate_change_name_input("fix-typo"));
+/// assert!(!validate_change_name_input(""));
+/// assert!(!validate_change_name_input("../secrets"));
+/// assert!(!validate_change_name_input("nested/dir"));
+/// ```
 pub fn validate_change_name_input(name: &str) -> bool {
     if name.is_empty() {
         return false;
@@ -415,16 +433,18 @@ pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
     ito_domain::discovery::list_change_dir_names(&fs, ito_path).unwrap_or_default()
 }
 
-/// List available schema names from project, user, embedded, and package sources.
+/// Collects available schema names from project, user, embedded, and package sources.
 ///
-/// The returned list contains unique schema names and is deterministically sorted.
+/// Only directories that contain a `schema.yaml` are included; embedded schemas are also included.
+/// The returned vector contains unique schema names and is deterministically sorted.
 ///
 /// # Examples
 ///
 /// ```
 /// // `ctx` should be a prepared `ConfigContext` for the current project.
 /// let names = list_available_schemas(&ctx);
-/// // `names` is a `Vec<String>` of available schema names, sorted and de-duplicated.
+/// // names is sorted and de-duplicated
+/// assert!(names.windows(2).all(|w| w[0] <= w[1]));
 /// ```
 pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
@@ -532,6 +552,42 @@ pub fn resolve_schema(
 }
 
 /// Compute per-artifact status for a change.
+
+///
+
+/// This inspects the resolved workflow schema and the change directory to produce a
+
+/// ChangeStatus containing each artifact's id, output path, status (`"done"`, `"ready"`, or
+
+/// `"blocked"`), and any missing dependency ids required before that artifact becomes ready.
+
+/// If `schema_name` is None, the change's metadata is consulted to determine the effective schema.
+
+///
+
+/// # Examples
+
+///
+
+/// ```
+
+/// let status = compute_change_status(&ito_path, "change-123", None, &ctx).unwrap();
+
+/// assert_eq!(status.change_name, "change-123");
+
+/// // each artifact in `status.artifacts` will have `status` set to "done", "ready", or "blocked"
+
+/// ```
+
+///
+
+/// # Errors
+
+///
+
+/// Returns a WorkflowError if the change name is invalid, the change directory or schema cannot be
+
+/// found, or if underlying IO/YAML parsing fails.
 pub fn compute_change_status(
     ito_path: &Path,
     change: &str,
@@ -710,20 +766,15 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
     result
 }
 
-/// Resolve template file paths for all artifacts in a schema.
+/// Resolves template paths for every artifact in a schema.
 ///
-/// If `schema_name` is `None`, the project/user/embedded/package resolution precedence is used.
-/// For embedded schemas each template path is returned with an `embedded://schemas/...` URI;
-/// for filesystem-backed schemas each template path is an absolute (lossy) filesystem path.
-///
-/// # Parameters
-///
-/// - `schema_name`: Optional schema name to resolve; use `None` to resolve using configured precedence.
+/// For embedded schemas, each template path is returned as an `embedded://schemas/{name}/templates/{file}` URI.
+/// For filesystem-backed schemas, each template path is an absolute filesystem path (lossy `String`).
 ///
 /// # Returns
 ///
-/// A tuple containing the resolved schema name and a map from artifact id to `TemplateInfo` (each
-/// `TemplateInfo` contains the template `source` and resolved `path`).
+/// A tuple of the resolved schema name and a map from artifact id to `TemplateInfo` (each `TemplateInfo` contains
+/// the template `source` and resolved `path`).
 ///
 /// # Examples
 ///
@@ -731,7 +782,9 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
 /// // Obtain a ConfigContext from your application environment.
 /// let ctx = /* obtain ConfigContext */ unimplemented!();
 /// let (schema_name, templates) = resolve_templates(None, &ctx).unwrap();
-/// // `templates` maps artifact ids to TemplateInfo with `source` and `path`.
+/// assert!(!schema_name.is_empty());
+/// // Example: look up a template for a known artifact id
+/// // let info = templates.get("artifact_id").unwrap();
 /// ```
 pub fn resolve_templates(
     schema_name: Option<&str>,
@@ -1108,6 +1161,20 @@ fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
+/// Detects whether the text appears to use the enhanced task format (section headers).
+///
+/// Scans lines for a section header beginning with `### Task ` to heuristically identify
+/// the enhanced task format used by schema tracking files.
+///
+/// # Examples
+///
+/// ```
+/// let s1 = "Some notes\n### Task 1: Do thing\n- **Status**: [ ] pending";
+/// assert!(looks_like_enhanced_tasks(s1));
+///
+/// let s2 = "- [ ] simple checkbox task\n- [x] done";
+/// assert!(!looks_like_enhanced_tasks(s2));
+/// ```
 fn looks_like_enhanced_tasks(contents: &str) -> bool {
     for line in contents.lines() {
         let l = line.trim_start();
@@ -1280,13 +1347,9 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     Ok(Some(content.to_string()))
 }
 
-/// Parse the schema.yaml file from a schema directory into a SchemaYaml.
+/// Load and parse `schema.yaml` from a schema directory into a `SchemaYaml`.
 ///
-/// Reads `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
-///
-/// # Returns
-///
-/// The parsed `SchemaYaml`, or a `WorkflowError` if the file cannot be read or the YAML cannot be parsed.
+/// Reads the file `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
 ///
 /// # Examples
 ///
