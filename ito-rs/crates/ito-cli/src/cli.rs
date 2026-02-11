@@ -47,7 +47,7 @@ pub enum Commands {
     /// Examples:
     ///   ito create module my-feature
     ///   ito create change add-auth --module 001
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "cr")]
     Create(CreateArgs),
 
     /// List changes, specs, or modules with status summaries
@@ -64,7 +64,7 @@ pub enum Commands {
     ///   ito list --completed
     ///   ito list --specs
     ///   ito list --modules --json
-    #[command(verbatim_doc_comment)]
+    #[command(visible_alias = "ls", verbatim_doc_comment)]
     List(ListArgs),
 
     /// Display details of a change, spec, or module
@@ -76,7 +76,7 @@ pub enum Commands {
     ///   ito show 005-01_add-auth
     ///   ito show --type spec auth-service
     ///   ito show module 005
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "sh")]
     Show(ShowArgs),
 
     /// Check completion status of change artifacts
@@ -86,7 +86,7 @@ pub enum Commands {
     ///
     /// Examples:
     ///   ito status --change 005-01_add-auth
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "st")]
     Status(StatusArgs),
 
     /// Check changes, specs, and modules for errors and warnings
@@ -98,7 +98,7 @@ pub enum Commands {
     ///   ito validate --all
     ///   ito validate 005-01_add-auth
     ///   ito validate --specs --strict
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "va")]
     Validate(ValidateArgs),
 
     /// Move a completed change to archive and update main specs
@@ -109,14 +109,13 @@ pub enum Commands {
     /// Examples:
     ///   ito archive 005-01_add-auth
     ///   ito archive 005-01_add-auth -y --skip-specs
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "ar")]
     Archive(ArchiveArgs),
 
     /// Split a large change into smaller changes [not implemented]
     #[command(hide = true)]
     Split(SplitArgs),
 
-    // ─── Task Management ────────────────────────────────────────────────────────
     /// Manage implementation tasks for a change
     ///
     /// Track task progress through status, start, complete, and shelve actions.
@@ -130,7 +129,7 @@ pub enum Commands {
     ///   ito tasks ready 005-01_add-auth
     ///   ito tasks start 005-01_add-auth 1.1
     ///   ito tasks complete 005-01_add-auth 1.1
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "ts")]
     Tasks(TasksArgs),
 
     /// Initialize and track project roadmap
@@ -141,7 +140,7 @@ pub enum Commands {
     /// Examples:
     ///   ito plan init
     ///   ito plan status
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "pl")]
     Plan(PlanArgs),
 
     /// Track session state and working context
@@ -154,10 +153,9 @@ pub enum Commands {
     ///   ito state focus "implementing auth flow"
     ///   ito state decision "using JWT for tokens"
     ///   ito state blocker "waiting on API spec"
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "sa")]
     State(StateArgs),
 
-    // ─── AI Automation ──────────────────────────────────────────────────────────
     /// Generate instructions and context for AI coding agents
     ///
     /// Produces structured output for AI tools like Claude Code, Codex, or OpenCode.
@@ -167,7 +165,7 @@ pub enum Commands {
     ///   ito agent instruction bootstrap --tool claude
     ///   ito agent instruction apply --change 005-01_add-auth
     ///   ito agent instruction tasks --change 005-01_add-auth
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "ag")]
     Agent(AgentArgs),
 
     /// Run an AI agent loop to implement a change
@@ -178,7 +176,7 @@ pub enum Commands {
     /// Examples:
     ///   ito ralph --change 005-01_add-auth
     ///   ito ralph --change 005-01_add-auth --harness claude --max-iterations 5
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "ra")]
     Ralph(RalphArgs),
 
     /// Deprecated alias for `ralph`
@@ -195,7 +193,7 @@ pub enum Commands {
     ///   ito init
     ///   ito init --tools claude,codex
     ///   ito init --tools all --force
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "in")]
     Init(InitArgs),
 
     /// Refresh Ito instruction files and AI tool configs
@@ -205,7 +203,7 @@ pub enum Commands {
     ///
     /// Examples:
     ///   ito update
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "up")]
     Update(UpdateArgs),
 
     /// Read and write global Ito settings
@@ -217,7 +215,7 @@ pub enum Commands {
     ///   ito config path
     ///   ito config get defaults.schema
     ///   ito config set defaults.schema "spec-driven"
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "co")]
     Config(ConfigArgs),
 
     /// Manage embedded template assets
@@ -233,7 +231,7 @@ pub enum Commands {
     ///   ito serve start
     ///   ito serve status
     ///   ito serve stop
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "se")]
     #[cfg(feature = "web")]
     Serve(ServeArgs),
 
@@ -248,7 +246,7 @@ pub enum Commands {
     ///   ito audit reconcile --change 005-01_add-auth
     ///   ito audit validate --change 005-01_add-auth
     ///   ito audit stats
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "au")]
     Audit(crate::commands::audit::AuditArgs),
 
     // ─── Utilities ──────────────────────────────────────────────────────────────
@@ -265,13 +263,14 @@ pub enum Commands {
     ///   ito completions bash >> ~/.bashrc
     ///   ito completions zsh >> ~/.zshrc
     ///   ito completions fish > ~/.config/fish/completions/ito.fish
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "cp")]
     Completions(CompletionsArgs),
 
     /// Display command execution counts and history
     ///
     /// Shows statistics about ito command usage in this project.
     /// Useful for understanding workflow patterns.
+    #[command(visible_alias = "ss")]
     Stats(StatsArgs),
 
     /// Show help for ito commands
@@ -283,7 +282,7 @@ pub enum Commands {
     ///   ito help tasks
     ///   ito help --all
     ///   ito help agent instruction
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "he")]
     Help(HelpArgs),
 
     // ─── Hidden / Deprecated ────────────────────────────────────────────────────
@@ -367,9 +366,11 @@ pub struct PlanArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum PlanAction {
     /// Initialize planning structure
+    #[command(visible_alias = "in")]
     Init,
 
     /// Show current milestone progress
+    #[command(visible_alias = "st")]
     Status,
 }
 
@@ -385,9 +386,11 @@ pub struct StateArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum StateAction {
     /// Show current project state
+    #[command(visible_alias = "sw")]
     Show,
 
     /// Record a decision
+    #[command(visible_alias = "de")]
     Decision {
         /// Text to record
         #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
@@ -395,6 +398,7 @@ pub enum StateAction {
     },
 
     /// Record a blocker
+    #[command(visible_alias = "bl")]
     Blocker {
         /// Text to record
         #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
@@ -402,6 +406,7 @@ pub enum StateAction {
     },
 
     /// Add a session note
+    #[command(visible_alias = "no")]
     Note {
         /// Text to record
         #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
@@ -409,6 +414,7 @@ pub enum StateAction {
     },
 
     /// Set current focus
+    #[command(visible_alias = "fo")]
     Focus {
         /// Text to record
         #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
@@ -416,6 +422,7 @@ pub enum StateAction {
     },
 
     /// Add an open question
+    #[command(visible_alias = "qu")]
     Question {
         /// Text to record
         #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
@@ -511,6 +518,7 @@ pub struct AgentArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum AgentCommand {
     /// Generate enriched instructions
+    #[command(visible_alias = "in")]
     Instruction(AgentInstructionArgs),
 
     /// Forward unknown subcommands to legacy handler
@@ -528,7 +536,7 @@ pub struct AgentInstructionArgs {
     pub artifact: String,
 
     /// Change id (directory name)
-    #[arg(long)]
+    #[arg(short = 'c', long)]
     pub change: Option<String>,
 
     /// Tool name for bootstrap (opencode|claude|codex)
@@ -554,12 +562,15 @@ pub struct ConfigArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigCommand {
     /// Print config file path
+    #[command(visible_alias = "pa")]
     Path(ConfigCommonArgs),
 
     /// Print config JSON
+    #[command(visible_alias = "ls")]
     List(ConfigCommonArgs),
 
     /// Read value by path
+    #[command(visible_alias = "ge")]
     Get {
         /// Key path (dot-separated)
         key: String,
@@ -569,6 +580,7 @@ pub enum ConfigCommand {
     },
 
     /// Set value by path
+    #[command(visible_alias = "se")]
     Set {
         /// Key path (dot-separated)
         key: String,
@@ -581,6 +593,7 @@ pub enum ConfigCommand {
     },
 
     /// Remove value by path
+    #[command(visible_alias = "un")]
     Unset {
         /// Key path (dot-separated)
         key: String,
@@ -590,6 +603,7 @@ pub enum ConfigCommand {
     },
 
     /// Print JSON schema for Ito config
+    #[command(visible_alias = "sc")]
     Schema {
         /// Write schema to file instead of stdout
         #[arg(long, value_name = "PATH")]
@@ -618,6 +632,7 @@ pub struct CreateArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum CreateAction {
     /// Create a module
+    #[command(visible_alias = "mo")]
     Module {
         /// Module name (kebab-case)
         name: Option<String>,
@@ -632,6 +647,7 @@ pub enum CreateAction {
     },
 
     /// Create a change
+    #[command(visible_alias = "ch")]
     Change {
         /// Change name (kebab-case)
         name: Option<String>,
@@ -641,7 +657,7 @@ pub enum CreateAction {
         schema: Option<String>,
 
         /// Module id (default: 000)
-        #[arg(long)]
+        #[arg(short = 'm', long)]
         module: Option<String>,
 
         /// Description (writes README.md)
@@ -795,12 +811,14 @@ pub struct TasksArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum TasksAction {
     /// Create enhanced tasks.md
+    #[command(visible_alias = "in")]
     Init {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
     },
 
     /// Show task progress
+    #[command(visible_alias = "st")]
     Status {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -811,6 +829,7 @@ pub enum TasksAction {
     },
 
     /// Show the next available task
+    #[command(visible_alias = "nx")]
     Next {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -825,13 +844,14 @@ pub enum TasksAction {
     ///   ito tasks ready
     ///   ito tasks ready 005-01_my-change
     ///   ito tasks ready --json
-    #[command(verbatim_doc_comment)]
+    #[command(verbatim_doc_comment, visible_alias = "rd")]
     Ready {
         /// Change id (optional - if omitted, shows tasks from all changes)
         change_id: Option<String>,
     },
 
     /// Mark a task in-progress
+    #[command(visible_alias = "go")]
     Start {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -840,6 +860,7 @@ pub enum TasksAction {
     },
 
     /// Mark a task complete
+    #[command(visible_alias = "co")]
     Complete {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -848,6 +869,7 @@ pub enum TasksAction {
     },
 
     /// Shelve a task (reversible)
+    #[command(visible_alias = "sv")]
     Shelve {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -856,6 +878,7 @@ pub enum TasksAction {
     },
 
     /// Restore a shelved task to pending
+    #[command(visible_alias = "us")]
     Unshelve {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -864,6 +887,7 @@ pub enum TasksAction {
     },
 
     /// Add a new task (enhanced only)
+    #[command(visible_alias = "ad")]
     Add {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -875,6 +899,7 @@ pub enum TasksAction {
     },
 
     /// Print tasks.md
+    #[command(visible_alias = "sw")]
     Show {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -919,7 +944,9 @@ pub struct ArchiveArgs {
     #[arg(
         value_name = "CHANGE",
         required_unless_present = "completed",
-        conflicts_with = "completed"
+        conflicts_with = "completed",
+        short = 'c',
+        long
     )]
     pub change: Option<String>,
 
@@ -944,7 +971,7 @@ pub struct ArchiveArgs {
 #[derive(Args, Debug, Clone)]
 pub struct StatusArgs {
     /// Change id (directory name)
-    #[arg(long)]
+    #[arg(short = 'c', long)]
     pub change: Option<String>,
 
     /// Workflow schema name
@@ -1037,11 +1064,11 @@ pub enum ValidateItemType {
 #[derive(Args, Debug, Clone)]
 pub struct RalphArgs {
     /// Target a specific change
-    #[arg(long)]
+    #[arg(short = 'c', long)]
     pub change: Option<String>,
 
     /// Target a module (selects a change)
-    #[arg(long)]
+    #[arg(short = 'm', long)]
     pub module: Option<String>,
 
     /// When using --module, keep working through ready changes until module work is complete
