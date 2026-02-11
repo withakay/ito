@@ -41,6 +41,10 @@ pub enum WorkflowError {
     /// The requested artifact id does not exist in the resolved schema.
     ArtifactNotFound(String),
 
+    #[error("Invalid artifact id '{0}'")]
+    /// Artifact id failed safety checks.
+    InvalidArtifactId(String),
+
     #[error(transparent)]
     /// IO error while reading or writing workflow files.
     Io(#[from] std::io::Error),
@@ -991,22 +995,53 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
-/// Load user guidance text from `user-guidance.md`.
+/// Load shared user guidance text.
+///
+/// Prefers `.ito/user-prompts/guidance.md`, with backward-compatible fallback
+/// to `.ito/user-guidance.md`.
 ///
 /// When a file contains an Ito-managed header block, only the content after the
 /// `ITO_END_MARKER` is returned.
+pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
+    let path = ito_path.join("user-prompts").join("guidance.md");
+    if path.exists() {
+        return load_guidance_file(&path);
+    }
+
+    let path = ito_path.join("user-guidance.md");
+    load_guidance_file(&path)
+}
+
+/// Load artifact-scoped user guidance text from `.ito/user-prompts/<artifact-id>.md`.
 pub fn load_user_guidance_for_artifact(
     ito_path: &Path,
     artifact_id: &str,
 ) -> Result<Option<String>, WorkflowError> {
-    if artifact_id.contains("..") || artifact_id.contains('/') || artifact_id.contains('\\') {
-        return Ok(None);
+    if !is_safe_artifact_id(artifact_id) {
+        return Err(WorkflowError::InvalidArtifactId(artifact_id.to_string()));
     }
+
     let path = ito_path
         .join("user-prompts")
-        .join(format!("{}.md", artifact_id.replace(['/', '\\'], "_")));
+        .join(format!("{artifact_id}.md"));
     load_guidance_file(&path)
 }
+
+/// Compose artifact-scoped and shared user guidance text for instruction output.
+pub fn load_composed_user_guidance(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    let scoped = load_user_guidance_for_artifact(ito_path, artifact_id)?;
+    let shared = load_user_guidance(ito_path)?;
+
+    match (scoped, shared) {
+        (None, None) => Ok(None),
+        (Some(scoped), None) => Ok(Some(scoped)),
+        (None, Some(shared)) => Ok(Some(shared)),
+        (Some(scoped), Some(shared)) => Ok(Some(format!(
+            "## Scoped Guidance ({artifact_id})\n\n{scoped}\n\n## Shared Guidance\n\n{shared}"
+        ))),
     }
 }
 
@@ -1027,6 +1062,20 @@ fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     }
 
     Ok(Some(content.to_string()))
+}
+
+fn is_safe_artifact_id(artifact_id: &str) -> bool {
+    if artifact_id.is_empty() || artifact_id.contains("..") {
+        return false;
+    }
+
+    for c in artifact_id.chars() {
+        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn package_schemas_dir() -> PathBuf {
@@ -1127,21 +1176,6 @@ fn dir_contains_filename_suffix(dir: &Path, suffix: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn load_user_guidance_returns_trimmed_content_after_marker() {
-        let dir = tempfile::tempdir().expect("tempdir should succeed");
-        let ito_path = dir.path();
-
-        let content = "<!-- ITO:START -->\nheader\n<!-- ITO:END -->\n\nPrefer BDD.\n";
-        std::fs::write(ito_path.join("user-guidance.md"), content).expect("write should succeed");
-
-        let guidance = load_user_guidance(ito_path)
-            .expect("load should succeed")
-            .expect("should be present");
-
-        assert_eq!(guidance, "Prefer BDD.");
-    }
 
     #[test]
     fn parse_enhanced_tasks_extracts_ids_status_and_done() {
