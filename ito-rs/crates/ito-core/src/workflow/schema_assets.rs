@@ -9,8 +9,9 @@ use std::path::{Component, Path, PathBuf};
 /// Repository root's `schemas` directory path.
 ///
 /// Returns a `PathBuf` pointing to the repository root's `schemas` subdirectory.
-/// The repository root is derived from `CARGO_MANIFEST_DIR` by walking up three parent
-/// directories; if that ancestor is not present, the manifest directory itself is used.
+/// The repository root is discovered by searching ancestors of `CARGO_MANIFEST_DIR`
+/// for a `.git` marker or a workspace `Cargo.toml`. If no marker is found,
+/// the manifest directory itself is used as the fallback root.
 ///
 /// # Examples
 ///
@@ -19,13 +20,28 @@ use std::path::{Component, Path, PathBuf};
 /// assert!(dir.ends_with("schemas"));
 /// ```
 pub(super) fn package_schemas_dir() -> PathBuf {
-    // In this repo, schemas live at the repository root.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir
-        .ancestors()
-        .nth(3)
-        .unwrap_or(manifest_dir.as_path());
+    let root = find_repository_root(&manifest_dir).unwrap_or(manifest_dir);
     root.join("schemas")
+}
+
+fn find_repository_root(start: &Path) -> Option<PathBuf> {
+    for ancestor in start.ancestors() {
+        if ancestor.join(".git").exists() {
+            return Some(ancestor.to_path_buf());
+        }
+
+        let cargo_toml = ancestor.join("Cargo.toml");
+        if cargo_toml.exists()
+            && fs::read_to_string(&cargo_toml)
+                .map(|s| s.contains("[workspace]"))
+                .unwrap_or(false)
+        {
+            return Some(ancestor.to_path_buf());
+        }
+    }
+
+    None
 }
 
 /// Compute the project-specific schemas directory when a project directory is configured.
