@@ -7,6 +7,8 @@ members = ["cargo:."]
 cargo-dist-version = "0.30.3"
 # CI backends to support
 ci = "github"
+# Temporarily allow generated CI workflow drift.
+allow-dirty = ["ci"]
 # A prefix git tags must include for dist to care about them
 tag-namespace = "v"
 
