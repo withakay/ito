@@ -9,7 +9,3 @@ description = "Common utilities and error types for Ito"
 
 [dependencies]
 miette = { workspace = true }
-thiserror = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }
