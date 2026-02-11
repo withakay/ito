@@ -2,6 +2,7 @@
 mod fixtures;
 
 use ito_test_support::run_rust_candidate;
+use ito_test_support::rust_candidate_command;
 
 // PTY-based interactive tests are skipped on Windows due to platform differences
 // in terminal handling that can cause hangs.
@@ -206,6 +207,81 @@ fn list_modules_empty_prints_hint() {
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("No modules found"));
     assert!(out.stdout.contains("ito create module"));
+}
+
+#[test]
+fn commands_run_from_nested_dir_use_git_worktree_root() {
+    let base = fixtures::make_repo_all_valid();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    let nested = repo.path().join("sub/dir");
+    std::fs::create_dir_all(&nested).expect("create nested directory");
+
+    let init = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(repo.path())
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git init should run");
+    assert!(init.status.success(), "git init failed: {:?}", init);
+
+    let out = run_rust_candidate(rust_path, &["list"], &nested, home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("000-01_test-change"));
+}
+
+#[test]
+fn git_env_vars_do_not_override_runtime_root_detection() {
+    let base = fixtures::make_repo_all_valid();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    let nested = repo.path().join("sub/dir");
+    std::fs::create_dir_all(&nested).expect("create nested directory");
+
+    let init = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(repo.path())
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git init should run");
+    assert!(init.status.success(), "git init failed: {:?}", init);
+
+    let git_dir = std::env::current_dir()
+        .expect("cwd")
+        .join(".git")
+        .to_string_lossy()
+        .to_string();
+    let git_work_tree = std::env::current_dir()
+        .expect("cwd")
+        .to_string_lossy()
+        .to_string();
+
+    let mut cmd = rust_candidate_command(rust_path);
+    cmd.args(["list"]);
+    cmd.current_dir(&nested);
+    cmd.env("CI", "1");
+    cmd.env("NO_COLOR", "1");
+    cmd.env("ITO_INTERACTIVE", "0");
+    cmd.env("TERM", "dumb");
+    cmd.env("HOME", home.path());
+    cmd.env("XDG_DATA_HOME", home.path());
+    cmd.env("GIT_DIR", git_dir);
+    cmd.env("GIT_WORK_TREE", git_work_tree);
+
+    let out = cmd.output().expect("run ito list");
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+    assert!(out.status.success(), "stderr={stderr}");
+    assert!(stdout.contains("000-01_test-change"));
 }
 
 #[test]

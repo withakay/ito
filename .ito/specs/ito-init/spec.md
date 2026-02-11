@@ -1,29 +1,24 @@
-# Ito Init Specification
+## MODIFIED Requirements
 
-## Purpose
+### Requirement: Tool-Specific Installation via ito init
 
-Define the `ito-init` capability: initializing a Ito project by installing harness-specific instructions, skills, commands, and adapters from embedded assets.
+The `ito init` command SHALL support installing tool-specific adapters.
 
-## Requirements
+#### Scenario: Install with tools flag
 
-### Requirement: Asset distribution
+- **GIVEN** the user runs `ito init --tools opencode,claude,codex`
+- **WHEN** the command executes
+- **THEN** it SHALL fetch and install adapter files for the specified tools
 
-The system SHALL distribute skills, adapters, and commands from embedded binary assets to harness-specific directories at install time.
+#### Scenario: Default tool selection
 
-#### Scenario: Skills installed to all harnesses
+- **GIVEN** the user runs `ito init` without `--tools` flag
+- **WHEN** the command executes
+- **THEN** it SHALL prompt for tool selection or use a sensible default
 
-- **WHEN** `ito init --tools all` is executed
-- **THEN** skills are copied from embedded assets/skills/ to each harness's skills directory
-- **AND** skills without `ito-` prefix get the prefix added
-- **AND** skills already starting with `ito` keep their original name
+#### Scenario: Worktree wizard runs before template installation
 
-#### Scenario: Commands installed to all harnesses
-
-- **WHEN** `ito init --tools all` is executed
-- **THEN** commands are copied from embedded assets/commands/ to each harness's commands/prompts directory
-- **AND** GitHub prompts get `.prompt.md` suffix
-
-#### Scenario: Adapters installed per harness
-
-- **WHEN** `ito init --tools <harness>` is executed
-- **THEN** harness-specific adapters are copied from embedded assets/adapters/
+- **GIVEN** the user runs `ito init` interactively
+- **WHEN** the worktree wizard completes
+- **THEN** the worktree configuration SHALL be resolved and available before `install_default_templates()` is called
+- **AND** the resolved config SHALL be passed to the template installer for rendering AGENTS.md and skills

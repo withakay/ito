@@ -27,22 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/cache-apt-pkgs
-        with:
-          packages: build-essential
-
-      - uses: jdx/mise-action@v3
-        env:
-          MISE_VERBOSE: 1
-        with:
-          log_level: debug # [default: info] log level
-          github_token: ${{ secrets.GITHUB_TOKEN }} # [default: ${{ github.token }}] GitHub token for API authentication
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ito-rs -> target
-          shared-key: copilot-setup
+      # using withakay-selfhosted runner, we have rust and python preinstalled,
+      # so we can use them to verify that the setup steps are working correctly.
 
       - run: |
           cargo --version

@@ -1,35 +1,35 @@
-# User Guidance File Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: User prompts directory
 
-Define the `user-guidance-file` capability, including required behavior and validation scenarios, so it remains stable and testable.
+Ito SHALL support a project-local user prompts directory at `.ito/user-prompts/` for artifact-scoped guidance files.
 
+#### Scenario: Directory is optional
 
-## Requirements
+- **WHEN** `.ito/user-prompts/` does not exist
+- **THEN** instruction generation still works using existing guidance behavior
 
-### Requirement: Project-local guidance file
+#### Scenario: Directory can store artifact-scoped markdown files
 
-Ito SHALL support a project-local Markdown file that users can edit to provide additional guidance for LLM-driven workflows.
+- **WHEN** users create markdown files in `.ito/user-prompts/` named by artifact ID
+- **THEN** Ito can consume them as artifact-scoped guidance inputs
 
-#### Scenario: File created during init
+#### Scenario: Shared guidance remains backward-compatible
 
-- **WHEN** a user runs `ito init` in a project
-- **THEN** Ito creates `.ito/user-guidance.md` if it does not exist
-- **AND** the file explains how to add guidance
+- **WHEN** `.ito/user-guidance.md` exists
+- **THEN** Ito continues to support it as shared guidance across artifacts
 
-#### Scenario: User edits are preserved
+### Requirement: Shared guidance file in user-prompts directory
 
-- **GIVEN** `.ito/user-guidance.md` already exists and contains user-authored content
-- **WHEN** a user runs `ito update`
-- **THEN** Ito MUST NOT overwrite user-authored content
+Ito SHALL support `.ito/user-prompts/guidance.md` as a shared guidance file that applies across instruction artifacts.
 
-### Requirement: Managed header block
+#### Scenario: Preferred shared guidance file is recognized
 
-The guidance file SHALL contain a managed header block that Ito may update over time without impacting user-authored guidance.
+- **WHEN** `.ito/user-prompts/guidance.md` exists
+- **THEN** Ito can consume it as shared guidance across artifacts
 
-#### Scenario: Managed block can be updated
+#### Scenario: Legacy shared guidance file remains supported
 
-- **GIVEN** `.ito/user-guidance.md` contains a `<!-- ITO:START -->` managed block
-- **WHEN** Ito updates templates
-- **THEN** only the managed block content is updated
-- **AND** user-authored content outside the managed block is preserved
+- **WHEN** `.ito/user-prompts/guidance.md` does not exist
+- **AND** `.ito/user-guidance.md` exists
+- **THEN** Ito uses `.ito/user-guidance.md` as shared guidance fallback

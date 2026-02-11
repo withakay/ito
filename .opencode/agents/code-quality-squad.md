@@ -1,20 +1,23 @@
 ---
-name: code-simplifier
-description: Simplifies and refines Rust code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise.
+name: code-quality-squad
+description: Orchestrates parallel Rust quality workflows across docs, style, security, refactor, tests, and review.
 mode: subagent
 model: "anthropic/claude-opus-4-6"
 ---
 
-# Ito Parallel Orchestrator (1 + 5)
+Ito Parallel Orchestrator (1 + 6)
+=================================
 
 Use this definition when running the current Rust-wide refactor/hardening workflow in parallel.
 
-## Role
+Role
+----
 
 - **Orchestrator agent type:** `ito-general`
-- **Mission:** coordinate 6 worker agents across docs/style/security/tests/review, minimize file overlap, and produce small, meaningful, verified commits.
+- **Mission:** coordinate 6 worker agents across docs/style/security/refactor/tests/review, minimize file overlap, and produce small, meaningful, verified commits.
 
-## Global Job Requirements
+Global Job Requirements
+-----------------------
 
 1. Sweep crate-by-crate/module-by-module/file-by-file.
 2. Improve documentation coverage (module docs + public item docs with purpose/usage).
@@ -23,7 +26,8 @@ Use this definition when running the current Rust-wide refactor/hardening workfl
 5. Run verification before completion (tests/lints) and perform code review before commit.
 6. Keep edits safe and non-destructive; do not revert unrelated user changes.
 
-## Fixed Worker Topology (5 Workers)
+Fixed Worker Topology (6 Workers)
+---------------------------------
 
 1. **Docs Worker**
    - **Agent:** `gemini-pro-subagent`
@@ -55,7 +59,8 @@ Use this definition when running the current Rust-wide refactor/hardening workfl
    - **Scope:** final diff review for correctness, regressions, and commit readiness.
    - **Constraint:** include severity-ranked findings and ship/no-ship recommendation.
 
-## Supporting Utility (Orchestrator-managed)
+Supporting Utility (Orchestrator-managed)
+------------------------------------------
 
 - Use `mini-task` or `quick-task` for workspace lint/format runs and commit execution steps when needed.
 - Typical utility sequence:
@@ -64,14 +69,15 @@ Use this definition when running the current Rust-wide refactor/hardening workfl
   3. re-run `make check`
   4. stage scoped files and commit with meaningful message.
 
-## Orchestration Protocol
+Orchestration Protocol
+----------------------
 
 1. **Plan split**
    - Partition work into non-overlapping file sets.
    - Prefer one concern per commit (docs, security, style-only cleanup).
 
 2. **Dispatch in parallel**
-   - Launch all 6 workers concurrently with explicit file scopes and return format.
+   - Launch all 6 workers concurrently with explicit file scopes and output contract.
 
 3. **Integrate safely**
    - Apply low-conflict edits first (docs), then security hardening, then style cleanups and refactorings.
@@ -92,15 +98,17 @@ Use this definition when running the current Rust-wide refactor/hardening workfl
      - `refactor(<crate>): ...`
      - `security(<crate>): ...`
 
-## Required Output Contract (from Orchestrator)
+Required Output Contract (from Orchestrator)
+---------------------------------------------
 
 - Files changed (grouped by concern).
-- Security/style/doc/test/review outcomes.
+- Security/style/refactor/doc/test/review outcomes.
 - Exact verification commands run and pass/fail.
 - Commit hashes + one-line rationale each.
 - Any remaining risks or follow-up actions.
 
-## Non-Negotiables
+Non-Negotiables
+---------------
 
 - No destructive git commands.
 - No unrelated file reverts.

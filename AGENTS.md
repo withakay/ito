@@ -17,12 +17,12 @@ Use `@/.ito/AGENTS.md` to learn:
 - Project structure and guidelines
 
 Note: Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten.
-Add project-specific guidance in `.ito/user-guidance.md` (injected into agent instruction outputs) and/or below this managed block.
+Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito/user-prompts/<artifact>.md` (artifact-specific), and/or below this managed block.
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
-
 ## Worktree Workflow
+
 
 **Strategy:** `bare_control_siblings`
 **Directory name:** `ito-worktrees`
@@ -32,13 +32,13 @@ Keep this managed block so 'ito update' can refresh the instructions.
 
 This project uses a bare/control repo layout with worktrees as siblings:
 
-```
+```bash
 <project>/                              # bare/control repo
-├── .bare/                              # git object store
-├── .git                                # gitdir pointer
-├── main/               # main branch worktree
-└── ito-worktrees/              # Ito-managed change worktrees
-    └── <change-name>/                  # one worktree per change
+|-- .bare/                              # git object store
+|-- .git                                # gitdir pointer
+|-- main/               # main branch worktree
+`-- ito-worktrees/              # change worktrees
+    `-- <change-name>/
 ```
 
 To create a worktree for a change:
@@ -48,12 +48,8 @@ mkdir -p "ito-worktrees"
 git worktree add "ito-worktrees/<change-name>" -b <change-name>
 ```
 
-Do NOT ask the user where to create worktrees. Use `ito-worktrees/` inside the bare repo root.
 
-
-
-**Integration:** Commit changes in the worktree, push the branch, and create a pull request.
-
+Do NOT ask the user where to create worktrees. Use the configured locations above.
 
 After the change branch is merged, clean up:
 
@@ -129,3 +125,11 @@ If you want agents to learn new workflows (e.g., task tracking), update the embe
 ## Rust Development
 
 See [`ito-rs/AGENTS.md`](ito-rs/AGENTS.md) for all Rust-specific guidance: development commands, coding conventions, testing policy, quality gates, dependency rules, and git hooks.
+
+## Pull Request Titles
+
+When creating a PR for a specific Ito change, include the change ID in the PR title to simplify reconciliation.
+
+- Format: `<type>(<change-id>): <short summary>`
+- Example: `feat(001-23): My cool change`
+- If no change ID applies, use normal conventional commit style without a change-id scope.

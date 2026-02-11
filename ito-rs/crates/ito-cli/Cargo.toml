@@ -21,13 +21,9 @@ clap_complete = { workspace = true }
 miette = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
-log = { workspace = true }
 dialoguer = { workspace = true }
-crossterm = { workspace = true }
-indicatif = { workspace = true }
 ito-core = { workspace = true }
 ito-common = { workspace = true }
 ito-config = { workspace = true }
@@ -45,6 +41,5 @@ assert_cmd = { workspace = true }
 filetime = { workspace = true }
 insta = { workspace = true }
 predicates = { workspace = true }
-regex = { workspace = true }
 tempfile = { workspace = true }
 ito-test-support = { path = "../ito-test-support" }
