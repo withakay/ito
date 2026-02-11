@@ -20,11 +20,11 @@ use ito_test_support::pty::run_pty_interactive;
 /// ```
 fn expected_release_tag() -> String {
     let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-    let Some(version) = version.strip_prefix('v') else {
-        return format!("v{version}");
-    };
-
-    format!("v{version}")
+    if version.starts_with('v') {
+        version.to_string()
+    } else {
+        format!("v{version}")
+    }
 }
 
 #[test]
