@@ -1,4 +1,9 @@
-//! HTTP server setup and configuration.
+//! HTTP server bootstrap and route assembly.
+//!
+//! [`serve`] is the single entry point: it wires up frontend routes, the REST
+//! API, the WebSocket terminal, authentication middleware, and CORS, then binds
+//! to the configured address. All business logic lives in `ito-core`; this
+//! module only handles transport-level concerns.
 
 use axum::{Router, middleware, routing::get};
 use std::net::SocketAddr;
@@ -11,7 +16,7 @@ use crate::auth::{self, AuthState};
 use crate::frontend;
 use crate::terminal::{self, TerminalState};
 
-/// Server configuration.
+/// Configuration passed to [`serve`] to start the web server.
 #[derive(Debug, Clone)]
 pub struct ServeConfig {
     /// Root directory to serve (typically the project root).
@@ -32,7 +37,10 @@ impl Default for ServeConfig {
     }
 }
 
-/// Start the web server.
+/// Start the web server and block until it shuts down.
+///
+/// Binds to `config.bind:config.port`, prints the access URL (with a token for
+/// non-loopback addresses), and serves until the process is terminated.
 pub async fn serve(config: ServeConfig) -> miette::Result<()> {
     let root = config.root.canonicalize().unwrap_or(config.root.clone());
 
