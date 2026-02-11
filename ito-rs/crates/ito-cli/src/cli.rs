@@ -473,7 +473,7 @@ pub enum TemplatesSchemasAction {
     /// Export embedded schemas to a directory
     Export {
         /// Destination directory path
-        #[arg(short = 'f', long = "to", value_name = "PATH")]
+        #[arg(short = 'o', long = "to", value_name = "PATH")]
         to: std::path::PathBuf,
 
         /// Overwrite existing files
