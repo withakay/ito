@@ -43,6 +43,25 @@ fn load_user_guidance_for_artifact_reads_scoped_file() {
 }
 
 #[test]
+fn load_user_guidance_for_artifact_strips_managed_header_block() {
+    let dir = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = dir.path();
+
+    std::fs::create_dir_all(ito_path.join("user-prompts")).expect("create dir should succeed");
+    std::fs::write(
+        ito_path.join("user-prompts/proposal.md"),
+        "<!-- ITO:START -->\nheader\n<!-- ITO:END -->\n\nProposal body guidance",
+    )
+    .expect("write should succeed");
+
+    let guidance = load_user_guidance_for_artifact(ito_path, "proposal")
+        .expect("load should succeed")
+        .expect("should be present");
+
+    assert_eq!(guidance, "Proposal body guidance");
+}
+
+#[test]
 fn load_composed_user_guidance_combines_scoped_and_shared() {
     let dir = tempfile::tempdir().expect("tempdir should succeed");
     let ito_path = dir.path();

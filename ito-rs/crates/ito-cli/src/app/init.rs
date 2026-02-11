@@ -196,7 +196,7 @@ Next step: Run /ito-project-setup in your AI assistant to configure the project.
 
 Or manually edit:
   .ito/project.md        Project overview, tech stack, architecture
-  .ito/user-guidance.md  Your coding standards and preferences
+  .ito/user-prompts/     Shared + artifact-specific instruction guidance
   .ito/config.json       Tool settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
