@@ -19,7 +19,7 @@ jobs:
     name: Test (linux)
     #runs-on: withakay-selfhosted
     runs-on: namespace-profile-linux-amd64-4c8gb
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
