@@ -147,6 +147,24 @@
       },
       "type": "object"
     },
+    "ChangesConfig": {
+      "description": "Change coordination settings",
+      "properties": {
+        "coordination_branch": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CoordinationBranchConfig"
+            }
+          ],
+          "default": {
+            "enabled": true,
+            "name": "ito/internal/changes"
+          },
+          "description": "Coordination branch settings"
+        }
+      },
+      "type": "object"
+    },
     "ClaudeCodeHarnessConfig": {
       "description": "Claude Code harness configuration",
       "properties": {
@@ -221,6 +239,22 @@
           ],
           "default": null,
           "description": "Provider constraint (if specified, must be openai)"
+        }
+      },
+      "type": "object"
+    },
+    "CoordinationBranchConfig": {
+      "description": "Dedicated branch used for proposal/task coordination",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Enable change coordination branch synchronization",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "ito/internal/changes",
+          "description": "Name of the internal coordination branch",
+          "type": "string"
         }
       },
       "type": "object"
@@ -761,6 +795,20 @@
         "ttl_hours": 24
       },
       "description": "Cache configuration"
+    },
+    "changes": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ChangesConfig"
+        }
+      ],
+      "default": {
+        "coordination_branch": {
+          "enabled": true,
+          "name": "ito/internal/changes"
+        }
+      },
+      "description": "Change coordination configuration"
     },
     "defaults": {
       "allOf": [
