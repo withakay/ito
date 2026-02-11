@@ -9,6 +9,8 @@ use super::TaskStatus;
 ///
 /// `task_id` is interpreted as a 1-based index of the checkbox items in the
 /// file.
+///
+/// Returns the full updated file content, or an error if the task id was not found.
 pub fn update_checkbox_task_status(
     contents: &str,
     task_id: &str,
@@ -69,6 +71,9 @@ pub fn update_checkbox_task_status(
 }
 
 /// Update an enhanced-format task's status and `Updated At` metadata.
+///
+/// Uses regex replacement to preserve the existing structure and formatting
+/// of the task block.
 pub fn update_enhanced_task_status(
     contents: &str,
     task_id: &str,
