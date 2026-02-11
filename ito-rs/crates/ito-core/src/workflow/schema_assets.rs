@@ -6,9 +6,10 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Get the repository's top-level `schemas` directory.
+/// Resolve the repository's top-level `schemas` directory.
 ///
-/// The path is resolved from the crate manifest and points to the repository root's `schemas` subdirectory.
+/// Returns a `PathBuf` pointing to the repository root's `schemas` subdirectory
+/// as derived from the crate manifest directory.
 ///
 /// # Examples
 ///
@@ -112,18 +113,16 @@ pub(super) fn embedded_schema_names() -> Vec<String> {
     names.into_iter().collect()
 }
 
-/// Load an embedded schema's `schema.yaml` by schema name.
+/// Load the embedded schema manifest for a schema name.
 ///
 /// Attempts to read `{name}/schema.yaml` from the embedded assets and deserialize it into
-/// `SchemaYaml`.
-///
-/// Returns `Ok(Some(schema))` when the file exists and parses successfully, `Ok(None)` when the
-/// embedded file is not present, and `Err(WorkflowError)` if the embedded bytes are not valid UTF-8
-/// or if YAML deserialization (or other I/O) fails.
+/// `SchemaYaml`. Returns `Ok(Some(schema))` if the file exists and parses successfully,
+/// `Ok(None)` if the embedded file is not present, and `Err(WorkflowError)` on UTF-8
+/// validation or YAML deserialization errors.
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// let res = load_embedded_schema_yaml("example-schema").unwrap();
 /// if let Some(schema) = res {
 ///     // use `schema`
@@ -145,22 +144,22 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
     Ok(Some(schema))
 }
 
-/// Read the content of a schema template for a resolved schema.
+/// Load a schema template's contents for a resolved schema.
 ///
-/// If the resolved schema's source is `SchemaSource::Embedded`, the template is loaded
-/// from the embedded asset bundle at `{schema}/templates/{template}`; otherwise it is
-/// read from `<schema_dir>/templates/<template>` on the filesystem.
+/// When `resolved.source` is `SchemaSource::Embedded`, the template is read from the
+/// embedded asset at `{schema}/templates/{template}`. Otherwise the template is read
+/// from the filesystem at `<schema_dir>/templates/<template>`.
 ///
 /// # Returns
 ///
-/// The template contents as a `String`, or a `WorkflowError` if the embedded template
-/// is missing, the embedded bytes are not valid UTF-8, or a filesystem I/O error occurs
-/// when reading a non-embedded template.
+/// `String` with the template contents. Returns `Err(WorkflowError)` if the embedded
+/// template is missing, the embedded bytes are not valid UTF-8, or a filesystem I/O
+/// error occurs when reading a non-embedded template.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// // `resolved` is a ResolvedSchema obtained from your configuration or discovery logic.
+/// // `resolved` is a ResolvedSchema obtained from configuration or discovery.
 /// // let content = read_schema_template(&resolved, "main.tpl")?;
 /// ```
 pub(super) fn read_schema_template(
