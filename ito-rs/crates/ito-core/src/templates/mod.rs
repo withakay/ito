@@ -106,7 +106,7 @@ pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
 /// ```
 /// use std::path::Path;
 ///
-/// let names = ito_core::workflow::list_available_changes(Path::new("."));
+/// let names = ito_core::templates::list_available_changes(Path::new("."));
 /// // `names` is a `Vec<String>` of change directory names
 /// ```
 pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
@@ -265,7 +265,7 @@ pub fn resolve_schema(
 ///
 /// ```ignore
 /// # use std::path::Path;
-/// # use ito_core::workflow::{compute_change_status, ChangeStatus};
+/// # use ito_core::templates::{compute_change_status, ChangeStatus};
 /// # use ito_core::config::ConfigContext;
 /// let ctx = ConfigContext::default();
 /// let status = compute_change_status(Path::new("."), "my-change", None, &ctx).unwrap();

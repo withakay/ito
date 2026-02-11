@@ -77,9 +77,6 @@ pub mod validate;
 /// Schema templates execution and planning.
 pub mod templates;
 
-/// Backward-compatible alias to schema/template workflow helpers.
-pub use templates as workflow;
-
 // Re-export domain types for CLI convenience
 pub use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
 pub use ito_domain::tasks::TaskRepository as DomainTaskRepository;
@@ -92,14 +89,12 @@ pub mod schemas {
     pub use ito_domain::schemas::*;
 }
 
-/// Re-exported workflow domain modules
+/// Re-exported domain modules
 pub mod domain {
     /// Planning domain module
     pub use ito_domain::planning;
     /// State domain module
     pub use ito_domain::state;
-    /// Workflow domain module
-    pub use ito_domain::workflow;
 }
 
 // Re-export utility functions for CLI convenience
