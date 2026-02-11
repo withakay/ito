@@ -40,6 +40,10 @@ fn init_with_tools_none_installs_ito_skeleton() {
         repo.path().join(".ito/user-guidance.md").exists()
             || repo.path().join(".ito/specs").exists()
     );
+    assert!(repo.path().join(".ito/user-prompts/guidance.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/proposal.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/apply.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/tasks.md").exists());
 }
 
 #[test]
@@ -353,8 +357,105 @@ fn init_update_without_prior_init_creates_all_files() {
     assert!(repo.path().join(".ito").is_dir());
     assert!(repo.path().join(".ito/project.md").exists());
     assert!(repo.path().join(".ito/user-guidance.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/guidance.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/proposal.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/apply.md").exists());
+    assert!(repo.path().join(".ito/user-prompts/tasks.md").exists());
     assert!(repo.path().join(".ito/config.json").exists());
     assert!(repo.path().join("AGENTS.md").exists());
+}
+
+#[test]
+fn init_update_does_not_overwrite_existing_user_prompt_stubs() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "initial init failed: {}", out.stderr);
+
+    fixtures::write(
+        repo.path().join(".ito/user-prompts/tasks.md"),
+        "Custom tasks guidance\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--update",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "init --update failed: {}", out.stderr);
+
+    let tasks_prompt =
+        std::fs::read_to_string(repo.path().join(".ito/user-prompts/tasks.md")).unwrap();
+    assert!(tasks_prompt.contains("Custom tasks guidance"));
+}
+
+#[test]
+fn init_force_overwrites_existing_user_prompt_stubs() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "initial init failed: {}", out.stderr);
+
+    fixtures::write(
+        repo.path().join(".ito/user-prompts/tasks.md"),
+        "Custom tasks guidance\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--force",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "init --force failed: {}", out.stderr);
+
+    let tasks_prompt =
+        std::fs::read_to_string(repo.path().join(".ito/user-prompts/tasks.md")).unwrap();
+    assert!(!tasks_prompt.contains("Custom tasks guidance"));
+    assert!(tasks_prompt.contains("Tasks Guidance"));
 }
 
 #[test]

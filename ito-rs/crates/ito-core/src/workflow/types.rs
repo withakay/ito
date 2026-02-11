@@ -25,6 +25,10 @@ pub enum WorkflowError {
     /// The requested artifact id does not exist in the resolved schema.
     ArtifactNotFound(String),
 
+    #[error("Invalid artifact id: '{0}'")]
+    /// Artifact id failed sanitization for user-guidance lookup.
+    InvalidArtifactId(String),
+
     #[error(transparent)]
     /// IO error while reading or writing workflow files.
     Io(#[from] std::io::Error),

@@ -8,7 +8,6 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ConfigContext;
 use ito_config::ito_dir;
-use ito_config::load_cascading_project_config;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -196,7 +195,7 @@ Next step: Run /ito-project-setup in your AI assistant to configure the project.
 
 Or manually edit:
   .ito/project.md        Project overview, tech stack, architecture
-  .ito/user-guidance.md  Your coding standards and preferences
+  .ito/user-prompts/     Shared + artifact-specific instruction guidance
   .ito/config.json       Tool settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
@@ -302,7 +301,7 @@ fn worktree_template_context(
         return WorktreeTemplateContext::default();
     }
 
-    let defaults = load_worktree_template_defaults(target_path, ctx);
+    let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
 
     WorktreeTemplateContext {
         enabled: true,
@@ -314,57 +313,4 @@ fn worktree_template_context(
             .unwrap_or(defaults.integration_mode),
         default_branch: defaults.default_branch,
     }
-}
-
-#[derive(Debug, Clone)]
-struct WorktreeTemplateDefaults {
-    strategy: String,
-    layout_dir_name: String,
-    integration_mode: String,
-    default_branch: String,
-}
-
-fn load_worktree_template_defaults(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-) -> WorktreeTemplateDefaults {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let merged = load_cascading_project_config(target_path, &ito_path, ctx).merged;
-
-    let mut defaults = WorktreeTemplateDefaults {
-        strategy: "checkout_subdir".to_string(),
-        layout_dir_name: "ito-worktrees".to_string(),
-        integration_mode: "commit_pr".to_string(),
-        default_branch: "main".to_string(),
-    };
-
-    if let Some(wt) = merged.get("worktrees") {
-        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.strategy = v.to_string();
-        }
-
-        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.default_branch = v.to_string();
-        }
-
-        if let Some(layout) = wt.get("layout")
-            && let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.layout_dir_name = v.to_string();
-        }
-
-        if let Some(apply) = wt.get("apply")
-            && let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.integration_mode = v.to_string();
-        }
-    }
-
-    defaults
 }
