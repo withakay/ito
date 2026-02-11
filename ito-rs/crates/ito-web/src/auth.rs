@@ -40,8 +40,15 @@ pub fn generate_token(project_root: &std::path::Path) -> String {
 }
 
 /// Check if an address is loopback (doesn't need auth).
+#[allow(clippy::match_like_matches_macro)]
 pub fn is_loopback(bind: &str) -> bool {
-    matches!(bind, "127.0.0.1" | "localhost" | "::1" | "0:0:0:0:0:0:0:1")
+    match bind {
+        "127.0.0.1" => true,
+        "localhost" => true,
+        "::1" => true,
+        "0:0:0:0:0:0:0:1" => true,
+        _ => false,
+    }
 }
 
 #[derive(Clone)]
@@ -93,9 +100,9 @@ pub async fn auth_middleware(
         );
 
         let (mut parts, body) = response.into_parts();
-        parts
-            .headers
-            .insert(header::SET_COOKIE, cookie_value.parse().unwrap());
+        if let Ok(cookie_header) = cookie_value.parse() {
+            parts.headers.insert(header::SET_COOKIE, cookie_header);
+        }
 
         return Response::from_parts(parts, body);
     }
