@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 76
 expression: "snapshot(&[\"--help-all\"])"
 ---
 ================================================================================
@@ -28,10 +27,7 @@ Commands:
   init         Set up Ito in a project
   update       Refresh Ito instruction files and AI tool configs
   config       Read and write global Ito settings
-<<<<<<< HEAD
   workflow     Legacy workflow command namespace (no-op)
-=======
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
   serve        Serve local Ito artifacts and docs over HTTP
   audit        Query, validate, and manage the audit event log
   completions  Output shell completion scripts
@@ -214,37 +210,6 @@ Options:
 
 --------------------------------------------------------------------------------
 
-<<<<<<< HEAD
-ito workflow
-------------
-Legacy workflow command namespace (no-op)
-
-`ito workflow` and its subcommands are retained as compatibility no-ops.
-Use `ito agent instruction <artifact>` and `ito tasks ...` for active workflows.
-
-Examples:
-  ito workflow
-  ito agent instruction apply --change 005-01_add-auth
-  ito tasks status 005-01_add-auth
-
-Usage: ito workflow [COMMAND]
-
-Commands:
-  init    Legacy no-op
-  list    Legacy no-op
-  show    Legacy no-op
-  run     Legacy no-op
-  status  Legacy no-op
-
-Options:
-  -h, --help
-          Print help (see a summary with '-h')
-
-
---------------------------------------------------------------------------------
-
-=======
->>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
 ito list
 --------
 List changes, specs, or modules with status summaries
