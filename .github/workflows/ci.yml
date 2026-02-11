@@ -17,7 +17,7 @@ concurrency:
 jobs:
   test:
     name: Test (linux)
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     timeout-minutes: 15
 
     steps:
@@ -26,28 +26,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install build-essential
-        uses: ./.github/actions/cache-apt-pkgs
-        with:
-          packages: build-essential
+      # - name: Install build-essential
+      #   uses: ./.github/actions/cache-apt-pkgs
+      #   with:
+      #     packages: build-essential
 
-      - name: Setup toolchain (mise)
-        uses: jdx/mise-action@v3
+      # - name: Setup toolchain (mise)
+      #   uses: jdx/mise-action@v3
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-          shared-key: ci-test-linux
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
+      #     shared-key: ci-test-linux
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
 
       - name: Print environment diagnostics
         run: |
+          mise install
+          mise trust
           rustc -V
           cargo -V
 
@@ -58,39 +60,42 @@ jobs:
 
   lint:
     name: Lint & Type Check
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install build-essential
-        uses: ./.github/actions/cache-apt-pkgs
-        with:
-          packages: build-essential
+      # - name: Install build-essential
+      #   uses: ./.github/actions/cache-apt-pkgs
+      #   with:
+      #     packages: build-essential
 
-      - name: Setup toolchain (mise)
-        uses: jdx/mise-action@v3
+      # - name: Setup toolchain (mise)
+      #   uses: jdx/mise-action@v3
 
       - name: Install Rust components (rustfmt, clippy)
         run: |
           set -eu
+          mise install
+          mise trust
           TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
           rustup component add --toolchain "$TOOLCHAIN" rustfmt clippy
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-          shared-key: ci-lint
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
+      #     shared-key: ci-lint
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
 
       - name: Verify config schema artifact is current
-        run: make config-schema-check
+        run: |
+          make config-schema-check
 
       - name: Rust fmt (check)
         run: cargo fmt --all -- --check
@@ -105,30 +110,37 @@ jobs:
 
   arch_guardrails:
     name: Architecture Guardrails
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install build-essential
-        uses: ./.github/actions/cache-apt-pkgs
-        with:
-          packages: build-essential
+      # - name: Install build-essential
+      #   uses: ./.github/actions/cache-apt-pkgs
+      #   with:
+      #     packages: build-essential
 
-      - name: Setup toolchain (mise)
-        uses: jdx/mise-action@v3
+      # - name: Setup toolchain (mise)
+      #   uses: jdx/mise-action@v3
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-          shared-key: ci-arch-guardrails
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
+      #     shared-key: ci-arch-guardrails
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
+      # - name: Cache Rust dependencies
+      #   uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: . -> target
+
+      - name: Print environment diagnostics
+        run: |
+          mise install
+          mise trust
+          rustc -V
+          cargo -V
 
       - name: Run architecture guardrails
         run: make arch-guardrails
@@ -163,7 +175,7 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:
