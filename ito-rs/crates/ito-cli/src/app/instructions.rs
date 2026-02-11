@@ -178,10 +178,12 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let testing_policy = load_testing_policy(project_root, ito_path, ctx);
 
-    let user_guidance = match core_workflow::load_user_guidance(ito_path) {
+    let user_guidance = match core_workflow::load_composed_user_guidance(ito_path, artifact) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("Warning: failed to read .ito/user-guidance.md: {e}");
+            eprintln!(
+                "Warning: failed to read user guidance files (.ito/user-prompts/<artifact>.md, .ito/user-prompts/guidance.md, .ito/user-guidance.md): {e}"
+            );
             None
         }
     };

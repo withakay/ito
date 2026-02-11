@@ -5,9 +5,7 @@ use crate::app::worktree_wizard::{
 use crate::cli::UpdateArgs;
 use crate::cli_error::{CliResult, to_cli_error};
 use crate::runtime::Runtime;
-use ito_config::ConfigContext;
 use ito_config::ito_dir;
-use ito_config::load_cascading_project_config;
 use ito_config::output;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -120,7 +118,7 @@ fn resolve_update_worktree_config(
             )
         };
 
-    let defaults = load_worktree_template_defaults(target_path, ctx);
+    let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
     let ctx_out = if result.enabled {
         WorktreeTemplateContext {
             enabled: true,
@@ -140,59 +138,6 @@ fn resolve_update_worktree_config(
     // worktree workflows without churn in committed config.
     let post_install_save = should_save_to_project.then_some((project_local_config_path, result));
     Ok((ctx_out, post_install_save))
-}
-
-#[derive(Debug, Clone)]
-struct WorktreeTemplateDefaults {
-    strategy: String,
-    layout_dir_name: String,
-    integration_mode: String,
-    default_branch: String,
-}
-
-fn load_worktree_template_defaults(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-) -> WorktreeTemplateDefaults {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let merged = load_cascading_project_config(target_path, &ito_path, ctx).merged;
-
-    let mut defaults = WorktreeTemplateDefaults {
-        strategy: "checkout_subdir".to_string(),
-        layout_dir_name: "ito-worktrees".to_string(),
-        integration_mode: "commit_pr".to_string(),
-        default_branch: "main".to_string(),
-    };
-
-    if let Some(wt) = merged.get("worktrees") {
-        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.strategy = v.to_string();
-        }
-
-        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.default_branch = v.to_string();
-        }
-
-        if let Some(layout) = wt.get("layout")
-            && let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.layout_dir_name = v.to_string();
-        }
-
-        if let Some(apply) = wt.get("apply")
-            && let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            defaults.integration_mode = v.to_string();
-        }
-    }
-
-    defaults
 }
 
 pub(crate) fn handle_update_clap(rt: &Runtime, args: &UpdateArgs) -> CliResult<()> {
