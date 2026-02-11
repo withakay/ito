@@ -30,6 +30,9 @@ pub mod distribution;
 /// Core-layer error types and result alias.
 pub mod errors;
 
+/// Git synchronization helpers for coordination workflows.
+pub mod git;
+
 mod error_bridge;
 
 /// Process execution boundary and default runner.
