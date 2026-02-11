@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.2] - 2026-02-11
+
+### 🚜 Refactor
+
+- *(ito-config)* Validate ito dir overrides and expand docs
+
+### 🧪 Testing
+
+- Raise coverage for validation and template helpers ([#25](https://github.com/withakay/ito/pull/25))
 ## [0.1.1] - 2026-02-10
 
 ### Other
