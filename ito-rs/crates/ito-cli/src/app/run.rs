@@ -5,6 +5,23 @@ use crate::{commands, util};
 use clap::Parser;
 use clap::error::ErrorKind;
 
+/// Parse CLI arguments, initialize runtime and logging context, and dispatch the selected subcommand.
+///
+/// This is the program entry point for the CLI: it recognizes the global `--no-color` flag,
+/// handles help and version output, constructs an argv suitable for clap parsing, and routes
+/// execution to the appropriate command handler. If no command is provided or a command is
+/// unimplemented, it prints the long help fallback.
+///
+/// # Returns
+///
+/// `CliResult<()>` indicating the success or failure of the invoked command.
+///
+/// # Examples
+///
+/// ```
+/// let args = vec!["--version".to_string()];
+/// let _ = ito_cli::run(&args);
+/// ```
 pub(super) fn run(args: &[String]) -> CliResult<()> {
     // Match TS behavior: `--no-color` sets NO_COLOR=1 globally before command execution.
     if args.iter().any(|a| a == "--no-color") {
@@ -145,6 +162,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &project_root,
                 &ito_path_for_logging,
                 || commands::handle_workflow_clap(&rt, args),
+            );
+        }
+        Some(Commands::Templates(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || commands::handle_templates_clap(&rt, args),
             );
         }
         Some(Commands::Status(args)) => {

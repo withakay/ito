@@ -28,6 +28,7 @@ static SKILLS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/skill
 static ADAPTERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/adapters");
 static COMMANDS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/commands");
 static AGENTS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/agents");
+static SCHEMAS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/schemas");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// A file embedded in the `ito-templates` assets.
@@ -58,22 +59,109 @@ pub fn adapters_files() -> Vec<EmbeddedFile> {
     dir_files(&ADAPTERS_DIR)
 }
 
-/// Get a specific skill file by path (e.g., "brainstorming/SKILL.md")
+/// Retrieves an embedded skill file by its path within the skills assets.
+///
+/// The `path` should be the file's path relative to the skills root (for example
+/// "brainstorming/SKILL.md").
+///
+/// # Returns
+///
+/// `Some(&[u8])` with the file contents if a file exists at `path`, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::get_skill_file;
+/// let contents = get_skill_file("brainstorming/SKILL.md");
+/// if let Some(bytes) = contents {
+///     assert!(!bytes.is_empty());
+/// }
+/// ```
 pub fn get_skill_file(path: &str) -> Option<&'static [u8]> {
     SKILLS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Get a specific adapter file by path (e.g., "claude/session-start.sh")
+/// Retrieves an embedded adapter file by its relative path within the adapters assets.
+///
+/// Returns `Some(&[u8])` with the file contents if the path exists, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::get_adapter_file;
+/// let bytes = get_adapter_file("claude/session-start.sh").expect("adapter exists");
+/// assert!(!bytes.is_empty());
+/// ```
 pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
     ADAPTERS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Return all embedded shared command files.
+/// Lists embedded shared command files.
+///
+/// Returns a vector of `EmbeddedFile` entries for every file embedded under the commands asset directory,
+/// each with a `relative_path` (path relative to the commands root) and `contents`.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::commands_files;
+/// let files = commands_files();
+/// // every entry has a non-empty relative path and contents
+/// assert!(files.iter().all(|f| !f.relative_path.is_empty() && !f.contents.is_empty()));
+/// ```
 pub fn commands_files() -> Vec<EmbeddedFile> {
     dir_files(&COMMANDS_DIR)
 }
 
-/// Get a specific command file by path (e.g., "ito-apply.md")
+/// Lists embedded workflow schema files.
+///
+/// Each entry contains the file's path relative to the schema root and its raw contents.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::schema_files;
+/// let files = schema_files();
+/// assert!(files.iter().all(|f| !f.relative_path.is_empty() && !f.contents.is_empty()));
+/// ```
+pub fn schema_files() -> Vec<EmbeddedFile> {
+    dir_files(&SCHEMAS_DIR)
+}
+
+/// Returns the contents of an embedded schema file identified by its path relative to the schemas root.
+///
+/// The `path` is relative to the embedded schemas directory, for example `"spec-driven/schema.yaml"`.
+///
+/// # Returns
+///
+/// `Some(&[u8])` with the file contents if a matching embedded schema exists, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::get_schema_file;
+/// let bytes = get_schema_file("spec-driven/schema.yaml").expect("schema should exist");
+/// assert!(!bytes.is_empty());
+/// ```
+pub fn get_schema_file(path: &str) -> Option<&'static [u8]> {
+    SCHEMAS_DIR.get_file(path).map(|f| f.contents())
+}
+
+/// Fetches the contents of an embedded command file by its path relative to the commands asset root.
+///
+/// # Returns
+///
+/// `Some(&[u8])` with the file contents if a file at `path` exists, `None` otherwise.
+///
+/// # Examples
+///
+/// ```rust
+/// use ito_templates::get_command_file;
+/// let contents = get_command_file("ito-apply.md");
+/// if let Some(bytes) = contents {
+///     assert!(!bytes.is_empty());
+/// }
+/// ```
 pub fn get_command_file(path: &str) -> Option<&'static [u8]> {
     COMMANDS_DIR.get_file(path).map(|f| f.contents())
 }
@@ -306,6 +394,25 @@ mod tests {
     fn default_home_files_returns_a_vec() {
         // The default home templates may be empty, but should still be loadable.
         let _ = default_home_files();
+    }
+
+    #[test]
+    fn schema_files_contains_builtins() {
+        let files = schema_files();
+        assert!(!files.is_empty());
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "spec-driven/schema.yaml")
+        );
+        assert!(files.iter().any(|f| f.relative_path == "tdd/schema.yaml"));
+    }
+
+    #[test]
+    fn get_schema_file_returns_contents() {
+        let file = get_schema_file("spec-driven/schema.yaml").expect("schema should exist");
+        let text = std::str::from_utf8(file).expect("schema should be utf8");
+        assert!(text.contains("name: spec-driven"));
     }
 
     #[test]
