@@ -2,9 +2,34 @@ use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
+use ito_config::load_cascading_project_config;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+use ito_core::git::{
+    CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
+};
 use ito_core::{create as core_create, templates as core_templates};
 use std::path::Path;
+
+fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+
+    let enabled = merged
+        .get("changes")
+        .and_then(|v| v.get("coordination_branch"))
+        .and_then(|v| v.get("enabled"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
+    let name = merged
+        .get("changes")
+        .and_then(|v| v.get("coordination_branch"))
+        .and_then(|v| v.get("name"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("ito/internal/changes")
+        .to_string();
+    (enabled, name)
+}
 
 fn print_change_created_message(
     ito_path: &Path,
@@ -170,6 +195,19 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 name, module_id, schema_display
             );
 
+            let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
+            if coord_enabled {
+                let project_root = ito_path.parent().unwrap_or(ito_path);
+                if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
+                    && err.kind != CoordinationGitErrorKind::RemoteMissing
+                {
+                    eprintln!(
+                        "Warning: failed to sync coordination branch '{}' before create: {}",
+                        coord_branch, err.message
+                    );
+                }
+            }
+
             match core_create::create_change(
                 ito_path,
                 name,
@@ -221,6 +259,22 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         module.is_some(),
                         description.is_some(),
                     );
+
+                    if coord_enabled {
+                        let project_root = ito_path.parent().unwrap_or(ito_path);
+                        if let Err(err) = reserve_change_on_coordination_branch(
+                            project_root,
+                            ito_path,
+                            &r.change_id,
+                            &coord_branch,
+                        ) {
+                            return fail(format!(
+                                "Created local change '{}' but failed to reserve it on coordination branch '{}': {}",
+                                r.change_id, coord_branch, err.message
+                            ));
+                        }
+                    }
+
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),
@@ -269,6 +323,19 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
         "- Creating change '{}' in module {}{}...",
         name, module_id, schema_display
     );
+
+    let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
+    if coord_enabled {
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
+            && err.kind != CoordinationGitErrorKind::RemoteMissing
+        {
+            eprintln!(
+                "Warning: failed to sync coordination branch '{}' before create: {}",
+                coord_branch, err.message
+            );
+        }
+    }
 
     match core_create::create_change(
         ito_path,
@@ -321,6 +388,22 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 module.is_some(),
                 description.is_some(),
             );
+
+            if coord_enabled {
+                let project_root = ito_path.parent().unwrap_or(ito_path);
+                if let Err(err) = reserve_change_on_coordination_branch(
+                    project_root,
+                    ito_path,
+                    &r.change_id,
+                    &coord_branch,
+                ) {
+                    return fail(format!(
+                        "Created local change '{}' but failed to reserve it on coordination branch '{}': {}",
+                        r.change_id, coord_branch, err.message
+                    ));
+                }
+            }
+
             Ok(())
         }
         Err(e) => Err(to_cli_error(e)),

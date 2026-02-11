@@ -4,6 +4,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::load_cascading_project_config;
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
@@ -195,6 +196,18 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
 
+        let (coord_enabled, coord_branch) =
+            load_coordination_branch_settings(project_root, ito_path, ctx);
+        if coord_enabled
+            && let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
+            && err.kind != CoordinationGitErrorKind::RemoteMissing
+        {
+            eprintln!(
+                "Warning: failed to sync coordination branch '{}' before apply instructions: {}",
+                coord_branch, err.message
+            );
+        }
+
         let apply = match core_templates::compute_apply_instructions(
             ito_path,
             &change,
@@ -303,6 +316,28 @@ fn load_testing_policy(
     }
 
     out
+}
+
+fn load_coordination_branch_settings(
+    project_root: &Path,
+    ito_path: &Path,
+    ctx: &ito_config::ConfigContext,
+) -> (bool, String) {
+    let merged = load_cascading_project_config(project_root, ito_path, ctx).merged;
+    let enabled = merged
+        .get("changes")
+        .and_then(|v| v.get("coordination_branch"))
+        .and_then(|v| v.get("enabled"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
+    let name = merged
+        .get("changes")
+        .and_then(|v| v.get("coordination_branch"))
+        .and_then(|v| v.get("name"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("ito/internal/changes")
+        .to_string();
+    (enabled, name)
 }
 
 fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {
