@@ -3,7 +3,7 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
-use ito_core::{create as core_create, workflow as core_workflow};
+use ito_core::{create as core_create, templates as core_templates};
 use std::path::Path;
 
 fn print_change_created_message(
@@ -146,7 +146,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let schema_opt = parse_string_flag(args, "--schema");
             let schema = schema_opt
                 .clone()
-                .unwrap_or_else(|| core_workflow::default_schema_name().to_string());
+                .unwrap_or_else(|| core_templates::default_schema_name().to_string());
             let module = parse_string_flag(args, "--module");
             let description = parse_string_flag(args, "--description");
 
@@ -246,7 +246,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let schema_opt = parse_string_flag(args, "--schema");
     let schema = schema_opt
         .clone()
-        .unwrap_or_else(|| core_workflow::default_schema_name().to_string());
+        .unwrap_or_else(|| core_templates::default_schema_name().to_string());
     let module = parse_string_flag(args, "--module");
     let description = parse_string_flag(args, "--description");
 

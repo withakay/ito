@@ -155,6 +155,7 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_tasks_clap(&rt, args),
             );
         }
+<<<<<<< HEAD
         Some(Commands::Workflow(args)) => {
             return util::with_logging(
                 &rt,
@@ -173,6 +174,8 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_templates_clap(&rt, args),
             );
         }
+=======
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
         Some(Commands::Status(args)) => {
             return util::with_logging(
                 &rt,

@@ -120,11 +120,6 @@ fn snapshot_init_help() {
 }
 
 #[test]
-fn snapshot_workflow_help() {
-    insta::assert_snapshot!("ito_domain_help", snapshot(&["workflow", "--help"]));
-}
-
-#[test]
 fn snapshot_ralph_help() {
     insta::assert_snapshot!("ito_ralph_help", snapshot(&["ralph", "--help"]));
 }
