@@ -2,10 +2,19 @@ use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
+use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
+
+fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    resolve_coordination_branch_settings(&merged)
+}
 
 fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
     let change_repo = FsChangeRepository::new(ito_path);
@@ -467,6 +476,19 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let task_id = args.get(2).map(|s| s.as_str()).unwrap_or("");
             if task_id.is_empty() || task_id.starts_with('-') {
                 return fail("Missing required argument <task-id>");
+            }
+
+            let (coord_enabled, coord_branch) = load_coordination_branch_settings(rt);
+            if coord_enabled {
+                let project_root = ito_path.parent().unwrap_or(ito_path);
+                if let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
+                    && err.kind != CoordinationGitErrorKind::RemoteMissing
+                {
+                    eprintln!(
+                        "Warning: failed to sync coordination branch '{}' before task start: {}",
+                        coord_branch, err.message
+                    );
+                }
             }
 
             let _task =

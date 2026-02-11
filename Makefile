@@ -11,6 +11,7 @@ COVERAGE_TARGET ?= 90
 	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
 	fmt clippy \
 	arch-guardrails cargo-deny \
+	config-schema config-schema-check \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
@@ -117,7 +118,7 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
 		echo "  Excluded crates: ito-web (no tests yet)"; \
 		echo ""; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
+		CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-1} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
@@ -155,6 +156,16 @@ check-max-lines: ## Fail if Rust files exceed 1000 lines (override MAX_RUST_FILE
 
 arch-guardrails: ## Run architecture guardrail checks
 	python3 "ito-rs/tools/arch_guardrails.py"
+
+config-schema: ## Generate canonical Ito config JSON schema artifact
+	cargo run -p ito-cli --bin ito -- config schema --output schemas/ito-config.schema.json
+
+config-schema-check: ## Verify canonical Ito config schema artifact is up-to-date
+	@set -e; \
+	if ! cargo run -p ito-cli --bin ito -- config schema | diff -q schemas/ito-config.schema.json - >/dev/null; then \
+		echo "schemas/ito-config.schema.json is stale. Run: make config-schema"; \
+		exit 1; \
+	fi
 
 cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 	@set -e; \

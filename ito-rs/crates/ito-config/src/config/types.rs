@@ -42,6 +42,67 @@ pub struct ItoConfig {
     #[schemars(default, description = "Worktree workspace configuration")]
     /// Worktree workspace configuration.
     pub worktrees: WorktreesConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Change coordination configuration")]
+    /// Change coordination configuration.
+    pub changes: ChangesConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Change coordination settings")]
+/// Configuration for change coordination behavior.
+pub struct ChangesConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Coordination branch settings")]
+    /// Coordination branch settings.
+    pub coordination_branch: CoordinationBranchConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Dedicated branch used for proposal/task coordination")]
+/// Configuration for the internal change coordination branch.
+pub struct CoordinationBranchConfig {
+    #[serde(default = "CoordinationBranchConfig::default_enabled")]
+    #[schemars(
+        default = "CoordinationBranchConfig::default_enabled",
+        description = "Enable change coordination branch synchronization"
+    )]
+    /// Enable change coordination branch synchronization.
+    pub enabled: CoordinationBranchEnabled,
+
+    #[serde(default = "CoordinationBranchConfig::default_name")]
+    #[schemars(
+        default = "CoordinationBranchConfig::default_name",
+        description = "Name of the internal coordination branch"
+    )]
+    /// Name of the internal coordination branch.
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[schemars(description = "Boolean wrapper for coordination branch enablement")]
+/// Type-safe wrapper for `coordination_branch.enabled`.
+pub struct CoordinationBranchEnabled(pub bool);
+
+impl CoordinationBranchConfig {
+    fn default_enabled() -> CoordinationBranchEnabled {
+        CoordinationBranchEnabled(true)
+    }
+
+    fn default_name() -> String {
+        "ito/internal/changes".to_string()
+    }
+}
+
+impl Default for CoordinationBranchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            name: Self::default_name(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

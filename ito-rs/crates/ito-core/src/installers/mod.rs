@@ -22,6 +22,8 @@ pub const TOOL_GITHUB_COPILOT: &str = "github-copilot";
 /// Tool id for OpenCode.
 pub const TOOL_OPENCODE: &str = "opencode";
 
+const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
+
 /// Return the set of supported tool ids.
 pub fn available_tool_ids() -> &'static [&'static str] {
     &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
@@ -189,29 +191,36 @@ fn install_project_templates(
     let state_rel = format!("{ito_dir}/planning/STATE.md");
     let project_md_rel = format!("{ito_dir}/project.md");
     let config_json_rel = format!("{ito_dir}/config.json");
+    let release_tag = release_tag();
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
 
     for f in ito_templates::default_project_files() {
         let rel = ito_templates::render_rel_path(f.relative_path, ito_dir);
-        if !should_install_project_rel(rel.as_ref(), selected) {
+        let rel = rel.as_ref();
+
+        if !should_install_project_rel(rel, selected) {
             continue;
         }
 
         let mut bytes = ito_templates::render_bytes(f.contents, ito_dir).into_owned();
-        if rel.as_ref() == state_rel
-            && let Ok(s) = std::str::from_utf8(&bytes)
-        {
-            bytes = s.replace("__CURRENT_DATE__", &current_date).into_bytes();
+        if let Ok(s) = std::str::from_utf8(&bytes) {
+            if rel == state_rel {
+                bytes = s.replace("__CURRENT_DATE__", &current_date).into_bytes();
+            } else if rel == config_json_rel {
+                bytes = s
+                    .replace(CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER, &release_tag)
+                    .into_bytes();
+            }
         }
 
         // Render worktree-aware project templates (AGENTS.md) with worktree
         // config. Only AGENTS.md uses Jinja2 for worktree rendering; other
         // files (e.g., .ito/commands/) may contain `{{` as user-facing prompt
         // placeholders that must NOT be processed by minijinja.
-        if rel.as_ref() == "AGENTS.md" {
+        if rel == "AGENTS.md" {
             bytes = render_project_template(&bytes, ctx).map_err(|e| {
-                CoreError::Validation(format!("Failed to render template {}: {}", rel.as_ref(), e))
+                CoreError::Validation(format!("Failed to render template {rel}: {e}"))
             })?;
         }
 
@@ -220,17 +229,26 @@ fn install_project_templates(
         // to edit `.ito/project.md` and `.ito/config.json`), so `ito update`
         // must not clobber them once they exist.
         if mode == InstallMode::Update
-            && (rel.as_ref() == project_md_rel || rel.as_ref() == config_json_rel)
-            && project_root.join(rel.as_ref()).exists()
+            && (rel == project_md_rel || rel == config_json_rel)
+            && project_root.join(rel).exists()
         {
             continue;
         }
 
-        let target = project_root.join(rel.as_ref());
+        let target = project_root.join(rel);
         write_one(&target, &bytes, mode, opts)?;
     }
 
     Ok(())
+}
+
+fn release_tag() -> String {
+    let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    if version.starts_with('v') {
+        return version.to_string();
+    }
+
+    format!("v{version}")
 }
 
 fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {

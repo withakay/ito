@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/withakay/ito/__ITO_RELEASE_TAG__/schemas/ito-config.schema.json",
   "tools": {},
   "agents": {},
   "defaults": {

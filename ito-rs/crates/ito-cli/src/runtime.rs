@@ -7,6 +7,47 @@ use ito_core::repo_index::RepoIndex;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+fn resolve_runtime_root() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let fallback = || find_nearest_ito_root(&cwd).unwrap_or_else(|| cwd.clone());
+    let mut command = std::process::Command::new("git");
+    command
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(&cwd);
+    for (key, _value) in std::env::vars_os() {
+        let key = key.to_string_lossy();
+        if key.starts_with("GIT_") {
+            command.env_remove(key.as_ref());
+        }
+    }
+    let output = command.output();
+
+    let Ok(output) = output else {
+        return fallback();
+    };
+    if !output.status.success() {
+        return fallback();
+    }
+
+    let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if root.is_empty() {
+        return fallback();
+    }
+    PathBuf::from(root)
+}
+
+fn find_nearest_ito_root(start: &Path) -> Option<PathBuf> {
+    let mut cur = start.to_path_buf();
+    loop {
+        if cur.join(".ito").is_dir() {
+            return Some(cur);
+        }
+
+        let parent = cur.parent().map(Path::to_path_buf)?;
+        cur = parent;
+    }
+}
+
 pub(crate) struct Runtime {
     ctx: ConfigContext,
     cwd: PathBuf,
@@ -21,7 +62,7 @@ impl Runtime {
     pub(crate) fn new() -> Self {
         Self {
             ctx: ConfigContext::from_process_env(),
-            cwd: PathBuf::from("."),
+            cwd: resolve_runtime_root(),
             ito_path: OnceLock::new(),
             repo_index: OnceLock::new(),
             audit_writer: OnceLock::new(),

@@ -26,11 +26,13 @@ ito status --change "<change-id>"
 ```bash
 ito agent instruction proposal --change "<change-id>"
 ito agent instruction specs --change "<change-id>"
-ito agent instruction design --change "<change-id>"
 ito agent instruction tasks --change "<change-id>"
 ito agent instruction apply --change "<change-id>"
 ito agent instruction review --change "<change-id>"
 ito agent instruction archive --change "<change-id>"
+
+# Worktrees / multi-branch workflow (per-developer)
+ito agent instruction worktrees
 ```
 
 ### Task Management

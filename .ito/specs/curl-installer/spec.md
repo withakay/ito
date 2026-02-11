@@ -1,11 +1,4 @@
-# Curl Installer Specification
-
-## Purpose
-
-Define the `curl-installer` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: macOS/Linux install script installs the correct binary
 

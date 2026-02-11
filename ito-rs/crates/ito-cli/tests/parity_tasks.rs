@@ -2,6 +2,13 @@ use std::path::Path;
 
 use ito_test_support::{collect_file_bytes, reset_dir, run_rust_candidate};
 
+fn rust_bin() -> std::path::PathBuf {
+    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ito") {
+        return path.into();
+    }
+    assert_cmd::cargo::cargo_bin!("ito").to_path_buf()
+}
+
 fn make_base_repo() -> tempfile::TempDir {
     let td = tempfile::tempdir().expect("repo");
     std::fs::write(td.path().join("README.md"), "# temp\n").unwrap();
@@ -20,12 +27,13 @@ fn parity_tasks_init_writes_same_file() {
     let base = make_base_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let rust_path = rust_bin();
 
     let args = ["tasks", "init", "test-change"];
 
     reset_repo(repo.path(), base.path());
-    let rs = run_rust_candidate(rust_path, &args, repo.path(), home.path()).normalized(home.path());
+    let rs =
+        run_rust_candidate(&rust_path, &args, repo.path(), home.path()).normalized(home.path());
     let rs_fs = collect_file_bytes(repo.path());
 
     assert_eq!(rs.code, 0);
@@ -42,18 +50,18 @@ fn parity_tasks_status_next_start_complete_match_oracle() {
     let base = make_base_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let rust_path = rust_bin();
 
     // Init first.
     let init_args = ["tasks", "init", "test-change"];
     reset_repo(repo.path(), base.path());
-    let rs_init =
-        run_rust_candidate(rust_path, &init_args, repo.path(), home.path()).normalized(home.path());
+    let rs_init = run_rust_candidate(&rust_path, &init_args, repo.path(), home.path())
+        .normalized(home.path());
     assert_eq!(rs_init.code, 0);
 
     // Status output.
     let status_args = ["tasks", "status", "test-change"];
-    let rs = run_rust_candidate(rust_path, &status_args, repo.path(), home.path())
+    let rs = run_rust_candidate(&rust_path, &status_args, repo.path(), home.path())
         .normalized(home.path());
 
     assert_eq!(rs.code, 0);
@@ -63,15 +71,15 @@ fn parity_tasks_status_next_start_complete_match_oracle() {
 
     // Next output.
     let next_args = ["tasks", "next", "test-change"];
-    let rs =
-        run_rust_candidate(rust_path, &next_args, repo.path(), home.path()).normalized(home.path());
+    let rs = run_rust_candidate(&rust_path, &next_args, repo.path(), home.path())
+        .normalized(home.path());
 
     assert_eq!(rs.code, 0);
     assert!(rs.stdout.contains("Next Task"));
 
     // Start 1.1.
     let start_args = ["tasks", "start", "test-change", "1.1"];
-    let rs = run_rust_candidate(rust_path, &start_args, repo.path(), home.path())
+    let rs = run_rust_candidate(&rust_path, &start_args, repo.path(), home.path())
         .normalized(home.path());
     let rs_fs = collect_file_bytes(repo.path());
 
@@ -80,7 +88,7 @@ fn parity_tasks_status_next_start_complete_match_oracle() {
 
     // Complete 1.1.
     let complete_args = ["tasks", "complete", "test-change", "1.1"];
-    let rs = run_rust_candidate(rust_path, &complete_args, repo.path(), home.path())
+    let rs = run_rust_candidate(&rust_path, &complete_args, repo.path(), home.path())
         .normalized(home.path());
     let rs_fs = collect_file_bytes(repo.path());
 
