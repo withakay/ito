@@ -5,7 +5,7 @@ use crate::util::parse_string_flag;
 use ito_config::load_cascading_project_config;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
-use ito_core::workflow as core_workflow;
+use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -71,7 +71,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
 
         let instruction = generate_bootstrap_instruction(&tool);
         if want_json {
-            let response = core_workflow::AgentInstructionResponse {
+            let response = core_templates::AgentInstructionResponse {
                 artifact_id: "bootstrap".to_string(),
                 instruction,
             };
@@ -87,7 +87,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     if artifact == "project-setup" {
         let instruction = generate_project_setup_instruction();
         if want_json {
-            let response = core_workflow::AgentInstructionResponse {
+            let response = core_templates::AgentInstructionResponse {
                 artifact_id: "project-setup".to_string(),
                 instruction,
             };
@@ -99,7 +99,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
-    if artifact == "worktrees" || artifact == "workflow" {
+    if artifact == "worktrees" {
         let ctx = rt.ctx();
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -134,7 +134,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         .map_err(|e| to_cli_error(format!("failed to render worktrees instruction: {e}")))?;
 
         if want_json {
-            let response = core_workflow::AgentInstructionResponse {
+            let response = core_templates::AgentInstructionResponse {
                 artifact_id: artifact.to_string(),
                 instruction,
             };
@@ -178,7 +178,11 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let testing_policy = load_testing_policy(project_root, ito_path, ctx);
 
+<<<<<<< HEAD
     let user_guidance = match core_workflow::load_composed_user_guidance(ito_path, artifact) {
+=======
+    let user_guidance = match core_templates::load_user_guidance(ito_path) {
+>>>>>>> aa43f54 (refactor: remove workflow command and migrate core workflow module to templates)
         Ok(v) => v,
         Err(e) => {
             eprintln!(
@@ -195,20 +199,20 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
 
-        let apply = match core_workflow::compute_apply_instructions(
+        let apply = match core_templates::compute_apply_instructions(
             ito_path,
             &change,
             schema.as_deref(),
             ctx,
         ) {
             Ok(r) => r,
-            Err(core_workflow::WorkflowError::InvalidChangeName) => {
+            Err(core_templates::TemplatesError::InvalidChangeName) => {
                 return fail("Invalid change name");
             }
-            Err(core_workflow::WorkflowError::ChangeNotFound(name)) => {
+            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
                 return fail(format!("Change '{name}' not found"));
             }
-            Err(core_workflow::WorkflowError::SchemaNotFound(name)) => {
+            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
                 return fail(super::common::schema_not_found_message(ctx, &name));
             }
             Err(e) => return Err(to_cli_error(e)),
@@ -230,7 +234,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
-    let resolved = match core_workflow::resolve_instructions(
+    let resolved = match core_templates::resolve_instructions(
         ito_path,
         &change,
         schema.as_deref(),
@@ -238,13 +242,13 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         ctx,
     ) {
         Ok(r) => r,
-        Err(core_workflow::WorkflowError::InvalidChangeName) => {
+        Err(core_templates::TemplatesError::InvalidChangeName) => {
             return fail("Invalid change name");
         }
-        Err(core_workflow::WorkflowError::ChangeNotFound(name)) => {
+        Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
             return fail(format!("Change '{name}' not found"));
         }
-        Err(core_workflow::WorkflowError::SchemaNotFound(name)) => {
+        Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
             return fail(super::common::schema_not_found_message(ctx, &name));
         }
         Err(e) => return Err(to_cli_error(e)),
@@ -392,7 +396,7 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
             .expect("new-proposal instruction template should render");
 
     if want_json {
-        let response = core_workflow::AgentInstructionResponse {
+        let response = core_templates::AgentInstructionResponse {
             artifact_id: "new-proposal".to_string(),
             instruction,
         };
@@ -406,7 +410,7 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
 }
 
 fn print_artifact_instructions_text(
-    instructions: &core_workflow::InstructionsResponse,
+    instructions: &core_templates::InstructionsResponse,
     user_guidance: Option<&str>,
     testing_policy: &TestingPolicy,
 ) {
@@ -420,7 +424,7 @@ fn print_artifact_instructions_text(
 
     #[derive(serde::Serialize)]
     struct Ctx {
-        instructions: core_workflow::InstructionsResponse,
+        instructions: core_templates::InstructionsResponse,
         missing: Vec<String>,
         dependencies: Vec<TemplateDependency>,
         out_path: String,
@@ -567,14 +571,14 @@ fn load_worktree_config(
 }
 
 fn print_apply_instructions_text(
-    instructions: &core_workflow::ApplyInstructionsResponse,
+    instructions: &core_templates::ApplyInstructionsResponse,
     testing_policy: &TestingPolicy,
     user_guidance: Option<&str>,
     worktree_config: &WorktreeConfig,
 ) {
     #[derive(serde::Serialize)]
     struct Ctx {
-        instructions: core_workflow::ApplyInstructionsResponse,
+        instructions: core_templates::ApplyInstructionsResponse,
         testing_policy: TestingPolicy,
         context_files: Vec<ContextFileEntry>,
         tracking_errors: Option<usize>,
@@ -607,7 +611,9 @@ fn print_apply_instructions_text(
     print!("{out}");
 }
 
-fn collect_missing_dependencies(instructions: &core_workflow::InstructionsResponse) -> Vec<String> {
+fn collect_missing_dependencies(
+    instructions: &core_templates::InstructionsResponse,
+) -> Vec<String> {
     let mut out = Vec::new();
     for dep in &instructions.dependencies {
         if dep.done {
@@ -630,7 +636,7 @@ fn collect_context_files(map: &BTreeMap<String, String>) -> Vec<ContextFileEntry
 }
 
 fn collect_tracking_diagnostic_counts(
-    diagnostics: Option<&[core_workflow::TaskDiagnostic]>,
+    diagnostics: Option<&[core_templates::TaskDiagnostic]>,
 ) -> (Option<usize>, Option<usize>) {
     let Some(diagnostics) = diagnostics else {
         return (None, None);
