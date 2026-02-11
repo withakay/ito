@@ -1,4 +1,4 @@
-use ito_core::workflow::{
+use ito_core::templates::{
     WorkflowError, load_composed_user_guidance, load_user_guidance, load_user_guidance_for_artifact,
 };
 
