@@ -261,7 +261,18 @@ pub enum SchemaSource {
 }
 
 impl SchemaSource {
-    /// Return a stable string identifier for serialization.
+    /// Get the serialization string for this SchemaSource.
+    ///
+    /// # Returns
+    ///
+    /// The string used when serializing the variant: `"project"`, `"user"`, `"embedded"`, or `"package"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::workflow::SchemaSource;
+    /// assert_eq!(SchemaSource::Project.as_str(), "project");
+    /// ```
     pub fn as_str(self) -> &'static str {
         match self {
             SchemaSource::Project => "project",
@@ -375,13 +386,34 @@ pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
     default_schema_name().to_string()
 }
 
-/// List available change directory names under `.ito/changes/`.
+/// List the names of change directories found under `.ito/changes/`.
+///
+/// Returns a vector of directory names (not full paths) for each discovered change.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+///
+/// let names = list_available_changes(Path::new("."));
+/// // `names` is a `Vec<String>` of change directory names
+/// ```
 pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
     let fs = StdFs;
     ito_domain::discovery::list_change_dir_names(&fs, ito_path).unwrap_or_default()
 }
 
-/// List available schema names from project, user, embedded, and package directories.
+/// Discover available schema names from project, user, embedded, and package sources.
+///
+/// The returned list contains unique schema names (no duplicates) and is deterministically sorted.
+///
+/// # Examples
+///
+/// ```
+/// // `ctx` should be a prepared ConfigContext for the current project.
+/// let names = list_available_schemas(&ctx);
+/// // `names` is a `Vec<String>` of available schema names, sorted and de-duplicated.
+/// ```
 pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
     let fs = StdFs;
@@ -409,9 +441,33 @@ pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     set.into_iter().collect()
 }
 
-/// Resolve a schema name into a [`ResolvedSchema`].
+/// Resolves a schema name into a [`ResolvedSchema`].
 ///
-/// Resolution precedence is project-local -> user -> embedded -> package.
+/// If `schema_name` is `None`, the default schema name is used. Resolution
+/// precedence is project-local -> user -> embedded -> package; the returned
+/// `ResolvedSchema` contains the loaded `SchemaYaml`, the directory or embedded
+/// path that contained `schema.yaml`, and a `SchemaSource` indicating where it
+/// was found.
+///
+/// # Parameters
+///
+/// - `schema_name`: Optional schema name to resolve; uses the module default when
+///   `None`.
+/// - `ctx`: Configuration context used to locate project and user schema paths.
+///
+/// # Errors
+///
+/// Returns `WorkflowError::SchemaNotFound(name)` when the schema cannot be
+/// located. Other `WorkflowError` variants may be returned for IO or YAML
+/// parsing failures encountered while loading `schema.yaml`.
+///
+/// # Examples
+///
+/// ```
+/// // Resolves the default schema using `ctx`.
+/// let resolved = resolve_schema(None, &ctx).expect("schema not found");
+/// println!("Resolved {} from {}", resolved.schema.name, resolved.schema_dir.display());
+/// ```
 pub fn resolve_schema(
     schema_name: Option<&str>,
     ctx: &ConfigContext,
@@ -593,6 +649,28 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
 }
 
 /// Resolve template file paths for all artifacts in a schema.
+///
+/// If `schema_name` is `None`, the project/user/embedded/package resolution precedence is used.
+/// For embedded schemas each template path is returned with an `embedded://schemas/...` URI;
+/// for filesystem-backed schemas each template path is an absolute (lossy) filesystem path.
+///
+/// # Parameters
+///
+/// - `schema_name`: Optional schema name to resolve; use `None` to resolve using configured precedence.
+///
+/// # Returns
+///
+/// A tuple containing the resolved schema name and a map from artifact id to `TemplateInfo` (each
+/// `TemplateInfo` contains the template `source` and resolved `path`).
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// // Obtain a ConfigContext from your application environment.
+/// let ctx = /* obtain ConfigContext */ unimplemented!();
+/// let (schema_name, templates) = resolve_templates(None, &ctx).unwrap();
+/// // `templates` maps artifact ids to TemplateInfo with `source` and `path`.
+/// ```
 pub fn resolve_templates(
     schema_name: Option<&str>,
     ctx: &ConfigContext,
@@ -625,7 +703,30 @@ pub fn resolve_templates(
     Ok((resolved.schema.name, templates))
 }
 
-/// Resolve build instructions for a single artifact.
+/// Produce the user-facing instructions and metadata for performing a single artifact within a change.
+///
+/// This resolves the effective schema for the change, verifies the change directory and artifact exist,
+/// computes the artifact's declared dependencies and which artifacts it will unlock, and returns the
+/// artifact's instruction text, template content, and other contextual fields needed by CLI/API layers.
+///
+/// # Errors
+///
+/// Returns a `WorkflowError` when the change name is invalid, the change directory or schema cannot be found,
+/// the requested artifact is not defined in the schema, or when underlying I/O/YAML/template reads fail
+/// (e.g. `InvalidChangeName`, `ChangeNotFound`, `SchemaNotFound`, `ArtifactNotFound`, `Io`, `Yaml`).
+///
+/// # Examples
+///
+/// ```
+/// let resp = resolve_instructions(
+///     Path::new("/project/ito"),
+///     "0001-add-feature",
+///     Some("spec-driven"),
+///     "service-config",
+///     &config_ctx,
+/// )?;
+/// println!("Instruction: {}", resp.instruction.unwrap_or_default());
+/// ```
 pub fn resolve_instructions(
     ito_path: &Path,
     change: &str,
@@ -1041,10 +1142,30 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
-/// Load user guidance text from `user-guidance.md`.
+/// Read and extract the user guidance from `user-guidance.md`.
 ///
-/// When a file contains an Ito-managed header block, only the content after the
-/// `ITO_END_MARKER` is returned.
+/// If the file contains an Ito-managed header block, only the content after the
+/// ITO end marker is returned. Carriage returns (`\r\n`) are normalized to
+/// `\n` and the result is trimmed; an empty or missing file yields `None`.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::fs;
+/// use std::path::Path;
+///
+/// // missing file -> None
+/// let tmp = Path::new("/tmp/ito-example-missing");
+/// let _ = fs::remove_dir_all(tmp);
+/// assert!(crate::workflow::load_user_guidance(tmp).unwrap().is_none());
+///
+/// // present file -> Some(trimmed content)
+/// let dir = Path::new("/tmp/ito-example");
+/// fs::create_dir_all(dir).unwrap();
+/// fs::write(dir.join("user-guidance.md"), "User guidance text\n").unwrap();
+/// let guidance = crate::workflow::load_user_guidance(dir).unwrap();
+/// assert_eq!(guidance.as_deref(), Some("User guidance text"));
+/// ```
 pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
     let path = ito_path.join("user-guidance.md");
     if !path.exists() {
@@ -1065,6 +1186,31 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     Ok(Some(content.to_string()))
 }
 
+/// Load and parse `schema.yaml` from the given schema directory.
+///
+/// Reads the `schema.yaml` file located in `schema_dir` and deserializes it into a `SchemaYaml`.
+///
+/// # Returns
+///
+/// `SchemaYaml` parsed from the file, or a `WorkflowError` if reading or YAML parsing fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use std::fs;
+/// // create a temporary schema directory and file for the example
+/// let dir = std::env::temp_dir().join("ito_example_schema");
+/// let _ = fs::create_dir_all(&dir);
+/// let yaml = r#"
+/// name: example
+/// artifacts: []
+/// "#;
+/// fs::write(dir.join("schema.yaml"), yaml).unwrap();
+///
+/// let schema = crate::workflow::load_schema_yaml(&Path::new(&dir)).unwrap();
+/// assert_eq!(schema.name, "example");
+/// ```
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     let s = ito_common::io::read_to_string_std(&schema_dir.join("schema.yaml"))?;
     Ok(serde_yaml::from_str(&s)?)
