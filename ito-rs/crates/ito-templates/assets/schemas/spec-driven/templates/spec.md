@@ -1,3 +1,4 @@
+<!-- ITO:START -->
 ## ADDED Requirements
 
 ### Requirement: <!-- requirement name -->
@@ -8,3 +9,4 @@
 
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->
+<!-- ITO:END -->
