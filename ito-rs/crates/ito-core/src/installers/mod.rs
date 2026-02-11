@@ -204,18 +204,14 @@ fn install_project_templates(
         }
 
         let mut bytes = ito_templates::render_bytes(f.contents, ito_dir).into_owned();
-        if rel == state_rel
-            && let Ok(s) = std::str::from_utf8(&bytes)
-        {
-            bytes = s.replace("__CURRENT_DATE__", &current_date).into_bytes();
-        }
-
-        if rel == config_json_rel
-            && let Ok(s) = std::str::from_utf8(&bytes)
-        {
-            bytes = s
-                .replace(CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER, &release_tag)
-                .into_bytes();
+        if let Ok(s) = std::str::from_utf8(&bytes) {
+            if rel == state_rel {
+                bytes = s.replace("__CURRENT_DATE__", &current_date).into_bytes();
+            } else if rel == config_json_rel {
+                bytes = s
+                    .replace(CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER, &release_tag)
+                    .into_bytes();
+            }
         }
 
         // Render worktree-aware project templates (AGENTS.md) with worktree

@@ -162,8 +162,7 @@ config-schema: ## Generate canonical Ito config JSON schema artifact
 
 config-schema-check: ## Verify canonical Ito config schema artifact is up-to-date
 	@set -e; \
-	$(MAKE) config-schema; \
-	if ! git diff --exit-code -- schemas/ito-config.schema.json >/dev/null; then \
+	if ! cargo run -p ito-cli --bin ito -- config schema | diff -q schemas/ito-config.schema.json - >/dev/null; then \
 		echo "schemas/ito-config.schema.json is stale. Run: make config-schema"; \
 		exit 1; \
 	fi
