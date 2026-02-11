@@ -1,72 +1,24 @@
 ## ADDED Requirements
 
-# Agent Instructions Specification
+### Requirement: Lifecycle-stage workflow guidance
 
-## Purpose
+Agent instruction artifacts SHALL present proposal, execution, and review as a coherent staged workflow for change delivery.
 
-Define the `agent-instructions` capability, including required behavior and validation scenarios, so it remains stable and testable.
+#### Scenario: Proposal stage includes research framing
 
+- **WHEN** a user runs `ito agent instruction proposal --change <change-id>`
+- **THEN** the output SHALL include guidance for structured research inputs that improve proposal quality
+- **AND** it SHALL explain how research outcomes feed specs and design artifacts
 
-## Requirements
+#### Scenario: Apply stage includes structured execution guidance
 
-### Requirement: Bootstrap Instruction Artifact
+- **WHEN** a user runs `ito agent instruction apply --change <change-id>`
+- **THEN** the output SHALL provide structured execution guidance equivalent in intent to legacy execute workflows
+- **AND** it SHALL direct progress tracking through `ito tasks` commands
+- **AND** it SHALL include checkpoints or pause guidance when human review is required
 
-The CLI SHALL support a `bootstrap` artifact in `ito agent instruction` that provides tool-specific preambles for agent adapters.
+#### Scenario: Review is represented as a first-class stage
 
-#### Scenario: Bootstrap artifact with tool flag
-- **GIVEN** the user runs `ito agent instruction bootstrap --tool opencode`
-- **WHEN** the command executes
-- **THEN** it SHALL output OpenCode-specific tool mapping notes
-- **AND** it SHALL output pointers to workflow instruction artifacts
-
-#### Scenario: Supported tools
-- **GIVEN** the user runs `ito agent instruction bootstrap --tool <tool>`
-- **WHEN** `<tool>` is one of `opencode`, `claude`, `codex`
-- **THEN** the command SHALL output tool-specific content
-
-#### Scenario: Bootstrap content structure
-- **GIVEN** the bootstrap artifact is generated
-- **WHEN** rendered for any tool
-- **THEN** it SHALL contain tool mapping notes (where tools differ)
-- **AND** it SHALL contain "how to get workflow bodies" pointers
-- **AND** it SHALL NOT contain full workflow text
-
-### Requirement: Tool-Specific Content
-
-The bootstrap artifact SHALL provide content tailored to each supported tool's capabilities.
-
-#### Scenario: OpenCode-specific content
-- **GIVEN** the tool is `opencode`
-- **WHEN** bootstrap content is generated
-- **THEN** it SHALL include MCP tool names and parallel invocation patterns
-
-#### Scenario: Claude Code-specific content
-- **GIVEN** the tool is `claude`
-- **WHEN** bootstrap content is generated
-- **THEN** it SHALL include Task tool delegation and Read/Write/Edit tool usage notes
-
-#### Scenario: Codex-specific content
-- **GIVEN** the tool is `codex`
-- **WHEN** bootstrap content is generated
-- **THEN** it SHALL include available commands and shell execution patterns
-
-### Requirement: Worktrees Instruction Artifact
-
-The CLI SHALL support a `worktrees` artifact in `ito agent instruction` that outputs config-driven worktree workflow guidance.
-
-#### Scenario: Worktrees artifact prints resolved config and commands
-
-- **WHEN** the user runs `ito agent instruction worktrees`
-- **THEN** the output includes a summary of resolved `worktrees.*` configuration
-- **AND** the output includes strategy-specific worktree creation guidance
-- **AND** the output includes the config file precedence and which files were loaded
-
-#### Scenario: Workflow is an alias for worktrees
-
-- **WHEN** the user runs `ito agent instruction workflow`
-- **THEN** the output is equivalent to `ito agent instruction worktrees`
-
-#### Scenario: Worktrees artifact supports JSON output
-
-- **WHEN** the user runs `ito agent instruction worktrees --json`
-- **THEN** the command outputs a JSON object with `artifactId` and `instruction`
+- **WHEN** a user runs `ito agent instruction review --change <change-id>`
+- **THEN** the output SHALL position review as a stage in the proposal-to-archive lifecycle
+- **AND** it SHALL describe expected review inputs and outputs relative to proposal/specs/tasks artifacts

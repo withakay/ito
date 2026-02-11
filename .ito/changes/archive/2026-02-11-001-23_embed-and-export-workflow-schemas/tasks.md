@@ -29,8 +29,8 @@ ______________________________________________________________________
   Move/copy built-in schema directories into template assets and expose accessors for embedded schema content.
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: Embedded schema assets are available through typed template APIs and tests pass.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ### Task 1.2: Update resolver precedence for schema loading
 
@@ -40,8 +40,8 @@ ______________________________________________________________________
   Implement schema source precedence: `.ito/templates/schemas` -> `${XDG_DATA_HOME}/ito/schemas` -> embedded built-ins (plus temporary legacy fallback if retained).
 - **Verify**: `cargo test -p ito-core workflow`
 - **Done When**: Resolver loads expected source for each precedence level and list output aggregates all sources.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -57,8 +57,8 @@ ______________________________________________________________________
   Add `ito templates schemas export` command with `-f/--to` destination and force-overwrite behavior.
 - **Verify**: `cargo test -p ito-cli templates`
 - **Done When**: Command exports schema directories with deterministic files and documented overwrite semantics.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ### Task 2.2: Add integration tests for export and overrides
 
@@ -68,8 +68,8 @@ ______________________________________________________________________
   Add tests that prove project-local override precedence and validate export output/force behavior.
 - **Verify**: `cargo test -p ito-cli && cargo test -p ito-core`
 - **Done When**: Failing tests are added first (RED), then pass after implementation (GREEN), with cleanup/refactor completed.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -85,8 +85,8 @@ ______________________________________________________________________
   Update docs to describe embedded defaults, local override path, and export workflow; run full checks.
 - **Verify**: `make check && make test`
 - **Done When**: Documentation aligns with command behavior and repository checks pass.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

@@ -1,36 +1,64 @@
 ## ADDED Requirements
 
-### Requirement: Continuous ready-change mode
+### Requirement: Extra validation command CLI flag
 
-The system SHALL support a repo-wide continuation mode that selects the next available eligible change and runs Ralph repeatedly until no further eligible work remains.
+The system SHALL accept a `--validation-command` flag to specify an additional validation command beyond project defaults.
 
-Eligible changes are those in `Ready` or `InProgress` work status.
+#### Scenario: Extra validation command flag accepted
 
-#### Scenario: Continue-ready drains ready changes in deterministic order
+- **WHEN** executing `ito ralph "<prompt>" --validation-command "custom-check" --change <change-id>`
+- **THEN** the system SHALL run `custom-check` as an additional validation step after project validation
+- **AND** this is in addition to (not replacing) the standard Ito task and project validation
 
-- **GIVEN** the repository contains multiple changes in `Ready` or `InProgress` work status
-- **WHEN** executing `ito ralph --continue-ready ...`
-- **THEN** the system SHALL select the lowest change ID among eligible changes as the execution target
-- **AND** after each completed change run, the system SHALL refresh readiness and continue with the next lowest-ID eligible change
+### Requirement: Skip validation CLI flag
 
-#### Scenario: Continue-ready exits successfully when no work remains
+The system SHALL accept a `--skip-validation` flag to bypass all validation steps.
 
-- **GIVEN** the repository contains no changes in `Ready` work status
-- **AND** all changes are `Complete`
-- **WHEN** executing `ito ralph --continue-ready ...`
-- **THEN** the command SHALL exit successfully
+#### Scenario: Skip validation flag accepted
 
-#### Scenario: Continue-ready fails when blocked work remains
+- **WHEN** executing `ito ralph "<prompt>" --skip-validation --change <change-id>`
+- **THEN** the system SHALL NOT run any validation (task status, project, or extra)
+- **AND** the system SHALL accept the completion promise immediately (legacy behavior)
+- **AND** the system SHALL print a warning that validation was skipped
 
-- **GIVEN** the repository contains no changes in `Ready` or `InProgress` work status
-- **AND** at least one change is not `Complete`
-- **WHEN** executing `ito ralph --continue-ready ...`
-- **THEN** the command SHALL fail
-- **AND** the error SHALL identify remaining non-complete changes
+## MODIFIED Requirements
 
-#### Scenario: Continue-ready reorients on readiness drift
+### Requirement: Robust completion promise detection
 
-- **GIVEN** `ito ralph --continue-ready` is running
-- **AND** another process changes task state between selection and run start
-- **WHEN** Ralph performs preflight readiness revalidation
-- **THEN** the system SHALL re-select the current lowest-ID ready change
+The system SHALL detect the completion promise in harness output even when the promise contains surrounding whitespace and newlines. When detected, the system SHALL validate the completion before accepting it.
+
+#### Scenario: Completion promise detection ignores whitespace
+
+- **GIVEN** `--completion-promise COMPLETE`
+- **WHEN** harness output contains `<promise>\nCOMPLETE\n</promise>`
+- **THEN** the system SHALL treat the completion promise as detected
+- **AND** the system SHALL proceed to validation
+
+#### Scenario: Completion accepted after all validation passes
+
+- **GIVEN** `--completion-promise COMPLETE`
+- **AND** `--change <change-id>`
+- **WHEN** harness output contains `<promise>COMPLETE</promise>`
+- **AND** all tasks for the change are complete or shelved
+- **AND** project validation (as configured) passes
+- **AND** extra validation (if specified) passes
+- **THEN** the system SHALL exit the loop with a success message
+
+#### Scenario: Completion rejected when tasks incomplete
+
+- **GIVEN** `--completion-promise COMPLETE`
+- **AND** `--change <change-id>`
+- **WHEN** harness output contains `<promise>COMPLETE</promise>`
+- **AND** one or more tasks are pending or in-progress
+- **THEN** the system SHALL NOT exit the loop
+- **AND** the system SHALL proceed to the next iteration
+- **AND** the system SHALL inject the incomplete task list as context
+
+#### Scenario: Completion rejected when project validation fails
+
+- **GIVEN** `--completion-promise COMPLETE`
+- **WHEN** harness output contains `<promise>COMPLETE</promise>`
+- **AND** project validation exits with a non-zero code
+- **THEN** the system SHALL NOT exit the loop
+- **AND** the system SHALL proceed to the next iteration
+- **AND** the system SHALL inject the validation failure as context
