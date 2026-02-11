@@ -1007,7 +1007,6 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     if path.exists() {
         return load_guidance_file(&path);
     }
-
     let path = ito_path.join("user-guidance.md");
     load_guidance_file(&path)
 }
@@ -1020,7 +1019,6 @@ pub fn load_user_guidance_for_artifact(
     if !is_safe_artifact_id(artifact_id) {
         return Err(WorkflowError::InvalidArtifactId(artifact_id.to_string()));
     }
-
     let path = ito_path
         .join("user-prompts")
         .join(format!("{artifact_id}.md"));
