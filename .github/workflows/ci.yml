@@ -17,8 +17,9 @@ concurrency:
 jobs:
   test:
     name: Test (linux)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    #runs-on: withakay-selfhosted
+    runs-on: namespace-profile-linux-amd64-4c8gb
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -48,6 +49,8 @@ jobs:
 
       - name: Print environment diagnostics
         run: |
+          mise install
+          mise trust
           rustc -V
           cargo -V
 
@@ -58,7 +61,8 @@ jobs:
 
   lint:
     name: Lint & Type Check
-    runs-on: ubuntu-latest
+    # runs-on: withakay-selfhosted
+    runs-on: namespace-profile-linux-amd64-4c8gb
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,6 +78,8 @@ jobs:
       - name: Install Rust components (rustfmt, clippy)
         run: |
           set -eu
+          mise install
+          mise trust
           TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
           rustup component add --toolchain "$TOOLCHAIN" rustfmt clippy
 
@@ -89,6 +95,10 @@ jobs:
         with:
           workspaces: . -> target
 
+      - name: Verify config schema artifact is current
+        run: |
+          make config-schema-check
+
       - name: Rust fmt (check)
         run: cargo fmt --all -- --check
 
@@ -102,7 +112,8 @@ jobs:
 
   arch_guardrails:
     name: Architecture Guardrails
-    runs-on: ubuntu-latest
+    # runs-on: withakay-selfhosted
+    runs-on: namespace-profile-linux-amd64-4c8gb
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,6 +138,13 @@ jobs:
         with:
           workspaces: . -> target
 
+      - name: Print environment diagnostics
+        run: |
+          mise install
+          mise trust
+          rustc -V
+          cargo -V
+
       - name: Run architecture guardrails
         run: make arch-guardrails
 
@@ -138,7 +156,8 @@ jobs:
 
   required-checks-pr:
     name: All checks passed
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-amd64-4c8gb
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -160,7 +179,8 @@ jobs:
 
   required-checks-main:
     name: All checks passed
-    runs-on: ubuntu-latest
+    # runs-on: withakay-selfhosted
+    runs-on: namespace-profile-linux-amd64-4c8gb
     needs: [test, lint, arch_guardrails]
     if: always() && github.event_name != 'pull_request'
     steps:

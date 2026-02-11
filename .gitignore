@@ -187,6 +187,9 @@ target
 .ito/.state/audit/.session
 !.ito/.state/audit/
 
+.ito/config.local.json
+.local/ito/config.json
+
 # Bacon
 ito-rs/.bacon-locations
 ito-rs/.bacon/
