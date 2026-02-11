@@ -224,3 +224,18 @@ fn update_enhanced_task_status_inserts_missing_fields() {
     assert!(out.contains("- **Updated At**: 2026-01-28"));
     assert!(out.contains("- **Status**: [x] complete"));
 }
+
+#[test]
+fn tasks_path_checked_rejects_traversal_like_change_ids() {
+    let root = std::path::Path::new("/tmp/repo/.ito");
+    assert!(tasks::tasks_path_checked(root, "../escape").is_none());
+    assert!(tasks::tasks_path_checked(root, "a/b").is_none());
+    assert!(tasks::tasks_path_checked(root, "a\\b").is_none());
+}
+
+#[test]
+fn tasks_path_uses_safe_fallback_for_invalid_change_id() {
+    let root = std::path::Path::new("/tmp/repo/.ito");
+    let path = tasks::tasks_path(root, "../escape");
+    assert!(path.ends_with("changes/invalid-change-id/tasks.md"));
+}
