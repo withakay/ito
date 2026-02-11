@@ -250,7 +250,7 @@ fn parse_delta_op_header(line: &str) -> Option<String> {
     let rest = t.strip_prefix("## ")?;
     let rest = rest.trim();
     let op = rest.strip_suffix(" Requirements").unwrap_or(rest).trim();
-    if matches!(op, "ADDED" | "MODIFIED" | "REMOVED" | "RENAMED") {
+    if op == "ADDED" || op == "MODIFIED" || op == "REMOVED" || op == "RENAMED" {
         return Some(op.to_string());
     }
     None

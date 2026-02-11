@@ -92,6 +92,7 @@ pub fn json_get_path<'a>(
 /// # Errors
 ///
 /// Returns [`CoreError::Validation`] if the path is empty or if setting the path fails.
+#[allow(clippy::match_like_matches_macro)]
 pub fn json_set_path(
     root: &mut serde_json::Value,
     parts: &[&str],
@@ -105,7 +106,10 @@ pub fn json_set_path(
     for (i, key) in parts.iter().enumerate() {
         let is_last = i + 1 == parts.len();
 
-        let is_object = matches!(cur, serde_json::Value::Object(_));
+        let is_object = match cur {
+            serde_json::Value::Object(_) => true,
+            _ => false,
+        };
         if !is_object {
             *cur = serde_json::Value::Object(serde_json::Map::new());
         }

@@ -148,7 +148,14 @@ impl ChangeRepository for MockChangeRepository {
         Ok(self
             .summaries
             .iter()
-            .filter(|s| !matches!(s.status(), ChangeStatus::Complete))
+            .filter(|s| {
+                let status = s.status();
+                match status {
+                    ChangeStatus::Complete => false,
+                    ChangeStatus::NoTasks => true,
+                    ChangeStatus::InProgress => true,
+                }
+            })
             .cloned()
             .collect())
     }
@@ -157,7 +164,14 @@ impl ChangeRepository for MockChangeRepository {
         Ok(self
             .summaries
             .iter()
-            .filter(|s| matches!(s.status(), ChangeStatus::Complete))
+            .filter(|s| {
+                let status = s.status();
+                match status {
+                    ChangeStatus::Complete => true,
+                    ChangeStatus::NoTasks => false,
+                    ChangeStatus::InProgress => false,
+                }
+            })
             .cloned()
             .collect())
     }

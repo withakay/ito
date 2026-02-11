@@ -1,5 +1,13 @@
+//! Graph cycle detection.
+//!
+//! Uses in-memory SQLite recursive CTEs to detect cycles in task or wave dependency graphs.
+
 use rusqlite::OptionalExtension;
 
+/// Detect a cycle in a graph of edges and return the cycle path.
+///
+/// Returns a formatted string `a -> b -> c -> a` if a cycle is found, or `None`.
+/// Uses SQLite recursive CTEs for efficient path finding.
 pub(super) fn find_cycle_path(edges: &[(String, String)]) -> Option<String> {
     if edges.is_empty() {
         return None;

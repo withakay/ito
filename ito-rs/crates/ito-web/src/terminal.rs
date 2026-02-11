@@ -1,4 +1,13 @@
-//! Terminal WebSocket handler with PTY support.
+//! WebSocket-to-PTY bridge for in-browser terminal emulation.
+//!
+//! A client connects via `GET /ws/terminal`, which upgrades to a WebSocket.
+//! The server spawns a PTY running the user's `$SHELL` (falling back to
+//! `/bin/bash`) rooted at the project directory. Input from the WebSocket is
+//! written to the PTY master; output from the PTY master is streamed back as
+//! binary WebSocket frames.
+//!
+//! The client may send a JSON `{"resize":{"cols":N,"rows":M}}` text frame to
+//! resize the PTY on the fly.
 
 use axum::{
     extract::{
@@ -14,12 +23,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+/// Shared state for the terminal WebSocket handler.
 #[derive(Clone)]
 pub struct TerminalState {
+    /// Project root directory used as the PTY's initial working directory.
     pub root: PathBuf,
 }
 
-/// WebSocket upgrade handler.
+/// Accept a WebSocket upgrade and spawn a PTY-backed terminal session.
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<TerminalState>>,

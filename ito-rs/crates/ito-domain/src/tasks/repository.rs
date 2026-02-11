@@ -5,8 +5,11 @@ use crate::errors::DomainResult;
 
 /// Port for accessing task data.
 ///
-/// Domain and adapters should depend on this interface rather than concrete
-/// storage details.
+/// This trait defines the interface for reading task tracking information.
+/// Implementations (in the core layer) handle the file I/O and parsing details.
+///
+/// Consumers in the domain or adapter layers should rely on this trait to remain
+/// decoupled from storage specifics.
 pub trait TaskRepository {
     /// Load all tasks for a change.
     ///

@@ -1,7 +1,10 @@
 //! Task scheduling helpers.
 //!
-//! These functions compute which tasks are ready to execute versus blocked by
-//! wave gating or explicit task dependencies.
+//! This module contains the logic for determining which tasks are actionable.
+//! It handles:
+//! - **Wave Gating**: Tasks in Wave N are blocked until all tasks in Wave N-1 (or explicit dependencies) are complete.
+//! - **Explicit Dependencies**: Tasks can depend on specific other tasks by ID.
+//! - **Back-compat**: Legacy behavior for files without explicit wave definitions.
 
 use std::collections::BTreeMap;
 

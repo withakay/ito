@@ -2,10 +2,20 @@
 
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
+
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+
+const MAX_TOTAL_ARG_BYTES: usize = 256 * 1024;
+static OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Process invocation request.
 #[derive(Debug, Clone, Default)]
@@ -115,6 +125,12 @@ pub enum ProcessExecutionError {
         /// Underlying I/O error.
         source: io::Error,
     },
+    /// Invalid process request contents.
+    #[error("invalid process request: {detail}")]
+    InvalidRequest {
+        /// Reason the request is invalid.
+        detail: String,
+    },
 }
 
 /// Abstraction for process execution.
@@ -143,6 +159,7 @@ pub struct SystemProcessRunner;
 
 impl ProcessRunner for SystemProcessRunner {
     fn run(&self, request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
+        validate_request(request)?;
         let mut command = build_command(request);
         let output = command
             .output()
@@ -187,18 +204,25 @@ impl ProcessRunner for SystemProcessRunner {
         request: &ProcessRequest,
         timeout: Duration,
     ) -> Result<ProcessOutput, ProcessExecutionError> {
+        validate_request(request)?;
         let now_ms = chrono::Utc::now().timestamp_millis();
         let pid = std::process::id();
         let stdout_path = temp_output_path("stdout", pid, now_ms);
         let stderr_path = temp_output_path("stderr", pid, now_ms);
 
-        let stdout_file =
-            fs::File::create(&stdout_path).map_err(|source| ProcessExecutionError::CreateTemp {
+        let stdout_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&stdout_path)
+            .map_err(|source| ProcessExecutionError::CreateTemp {
                 path: stdout_path.clone(),
                 source,
             })?;
-        let stderr_file =
-            fs::File::create(&stderr_path).map_err(|source| ProcessExecutionError::CreateTemp {
+        let stderr_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&stderr_path)
+            .map_err(|source| ProcessExecutionError::CreateTemp {
                 path: stderr_path.clone(),
                 source,
             })?;
@@ -275,9 +299,146 @@ fn build_command(request: &ProcessRequest) -> Command {
     command
 }
 
+fn validate_request(request: &ProcessRequest) -> Result<(), ProcessExecutionError> {
+    validate_program(&request.program)?;
+    validate_args(&request.program, &request.args)?;
+    validate_current_dir(&request.current_dir)?;
+    Ok(())
+}
+
+fn validate_program(program: &str) -> Result<(), ProcessExecutionError> {
+    if program.is_empty() {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "program is empty".to_string(),
+        });
+    }
+
+    if program.contains('\0') {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "program contains NUL byte".to_string(),
+        });
+    }
+
+    let program_path = Path::new(program);
+    if program_path.is_absolute() {
+        if contains_dot_components(program_path) {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "program path contains '.' or '..'".to_string(),
+            });
+        }
+        return Ok(());
+    }
+
+    let mut components = program_path.components();
+    let Some(component) = components.next() else {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "program path is empty".to_string(),
+        });
+    };
+
+    match component {
+        Component::Normal(_) => {}
+        Component::CurDir => {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "program path must not be '.'".to_string(),
+            });
+        }
+        Component::ParentDir => {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "program path must not include '..'".to_string(),
+            });
+        }
+        Component::RootDir => {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "program path must be absolute when rooted".to_string(),
+            });
+        }
+        Component::Prefix(_) => {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "program path prefix is not an executable name".to_string(),
+            });
+        }
+    }
+
+    if components.next().is_some() {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "program must be an executable name or absolute path".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+fn validate_args(program: &str, args: &[String]) -> Result<(), ProcessExecutionError> {
+    let mut total_bytes = program.len();
+    if total_bytes > MAX_TOTAL_ARG_BYTES {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "program name exceeds maximum size".to_string(),
+        });
+    }
+
+    for arg in args {
+        if arg.contains('\0') {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "argument contains NUL byte".to_string(),
+            });
+        }
+
+        total_bytes = total_bytes.saturating_add(arg.len());
+        if total_bytes > MAX_TOTAL_ARG_BYTES {
+            return Err(ProcessExecutionError::InvalidRequest {
+                detail: "arguments exceed maximum total size".to_string(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_current_dir(dir: &Option<PathBuf>) -> Result<(), ProcessExecutionError> {
+    let Some(dir) = dir else {
+        return Ok(());
+    };
+
+    if os_str_has_nul(dir.as_os_str()) {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "current_dir contains NUL byte".to_string(),
+        });
+    }
+
+    if contains_dot_components(dir) {
+        return Err(ProcessExecutionError::InvalidRequest {
+            detail: "current_dir must not include '.' or '..'".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+fn contains_dot_components(path: &Path) -> bool {
+    for component in path.components() {
+        match component {
+            Component::CurDir | Component::ParentDir => return true,
+            Component::Normal(_) | Component::RootDir | Component::Prefix(_) => {}
+        }
+    }
+    false
+}
+
+#[cfg(unix)]
+fn os_str_has_nul(value: &std::ffi::OsStr) -> bool {
+    value.as_bytes().contains(&0)
+}
+
+#[cfg(windows)]
+fn os_str_has_nul(value: &std::ffi::OsStr) -> bool {
+    value.encode_wide().any(|unit| unit == 0)
+}
+
 fn temp_output_path(stream: &str, pid: u32, now_ms: i64) -> PathBuf {
+    let counter = OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
     let mut path = std::env::temp_dir();
-    path.push(format!("ito-process-{stream}-{pid}-{now_ms}.log"));
+    path.push(format!("ito-process-{stream}-{pid}-{now_ms}-{counter}.log"));
     path
 }
 
@@ -315,6 +476,92 @@ mod tests {
         match result {
             Err(ProcessExecutionError::Spawn { .. }) => {}
             other => panic!("expected spawn error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_empty_program() {
+        let request = ProcessRequest::new("");
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("program is empty"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_nul_in_program() {
+        let request = ProcessRequest::new("sh\0bad");
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("program contains NUL byte"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_relative_program_with_components() {
+        let request = ProcessRequest::new("bin/sh");
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("executable name or absolute path"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_current_dir_with_parent_component() {
+        let request = ProcessRequest::new("sh").current_dir("../tmp");
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("current_dir must not include"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_nul_in_argument() {
+        let request = ProcessRequest::new("sh").arg("a\0b");
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("argument contains NUL byte"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_excessive_argument_bytes() {
+        let oversized = "a".repeat(MAX_TOTAL_ARG_BYTES);
+        let request = ProcessRequest::new("sh").arg(oversized);
+        let result = validate_request(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("arguments exceed maximum total size"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn run_returns_invalid_request_before_spawn() {
+        let runner = SystemProcessRunner;
+        let request = ProcessRequest::new("bin/sh");
+        let result = runner.run(&request);
+        match result {
+            Err(ProcessExecutionError::InvalidRequest { detail }) => {
+                assert!(detail.contains("executable name or absolute path"));
+            }
+            other => panic!("expected invalid request, got {other:?}"),
         }
     }
 }
