@@ -3,9 +3,8 @@
 //! Validates invariants like:
 //! - No dependency cycles (tasks or waves).
 //! - Dependencies must exist.
-//! - Tasks cannot depend on tasks in future waves.
+//! - Tasks cannot depend on tasks in other waves.
 //! - Tasks cannot depend on shelved tasks (unless shelved themselves).
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::cycle::find_cycle_path;
