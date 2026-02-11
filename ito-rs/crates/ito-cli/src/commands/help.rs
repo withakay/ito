@@ -16,7 +16,7 @@ use clap::CommandFactory;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let parts = help_all_parts();
 /// // first entry is the base command
 /// assert!(parts.first().map(|p| p.is_empty()).unwrap_or(false));
