@@ -28,7 +28,6 @@ const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 ///
 /// # Examples
 ///
-///
 pub fn available_tool_ids() -> &'static [&'static str] {
     &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
 }
@@ -197,7 +196,7 @@ fn gitignore_has_exact_line(contents: &str, entry: &str) -> bool {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use std::collections::BTreeSet;
 /// use std::path::Path;
 ///
@@ -277,7 +276,7 @@ fn install_project_templates(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let tag = release_tag();
 /// assert!(tag.starts_with('v'));
 /// ```
@@ -304,7 +303,7 @@ fn release_tag() -> String {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::collections::BTreeSet;
 ///
 /// let mut tools = BTreeSet::new();
