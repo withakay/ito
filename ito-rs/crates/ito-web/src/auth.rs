@@ -1,10 +1,14 @@
 //! Token-based authentication for non-loopback access.
 //!
-//! Token is a deterministic SHA256 hash of: hostname + project_root + salt
-//! This ensures:
-//! - Same token on restart (no need to re-auth)
-//! - Different token per host (can't guess from another machine)
-//! - Different token per project
+//! When the server binds to a non-loopback address (e.g. `0.0.0.0`), every
+//! request must carry a valid token. The token is a deterministic SHA-256 hash
+//! of `hostname + project_root + salt`, which gives:
+//!
+//! - **Stable across restarts** — no need to re-authenticate after a server bounce.
+//! - **Host-scoped** — a token from one machine cannot be reused on another.
+//! - **Project-scoped** — separate projects get separate tokens.
+//!
+//! Loopback connections bypass authentication entirely.
 
 use axum::{
     extract::{Query, Request, State},
@@ -20,7 +24,10 @@ use std::sync::Arc;
 const COOKIE_NAME: &str = "ito_token";
 const SALT: &str = "ito-web-auth-v1";
 
-/// Generate a deterministic token from hostname and project root.
+/// Derive a deterministic authentication token for `project_root`.
+///
+/// The token is a 32-hex-char truncation of `SHA-256(salt ‖ hostname ‖ canonical_root)`.
+/// It is safe to display in URLs and cookies.
 pub fn generate_token(project_root: &std::path::Path) -> String {
     let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let root = project_root
@@ -39,27 +46,45 @@ pub fn generate_token(project_root: &std::path::Path) -> String {
     hex::encode(&result[..16])
 }
 
-/// Check if an address is loopback (doesn't need auth).
+/// Return `true` when `bind` resolves to a loopback address.
+///
+/// Loopback connections are trusted and skip token authentication.
+#[allow(clippy::match_like_matches_macro)]
 pub fn is_loopback(bind: &str) -> bool {
-    matches!(bind, "127.0.0.1" | "localhost" | "::1" | "0:0:0:0:0:0:0:1")
+    match bind {
+        "127.0.0.1" => true,
+        "localhost" => true,
+        "::1" => true,
+        "0:0:0:0:0:0:0:1" => true,
+        _ => false,
+    }
 }
 
+/// Shared state for the authentication middleware.
+///
+/// When `token` is `None` (loopback bind), all requests pass through
+/// unauthenticated.
 #[derive(Clone)]
 pub struct AuthState {
+    /// Expected token, or `None` when authentication is disabled (loopback).
     pub token: Option<String>,
 }
 
+/// Query-string parameters for token-based authentication.
 #[derive(Deserialize)]
 pub struct TokenQuery {
     token: Option<String>,
 }
 
-/// Middleware to check token authentication.
-/// Token can be provided via:
-/// 1. Cookie (ito_token)
-/// 2. Query string (?token=xxx)
+/// Axum middleware that enforces token authentication.
 ///
-/// If valid token in query string, sets cookie for future requests.
+/// The token may be supplied via:
+/// 1. The `ito_token` cookie (set automatically on first valid request).
+/// 2. The `?token=…` query parameter.
+///
+/// On a valid query-string token the middleware sets an `HttpOnly` cookie so
+/// subsequent requests authenticate transparently. Unauthenticated requests
+/// receive a `403 Forbidden` HTML page with instructions.
 pub async fn auth_middleware(
     State(auth): State<Arc<AuthState>>,
     jar: CookieJar,
@@ -93,9 +118,9 @@ pub async fn auth_middleware(
         );
 
         let (mut parts, body) = response.into_parts();
-        parts
-            .headers
-            .insert(header::SET_COOKIE, cookie_value.parse().unwrap());
+        if let Ok(cookie_header) = cookie_value.parse() {
+            parts.headers.insert(header::SET_COOKIE, cookie_header);
+        }
 
         return Response::from_parts(parts, body);
     }

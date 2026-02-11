@@ -1,7 +1,7 @@
 ---
 description: Reviews Rust code for documentation quality and completeness
 mode: subagent
-model: "anthropic/claude-sonnet-4-20250514"
+model: "openai/gpt-5.3-codex"
 temperature: 0.2
 tools:
   read: true

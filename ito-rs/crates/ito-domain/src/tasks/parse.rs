@@ -203,7 +203,12 @@ impl TasksParseResult {
     }
 }
 
-/// Default template for an enhanced-format `tasks.md`.
+/// Generate the default template for an enhanced-format `tasks.md`.
+///
+/// The template includes:
+/// - A header with execution notes and CLI hints.
+/// - A sample Wave 1 with a placeholder task.
+/// - A sample Checkpoint for review.
 pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String {
     let date = now.format("%Y-%m-%d").to_string();
     format!(

@@ -7,15 +7,13 @@ members = ["cargo:."]
 cargo-dist-version = "0.30.3"
 # CI backends to support
 ci = "github"
-
-# Only run release automation for tags that start with "v" (e.g. v0.1.0).
-# This prevents dist from triggering on legacy/component tags that merely contain a semver substring.
+# A prefix git tags must include for dist to care about them
 tag-namespace = "v"
 
 # Only distribute the primary CLI app.
 packages = ["ito-cli"]
 # The installers to generate for each app
-installers = ["shell", "powershell"]
+installers = ["shell", "powershell", "npm", "homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Path that installers should place binaries in
@@ -24,3 +22,7 @@ install-path = "CARGO_HOME"
 hosting = "github"
 # Whether to install an updater program
 install-updater = false
+# A GitHub repo to push Homebrew formulas to
+tap = "withakay/homebrew-ito"
+# Publish jobs to run in CI
+publish-jobs = ["homebrew"]

@@ -1,3 +1,5 @@
+//! PTY-based command runners for interactive integration tests.
+
 use std::io::{Read, Write};
 use std::path::Path;
 
