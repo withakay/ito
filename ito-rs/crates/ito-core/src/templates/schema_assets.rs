@@ -53,7 +53,7 @@ fn find_repository_root(start: &Path) -> Option<PathBuf> {
 ///
 /// ```ignore
 /// # use std::path::PathBuf;
-/// # use crate::workflow::schema_assets::project_schemas_dir;
+/// # use crate::templates::schema_assets::project_schemas_dir;
 /// # use crate::ConfigContext;
 /// // Construct a ConfigContext with a project_dir for the example.
 /// let ctx = ConfigContext { project_dir: Some(PathBuf::from("/repo")), ..Default::default() };

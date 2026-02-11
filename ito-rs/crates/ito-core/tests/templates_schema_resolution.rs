@@ -1,5 +1,5 @@
 use ito_config::ConfigContext;
-use ito_core::workflow::{
+use ito_core::templates::{
     SchemaSource, WorkflowError, export_embedded_schemas, resolve_instructions, resolve_schema,
     resolve_templates,
 };

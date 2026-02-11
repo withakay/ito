@@ -220,18 +220,6 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Config(ConfigArgs),
 
-    /// Legacy workflow command namespace (no-op)
-    ///
-    /// `ito workflow` and its subcommands are retained as compatibility no-ops.
-    /// Use `ito agent instruction <artifact>` and `ito tasks ...` for active workflows.
-    ///
-    /// Examples:
-    ///   ito workflow
-    ///   ito agent instruction apply --change 005-01_add-auth
-    ///   ito tasks status 005-01_add-auth
-    #[command(verbatim_doc_comment)]
-    Workflow(WorkflowArgs),
-
     /// Manage embedded template assets
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]
     Templates(TemplatesArgs),
@@ -435,14 +423,6 @@ pub enum StateAction {
     },
 }
 
-/// Legacy workflow compatibility surface.
-#[derive(Args, Debug, Clone)]
-#[command(disable_help_subcommand = true)]
-pub struct WorkflowArgs {
-    #[command(subcommand)]
-    pub action: Option<WorkflowAction>,
-}
-
 /// Manage embedded template assets.
 #[derive(Args, Debug, Clone)]
 #[command(subcommand_required = true, arg_required_else_help = true)]
@@ -454,11 +434,11 @@ pub struct TemplatesArgs {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum TemplatesAction {
-    /// Manage workflow schema assets
+    /// Manage template schema assets
     Schemas(TemplatesSchemasArgs),
 }
 
-/// Manage workflow schema assets.
+/// Manage template schema assets.
 #[derive(Args, Debug, Clone)]
 #[command(subcommand_required = true, arg_required_else_help = true)]
 #[command(disable_help_subcommand = true)]
@@ -481,47 +461,6 @@ pub enum TemplatesSchemasAction {
     },
 }
 
-#[derive(Subcommand, Debug, Clone)]
-pub enum WorkflowAction {
-    /// Legacy no-op
-    Init,
-
-    /// Legacy no-op
-    List,
-
-    /// Legacy no-op
-    Show {
-        /// Workflow name (ignored)
-        #[arg(value_name = "WORKFLOW", num_args = 0.., trailing_var_arg = true)]
-        workflow_name: Vec<String>,
-    },
-
-    /// Legacy no-op
-    Run {
-        /// Workflow name (ignored)
-        #[arg(value_name = "WORKFLOW", num_args = 0.., trailing_var_arg = true)]
-        workflow_name: Vec<String>,
-
-        /// Tool name (ignored)
-        #[arg(long)]
-        tool: Option<String>,
-
-        /// Variables in key=value format (ignored)
-        #[arg(short = 'v', long = "var")]
-        var: Vec<String>,
-
-        /// Restart from beginning (ignored)
-        #[arg(long)]
-        restart: bool,
-    },
-
-    /// Legacy no-op
-    Status {
-        /// Workflow name (ignored)
-        #[arg(value_name = "WORKFLOW", num_args = 0.., trailing_var_arg = true)]
-        workflow_name: Vec<String>,
-    },
-}
 /// Initialize Ito instruction files in a project directory.
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
