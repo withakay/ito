@@ -1004,7 +1004,7 @@ pub fn load_user_guidance_for_artifact(
     }
     let path = ito_path
         .join("user-prompts")
-        .join(format!("{artifact_id}.md"));
+        .join(format!("{}.md", artifact_id.replace(['/', '\\'], "_")));
     load_guidance_file(&path)
 }
     }
