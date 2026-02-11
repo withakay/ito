@@ -3,6 +3,8 @@ name: using-git-worktrees
 description: Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification
 ---
 
+<!-- ITO:START -->
+
 # Using Git Worktrees
 
 ## Overview
@@ -93,3 +95,5 @@ Worktrees are not configured for this project.
 
 **Called by:**
 - Any workflow that needs isolated workspace
+
+<!-- ITO:END -->
