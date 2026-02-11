@@ -4,7 +4,7 @@ use ito_templates::{get_schema_file, schema_files};
 use std::collections::BTreeSet;
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Repository root's `schemas` directory path.
 ///
@@ -165,6 +165,13 @@ pub(super) fn read_schema_template(
     resolved: &ResolvedSchema,
     template: &str,
 ) -> Result<String, WorkflowError> {
+    if !is_safe_relative_path(template) {
+        return Err(WorkflowError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("invalid template path: {template}"),
+        )));
+    }
+
     if resolved.source == SchemaSource::Embedded {
         let path = format!("{}/templates/{template}", resolved.schema.name);
         let bytes = get_schema_file(&path).ok_or_else(|| {
@@ -184,6 +191,39 @@ pub(super) fn read_schema_template(
 
     let path = resolved.schema_dir.join("templates").join(template);
     ito_common::io::read_to_string_std(&path).map_err(WorkflowError::from)
+}
+
+pub(super) fn is_safe_relative_path(path: &str) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+
+    if path.contains('\\') {
+        return false;
+    }
+
+    let p = Path::new(path);
+    if p.is_absolute() {
+        return false;
+    }
+
+    for component in p.components() {
+        match component {
+            Component::Normal(_) => {}
+            Component::CurDir
+            | Component::ParentDir
+            | Component::RootDir
+            | Component::Prefix(_) => {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
+pub(super) fn is_safe_schema_name(name: &str) -> bool {
+    is_safe_relative_path(name) && !name.contains('.')
 }
 
 #[derive(Debug, Clone)]
