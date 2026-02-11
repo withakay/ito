@@ -1,3 +1,5 @@
+//! JSON schema generation for Ito config.
+
 use schemars::schema_for;
 use serde_json::Value;
 
