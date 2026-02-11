@@ -1,0 +1,31 @@
+[jobs.default]
+command = ["cargo", "check", "--workspace", "--all-targets", "--color", "always"]
+need_stdout = false
+
+[jobs.check]
+command = ["cargo", "check", "--workspace", "--all-targets", "--color", "always"]
+need_stdout = false
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--workspace", "--all-targets", "--color", "always"]
+need_stdout = false
+
+[jobs.test]
+command = ["cargo", "test", "--workspace", "--color", "always"]
+need_stdout = true
+on_success = "job:check"
+
+[jobs.doc]
+command = ["cargo", "doc", "--workspace", "--no-deps", "--color", "always"]
+need_stdout = false
+
+[jobs.coverage]
+command = ["cargo", "llvm-cov", "--workspace", "--color", "always"]
+need_stdout = true
+allow_failure = true
+
+[keybindings]
+c = "job:clippy"
+t = "job:test"
+d = "job:doc"
+v = "job:coverage"
