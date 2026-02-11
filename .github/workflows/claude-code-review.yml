@@ -1,10 +1,10 @@
 name: Claude Code Review
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created]
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+#   issue_comment:
+#     types: [created]
 
 permissions:
   contents: read
@@ -22,7 +22,6 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@claude'))
     timeout-minutes: 30
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
