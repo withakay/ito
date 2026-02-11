@@ -14,7 +14,7 @@ Use `@/.ito/AGENTS.md` to learn:
 - Project structure and guidelines
 
 Note: Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten.
-Add project-specific guidance in `.ito/user-guidance.md` (injected into agent instruction outputs) and/or below this managed block.
+Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito/user-prompts/<artifact>.md` (artifact-specific), and/or below this managed block.
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
