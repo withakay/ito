@@ -136,6 +136,24 @@ fn resolve_schema_rejects_path_traversal_name() {
 }
 
 #[test]
+fn resolve_schema_rejects_absolute_and_backslash_names() {
+    let ctx = ConfigContext::default();
+
+    let absolute = resolve_schema(Some("/etc"), &ctx).expect_err("should reject absolute path");
+    match absolute {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "/etc"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+
+    let backslash =
+        resolve_schema(Some("..\\spec-driven"), &ctx).expect_err("should reject backslashes");
+    match backslash {
+        WorkflowError::SchemaNotFound(name) => assert_eq!(name, "..\\spec-driven"),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
 fn resolve_templates_rejects_traversal_template_path() {
     let root = tempfile::tempdir().expect("tempdir should succeed");
     let project = root.path().join("project");
