@@ -24,4 +24,3 @@
 - [x] 001-17_fuzzy-change-matching-for-change-flags
 - [ ] 001-18_agent-instruction-peer-review
 - [x] 001-20_init-update-flag
-- [ ] 001-22_sunset-legacy-workflow-command
