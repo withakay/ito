@@ -1,7 +1,7 @@
 use ito_config::ConfigContext;
 use ito_core::workflow::{
-    export_embedded_schemas, resolve_instructions, resolve_schema, resolve_templates, SchemaSource,
-    WorkflowError,
+    SchemaSource, WorkflowError, export_embedded_schemas, resolve_instructions, resolve_schema,
+    resolve_templates,
 };
 
 /// Verifies that resolving the "spec-driven" schema yields the embedded schema when no project or user overrides exist.
