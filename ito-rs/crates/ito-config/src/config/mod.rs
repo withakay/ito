@@ -300,6 +300,22 @@ pub fn load_cascading_project_config(
     load_cascading_project_config_fs(&StdFs, project_root, ito_path, ctx)
 }
 
+/// Resolve coordination branch settings from merged config JSON.
+///
+/// Falls back to documented defaults when the merged value cannot be
+/// deserialized into [`types::ItoConfig`].
+pub fn resolve_coordination_branch_settings(merged: &Value) -> (bool, String) {
+    let Ok(cfg) = serde_json::from_value::<types::ItoConfig>(merged.clone()) else {
+        let defaults = types::CoordinationBranchConfig::default();
+        return (defaults.enabled, defaults.name);
+    };
+
+    (
+        cfg.changes.coordination_branch.enabled,
+        cfg.changes.coordination_branch.name,
+    )
+}
+
 /// Like [`load_cascading_project_config`], but uses an injected file-system.
 pub fn load_cascading_project_config_fs<F: FileSystem>(
     fs: &F,
