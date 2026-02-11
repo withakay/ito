@@ -8,6 +8,15 @@ use ito_test_support::run_rust_candidate;
 #[cfg(unix)]
 use ito_test_support::pty::run_pty_interactive;
 
+fn expected_release_tag() -> String {
+    let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    if version.starts_with('v') {
+        return version.to_string();
+    }
+
+    format!("v{version}")
+}
+
 #[test]
 fn init_requires_tools_when_non_interactive() {
     let repo = tempfile::tempdir().expect("work");
@@ -44,6 +53,31 @@ fn init_with_tools_none_installs_ito_skeleton() {
     assert!(repo.path().join(".ito/user-prompts/proposal.md").exists());
     assert!(repo.path().join(".ito/user-prompts/apply.md").exists());
     assert!(repo.path().join(".ito/user-prompts/tasks.md").exists());
+}
+
+#[test]
+fn init_writes_config_with_release_tag_schema_reference() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let args = fixtures::init_minimal_args(repo.path());
+    let argv = fixtures::args_to_strs(&args);
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "init failed: {}", out.stderr);
+
+    let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
+    let expected_release_tag = expected_release_tag();
+    let expected = format!(
+        "\"$schema\": \"https://raw.githubusercontent.com/withakay/ito/{expected_release_tag}/schemas/ito-config.schema.json\""
+    );
+    assert!(
+        config.contains(&expected),
+        "expected generated .ito/config.json to include a release-tag schema reference\nexpected fragment: {expected}\nGot:\n{config}"
+    );
 }
 
 #[test]

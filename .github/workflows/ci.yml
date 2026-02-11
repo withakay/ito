@@ -89,6 +89,9 @@ jobs:
         with:
           workspaces: . -> target
 
+      - name: Verify config schema artifact is current
+        run: make config-schema-check
+
       - name: Rust fmt (check)
         run: cargo fmt --all -- --check
 

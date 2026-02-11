@@ -29,8 +29,8 @@ ______________________________________________________________________
   Ensure schema generation produces deterministic output suitable for `schemas/ito-config.schema.json`, and add/refresh the committed artifact.
 - **Verify**: `ito config schema --output schemas/ito-config.schema.json`
 - **Done When**: Command writes schema to target path and file content is stable across repeated runs.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ### Task 1.2: Add build/check schema drift verification
 
@@ -40,8 +40,8 @@ ______________________________________________________________________
   Add a build/check step that regenerates or verifies the schema artifact and fails when committed output is stale.
 - **Verify**: `make check`
 - **Done When**: Checks fail on schema drift and pass when schema is current.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -57,8 +57,8 @@ ______________________________________________________________________
   Update generated config templates (and any canonical config examples) to reference the committed schema path, while keeping runtime config loading behavior unchanged.
 - **Verify**: `cargo test -p ito-cli config_schema` (or nearest relevant test target)
 - **Done When**: Generated config files include valid local `$schema` references and config loading still ignores `$schema`.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ### Task 2.2: Add/extend tests for schema artifact and completion behavior
 
@@ -68,8 +68,8 @@ ______________________________________________________________________
   Add tests covering deterministic schema generation, stale-schema failure behavior, and `$schema` compatibility in config parsing.
 - **Verify**: `cargo test -p ito-cli && cargo test -p ito-config && cargo test -p ito-templates`
 - **Done When**: New tests fail before implementation and pass after implementation.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -85,8 +85,8 @@ ______________________________________________________________________
   Document how to reference the local schema and how to regenerate it; run full quality checks.
 - **Verify**: `make check && make test`
 - **Done When**: Documentation matches behavior, checks pass, and committed schema is current.
-- **Updated At**: 2026-02-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-11
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

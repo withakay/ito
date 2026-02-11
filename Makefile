@@ -11,6 +11,7 @@ COVERAGE_TARGET ?= 90
 	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
 	fmt clippy \
 	arch-guardrails cargo-deny \
+	config-schema config-schema-check \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
@@ -155,6 +156,17 @@ check-max-lines: ## Fail if Rust files exceed 1000 lines (override MAX_RUST_FILE
 
 arch-guardrails: ## Run architecture guardrail checks
 	python3 "ito-rs/tools/arch_guardrails.py"
+
+config-schema: ## Generate canonical Ito config JSON schema artifact
+	cargo run -p ito-cli --bin ito -- config schema --output schemas/ito-config.schema.json
+
+config-schema-check: ## Verify canonical Ito config schema artifact is up-to-date
+	@set -e; \
+	$(MAKE) config-schema; \
+	if ! git diff --exit-code -- schemas/ito-config.schema.json >/dev/null; then \
+		echo "schemas/ito-config.schema.json is stale. Run: make config-schema"; \
+		exit 1; \
+	fi
 
 cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 	@set -e; \

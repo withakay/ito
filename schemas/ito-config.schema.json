@@ -1,0 +1,894 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "AgentModelOptions": {
+      "additionalProperties": true,
+      "description": "Extended agent model options",
+      "properties": {
+        "model": {
+          "description": "Model identifier",
+          "examples": [
+            "openai/gpt-5.2-codex"
+          ],
+          "type": "string"
+        },
+        "reasoningEffort": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reasoning effort (OpenAI)"
+        },
+        "steps": {
+          "default": null,
+          "description": "Optional max steps for tool loops",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "temperature": {
+          "default": null,
+          "description": "Temperature (0.0-1.0)",
+          "format": "double",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "textVerbosity": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TextVerbosity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Text verbosity"
+        },
+        "top_p": {
+          "default": null,
+          "description": "Top-p sampling (0.0-1.0)",
+          "format": "double",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "variant": {
+          "default": null,
+          "description": "Optional variant selector (OpenCode)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "type": "object"
+    },
+    "AgentModelSetting": {
+      "anyOf": [
+        {
+          "description": "Shorthand setting using only a model identifier.",
+          "type": "string"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentModelOptions"
+            }
+          ],
+          "description": "Extended options object."
+        }
+      ],
+      "description": "Agent model setting: shorthand string or options object"
+    },
+    "AgentTiersConfig": {
+      "description": "Agent tier to model mapping",
+      "properties": {
+        "ito-general": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentModelSetting"
+            }
+          ],
+          "description": "Balanced tier"
+        },
+        "ito-quick": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentModelSetting"
+            }
+          ],
+          "description": "Fast, cheap tier"
+        },
+        "ito-thinking": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentModelSetting"
+            }
+          ],
+          "description": "High-capability tier"
+        }
+      },
+      "required": [
+        "ito-general",
+        "ito-quick",
+        "ito-thinking"
+      ],
+      "type": "object"
+    },
+    "CacheConfig": {
+      "description": "Cache settings",
+      "properties": {
+        "ttl_hours": {
+          "default": 24,
+          "description": "Model registry cache TTL in hours",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "ClaudeCodeHarnessConfig": {
+      "description": "Claude Code harness configuration",
+      "properties": {
+        "agents": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentTiersConfig"
+            }
+          ],
+          "default": {
+            "ito-general": "sonnet",
+            "ito-quick": "haiku",
+            "ito-thinking": "opus"
+          },
+          "description": "Ito agent tier model mappings"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProviderAnthropic"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider constraint (if specified, must be anthropic)"
+        }
+      },
+      "type": "object"
+    },
+    "CodexHarnessConfig": {
+      "description": "Codex harness configuration",
+      "properties": {
+        "agents": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentTiersConfig"
+            }
+          ],
+          "default": {
+            "ito-general": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": "high",
+              "steps": null,
+              "temperature": null,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": null
+            },
+            "ito-quick": "openai/gpt-5.1-codex-mini",
+            "ito-thinking": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": "xhigh",
+              "steps": null,
+              "temperature": null,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": null
+            }
+          },
+          "description": "Ito agent tier model mappings"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProviderOpenAi"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider constraint (if specified, must be openai)"
+        }
+      },
+      "type": "object"
+    },
+    "CoverageDefaults": {
+      "description": "Coverage defaults",
+      "properties": {
+        "target_percent": {
+          "default": 80,
+          "description": "Target coverage percentage",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "DefaultsConfig": {
+      "description": "Defaults section",
+      "properties": {
+        "testing": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TestingDefaults"
+            }
+          ],
+          "default": {
+            "coverage": {
+              "target_percent": 80
+            },
+            "tdd": {
+              "workflow": "red-green-refactor"
+            }
+          },
+          "description": "Testing-related defaults"
+        }
+      },
+      "type": "object"
+    },
+    "GitHubCopilotHarnessConfig": {
+      "description": "GitHub Copilot harness configuration",
+      "properties": {
+        "agents": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentTiersConfig"
+            }
+          ],
+          "default": {
+            "ito-general": "github-copilot/gpt-5.2-codex",
+            "ito-quick": "github-copilot/claude-haiku-4.5",
+            "ito-thinking": "github-copilot/gpt-5.2-codex"
+          },
+          "description": "Ito agent tier model mappings"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProviderGitHubCopilot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider constraint (if specified, must be github-copilot)"
+        }
+      },
+      "type": "object"
+    },
+    "HarnessesConfig": {
+      "description": "Harness configurations",
+      "properties": {
+        "claude-code": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ClaudeCodeHarnessConfig"
+            }
+          ],
+          "default": {
+            "agents": {
+              "ito-general": "sonnet",
+              "ito-quick": "haiku",
+              "ito-thinking": "opus"
+            },
+            "provider": "anthropic"
+          },
+          "description": "Claude Code harness settings"
+        },
+        "codex": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CodexHarnessConfig"
+            }
+          ],
+          "default": {
+            "agents": {
+              "ito-general": {
+                "model": "openai/gpt-5.2-codex",
+                "reasoningEffort": "high",
+                "steps": null,
+                "temperature": null,
+                "textVerbosity": null,
+                "top_p": null,
+                "variant": null
+              },
+              "ito-quick": "openai/gpt-5.1-codex-mini",
+              "ito-thinking": {
+                "model": "openai/gpt-5.2-codex",
+                "reasoningEffort": "xhigh",
+                "steps": null,
+                "temperature": null,
+                "textVerbosity": null,
+                "top_p": null,
+                "variant": null
+              }
+            },
+            "provider": "openai"
+          },
+          "description": "OpenAI Codex harness settings"
+        },
+        "github-copilot": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GitHubCopilotHarnessConfig"
+            }
+          ],
+          "default": {
+            "agents": {
+              "ito-general": "github-copilot/gpt-5.2-codex",
+              "ito-quick": "github-copilot/claude-haiku-4.5",
+              "ito-thinking": "github-copilot/gpt-5.2-codex"
+            },
+            "provider": "github-copilot"
+          },
+          "description": "GitHub Copilot harness settings"
+        },
+        "opencode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/OpenCodeHarnessConfig"
+            }
+          ],
+          "default": {
+            "agents": {
+              "ito-general": {
+                "model": "openai/gpt-5.2-codex",
+                "reasoningEffort": null,
+                "steps": null,
+                "temperature": 0.3,
+                "textVerbosity": null,
+                "top_p": null,
+                "variant": "high"
+              },
+              "ito-quick": "anthropic/claude-haiku-4-5",
+              "ito-thinking": {
+                "model": "openai/gpt-5.2-codex",
+                "reasoningEffort": null,
+                "steps": null,
+                "temperature": 0.5,
+                "textVerbosity": null,
+                "top_p": null,
+                "variant": "xhigh"
+              }
+            },
+            "provider": null
+          },
+          "description": "OpenCode harness settings"
+        }
+      },
+      "type": "object"
+    },
+    "IntegrationMode": {
+      "description": "Integration mode after implementation",
+      "oneOf": [
+        {
+          "description": "Commit and open a PR workflow.",
+          "enum": [
+            "commit_pr"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Merge into parent branch workflow.",
+          "enum": [
+            "merge_parent"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "OpenCodeHarnessConfig": {
+      "description": "OpenCode harness configuration",
+      "properties": {
+        "agents": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AgentTiersConfig"
+            }
+          ],
+          "default": {
+            "ito-general": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": null,
+              "steps": null,
+              "temperature": 0.3,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": "high"
+            },
+            "ito-quick": "anthropic/claude-haiku-4-5",
+            "ito-thinking": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": null,
+              "steps": null,
+              "temperature": 0.5,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": "xhigh"
+            }
+          },
+          "description": "Ito agent tier model mappings"
+        },
+        "provider": {
+          "default": null,
+          "description": "Optional provider constraint (null/omitted means any provider)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ProviderAnthropic": {
+      "description": "Allowed providers for Anthropic-backed harnesses.",
+      "oneOf": [
+        {
+          "description": "Anthropic provider.",
+          "enum": [
+            "anthropic"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "ProviderGitHubCopilot": {
+      "description": "Allowed providers for GitHub Copilot-backed harnesses.",
+      "oneOf": [
+        {
+          "description": "GitHub Copilot provider.",
+          "enum": [
+            "github-copilot"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "ProviderOpenAi": {
+      "description": "Allowed providers for OpenAI-backed harnesses.",
+      "oneOf": [
+        {
+          "description": "OpenAI provider.",
+          "enum": [
+            "openai"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "ReasoningEffort": {
+      "description": "Preferred reasoning effort for reasoning-capable models.",
+      "oneOf": [
+        {
+          "description": "No explicit reasoning mode.",
+          "enum": [
+            "none"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Minimal reasoning.",
+          "enum": [
+            "minimal"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Low reasoning.",
+          "enum": [
+            "low"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Medium reasoning.",
+          "enum": [
+            "medium"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "High reasoning.",
+          "enum": [
+            "high"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Extra-high reasoning.",
+          "enum": [
+            "xhigh"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "TddDefaults": {
+      "description": "TDD defaults",
+      "properties": {
+        "workflow": {
+          "default": "red-green-refactor",
+          "description": "TDD workflow name",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "TestingDefaults": {
+      "description": "Testing defaults",
+      "properties": {
+        "coverage": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CoverageDefaults"
+            }
+          ],
+          "default": {
+            "target_percent": 80
+          },
+          "description": "Coverage defaults"
+        },
+        "tdd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TddDefaults"
+            }
+          ],
+          "default": {
+            "workflow": "red-green-refactor"
+          },
+          "description": "TDD workflow defaults"
+        }
+      },
+      "type": "object"
+    },
+    "TextVerbosity": {
+      "description": "Preferred verbosity level for text output.",
+      "oneOf": [
+        {
+          "description": "Minimal output.",
+          "enum": [
+            "low"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Balanced output.",
+          "enum": [
+            "medium"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Very detailed output.",
+          "enum": [
+            "high"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "WorktreeApplyConfig": {
+      "description": "Worktree apply-time behavior configuration",
+      "properties": {
+        "copy_from_main": {
+          "default": [
+            ".env",
+            ".envrc",
+            ".mise.local.toml"
+          ],
+          "description": "Glob patterns for files to copy from main into the change worktree",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Enable worktree-specific setup in apply instructions",
+          "type": "boolean"
+        },
+        "integration_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/IntegrationMode"
+            }
+          ],
+          "default": "commit_pr",
+          "description": "Integration preference after implementation"
+        },
+        "setup_commands": {
+          "default": [],
+          "description": "Ordered shell commands to run in the change worktree before implementation",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "WorktreeLayoutConfig": {
+      "description": "Worktree layout path configuration",
+      "properties": {
+        "base_dir": {
+          "description": "Base path override for worktree directory placement",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dir_name": {
+          "default": "ito-worktrees",
+          "description": "Name of the directory that holds change worktrees",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "WorktreeStrategy": {
+      "description": "Supported worktree workspace topology strategies",
+      "oneOf": [
+        {
+          "description": "Standard checkout with change worktrees under a gitignored subdirectory.",
+          "enum": [
+            "checkout_subdir"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Standard checkout with change worktrees in a sibling directory.",
+          "enum": [
+            "checkout_siblings"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Bare/control repo with `main` as a worktree and change worktrees as siblings.",
+          "enum": [
+            "bare_control_siblings"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "WorktreesConfig": {
+      "description": "Worktree workspace configuration",
+      "properties": {
+        "apply": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/WorktreeApplyConfig"
+            }
+          ],
+          "default": {
+            "copy_from_main": [
+              ".env",
+              ".envrc",
+              ".mise.local.toml"
+            ],
+            "enabled": true,
+            "integration_mode": "commit_pr",
+            "setup_commands": []
+          },
+          "description": "Apply-time behavior configuration"
+        },
+        "default_branch": {
+          "default": "main",
+          "description": "Branch used when creating/reusing the base worktree",
+          "type": "string"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable worktree policy features",
+          "type": "boolean"
+        },
+        "layout": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/WorktreeLayoutConfig"
+            }
+          ],
+          "default": {
+            "dir_name": "ito-worktrees"
+          },
+          "description": "Layout path configuration"
+        },
+        "strategy": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/WorktreeStrategy"
+            }
+          ],
+          "default": "checkout_subdir",
+          "description": "Workspace topology strategy"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "description": "Top-level Ito configuration",
+  "properties": {
+    "$schema": {
+      "description": "Optional JSON schema reference for editor validation",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cache": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/CacheConfig"
+        }
+      ],
+      "default": {
+        "ttl_hours": 24
+      },
+      "description": "Cache configuration"
+    },
+    "defaults": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/DefaultsConfig"
+        }
+      ],
+      "default": {
+        "testing": {
+          "coverage": {
+            "target_percent": 80
+          },
+          "tdd": {
+            "workflow": "red-green-refactor"
+          }
+        }
+      },
+      "description": "Global defaults for workflow and tooling"
+    },
+    "harnesses": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/HarnessesConfig"
+        }
+      ],
+      "default": {
+        "claude-code": {
+          "agents": {
+            "ito-general": "sonnet",
+            "ito-quick": "haiku",
+            "ito-thinking": "opus"
+          },
+          "provider": "anthropic"
+        },
+        "codex": {
+          "agents": {
+            "ito-general": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": "high",
+              "steps": null,
+              "temperature": null,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": null
+            },
+            "ito-quick": "openai/gpt-5.1-codex-mini",
+            "ito-thinking": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": "xhigh",
+              "steps": null,
+              "temperature": null,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": null
+            }
+          },
+          "provider": "openai"
+        },
+        "github-copilot": {
+          "agents": {
+            "ito-general": "github-copilot/gpt-5.2-codex",
+            "ito-quick": "github-copilot/claude-haiku-4.5",
+            "ito-thinking": "github-copilot/gpt-5.2-codex"
+          },
+          "provider": "github-copilot"
+        },
+        "opencode": {
+          "agents": {
+            "ito-general": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": null,
+              "steps": null,
+              "temperature": 0.3,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": "high"
+            },
+            "ito-quick": "anthropic/claude-haiku-4-5",
+            "ito-thinking": {
+              "model": "openai/gpt-5.2-codex",
+              "reasoningEffort": null,
+              "steps": null,
+              "temperature": 0.5,
+              "textVerbosity": null,
+              "top_p": null,
+              "variant": "xhigh"
+            }
+          },
+          "provider": null
+        }
+      },
+      "description": "Harness-specific configuration"
+    },
+    "projectPath": {
+      "default": null,
+      "description": "Ito working directory name (defaults to .ito)",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "worktrees": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/WorktreesConfig"
+        }
+      ],
+      "default": {
+        "apply": {
+          "copy_from_main": [
+            ".env",
+            ".envrc",
+            ".mise.local.toml"
+          ],
+          "enabled": true,
+          "integration_mode": "commit_pr",
+          "setup_commands": []
+        },
+        "default_branch": "main",
+        "enabled": false,
+        "layout": {
+          "dir_name": "ito-worktrees"
+        },
+        "strategy": "checkout_subdir"
+      },
+      "description": "Worktree workspace configuration"
+    }
+  },
+  "title": "ItoConfig",
+  "type": "object"
+}
