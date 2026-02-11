@@ -89,7 +89,7 @@ ______________________________________________________________________
 
 - **Type**: checkpoint (requires human approval before proceeding)
 - **Files**: <!-- relevant files for review -->
-- **Dependencies**: Task 3.1
+- **Dependencies**: None (Wave 4 already depends on Wave 3)
 - **Action**:
   Run `ito agent instruction review --change <!-- CHANGE_ID -->`, apply feedback,
   and confirm readiness to archive.

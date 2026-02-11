@@ -73,7 +73,7 @@ The CLI SHALL NOT provide active validation behavior for legacy workflow YAML th
 
 The CLI SHALL keep `ito workflow` no-op behavior deterministic and side-effect free.
 
-#### Scenario: No-op commands remain side-effect free
+#### Scenario: No-op commands remain side-effect-free
 
 - **WHEN** any `ito workflow` subcommand is invoked repeatedly
 - **THEN** command outcomes SHALL be deterministic
