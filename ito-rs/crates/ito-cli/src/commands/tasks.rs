@@ -2,7 +2,7 @@ use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
-use ito_config::load_cascading_project_config;
+use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
@@ -13,22 +13,7 @@ fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-
-    let enabled = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("enabled"))
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(true);
-    let name = merged
-        .get("changes")
-        .and_then(|v| v.get("coordination_branch"))
-        .and_then(|v| v.get("name"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("ito/internal/changes")
-        .to_string();
-
-    (enabled, name)
+    resolve_coordination_branch_settings(&merged)
 }
 
 fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
