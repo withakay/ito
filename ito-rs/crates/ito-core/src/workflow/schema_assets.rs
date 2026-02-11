@@ -6,10 +6,9 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Computes the repository's top-level schemas directory.
+/// Get the repository's top-level `schemas` directory.
 ///
-/// Returns the path to the repository's `schemas` directory (the repository root
-/// resolved from the crate manifest, joined with `schemas`).
+/// The path is resolved from the crate manifest and points to the repository root's `schemas` subdirectory.
 ///
 /// # Examples
 ///
@@ -80,17 +79,24 @@ pub(super) fn user_schemas_dir(ctx: &ConfigContext) -> Option<PathBuf> {
     Some(data_home.join("ito").join("schemas"))
 }
 
-/// List the names of embedded schemas available in the binary.
+/// List the top-level names of embedded schemas included in the binary.
 ///
-/// The result is deduplicated and returned in sorted order; each name is the
-/// top-level path segment for an embedded schema (the directory containing its files).
+/// Each name is the first path segment (the directory containing the schema files).
+/// The returned vector is deduplicated and sorted in ascending order.
+///
+/// # Returns
+///
+/// `Vec<String>` containing deduplicated, sorted top-level schema names; each string is non-empty.
 ///
 /// # Examples
 ///
 /// ```
 /// let names = embedded_schema_names();
-/// // names is a sorted list of non-empty schema identifiers
 /// assert!(names.iter().all(|n| !n.is_empty()));
+/// // names is sorted and contains unique entries
+/// for w in names.windows(2) {
+///     assert!(w[0] <= w[1]);
+/// }
 /// ```
 pub(super) fn embedded_schema_names() -> Vec<String> {
     let mut names: BTreeSet<String> = BTreeSet::new();
@@ -141,20 +147,20 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
 
 /// Read the content of a schema template for a resolved schema.
 ///
-/// This will load the template from the embedded asset bundle when the
-/// resolved schema's source is `SchemaSource::Embedded`, or read it from the
-/// filesystem under `<schema_dir>/templates/<template>` otherwise.
+/// If the resolved schema's source is `SchemaSource::Embedded`, the template is loaded
+/// from the embedded asset bundle at `{schema}/templates/{template}`; otherwise it is
+/// read from `<schema_dir>/templates/<template>` on the filesystem.
 ///
 /// # Returns
 ///
-/// The template contents as a `String`, or a `WorkflowError` if the embedded
-/// template is missing, the embedded bytes are not valid UTF-8, or a filesystem
-/// I/O error occurs when reading a non-embedded template.
+/// The template contents as a `String`, or a `WorkflowError` if the embedded template
+/// is missing, the embedded bytes are not valid UTF-8, or a filesystem I/O error occurs
+/// when reading a non-embedded template.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// // Read a template (example usage; `resolved` is a ResolvedSchema from your context)
+/// // `resolved` is a ResolvedSchema obtained from your configuration or discovery logic.
 /// // let content = read_schema_template(&resolved, "main.tpl")?;
 /// ```
 pub(super) fn read_schema_template(
