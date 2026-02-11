@@ -791,5 +791,39 @@ fn compute_progress(tasks: &[TaskItem]) -> ProgressInfo {
 
 /// Path to `{ito_path}/changes/{change_id}/tasks.md`.
 pub fn tasks_path(ito_path: &Path, change_id: &str) -> PathBuf {
-    ito_path.join("changes").join(change_id).join("tasks.md")
+    let Some(path) = tasks_path_checked(ito_path, change_id) else {
+        return ito_path
+            .join("changes")
+            .join("invalid-change-id")
+            .join("tasks.md");
+    };
+    path
+}
+
+/// Path to `{ito_path}/changes/{change_id}/tasks.md` when `change_id` is safe.
+///
+/// This rejects path traversal tokens, path separators, empty ids, and overlong
+/// ids to ensure the resulting path cannot escape the intended `changes/`
+/// subtree.
+pub fn tasks_path_checked(ito_path: &Path, change_id: &str) -> Option<PathBuf> {
+    if !is_safe_change_id_segment(change_id) {
+        return None;
+    }
+
+    Some(ito_path.join("changes").join(change_id).join("tasks.md"))
+}
+
+/// Return `true` when `change_id` is safe as a single path segment.
+pub fn is_safe_change_id_segment(change_id: &str) -> bool {
+    let change_id = change_id.trim();
+    if change_id.is_empty() {
+        return false;
+    }
+    if change_id.len() > 256 {
+        return false;
+    }
+    if change_id.contains('/') || change_id.contains('\\') || change_id.contains("..") {
+        return false;
+    }
+    true
 }
