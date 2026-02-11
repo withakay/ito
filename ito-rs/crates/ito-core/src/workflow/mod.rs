@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 mod schema_assets;
 pub use schema_assets::{ExportSchemasResult, export_embedded_schemas};
 use schema_assets::{
-    embedded_schema_names, load_embedded_schema_yaml, package_schemas_dir, project_schemas_dir,
-    read_schema_template, user_schemas_dir,
+    embedded_schema_names, is_safe_relative_path, is_safe_schema_name, load_embedded_schema_yaml,
+    package_schemas_dir, project_schemas_dir, read_schema_template, user_schemas_dir,
 };
 
 use ito_common::fs::StdFs;
@@ -505,6 +505,9 @@ pub fn resolve_schema(
     ctx: &ConfigContext,
 ) -> Result<ResolvedSchema, WorkflowError> {
     let name = schema_name.unwrap_or(default_schema_name());
+    if !is_safe_schema_name(name) {
+        return Err(WorkflowError::SchemaNotFound(name.to_string()));
+    }
 
     let project_dir = project_schemas_dir(ctx).map(|d| d.join(name));
     if let Some(d) = project_dir
@@ -787,6 +790,13 @@ pub fn resolve_templates(
 
     let mut templates: BTreeMap<String, TemplateInfo> = BTreeMap::new();
     for a in &resolved.schema.artifacts {
+        if !is_safe_relative_path(&a.template) {
+            return Err(WorkflowError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("invalid template path: {}", a.template),
+            )));
+        }
+
         let path = if resolved.source == SchemaSource::Embedded {
             format!(
                 "embedded://schemas/{}/templates/{}",

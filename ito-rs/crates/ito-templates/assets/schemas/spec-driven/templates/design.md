@@ -1,3 +1,4 @@
+<!-- ITO:START -->
 ## Context
 
 <!-- Background and current state -->
@@ -19,3 +20,4 @@
 ## Risks / Trade-offs
 
 <!-- Known risks and trade-offs -->
+<!-- ITO:END -->
