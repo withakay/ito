@@ -23,7 +23,7 @@ fn templates_schemas_export_writes_embedded_files() {
         .arg("templates")
         .arg("schemas")
         .arg("export")
-        .arg("-f")
+        .arg("--to")
         .arg(&target)
         .assert()
         .success()
@@ -50,7 +50,7 @@ fn templates_schemas_export_writes_embedded_files() {
 ///     .arg("templates")
 ///     .arg("schemas")
 ///     .arg("export")
-///     .arg("-f")
+///     .arg("--to")
 ///     .arg(&target)
 ///     .assert()
 ///     .success();
@@ -67,7 +67,7 @@ fn templates_schemas_export_writes_embedded_files() {
 ///     .arg("templates")
 ///     .arg("schemas")
 ///     .arg("export")
-///     .arg("-f")
+///     .arg("--to")
 ///     .arg(&target)
 ///     .assert()
 ///     .success()
@@ -83,7 +83,7 @@ fn templates_schemas_export_writes_embedded_files() {
 ///     .arg("templates")
 ///     .arg("schemas")
 ///     .arg("export")
-///     .arg("-f")
+///     .arg("--to")
 ///     .arg(&target)
 ///     .arg("--force")
 ///     .assert()
@@ -94,6 +94,7 @@ fn templates_schemas_export_writes_embedded_files() {
 /// assert!(!forced_content.contains("description: modified"));
 /// assert!(forced_content.contains("description: Default Ito workflow"));
 /// ```
+#[test]
 fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
     let td = tempfile::tempdir().expect("tempdir");
     let target = td.path().join(".ito/templates/schemas");
@@ -104,7 +105,7 @@ fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
         .arg("templates")
         .arg("schemas")
         .arg("export")
-        .arg("-f")
+        .arg("--to")
         .arg(&target)
         .assert()
         .success();
@@ -121,7 +122,7 @@ fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
         .arg("templates")
         .arg("schemas")
         .arg("export")
-        .arg("-f")
+        .arg("--to")
         .arg(&target)
         .assert()
         .success()
@@ -137,7 +138,7 @@ fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
         .arg("templates")
         .arg("schemas")
         .arg("export")
-        .arg("-f")
+        .arg("--to")
         .arg(&target)
         .arg("--force")
         .assert()
