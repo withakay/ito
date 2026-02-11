@@ -996,12 +996,50 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
 /// When a file contains an Ito-managed header block, only the content after the
 /// `ITO_END_MARKER` is returned.
 pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
+    let path = ito_path.join("user-prompts").join("guidance.md");
+    if path.exists() {
+        return load_guidance_file(&path);
+    }
+
     let path = ito_path.join("user-guidance.md");
+    load_guidance_file(&path)
+}
+
+/// Load artifact-scoped user guidance text from `.ito/user-prompts/<artifact-id>.md`.
+pub fn load_user_guidance_for_artifact(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    let path = ito_path
+        .join("user-prompts")
+        .join(format!("{artifact_id}.md"));
+    load_guidance_file(&path)
+}
+
+/// Compose artifact-scoped and shared user guidance text for instruction output.
+pub fn load_composed_user_guidance(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    let scoped = load_user_guidance_for_artifact(ito_path, artifact_id)?;
+    let shared = load_user_guidance(ito_path)?;
+
+    match (scoped, shared) {
+        (None, None) => Ok(None),
+        (Some(scoped), None) => Ok(Some(scoped)),
+        (None, Some(shared)) => Ok(Some(shared)),
+        (Some(scoped), Some(shared)) => Ok(Some(format!(
+            "## Scoped Guidance ({artifact_id})\n\n{scoped}\n\n## Shared Guidance\n\n{shared}"
+        ))),
+    }
+}
+
+fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     if !path.exists() {
         return Ok(None);
     }
 
-    let content = ito_common::io::read_to_string_std(&path)?;
+    let content = ito_common::io::read_to_string_std(path)?;
     let content = content.replace("\r\n", "\n");
     let content = match content.find(ITO_END_MARKER) {
         Some(i) => &content[i + ITO_END_MARKER.len()..],

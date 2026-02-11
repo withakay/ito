@@ -159,5 +159,7 @@ Some files are installed/updated by Ito (`ito init`, `ito update`) and may be ov
 
 If you want to add project-specific guidance for humans and LLMs, prefer:
 
-- `.ito/user-guidance.md` (injected into agent instruction outputs)
+- `.ito/user-prompts/guidance.md` (shared guidance injected into agent instruction outputs)
+- `.ito/user-prompts/<artifact-id>.md` (artifact-specific guidance, e.g. `proposal.md`, `apply.md`)
+- `.ito/user-guidance.md` (legacy shared guidance fallback)
 - `AGENTS.md` and/or `CLAUDE.md` (project-level guidance)
