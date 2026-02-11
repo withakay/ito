@@ -93,7 +93,13 @@ fn is_safe_embedded_template_path(path: &str) -> bool {
     if path.is_empty() {
         return false;
     }
+    if path.len() > 256 {
+        return false;
+    }
     if path.starts_with('/') {
+        return false;
+    }
+    if path.contains('\\') {
         return false;
     }
     // Avoid any surprising path traversal patterns even though include_dir
