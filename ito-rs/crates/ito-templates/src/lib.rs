@@ -64,7 +64,16 @@ pub fn get_skill_file(path: &str) -> Option<&'static [u8]> {
     SKILLS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Get a specific adapter file by path (e.g., "claude/session-start.sh")
+/// Retrieve an embedded adapter file by its relative path within the adapters assets.
+///
+/// # Examples
+///
+/// ```
+/// let bytes = get_adapter_file("claude/session-start.sh").expect("adapter exists");
+/// assert!(!bytes.is_empty());
+/// ```
+///
+/// Returns `Some(&[u8])` with the file contents if the path exists in the adapters assets, `None` otherwise.
 pub fn get_adapter_file(path: &str) -> Option<&'static [u8]> {
     ADAPTERS_DIR.get_file(path).map(|f| f.contents())
 }
@@ -82,16 +91,14 @@ pub fn commands_files() -> Vec<EmbeddedFile> {
     dir_files(&COMMANDS_DIR)
 }
 
-/// List embedded workflow schema files.
+/// Lists embedded workflow schema files.
 ///
-/// Returns a `Vec<EmbeddedFile>` containing entries for each file embedded under the crate's
-/// schemas asset directory.
+/// Each entry contains the file's path relative to the schema root and its raw contents.
 ///
 /// # Examples
 ///
 /// ```
 /// let files = schema_files();
-/// // each entry has a non-empty relative path and contents
 /// assert!(files.iter().all(|f| !f.relative_path.is_empty() && !f.contents.is_empty()));
 /// ```
 pub fn schema_files() -> Vec<EmbeddedFile> {
@@ -117,20 +124,17 @@ pub fn get_schema_file(path: &str) -> Option<&'static [u8]> {
     SCHEMAS_DIR.get_file(path).map(|f| f.contents())
 }
 
-/// Retrieve the embedded command file contents for a given relative path.
-///
-/// `path` is interpreted relative to the commands asset root (for example, `"ito-apply.md"`).
+/// Get the contents of an embedded command file by its path relative to the commands asset root.
 ///
 /// # Returns
 ///
-/// `Some(&[u8])` containing the file contents if a file at `path` exists, `None` otherwise.
+/// `Some(&[u8])` with the file contents if a file at `path` exists, `None` otherwise.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// let contents = get_command_file("ito-apply.md");
 /// if let Some(bytes) = contents {
-///     // use `bytes` (e.g., convert to string)
 ///     let s = std::str::from_utf8(bytes).unwrap();
 ///     assert!(s.contains("ito apply"));
 /// }

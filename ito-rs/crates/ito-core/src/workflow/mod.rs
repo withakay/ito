@@ -261,16 +261,17 @@ pub enum SchemaSource {
 }
 
 impl SchemaSource {
-    /// Get the serialization string for this SchemaSource.
+    /// Serialization label for the `SchemaSource` variant.
     ///
     /// # Returns
     ///
-    /// The string used when serializing the variant: `"project"`, `"user"`, `"embedded"`, or `"package"`.
+    /// The label used when serializing the variant: `"project"`, `"user"`, `"embedded"`, or `"package"`.
     ///
     /// # Examples
     ///
     /// ```
     /// use crate::workflow::SchemaSource;
+    ///
     /// assert_eq!(SchemaSource::Project.as_str(), "project");
     /// ```
     pub fn as_str(self) -> &'static str {
@@ -369,7 +370,18 @@ pub fn validate_change_name_input(name: &str) -> bool {
     true
 }
 
-/// Read a change's configured schema name from its metadata.
+/// Determines the schema name configured for a change by reading its metadata.
+///
+/// If the change has a metadata file containing a `schema:` line with a non-empty value,
+/// that value is returned; otherwise the default schema name is returned.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let name = read_change_schema(Path::new("/nonexistent/path"), "nope");
+/// assert_eq!(name, "spec-driven");
+/// ```
 pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
     let meta = paths::change_meta_path(ito_path, change);
     if let Ok(Some(s)) = ito_common::io::read_to_string_optional(&meta) {
@@ -386,16 +398,16 @@ pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
     default_schema_name().to_string()
 }
 
-/// List the names of change directories found under `.ito/changes/`.
+/// List change directory names found under `.ito/changes/`.
 ///
-/// Returns a vector of directory names (not full paths) for each discovered change.
+/// Each element is the change directory name (not a full path).
 ///
 /// # Examples
 ///
 /// ```
 /// use std::path::Path;
 ///
-/// let names = list_available_changes(Path::new("."));
+/// let names = ito_core::workflow::list_available_changes(Path::new("."));
 /// // `names` is a `Vec<String>` of change directory names
 /// ```
 pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
@@ -403,14 +415,14 @@ pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
     ito_domain::discovery::list_change_dir_names(&fs, ito_path).unwrap_or_default()
 }
 
-/// Discover available schema names from project, user, embedded, and package sources.
+/// List available schema names from project, user, embedded, and package sources.
 ///
-/// The returned list contains unique schema names (no duplicates) and is deterministically sorted.
+/// The returned list contains unique schema names and is deterministically sorted.
 ///
 /// # Examples
 ///
 /// ```
-/// // `ctx` should be a prepared ConfigContext for the current project.
+/// // `ctx` should be a prepared `ConfigContext` for the current project.
 /// let names = list_available_schemas(&ctx);
 /// // `names` is a `Vec<String>` of available schema names, sorted and de-duplicated.
 /// ```
@@ -598,6 +610,56 @@ pub fn compute_change_status(
     })
 }
 
+/// Computes a deterministic topological build order of artifact ids for the given schema.
+///
+/// The returned vector lists artifact ids in an order where each artifact appears after all of
+/// its declared `requires`. When multiple artifacts become ready at the same time, their ids
+/// are emitted in sorted order to ensure deterministic output.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a minimal schema with three artifacts:
+/// // - "a" has no requirements
+/// // - "b" requires "a"
+/// // - "c" requires "a"
+/// let schema = SchemaYaml {
+///     name: "example".to_string(),
+///     version: None,
+///     description: None,
+///     artifacts: vec![
+///         ArtifactYaml {
+///             id: "a".to_string(),
+///             generates: "a.out".to_string(),
+///             description: None,
+///             template: "a.tpl".to_string(),
+///             instruction: None,
+///             requires: vec![],
+///         },
+///         ArtifactYaml {
+///             id: "b".to_string(),
+///             generates: "b.out".to_string(),
+///             description: None,
+///             template: "b.tpl".to_string(),
+///             instruction: None,
+///             requires: vec!["a".to_string()],
+///         },
+///         ArtifactYaml {
+///             id: "c".to_string(),
+///             generates: "c.out".to_string(),
+///             description: None,
+///             template: "c.tpl".to_string(),
+///             instruction: None,
+///             requires: vec!["a".to_string()],
+///         },
+///     ],
+///     apply: None,
+/// };
+///
+/// let order = build_order(&schema);
+/// // "a" must come before both "b" and "c"; "b" and "c" are sorted deterministically
+/// assert_eq!(order, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+/// ```
 fn build_order(schema: &SchemaYaml) -> Vec<String> {
     // Match TS ArtifactGraph.getBuildOrder (Kahn's algorithm with deterministic sorting
     // of roots + newlyReady only).
@@ -703,29 +765,32 @@ pub fn resolve_templates(
     Ok((resolved.schema.name, templates))
 }
 
-/// Produce the user-facing instructions and metadata for performing a single artifact within a change.
+/// Produce user-facing instructions and metadata for performing a single artifact in a change.
 ///
-/// This resolves the effective schema for the change, verifies the change directory and artifact exist,
-/// computes the artifact's declared dependencies and which artifacts it will unlock, and returns the
-/// artifact's instruction text, template content, and other contextual fields needed by CLI/API layers.
+/// Resolves the effective schema for the change, verifies the change directory and artifact exist,
+/// computes the artifact's declared dependencies and which artifacts it will unlock, loads the
+/// artifact's template and instruction text, and returns an InstructionsResponse containing the
+/// fields required by CLI/API layers.
 ///
 /// # Errors
 ///
 /// Returns a `WorkflowError` when the change name is invalid, the change directory or schema cannot be found,
 /// the requested artifact is not defined in the schema, or when underlying I/O/YAML/template reads fail
-/// (e.g. `InvalidChangeName`, `ChangeNotFound`, `SchemaNotFound`, `ArtifactNotFound`, `Io`, `Yaml`).
+/// (for example: `InvalidChangeName`, `ChangeNotFound`, `SchemaNotFound`, `ArtifactNotFound`, `Io`, `Yaml`).
 ///
 /// # Examples
 ///
 /// ```
+/// use std::path::Path;
+/// // `config_ctx` should be a prepared ConfigContext in real usage.
 /// let resp = resolve_instructions(
 ///     Path::new("/project/ito"),
 ///     "0001-add-feature",
 ///     Some("spec-driven"),
 ///     "service-config",
 ///     &config_ctx,
-/// )?;
-/// println!("Instruction: {}", resp.instruction.unwrap_or_default());
+/// ).unwrap();
+/// assert_eq!(resp.artifact_id, "service-config");
 /// ```
 pub fn resolve_instructions(
     ito_path: &Path,
@@ -1053,6 +1118,35 @@ fn looks_like_enhanced_tasks(contents: &str) -> bool {
     false
 }
 
+/// Parses an "enhanced" task list format into a vector of TaskItem.
+///
+/// The parser recognizes sections starting with `### Task {id}: {description}` and
+/// subsequent `- **Status**: [ ]|[x] {status}` lines to set `done` and `status`.
+/// If an id is missing or empty, a numeric id is assigned (1-based by parse order).
+///
+/// # Examples
+///
+/// ```
+/// let src = r#"
+/// ### Task alpha: First task
+/// - **Status**: [ ] needs-review
+///
+/// ### Task : Second task without id
+/// - **Status**: [x] completed
+/// "#;
+///
+/// let tasks = parse_enhanced_tasks(src);
+/// assert_eq!(tasks.len(), 2);
+/// assert_eq!(tasks[0].id, "alpha");
+/// assert_eq!(tasks[0].description, "First task");
+/// assert_eq!(tasks[0].done, false);
+/// assert_eq!(tasks[0].status.as_deref(), Some("needs-review"));
+///
+/// assert_eq!(tasks[1].id, "2"); // auto-assigned numeric id
+/// assert_eq!(tasks[1].description, "Second task without id");
+/// assert_eq!(tasks[1].done, true);
+/// assert_eq!(tasks[1].status.as_deref(), Some("completed"));
+/// ```
 fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     let mut tasks: Vec<TaskItem> = Vec::new();
     let mut current_id: Option<String> = None;
@@ -1186,19 +1280,20 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     Ok(Some(content.to_string()))
 }
 
-/// Load and parse `schema.yaml` from the given schema directory.
+/// Parse the schema.yaml file from a schema directory into a SchemaYaml.
 ///
-/// Reads the `schema.yaml` file located in `schema_dir` and deserializes it into a `SchemaYaml`.
+/// Reads `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
 ///
 /// # Returns
 ///
-/// `SchemaYaml` parsed from the file, or a `WorkflowError` if reading or YAML parsing fails.
+/// The parsed `SchemaYaml`, or a `WorkflowError` if the file cannot be read or the YAML cannot be parsed.
 ///
 /// # Examples
 ///
 /// ```
 /// use std::path::Path;
 /// use std::fs;
+///
 /// // create a temporary schema directory and file for the example
 /// let dir = std::env::temp_dir().join("ito_example_schema");
 /// let _ = fs::create_dir_all(&dir);
