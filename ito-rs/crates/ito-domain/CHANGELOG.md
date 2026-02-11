@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.3] - 2026-02-11
+
+### 🐛 Bug Fixes
+
+- Resolve merge fallout in workflow/template refactor
+
+### 💼 Other
+
+- Embed and export workflow schemas ([#15](https://github.com/withakay/ito/pull/15))
+- *(ito-domain)* Harden tasks path construction
+
+### 🚜 Refactor
+
+- Remove workflow command and migrate core workflow module to templates
+- Remove workflow compatibility surface across rust crates
+
+### 📚 Documentation
+
+- *(ito-domain)* Expand task module rustdoc coverage
+
+### 🧪 Testing
+
+- *(ito-domain)* Add DomainError constructor tests
 ## [0.1.2] - 2026-02-11
 
 ### 🐛 Bug Fixes
