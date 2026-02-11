@@ -12,7 +12,7 @@ jobs:
   polish:
     # Only run on the main repo, not forks
     if: github.repository == 'withakay/ito'
-    runs-on: ubuntu-latest
+    runs-on: withakay-selfhosted
 
     steps:
       - uses: actions/checkout@v4
