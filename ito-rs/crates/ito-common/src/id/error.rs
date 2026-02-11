@@ -1,3 +1,5 @@
+//! Identifier parse error type.
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Error returned when parsing an Ito identifier fails.
 pub struct IdParseError {
@@ -9,6 +11,7 @@ pub struct IdParseError {
 }
 
 impl IdParseError {
+    /// Build a parse error with an optional remediation hint.
     pub(crate) fn new(error: impl Into<String>, hint: Option<impl Into<String>>) -> Self {
         Self {
             error: error.into(),
