@@ -261,11 +261,11 @@ pub enum SchemaSource {
 }
 
 impl SchemaSource {
-    /// Serialization label for the `SchemaSource` variant.
+    /// Provide the serialization label for a `SchemaSource` variant.
     ///
     /// # Returns
     ///
-    /// The label used when serializing the variant: `"project"`, `"user"`, `"embedded"`, or `"package"`.
+    /// The string label for the variant: `"project"`, `"user"`, `"embedded"`, or `"package"`.
     ///
     /// # Examples
     ///
@@ -353,25 +353,23 @@ pub fn default_schema_name() -> &'static str {
     "spec-driven"
 }
 
-/// Checks whether a change name is safe to use as a filesystem directory name.
+/// Validates a user-provided change name to ensure it is safe to use as a filesystem path segment.
 ///
-/// The name is considered safe when it is non-empty, does not contain path
-/// separators (`/` or `\`), does not start with a path separator, and does not
-/// contain the parent-directory token `..`.
-///
-/// # Returns
-///
-/// `true` if the name is a single, non-empty path segment without separators or
-/// `..`, `false` otherwise.
+/// The name must be non-empty, must not start with `/` or `\`, must not contain `/` or `\` anywhere, and must not contain the substring `..`.
 ///
 /// # Examples
 ///
 /// ```
-/// assert!(validate_change_name_input("fix-typo"));
-/// assert!(!validate_change_name_input(""));
-/// assert!(!validate_change_name_input("../secrets"));
-/// assert!(!validate_change_name_input("nested/dir"));
+/// assert!(validate_change_name_input("feature-123"));
+/// assert!(!validate_change_name_input("")); // empty
+/// assert!(!validate_change_name_input("../escape"));
+/// assert!(!validate_change_name_input("dir/name"));
+/// assert!(!validate_change_name_input("\\absolute"));
 /// ```
+///
+/// # Returns
+///
+/// `true` if the name meets the safety constraints described above, `false` otherwise.
 pub fn validate_change_name_input(name: &str) -> bool {
     if name.is_empty() {
         return false;
@@ -390,13 +388,13 @@ pub fn validate_change_name_input(name: &str) -> bool {
 
 /// Determines the schema name configured for a change by reading its metadata.
 ///
-/// If the change has a metadata file containing a `schema:` line with a non-empty value,
-/// that value is returned; otherwise the default schema name is returned.
+/// Returns the schema name configured for the change, or the default schema name (`spec-driven`) if none is set.
 ///
 /// # Examples
 ///
 /// ```
 /// use std::path::Path;
+///
 /// let name = read_change_schema(Path::new("/nonexistent/path"), "nope");
 /// assert_eq!(name, "spec-driven");
 /// ```
@@ -416,7 +414,7 @@ pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
     default_schema_name().to_string()
 }
 
-/// List change directory names found under `.ito/changes/`.
+/// List change directory names under the `.ito/changes` directory.
 ///
 /// Each element is the change directory name (not a full path).
 ///
@@ -433,18 +431,20 @@ pub fn list_available_changes(ito_path: &Path) -> Vec<String> {
     ito_domain::discovery::list_change_dir_names(&fs, ito_path).unwrap_or_default()
 }
 
-/// Collects available schema names from project, user, embedded, and package sources.
+/// Lists available schema names discovered from the project, user, embedded, and package schema locations.
 ///
-/// Only directories that contain a `schema.yaml` are included; embedded schemas are also included.
-/// The returned vector contains unique schema names and is deterministically sorted.
+/// The result contains unique schema names and is deterministically sorted.
+///
+/// # Returns
+///
+/// A sorted, de-duplicated `Vec<String>` of available schema names.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// // `ctx` should be a prepared `ConfigContext` for the current project.
 /// let names = list_available_schemas(&ctx);
-/// // names is sorted and de-duplicated
-/// assert!(names.windows(2).all(|w| w[0] <= w[1]));
+/// assert!(names.iter().all(|s| !s.is_empty()));
 /// ```
 pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
@@ -551,43 +551,40 @@ pub fn resolve_schema(
     Err(WorkflowError::SchemaNotFound(name.to_string()))
 }
 
-/// Compute per-artifact status for a change.
-
+/// Compute the workflow status for every artifact in a change.
 ///
-
-/// This inspects the resolved workflow schema and the change directory to produce a
-
-/// ChangeStatus containing each artifact's id, output path, status (`"done"`, `"ready"`, or
-
-/// `"blocked"`), and any missing dependency ids required before that artifact becomes ready.
-
-/// If `schema_name` is None, the change's metadata is consulted to determine the effective schema.
-
+/// Validates the change name, resolves the effective schema (explicit or from the change metadata),
+/// verifies the change directory exists, and produces per-artifact statuses plus the list of
+/// artifacts required before an apply operation.
 ///
-
-/// # Examples
-
+/// # Parameters
 ///
-
-/// ```
-
-/// let status = compute_change_status(&ito_path, "change-123", None, &ctx).unwrap();
-
-/// assert_eq!(status.change_name, "change-123");
-
-/// // each artifact in `status.artifacts` will have `status` set to "done", "ready", or "blocked"
-
-/// ```
-
+/// - `ito_path`: base repository path containing the `.ito` state directories.
+/// - `change`: change directory name to inspect (must be a validated change name).
+/// - `schema_name`: optional explicit schema name; when `None`, the change's metadata is consulted.
+/// - `ctx`: configuration/context used to locate and load schemas.
 ///
-
+/// # Returns
+///
+/// `ChangeStatus` describing the change name, resolved schema, overall completion flag,
+/// the set of artifact ids required for apply, and a list of `ArtifactStatus` entries where each
+/// artifact is labeled `done`, `ready`, or `blocked` and includes any missing dependency ids.
+///
 /// # Errors
-
 ///
-
-/// Returns a WorkflowError if the change name is invalid, the change directory or schema cannot be
-
-/// found, or if underlying IO/YAML parsing fails.
+/// Returns a `WorkflowError` when the change name is invalid, the change directory is missing,
+/// or the schema cannot be resolved or loaded.
+///
+/// # Examples
+///
+/// ```
+/// # use std::path::Path;
+/// # use ito_core::workflow::{compute_change_status, ChangeStatus};
+/// # use ito_core::config::ConfigContext;
+/// let ctx = ConfigContext::default();
+/// let status = compute_change_status(Path::new("."), "my-change", None, &ctx).unwrap();
+/// assert_eq!(status.change_name, "my-change");
+/// ```
 pub fn compute_change_status(
     ito_path: &Path,
     change: &str,
@@ -766,15 +763,13 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
     result
 }
 
-/// Resolves template paths for every artifact in a schema.
+/// Resolve template paths for every artifact in a schema.
 ///
-/// For embedded schemas, each template path is returned as an `embedded://schemas/{name}/templates/{file}` URI.
-/// For filesystem-backed schemas, each template path is an absolute filesystem path (lossy `String`).
+/// If `schema_name` is `None`, the schema is resolved using project -> user -> embedded -> package
+/// precedence. For embedded schemas each template path is returned as an `embedded://schemas/{name}/templates/{file}`
+/// URI; for filesystem-backed schemas each template path is an absolute filesystem string.
 ///
-/// # Returns
-///
-/// A tuple of the resolved schema name and a map from artifact id to `TemplateInfo` (each `TemplateInfo` contains
-/// the template `source` and resolved `path`).
+/// Returns the resolved schema name and a map from artifact id to `TemplateInfo` (contains `source` and `path`).
 ///
 /// # Examples
 ///
@@ -782,9 +777,7 @@ fn build_order(schema: &SchemaYaml) -> Vec<String> {
 /// // Obtain a ConfigContext from your application environment.
 /// let ctx = /* obtain ConfigContext */ unimplemented!();
 /// let (schema_name, templates) = resolve_templates(None, &ctx).unwrap();
-/// assert!(!schema_name.is_empty());
-/// // Example: look up a template for a known artifact id
-/// // let info = templates.get("artifact_id").unwrap();
+/// // `templates` maps artifact ids to TemplateInfo with `source` and `path`.
 /// ```
 pub fn resolve_templates(
     schema_name: Option<&str>,
@@ -1161,20 +1154,23 @@ fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
-/// Detects whether the text appears to use the enhanced task format (section headers).
+/// Detects whether the given text uses the enhanced task format.
 ///
-/// Scans lines for a section header beginning with `### Task ` to heuristically identify
-/// the enhanced task format used by schema tracking files.
+/// Scans lines for headings of the form `### Task ` and returns `true` if any are found.
 ///
 /// # Examples
 ///
 /// ```
-/// let s1 = "Some notes\n### Task 1: Do thing\n- **Status**: [ ] pending";
-/// assert!(looks_like_enhanced_tasks(s1));
+/// let contents = "Some header\n### Task 1: Do thing\n- **Status**: [ ] pending";
+/// assert!(looks_like_enhanced_tasks(contents));
 ///
-/// let s2 = "- [ ] simple checkbox task\n- [x] done";
-/// assert!(!looks_like_enhanced_tasks(s2));
+/// let plain = "- [ ] item one\n- [x] item two";
+/// assert!(!looks_like_enhanced_tasks(plain));
 /// ```
+///
+/// # Returns
+///
+/// `true` if the contents contain at least one line beginning with `### Task `, `false` otherwise.
 fn looks_like_enhanced_tasks(contents: &str) -> bool {
     for line in contents.lines() {
         let l = line.trim_start();
@@ -1303,11 +1299,12 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
     tasks
 }
 
-/// Read and extract the user guidance from `user-guidance.md`.
+/// Extracts user guidance text from a repository directory's `user-guidance.md`.
 ///
-/// If the file contains an Ito-managed header block, only the content after the
-/// ITO end marker is returned. Carriage returns (`\r\n`) are normalized to
-/// `\n` and the result is trimmed; an empty or missing file yields `None`.
+/// If the file contains an Ito-managed header block, the returned content is the
+/// portion after the ITO end marker. Carriage-return/newline pairs (`\r\n`)
+/// are normalized to `\n` and the result is trimmed; a missing file or empty
+/// result yields `None`.
 ///
 /// # Examples
 ///
@@ -1347,9 +1344,13 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
     Ok(Some(content.to_string()))
 }
 
-/// Load and parse `schema.yaml` from a schema directory into a `SchemaYaml`.
+/// Load and parse `schema.yaml` from the given schema directory.
 ///
-/// Reads the file `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
+/// Reads `schema.yaml` located in `schema_dir` and deserializes it into a `SchemaYaml`.
+///
+/// # Errors
+///
+/// Returns `WorkflowError::Io` if the file cannot be read, or `WorkflowError::Yaml` if parsing fails.
 ///
 /// # Examples
 ///
@@ -1357,7 +1358,6 @@ pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowErr
 /// use std::path::Path;
 /// use std::fs;
 ///
-/// // create a temporary schema directory and file for the example
 /// let dir = std::env::temp_dir().join("ito_example_schema");
 /// let _ = fs::create_dir_all(&dir);
 /// let yaml = r#"
