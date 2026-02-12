@@ -28,7 +28,7 @@ Commands:
   shelve    Shelve a task (reversible) [aliases: sv]
   unshelve  Restore a shelved task to pending [aliases: us]
   add       Add a new task (enhanced only) [aliases: ad]
-  show      Print tasks.md [aliases: sw]
+  show      Print tasks.md [aliases: sh]
 
 Options:
       --json
