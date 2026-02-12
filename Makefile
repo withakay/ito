@@ -16,7 +16,7 @@ COVERAGE_TARGET ?= 90
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
-	dev docs docs-open
+	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check
 
 init: ## Initialize development environment (check rust, install prek hooks)
 	@set -e; \
@@ -314,6 +314,18 @@ docs: ## Build Rust documentation (warns on missing docs)
 
 docs-open: ## Build and open Rust documentation in browser
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
+
+docs-site-install: ## Install MkDocs docs-site dependencies
+	python3 -m pip install -r docs/requirements.txt
+
+docs-site-build: docs-site-install ## Build MkDocs docs site (strict)
+	python3 -m mkdocs build --strict
+
+docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
+	python3 -m mkdocs serve
+
+docs-site-check: docs-site-build ## Validate docs site build
+	@echo "Docs site check passed"
 
 clean: ## Remove build artifacts
 	rm -rf target ito-rs/target
