@@ -77,7 +77,16 @@ repos:
         args: [test-coverage]
         pass_filenames: false
         files: ^ito-rs/.*\.rs$
-        stages: [pre-commit, pre-push]
+        stages: [pre-push]
+
+      - id: cargo-test-affected
+        name: cargo test affected (ito-rs)
+        entry: make
+        language: system
+        args: [test-affected]
+        pass_filenames: false
+        files: ^ito-rs/.*\.rs$
+        stages: [pre-commit]
 
       - id: check-max-lines
         name: check max lines (ito-rs)
