@@ -386,7 +386,7 @@ pub struct StateArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum StateAction {
     /// Show current project state
-    #[command(visible_alias = "sw")]
+    #[command(visible_alias = "sh")]
     Show,
 
     /// Record a decision
