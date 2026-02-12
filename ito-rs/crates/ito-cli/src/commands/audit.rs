@@ -18,6 +18,7 @@ pub struct AuditArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuditAction {
     /// Show audit log entries
+    #[command(visible_alias = "lo")]
     Log {
         /// Filter to a specific change
         #[arg(long)]
@@ -41,6 +42,7 @@ pub enum AuditAction {
     },
 
     /// Detect and optionally fix drift between audit log and file state
+    #[command(visible_alias = "re")]
     Reconcile {
         /// Target a specific change (or reconcile all if omitted)
         #[arg(long)]
@@ -56,6 +58,7 @@ pub enum AuditAction {
     },
 
     /// Validate audit log integrity and consistency
+    #[command(visible_alias = "va")]
     Validate {
         /// Target a specific change
         #[arg(long)]
@@ -67,6 +70,7 @@ pub enum AuditAction {
     },
 
     /// Show audit log statistics
+    #[command(visible_alias = "ss")]
     Stats {
         /// Filter to a specific change
         #[arg(long)]
@@ -83,7 +87,7 @@ pub enum AuditAction {
         #[arg(long)]
         all_worktrees: bool,
 
-        /// Show the last N events on startup
+        /// Show last N events on startup
         #[arg(long, default_value_t = 10)]
         last: usize,
 
