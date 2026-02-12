@@ -1,6 +1,21 @@
 use ito_test_support::run_rust_candidate;
 use std::path::Path;
 
+/// Write the given text contents to `path`, creating any missing parent directories.
+///
+/// # Panics
+///
+/// Panics if creating the parent directories or writing the file fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let tmp = tempfile::tempdir().unwrap();
+/// let p = tmp.path().join("sub/dir/test.txt");
+/// write(&p, "hello");
+/// assert_eq!(std::fs::read_to_string(p).unwrap(), "hello");
+/// ```
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -9,6 +24,21 @@ fn write(path: impl AsRef<Path>, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
+/// Create a temporary repository populated with a minimal set of files used by CLI tests.
+///
+/// The repository includes a README.md, a minimal module at `.ito/modules/000_ungrouped/module.md`,
+/// a spec at `.ito/specs/alpha/spec.md`, and a change under `.ito/changes/000-01_test-change/` containing
+/// proposal.md, tasks.md, and a change-specific spec. The layout is intended for integration tests that
+/// exercise command behaviour against a simple, valid repository state.
+///
+/// # Examples
+///
+/// ```
+/// let repo = make_base_repo();
+/// let readme = std::fs::read_to_string(repo.path().join("README.md")).unwrap();
+/// assert!(readme.contains("# temp"));
+/// assert!(repo.path().join(".ito/changes/000-01_test-change/proposal.md").exists());
+/// ```
 fn make_base_repo() -> tempfile::TempDir {
     let td = tempfile::tempdir().expect("repo");
     write(td.path().join("README.md"), "# temp\n");
@@ -44,6 +74,29 @@ fn make_base_repo() -> tempfile::TempDir {
     td
 }
 
+/// Replace the contents of `dst` with the contents of `src`, panicking if the reset fails.
+///
+/// `dst` is the destination directory to be overwritten. `src` is the source directory whose
+/// contents will be copied into `dst`.
+///
+/// # Examples
+///
+/// ```
+/// use std::fs::File;
+/// use std::io::Write;
+/// use tempfile::tempdir;
+///
+/// let src = tempdir().unwrap();
+/// let dst = tempdir().unwrap();
+///
+/// // create a file in src
+/// let mut f = File::create(src.path().join("hello.txt")).unwrap();
+/// writeln!(f, "hello").unwrap();
+///
+/// // reset dst to match src
+/// reset_repo(dst.path(), src.path());
+/// assert!(dst.path().join("hello.txt").exists());
+/// ```
 fn reset_repo(dst: &Path, src: &Path) {
     ito_test_support::reset_dir(dst, src).unwrap();
 }
