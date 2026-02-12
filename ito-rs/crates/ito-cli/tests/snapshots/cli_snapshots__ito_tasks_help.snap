@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 86
 expression: "snapshot(&[\"tasks\", \"--help\"])"
 ---
 Manage implementation tasks for a change
@@ -28,7 +29,7 @@ Commands:
   shelve    Shelve a task (reversible) [aliases: sv]
   unshelve  Restore a shelved task to pending [aliases: us]
   add       Add a new task (enhanced only) [aliases: ad]
-  show      Print tasks.md [aliases: sh]
+  show      Print tasks.md [aliases: sw]
 
 Options:
       --json

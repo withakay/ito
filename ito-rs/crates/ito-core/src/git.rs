@@ -825,11 +825,9 @@ mod tests {
 
         let err =
             ensure_coordination_branch_on_origin_core(&repo, "ito/internal/changes").unwrap_err();
-        match err {
-            CoreError::Process(msg) => {
-                assert!(msg.contains("coordination setup failed"));
-            }
-            _ => panic!("expected process error"),
-        }
+        let CoreError::Process(msg) = err else {
+            panic!("expected process error");
+        };
+        assert!(msg.contains("coordination setup failed"));
     }
 }

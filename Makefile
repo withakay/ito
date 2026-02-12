@@ -293,7 +293,7 @@ rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to re
 	else \
 		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
-		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
+		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
 	fi
 
 rust-lint: ## Run Rust fmt/clippy

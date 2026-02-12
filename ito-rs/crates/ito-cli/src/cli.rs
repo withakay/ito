@@ -386,7 +386,7 @@ pub struct StateArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum StateAction {
     /// Show current project state
-    #[command(visible_alias = "sh")]
+    #[command(visible_alias = "sw")]
     Show,
 
     /// Record a decision
@@ -903,7 +903,7 @@ pub enum TasksAction {
     },
 
     /// Print tasks.md
-    #[command(visible_alias = "sh")]
+    #[command(visible_alias = "sw")]
     Show {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,

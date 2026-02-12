@@ -188,6 +188,8 @@ fn run_git(repo: &Path, args: &[&str]) {
     );
 }
 
+/// Initialize a temporary test repository with identity and a first commit.
+/// Use when git operations under test require an existing commit history.
 pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
@@ -196,6 +198,8 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
 }
 
+/// Create a bare temporary repository to serve as an `origin` remote in tests.
+/// Keep the returned `TempDir` alive for as long as the remote is needed.
 pub(crate) fn make_bare_remote() -> tempfile::TempDir {
     let td = tempfile::tempdir().expect("remote");
     let output = std::process::Command::new("git")
@@ -213,6 +217,8 @@ pub(crate) fn make_bare_remote() -> tempfile::TempDir {
     td
 }
 
+/// Configure `origin` for a test repository to point at the provided bare remote.
+/// Use after `git_init_with_initial_commit` when tests need fetch/push behavior.
 pub(crate) fn add_origin(repo: &Path, remote: &Path) {
     run_git(
         repo,

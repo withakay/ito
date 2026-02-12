@@ -22,20 +22,20 @@ fn normalize_version(text: String) -> String {
     }
     out = out.replace(env!("CARGO_PKG_VERSION"), "<VERSION>");
 
-    // Strip git SHA suffix from debug builds: "<VERSION> (abc1234)" or "<VERSION> (abc1234-dirty)"
-    // Simple approach: if we find " (" followed by hex chars and optional "-dirty", strip it
+    // Strip debug suffixes from builds: "<VERSION> (abc1234)",
+    // "<VERSION> (abc1234-dirty)", or fallback placeholders like "<VERSION> (VERGEN_)".
     if let Some(pos) = out.find(" (")
         && let Some(close_pos) = out[pos..].find(')')
     {
         let content = &out[pos + 2..pos + close_pos];
-        // Check if content is hex digits optionally followed by "-dirty"
         let is_git_sha = if let Some(dash_pos) = content.find('-') {
             content[..dash_pos].chars().all(|c| c.is_ascii_hexdigit())
                 && &content[dash_pos..] == "-dirty"
         } else {
             content.chars().all(|c| c.is_ascii_hexdigit())
         };
-        if is_git_sha {
+        let is_vergen_placeholder = content.starts_with("VERGEN_");
+        if is_git_sha || is_vergen_placeholder {
             out = out[..pos].to_string();
         }
     }

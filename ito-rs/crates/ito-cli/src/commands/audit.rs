@@ -70,7 +70,7 @@ pub enum AuditAction {
     },
 
     /// Show audit log statistics
-    #[command(visible_alias = "ss")]
+    #[command(visible_alias = "st")]
     Stats {
         /// Filter to a specific change
         #[arg(long)]
