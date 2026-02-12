@@ -899,7 +899,7 @@ pub enum TasksAction {
     },
 
     /// Print tasks.md
-    #[command(visible_alias = "sw")]
+    #[command(visible_alias = "sh")]
     Show {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
