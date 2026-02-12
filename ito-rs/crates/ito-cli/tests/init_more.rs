@@ -101,6 +101,8 @@ fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
             "show-ref",
             reference,
         ])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
         .output()
         .expect("git show-ref should run");
     output.status.success()
@@ -158,6 +160,8 @@ fn init_setup_coordination_branch_reports_ready_when_already_present() {
     let seeded = std::process::Command::new("git")
         .args(["push", "origin", "HEAD:refs/heads/ito/internal/changes"])
         .current_dir(repo.path())
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
         .output()
         .expect("git push should run");
     assert!(

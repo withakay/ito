@@ -136,6 +136,22 @@ fn run_with_env(cmd: &mut Command, cwd: &Path, home: &Path) -> CmdOutput {
     cmd.env("HOME", home);
     cmd.env("XDG_DATA_HOME", home);
 
+    // Hooks (for example, git pre-push) can export repository-scoped Git
+    // variables that break tests which create their own temporary repos.
+    // Clear them so each test process resolves Git context from `cwd`.
+    for key in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_QUARANTINE_PATH",
+        "GIT_PREFIX",
+    ] {
+        cmd.env_remove(key);
+    }
+
     let out = cmd
         .output()
         .unwrap_or_else(|e| panic!("failed to execute {:?}: {e}", cmd));
