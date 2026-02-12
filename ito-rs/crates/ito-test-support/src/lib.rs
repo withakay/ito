@@ -90,13 +90,39 @@ fn resolve_candidate_program(program: &Path) -> PathBuf {
         if !name.starts_with("ito-") {
             continue;
         }
-        if name.ends_with(".d") || name.ends_with(".rlib") || name.ends_with(".rmeta") {
+        if name.ends_with(".d")
+            || name.ends_with(".rlib")
+            || name.ends_with(".rmeta")
+            || name.ends_with(".o")
+        {
+            continue;
+        }
+        if !is_executable_candidate(&path) {
             continue;
         }
         return path;
     }
 
     program.to_path_buf()
+}
+
+fn is_executable_candidate(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let Ok(metadata) = std::fs::metadata(path) else {
+            return false;
+        };
+        metadata.permissions().mode() & 0o111 != 0
+    }
+
+    #[cfg(not(unix))]
+    {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+    }
 }
 
 fn run_with_env(cmd: &mut Command, cwd: &Path, home: &Path) -> CmdOutput {

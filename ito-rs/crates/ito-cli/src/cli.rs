@@ -483,6 +483,10 @@ pub struct InitArgs {
     #[arg(short = 'u', long)]
     pub update: bool,
 
+    /// Ensure coordination branch exists on origin after init
+    #[arg(long = "setup-coordination-branch")]
+    pub setup_coordination_branch: bool,
+
     /// Override HOME used for locating global Ito config (for parity/testing)
     #[arg(long, value_name = "HOME")]
     pub home: Option<std::path::PathBuf>,
@@ -943,12 +947,14 @@ pub struct ArchiveArgs {
     /// Change id (directory name)
     #[arg(
         value_name = "CHANGE",
-        required_unless_present = "completed",
+        required_unless_present_any = ["completed", "change_flag"],
         conflicts_with = "completed",
-        short = 'c',
-        long
     )]
     pub change: Option<String>,
+
+    /// Change id (directory name)
+    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with_all = ["completed", "change"])]
+    pub change_flag: Option<String>,
 
     /// Archive all completed changes (mutually exclusive with CHANGE)
     #[arg(long = "completed", conflicts_with = "change")]

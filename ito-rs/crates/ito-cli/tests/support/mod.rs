@@ -170,3 +170,52 @@ pub(crate) fn init_minimal_args(repo_path: &Path) -> Vec<String> {
 pub(crate) fn args_to_strs(args: &[String]) -> Vec<&str> {
     args.iter().map(|s| s.as_str()).collect()
 }
+
+fn run_git(repo: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git command should run");
+    assert!(
+        output.status.success(),
+        "git command failed: git {}\nstdout:\n{}\nstderr:\n{}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+pub(crate) fn git_init_with_initial_commit(repo: &Path) {
+    run_git(repo, &["init"]);
+    run_git(repo, &["config", "user.email", "test@example.com"]);
+    run_git(repo, &["config", "user.name", "Test User"]);
+    run_git(repo, &["add", "README.md"]);
+    run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
+}
+
+pub(crate) fn make_bare_remote() -> tempfile::TempDir {
+    let td = tempfile::tempdir().expect("remote");
+    let output = std::process::Command::new("git")
+        .args(["init", "--bare", td.path().to_string_lossy().as_ref()])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git bare init should run");
+    assert!(
+        output.status.success(),
+        "git bare init failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    td
+}
+
+pub(crate) fn add_origin(repo: &Path, remote: &Path) {
+    run_git(
+        repo,
+        &["remote", "add", "origin", remote.to_string_lossy().as_ref()],
+    );
+}

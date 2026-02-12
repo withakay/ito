@@ -34,6 +34,15 @@ pub struct CoordinationGitError {
     pub message: String,
 }
 
+/// Outcome of a coordination branch setup attempt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoordinationBranchSetupStatus {
+    /// Remote branch already existed and is reachable.
+    Ready,
+    /// Remote branch was created during setup.
+    Created,
+}
+
 impl CoordinationGitError {
     fn new(kind: CoordinationGitErrorKind, message: impl Into<String>) -> Self {
         Self {
@@ -82,6 +91,19 @@ pub fn reserve_change_on_coordination_branch(
     )
 }
 
+/// Ensures the coordination branch exists on `origin`.
+///
+/// Returns [`CoordinationBranchSetupStatus::Ready`] when the branch already
+/// exists. Returns [`CoordinationBranchSetupStatus::Created`] when setup created
+/// the branch by pushing `HEAD`.
+pub fn ensure_coordination_branch_on_origin(
+    repo_root: &Path,
+    branch: &str,
+) -> Result<CoordinationBranchSetupStatus, CoordinationGitError> {
+    let runner = SystemProcessRunner;
+    ensure_coordination_branch_on_origin_with_runner(&runner, repo_root, branch)
+}
+
 /// CoreResult wrapper for fetching a coordination branch.
 pub fn fetch_coordination_branch_core(repo_root: &Path, branch: &str) -> CoreResult<()> {
     fetch_coordination_branch(repo_root, branch)
@@ -110,6 +132,43 @@ pub fn reserve_change_on_coordination_branch_core(
     })
 }
 
+/// CoreResult wrapper for adapter-layer coordination branch setup.
+///
+/// Use this wrapper from command flows that need `CoreError` surfaces instead of
+/// raw [`CoordinationGitError`] values.
+pub fn ensure_coordination_branch_on_origin_core(
+    repo_root: &Path,
+    branch: &str,
+) -> CoreResult<CoordinationBranchSetupStatus> {
+    ensure_coordination_branch_on_origin(repo_root, branch)
+        .map_err(|err| CoreError::process(format!("coordination setup failed: {}", err.message)))
+}
+
+pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<CoordinationBranchSetupStatus, CoordinationGitError> {
+    if !is_git_worktree(runner, repo_root) {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            "cannot set up coordination branch outside a git worktree",
+        ));
+    }
+
+    match fetch_coordination_branch_with_runner(runner, repo_root, branch) {
+        Ok(()) => Ok(CoordinationBranchSetupStatus::Ready),
+        Err(err) => {
+            if err.kind != CoordinationGitErrorKind::RemoteMissing {
+                return Err(err);
+            }
+
+            push_coordination_branch_with_runner(runner, repo_root, "HEAD", branch)
+                .map(|()| CoordinationBranchSetupStatus::Created)
+        }
+    }
+}
+
 pub(crate) fn fetch_coordination_branch_with_runner(
     runner: &dyn ProcessRunner,
     repo_root: &Path,
@@ -135,7 +194,9 @@ pub(crate) fn fetch_coordination_branch_with_runner(
             format!("remote branch '{branch}' does not exist ({detail})"),
         ));
     }
-    if detail_lower.contains("no such remote") {
+    if detail_lower.contains("no such remote")
+        || detail_lower.contains("does not appear to be a git repository")
+    {
         return Err(CoordinationGitError::new(
             CoordinationGitErrorKind::RemoteNotConfigured,
             format!("git remote 'origin' is not configured ({detail})"),
@@ -187,6 +248,12 @@ pub(crate) fn push_coordination_branch_with_runner(
         return Err(CoordinationGitError::new(
             CoordinationGitErrorKind::RemoteRejected,
             format!("push to '{branch}' was rejected by remote ({detail})"),
+        ));
+    }
+    if detail_lower.contains("no such remote") {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::RemoteNotConfigured,
+            format!("git remote 'origin' is not configured ({detail})"),
         ));
     }
 
@@ -552,6 +619,7 @@ impl Drop for WorktreeCleanup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::errors::CoreError;
     use crate::process::ProcessExecutionError;
     use std::cell::RefCell;
     use std::collections::VecDeque;
@@ -660,5 +728,108 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.kind, CoordinationGitErrorKind::RemoteNotConfigured);
         assert!(err.message.contains("not configured"));
+    }
+
+    #[test]
+    fn setup_coordination_branch_returns_ready_when_remote_branch_exists() {
+        let runner =
+            StubRunner::with_outputs(vec![Ok(ok_output("true\n", "")), Ok(ok_output("", ""))]);
+        let repo = std::env::temp_dir();
+        let result = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .expect("setup should succeed");
+        assert_eq!(result, CoordinationBranchSetupStatus::Ready);
+    }
+
+    #[test]
+    fn setup_coordination_branch_creates_branch_when_remote_missing() {
+        let runner = StubRunner::with_outputs(vec![
+            Ok(ok_output("true\n", "")),
+            Ok(err_output(
+                "fatal: couldn't find remote ref ito/internal/changes",
+            )),
+            Ok(ok_output("", "")),
+        ]);
+        let repo = std::env::temp_dir();
+        let result = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .expect("setup should create branch");
+        assert_eq!(result, CoordinationBranchSetupStatus::Created);
+    }
+
+    #[test]
+    fn setup_coordination_branch_fails_when_not_git_worktree() {
+        let runner = StubRunner::with_outputs(vec![Ok(err_output(
+            "fatal: not a git repository (or any of the parent directories): .git",
+        ))]);
+        let repo = std::env::temp_dir();
+        let err = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, CoordinationGitErrorKind::CommandFailed);
+        assert!(err.message.contains("outside a git worktree"));
+    }
+
+    #[test]
+    fn push_coordination_branch_classifies_missing_remote_configuration() {
+        let runner = StubRunner::with_outputs(vec![Ok(err_output(
+            "fatal: 'origin' does not appear to be a git repository\nfatal: No such remote: 'origin'",
+        ))]);
+        let repo = std::env::temp_dir();
+        let err =
+            push_coordination_branch_with_runner(&runner, &repo, "HEAD", "ito/internal/changes")
+                .unwrap_err();
+        assert_eq!(err.kind, CoordinationGitErrorKind::RemoteNotConfigured);
+        assert!(err.message.contains("not configured"));
+    }
+
+    #[test]
+    fn setup_coordination_branch_reports_missing_origin_when_create_push_fails() {
+        let runner = StubRunner::with_outputs(vec![
+            Ok(ok_output("true\n", "")),
+            Ok(err_output(
+                "fatal: couldn't find remote ref ito/internal/changes",
+            )),
+            Ok(err_output(
+                "fatal: 'origin' does not appear to be a git repository",
+            )),
+        ]);
+        let repo = std::env::temp_dir();
+        let err = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .unwrap_err();
+        assert!(
+            err.kind == CoordinationGitErrorKind::RemoteNotConfigured
+                || err.kind == CoordinationGitErrorKind::CommandFailed
+        );
+        assert!(err.message.contains("not configured") || err.message.contains("failed"));
+    }
+
+    #[test]
+    fn setup_coordination_branch_core_wraps_process_error() {
+        let repo = std::env::temp_dir().join("ito-not-a-repo");
+        let _ = std::fs::remove_dir_all(&repo);
+        std::fs::create_dir_all(&repo).expect("temp dir created");
+
+        let err =
+            ensure_coordination_branch_on_origin_core(&repo, "ito/internal/changes").unwrap_err();
+        match err {
+            CoreError::Process(msg) => {
+                assert!(msg.contains("coordination setup failed"));
+            }
+            _ => panic!("expected process error"),
+        }
     }
 }

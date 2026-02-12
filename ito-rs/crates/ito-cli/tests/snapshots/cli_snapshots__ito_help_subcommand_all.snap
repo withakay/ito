@@ -13,25 +13,25 @@ AI-native system for spec-driven development
 Usage: ito [OPTIONS] [COMMAND]
 
 Commands:
-  create       Create a new module or change proposal
-  list         List changes, specs, or modules with status summaries
-  show         Display details of a change, spec, or module
-  status       Check completion status of change artifacts
-  validate     Check changes, specs, and modules for errors and warnings
-  archive      Move a completed change to archive and update main specs
-  tasks        Manage implementation tasks for a change
-  plan         Initialize and track project roadmap
-  state        Track session state and working context
-  agent        Generate instructions and context for AI coding agents
-  ralph        Run an AI agent loop to implement a change
-  init         Set up Ito in a project
-  update       Refresh Ito instruction files and AI tool configs
-  config       Read and write global Ito settings
-  serve        Serve local Ito artifacts and docs over HTTP
-  audit        Query, validate, and manage the audit event log
-  completions  Output shell completion scripts
-  stats        Display command execution counts and history
-  help         Show help for ito commands
+  create       Create a new module or change proposal [aliases: cr]
+  list         List changes, specs, or modules with status summaries [aliases: ls]
+  show         Display details of a change, spec, or module [aliases: sh]
+  status       Check completion status of change artifacts [aliases: st]
+  validate     Check changes, specs, and modules for errors and warnings [aliases: va]
+  archive      Move a completed change to archive and update main specs [aliases: ar]
+  tasks        Manage implementation tasks for a change [aliases: ts]
+  plan         Initialize and track project roadmap [aliases: pl]
+  state        Track session state and working context [aliases: sa]
+  agent        Generate instructions and context for AI coding agents [aliases: ag]
+  ralph        Run an AI agent loop to implement a change [aliases: ra]
+  init         Set up Ito in a project [aliases: in]
+  update       Refresh Ito instruction files and AI tool configs [aliases: up]
+  config       Read and write global Ito settings [aliases: co]
+  serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
+  audit        Query, validate, and manage the audit event log [aliases: au]
+  completions  Output shell completion scripts [aliases: cp]
+  stats        Display command execution counts and history [aliases: ss]
+  help         Show help for ito commands [aliases: he]
 
 Options:
       --no-color
@@ -78,6 +78,9 @@ Options:
 
   -u, --update
           Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
+
+      --setup-coordination-branch
+          Ensure coordination branch exists on origin after init
 
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
@@ -133,16 +136,16 @@ Examples:
 Usage: ito tasks [OPTIONS] [COMMAND]
 
 Commands:
-  init      Create enhanced tasks.md
-  status    Show task progress
-  next      Show the next available task
-  ready     Show all ready tasks (pending tasks in earliest incomplete wave)
-  start     Mark a task in-progress
-  complete  Mark a task complete
-  shelve    Shelve a task (reversible)
-  unshelve  Restore a shelved task to pending
-  add       Add a new task (enhanced only)
-  show      Print tasks.md
+  init      Create enhanced tasks.md [aliases: in]
+  status    Show task progress [aliases: st]
+  next      Show the next available task [aliases: nx]
+  ready     Show all ready tasks (pending tasks in earliest incomplete wave) [aliases: rd]
+  start     Mark a task in-progress [aliases: go]
+  complete  Mark a task complete [aliases: co]
+  shelve    Shelve a task (reversible) [aliases: sv]
+  unshelve  Restore a shelved task to pending [aliases: us]
+  add       Add a new task (enhanced only) [aliases: ad]
+  show      Print tasks.md [aliases: sw]
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -169,8 +172,8 @@ Examples:
 Usage: ito plan <COMMAND>
 
 Commands:
-  init    Initialize planning structure
-  status  Show current milestone progress
+  init    Initialize planning structure [aliases: in]
+  status  Show current milestone progress [aliases: st]
 
 Options:
   -h, --help
@@ -195,12 +198,12 @@ Examples:
 Usage: ito state <COMMAND>
 
 Commands:
-  show      Show current project state
-  decision  Record a decision
-  blocker   Record a blocker
-  note      Add a session note
-  focus     Set current focus
-  question  Add an open question
+  show      Show current project state [aliases: sw]
+  decision  Record a decision [aliases: de]
+  blocker   Record a blocker [aliases: bl]
+  note      Add a session note [aliases: no]
+  focus     Set current focus [aliases: fo]
+  question  Add an open question [aliases: qu]
 
 Options:
   -h, --help
@@ -283,6 +286,9 @@ Arguments:
           Change id (directory name)
 
 Options:
+  -c, --change <CHANGE>
+          Change id (directory name)
+
       --completed
           Archive all completed changes (mutually exclusive with CHANGE)
 
@@ -316,12 +322,12 @@ Examples:
 Usage: ito config [COMMAND]
 
 Commands:
-  path    Print config file path
-  list    Print config JSON
-  get     Read value by path
-  set     Set value by path
-  unset   Remove value by path
-  schema  Print JSON schema for Ito config
+  path    Print config file path [aliases: pa]
+  list    Print config JSON [aliases: ls]
+  get     Read value by path [aliases: ge]
+  set     Set value by path [aliases: se]
+  unset   Remove value by path [aliases: un]
+  schema  Print JSON schema for Ito config [aliases: sc]
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -345,8 +351,8 @@ Examples:
 Usage: ito create [COMMAND]
 
 Commands:
-  module  Create a module
-  change  Create a change
+  module  Create a module [aliases: mo]
+  change  Create a change [aliases: ch]
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -497,7 +503,7 @@ Examples:
 Usage: ito agent [COMMAND]
 
 Commands:
-  instruction  Generate enriched instructions
+  instruction  Generate enriched instructions [aliases: in]
   help         Print this message or the help of the given subcommand(s)
 
 Options:
@@ -518,7 +524,7 @@ Arguments:
           Artifact id (e.g. bootstrap, apply, proposal)
 
 Options:
-      --change <CHANGE>
+  -c, --change <CHANGE>
           Change id (directory name)
 
       --tool <TOOL>
@@ -572,10 +578,10 @@ Arguments:
           Prompt text
 
 Options:
-      --change <CHANGE>
+  -c, --change <CHANGE>
           Target a specific change
 
-      --module <MODULE>
+  -m, --module <MODULE>
           Target a module (selects a change)
 
       --continue-module
@@ -667,7 +673,7 @@ Examples:
 Usage: ito status [OPTIONS]
 
 Options:
-      --change <CHANGE>
+  -c, --change <CHANGE>
           Change id (directory name)
 
       --schema <SCHEMA>

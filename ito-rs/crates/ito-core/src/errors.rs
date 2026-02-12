@@ -105,3 +105,36 @@ impl CoreError {
         Self::Sqlite(msg.into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn core_error_helpers_construct_expected_variants() {
+        let io_err = CoreError::io("read config", io::Error::other("boom"));
+        match io_err {
+            CoreError::Io { context, source } => {
+                assert_eq!(context, "read config");
+                assert_eq!(source.to_string(), "boom");
+            }
+            _ => panic!("expected io variant"),
+        }
+
+        assert!(matches!(
+            CoreError::validation("bad"),
+            CoreError::Validation(_)
+        ));
+        assert!(matches!(CoreError::parse("bad"), CoreError::Parse(_)));
+        assert!(matches!(CoreError::process("bad"), CoreError::Process(_)));
+        assert!(matches!(
+            CoreError::not_found("bad"),
+            CoreError::NotFound(_)
+        ));
+        assert!(matches!(
+            CoreError::serde("load", "bad"),
+            CoreError::Serde { .. }
+        ));
+        assert!(matches!(CoreError::sqlite("bad"), CoreError::Sqlite(_)));
+    }
+}

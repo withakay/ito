@@ -6,9 +6,12 @@ use crate::cli::InitArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::ConfigContext;
 use ito_config::ito_dir;
 use ito_config::output;
+use ito_config::{
+    ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
+};
+use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
@@ -25,6 +28,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
     let update = args.iter().any(|a| a == "--update" || a == "-u");
+    let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let tools_arg = parse_string_flag(args, "--tools");
 
     // Positional path (defaults to current directory).
@@ -175,6 +179,29 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
     }
 
+    if setup_coordination_branch {
+        let ito_path = ito_dir::get_ito_path(target_path, ctx);
+        let project_root = ito_path.parent().unwrap_or(ito_path.as_path());
+        let merged = load_cascading_project_config(project_root, &ito_path, ctx).merged;
+        let (_, coord_branch) = resolve_coordination_branch_settings(&merged);
+        let setup_result = ensure_coordination_branch_on_origin(project_root, &coord_branch)
+            .map_err(|err| {
+                CliError::msg(format!(
+                    "Failed to set up coordination branch '{}': {}",
+                    coord_branch, err.message
+                ))
+            })?;
+
+        match setup_result {
+            CoordinationBranchSetupStatus::Ready => {
+                println!("Coordination branch ready on origin: {coord_branch}");
+            }
+            CoordinationBranchSetupStatus::Created => {
+                println!("Coordination branch created on origin: {coord_branch}");
+            }
+        }
+    }
+
     print_post_init_guidance(target_path);
 
     Ok(())
@@ -221,6 +248,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.update {
         argv.push("--update".to_string());
+    }
+    if args.setup_coordination_branch {
+        argv.push("--setup-coordination-branch".to_string());
     }
     if let Some(path) = &args.path {
         argv.push(path.clone());

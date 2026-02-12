@@ -93,6 +93,169 @@ fn init_help_prints_usage() {
     assert!(out.stdout.contains("Usage: ito init"));
 }
 
+fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
+    let output = std::process::Command::new("git")
+        .args([
+            "--git-dir",
+            remote.to_string_lossy().as_ref(),
+            "show-ref",
+            reference,
+        ])
+        .output()
+        .expect("git show-ref should run");
+    output.status.success()
+}
+
+#[test]
+fn init_setup_coordination_branch_creates_branch_on_origin() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch created on origin: ito/internal/changes"),
+        "stdout was: {}",
+        out.stdout
+    );
+    assert!(remote_has_ref(
+        remote.path(),
+        "refs/heads/ito/internal/changes"
+    ));
+}
+
+#[test]
+fn init_setup_coordination_branch_reports_ready_when_already_present() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+
+    let seeded = std::process::Command::new("git")
+        .args(["push", "origin", "HEAD:refs/heads/ito/internal/changes"])
+        .current_dir(repo.path())
+        .output()
+        .expect("git push should run");
+    assert!(
+        seeded.status.success(),
+        "seed push failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&seeded.stdout),
+        String::from_utf8_lossy(&seeded.stderr)
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch ready on origin: ito/internal/changes"),
+        "stdout was: {}",
+        out.stdout
+    );
+}
+
+#[test]
+fn init_setup_coordination_branch_fails_without_origin_remote() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("Failed to set up coordination branch"));
+    assert!(out.stderr.contains("not configured"));
+}
+
+#[test]
+fn init_setup_coordination_branch_uses_configured_branch_name() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+    fixtures::write(
+        repo.path().join(".ito/config.local.json"),
+        "{\n  \"changes\": {\n    \"coordination_branch\": {\n      \"name\": \"ito/internal/custom\"\n    }\n  }\n}\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch created on origin: ito/internal/custom"),
+        "stdout was: {}",
+        out.stdout
+    );
+    assert!(remote_has_ref(
+        remote.path(),
+        "refs/heads/ito/internal/custom"
+    ));
+}
+
 #[test]
 fn init_with_tools_csv_installs_selected_adapters() {
     let base = fixtures::make_empty_repo();
