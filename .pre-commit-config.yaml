@@ -76,7 +76,7 @@ repos:
         language: system
         args: [test-coverage]
         pass_filenames: false
-        files: ^ito-rs/.*\.rs$
+        files: ^(ito-rs/.*\.(rs|toml|lock)|Cargo\.toml|Cargo\.lock)$
         stages: [pre-push]
 
       - id: cargo-test-affected
@@ -85,7 +85,7 @@ repos:
         language: system
         args: [test-affected]
         pass_filenames: false
-        files: ^ito-rs/.*\.rs$
+        files: ^(ito-rs/.*\.(rs|toml|lock)|Cargo\.toml|Cargo\.lock)$
         stages: [pre-commit]
 
       - id: check-max-lines

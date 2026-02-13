@@ -82,6 +82,7 @@ pub enum AuditAction {
     },
 
     /// Stream audit events in real-time
+    #[command(visible_alias = "sm")]
     Stream {
         /// Include events from all worktrees
         #[arg(long)]

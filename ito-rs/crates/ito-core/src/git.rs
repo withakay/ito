@@ -250,7 +250,9 @@ pub(crate) fn push_coordination_branch_with_runner(
             format!("push to '{branch}' was rejected by remote ({detail})"),
         ));
     }
-    if detail_lower.contains("no such remote") {
+    if detail_lower.contains("no such remote")
+        || detail_lower.contains("does not appear to be a git repository")
+    {
         return Err(CoordinationGitError::new(
             CoordinationGitErrorKind::RemoteNotConfigured,
             format!("git remote 'origin' is not configured ({detail})"),

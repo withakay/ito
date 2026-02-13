@@ -8,7 +8,7 @@ Add 2-letter aliases to all CLI commands and subcommands, plus short flags `-c` 
 
 ### File Locations
 
-The CLI is defined in `ito-rs/crates/ito-cli/src/cli.rs`. All changes are in this single file.
+The CLI is primarily defined in `ito-rs/crates/ito-cli/src/cli.rs`, with command-specific definitions in `ito-rs/crates/ito-cli/src/commands/`.
 
 ### Main Command Aliases
 
