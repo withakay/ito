@@ -89,7 +89,13 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
                 Err(e) => return Err(to_cli_error(e)),
             }
         }
-        _ => return fail(format!("Unknown harness: {h}", h = args.harness)),
+        _ => {
+            let known = ito_core::harness::HarnessName::USER_FACING.join(", ");
+            return fail(format!(
+                "Unknown harness: {h} (known harnesses: {known})",
+                h = args.harness,
+            ));
+        }
     };
 
     let opts = core_ralph::RalphOptions {
