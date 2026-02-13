@@ -196,7 +196,12 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     if setup_coordination_branch {
         let ito_path = ito_dir::get_ito_path(target_path, ctx);
-        let project_root = ito_path.parent().ok_or_else(|| CliError::msg(format!("Could not determine project root from Ito path: {}", ito_path.display())))?;
+        let project_root = ito_path.parent().ok_or_else(|| {
+            CliError::msg(format!(
+                "Could not determine project root from Ito path: {}",
+                ito_path.display()
+            ))
+        })?;
         let merged = load_cascading_project_config(project_root, &ito_path, ctx).merged;
         let (_, coord_branch) = resolve_coordination_branch_settings(&merged);
         let setup_result = ensure_coordination_branch_on_origin(project_root, &coord_branch)
