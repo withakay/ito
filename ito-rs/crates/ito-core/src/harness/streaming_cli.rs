@@ -1,9 +1,9 @@
 use super::types::{HarnessRunConfig, HarnessRunResult};
-use miette::{miette, Result};
+use miette::{Result, miette};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
