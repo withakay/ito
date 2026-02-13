@@ -124,7 +124,7 @@ jobs:
         run: |
           # Pretty-format JSON files (2-space indent, no key sorting)
           # Matches: pretty-format-json --autofix --indent=2 --no-sort-keys
-          git ls-files -z '*.json' | while IFS= read -r -d '' f; do
+          git ls-files -z '*.json' ':!tests/**' | while IFS= read -r -d '' f; do
             [ -f "$f" ] || continue
             python3 -c "
           import json, sys
