@@ -17,6 +17,8 @@ impl Harness for GitHubCopilotHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{GitHubCopilotHarness, Harness, HarnessName};
+    ///
     /// let h = GitHubCopilotHarness::default();
     /// assert_eq!(h.name(), HarnessName::GITHUB_COPILOT);
     /// ```
@@ -62,7 +64,9 @@ impl Harness for GitHubCopilotHarness {
     /// # Examples
     ///
     /// ```
-    /// let mut h = crate::harness::github_copilot::GitHubCopilotHarness::default();
+    /// use ito_core::harness::{GitHubCopilotHarness, Harness};
+    ///
+    /// let mut h = GitHubCopilotHarness::default();
     /// h.stop();
     /// ```
     fn stop(&mut self) {
@@ -78,6 +82,8 @@ impl Harness for GitHubCopilotHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{GitHubCopilotHarness, Harness};
+    ///
     /// let h = GitHubCopilotHarness::default();
     /// assert!(h.streams_output());
     /// ```

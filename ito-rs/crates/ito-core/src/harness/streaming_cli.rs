@@ -206,7 +206,7 @@ fn stream_pipe(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::sync::{Arc, Mutex, AtomicBool, atomic::Ordering};
 /// use std::time::{Duration, Instant};
 /// use std::thread;

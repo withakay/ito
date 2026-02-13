@@ -13,6 +13,8 @@ impl Harness for CodexHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{CodexHarness, Harness, HarnessName};
+    ///
     /// let h = CodexHarness::default();
     /// assert_eq!(h.name(), HarnessName::CODEX);
     /// ```
@@ -53,6 +55,8 @@ impl Harness for CodexHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{CodexHarness, Harness};
+    ///
     /// let mut h = CodexHarness::default();
     /// h.stop();
     /// ```
@@ -69,6 +73,8 @@ impl Harness for CodexHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{CodexHarness, Harness};
+    ///
     /// let h = CodexHarness::default();
     /// assert!(h.streams_output());
     /// ```
