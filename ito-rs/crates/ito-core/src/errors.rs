@@ -98,6 +98,8 @@ impl CoreError {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::errors::CoreError;
+    ///
     /// let err = CoreError::serde("load config", "missing field `name`");
     /// match err {
     ///     CoreError::Serde { context, message } => {

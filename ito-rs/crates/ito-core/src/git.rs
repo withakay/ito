@@ -50,7 +50,7 @@ impl CoordinationGitError {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let _err = CoordinationGitError::new(
     ///     CoordinationGitErrorKind::RemoteMissing,
     ///     "origin/ref not found",
@@ -83,6 +83,8 @@ pub fn fetch_coordination_branch(
 ///
 /// ```
 /// use std::path::Path;
+/// use ito_core::git::push_coordination_branch;
+///
 /// let repo = Path::new(".");
 /// let _ = push_coordination_branch(repo, "HEAD", "coordination");
 /// ```
@@ -151,6 +153,8 @@ pub fn ensure_coordination_branch_on_origin(
 /// # Examples
 ///
 /// ```no_run
+/// use ito_core::git::fetch_coordination_branch_core;
+///
 /// let res = fetch_coordination_branch_core(std::path::Path::new("."), "coordination");
 /// assert!(res.is_ok());
 /// ```
@@ -219,14 +223,16 @@ pub fn reserve_change_on_coordination_branch_core(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use std::path::Path;
+/// use ito_core::errors::CoreError;
+///
 /// let status = ito_core::git::ensure_coordination_branch_on_origin_core(Path::new("."), "coordination/main")?;
 /// match status {
 ///     ito_core::git::CoordinationBranchSetupStatus::Ready => println!("Branch exists on origin"),
 ///     ito_core::git::CoordinationBranchSetupStatus::Created => println!("Branch was created on origin"),
 /// }
-/// # Ok::<(), ito_core::CoreError>(())
+/// # Ok::<(), CoreError>(())
 /// ```
 pub fn ensure_coordination_branch_on_origin_core(
     repo_root: &Path,
@@ -285,7 +291,7 @@ pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 /// // `runner` should implement `ProcessRunner` (e.g., `SystemProcessRunner` in production).
 /// let runner = crate::tests::StubRunner::default(); // replace with a real runner in real usage

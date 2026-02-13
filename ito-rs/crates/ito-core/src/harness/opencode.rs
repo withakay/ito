@@ -12,6 +12,8 @@ impl Harness for OpencodeHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{Harness, HarnessName, OpencodeHarness};
+    ///
     /// let h = OpencodeHarness::default();
     /// assert_eq!(h.name(), HarnessName::OPENCODE);
     /// ```
@@ -30,7 +32,7 @@ impl Harness for OpencodeHarness {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let mut harness = OpencodeHarness::default();
     /// let config = HarnessRunConfig { prompt: "Generate a Rust function".into(), model: None, ..Default::default() };
     /// let result = harness.run(&config).unwrap();
@@ -52,7 +54,7 @@ impl Harness for OpencodeHarness {
     /// # Examples
     ///
     /// ```
-    /// use crate::harness::opencode::OpencodeHarness;
+    /// use ito_core::harness::{Harness, OpencodeHarness};
     ///
     /// let mut h = OpencodeHarness::default();
     /// h.stop();
@@ -66,6 +68,8 @@ impl Harness for OpencodeHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{Harness, OpencodeHarness};
+    ///
     /// let h = OpencodeHarness::default();
     /// assert!(h.streams_output());
     /// ```

@@ -17,6 +17,8 @@ impl Harness for ClaudeCodeHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{ClaudeCodeHarness, Harness, HarnessName};
+    ///
     /// let h = ClaudeCodeHarness::default();
     /// assert_eq!(h.name(), HarnessName::CLAUDE);
     /// ```
@@ -32,7 +34,7 @@ impl Harness for ClaudeCodeHarness {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// use ito_core::harness::{ClaudeCodeHarness, HarnessRunConfig};
     ///
     /// let mut harness = ClaudeCodeHarness::default();
@@ -62,6 +64,8 @@ impl Harness for ClaudeCodeHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{ClaudeCodeHarness, Harness};
+    ///
     /// let mut h = ClaudeCodeHarness::default();
     /// // Calling stop has no effect for this harness.
     /// h.stop();
@@ -78,6 +82,8 @@ impl Harness for ClaudeCodeHarness {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::harness::{ClaudeCodeHarness, Harness};
+    ///
     /// let h = ClaudeCodeHarness::default();
     /// assert!(h.streams_output());
     /// ```

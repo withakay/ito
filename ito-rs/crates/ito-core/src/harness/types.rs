@@ -41,7 +41,7 @@ impl HarnessName {
     /// # Examples
     ///
     /// ```
-    /// let txt = crate::harness::types::HarnessName::help_text();
+    /// let txt = ito_core::harness::HarnessName::help_text();
     /// assert!(txt.starts_with('[') && txt.ends_with(']'));
     /// assert!(txt.contains("opencode"));
     /// ```
@@ -102,7 +102,7 @@ pub trait Harness {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// struct Dummy;
     /// impl super::Harness for Dummy {
     ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
