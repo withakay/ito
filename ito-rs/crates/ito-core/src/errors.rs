@@ -120,7 +120,7 @@ impl CoreError {
 mod tests {
     use super::*;
 
-/// Verifies that each `CoreError` helper constructor produces the expected enum variant and contains the correct data.
+    /// Verifies that each `CoreError` helper constructor produces the expected enum variant and contains the correct data.
     ///
     /// Constructs every public `CoreError` variant via its respective helper (e.g., `io`, `validation`, `parse`, `process`,
     /// `not_found`, `serde`, `sqlite`) and asserts both the variant and the values carried by that variant.
