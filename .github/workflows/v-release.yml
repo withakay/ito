@@ -290,11 +290,18 @@ jobs:
       GITHUB_EMAIL: "admin+bot@axo.dev"
     if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
     steps:
+      - name: Generate GitHub App token (homebrew-ito)
+        id: app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.ITO_CI_APP_ID }}
+          private-key: ${{ secrets.ITO_CI_APP_PRIVATE_KEY }}
+          repositories: homebrew-ito
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
           repository: "withakay/homebrew-ito"
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ steps.app_token.outputs.token }}
       # So we have access to the formula
       - name: Fetch homebrew formulae
         uses: actions/download-artifact@v4
