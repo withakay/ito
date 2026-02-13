@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::path::Path;
 
-use portable_pty::{CommandBuilder, PtySize, native_pty_system};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 use crate::CmdOutput;
 
