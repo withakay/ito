@@ -8,6 +8,8 @@ use ito_test_support::run_rust_candidate;
 #[cfg(unix)]
 use ito_test_support::pty::run_pty_interactive;
 
+use std::process::Command;
+
 fn expected_release_tag() -> String {
     let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     let Some(version) = version.strip_prefix('v') else {
@@ -93,6 +95,213 @@ fn init_help_prints_usage() {
     assert!(out.stdout.contains("Usage: ito init"));
 }
 
+/// Checks whether a Git reference exists in the specified repository directory.
+///
+/// `remote` should point at a Git directory (commonly a bare repository path).
+/// `reference` is the full ref name (for example `refs/heads/main`) or a short ref accepted by `git show-ref`.
+///
+/// # Returns
+///
+/// `true` if the reference exists in the given repository, `false` otherwise.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// let exists = remote_has_ref(Path::new("/path/to/bare.git"), "refs/heads/main");
+/// println!("ref exists: {}", exists);
+/// ```
+fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
+    let output = std::process::Command::new("git")
+        .args([
+            "--git-dir",
+            remote.to_string_lossy().as_ref(),
+            "show-ref",
+            reference,
+        ])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git show-ref should run");
+    output.status.success()
+}
+
+#[test]
+fn init_setup_coordination_branch_creates_branch_on_origin() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch created on origin: ito/internal/changes"),
+        "stdout was: {}",
+        out.stdout
+    );
+    assert!(remote_has_ref(
+        remote.path(),
+        "refs/heads/ito/internal/changes"
+    ));
+}
+
+#[test]
+fn init_setup_coordination_branch_reports_ready_when_already_present() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+
+    let seeded = std::process::Command::new("git")
+        .args(["push", "origin", "HEAD:refs/heads/ito/internal/changes"])
+        .current_dir(repo.path())
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git push should run");
+    assert!(
+        seeded.status.success(),
+        "seed push failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&seeded.stdout),
+        String::from_utf8_lossy(&seeded.stderr)
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch ready on origin: ito/internal/changes"),
+        "stdout was: {}",
+        out.stdout
+    );
+}
+
+/// Verifies that `ito init --setup-coordination-branch` fails when the repository has no `origin` remote configured.
+///
+/// The test initializes a repository with an initial commit but does not add any remotes,
+/// then runs `ito init` with `--setup-coordination-branch` and expects a non-zero exit code.
+/// It also asserts the stderr contains both "Failed to set up coordination branch" and "not configured".
+///
+/// # Examples
+///
+/// ```no_run
+/// // This test is intended to be run within the crate's test harness and requires
+/// // repository setup provided by the fixtures used in the test suite.
+/// ```
+#[test]
+fn init_setup_coordination_branch_fails_without_origin_remote() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("Failed to set up coordination branch"));
+    assert!(out.stderr.contains("not configured"));
+}
+
+#[test]
+fn init_setup_coordination_branch_uses_configured_branch_name() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+    fixtures::write(
+        repo.path().join(".ito/config.local.json"),
+        "{\n  \"changes\": {\n    \"coordination_branch\": {\n      \"name\": \"ito/internal/custom\"\n    }\n  }\n}\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={} stdout={}", out.stderr, out.stdout);
+    assert!(
+        out.stdout
+            .contains("Coordination branch created on origin: ito/internal/custom"),
+        "stdout was: {}",
+        out.stdout
+    );
+    assert!(remote_has_ref(
+        remote.path(),
+        "refs/heads/ito/internal/custom"
+    ));
+}
+
+/// Verifies that a comma-separated list of tool IDs installs only the selected adapters.
+///
+/// Runs an initialization with `--tools "claude,codex"` and asserts that repository files
+/// for the Claude and Codex adapters are created and that files for an unselected adapter
+/// (OpenCode) are not present.
+///
+/// # Examples
+///
+/// ```
+/// // Initialize with selected adapters and verify created artifacts:
+/// // ito init <repo> --tools "claude,codex"
+/// ```
 #[test]
 fn init_with_tools_csv_installs_selected_adapters() {
     let base = fixtures::make_empty_repo();
