@@ -20,7 +20,7 @@ impl Harness for CodexHarness {
         HarnessName::CODEX
     }
 
-    /// Execute the `codex` CLI with arguments derived from `config` and stream its output.
+/// Execute the `codex` CLI with arguments derived from `config` and stream its output.
     ///
     /// The constructed command begins with `"exec"`, includes `--model <model>` if `config.model` is set,
     /// appends `--yolo` when `config.allow_all` is true, and appends `config.prompt` as the final argument.
@@ -31,16 +31,7 @@ impl Harness for CodexHarness {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let mut h = CodexHarness::default();
-    /// let config = HarnessRunConfig {
-    ///     model: Some("gpt-4".into()),
-    ///     allow_all: false,
-    ///     prompt: "Say hello".into(),
-    ///     ..Default::default()
-    /// };
-    /// let res = h.run(&config).unwrap();
-    /// ```
+    ///
     fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
         let mut args = vec!["exec".to_string()];
         if let Some(model) = config.model.as_deref() {
