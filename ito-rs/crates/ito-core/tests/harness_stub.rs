@@ -15,6 +15,7 @@ fn stub_harness_default_returns_complete_promise() {
             cwd: std::env::current_dir().unwrap(),
             env: BTreeMap::new(),
             interactive: false,
+            allow_all: false,
             inactivity_timeout: None,
         })
         .expect("run");
@@ -43,6 +44,7 @@ fn stub_harness_from_json_path_runs_steps_and_repeats_last() {
         cwd: std::env::current_dir().unwrap(),
         env: BTreeMap::new(),
         interactive: false,
+        allow_all: false,
         inactivity_timeout: None,
     };
 
@@ -89,6 +91,7 @@ fn stub_harness_errors_on_empty_steps() {
             cwd: std::env::current_dir().unwrap(),
             env: BTreeMap::new(),
             interactive: false,
+            allow_all: false,
             inactivity_timeout: None,
         })
         .expect_err("should error");
@@ -110,6 +113,7 @@ fn stub_step_defaults_match_json_schema() {
             cwd: std::env::current_dir().unwrap(),
             env: BTreeMap::new(),
             interactive: false,
+            allow_all: false,
             inactivity_timeout: None,
         })
         .unwrap();
