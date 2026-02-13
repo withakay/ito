@@ -92,7 +92,23 @@ impl CoreError {
         Self::NotFound(msg.into())
     }
 
-    /// Build a serde error.
+    /// Create a `CoreError::Serde` containing a context and a message describing a
+    /// serialization or deserialization failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ito_core::errors::CoreError;
+    ///
+    /// let err = CoreError::serde("load config", "missing field `name`");
+    /// match err {
+    ///     CoreError::Serde { context, message } => {
+    ///         assert_eq!(context, "load config");
+    ///         assert_eq!(message, "missing field `name`");
+    ///     }
+    ///     _ => panic!("expected Serde variant"),
+    /// }
+    /// ```
     pub fn serde(context: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Serde {
             context: context.into(),
@@ -100,16 +116,20 @@ impl CoreError {
         }
     }
 
-    /// Create a `CoreError::Sqlite` containing the given message.
+    /// Wraps a human-readable SQLite error message into a `CoreError::Sqlite`.
+    ///
+    /// Returns a `CoreError::Sqlite` containing the provided message.
     ///
     /// # Examples
     ///
     /// ```
+    /// use ito_core::errors::CoreError;
+    ///
     /// let err = CoreError::sqlite("database locked");
-    /// match err {
-    ///     CoreError::Sqlite(msg) => assert_eq!(msg, "database locked"),
-    ///     _ => panic!("expected Sqlite variant"),
-    /// }
+    /// let CoreError::Sqlite(msg) = err else {
+    ///     panic!("expected Sqlite variant");
+    /// };
+    /// assert_eq!(msg, "database locked");
     /// ```
     pub fn sqlite(msg: impl Into<String>) -> Self {
         Self::Sqlite(msg.into())

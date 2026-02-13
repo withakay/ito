@@ -14,3 +14,4 @@ Ungrouped changes and ad-hoc work that do not fit a module.
 - [x] 000-05_crate-architecture-refactor
 - [x] 000-06_internal-change-sync-branch
 - [ ] 000-07_remote-audit-mirror-branch
+- [ ] 000-10_cli-type-safe-args

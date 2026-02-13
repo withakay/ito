@@ -1,5 +1,23 @@
 use ito_test_support::run_rust_candidate;
 
+/// Create a temporary directory containing a minimal Ito repository layout.
+///
+/// The directory will include:
+/// - `.ito/modules/000_ungrouped/module.md` with the contents `# 000_ungrouped`
+/// - an empty `.ito/changes` directory
+///
+/// # Returns
+///
+/// A `tempfile::TempDir` handle pointing to the created fixture repository. The
+/// directory is removed when the `TempDir` is dropped.
+///
+/// # Examples
+///
+/// ```
+/// let td = make_fixture_repo();
+/// let module = td.path().join(".ito/modules/000_ungrouped/module.md");
+/// assert!(module.exists());
+/// ```
 fn make_fixture_repo() -> tempfile::TempDir {
     let td = tempfile::tempdir().expect("tempdir");
 
@@ -12,12 +30,10 @@ fn make_fixture_repo() -> tempfile::TempDir {
     td
 }
 
-/// Normalizes version text by replacing concrete versions with `<VERSION>` and removing debug or placeholder suffixes.
+/// Normalize version text by replacing concrete versions with `<VERSION>` and removing trailing debug or placeholder suffixes.
 ///
-/// This replaces the workspace build version (when `ITO_WORKSPACE_VERSION` is present) and the package version
-/// (`CARGO_PKG_VERSION`) with `"<VERSION>"`. If the resulting text contains a trailing suffix of the form
-/// `" (<git-sha>)"`, `" (<git-sha>-dirty)"`, or `" (VERGEN_...)"`, that suffix and the preceding space and
-/// parentheses are removed.
+/// Replaces the workspace build version (when `ITO_WORKSPACE_VERSION` is set) and the package version (`CARGO_PKG_VERSION`) with `"<VERSION>"`.
+/// If the resulting string ends with a parenthesized suffix like `(<git-sha>)`, `(<git-sha>-dirty)`, or `(VERGEN_...)`, that suffix (including the preceding space and parentheses) is removed.
 ///
 /// # Examples
 ///
@@ -26,7 +42,6 @@ fn make_fixture_repo() -> tempfile::TempDir {
 /// assert_eq!(normalize_version(s), "ito <VERSION>");
 ///
 /// let s2 = "ito 1.2.3".to_string();
-/// // package/workspace version replaced
 /// assert_eq!(normalize_version(s2), "ito <VERSION>");
 /// ```
 fn normalize_version(text: String) -> String {
