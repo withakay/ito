@@ -356,3 +356,62 @@ fn ralph_file_flag_runs_without_change_or_module() {
     let state_path = repo.path().join(".ito/.state/ralph/unscoped/state.json");
     assert!(state_path.exists());
 }
+
+#[test]
+fn ralph_accepts_new_harness_names_for_status_flow() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    for harness in ["claude", "codex", "github-copilot", "copilot"] {
+        let out = run_rust_candidate(
+            rust_path,
+            &[
+                "ralph",
+                "--change",
+                "000-01_test-change",
+                "--harness",
+                harness,
+                "--status",
+                "--no-interactive",
+            ],
+            repo.path(),
+            home.path(),
+        );
+        assert_eq!(out.code, 0, "harness={} stderr={}", harness, out.stderr);
+    }
+}
+
+#[test]
+fn ralph_unknown_harness_returns_clear_error() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "000-01_test-change",
+            "--harness",
+            "does-not-exist",
+            "--status",
+            "--no-interactive",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stderr.contains("Unknown harness: does-not-exist"),
+        "stderr={}",
+        out.stderr
+    );
+}

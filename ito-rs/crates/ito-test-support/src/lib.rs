@@ -67,8 +67,8 @@ pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path
 /// 2. Inspect the `deps` directory adjacent to `program` for a file whose name
 ///    starts with `ito-`, is not an obvious artifact (e.g. `.d`, `.rlib`,
 ///    `.rmeta`, `.o`), and appears to be executable for the current platform.
-/// If none of those yield a valid candidate, the original `program` path is
-/// returned unchanged.
+/// 3. If none of those yield a valid candidate, the original `program` path is
+///    returned unchanged.
 ///
 /// # Parameters
 ///

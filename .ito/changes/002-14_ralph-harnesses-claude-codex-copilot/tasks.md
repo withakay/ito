@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: new harness types compile, tests pass, no network required
 - **Updated At**: 2026-02-13
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Make Ralph count git changes for non-stub harnesses
 
@@ -49,7 +49,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core --test ralph`
 - **Done When**: ralph tests continue to pass and change counting behavior is exercised
 - **Updated At**: 2026-02-13
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -69,7 +69,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test ralph_smoke`
 - **Done When**: smoke tests cover the selection and pass
 - **Updated At**: 2026-02-13
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Update CLI help snapshots if needed
 
@@ -81,7 +81,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test cli_snapshots`
 - **Done When**: snapshot tests pass
 - **Updated At**: 2026-02-13
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -101,7 +101,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 002-14_ralph-harnesses-claude-codex-copilot --strict`
 - **Done When**: strict validation passes and reviewer agrees the plan is correct
 - **Updated At**: 2026-02-13
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

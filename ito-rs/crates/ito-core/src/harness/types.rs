@@ -10,6 +10,12 @@ pub struct HarnessName(pub &'static str);
 impl HarnessName {
     /// The OpenCode harness.
     pub const OPENCODE: HarnessName = HarnessName("opencode");
+    /// The Claude Code harness.
+    pub const CLAUDE: HarnessName = HarnessName("claude");
+    /// The OpenAI Codex harness.
+    pub const CODEX: HarnessName = HarnessName("codex");
+    /// The GitHub Copilot harness.
+    pub const GITHUB_COPILOT: HarnessName = HarnessName("github-copilot");
     /// The stub harness.
     pub const STUB: HarnessName = HarnessName("stub");
 }
@@ -27,6 +33,8 @@ pub struct HarnessRunConfig {
     pub env: BTreeMap<String, String>,
     /// Whether the invocation should run in interactive mode.
     pub interactive: bool,
+    /// Whether tool approval and permission prompts should be bypassed.
+    pub allow_all: bool,
     /// Inactivity timeout - if no output is received for this duration, the harness should terminate.
     pub inactivity_timeout: Option<Duration>,
 }
