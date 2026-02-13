@@ -20,7 +20,7 @@ impl Harness for CodexHarness {
         HarnessName::CODEX
     }
 
-/// Execute the `codex` CLI with arguments derived from `config` and stream its output.
+    /// Execute the `codex` CLI with arguments derived from `config` and stream its output.
     ///
     /// The constructed command begins with `"exec"`, includes `--model <model>` if `config.model` is set,
     /// appends `--yolo` when `config.allow_all` is true, and appends `config.prompt` as the final argument.

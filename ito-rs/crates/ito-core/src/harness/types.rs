@@ -96,45 +96,45 @@ pub trait Harness {
     fn stop(&mut self);
 
     /// Indicates whether the harness streams stdout/stderr in real time during `run`.
-    
+
     ///
-    
+
     /// When this returns `true`, callers should not print captured stdout or stderr after
-    
+
     /// `run` completes because output has already been delivered to the caller in real time.
-    
+
     ///
-    
+
     /// # Examples
-    
+
     ///
-    
+
     /// ```
-    
+
     /// struct Dummy;
-    
+
     /// impl super::Harness for Dummy {
-    
+
     ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
-    
+
     ///     fn run(&mut self, _config: &super::HarnessRunConfig) -> miette::Result<super::HarnessRunResult> {
-    
+
     ///         unimplemented!()
-    
+
     ///     }
-    
+
     ///     fn streams_output(&self) -> bool { false }
-    
+
     ///     fn stop(&mut self) {}
-    
+
     /// }
-    
+
     ///
-    
+
     /// let d = Dummy;
-    
+
     /// assert!(!d.streams_output());
-    
+
     /// ```
     fn streams_output(&self) -> bool {
         false

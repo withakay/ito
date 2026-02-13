@@ -102,7 +102,7 @@ pub fn push_coordination_branch(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use std::path::Path;
 /// let repo = Path::new("/path/to/repo");
 /// let ito = Path::new(".ito");
@@ -961,11 +961,8 @@ mod tests {
             "ito/internal/changes",
         )
         .unwrap_err();
-        assert!(
-            err.kind == CoordinationGitErrorKind::RemoteNotConfigured
-                || err.kind == CoordinationGitErrorKind::CommandFailed
-        );
-        assert!(err.message.contains("not configured") || err.message.contains("failed"));
+        assert_eq!(err.kind, CoordinationGitErrorKind::RemoteNotConfigured);
+        assert!(err.message.contains("not configured"));
     }
 
     #[test]
