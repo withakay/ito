@@ -1,9 +1,9 @@
 use super::types::{HarnessRunConfig, HarnessRunResult};
-use miette::{Result, miette};
+use miette::{miette, Result};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -85,38 +85,85 @@ pub(super) fn run_streaming_cli(
     })
 }
 
+/// Reads from `pipe` in byte-level chunks, forwarding output to stdout/stderr
+/// and updating `last_activity` on every read. Byte-level reads (vs line-based)
+/// ensure inactivity is tracked even when tools stream output without newlines.
+///
+/// Incomplete UTF-8 sequences at chunk boundaries are buffered and prepended to
+/// the next read, so multi-byte characters are never split by replacement chars.
 fn stream_pipe(
     pipe: Option<impl std::io::Read>,
     last_activity: &std::sync::Mutex<Instant>,
     is_stdout: bool,
 ) -> String {
     let mut collected = String::new();
-    if let Some(mut pipe) = pipe {
-        let mut buf = [0u8; 4096];
-        loop {
-            let n = match pipe.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => n,
-                Err(_) => break,
-            };
+    let Some(mut pipe) = pipe else {
+        return collected;
+    };
 
-            if let Ok(mut last) = last_activity.lock() {
-                *last = Instant::now();
+    let mut buf = [0u8; 4096];
+    // Bytes from the tail of the previous read that form an incomplete UTF-8
+    // sequence. At most 3 bytes (the longest incomplete prefix of a 4-byte char).
+    let mut leftover = Vec::new();
+
+    loop {
+        let n = match pipe.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => break,
+        };
+
+        if let Ok(mut last) = last_activity.lock() {
+            *last = Instant::now();
+        }
+
+        // Prepend any leftover bytes from the previous chunk.
+        let data = if leftover.is_empty() {
+            &buf[..n]
+        } else {
+            leftover.extend_from_slice(&buf[..n]);
+            leftover.as_slice()
+        };
+
+        // Find the longest valid UTF-8 prefix. Any trailing bytes that form an
+        // incomplete character are saved for the next iteration.
+        let (valid, remaining) = match std::str::from_utf8(data) {
+            Ok(s) => (s, &[][..]),
+            Err(e) => {
+                let valid_up_to = e.valid_up_to();
+                // SAFETY: from_utf8 guarantees bytes up to valid_up_to are valid UTF-8.
+                let valid = unsafe { std::str::from_utf8_unchecked(&data[..valid_up_to]) };
+                (valid, &data[valid_up_to..])
             }
+        };
 
-            let chunk = String::from_utf8_lossy(&buf[..n]);
-
+        if !valid.is_empty() {
             if is_stdout {
-                print!("{}", chunk);
+                print!("{valid}");
                 let _ = std::io::stdout().flush();
             } else {
-                eprint!("{}", chunk);
+                eprint!("{valid}");
                 let _ = std::io::stderr().flush();
             }
-
-            collected.push_str(&chunk);
+            collected.push_str(valid);
         }
+
+        leftover = remaining.to_vec();
     }
+
+    // Flush any final leftover bytes (incomplete sequence at EOF) as lossy UTF-8.
+    if !leftover.is_empty() {
+        let tail = String::from_utf8_lossy(&leftover);
+        if is_stdout {
+            print!("{tail}");
+            let _ = std::io::stdout().flush();
+        } else {
+            eprint!("{tail}");
+            let _ = std::io::stderr().flush();
+        }
+        collected.push_str(&tail);
+    }
+
     collected
 }
 
