@@ -8,10 +8,39 @@ use miette::Result;
 pub struct CodexHarness;
 
 impl Harness for CodexHarness {
+    /// Identify this harness implementation as the Codex harness.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let h = CodexHarness::default();
+    /// assert_eq!(h.name(), HarnessName::CODEX);
+    /// ```
     fn name(&self) -> HarnessName {
         HarnessName::CODEX
     }
 
+    /// Execute the `codex` CLI with arguments derived from `config` and stream its output.
+    ///
+    /// The constructed command begins with `"exec"`, includes `--model <model>` if `config.model` is set,
+    /// appends `--yolo` when `config.allow_all` is true, and appends `config.prompt` as the final argument.
+    ///
+    /// # Returns
+    ///
+    /// The resulting `HarnessRunResult` on success.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut h = CodexHarness::default();
+    /// let config = HarnessRunConfig {
+    ///     model: Some("gpt-4".into()),
+    ///     allow_all: false,
+    ///     prompt: "Say hello".into(),
+    ///     ..Default::default()
+    /// };
+    /// let res = h.run(&config).unwrap();
+    /// ```
     fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
         let mut args = vec!["exec".to_string()];
         if let Some(model) = config.model.as_deref() {
@@ -26,10 +55,32 @@ impl Harness for CodexHarness {
         run_streaming_cli("codex", &args, config)
     }
 
+    /// Performs no action; provided to satisfy the `Harness` trait.
+    ///
+    /// This method is intentionally empty because `run` executes synchronously and there is nothing to stop.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut h = CodexHarness::default();
+    /// h.stop();
+    /// ```
     fn stop(&mut self) {
         // No-op: `run` is synchronous.
     }
 
+    /// Indicates whether this harness emits output incrementally (streaming) during a run.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the harness streams output as it runs, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let h = CodexHarness::default();
+    /// assert!(h.streams_output());
+    /// ```
     fn streams_output(&self) -> bool {
         true
     }

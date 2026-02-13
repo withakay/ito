@@ -10,6 +10,24 @@ use std::time::{Duration, Instant};
 /// Default inactivity timeout for CLI harnesses.
 pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
+/// Run a binary with the given arguments, streaming its stdout and stderr and enforcing an inactivity timeout.
+///
+/// Streams the child process's stdout and stderr to the current process while collecting their output. The child is started in `config.cwd` with `config.env`. An inactivity timer (from `config.inactivity_timeout` or `DEFAULT_INACTIVITY_TIMEOUT`) is reset on any output; if the timeout elapses with no activity, the child is terminated and the result is marked as timed out.
+///
+/// The returned `HarnessRunResult` contains the accumulated `stdout` and `stderr`, the total `duration`, an `exit_code` (set to `-1` if the child was terminated due to inactivity, otherwise the child's exit code or `1` if unavailable), and a `timed_out` flag.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a HarnessRunConfig appropriate for your environment.
+/// let cfg = HarnessRunConfig {
+///     cwd: std::env::current_dir().unwrap(),
+///     env: std::env::vars().collect(),
+///     inactivity_timeout: None,
+/// };
+/// let res = run_streaming_cli("echo", &vec!["hello".to_string()], &cfg).unwrap();
+/// assert!(res.stdout.contains("hello"));
+/// ```
 pub(super) fn run_streaming_cli(
     binary: &str,
     args: &[String],
@@ -85,6 +103,33 @@ pub(super) fn run_streaming_cli(
     })
 }
 
+/// Read from an optional reader, write each chunk to either stdout or stderr, update the provided
+/// `last_activity` timestamp on each read, and return all bytes read as a UTF-8 lossily-converted `String`.
+///
+/// The function does nothing if `pipe` is `None`. On each successful read it sets `*last_activity` to
+/// the current instant and forwards the read bytes to stdout when `is_stdout` is `true`, otherwise to stderr.
+///
+/// # Parameters
+///
+/// - `last_activity`: a mutex protecting the Instant to update when new data is observed.
+/// - `is_stdout`: when `true`, write chunks to stdout; otherwise write to stderr.
+///
+/// # Returns
+///
+/// The concatenated output read from `pipe`, converted using UTF-8 lossy conversion.
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Cursor;
+/// use std::sync::Mutex;
+/// use std::time::Instant;
+///
+/// let reader = Cursor::new(b"hello\nworld");
+/// let last_activity = Mutex::new(Instant::now());
+/// let collected = stream_pipe(Some(reader), &last_activity, true);
+/// assert_eq!(collected, "hello\nworld");
+/// ```
 fn stream_pipe(
     pipe: Option<impl std::io::Read>,
     last_activity: &std::sync::Mutex<Instant>,
@@ -120,6 +165,47 @@ fn stream_pipe(
     collected
 }
 
+/// Monitors a child process for inactivity and forcefully terminates it if no activity occurs within `timeout`.
+///
+/// Periodically checks the elapsed time since `last_activity`; if the elapsed time meets or exceeds
+/// `timeout`, prints an inactivity message to stderr, sets `timed_out` to `true`, and attempts to
+/// kill the process with `child_id` (platform-specific: `kill -9` on Unix, `taskkill /F /PID` on Windows).
+/// The monitor exits early if `done` becomes `true` or if `last_activity` cannot be locked.
+///
+/// # Parameters
+///
+/// - `child_id`: process identifier of the child to terminate on timeout.
+/// - `timeout`: duration of allowed inactivity before termination.
+/// - `last_activity`: mutex-protected `Instant` updated by output-streaming threads on each read.
+/// - `timed_out`: atomic flag set to `true` when a timeout-triggered termination occurs.
+/// - `done`: atomic flag that, when set to `true`, stops the monitor loop.
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::{Arc, Mutex, AtomicBool, atomic::Ordering};
+/// use std::time::{Duration, Instant};
+/// use std::thread;
+///
+/// // Prepare shared state
+/// let last_activity = Arc::new(Mutex::new(Instant::now()));
+/// let timed_out = Arc::new(AtomicBool::new(false));
+/// let done = Arc::new(AtomicBool::new(false));
+///
+/// // Clone for the monitor thread
+/// let la = Arc::clone(&last_activity);
+/// let to = Arc::clone(&timed_out);
+/// let dn = Arc::clone(&done);
+///
+/// // Spawn the monitor in a thread (uses a dummy child id 0 for example)
+/// let handle = thread::spawn(move || {
+///     super::monitor_timeout(0, Duration::from_millis(10), &la.lock().unwrap(), &to, &dn);
+/// });
+///
+/// // Signal completion to stop the monitor and join
+/// done.store(true, Ordering::SeqCst);
+/// let _ = handle.join();
+/// ```
 fn monitor_timeout(
     child_id: u32,
     timeout: Duration,
