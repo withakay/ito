@@ -246,9 +246,8 @@ pub fn ensure_coordination_branch_on_origin_core(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // `runner` must implement `ProcessRunner`.
-/// // This example demonstrates the call pattern; `runner` must be provided by the caller.
 /// use std::path::Path;
 /// let _ = ensure_coordination_branch_on_origin_with_runner(&runner, Path::new("/path/to/repo"), "coordination").unwrap();
 /// ```

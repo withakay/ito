@@ -121,6 +121,8 @@ impl CoreError {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::errors::CoreError;
+    ///
     /// let err = CoreError::sqlite("database locked");
     /// let CoreError::Sqlite(msg) = err else {
     ///     panic!("expected Sqlite variant");
