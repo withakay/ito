@@ -93,6 +93,22 @@ fn init_help_prints_usage() {
     assert!(out.stdout.contains("Usage: ito init"));
 }
 
+/// Checks whether a Git reference exists in the specified repository directory.
+///
+/// `remote` should point at a Git directory (commonly a bare repository path).
+/// `reference` is the full ref name (for example `refs/heads/main`) or a short ref accepted by `git show-ref`.
+///
+/// # Returns
+///
+/// `true` if the reference exists in the given repository, `false` otherwise.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// let exists = remote_has_ref(Path::new("/path/to/bare.git"), "refs/heads/main");
+/// println!("ref exists: {}", exists);
+/// ```
 fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
     let output = std::process::Command::new("git")
         .args([
@@ -192,6 +208,18 @@ fn init_setup_coordination_branch_reports_ready_when_already_present() {
     );
 }
 
+/// Verifies that `ito init --setup-coordination-branch` fails when the repository has no `origin` remote configured.
+///
+/// The test initializes a repository with an initial commit but does not add any remotes,
+/// then runs `ito init` with `--setup-coordination-branch` and expects a non-zero exit code.
+/// It also asserts the stderr contains both "Failed to set up coordination branch" and "not configured".
+///
+/// # Examples
+///
+/// ```no_run
+/// // This test is intended to be run within the crate's test harness and requires
+/// // repository setup provided by the fixtures used in the test suite.
+/// ```
 #[test]
 fn init_setup_coordination_branch_fails_without_origin_remote() {
     let base = fixtures::make_empty_repo();
@@ -260,6 +288,18 @@ fn init_setup_coordination_branch_uses_configured_branch_name() {
     ));
 }
 
+/// Verifies that a comma-separated list of tool IDs installs only the selected adapters.
+///
+/// Runs an initialization with `--tools "claude,codex"` and asserts that repository files
+/// for the Claude and Codex adapters are created and that files for an unselected adapter
+/// (OpenCode) are not present.
+///
+/// # Examples
+///
+/// ```
+/// // Initialize with selected adapters and verify created artifacts:
+/// // ito init <repo> --tools "claude,codex"
+/// ```
 #[test]
 fn init_with_tools_csv_installs_selected_adapters() {
     let base = fixtures::make_empty_repo();

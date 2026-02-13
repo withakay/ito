@@ -44,6 +44,16 @@ pub enum CoordinationBranchSetupStatus {
 }
 
 impl CoordinationGitError {
+    /// Create a `CoordinationGitError` with the given kind and human-readable message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let _err: CoordinationGitError = CoordinationGitError::new(
+    ///     CoordinationGitErrorKind::RemoteMissing,
+    ///     "origin/ref not found",
+    /// );
+    /// ```
     fn new(kind: CoordinationGitErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -75,10 +85,21 @@ pub fn push_coordination_branch(
     push_coordination_branch_with_runner(&runner, repo_root, local_ref, branch)
 }
 
-/// Reserves a newly created change directory on the coordination branch.
+/// Reserves a newly created change on the coordination branch using an ephemeral worktree.
 ///
-/// The reservation is performed in an ephemeral worktree so the caller's active
-/// branch/worktree is not modified.
+/// The reservation is written in a temporary worktree so the caller's current worktree and branch are not modified.
+/// Returns `Ok(())` on success or a `CoordinationGitError` describing the failure.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let repo = Path::new("/path/to/repo");
+/// let ito = Path::new(".ito");
+/// let change_id = "change-123";
+/// let branch = "coordination";
+/// ito_core::git::reserve_change_on_coordination_branch(repo, ito, change_id, branch).unwrap();
+/// ```
 pub fn reserve_change_on_coordination_branch(
     repo_root: &Path,
     ito_path: &Path,
@@ -93,9 +114,20 @@ pub fn reserve_change_on_coordination_branch(
 
 /// Ensures the coordination branch exists on `origin`.
 ///
-/// Returns [`CoordinationBranchSetupStatus::Ready`] when the branch already
-/// exists. Returns [`CoordinationBranchSetupStatus::Created`] when setup created
-/// the branch by pushing `HEAD`.
+/// If the branch is already present on the remote, this returns `CoordinationBranchSetupStatus::Ready`.
+/// If the branch is missing and is created by pushing the local `HEAD`, this returns `CoordinationBranchSetupStatus::Created`.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// let status = ito_core::git::ensure_coordination_branch_on_origin(Path::new("."), "coordination-branch");
+/// match status {
+///     Ok(ito_core::git::CoordinationBranchSetupStatus::Ready) => println!("Branch already exists"),
+///     Ok(ito_core::git::CoordinationBranchSetupStatus::Created) => println!("Branch created on origin"),
+///     Err(e) => eprintln!("Failed to ensure branch: {:?}", e),
+/// }
+/// ```
 pub fn ensure_coordination_branch_on_origin(
     repo_root: &Path,
     branch: &str,
@@ -104,7 +136,20 @@ pub fn ensure_coordination_branch_on_origin(
     ensure_coordination_branch_on_origin_with_runner(&runner, repo_root, branch)
 }
 
-/// CoreResult wrapper for fetching a coordination branch.
+/// Fetches the coordination branch from the `origin` remote and maps git errors into `CoreError`.
+///
+/// # Returns
+///
+/// `Ok(())` if the coordination branch was fetched successfully, `Err(CoreError)` otherwise.
+///
+/// # Examples
+///
+/// ```no_run
+/// let result = fetch_coordination_branch_core(std::path::Path::new("."), "coordination");
+/// if result.is_ok() {
+///     println!("Fetched coordination branch");
+/// }
+/// ```
 pub fn fetch_coordination_branch_core(repo_root: &Path, branch: &str) -> CoreResult<()> {
     fetch_coordination_branch(repo_root, branch)
         .map_err(|err| CoreError::process(format!("coordination fetch failed: {}", err.message)))
@@ -120,7 +165,21 @@ pub fn push_coordination_branch_core(
         .map_err(|err| CoreError::process(format!("coordination push failed: {}", err.message)))
 }
 
-/// CoreResult wrapper for reserving change metadata on the coordination branch.
+/// Reserves change metadata on the coordination branch, mapping any coordination git errors into a `CoreError`.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+///
+/// // Attempt to reserve change metadata; result is a CoreResult<()>
+/// let _ = ito_core::git::reserve_change_on_coordination_branch_core(
+///     Path::new("/path/to/repo"),
+///     Path::new(".ito"),
+///     "CHANGE-123",
+///     "coordination",
+/// );
+/// ```
 pub fn reserve_change_on_coordination_branch_core(
     repo_root: &Path,
     ito_path: &Path,
@@ -132,10 +191,29 @@ pub fn reserve_change_on_coordination_branch_core(
     })
 }
 
-/// CoreResult wrapper for adapter-layer coordination branch setup.
+/// Ensure the coordination branch exists on the remote origin and return its setup status as a `CoreResult`.
 ///
-/// Use this wrapper from command flows that need `CoreError` surfaces instead of
-/// raw [`CoordinationGitError`] values.
+/// This function delegates to `ensure_coordination_branch_on_origin` and converts any `CoordinationGitError`
+/// into a `CoreError` with a process-failure message.
+///
+/// # Arguments
+///
+/// * `repo_root` - Path to the repository root.
+/// * `branch` - Coordination branch name to ensure on origin.
+///
+/// # Returns
+///
+/// `Ok(CoordinationBranchSetupStatus)` if the branch is present or was created; `Err(CoreError)` if the operation failed.
+///
+/// # Examples
+///
+/// ```
+/// let status = ensure_coordination_branch_on_origin_core(Path::new("."), "coordination/main")?;
+/// match status {
+///     CoordinationBranchSetupStatus::Ready => println!("Branch exists on origin"),
+///     CoordinationBranchSetupStatus::Created => println!("Branch was created on origin"),
+/// }
+/// ```
 pub fn ensure_coordination_branch_on_origin_core(
     repo_root: &Path,
     branch: &str,
@@ -144,6 +222,22 @@ pub fn ensure_coordination_branch_on_origin_core(
         .map_err(|err| CoreError::process(format!("coordination setup failed: {}", err.message)))
 }
 
+/// Ensures the coordination branch exists on the remote `origin`, creating it by pushing `HEAD` if necessary.
+///
+/// Attempts to fetch `origin/<branch>`; if the fetch succeeds the function returns
+/// `CoordinationBranchSetupStatus::Ready`. If the fetch fails because the remote ref is
+/// missing, the function pushes `HEAD` to `origin` to create the branch and returns
+/// `CoordinationBranchSetupStatus::Created`. The function returns an `Err` if it is not
+/// invoked inside a git worktree or if the underlying fetch/push fail for other reasons.
+///
+/// # Examples
+///
+/// ```
+/// // `runner` must implement `ProcessRunner`.
+/// // This example demonstrates the call pattern; `runner` must be provided by the caller.
+/// use std::path::Path;
+/// let _ = ensure_coordination_branch_on_origin_with_runner(&runner, Path::new("/path/to/repo"), "coordination").unwrap();
+/// ```
 pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
     runner: &dyn ProcessRunner,
     repo_root: &Path,
@@ -169,6 +263,26 @@ pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
     }
 }
 
+/// Fetches the coordination branch from `origin` into the repository's remote-tracking refs.
+///
+/// If the remote branch is missing the function returns a `CoordinationGitError` with kind
+/// `RemoteMissing`. If the `origin` remote is not configured or not reachable the error kind
+/// is `RemoteNotConfigured`. All other failures produce a `CommandFailed` error with the command
+/// output included in the error message.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::Path;
+/// // Assume `SystemProcessRunner` implements `ProcessRunner`
+/// let runner = SystemProcessRunner::new();
+/// let repo = Path::new("/path/to/repo");
+/// let result = fetch_coordination_branch_with_runner(&runner, repo, "coordination");
+/// match result {
+///     Ok(()) => println!("Fetched coordination branch"),
+///     Err(e) => eprintln!("Failed to fetch coordination branch: {:?}", e),
+/// }
+/// ```
 pub(crate) fn fetch_coordination_branch_with_runner(
     runner: &dyn ProcessRunner,
     repo_root: &Path,
@@ -209,6 +323,32 @@ pub(crate) fn fetch_coordination_branch_with_runner(
     ))
 }
 
+/// Pushes a local ref to the coordination branch on the `origin` remote.
+///
+/// The `local_ref` is pushed to `refs/heads/<branch>` on the `origin` remote. The function
+/// validates the branch name before attempting the push and classifies failures into
+/// meaningful `CoordinationGitErrorKind` variants.
+///
+/// # Parameters
+///
+/// - `repo_root`: repository working directory where the git command is executed.
+/// - `local_ref`: source ref to push (for example `"HEAD"` or `"refs/heads/my-branch"`).
+/// - `branch`: target coordination branch name on `origin`.
+///
+/// # Returns
+///
+/// `Ok(())` if the push succeeded; `Err(CoordinationGitError)` on failure with a kind that
+/// indicates the failure reason (for example: non-fast-forward, protected branch, remote rejected,
+/// remote not configured, or a general command failure).
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// // `runner` should implement ProcessRunner; `repo_root` should point to a git repository.
+/// // push_coordination_branch_with_runner(&runner, Path::new("/path/to/repo"), "HEAD", "coordination")
+/// //     .expect("push should succeed");
+/// ```
 pub(crate) fn push_coordination_branch_with_runner(
     runner: &dyn ProcessRunner,
     repo_root: &Path,

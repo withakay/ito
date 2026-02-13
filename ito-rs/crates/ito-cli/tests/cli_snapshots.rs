@@ -12,6 +12,23 @@ fn make_fixture_repo() -> tempfile::TempDir {
     td
 }
 
+/// Normalizes version text by replacing concrete versions with `<VERSION>` and removing debug or placeholder suffixes.
+///
+/// This replaces the workspace build version (when `ITO_WORKSPACE_VERSION` is present) and the package version
+/// (`CARGO_PKG_VERSION`) with `"<VERSION>"`. If the resulting text contains a trailing suffix of the form
+/// `" (<git-sha>)"`, `" (<git-sha>-dirty)"`, or `" (VERGEN_...)"`, that suffix and the preceding space and
+/// parentheses are removed.
+///
+/// # Examples
+///
+/// ```
+/// let s = "ito 1.2.3 (abc1234-dirty)".to_string();
+/// assert_eq!(normalize_version(s), "ito <VERSION>");
+///
+/// let s2 = "ito 1.2.3".to_string();
+/// // package/workspace version replaced
+/// assert_eq!(normalize_version(s2), "ito <VERSION>");
+/// ```
 fn normalize_version(text: String) -> String {
     // The CLI prints the workspace version (via build.rs) when available.
     // Debug builds also include git SHA suffix like "(abc1234-dirty)".
