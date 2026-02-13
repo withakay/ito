@@ -339,6 +339,16 @@ prek install -f
 make build
 make test
 make lint
+make docs-site-check
+```
+
+### Docs Site
+
+Build and serve the MkDocs site (includes Rust API docs generated via `mkdocs-rustdoc-plugin`):
+
+```bash
+make docs-site-build
+make docs-site-serve
 make bacon
 ```
 

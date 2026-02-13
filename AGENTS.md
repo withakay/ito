@@ -93,6 +93,25 @@ ito/                          # bare/control repo root
    ```
 4. **All git commands must be run from inside a worktree** (e.g., `main/` or `ito-worktrees/<branch>/`), not from the bare repo root, unless you are managing worktrees themselves.
 
+### Testing Changes in Worktrees
+
+When developing in a worktree, **always use the binary built in that worktree's target directory**, not the root workspace binary:
+
+```bash
+# ✅ Correct: Use the worktree's binary
+cd ito-worktrees/<branch-name>
+cargo build -p ito-cli
+./target/debug/ito <command>
+
+# ❌ Wrong: Using root workspace binary (old code)
+cd /path/to/root
+./target/debug/ito <command>
+```
+
+**Why this matters**: The root workspace's `target/` directory contains binaries from the `main` branch. When you build in a worktree, cargo creates a separate `target/` directory in that worktree with the new code. Using the wrong binary means testing old code, not your changes.
+
+**Common mistake**: Running tests or manual commands with the root binary and concluding that changes don't work, when they actually do work in the worktree binary.
+
 ## Architecture
 
 See [`.ito/architecture.md`](.ito/architecture.md) for the full architectural guidelines, including the layered (onion) architecture, crate structure, dependency rules, domain purity constraints, design patterns, and quality enforcement.

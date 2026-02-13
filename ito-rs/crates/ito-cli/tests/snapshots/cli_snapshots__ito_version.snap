@@ -1,5 +1,6 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
-expression: normalize_version(rs.stdout)
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 66
+expression: "snapshot(&[\"--version\"])"
 ---
 <VERSION>
