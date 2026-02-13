@@ -17,6 +17,27 @@ use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
+/// Handle the `ito init` command, performing project initialization (interactive or non-interactive).
+///
+/// This parses CLI flags and positional path from `args`, determines the set of tools to configure
+/// (from `--tools` or an interactive multi-select), resolves and optionally persists worktree
+/// configuration, installs default templates, optionally sets up the coordination branch on origin
+/// (when `--setup-coordination-branch` is provided), and prints post-init guidance.
+///
+/// - `rt`: runtime providing application context and services used during initialization.
+/// - `args`: argv-style arguments for the `init` subcommand (e.g., `["--tools", "all"]`). If `--help`
+///   or `-h` is present, long help is printed and the function returns early.
+///
+/// Errors are returned as `CliError` via the function's `CliResult` return type.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Print help and exit
+/// let rt = obtain_runtime();
+/// let args = vec!["--help".to_string()];
+/// handle_init(&rt, &args).unwrap();
+/// ```
 pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
@@ -230,6 +251,33 @@ Learn more: ito --help | ito agent instruction --help
     );
 }
 
+/// Translate CLI-parsed InitArgs into a string-argv form and run the init flow.
+///
+/// This sets the `HOME` environment variable when `args.home` is provided (for parity/testing),
+/// converts present `tools`, `force`, `update`, `setup_coordination_branch`, and `path` fields
+/// into the corresponding CLI-style flags and arguments, and then executes the init handler.
+///
+/// # Examples
+///
+/// ```
+/// // Construct `rt` and `args` appropriately in test setup; this shows the intended usage:
+/// # use crate::{Runtime, InitArgs, handle_init_clap};
+/// # fn make_runtime() -> Runtime { unimplemented!() }
+/// let rt = make_runtime();
+/// let args = InitArgs {
+///     home: None,
+///     tools: Some("all".to_string()),
+///     force: true,
+///     update: false,
+///     setup_coordination_branch: false,
+///     path: Some(".".to_string()),
+/// };
+/// let _ = handle_init_clap(&rt, &args);
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` on success, or an error result if the init flow fails.
 pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     if let Some(home) = &args.home {
         // For parity/testing.

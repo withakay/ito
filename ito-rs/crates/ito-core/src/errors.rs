@@ -100,7 +100,17 @@ impl CoreError {
         }
     }
 
-    /// Build a sqlite error.
+    /// Create a `CoreError::Sqlite` containing the given message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = CoreError::sqlite("database locked");
+    /// match err {
+    ///     CoreError::Sqlite(msg) => assert_eq!(msg, "database locked"),
+    ///     _ => panic!("expected Sqlite variant"),
+    /// }
+    /// ```
     pub fn sqlite(msg: impl Into<String>) -> Self {
         Self::Sqlite(msg.into())
     }
@@ -110,6 +120,20 @@ impl CoreError {
 mod tests {
     use super::*;
 
+    /// Verifies that each `CoreError` helper constructor produces the expected enum variant and contains the correct data.
+    ///
+    /// Constructs every public `CoreError` variant via its respective helper (e.g., `io`, `validation`, `parse`, `process`,
+    /// `not_found`, `serde`, `sqlite`) and asserts both the variant and the values carried by that variant.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let e = CoreError::validation("bad");
+    /// match e {
+    ///     CoreError::Validation(msg) => assert_eq!(msg, "bad"),
+    ///     _ => panic!("expected validation variant"),
+    /// }
+    /// ```
     #[test]
     fn core_error_helpers_construct_expected_variants() {
         let io_err = CoreError::io("read config", io::Error::other("boom"));

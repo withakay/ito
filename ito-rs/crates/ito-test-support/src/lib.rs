@@ -59,6 +59,33 @@ pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path
     run_with_env(&mut cmd, cwd, home)
 }
 
+/// Resolve a usable path to the `ito` candidate binary.
+///
+/// If `program` exists on the filesystem that path is returned. Otherwise the
+/// function attempts the following, in order:
+/// 1. Use the `CARGO_BIN_EXE_ito` environment variable if it points to an existing path.
+/// 2. Inspect the `deps` directory adjacent to `program` for a file whose name
+///    starts with `ito-`, is not an obvious artifact (e.g. `.d`, `.rlib`,
+///    `.rmeta`, `.o`), and appears to be executable for the current platform.
+/// If none of those yield a valid candidate, the original `program` path is
+/// returned unchanged.
+///
+/// # Parameters
+///
+/// - `program`: Path used as the primary candidate and as the anchor for searching
+///   a `deps` directory when the direct path is not present.
+///
+/// # Returns
+///
+/// A `PathBuf` pointing to the resolved candidate executable path; this may be
+/// the original `program` path if no suitable alternative is found.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let _ = crate::resolve_candidate_program(Path::new("target/debug/ito"));
+/// ```
 fn resolve_candidate_program(program: &Path) -> PathBuf {
     if program.exists() {
         return program.to_path_buf();
@@ -106,6 +133,21 @@ fn resolve_candidate_program(program: &Path) -> PathBuf {
     program.to_path_buf()
 }
 
+/// Determines whether the given path looks like an executable file on the current platform.
+///
+/// On Unix this requires the file to exist and have any executable permission bit set.
+/// On non-Unix platforms this accepts files with a case-insensitive `.exe` extension.
+///
+/// # Returns
+///
+/// `true` if the path points to a file that appears executable for the current platform, `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let _ = is_executable_candidate(Path::new("some/path"));
+/// ```
 fn is_executable_candidate(path: &Path) -> bool {
     #[cfg(unix)]
     {
@@ -125,6 +167,23 @@ fn is_executable_candidate(path: &Path) -> bool {
     }
 }
 
+/// Configure and execute a Command with deterministic environment variables and a clean Git-related environment, returning its captured output as `CmdOutput`.
+///
+/// The function sets the working directory to `cwd`, enforces deterministic environment values (e.g. `CI=1`, `NO_COLOR=1`, `TERM=dumb`, `HOME` and `XDG_DATA_HOME`), removes repository-scoped Git environment variables that can leak context into subprocesses, runs the command, and converts the result into a `CmdOutput`.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::process::Command;
+/// use std::path::Path;
+/// // Construct a command (example: `echo`) and run it deterministically.
+/// let mut cmd = Command::new("echo");
+/// cmd.arg("hello");
+/// let cwd = Path::new(".");
+/// let home = Path::new("/tmp");
+/// // `run_with_env` returns a CmdOutput containing exit code, stdout, and stderr.
+/// let _out = crate::run_with_env(&mut cmd, cwd, home);
+/// ```
 fn run_with_env(cmd: &mut Command, cwd: &Path, home: &Path) -> CmdOutput {
     cmd.current_dir(cwd);
 

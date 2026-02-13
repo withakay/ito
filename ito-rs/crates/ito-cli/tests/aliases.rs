@@ -3,6 +3,22 @@ mod support;
 use ito_test_support::run_rust_candidate;
 use support::{make_repo_all_valid, reset_repo};
 
+/// Verifies that top-level CLI aliases resolve to their intended commands and that each alias
+/// produces the expected help text.
+///
+/// The test exercises the `ito` binary using common aliases (`ls`, `cr`, `st`, `sh`, `va`)
+/// and asserts that each alias exits successfully and that the help output contains the
+/// appropriate command description.
+///
+/// # Examples
+///
+/// ```
+/// // Locate the test binary and run the alias help check.
+/// let bin = assert_cmd::cargo::cargo_bin!("ito");
+/// let out = run_rust_candidate(bin, &["ls", "--help"], repo.path(), home.path());
+/// assert_eq!(out.code, 0);
+/// assert!(out.stdout.contains("List changes"));
+/// ```
 #[test]
 fn main_command_aliases_work() {
     let base = make_repo_all_valid();
@@ -54,6 +70,33 @@ fn main_command_aliases_work() {
     );
 }
 
+/// Verifies that top-level command aliases execute and produce the expected JSON output.
+///
+/// Tests two alias executions:
+/// - `ls --json` must succeed and return JSON containing a top-level `changes` field.
+/// - `st --change <name> --json` must succeed and return JSON whose `changeName` equals the requested change.
+///
+/// # Examples
+///
+/// ```
+/// // Example usage (test helpers assumed to be available in this crate):
+/// let base = make_repo_all_valid();
+/// let repo = tempfile::tempdir().unwrap();
+/// let home = tempfile::tempdir().unwrap();
+/// let bin = assert_cmd::cargo::cargo_bin!("ito");
+/// reset_repo(repo.path(), base.path());
+///
+/// let out = run_rust_candidate(bin, &["ls", "--json"], repo.path(), home.path());
+/// assert_eq!(out.code, 0);
+///
+/// let out = run_rust_candidate(
+///     bin,
+///     &["st", "--change", "000-01_test-change", "--json"],
+///     repo.path(),
+///     home.path(),
+/// );
+/// assert_eq!(out.code, 0);
+/// ```
 #[test]
 fn main_command_aliases_execute() {
     let base = make_repo_all_valid();
