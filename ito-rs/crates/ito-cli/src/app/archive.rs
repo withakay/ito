@@ -226,10 +226,19 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
-/// Dispatch the `ito archive` command from parsed clap args.
+/// Dispatches the `ito archive` command from parsed clap arguments.
 ///
-/// Routes to batch mode when `--completed` is set, otherwise archives a single
-/// change via the legacy raw-args handler.
+/// Routes to batch mode when `--completed` is set; otherwise archives a single change
+/// via the legacy raw-args handler.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use crate::{Runtime, ArchiveArgs, handle_archive_clap};
+/// let rt = Runtime::new();
+/// let args = ArchiveArgs { completed: false, change: Some("module-123".into()), ..Default::default() };
+/// handle_archive_clap(&rt, &args).unwrap();
+/// ```
 pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     if args.completed {
         return handle_archive_completed(rt, args);

@@ -17,18 +17,12 @@ use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
-/// Handle the `ito init` command, performing project initialization (interactive or non-interactive).
+/// Initialize a project using the `ito init` command, handling interactive prompts or explicit CLI flags.
 ///
-/// This parses CLI flags and positional path from `args`, determines the set of tools to configure
-/// (from `--tools` or an interactive multi-select), resolves and optionally persists worktree
-/// configuration, installs default templates, optionally sets up the coordination branch on origin
-/// (when `--setup-coordination-branch` is provided), and prints post-init guidance.
-///
-/// - `rt`: runtime providing application context and services used during initialization.
-/// - `args`: argv-style arguments for the `init` subcommand (e.g., `["--tools", "all"]`). If `--help`
-///   or `-h` is present, long help is printed and the function returns early.
-///
-/// Errors are returned as `CliError` via the function's `CliResult` return type.
+/// This parses the provided `args` for flags and a target path, determines which tooling to configure
+/// (from `--tools` or an interactive selection), resolves and optionally persists worktree configuration,
+/// installs the default templates, optionally ensures the coordination branch exists on origin
+/// when `--setup-coordination-branch` is given, and prints post‑initialization guidance.
 ///
 /// # Examples
 ///
@@ -202,7 +196,12 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     if setup_coordination_branch {
         let ito_path = ito_dir::get_ito_path(target_path, ctx);
-        let project_root = ito_path.parent().ok_or_else(|| CliError::msg(format!("Could not determine project root from Ito path: {}", ito_path.display())))?;
+        let project_root = ito_path.parent().ok_or_else(|| {
+            CliError::msg(format!(
+                "Could not determine project root from Ito path: {}",
+                ito_path.display()
+            ))
+        })?;
         let merged = load_cascading_project_config(project_root, &ito_path, ctx).merged;
         let (_, coord_branch) = resolve_coordination_branch_settings(&merged);
         let setup_result = ensure_coordination_branch_on_origin(project_root, &coord_branch)
@@ -228,6 +227,18 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
+/// Prints post-initialization guidance showing where Ito was initialized and suggested next steps.
+///
+/// The message lists the target location, instructions for running the project setup via the AI assistant,
+/// and paths to common configuration and documentation files.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// // Print guidance for the current directory
+/// print_post_init_guidance(Path::new("."));
+/// ```
 fn print_post_init_guidance(target_path: &std::path::Path) {
     let target_display = if target_path == std::path::Path::new(".") {
         "current directory".to_string()
@@ -251,16 +262,15 @@ Learn more: ito --help | ito agent instruction --help
     );
 }
 
-/// Translate CLI-parsed InitArgs into a string-argv form and run the init flow.
+/// Convert parsed `InitArgs` into CLI-style argv, optionally override `HOME`, and run the init flow.
 ///
-/// This sets the `HOME` environment variable when `args.home` is provided (for parity/testing),
-/// converts present `tools`, `force`, `update`, `setup_coordination_branch`, and `path` fields
-/// into the corresponding CLI-style flags and arguments, and then executes the init handler.
+/// If `args.home` is provided, the `HOME` environment variable is set to that value. The function
+/// translates the present `tools`, `force`, `update`, `setup_coordination_branch`, and `path` fields
+/// into their corresponding CLI flags and arguments, then delegates to `handle_init`.
 ///
 /// # Examples
 ///
 /// ```
-/// // Construct `rt` and `args` appropriately in test setup; this shows the intended usage:
 /// # use crate::{Runtime, InitArgs, handle_init_clap};
 /// # fn make_runtime() -> Runtime { unimplemented!() }
 /// let rt = make_runtime();
@@ -277,7 +287,7 @@ Learn more: ito --help | ito agent instruction --help
 ///
 /// # Returns
 ///
-/// `Ok(())` on success, or an error result if the init flow fails.
+/// `Ok(())` on success, or a `CliError` if the init flow fails.
 pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     if let Some(home) = &args.home {
         // For parity/testing.

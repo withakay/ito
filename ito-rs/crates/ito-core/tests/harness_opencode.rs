@@ -2,7 +2,10 @@
 // The underlying harness code is cross-platform; only the test scaffolding is Unix-specific.
 #![cfg(unix)]
 
-use ito_core::harness::{Harness, HarnessRunConfig, OpencodeHarness};
+use ito_core::harness::{
+    ClaudeCodeHarness, CodexHarness, GitHubCopilotHarness, Harness, HarnessRunConfig,
+    OpencodeHarness,
+};
 use std::collections::BTreeMap;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, OnceLock};
@@ -78,6 +81,7 @@ fn opencode_harness_runs_opencode_binary_and_returns_outputs() {
             cwd: dir.path().to_path_buf(),
             env: BTreeMap::new(),
             interactive: false,
+            allow_all: false,
             inactivity_timeout: None,
         })
         .unwrap();
@@ -108,9 +112,143 @@ fn opencode_harness_errors_when_opencode_missing() {
             cwd: dir.path().to_path_buf(),
             env: BTreeMap::new(),
             interactive: false,
+            allow_all: false,
             inactivity_timeout: None,
         })
         .expect_err("should error");
 
     assert!(err.to_string().contains("Failed to spawn opencode"));
+}
+
+/// Verifies that `ClaudeCodeHarness` passes `--model`, `--dangerously-skip-permissions`, and the prompt flag when invoking the `claude` binary.
+///
+/// # Examples
+///
+/// ```
+/// // This test creates a temporary `claude` executable that prints its arguments,
+/// // prepends its directory to PATH, and asserts that the harness invokes it with
+/// // the expected flags.
+///
+/// let dir = tempfile::tempdir().unwrap();
+/// let bin = dir.path().join("claude");
+/// write_executable(
+///     &bin,
+///     "#!/bin/sh\n\necho \"STDOUT:$@\"\nexit 0\n",
+/// );
+///
+/// let _path_guard = PathGuard::prepend(dir.path());
+///
+/// let mut h = ClaudeCodeHarness;
+/// let r = h
+///     .run(&HarnessRunConfig {
+///         prompt: "hello".to_string(),
+///         model: Some("m1".to_string()),
+///         cwd: dir.path().to_path_buf(),
+///         env: BTreeMap::new(),
+///         interactive: false,
+///         allow_all: true,
+///         inactivity_timeout: None,
+///     })
+///     .unwrap();
+///
+/// assert!(r.stdout.contains("--model m1 --dangerously-skip-permissions -p hello"));
+/// ```
+#[test]
+fn claude_harness_passes_model_and_allow_all_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("claude");
+    write_executable(
+        &bin,
+        "#!/bin/sh\n\n# Print args so test can validate wiring.\necho \"STDOUT:$@\"\nexit 0\n",
+    );
+
+    let _path_guard = PathGuard::prepend(dir.path());
+
+    let mut h = ClaudeCodeHarness;
+    let r = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: Some("m1".to_string()),
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: true,
+            inactivity_timeout: None,
+        })
+        .unwrap();
+
+    assert!(
+        r.stdout
+            .contains("STDOUT:--model m1 --dangerously-skip-permissions -p hello"),
+        "unexpected stdout/stderr/exit_code: stdout={:?} stderr={:?} exit_code={}",
+        r.stdout,
+        r.stderr,
+        r.exit_code
+    );
+}
+
+#[test]
+fn codex_harness_passes_model_and_allow_all_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("codex");
+    write_executable(
+        &bin,
+        "#!/bin/sh\n\n# Print args so test can validate wiring.\necho \"STDOUT:$@\"\nexit 0\n",
+    );
+
+    let _path_guard = PathGuard::prepend(dir.path());
+
+    let mut h = CodexHarness;
+    let r = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: Some("m1".to_string()),
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: true,
+            inactivity_timeout: None,
+        })
+        .unwrap();
+
+    assert!(
+        r.stdout.contains("STDOUT:exec --model m1 --yolo hello"),
+        "unexpected stdout/stderr/exit_code: stdout={:?} stderr={:?} exit_code={}",
+        r.stdout,
+        r.stderr,
+        r.exit_code
+    );
+}
+
+#[test]
+fn github_copilot_harness_passes_model_and_allow_all_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("copilot");
+    write_executable(
+        &bin,
+        "#!/bin/sh\n\n# Print args so test can validate wiring.\necho \"STDOUT:$@\"\nexit 0\n",
+    );
+
+    let _path_guard = PathGuard::prepend(dir.path());
+
+    let mut h = GitHubCopilotHarness;
+    let r = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: Some("m1".to_string()),
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: true,
+            inactivity_timeout: None,
+        })
+        .unwrap();
+
+    assert!(
+        r.stdout.contains("STDOUT:--model m1 --yolo -p hello"),
+        "unexpected stdout/stderr/exit_code: stdout={:?} stderr={:?} exit_code={}",
+        r.stdout,
+        r.stderr,
+        r.exit_code
+    );
 }

@@ -10,8 +10,44 @@ pub struct HarnessName(pub &'static str);
 impl HarnessName {
     /// The OpenCode harness.
     pub const OPENCODE: HarnessName = HarnessName("opencode");
-    /// The stub harness.
+    /// The Claude Code harness.
+    pub const CLAUDE: HarnessName = HarnessName("claude");
+    /// The OpenAI Codex harness.
+    pub const CODEX: HarnessName = HarnessName("codex");
+    /// The GitHub Copilot harness (canonical internal name).
+    pub const GITHUB_COPILOT: HarnessName = HarnessName("github-copilot");
+    /// The GitHub Copilot harness (user-facing alias).
+    pub const COPILOT: HarnessName = HarnessName("copilot");
+    /// The stub harness (testing only, not user-facing).
     pub const STUB: HarnessName = HarnessName("stub");
+
+    /// User-facing harness names, suitable for CLI help text.
+    ///
+    /// Does not include `stub` (testing only) or internal aliases
+    /// like `github-copilot`.
+    pub const USER_FACING: &[&str] = &["opencode", "claude", "codex", "copilot"];
+
+    /// Help text for the `--harness` CLI flag.
+    ///
+    /// Update [`USER_FACING`](Self::USER_FACING) when adding a new harness;
+    /// this string and the CLI help derive from it.
+    pub const HARNESS_HELP: &str = "Harness to run [opencode, claude, codex, copilot]";
+
+    /// Formats the user-facing harness names for display in CLI help.
+    ///
+    /// Returns a single `String` containing the entries in `USER_FACING` joined by `, `
+    /// and wrapped in square brackets (for example: `"[opencode, claude, codex, copilot]"`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let txt = ito_core::harness::HarnessName::help_text();
+    /// assert!(txt.starts_with('[') && txt.ends_with(']'));
+    /// assert!(txt.contains("opencode"));
+    /// ```
+    pub fn help_text() -> String {
+        format!("[{}]", Self::USER_FACING.join(", "))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +63,8 @@ pub struct HarnessRunConfig {
     pub env: BTreeMap<String, String>,
     /// Whether the invocation should run in interactive mode.
     pub interactive: bool,
+    /// Whether tool approval and permission prompts should be bypassed.
+    pub allow_all: bool,
     /// Inactivity timeout - if no output is received for this duration, the harness should terminate.
     pub inactivity_timeout: Option<Duration>,
 }
@@ -57,10 +95,43 @@ pub trait Harness {
     /// Stop any in-flight execution (best-effort).
     fn stop(&mut self);
 
-    /// Returns true if the harness streams output in real-time during `run()`.
-    /// When true, the caller should NOT print stdout/stderr after run completes
-    /// as it has already been streamed.
+    /// Indicates whether the harness streams stdout/stderr in real time during `run`.
+    ///
+    /// When this returns `true`, callers should not print captured stdout or stderr after
+    /// `run` completes because output has already been delivered to the caller in real time.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// struct Dummy;
+    /// impl super::Harness for Dummy {
+    ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
+    ///     fn run(&mut self, _config: &super::HarnessRunConfig) -> miette::Result<super::HarnessRunResult> {
+    ///         unimplemented!()
+    ///     }
+    ///     fn streams_output(&self) -> bool { false }
+    ///     fn stop(&mut self) {}
+    /// }
+    ///
+    /// let d = Dummy;
+    /// assert!(!d.streams_output());
+    /// ```
     fn streams_output(&self) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn harness_help_matches_user_facing() {
+        let expected = format!("Harness to run [{}]", HarnessName::USER_FACING.join(", "));
+        assert_eq!(
+            HarnessName::HARNESS_HELP,
+            expected,
+            "HARNESS_HELP is out of sync with USER_FACING — update both when adding a harness"
+        );
     }
 }

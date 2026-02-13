@@ -1086,7 +1086,7 @@ pub struct RalphArgs {
     pub continue_ready: bool,
 
     /// Harness to run
-    #[arg(long, default_value = "opencode")]
+    #[arg(long, default_value = "opencode", long_help = ito_core::harness::HarnessName::HARNESS_HELP)]
     pub harness: String,
 
     /// Model id for the harness

@@ -321,6 +321,52 @@ fn ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
     assert!(out.stderr.contains("000-03_draft"), "stderr={}", out.stderr);
 }
 
+/// Verifies Ralph can run using `--file` for an unscoped prompt (no change or module).
+///
+/// Confirms the command exits successfully, prints a message indicating an unscoped run,
+/// and writes state to `.ito/.state/ralph/unscoped/state.json`.
+///
+/// # Examples
+///
+/// ```
+/// // This test sets up a temporary repo and prompt file, then runs the `ito ralph` flow
+/// // with the stub harness and `--file prompt.md`. It asserts success and the presence
+/// // of the unscoped state file.
+/// fn example_unscoped_file_run() {
+///     let base = make_base_repo();
+///     let repo = tempfile::tempdir().unwrap();
+///     let home = tempfile::tempdir().unwrap();
+///     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+///
+///     reset_repo(repo.path(), base.path());
+///     write(repo.path().join("prompt.md"), "do work\n");
+///
+///     let out = run_rust_candidate(
+///         rust_path,
+///         &[
+///             "ralph",
+///             "--harness",
+///             "stub",
+///             "--no-commit",
+///             "--no-interactive",
+///             "--skip-validation",
+///             "--min-iterations",
+///             "1",
+///             "--max-iterations",
+///             "1",
+///             "--file",
+///             "prompt.md",
+///         ],
+///         repo.path(),
+///         home.path(),
+///     );
+///     assert_eq!(out.code, 0);
+///     assert!(out.stdout.contains("Starting Ralph for unscoped"));
+///
+///     let state_path = repo.path().join(".ito/.state/ralph/unscoped/state.json");
+///     assert!(state_path.exists());
+/// }
+/// ```
 #[test]
 fn ralph_file_flag_runs_without_change_or_module() {
     let base = make_base_repo();
@@ -355,4 +401,74 @@ fn ralph_file_flag_runs_without_change_or_module() {
 
     let state_path = repo.path().join(".ito/.state/ralph/unscoped/state.json");
     assert!(state_path.exists());
+}
+
+/// Verifies the status flow accepts multiple harness names without failing.
+///
+/// Runs the `ito ralph --status` command for each harness in ["claude", "codex", "github-copilot", "copilot"]
+/// against a prepared test repository and asserts each invocation exits with code `0`.
+///
+/// # Examples
+///
+/// ```
+/// // The test sets up temporary repositories and invokes the `ito` binary for each harness:
+/// ralph_accepts_new_harness_names_for_status_flow();
+/// ```
+#[test]
+fn ralph_accepts_new_harness_names_for_status_flow() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    for harness in ["claude", "codex", "github-copilot", "copilot"] {
+        let out = run_rust_candidate(
+            rust_path,
+            &[
+                "ralph",
+                "--change",
+                "000-01_test-change",
+                "--harness",
+                harness,
+                "--status",
+                "--no-interactive",
+            ],
+            repo.path(),
+            home.path(),
+        );
+        assert_eq!(out.code, 0, "harness={} stderr={}", harness, out.stderr);
+    }
+}
+
+#[test]
+fn ralph_unknown_harness_returns_clear_error() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "000-01_test-change",
+            "--harness",
+            "does-not-exist",
+            "--status",
+            "--no-interactive",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stderr.contains("Unknown harness: does-not-exist"),
+        "stderr={}",
+        out.stderr
+    );
 }

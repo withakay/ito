@@ -80,6 +80,21 @@ fn init_writes_config_with_release_tag_schema_reference() {
     );
 }
 
+/// Verifies that `ito init --help` prints the command usage header.
+///
+/// # Examples
+///
+/// ```
+/// let repo = tempfile::tempdir().unwrap();
+/// let home = tempfile::tempdir().unwrap();
+/// let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+///
+/// fixtures::write(repo.path().join("README.md"), "# temp\n");
+///
+/// let out = run_rust_candidate(rust_path, &["init", "--help"], repo.path(), home.path());
+/// assert_eq!(out.code, 0);
+/// assert!(out.stdout.contains("Usage: ito init"));
+/// ```
 #[test]
 fn init_help_prints_usage() {
     let repo = tempfile::tempdir().expect("work");
@@ -93,10 +108,10 @@ fn init_help_prints_usage() {
     assert!(out.stdout.contains("Usage: ito init"));
 }
 
-/// Checks whether a Git reference exists in the specified repository directory.
+/// Determine whether a Git reference exists in the specified repository directory.
 ///
 /// `remote` should point at a Git directory (commonly a bare repository path).
-/// `reference` is the full ref name (for example `refs/heads/main`) or a short ref accepted by `git show-ref`.
+/// `reference` is the full ref name (for example `refs/heads/main`) or any ref string accepted by `git show-ref`.
 ///
 /// # Returns
 ///
@@ -106,6 +121,7 @@ fn init_help_prints_usage() {
 ///
 /// ```no_run
 /// use std::path::Path;
+///
 /// let exists = remote_has_ref(Path::new("/path/to/bare.git"), "refs/heads/main");
 /// println!("ref exists: {}", exists);
 /// ```

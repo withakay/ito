@@ -157,6 +157,20 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
     }
 }
 
+/// Builds a deterministic minimal argument vector for initializing the repository tooling.
+///
+/// The returned vector contains, in order: `"init"`, the provided repository path as a string, `"--tools"`, and `"none"`.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let args = init_minimal_args(Path::new("/repo"));
+/// assert_eq!(
+///     args,
+///     vec!["init".to_string(), "/repo".to_string(), "--tools".to_string(), "none".to_string()]
+/// );
+/// ```
 pub(crate) fn init_minimal_args(repo_path: &Path) -> Vec<String> {
     // Keep args deterministic and avoid interactive prompts.
     vec![
@@ -167,9 +181,9 @@ pub(crate) fn init_minimal_args(repo_path: &Path) -> Vec<String> {
     ]
 }
 
-/// Converts a slice of owned `String` values into a `Vec<&str>` that borrows from them.
+/// Create a vector of string slices that borrow from the provided Strings.
 ///
-/// The resulting vector contains `&str` slices referencing the provided `String` values.
+/// The returned vector contains `&str` slices that reference the input `String` values.
 ///
 /// # Examples
 ///
@@ -213,25 +227,31 @@ fn run_git(repo: &Path, args: &[&str]) {
     );
 }
 
-/// Initialize a git repository at `repo`, set a test user identity, stage `README.md` if present, and create an initial commit.
+/// Initialize a git repository at `repo`, configure a test user identity, stage `README.md` if present, and create an initial commit.
 ///
 /// # Examples
 ///
 /// ```
 /// use std::fs;
 /// use tempfile::tempdir;
+///
 /// let td = tempdir().unwrap();
 /// let repo = td.path();
 /// fs::write(repo.join("README.md"), "hello").unwrap();
-/// // crate-local test helper; adjust path as needed when using from tests
+///
+/// // crate-local test helper
 /// ito_cli::tests::support::git_init_with_initial_commit(repo);
+///
 /// assert!(repo.join(".git").exists());
 /// ```
 pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test User"]);
-    run_git(repo, &["add", "README.md"]);
+    let readme = repo.join("README.md");
+    if readme.exists() {
+        run_git(repo, &["add", "README.md"]);
+    }
     run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
 }
 

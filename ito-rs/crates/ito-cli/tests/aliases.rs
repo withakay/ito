@@ -131,6 +131,14 @@ fn main_command_aliases_execute() {
     );
 }
 
+/// Verifies that the `cr` subcommand aliases resolve to the intended `create` subcommands and show correct help text.
+///
+/// # Examples
+///
+/// ```
+/// // This demonstrates the test invocation; running the test harness executes the assertions.
+/// subcommand_aliases_work();
+/// ```
 #[test]
 fn subcommand_aliases_work() {
     let base = make_repo_all_valid();
