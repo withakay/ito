@@ -2,8 +2,9 @@ use super::streaming_cli::run_streaming_cli;
 use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use miette::Result;
 
+/// Runs the `claude` CLI in non-interactive print mode (`claude -p`).
+/// Selected via `ito ralph --harness claude`; requires the Claude Code CLI on PATH.
 #[derive(Debug, Default)]
-/// Harness implementation that executes the `claude` CLI.
 pub struct ClaudeCodeHarness;
 
 impl Harness for ClaudeCodeHarness {

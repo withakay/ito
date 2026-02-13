@@ -1,6 +1,6 @@
 use super::types::{HarnessRunConfig, HarnessRunResult};
 use miette::{Result, miette};
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -91,23 +91,30 @@ fn stream_pipe(
     is_stdout: bool,
 ) -> String {
     let mut collected = String::new();
-    if let Some(pipe) = pipe {
-        let reader = BufReader::new(pipe);
-        for line in reader.lines().map_while(Result::ok) {
+    if let Some(mut pipe) = pipe {
+        let mut buf = [0u8; 4096];
+        loop {
+            let n = match pipe.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(_) => break,
+            };
+
             if let Ok(mut last) = last_activity.lock() {
                 *last = Instant::now();
             }
 
+            let chunk = String::from_utf8_lossy(&buf[..n]);
+
             if is_stdout {
-                println!("{}", line);
+                print!("{}", chunk);
                 let _ = std::io::stdout().flush();
             } else {
-                eprintln!("{}", line);
+                eprint!("{}", chunk);
                 let _ = std::io::stderr().flush();
             }
 
-            collected.push_str(&line);
-            collected.push('\n');
+            collected.push_str(&chunk);
         }
     }
     collected

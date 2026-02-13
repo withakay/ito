@@ -231,7 +231,10 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test User"]);
-    run_git(repo, &["add", "README.md"]);
+    let readme = repo.join("README.md");
+    if readme.exists() {
+        run_git(repo, &["add", "README.md"]);
+    }
     run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
 }
 

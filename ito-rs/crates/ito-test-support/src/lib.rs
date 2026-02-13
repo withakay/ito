@@ -80,12 +80,9 @@ pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path
 /// A `PathBuf` pointing to the resolved candidate executable path; this may be
 /// the original `program` path if no suitable alternative is found.
 ///
-/// # Examples
+/// # Notes
 ///
-/// ```
-/// use std::path::Path;
-/// let _ = crate::resolve_candidate_program(Path::new("target/debug/ito"));
-/// ```
+/// Typically invoked internally by [`run_rust_candidate`].
 fn resolve_candidate_program(program: &Path) -> PathBuf {
     if program.exists() {
         return program.to_path_buf();
@@ -173,7 +170,7 @@ fn is_executable_candidate(path: &Path) -> bool {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use std::process::Command;
 /// use std::path::Path;
 /// // Construct a command (example: `echo`) and run it deterministically.

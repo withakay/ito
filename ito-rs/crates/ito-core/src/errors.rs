@@ -106,10 +106,10 @@ impl CoreError {
     ///
     /// ```
     /// let err = CoreError::sqlite("database locked");
-    /// match err {
-    ///     CoreError::Sqlite(msg) => assert_eq!(msg, "database locked"),
-    ///     _ => panic!("expected Sqlite variant"),
-    /// }
+    /// let CoreError::Sqlite(msg) = err else {
+    ///     panic!("expected Sqlite variant");
+    /// };
+    /// assert_eq!(msg, "database locked");
     /// ```
     pub fn sqlite(msg: impl Into<String>) -> Self {
         Self::Sqlite(msg.into())
