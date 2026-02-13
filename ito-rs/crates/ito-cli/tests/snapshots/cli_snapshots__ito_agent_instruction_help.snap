@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 101
 expression: "snapshot(&[\"agent\", \"instruction\", \"-h\"])"
 ---
 Generate enriched instructions
@@ -11,7 +10,7 @@ Arguments:
   <ARTIFACT>  Artifact id (e.g. bootstrap, apply, proposal)
 
 Options:
-      --change <CHANGE>  Change id (directory name)
+  -c, --change <CHANGE>  Change id (directory name)
       --no-color         Disable color output
       --help-all         Print the full CLI reference (equivalent to `ito help --all`)
       --tool <TOOL>      Tool name for bootstrap (opencode|claude|codex)
