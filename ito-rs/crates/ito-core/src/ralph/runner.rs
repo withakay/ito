@@ -438,6 +438,7 @@ pub fn run_ralph(
                 cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
                 env: std::collections::BTreeMap::new(),
                 interactive: opts.interactive && !opts.allow_all,
+                allow_all: opts.allow_all,
                 inactivity_timeout: opts.inactivity_timeout,
             })
             .map_err(|e| CoreError::Process(format!("Harness execution failed: {e}")))?;
@@ -455,7 +456,7 @@ pub fn run_ralph(
         // Mirror TS: completion promise is detected from stdout (not stderr).
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
-        let file_changes_count = if harness.name() == HarnessName::OPENCODE {
+        let file_changes_count = if harness.name() != HarnessName::STUB {
             count_git_changes(&process_runner)? as u32
         } else {
             0

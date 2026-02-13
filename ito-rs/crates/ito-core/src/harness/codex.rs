@@ -3,23 +3,26 @@ use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use miette::Result;
 
 #[derive(Debug, Default)]
-/// Harness implementation that executes the `opencode` CLI.
-pub struct OpencodeHarness;
+/// Harness implementation that executes the `codex` CLI.
+pub struct CodexHarness;
 
-impl Harness for OpencodeHarness {
+impl Harness for CodexHarness {
     fn name(&self) -> HarnessName {
-        HarnessName::OPENCODE
+        HarnessName::CODEX
     }
 
     fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
-        let mut args = vec!["run".to_string()];
+        let mut args = vec!["exec".to_string()];
         if let Some(model) = config.model.as_deref() {
-            args.push("-m".to_string());
+            args.push("--model".to_string());
             args.push(model.to_string());
+        }
+        if config.allow_all {
+            args.push("--yolo".to_string());
         }
         args.push(config.prompt.clone());
 
-        run_streaming_cli("opencode", &args, config)
+        run_streaming_cli("codex", &args, config)
     }
 
     fn stop(&mut self) {
