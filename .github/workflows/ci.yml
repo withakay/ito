@@ -355,7 +355,7 @@ jobs:
     name: All checks passed
     # runs-on: ubuntu-latest
     runs-on: namespace-profile-linux-amd64-4c8gb
-    needs: [autofix, test, lint, arch_guardrails]
+    needs: [autofix, test, lint, arch_guardrails, docs]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Verify all checks passed
