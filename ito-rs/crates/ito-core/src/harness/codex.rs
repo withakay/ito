@@ -2,8 +2,9 @@ use super::streaming_cli::run_streaming_cli;
 use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use miette::Result;
 
+/// Runs the `codex` CLI in non-interactive exec mode (`codex exec`).
+/// Selected via `ito ralph --harness codex`; requires the Codex CLI on PATH.
 #[derive(Debug, Default)]
-/// Harness implementation that executes the `codex` CLI.
 pub struct CodexHarness;
 
 impl Harness for CodexHarness {
