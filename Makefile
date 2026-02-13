@@ -19,7 +19,8 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
-	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check
+	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check \
+	hooks-install
 
 init: ## Initialize development environment (check rust, install prek hooks)
 	@set -e; \
@@ -61,6 +62,8 @@ init: ## Initialize development environment (check rust, install prek hooks)
 	echo "Installing git hooks via prek..."; \
 	prek install; \
 	prek install -t pre-push; \
+	echo "Installing pre-commit lock wrapper..."; \
+	$(MAKE) hooks-install; \
 	echo ""; \
 	echo "✓ Development environment ready!"; \
 	echo ""; \
@@ -394,6 +397,17 @@ docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
 
 docs-site-check: docs-site-build ## Validate docs site build
 	@echo "Docs site check passed"
+
+hooks-install: ## Install custom pre-commit hook wrapper (with advisory lock)
+	@set -e; \
+	HOOKS_DIR="$$(git rev-parse --git-common-dir)/hooks"; \
+	if [ ! -d "$$HOOKS_DIR" ]; then \
+		echo "Cannot find git hooks directory at $$HOOKS_DIR"; \
+		exit 1; \
+	fi; \
+	cp ito-rs/tools/hooks/pre-commit "$$HOOKS_DIR/pre-commit"; \
+	chmod +x "$$HOOKS_DIR/pre-commit"; \
+	echo "  ✓ Installed pre-commit hook with advisory lock to $$HOOKS_DIR/pre-commit"
 
 clean: ## Remove build artifacts
 	rm -rf target ito-rs/target
