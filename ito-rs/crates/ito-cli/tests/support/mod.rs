@@ -167,10 +167,35 @@ pub(crate) fn init_minimal_args(repo_path: &Path) -> Vec<String> {
     ]
 }
 
+/// Converts a slice of owned `String` values into a `Vec<&str>` that borrows from them.
+///
+/// The resulting vector contains `&str` slices referencing the provided `String` values.
+///
+/// # Examples
+///
+/// ```
+/// let s = vec!["a".to_string(), "bc".to_string()];
+/// let refs = args_to_strs(&s);
+/// assert_eq!(refs, vec!["a", "bc"]);
+/// ```
 pub(crate) fn args_to_strs(args: &[String]) -> Vec<&str> {
     args.iter().map(|s| s.as_str()).collect()
 }
 
+/// Runs a git command in the given repository directory and asserts it completed successfully.
+///
+/// The command is executed with the working directory set to `repo` and with `GIT_DIR` and
+/// `GIT_WORK_TREE` removed from the environment to avoid interfering with repository selection.
+/// Panics if the `git` executable cannot be spawned or if the command exits with a non-zero status;
+/// stdout and stderr are included in the panic message.
+///
+/// # Examples
+///
+/// ```
+/// // Runs `git --version` in a temporary directory to verify invocation succeeds.
+/// let tmp = tempfile::tempdir().unwrap();
+/// run_git(tmp.path(), &["--version"]);
+/// ```
 fn run_git(repo: &Path, args: &[&str]) {
     let output = std::process::Command::new("git")
         .args(args)
@@ -188,8 +213,20 @@ fn run_git(repo: &Path, args: &[&str]) {
     );
 }
 
-/// Initialize a temporary test repository with identity and a first commit.
-/// Use when git operations under test require an existing commit history.
+/// Initialize a git repository at `repo`, set a test user identity, stage `README.md` if present, and create an initial commit.
+///
+/// # Examples
+///
+/// ```
+/// use std::fs;
+/// use tempfile::tempdir;
+/// let td = tempdir().unwrap();
+/// let repo = td.path();
+/// fs::write(repo.join("README.md"), "hello").unwrap();
+/// // crate-local test helper; adjust path as needed when using from tests
+/// ito_cli::tests::support::git_init_with_initial_commit(repo);
+/// assert!(repo.join(".git").exists());
+/// ```
 pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
@@ -198,8 +235,17 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
 }
 
-/// Create a bare temporary repository to serve as an `origin` remote in tests.
-/// Keep the returned `TempDir` alive for as long as the remote is needed.
+/// Creates a bare Git repository in a temporary directory for use as an `origin` remote in tests.
+///
+/// The returned `TempDir` contains the bare repository; keep it alive while the remote is needed.
+///
+/// # Examples
+///
+/// ```
+/// let remote = make_bare_remote();
+/// // use `remote.path()` as the git remote URL while `remote` is kept alive
+/// assert!(remote.path().exists());
+/// ```
 pub(crate) fn make_bare_remote() -> tempfile::TempDir {
     let td = tempfile::tempdir().expect("remote");
     let output = std::process::Command::new("git")
@@ -217,8 +263,22 @@ pub(crate) fn make_bare_remote() -> tempfile::TempDir {
     td
 }
 
-/// Configure `origin` for a test repository to point at the provided bare remote.
-/// Use after `git_init_with_initial_commit` when tests need fetch/push behavior.
+/// Configure the Git `origin` remote for a test repository to point at the provided bare remote.
+///
+/// Call this after `git_init_with_initial_commit` when a test needs to fetch from or push to an origin.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let repo = tempfile::tempdir().unwrap();
+/// // prepare a repository with an initial commit
+/// git_init_with_initial_commit(repo.path());
+/// // create a bare remote
+/// let remote = make_bare_remote();
+/// // add origin pointing at the bare remote
+/// add_origin(repo.path(), remote.path());
+/// ```
 pub(crate) fn add_origin(repo: &Path, remote: &Path) {
     run_git(
         repo,
