@@ -1,9 +1,9 @@
 use super::types::{HarnessRunConfig, HarnessRunResult};
-use miette::{Result, miette};
+use miette::{miette, Result};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -110,7 +110,7 @@ fn stream_pipe(
         let n = match pipe.read(&mut buf) {
             Ok(0) => break,
             Ok(n) => n,
-            Err(_) => break,
+            Err(_err) => break,
         };
 
         if let Ok(mut last) = last_activity.lock() {
@@ -185,7 +185,7 @@ fn monitor_timeout(
 
         let elapsed = match last_activity.lock() {
             Ok(last) => last.elapsed(),
-            Err(_) => break,
+            Err(_poisoned) => break,
         };
 
         if elapsed >= timeout {
