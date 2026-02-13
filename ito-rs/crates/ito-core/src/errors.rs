@@ -92,7 +92,21 @@ impl CoreError {
         Self::NotFound(msg.into())
     }
 
-    /// Build a serde error.
+    /// Create a `CoreError::Serde` containing a context and a message describing a
+    /// serialization or deserialization failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = CoreError::serde("load config", "missing field `name`");
+    /// match err {
+    ///     CoreError::Serde { context, message } => {
+    ///         assert_eq!(context, "load config");
+    ///         assert_eq!(message, "missing field `name`");
+    ///     }
+    ///     _ => panic!("expected Serde variant"),
+    /// }
+    /// ```
     pub fn serde(context: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Serde {
             context: context.into(),
@@ -100,10 +114,9 @@ impl CoreError {
         }
     }
 
-    /// Wrap a human-readable SQLite error message into a [`CoreError::Sqlite`].
+    /// Wraps a human-readable SQLite error message into a `CoreError::Sqlite`.
     ///
-    /// Use this when converting lower-level database failures into core errors
-    /// that callers can pattern-match on for diagnostics or recovery.
+    /// Returns a `CoreError::Sqlite` containing the provided message.
     ///
     /// # Examples
     ///

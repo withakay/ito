@@ -120,6 +120,39 @@ fn opencode_harness_errors_when_opencode_missing() {
     assert!(err.to_string().contains("Failed to spawn opencode"));
 }
 
+/// Verifies that `ClaudeCodeHarness` passes `--model`, `--dangerously-skip-permissions`, and the prompt flag when invoking the `claude` binary.
+///
+/// # Examples
+///
+/// ```
+/// // This test creates a temporary `claude` executable that prints its arguments,
+/// // prepends its directory to PATH, and asserts that the harness invokes it with
+/// // the expected flags.
+///
+/// let dir = tempfile::tempdir().unwrap();
+/// let bin = dir.path().join("claude");
+/// write_executable(
+///     &bin,
+///     "#!/bin/sh\n\necho \"STDOUT:$@\"\nexit 0\n",
+/// );
+///
+/// let _path_guard = PathGuard::prepend(dir.path());
+///
+/// let mut h = ClaudeCodeHarness;
+/// let r = h
+///     .run(&HarnessRunConfig {
+///         prompt: "hello".to_string(),
+///         model: Some("m1".to_string()),
+///         cwd: dir.path().to_path_buf(),
+///         env: BTreeMap::new(),
+///         interactive: false,
+///         allow_all: true,
+///         inactivity_timeout: None,
+///     })
+///     .unwrap();
+///
+/// assert!(r.stdout.contains("--model m1 --dangerously-skip-permissions -p hello"));
+/// ```
 #[test]
 fn claude_harness_passes_model_and_allow_all_flags() {
     let dir = tempfile::tempdir().unwrap();

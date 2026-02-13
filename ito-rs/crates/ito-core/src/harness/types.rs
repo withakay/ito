@@ -33,7 +33,18 @@ impl HarnessName {
     /// this string and the CLI help derive from it.
     pub const HARNESS_HELP: &str = "Harness to run [opencode, claude, codex, copilot]";
 
-    /// Format user-facing harness names for display in help text.
+    /// Formats the user-facing harness names for display in CLI help.
+    ///
+    /// Returns a single `String` containing the entries in `USER_FACING` joined by `, `
+    /// and wrapped in square brackets (for example: `"[opencode, claude, codex, copilot]"`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let txt = crate::harness::types::HarnessName::help_text();
+    /// assert!(txt.starts_with('[') && txt.ends_with(']'));
+    /// assert!(txt.contains("opencode"));
+    /// ```
     pub fn help_text() -> String {
         format!("[{}]", Self::USER_FACING.join(", "))
     }
@@ -84,9 +95,47 @@ pub trait Harness {
     /// Stop any in-flight execution (best-effort).
     fn stop(&mut self);
 
-    /// Returns true if the harness streams output in real-time during `run()`.
-    /// When true, the caller should NOT print stdout/stderr after run completes
-    /// as it has already been streamed.
+    /// Indicates whether the harness streams stdout/stderr in real time during `run`.
+    
+    ///
+    
+    /// When this returns `true`, callers should not print captured stdout or stderr after
+    
+    /// `run` completes because output has already been delivered to the caller in real time.
+    
+    ///
+    
+    /// # Examples
+    
+    ///
+    
+    /// ```
+    
+    /// struct Dummy;
+    
+    /// impl super::Harness for Dummy {
+    
+    ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
+    
+    ///     fn run(&mut self, _config: &super::HarnessRunConfig) -> miette::Result<super::HarnessRunResult> {
+    
+    ///         unimplemented!()
+    
+    ///     }
+    
+    ///     fn streams_output(&self) -> bool { false }
+    
+    ///     fn stop(&mut self) {}
+    
+    /// }
+    
+    ///
+    
+    /// let d = Dummy;
+    
+    /// assert!(!d.streams_output());
+    
+    /// ```
     fn streams_output(&self) -> bool {
         false
     }

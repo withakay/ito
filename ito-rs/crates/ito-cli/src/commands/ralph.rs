@@ -18,7 +18,35 @@ pub(crate) fn handle_loop_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()> 
     handle_ralph_clap(rt, args)
 }
 
-/// Handle the `ito ralph` command using the structured `RalphArgs` directly.
+/// Handle the `ito ralph` command using parsed `RalphArgs`.
+///
+/// Validates mutually dependent flags, composes the prompt from an optional
+/// prompt file plus positional prompt tokens, parses the optional inactivity
+/// timeout, selects and initializes the requested harness, assembles
+/// `RalphOptions`, initializes filesystem-backed repositories, and invokes the
+/// core Ralph runtime. Returns a CLI error when validations fail, when the
+/// prompt file cannot be read, when the timeout is invalid, when a stub harness
+/// cannot be constructed, or when the Ralph runtime returns an error.
+///
+/// # Returns
+///
+/// `Ok(())` on success, or a `CliResult` error describing the failure.
+///
+/// # Examples
+///
+/// ```no_run
+/// use ito_cli::{handle_ralph_clap, RalphArgs};
+/// use ito_core::Runtime;
+///
+/// // Construct a runtime and args appropriate for your environment.
+/// let rt = Runtime::from_env();
+/// let args = RalphArgs {
+///     prompt: vec!["Describe the change".into()],
+///     ..Default::default()
+/// };
+///
+/// handle_ralph_clap(&rt, &args).expect("ralph command failed");
+/// ```
 pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()> {
     let interactive = !args.no_interactive;
 

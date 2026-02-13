@@ -98,10 +98,20 @@ pub struct RalphOptions {
 /// Default maximum number of non-zero harness exits Ralph tolerates.
 pub const DEFAULT_ERROR_THRESHOLD: u32 = 10;
 
-/// Run the Ralph loop until a completion promise is detected.
+/// Run the Ralph loop for a change (or repository/module sequence) until the configured completion promise is detected.
 ///
-/// This persists lightweight state under `.ito/.state/ralph/<change>/` so the
-/// user can inspect iteration history.
+/// Persists lightweight per-change state under `.ito/.state/ralph/<change>/` so iteration history and context are available for inspection.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+///
+/// // Prepare repositories, options and a harness implementing the required traits,
+/// // then invoke run_ralph with the workspace path:
+/// // let ito = Path::new(".");
+/// // run_ralph(ito, &change_repo, &task_repo, &module_repo, opts, &mut harness)?;
+/// ```
 pub fn run_ralph(
     ito_path: &Path,
     change_repo: &impl DomainChangeRepository,
