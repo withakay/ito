@@ -35,12 +35,16 @@ class RustdocPlugin(BasePlugin):
 
         cmd = ["cargo", "doc", *cargo_doc_args]
         try:
-            subprocess.run(cmd, cwd=crate_dir, check=True)
+            subprocess.run(
+                cmd, cwd=crate_dir, check=True, capture_output=True, text=True
+            )
         except FileNotFoundError as error:
             raise PluginError("cargo is required for rustdoc generation") from error
         except subprocess.CalledProcessError as error:
             raise PluginError(
-                f"cargo doc failed with exit code {error.returncode}"
+                f"cargo doc failed with exit code {error.returncode}\n"
+                f"stdout:\n{error.stdout}\n"
+                f"stderr:\n{error.stderr}"
             ) from error
 
         rustdoc_dir = workspace_root / "target" / "doc"
