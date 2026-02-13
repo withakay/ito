@@ -17,7 +17,7 @@ concurrency:
 jobs:
   autofix:
     name: Autofix (lint & format)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
     runs-on: namespace-profile-linux-amd64-4c8gb
     timeout-minutes: 10
     permissions:
