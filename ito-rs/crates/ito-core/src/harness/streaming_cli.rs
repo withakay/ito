@@ -1,33 +1,29 @@
 use super::types::{HarnessRunConfig, HarnessRunResult};
-use miette::{miette, Result};
+use miette::{Result, miette};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
 /// Default inactivity timeout for CLI harnesses.
 pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
-/// Run a binary with the given arguments, streaming its stdout and stderr and enforcing an inactivity timeout.
+/// Which standard stream a pipe should forward output to.
+enum StreamTarget {
+    /// Forward to stdout.
+    Stdout,
+    /// Forward to stderr.
+    Stderr,
+}
+
+/// Spawns a CLI binary with streaming stdout/stderr and an inactivity monitor.
 ///
-/// Streams the child process's stdout and stderr to the current process while collecting their output. The child is started in `config.cwd` with `config.env`. An inactivity timer (from `config.inactivity_timeout` or `DEFAULT_INACTIVITY_TIMEOUT`) is reset on any output; if the timeout elapses with no activity, the child is terminated and the result is marked as timed out.
-///
-/// The returned `HarnessRunResult` contains the accumulated `stdout` and `stderr`, the total `duration`, an `exit_code` (set to `-1` if the child was terminated due to inactivity, otherwise the child's exit code or `1` if unavailable), and a `timed_out` flag.
-///
-/// # Examples
-///
-/// ```
-/// // Construct a HarnessRunConfig appropriate for your environment.
-/// let cfg = HarnessRunConfig {
-///     cwd: std::env::current_dir().unwrap(),
-///     env: std::env::vars().collect(),
-///     inactivity_timeout: None,
-/// };
-/// let res = run_streaming_cli("echo", &vec!["hello".to_string()], &cfg).unwrap();
-/// assert!(res.stdout.contains("hello"));
-/// ```
+/// All harnesses delegate to this function so they share consistent streaming
+/// behaviour: output is forwarded to the terminal in real time, an inactivity
+/// timer kills the process when it stalls, and incomplete UTF-8 sequences at
+/// chunk boundaries are handled correctly.
 pub(super) fn run_streaming_cli(
     binary: &str,
     args: &[String],
@@ -54,12 +50,14 @@ pub(super) fn run_streaming_cli(
     let done = Arc::new(AtomicBool::new(false));
 
     let last_activity_stdout = Arc::clone(&last_activity);
-    let stdout_handle =
-        thread::spawn(move || stream_pipe(stdout_pipe, &last_activity_stdout, true));
+    let stdout_handle = thread::spawn(move || {
+        stream_pipe(stdout_pipe, &last_activity_stdout, StreamTarget::Stdout)
+    });
 
     let last_activity_stderr = Arc::clone(&last_activity);
-    let stderr_handle =
-        thread::spawn(move || stream_pipe(stderr_pipe, &last_activity_stderr, false));
+    let stderr_handle = thread::spawn(move || {
+        stream_pipe(stderr_pipe, &last_activity_stderr, StreamTarget::Stderr)
+    });
 
     let timeout = config
         .inactivity_timeout
@@ -103,37 +101,16 @@ pub(super) fn run_streaming_cli(
     })
 }
 
-/// Read from an optional reader, write each chunk to either stdout or stderr, update the provided
-/// `last_activity` timestamp on each read, and return all bytes read as a UTF-8 lossily-converted `String`.
+/// Reads from `pipe` in byte-level chunks, forwarding output to stdout/stderr
+/// and updating `last_activity` on every read. Byte-level reads (vs line-based)
+/// ensure inactivity is tracked even when tools stream output without newlines.
 ///
-/// The function does nothing if `pipe` is `None`. On each successful read it sets `*last_activity` to
-/// the current instant and forwards the read bytes to stdout when `is_stdout` is `true`, otherwise to stderr.
-///
-/// # Parameters
-///
-/// - `last_activity`: a mutex protecting the Instant to update when new data is observed.
-/// - `is_stdout`: when `true`, write chunks to stdout; otherwise write to stderr.
-///
-/// # Returns
-///
-/// The concatenated output read from `pipe`, converted using UTF-8 lossy conversion.
-///
-/// # Examples
-///
-/// ```
-/// use std::io::Cursor;
-/// use std::sync::Mutex;
-/// use std::time::Instant;
-///
-/// let reader = Cursor::new(b"hello\nworld");
-/// let last_activity = Mutex::new(Instant::now());
-/// let collected = stream_pipe(Some(reader), &last_activity, true);
-/// assert_eq!(collected, "hello\nworld");
-/// ```
+/// Incomplete UTF-8 sequences at chunk boundaries are buffered and prepended to
+/// the next read, so multi-byte characters are never split by replacement chars.
 fn stream_pipe(
     pipe: Option<impl std::io::Read>,
     last_activity: &std::sync::Mutex<Instant>,
-    is_stdout: bool,
+    target: StreamTarget,
 ) -> String {
     let mut collected = String::new();
     let Some(mut pipe) = pipe else {
@@ -177,12 +154,15 @@ fn stream_pipe(
         };
 
         if !valid.is_empty() {
-            if is_stdout {
-                print!("{valid}");
-                let _ = std::io::stdout().flush();
-            } else {
-                eprint!("{valid}");
-                let _ = std::io::stderr().flush();
+            match target {
+                StreamTarget::Stdout => {
+                    print!("{valid}");
+                    let _ = std::io::stdout().flush();
+                }
+                StreamTarget::Stderr => {
+                    eprint!("{valid}");
+                    let _ = std::io::stderr().flush();
+                }
             }
             collected.push_str(valid);
         }
@@ -193,12 +173,15 @@ fn stream_pipe(
     // Flush any final leftover bytes (incomplete sequence at EOF) as lossy UTF-8.
     if !leftover.is_empty() {
         let tail = String::from_utf8_lossy(&leftover);
-        if is_stdout {
-            print!("{tail}");
-            let _ = std::io::stdout().flush();
-        } else {
-            eprint!("{tail}");
-            let _ = std::io::stderr().flush();
+        match target {
+            StreamTarget::Stdout => {
+                print!("{tail}");
+                let _ = std::io::stdout().flush();
+            }
+            StreamTarget::Stderr => {
+                eprint!("{tail}");
+                let _ = std::io::stderr().flush();
+            }
         }
         collected.push_str(&tail);
     }
