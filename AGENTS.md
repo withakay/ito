@@ -145,6 +145,27 @@ If you want agents to learn new workflows (e.g., task tracking), update the embe
 
 See [`ito-rs/AGENTS.md`](ito-rs/AGENTS.md) for all Rust-specific guidance: development commands, coding conventions, testing policy, quality gates, dependency rules, and git hooks.
 
+## Using Bacon for Development, testing and debugging
+
+Bacon provides continuous background checks for Rust code and can export error locations for agent workflows.
+
+- Start in watch mode (default check job): `make bacon`
+- Start headless with exported locations for tooling/agents: `make bacon-export`
+- Export file location: `ito-rs/.bacon-locations`
+
+For direct usage:
+
+```bash
+cd ito-rs
+bacon --headless --export-locations
+```
+
+Agent workflow with exports:
+
+1. Read `ito-rs/.bacon-locations` for `file:line:column` entries.
+2. Fix issues at those locations.
+3. Save changes and let bacon auto-recheck.
+4. Repeat until the locations file is empty.
 ## Pull Request Titles
 
 When creating a PR for a specific Ito change, include the change ID in the PR title to simplify reconciliation.

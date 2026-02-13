@@ -11,6 +11,7 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 .PHONY: \
 	init \
 	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
+	bacon bacon-export \
 	fmt clippy \
 	arch-guardrails cargo-deny \
 	config-schema config-schema-check \
@@ -114,6 +115,11 @@ init: ## Initialize development environment (check rust, install prek hooks)
 			echo "  ○ cargo-watch install failed: cargo install cargo-watch"; \
 		fi; \
 	fi; \
+	if bacon --version >/dev/null 2>&1; then \
+		echo "  ✓ bacon (background Rust checker)"; \
+	else \
+		echo "  ○ bacon: cargo install --locked bacon"; \
+	fi; \
 	if release-plz --version >/dev/null 2>&1; then \
 		echo "  ✓ release-plz (release management)"; \
 	else \
@@ -149,6 +155,26 @@ test-watch: ## Run tests in watch mode (requires cargo-watch)
 	else \
 		echo "cargo-watch is not installed."; \
 		echo "Install: cargo install cargo-watch"; \
+		exit 1; \
+	fi
+
+bacon: ## Start bacon watcher in ito-rs/
+	@set -e; \
+	if bacon --version >/dev/null 2>&1; then \
+		cd ito-rs && bacon; \
+	else \
+		echo "bacon is not installed."; \
+		echo "Install: cargo install --locked bacon"; \
+		exit 1; \
+	fi
+
+bacon-export: ## Start bacon and export locations to .bacon-locations
+	@set -e; \
+	if bacon --version >/dev/null 2>&1; then \
+		cd ito-rs && bacon --headless --export-locations; \
+	else \
+		echo "bacon is not installed."; \
+		echo "Install: cargo install --locked bacon"; \
 		exit 1; \
 	fi
 

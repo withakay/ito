@@ -188,5 +188,10 @@ target
 .local/ssh/config_github_remote
 .ito/.state/audit/.session
 !.ito/.state/audit/
+
 .ito/config.local.json
 .local/ito/config.json
+
+# Bacon
+ito-rs/.bacon-locations
+ito-rs/.bacon/

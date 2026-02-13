@@ -41,6 +41,14 @@ Ito is not a project management tool, but rather a lightweight, flexible framewo
 
 - Rust toolchain (rustup + cargo)
 
+### Recommended Developer Tools
+
+- `bacon` for background Rust checking and quick job switching:
+
+```bash
+cargo install --locked bacon
+```
+
 ### Install
 
 **Homebrew (macOS):**
@@ -341,6 +349,7 @@ Build and serve the MkDocs site (includes Rust API docs generated via `mkdocs-ru
 ```bash
 make docs-site-build
 make docs-site-serve
+make bacon
 ```
 
 ## License
