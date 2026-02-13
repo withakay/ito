@@ -14,10 +14,29 @@ impl HarnessName {
     pub const CLAUDE: HarnessName = HarnessName("claude");
     /// The OpenAI Codex harness.
     pub const CODEX: HarnessName = HarnessName("codex");
-    /// The GitHub Copilot harness.
+    /// The GitHub Copilot harness (canonical internal name).
     pub const GITHUB_COPILOT: HarnessName = HarnessName("github-copilot");
-    /// The stub harness.
+    /// The GitHub Copilot harness (user-facing alias).
+    pub const COPILOT: HarnessName = HarnessName("copilot");
+    /// The stub harness (testing only, not user-facing).
     pub const STUB: HarnessName = HarnessName("stub");
+
+    /// User-facing harness names, suitable for CLI help text.
+    ///
+    /// Does not include `stub` (testing only) or internal aliases
+    /// like `github-copilot`.
+    pub const USER_FACING: &[&str] = &["opencode", "claude", "codex", "copilot"];
+
+    /// Help text for the `--harness` CLI flag.
+    ///
+    /// Update [`USER_FACING`](Self::USER_FACING) when adding a new harness;
+    /// this string and the CLI help derive from it.
+    pub const HARNESS_HELP: &str = "Harness to run [opencode, claude, codex, copilot]";
+
+    /// Format user-facing harness names for display in help text.
+    pub fn help_text() -> String {
+        format!("[{}]", Self::USER_FACING.join(", "))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -70,5 +89,20 @@ pub trait Harness {
     /// as it has already been streamed.
     fn streams_output(&self) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn harness_help_matches_user_facing() {
+        let expected = format!("Harness to run [{}]", HarnessName::USER_FACING.join(", "));
+        assert_eq!(
+            HarnessName::HARNESS_HELP,
+            expected,
+            "HARNESS_HELP is out of sync with USER_FACING — update both when adding a harness"
+        );
     }
 }
