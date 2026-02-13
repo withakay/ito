@@ -2,8 +2,9 @@ use super::streaming_cli::run_streaming_cli;
 use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use miette::Result;
 
+/// Runs the `copilot` CLI in non-interactive print mode (`copilot -p`).
+/// Selected via `ito ralph --harness copilot`; requires the Copilot CLI on PATH.
 #[derive(Debug, Default)]
-/// Harness implementation that executes the `copilot` CLI.
 pub struct GitHubCopilotHarness;
 
 impl Harness for GitHubCopilotHarness {
