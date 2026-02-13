@@ -147,6 +147,28 @@ ito agent-config get tools.opencode.default_model
 ito agent-config set tools.opencode.context_budget 100000
 ```
 
+### Coordination Branch Setup During Init
+
+If you want to provision the coordination branch before the first `ito create change`, run init with:
+
+```bash
+ito init --tools <...> --setup-coordination-branch
+```
+
+Behavior:
+
+- Reads the coordination branch name from `changes.coordination_branch.name` (default: `ito/internal/changes`).
+- Checks whether that branch already exists on `origin`.
+- Creates it on `origin` when missing (by pushing `HEAD`).
+
+Prerequisites:
+
+- The repo is a Git worktree.
+- `origin` remote is configured.
+- You have permission to push the configured branch.
+
+If setup fails, init prints a deterministic error so you can fix remote/auth configuration and retry.
+
 ## Per-Change Metadata: `.ito.yaml`
 
 Location:

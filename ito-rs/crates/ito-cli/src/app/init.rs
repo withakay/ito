@@ -6,14 +6,38 @@ use crate::cli::InitArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::ConfigContext;
 use ito_config::ito_dir;
 use ito_config::output;
+use ito_config::{
+    ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
+};
+use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 
+/// Handle the `ito init` command, performing project initialization (interactive or non-interactive).
+///
+/// This parses CLI flags and positional path from `args`, determines the set of tools to configure
+/// (from `--tools` or an interactive multi-select), resolves and optionally persists worktree
+/// configuration, installs default templates, optionally sets up the coordination branch on origin
+/// (when `--setup-coordination-branch` is provided), and prints post-init guidance.
+///
+/// - `rt`: runtime providing application context and services used during initialization.
+/// - `args`: argv-style arguments for the `init` subcommand (e.g., `["--tools", "all"]`). If `--help`
+///   or `-h` is present, long help is printed and the function returns early.
+///
+/// Errors are returned as `CliError` via the function's `CliResult` return type.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Print help and exit
+/// let rt = obtain_runtime();
+/// let args = vec!["--help".to_string()];
+/// handle_init(&rt, &args).unwrap();
+/// ```
 pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
@@ -25,6 +49,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
     let update = args.iter().any(|a| a == "--update" || a == "-u");
+    let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let tools_arg = parse_string_flag(args, "--tools");
 
     // Positional path (defaults to current directory).
@@ -175,6 +200,29 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
     }
 
+    if setup_coordination_branch {
+        let ito_path = ito_dir::get_ito_path(target_path, ctx);
+        let project_root = ito_path.parent().unwrap_or(ito_path.as_path());
+        let merged = load_cascading_project_config(project_root, &ito_path, ctx).merged;
+        let (_, coord_branch) = resolve_coordination_branch_settings(&merged);
+        let setup_result = ensure_coordination_branch_on_origin(project_root, &coord_branch)
+            .map_err(|err| {
+                CliError::msg(format!(
+                    "Failed to set up coordination branch '{}': {}",
+                    coord_branch, err.message
+                ))
+            })?;
+
+        match setup_result {
+            CoordinationBranchSetupStatus::Ready => {
+                println!("Coordination branch ready on origin: {coord_branch}");
+            }
+            CoordinationBranchSetupStatus::Created => {
+                println!("Coordination branch created on origin: {coord_branch}");
+            }
+        }
+    }
+
     print_post_init_guidance(target_path);
 
     Ok(())
@@ -203,6 +251,33 @@ Learn more: ito --help | ito agent instruction --help
     );
 }
 
+/// Translate CLI-parsed InitArgs into a string-argv form and run the init flow.
+///
+/// This sets the `HOME` environment variable when `args.home` is provided (for parity/testing),
+/// converts present `tools`, `force`, `update`, `setup_coordination_branch`, and `path` fields
+/// into the corresponding CLI-style flags and arguments, and then executes the init handler.
+///
+/// # Examples
+///
+/// ```
+/// // Construct `rt` and `args` appropriately in test setup; this shows the intended usage:
+/// # use crate::{Runtime, InitArgs, handle_init_clap};
+/// # fn make_runtime() -> Runtime { unimplemented!() }
+/// let rt = make_runtime();
+/// let args = InitArgs {
+///     home: None,
+///     tools: Some("all".to_string()),
+///     force: true,
+///     update: false,
+///     setup_coordination_branch: false,
+///     path: Some(".".to_string()),
+/// };
+/// let _ = handle_init_clap(&rt, &args);
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` on success, or an error result if the init flow fails.
 pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     if let Some(home) = &args.home {
         // For parity/testing.
@@ -221,6 +296,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.update {
         argv.push("--update".to_string());
+    }
+    if args.setup_coordination_branch {
+        argv.push("--setup-coordination-branch".to_string());
     }
     if let Some(path) = &args.path {
         argv.push(path.clone());

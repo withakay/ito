@@ -70,7 +70,7 @@ pub enum AuditAction {
     },
 
     /// Show audit log statistics
-    #[command(visible_alias = "ss")]
+    #[command(visible_alias = "st")]
     Stats {
         /// Filter to a specific change
         #[arg(long)]
@@ -82,6 +82,7 @@ pub enum AuditAction {
     },
 
     /// Stream audit events in real-time
+    #[command(visible_alias = "sm")]
     Stream {
         /// Include events from all worktrees
         #[arg(long)]
