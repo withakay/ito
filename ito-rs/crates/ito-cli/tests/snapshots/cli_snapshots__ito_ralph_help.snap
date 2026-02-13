@@ -37,7 +37,7 @@ Options:
           Keep working through eligible changes across the repo until work is complete
 
       --harness <HARNESS>
-          Harness to run
+          Harness to run [opencode, claude, codex, copilot]
 
           [default: opencode]
 
