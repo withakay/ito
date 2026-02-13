@@ -1,5 +1,5 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"create\", \"--help\"])"
 ---
 Create a new module or change proposal
@@ -14,8 +14,8 @@ Examples:
 Usage: ito create [OPTIONS] [COMMAND]
 
 Commands:
-  module  Create a module
-  change  Create a change
+  module  Create a module [aliases: mo]
+  change  Create a change [aliases: ch]
 
 Options:
       --no-color

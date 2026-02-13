@@ -7,25 +7,25 @@ AI-native system for spec-driven development
 Usage: ito [OPTIONS] [COMMAND]
 
 Commands:
-  create       Create a new module or change proposal
-  list         List changes, specs, or modules with status summaries
-  show         Display details of a change, spec, or module
-  status       Check completion status of change artifacts
-  validate     Check changes, specs, and modules for errors and warnings
-  archive      Move a completed change to archive and update main specs
-  tasks        Manage implementation tasks for a change
-  plan         Initialize and track project roadmap
-  state        Track session state and working context
-  agent        Generate instructions and context for AI coding agents
-  ralph        Run an AI agent loop to implement a change
-  init         Set up Ito in a project
-  update       Refresh Ito instruction files and AI tool configs
-  config       Read and write global Ito settings
-  serve        Serve local Ito artifacts and docs over HTTP
-  audit        Query, validate, and manage the audit event log
-  completions  Output shell completion scripts
-  stats        Display command execution counts and history
-  help         Show help for ito commands
+  create       Create a new module or change proposal [aliases: cr]
+  list         List changes, specs, or modules with status summaries [aliases: ls]
+  show         Display details of a change, spec, or module [aliases: sh]
+  status       Check completion status of change artifacts [aliases: st]
+  validate     Check changes, specs, and modules for errors and warnings [aliases: va]
+  archive      Move a completed change to archive and update main specs [aliases: ar]
+  tasks        Manage implementation tasks for a change [aliases: ts]
+  plan         Initialize and track project roadmap [aliases: pl]
+  state        Track session state and working context [aliases: sa]
+  agent        Generate instructions and context for AI coding agents [aliases: ag]
+  ralph        Run an AI agent loop to implement a change [aliases: ra]
+  init         Set up Ito in a project [aliases: in]
+  update       Refresh Ito instruction files and AI tool configs [aliases: up]
+  config       Read and write global Ito settings [aliases: co]
+  serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
+  audit        Query, validate, and manage the audit event log [aliases: au]
+  completions  Output shell completion scripts [aliases: cp]
+  stats        Display command execution counts and history [aliases: ss]
+  help         Show help for ito commands [aliases: he]
 
 Options:
       --no-color  Disable color output

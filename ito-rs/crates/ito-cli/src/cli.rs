@@ -386,7 +386,7 @@ pub struct StateArgs {
 #[derive(Subcommand, Debug, Clone)]
 pub enum StateAction {
     /// Show current project state
-    #[command(visible_alias = "sh")]
+    #[command(visible_alias = "sw")]
     Show,
 
     /// Record a decision
@@ -482,6 +482,10 @@ pub struct InitArgs {
     /// Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
     #[arg(short = 'u', long)]
     pub update: bool,
+
+    /// Ensure coordination branch exists on origin after init
+    #[arg(long = "setup-coordination-branch")]
+    pub setup_coordination_branch: bool,
 
     /// Override HOME used for locating global Ito config (for parity/testing)
     #[arg(long, value_name = "HOME")]
@@ -899,7 +903,7 @@ pub enum TasksAction {
     },
 
     /// Print tasks.md
-    #[command(visible_alias = "sh")]
+    #[command(visible_alias = "sw")]
     Show {
         /// Change id (e.g. 005-08_migrate-cli-to-clap)
         change_id: String,
@@ -943,12 +947,14 @@ pub struct ArchiveArgs {
     /// Change id (directory name)
     #[arg(
         value_name = "CHANGE",
-        required_unless_present = "completed",
+        required_unless_present_any = ["completed", "change_flag"],
         conflicts_with = "completed",
-        short = 'c',
-        long
     )]
     pub change: Option<String>,
+
+    /// Change id (directory name)
+    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with_all = ["completed", "change"])]
+    pub change_flag: Option<String>,
 
     /// Archive all completed changes (mutually exclusive with CHANGE)
     #[arg(long = "completed", conflicts_with = "change")]

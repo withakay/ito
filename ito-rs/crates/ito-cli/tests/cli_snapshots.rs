@@ -12,6 +12,23 @@ fn make_fixture_repo() -> tempfile::TempDir {
     td
 }
 
+/// Normalizes version text by replacing concrete versions with `<VERSION>` and removing debug or placeholder suffixes.
+///
+/// This replaces the workspace build version (when `ITO_WORKSPACE_VERSION` is present) and the package version
+/// (`CARGO_PKG_VERSION`) with `"<VERSION>"`. If the resulting text contains a trailing suffix of the form
+/// `" (<git-sha>)"`, `" (<git-sha>-dirty)"`, or `" (VERGEN_...)"`, that suffix and the preceding space and
+/// parentheses are removed.
+///
+/// # Examples
+///
+/// ```
+/// let s = "ito 1.2.3 (abc1234-dirty)".to_string();
+/// assert_eq!(normalize_version(s), "ito <VERSION>");
+///
+/// let s2 = "ito 1.2.3".to_string();
+/// // package/workspace version replaced
+/// assert_eq!(normalize_version(s2), "ito <VERSION>");
+/// ```
 fn normalize_version(text: String) -> String {
     // The CLI prints the workspace version (via build.rs) when available.
     // Debug builds also include git SHA suffix like "(abc1234-dirty)".
@@ -22,20 +39,20 @@ fn normalize_version(text: String) -> String {
     }
     out = out.replace(env!("CARGO_PKG_VERSION"), "<VERSION>");
 
-    // Strip git SHA suffix from debug builds: "<VERSION> (abc1234)" or "<VERSION> (abc1234-dirty)"
-    // Simple approach: if we find " (" followed by hex chars and optional "-dirty", strip it
+    // Strip debug suffixes from builds: "<VERSION> (abc1234)",
+    // "<VERSION> (abc1234-dirty)", or fallback placeholders like "<VERSION> (VERGEN_)".
     if let Some(pos) = out.find(" (")
         && let Some(close_pos) = out[pos..].find(')')
     {
         let content = &out[pos + 2..pos + close_pos];
-        // Check if content is hex digits optionally followed by "-dirty"
         let is_git_sha = if let Some(dash_pos) = content.find('-') {
             content[..dash_pos].chars().all(|c| c.is_ascii_hexdigit())
                 && &content[dash_pos..] == "-dirty"
         } else {
             content.chars().all(|c| c.is_ascii_hexdigit())
         };
-        if is_git_sha {
+        let is_vergen_placeholder = content.starts_with("VERGEN_");
+        if is_git_sha || is_vergen_placeholder {
             out = out[..pos].to_string();
         }
     }
