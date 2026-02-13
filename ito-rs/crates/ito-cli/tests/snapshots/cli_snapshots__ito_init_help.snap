@@ -34,6 +34,9 @@ Options:
   -u, --update
           Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
 
+      --setup-coordination-branch
+          Ensure coordination branch exists on origin after init
+
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
 

@@ -235,7 +235,8 @@ pub(crate) fn handle_archive_clap(rt: &Runtime, args: &ArchiveArgs) -> CliResult
         return handle_archive_completed(rt, args);
     }
 
-    let argv = build_single_archive_argv(args.change.as_deref(), args);
+    let change_id = args.change_flag.as_deref().or(args.change.as_deref());
+    let argv = build_single_archive_argv(change_id, args);
     handle_archive(rt, &argv)
 }
 

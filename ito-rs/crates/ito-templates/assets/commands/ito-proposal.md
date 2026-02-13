@@ -2,7 +2,7 @@
 name: ito-proposal
 description: Scaffold a new Ito change and validate strictly.
 category: Ito
-tags: [ito, proposal]
+tags: [ito, proposal, change]
 ---
 
 The user has requested the following change proposal.

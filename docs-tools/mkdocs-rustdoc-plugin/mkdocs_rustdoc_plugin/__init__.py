@@ -1,0 +1,1 @@
+"""mkdocs-rustdoc-plugin package."""

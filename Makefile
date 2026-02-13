@@ -5,6 +5,8 @@ BUMP ?= none
 RUST_WARNINGS_AS_ERRORS ?= -D warnings
 COVERAGE_HARD_MIN ?= 80
 COVERAGE_TARGET ?= 90
+SCCACHE_BIN ?= $(shell command -v sccache 2>/dev/null)
+RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 
 .PHONY: \
 	init \
@@ -17,7 +19,7 @@ COVERAGE_TARGET ?= 90
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
-	dev docs docs-open
+	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check
 
 init: ## Initialize development environment (check rust, install prek hooks)
 	@set -e; \
@@ -63,20 +65,55 @@ init: ## Initialize development environment (check rust, install prek hooks)
 	echo "✓ Development environment ready!"; \
 	echo ""; \
 	echo "Optional tools (install for full functionality):"; \
+	if rustup --version >/dev/null 2>&1; then \
+		echo "Ensuring Rust components (rustfmt, clippy, rust-docs)..."; \
+		if rustup component add rustfmt clippy rust-docs; then \
+			echo "  ✓ Rust components ready"; \
+		else \
+			echo "  ○ Rust component install failed: rustup component add rustfmt clippy rust-docs"; \
+		fi; \
+	else \
+		echo "  ○ rustup not found: cannot auto-install rust-docs/rustfmt/clippy"; \
+	fi; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
 		echo "  ✓ cargo-llvm-cov (test coverage)"; \
 	else \
-		echo "  ○ cargo-llvm-cov: cargo install cargo-llvm-cov"; \
+		echo "Installing cargo-llvm-cov (test coverage)..."; \
+		if cargo install cargo-llvm-cov; then \
+			echo "  ✓ cargo-llvm-cov installed"; \
+		else \
+			echo "  ○ cargo-llvm-cov install failed: cargo install cargo-llvm-cov"; \
+		fi; \
+	fi; \
+	if sccache --version >/dev/null 2>&1; then \
+		echo "  ✓ sccache (Rust compiler cache)"; \
+	else \
+		echo "Installing sccache (Rust compiler cache)..."; \
+		if cargo install sccache; then \
+			echo "  ✓ sccache installed"; \
+		else \
+			echo "  ○ sccache install failed: cargo install sccache"; \
+		fi; \
 	fi; \
 	if cargo deny --version >/dev/null 2>&1; then \
 		echo "  ✓ cargo-deny (license/advisory checks)"; \
 	else \
-		echo "  ○ cargo-deny: cargo install cargo-deny"; \
+		echo "Installing cargo-deny (license/advisory checks)..."; \
+		if cargo install cargo-deny; then \
+			echo "  ✓ cargo-deny installed"; \
+		else \
+			echo "  ○ cargo-deny install failed: cargo install cargo-deny"; \
+		fi; \
 	fi; \
 	if cargo watch --version >/dev/null 2>&1; then \
 		echo "  ✓ cargo-watch (test watch mode)"; \
 	else \
-		echo "  ○ cargo-watch: cargo install cargo-watch"; \
+		echo "Installing cargo-watch (test watch mode)..."; \
+		if cargo install cargo-watch; then \
+			echo "  ✓ cargo-watch installed"; \
+		else \
+			echo "  ○ cargo-watch install failed: cargo install cargo-watch"; \
+		fi; \
 	fi; \
 	if bacon --version >/dev/null 2>&1; then \
 		echo "  ✓ bacon (background Rust checker)"; \
@@ -86,7 +123,12 @@ init: ## Initialize development environment (check rust, install prek hooks)
 	if release-plz --version >/dev/null 2>&1; then \
 		echo "  ✓ release-plz (release management)"; \
 	else \
-		echo "  ○ release-plz: cargo install release-plz"; \
+		echo "Installing release-plz (release management)..."; \
+		if cargo install release-plz; then \
+			echo "  ✓ release-plz installed"; \
+		else \
+			echo "  ○ release-plz install failed: cargo install release-plz"; \
+		fi; \
 	fi; \
 	if gh --version >/dev/null 2>&1; then \
 		echo "  ✓ gh CLI (GitHub integration)"; \
@@ -144,7 +186,7 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
 		echo "  Excluded crates: ito-web (no tests yet)"; \
 		echo ""; \
-		CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-1} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
+		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
@@ -250,19 +292,19 @@ version-bump-major: ## Bump major version (x.y.z -> (x+1).0.0) + stamp
 	$(MAKE) version-bump BUMP=major
 
 rust-build: ## Build Rust ito (debug)
-	cargo build -p ito-cli --bin ito
+	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito
 
 rust-build-release: ## Build Rust ito (release)
-	cargo build -p ito-cli --bin ito --release
+	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito --release
 
 rust-test: ## Run Rust tests (full cargo test, includes doctests)
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web
+	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web
 
 rust-test-timed: ## Run Rust tests with timing
 	@set -e; \
 	START=$$(date +%s); \
 	echo "Running tests with cargo test..."; \
-	RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
+	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
 	END=$$(date +%s); \
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"
@@ -270,19 +312,19 @@ rust-test-timed: ## Run Rust tests with timing
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
+		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
 		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace; \
+		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
 	fi
 
 rust-lint: ## Run Rust fmt/clippy
 	cargo fmt --all -- --check
-	cargo clippy --workspace --all-targets -- \
+	$(RUSTC_WRAPPER_ENV) cargo clippy --workspace --all-targets -- \
 		-D warnings \
 		-D clippy::dbg_macro \
 		-D clippy::todo \
@@ -304,7 +346,7 @@ install: version-sync rust-install ## Sync workspace version stamp + install Rus
 
 dev: ## Build and install debug version with git info (fast iteration)
 	@set -e; \
-	cargo build -p ito-cli --bin ito; \
+	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito; \
 	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
 	mkdir -p "$$INSTALL_DIR"; \
 	cp "target/debug/ito" "$$INSTALL_DIR/ito"; \
@@ -340,6 +382,18 @@ docs: ## Build Rust documentation (warns on missing docs)
 
 docs-open: ## Build and open Rust documentation in browser
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
+
+docs-site-install: ## Install MkDocs docs-site dependencies
+	python3 -m pip install -r docs/requirements.txt
+
+docs-site-build: docs-site-install ## Build MkDocs docs site (strict)
+	python3 -m mkdocs build --strict
+
+docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
+	python3 -m mkdocs serve
+
+docs-site-check: docs-site-build ## Validate docs site build
+	@echo "Docs site check passed"
 
 clean: ## Remove build artifacts
 	rm -rf target ito-rs/target

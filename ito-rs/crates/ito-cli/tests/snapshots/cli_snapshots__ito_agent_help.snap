@@ -1,5 +1,5 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"agent\", \"--help\"])"
 ---
 Generate instructions and context for AI coding agents
@@ -15,7 +15,7 @@ Examples:
 Usage: ito agent [OPTIONS] [COMMAND]
 
 Commands:
-  instruction  Generate enriched instructions
+  instruction  Generate enriched instructions [aliases: in]
 
 Options:
       --no-color

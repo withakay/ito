@@ -1,6 +1,5 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 129
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"ralph\", \"--help\"])"
 ---
 Run an AI agent loop to implement a change
@@ -19,7 +18,7 @@ Arguments:
           Prompt text
 
 Options:
-      --change <CHANGE>
+  -c, --change <CHANGE>
           Target a specific change
 
       --no-color
@@ -28,7 +27,7 @@ Options:
       --help-all
           Print the full CLI reference (equivalent to `ito help --all`)
 
-      --module <MODULE>
+  -m, --module <MODULE>
           Target a module (selects a change)
 
       --continue-module

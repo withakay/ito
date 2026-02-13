@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mkdocs-rustdoc-plugin"
+version = "0.1.0"
+description = "MkDocs plugin that runs rustdoc and publishes API docs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["mkdocs>=1.6,<2.0"]
+
+[project.entry-points."mkdocs.plugins"]
+rustdoc = "mkdocs_rustdoc_plugin.plugin:RustdocPlugin"
