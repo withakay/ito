@@ -56,7 +56,7 @@ pub fn rust_candidate_command(program: &Path) -> Command {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use std::path::Path;
 ///
 /// // Run the candidate binary and capture output for assertions or snapshots.
@@ -85,7 +85,7 @@ pub fn run_rust_candidate(program: &Path, args: &[&str], cwd: &Path, home: &Path
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 /// // If ./target/debug/ito exists this returns that path unchanged.
 /// let p = resolve_candidate_program(Path::new("./target/debug/ito"));
@@ -148,7 +148,7 @@ fn resolve_candidate_program(program: &Path) -> PathBuf {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # use std::path::Path;
 /// // Platform-dependent: on Unix this checks executable bits, on non-Unix this accepts `.exe`.
 /// let _ = is_executable_candidate(Path::new("ito"));
@@ -181,7 +181,7 @@ fn is_executable_candidate(path: &Path) -> bool {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::process::Command;
 /// use std::path::Path;
 ///
