@@ -1,18 +1,18 @@
 use crate::app::worktree_wizard::{
-    WorktreeWizardResult, load_worktree_result_from_config, prompt_worktree_wizard,
-    save_worktree_config,
+    load_worktree_result_from_config, prompt_worktree_wizard, save_worktree_config,
+    WorktreeWizardResult,
 };
 use crate::cli::InitArgs;
-use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
+use crate::cli_error::{fail, to_cli_error, CliError, CliResult};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ito_dir;
 use ito_config::output;
 use ito_config::{
-    ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
+    load_cascading_project_config, resolve_coordination_branch_settings, ConfigContext,
 };
-use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
-use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
+use ito_core::git::{ensure_coordination_branch_on_origin, CoordinationBranchSetupStatus};
+use ito_core::installers::{install_default_templates, InitOptions, InstallMode};
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
@@ -22,7 +22,7 @@ use std::io::IsTerminal;
 /// This parses the provided `args` for flags and a target path, determines which tooling to configure
 /// (from `--tools` or an interactive selection), resolves and optionally persists worktree configuration,
 /// installs the default templates, optionally ensures the coordination branch exists on origin
-/// when `--setup-coordination-branch` is given, and prints post‑initialization guidance.
+/// when `--setup-coordination-branch` is given, and prints post-initialization guidance.
 ///
 /// # Examples
 ///
@@ -81,7 +81,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     } else {
         use std::io::BufRead;
-        use std::io::{IsTerminal, stdin, stdout};
+        use std::io::{stdin, stdout, IsTerminal};
 
         // Match TS semantics: prompt only when interactive; otherwise require explicit --tools.
         let ui = output::resolve_ui_options(
