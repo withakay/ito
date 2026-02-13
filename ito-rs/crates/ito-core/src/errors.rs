@@ -100,7 +100,10 @@ impl CoreError {
         }
     }
 
-    /// Create a `CoreError::Sqlite` containing the given message.
+    /// Wrap a human-readable SQLite error message into a [`CoreError::Sqlite`].
+    ///
+    /// Use this when converting lower-level database failures into core errors
+    /// that callers can pattern-match on for diagnostics or recovery.
     ///
     /// # Examples
     ///

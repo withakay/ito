@@ -139,12 +139,9 @@ fn resolve_candidate_program(program: &Path) -> PathBuf {
 ///
 /// `true` if the path points to a file that appears executable for the current platform, `false` otherwise.
 ///
-/// # Examples
+/// # Notes
 ///
-/// ```
-/// use std::path::Path;
-/// let _ = is_executable_candidate(Path::new("some/path"));
-/// ```
+/// Used internally by [`resolve_candidate_program`] to filter candidate binaries.
 fn is_executable_candidate(path: &Path) -> bool {
     #[cfg(unix)]
     {
