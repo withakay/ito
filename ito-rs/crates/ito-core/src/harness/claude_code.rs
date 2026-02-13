@@ -71,25 +71,15 @@ impl Harness for ClaudeCodeHarness {
     }
 
     /// Indicates whether this harness produces streaming output.
-
     ///
-
     /// Returns `true` if the harness produces streaming output, `false` otherwise.
-
     /// For this harness, the method always returns `true`.
-
     ///
-
     /// # Examples
-
     ///
-
     /// ```
-
     /// let h = ClaudeCodeHarness::default();
-
     /// assert!(h.streams_output());
-
     /// ```
     fn streams_output(&self) -> bool {
         true
