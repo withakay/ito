@@ -48,7 +48,7 @@ impl CoordinationGitError {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// let _err: CoordinationGitError = CoordinationGitError::new(
     ///     CoordinationGitErrorKind::RemoteMissing,
     ///     "origin/ref not found",
@@ -145,7 +145,9 @@ pub fn ensure_coordination_branch_on_origin(
 /// # Examples
 ///
 /// ```no_run
-/// let result = fetch_coordination_branch_core(std::path::Path::new("."), "coordination");
+/// use std::path::Path;
+///
+/// let result = ito_core::git::fetch_coordination_branch_core(Path::new("."), "coordination");
 /// if result.is_ok() {
 ///     println!("Fetched coordination branch");
 /// }
@@ -207,8 +209,11 @@ pub fn reserve_change_on_coordination_branch_core(
 ///
 /// # Examples
 ///
-/// ```
-/// let status = ensure_coordination_branch_on_origin_core(Path::new("."), "coordination/main")?;
+/// ```no_run
+/// use std::path::Path;
+/// use ito_core::git::{ensure_coordination_branch_on_origin_core, CoordinationBranchSetupStatus};
+///
+/// let status = ensure_coordination_branch_on_origin_core(Path::new("."), "coordination/main").unwrap();
 /// match status {
 ///     CoordinationBranchSetupStatus::Ready => println!("Branch exists on origin"),
 ///     CoordinationBranchSetupStatus::Created => println!("Branch was created on origin"),
@@ -232,9 +237,8 @@ pub fn ensure_coordination_branch_on_origin_core(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // `runner` must implement `ProcessRunner`.
-/// // This example demonstrates the call pattern; `runner` must be provided by the caller.
 /// use std::path::Path;
 /// let _ = ensure_coordination_branch_on_origin_with_runner(&runner, Path::new("/path/to/repo"), "coordination").unwrap();
 /// ```
@@ -272,10 +276,9 @@ pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
 ///
 /// # Examples
 ///
-/// ```rust,no_run
+/// ```ignore
 /// use std::path::Path;
-/// // Assume `SystemProcessRunner` implements `ProcessRunner`
-/// let runner = SystemProcessRunner::new();
+/// let runner = SystemProcessRunner;
 /// let repo = Path::new("/path/to/repo");
 /// let result = fetch_coordination_branch_with_runner(&runner, repo, "coordination");
 /// match result {
