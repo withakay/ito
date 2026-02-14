@@ -1,13 +1,13 @@
 use crate::cli::RalphArgs;
-use crate::cli_error::{fail, to_cli_error, CliResult};
+use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::harness::stub::StubHarness;
 use ito_core::harness::ClaudeCodeHarness;
 use ito_core::harness::CodexHarness;
 use ito_core::harness::GitHubCopilotHarness;
 use ito_core::harness::Harness;
 use ito_core::harness::OpencodeHarness;
+use ito_core::harness::stub::StubHarness;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::ralph as core_ralph;
 use ito_core::task_repository::FsTaskRepository;
