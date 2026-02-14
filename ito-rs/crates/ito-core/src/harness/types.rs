@@ -84,6 +84,65 @@ pub struct HarnessRunResult {
     pub timed_out: bool,
 }
 
+/// Exit codes that indicate a transient process crash (not a logical agent error).
+///
+/// These are retried automatically without counting against the error threshold,
+/// because the harness process itself failed — not the work it was doing.
+///
+/// - `128` — generic fatal signal on many CLIs
+/// - `128 + signal` — killed by signal (e.g. 137 = SIGKILL, 139 = SIGSEGV, 130 = SIGINT)
+/// - `-1` — used internally for inactivity timeout (handled separately, listed for completeness)
+const RETRIABLE_EXIT_CODES: &[i32] = &[
+    128, // Generic fatal signal
+    129, // SIGHUP
+    130, // SIGINT
+    131, // SIGQUIT
+    134, // SIGABRT
+    136, // SIGFPE
+    137, // SIGKILL
+    139, // SIGSEGV
+    141, // SIGPIPE
+    143, // SIGTERM
+];
+
+/// Maximum number of consecutive retriable-exit retries before giving up.
+///
+/// Prevents infinite retry loops when a harness consistently crashes.
+pub const MAX_RETRIABLE_RETRIES: u32 = 3;
+
+impl HarnessRunResult {
+    /// Whether the exit code indicates a transient process crash that should be retried.
+    ///
+    /// Signal-based exit codes (128+N) indicate the process was killed by the OS or
+    /// a signal, not that the agent's work failed. These are retried without counting
+    /// against the error threshold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ito_core::harness::HarnessRunResult;
+    /// use std::time::Duration;
+    ///
+    /// let result = HarnessRunResult {
+    ///     stdout: String::new(),
+    ///     stderr: String::new(),
+    ///     exit_code: 128,
+    ///     duration: Duration::from_secs(1),
+    ///     timed_out: false,
+    /// };
+    /// assert!(result.is_retriable());
+    ///
+    /// let normal_failure = HarnessRunResult {
+    ///     exit_code: 1,
+    ///     ..result.clone()
+    /// };
+    /// assert!(!normal_failure.is_retriable());
+    /// ```
+    pub fn is_retriable(&self) -> bool {
+        RETRIABLE_EXIT_CODES.contains(&self.exit_code)
+    }
+}
+
 /// A runnable harness implementation.
 pub trait Harness {
     /// Return the harness identifier.
