@@ -194,9 +194,9 @@ cmd_wait() {
 # --- Main ---
 case "${1:-}" in
     acquire) shift; cmd_acquire "$@" ;;
-    release) cmd_release ;;
+    release) shift; cmd_release "$@" ;;
     check)   cmd_check ;;
-    wait)    cmd_wait "$@" ;;
+    wait)    shift; cmd_wait "$@" ;;
     *)
         echo "Usage: precommit-lock.sh {acquire|release|check|wait} [--timeout SECS]" >&2
         exit 1
