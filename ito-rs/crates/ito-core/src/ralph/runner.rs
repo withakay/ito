@@ -385,7 +385,7 @@ pub fn run_ralph(
     println!(
         "\n=== Starting Ralph for {change} (harness: {harness}) ===",
         change = change_id,
-        harness = harness.name().0
+        harness = harness.name()
     );
     if let Some(model) = &opts.model {
         println!("Model: {model}");
@@ -468,7 +468,7 @@ pub fn run_ralph(
         // Mirror TS: completion promise is detected from stdout (not stderr).
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
-        let file_changes_count = if harness.name() != HarnessName::STUB {
+        let file_changes_count = if harness.name() != HarnessName::Stub {
             count_git_changes(&process_runner)? as u32
         } else {
             0
@@ -487,7 +487,7 @@ pub fn run_ralph(
                 if retriable_retry_count > MAX_RETRIABLE_RETRIES {
                     return Err(CoreError::Process(format!(
                         "Harness '{name}' crashed {count} consecutive times (exit code {code}); giving up",
-                        name = harness.name().0,
+                        name = harness.name(),
                         count = retriable_retry_count,
                         code = run.exit_code
                     )));
@@ -507,7 +507,7 @@ pub fn run_ralph(
             if opts.exit_on_error {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exited with code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     code = run.exit_code
                 )));
             }
@@ -516,7 +516,7 @@ pub fn run_ralph(
             if harness_error_count >= opts.error_threshold {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exceeded non-zero exit threshold ({count}/{threshold}); last exit code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     count = harness_error_count,
                     threshold = opts.error_threshold,
                     code = run.exit_code
@@ -524,7 +524,7 @@ pub fn run_ralph(
             }
 
             last_validation_failure = Some(render_harness_failure(
-                harness.name().0,
+                harness.name().as_str(),
                 run.exit_code,
                 &run.stdout,
                 &run.stderr,

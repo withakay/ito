@@ -1,5 +1,5 @@
 use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use ito_core::ralph::{RalphOptions, run_ralph};
+use ito_core::ralph::{run_ralph, RalphOptions};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
 };
@@ -42,7 +42,7 @@ impl FixedHarness {
 
 impl Harness for FixedHarness {
     fn name(&self) -> HarnessName {
-        self.name.clone()
+        self.name
     }
 
     fn run(&mut self, _config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
@@ -271,7 +271,7 @@ fn run_ralph_completion_promise_trims_whitespace() {
     write_fixture_ito(&ito, "006-09_fixture");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![(
             ("<promise>\n  COMPLETE\n</promise>\n").to_string(),
             String::new(),
@@ -300,7 +300,7 @@ fn run_ralph_continues_when_completion_validation_fails() {
     );
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             (
                 "<promise>COMPLETE</promise>\n".to_string(),
@@ -334,7 +334,7 @@ fn run_ralph_skip_validation_exits_immediately() {
     write_tasks(&ito, "006-09_fixture", "# Tasks\n\n- [ ] todo\n");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             (
                 "<promise>COMPLETE</promise>\n".to_string(),
@@ -362,7 +362,7 @@ fn run_ralph_loop_writes_state_and_honors_min_iterations() {
     write_fixture_ito(&ito, "006-09_fixture");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             (
                 "<promise>COMPLETE</promise>\n".to_string(),
@@ -401,7 +401,7 @@ fn run_ralph_errors_when_max_iterations_is_zero() {
     std::fs::create_dir_all(&ito).unwrap();
     write_fixture_ito(&ito, "006-09_fixture");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
     opts.max_iterations = Some(0);
@@ -417,7 +417,7 @@ fn run_ralph_returns_error_on_harness_failure() {
     write_fixture_ito(&ito, "006-09_fixture");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![("boom".to_string(), "nope".to_string(), 2)],
     );
 
@@ -436,7 +436,7 @@ fn run_ralph_continues_after_harness_failure_by_default() {
     write_fixture_ito(&ito, "006-09_fixture");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("build failed".to_string(), "compiler error".to_string(), 2),
             (
@@ -462,7 +462,7 @@ fn run_ralph_fails_after_error_threshold() {
     write_fixture_ito(&ito, "006-09_fixture");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("fail-1".to_string(), "err-1".to_string(), 2),
             ("fail-2".to_string(), "err-2".to_string(), 3),
@@ -504,7 +504,7 @@ fn run_ralph_opencode_counts_git_changes_when_in_repo() {
     std::env::set_current_dir(repo).unwrap();
 
     let mut h = FixedHarness::new(
-        HarnessName::OPENCODE,
+        HarnessName::Opencode,
         vec![(
             "<promise>COMPLETE</promise>\n".to_string(),
             String::new(),
@@ -555,7 +555,7 @@ fn run_ralph_status_path_works_with_no_state() {
     std::fs::create_dir_all(&ito).unwrap();
     write_fixture_ito(&ito, "006-09_fixture");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.change_id = Some("006-09_fixture".to_string());
     opts.status = true;
@@ -569,7 +569,7 @@ fn run_ralph_add_and_clear_context_paths() {
     std::fs::create_dir_all(&ito).unwrap();
     write_fixture_ito(&ito, "006-09_fixture");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
 
     let mut add = default_opts();
     add.change_id = Some("006-09_fixture".to_string());
@@ -597,7 +597,7 @@ fn run_ralph_module_resolves_single_change() {
     std::fs::create_dir_all(&ito).unwrap();
     write_ready_change(&ito, "006-01_only");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.status = true;
     opts.module_id = Some("006".to_string());
@@ -614,7 +614,7 @@ fn run_ralph_module_multiple_changes_errors_when_non_interactive() {
     write_ready_change(&ito, "006-02_b");
 
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![(
             "<promise>COMPLETE</promise>\n".to_string(),
             String::new(),
@@ -657,7 +657,7 @@ struct RecordingCompletingHarness {
 
 impl Harness for RecordingCompletingHarness {
     fn name(&self) -> HarnessName {
-        HarnessName::STUB
+        HarnessName::Stub
     }
 
     fn run(&mut self, config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
@@ -684,7 +684,7 @@ impl Harness for RecordingCompletingHarness {
 
 impl Harness for CompletingHarness {
     fn name(&self) -> HarnessName {
-        HarnessName::STUB
+        HarnessName::Stub
     }
 
     fn run(&mut self, _config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
@@ -781,7 +781,7 @@ fn run_ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
     // Draft change (missing proposal/specs).
     write_tasks(&ito, "006-09_fixture", "# Tasks\n\n- [ ] todo\n");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.continue_ready = true;
     opts.max_iterations = Some(1);
@@ -834,7 +834,7 @@ fn run_ralph_continue_ready_exits_when_repo_becomes_complete_before_preflight() 
 
     let change_repo = DriftingChangeRepo::new(&ito, DriftAction::CompleteAll);
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.continue_ready = true;
     opts.max_iterations = Some(1);
@@ -852,7 +852,7 @@ fn run_ralph_continue_ready_errors_when_targeting_change_or_module() {
 
     write_ready_change(&ito, "006-01_a");
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.continue_ready = true;
     opts.change_id = Some("006-01_a".to_string());
@@ -874,7 +874,7 @@ fn run_ralph_continue_ready_errors_when_repo_shifts_to_no_eligible_changes() {
 
     let change_repo = DriftingChangeRepo::new(&ito, DriftAction::RemoveSpecs("006-01_a".into()));
 
-    let mut h = FixedHarness::new(HarnessName::STUB, vec![]);
+    let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
     let mut opts = default_opts();
     opts.continue_ready = true;
     opts.prompt = String::new();
@@ -895,7 +895,7 @@ fn run_ralph_retries_retriable_exit_code_without_counting_against_threshold() {
 
     // Exit code 128 (retriable crash), then a successful completion.
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("crash output".to_string(), "fatal".to_string(), 128),
             (
@@ -925,7 +925,7 @@ fn run_ralph_retries_retriable_exit_code_with_exit_on_error() {
 
     // Exit code 137 (SIGKILL, retriable), then success.
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("killed".to_string(), String::new(), 137),
             (
@@ -954,7 +954,7 @@ fn run_ralph_gives_up_after_max_retriable_retries() {
 
     // All exits are 128 — should give up after MAX_RETRIABLE_RETRIES consecutive crashes.
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("crash-1".to_string(), String::new(), 128),
             ("crash-2".to_string(), String::new(), 128),
@@ -982,7 +982,7 @@ fn run_ralph_resets_retriable_counter_on_success() {
     // Crash, succeed (resets counter), crash again, then complete.
     // This proves the counter resets on success and doesn't accumulate.
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![
             ("crash-1".to_string(), String::new(), 128),
             ("ok-1".to_string(), String::new(), 0),
@@ -1012,7 +1012,7 @@ fn run_ralph_non_retriable_exit_still_counts_against_threshold() {
 
     // Exit code 1 is NOT retriable — should count against threshold.
     let mut h = FixedHarness::new(
-        HarnessName::STUB,
+        HarnessName::Stub,
         vec![("fail".to_string(), "error".to_string(), 1)],
     );
 

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
+use clap::builder::Styles;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 fn cli_styles() -> Styles {
@@ -1086,7 +1086,11 @@ pub struct RalphArgs {
     pub continue_ready: bool,
 
     /// Harness to run
-    #[arg(long, default_value = "opencode", long_help = ito_core::harness::HarnessName::HARNESS_HELP)]
+    #[arg(
+        long,
+        default_value = "opencode",
+        long_help = "Harness to run [opencode, claude, codex, copilot]"
+    )]
     pub harness: String,
 
     /// Model id for the harness
