@@ -1,5 +1,6 @@
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::harness::types::MAX_RETRIABLE_RETRIES;
 use crate::harness::{Harness, HarnessName};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
@@ -384,7 +385,7 @@ pub fn run_ralph(
     println!(
         "\n=== Starting Ralph for {change} (harness: {harness}) ===",
         change = change_id,
-        harness = harness.name().0
+        harness = harness.name()
     );
     if let Some(model) = &opts.model {
         println!("Model: {model}");
@@ -402,6 +403,7 @@ pub fn run_ralph(
 
     let mut last_validation_failure: Option<String> = None;
     let mut harness_error_count: u32 = 0;
+    let mut retriable_retry_count: u32 = 0;
 
     for _ in 0..max_iters {
         let iteration = state.iteration.saturating_add(1);
@@ -466,7 +468,7 @@ pub fn run_ralph(
         // Mirror TS: completion promise is detected from stdout (not stderr).
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
-        let file_changes_count = if harness.name() != HarnessName::STUB {
+        let file_changes_count = if harness.name() != HarnessName::Stub {
             count_git_changes(&process_runner)? as u32
         } else {
             0
@@ -480,10 +482,32 @@ pub fn run_ralph(
         }
 
         if run.exit_code != 0 {
+            if run.is_retriable() {
+                retriable_retry_count = retriable_retry_count.saturating_add(1);
+                if retriable_retry_count > MAX_RETRIABLE_RETRIES {
+                    return Err(CoreError::Process(format!(
+                        "Harness '{name}' crashed {count} consecutive times (exit code {code}); giving up",
+                        name = harness.name(),
+                        count = retriable_retry_count,
+                        code = run.exit_code
+                    )));
+                }
+                println!(
+                    "\n=== Harness process crashed (exit code {code}, attempt {count}/{max}). Retrying... ===\n",
+                    code = run.exit_code,
+                    count = retriable_retry_count,
+                    max = MAX_RETRIABLE_RETRIES
+                );
+                continue;
+            }
+
+            // Non-retriable non-zero exit: reset the consecutive crash counter.
+            retriable_retry_count = 0;
+
             if opts.exit_on_error {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exited with code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     code = run.exit_code
                 )));
             }
@@ -492,7 +516,7 @@ pub fn run_ralph(
             if harness_error_count >= opts.error_threshold {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exceeded non-zero exit threshold ({count}/{threshold}); last exit code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     count = harness_error_count,
                     threshold = opts.error_threshold,
                     code = run.exit_code
@@ -500,7 +524,7 @@ pub fn run_ralph(
             }
 
             last_validation_failure = Some(render_harness_failure(
-                harness.name().0,
+                harness.name().as_str(),
                 run.exit_code,
                 &run.stdout,
                 &run.stderr,
@@ -513,6 +537,9 @@ pub fn run_ralph(
             );
             continue;
         }
+
+        // Successful exit: reset both counters.
+        retriable_retry_count = 0;
 
         if !opts.no_commit {
             commit_iteration(&process_runner, iteration)?;

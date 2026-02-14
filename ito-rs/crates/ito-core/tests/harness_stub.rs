@@ -120,7 +120,7 @@ fn stub_harness_from_env_prefers_env_over_default() {
     }
 
     let h = StubHarness::from_env_or_default(None).expect("load from env");
-    assert_eq!(h.name().0, "stub");
+    assert_eq!(h.name().as_str(), "stub");
 
     unsafe {
         std::env::remove_var("ITO_STUB_SCRIPT");

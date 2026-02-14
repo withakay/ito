@@ -2,6 +2,10 @@
 //!
 //! A *harness* is an adapter around a specific agent runtime (e.g. OpenCode) that
 //! can execute Ito workflows and return structured results.
+//!
+//! All CLI-based harnesses implement the [`CliHarness`](streaming_cli::CliHarness)
+//! trait, which provides a blanket [`Harness`] impl — so adding a new CLI harness
+//! only requires implementing three small methods.
 
 /// Claude Code harness implementation.
 pub mod claude_code;
@@ -18,7 +22,8 @@ pub mod opencode;
 /// No-op/stub harness used for testing.
 pub mod stub;
 
-mod streaming_cli;
+/// Streaming CLI harness trait and process management.
+pub mod streaming_cli;
 
 /// Shared harness types.
 pub mod types;

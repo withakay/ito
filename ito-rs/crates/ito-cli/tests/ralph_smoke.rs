@@ -467,7 +467,9 @@ fn ralph_unknown_harness_returns_clear_error() {
     );
     assert_ne!(out.code, 0, "stdout={}", out.stdout);
     assert!(
-        out.stderr.contains("Unknown harness: does-not-exist"),
+        out.stderr.contains("invalid value")
+            && out.stderr.contains("does-not-exist")
+            && out.stderr.contains("--harness"),
         "stderr={}",
         out.stderr
     );

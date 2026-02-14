@@ -162,7 +162,35 @@ prek run                        # Run on staged files
 prek run --all-files            # Run on all files
 ```
 
-**Hook stages**: pre-commit (fmt, clippy, test-coverage), pre-push (test-coverage, test).
+**Hook stages**: pre-commit (fmt, clippy, test-affected), pre-push (test-coverage).
+
+### Agent Commit Workflow (Stash-Safe)
+
+prek stashes unstaged changes before running hooks during `git commit`. This creates a race condition when other processes (agents, watchers, editors) modify the working tree concurrently. **Agents MUST use the check-then-commit pattern:**
+
+```bash
+# 1. Run checks without stashing (operates on all files)
+make check
+
+# 2. Stage and commit, skipping the hook (checks already passed)
+git add <files>
+git commit --no-verify -m "type(scope): description"
+```
+
+**Do NOT use `--no-verify` without running `make check` first.**
+
+### Advisory Pre-commit Lock
+
+The pre-commit hook acquires an advisory lock at `<gitdir>/precommit.lock` while running. Agents should check for this lock before modifying the working tree:
+
+```bash
+# Check if hook is running
+if ito-rs/tools/precommit-lock.sh check 2>/dev/null; then
+    ito-rs/tools/precommit-lock.sh wait --timeout 120
+fi
+```
+
+The lock includes PID-based stale detection (auto-removed if the owning process is dead, or after 10 minutes).
 
 ## Guiding Principles
 
