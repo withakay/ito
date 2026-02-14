@@ -98,7 +98,8 @@ cmd_acquire() {
         _remove_stale
 
         if [ ! -f "$LOCK_FILE" ]; then
-            # Write lock atomically via temp file + mv
+            # Write lock atomically via temp file + hard link.
+            # ln fails if LOCK_FILE already exists, preventing clobber.
             local tmp="${LOCK_FILE}.$$"
             {
                 echo "PID ${owner_pid}"
@@ -106,14 +107,15 @@ cmd_acquire() {
                 echo "COMMAND $0 $*"
                 echo "PPID ${PPID:-unknown}"
             } > "$tmp"
-            mv "$tmp" "$LOCK_FILE" 2>/dev/null && {
-                # Verify we own it (handle race with another acquirer)
+            if ln "$tmp" "$LOCK_FILE" 2>/dev/null; then
+                rm -f "$tmp" 2>/dev/null || true
+                # Verify we own it (belt-and-suspenders)
                 local file_pid
                 file_pid="$(_lock_pid)"
                 if [ "$file_pid" = "${owner_pid}" ]; then
                     return 0
                 fi
-            }
+            fi
             rm -f "$tmp" 2>/dev/null || true
         fi
 
