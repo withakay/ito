@@ -22,3 +22,4 @@
 - [x] 002-13_add-ralph-continue-ready
 - [ ] 002-14_ralph-harnesses-claude-codex-copilot
 - [ ] 002-15_retriable-harness-crashes
+- [ ] 002-16_ralph-worktree-awareness
