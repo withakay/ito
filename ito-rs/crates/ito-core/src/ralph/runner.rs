@@ -1,5 +1,6 @@
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::harness::types::MAX_RETRIABLE_RETRIES;
 use crate::harness::{Harness, HarnessName};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
@@ -402,6 +403,7 @@ pub fn run_ralph(
 
     let mut last_validation_failure: Option<String> = None;
     let mut harness_error_count: u32 = 0;
+    let mut retriable_retry_count: u32 = 0;
 
     for _ in 0..max_iters {
         let iteration = state.iteration.saturating_add(1);
@@ -480,6 +482,28 @@ pub fn run_ralph(
         }
 
         if run.exit_code != 0 {
+            if run.is_retriable() {
+                retriable_retry_count = retriable_retry_count.saturating_add(1);
+                if retriable_retry_count > MAX_RETRIABLE_RETRIES {
+                    return Err(CoreError::Process(format!(
+                        "Harness '{name}' crashed {count} consecutive times (exit code {code}); giving up",
+                        name = harness.name().0,
+                        count = retriable_retry_count,
+                        code = run.exit_code
+                    )));
+                }
+                println!(
+                    "\n=== Harness process crashed (exit code {code}, attempt {count}/{max}). Retrying... ===\n",
+                    code = run.exit_code,
+                    count = retriable_retry_count,
+                    max = MAX_RETRIABLE_RETRIES
+                );
+                continue;
+            }
+
+            // Non-retriable non-zero exit: reset the consecutive crash counter.
+            retriable_retry_count = 0;
+
             if opts.exit_on_error {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exited with code {code}",
@@ -513,6 +537,9 @@ pub fn run_ralph(
             );
             continue;
         }
+
+        // Successful exit: reset both counters.
+        retriable_retry_count = 0;
 
         if !opts.no_commit {
             commit_iteration(&process_runner, iteration)?;
