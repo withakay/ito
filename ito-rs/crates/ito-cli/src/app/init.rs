@@ -22,7 +22,7 @@ use std::io::IsTerminal;
 /// This parses the provided `args` for flags and a target path, determines which tooling to configure
 /// (from `--tools` or an interactive selection), resolves and optionally persists worktree configuration,
 /// installs the default templates, optionally ensures the coordination branch exists on origin
-/// when `--setup-coordination-branch` is given, and prints post‑initialization guidance.
+/// when `--setup-coordination-branch` is given, and prints post-initialization guidance.
 ///
 /// # Examples
 ///

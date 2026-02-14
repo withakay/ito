@@ -1,4 +1,4 @@
-use super::types::{HarnessRunConfig, HarnessRunResult};
+use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
 use miette::{Result, miette};
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -9,6 +9,67 @@ use std::time::{Duration, Instant};
 
 /// Default inactivity timeout for CLI harnesses.
 pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// A CLI-based harness that spawns a binary with streaming I/O.
+///
+/// Implementors describe *which* binary to run and *how* to build its argument
+/// list. The blanket [`Harness`] impl handles spawning, streaming, inactivity
+/// monitoring, and result collection — so individual harnesses only need to
+/// provide a few declarative methods.
+///
+/// # Examples
+///
+/// ```
+/// use ito_core::harness::{Harness, HarnessName, HarnessRunConfig};
+/// use ito_core::harness::streaming_cli::CliHarness;
+///
+/// #[derive(Debug)]
+/// struct MyHarness;
+///
+/// impl CliHarness for MyHarness {
+///     fn harness_name(&self) -> HarnessName { HarnessName::Codex }
+///     fn binary(&self) -> &str { "codex" }
+///     fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
+///         vec!["exec".into(), config.prompt.clone()]
+///     }
+/// }
+///
+/// let h = MyHarness;
+/// assert_eq!(h.harness_name(), HarnessName::Codex);
+/// ```
+pub trait CliHarness: std::fmt::Debug {
+    /// The harness identity (e.g. [`HarnessName::Claude`]).
+    fn harness_name(&self) -> HarnessName;
+
+    /// The CLI binary to spawn (e.g. `"claude"`, `"codex"`).
+    fn binary(&self) -> &str;
+
+    /// Build the full argument list for a single invocation.
+    ///
+    /// Called once per `Harness::run`. The returned args are passed directly
+    /// to the binary — the trait handles spawning and streaming.
+    fn build_args(&self, config: &HarnessRunConfig) -> Vec<String>;
+}
+
+/// Blanket impl: every [`CliHarness`] is automatically a [`Harness`].
+impl<T: CliHarness> Harness for T {
+    fn name(&self) -> HarnessName {
+        self.harness_name()
+    }
+
+    fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
+        let args = self.build_args(config);
+        run_streaming_cli(self.binary(), &args, config)
+    }
+
+    fn stop(&mut self) {
+        // No-op: `run` is synchronous.
+    }
+
+    fn streams_output(&self) -> bool {
+        true
+    }
+}
 
 /// Which standard stream a pipe should forward output to.
 enum StreamTarget {
@@ -24,7 +85,7 @@ enum StreamTarget {
 /// behaviour: output is forwarded to the terminal in real time, an inactivity
 /// timer kills the process when it stalls, and incomplete UTF-8 sequences at
 /// chunk boundaries are handled correctly.
-pub(super) fn run_streaming_cli(
+fn run_streaming_cli(
     binary: &str,
     args: &[String],
     config: &HarnessRunConfig,

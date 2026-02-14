@@ -1066,6 +1066,35 @@ pub enum ValidateItemType {
     Module,
 }
 
+/// CLI-facing harness selector for `ito ralph --harness`.
+///
+/// This is a *bridge type* between `ito-cli` (adapter) and `ito-core` (domain
+/// orchestration): `HarnessArg` derives `clap::ValueEnum` for parsing and help
+/// generation, while `ito_core::harness::HarnessName` stays `clap`-free. The
+/// exhaustive `From` impl enforces that both enums stay in sync at compile time.
+#[derive(ValueEnum, Debug, Clone, Copy)]
+pub enum HarnessArg {
+    Opencode,
+    Claude,
+    Codex,
+    #[value(alias = "github-copilot")]
+    Copilot,
+    #[value(hide = true)]
+    Stub,
+}
+
+impl From<HarnessArg> for ito_core::harness::HarnessName {
+    fn from(value: HarnessArg) -> Self {
+        match value {
+            HarnessArg::Opencode => ito_core::harness::HarnessName::Opencode,
+            HarnessArg::Claude => ito_core::harness::HarnessName::Claude,
+            HarnessArg::Codex => ito_core::harness::HarnessName::Codex,
+            HarnessArg::Copilot => ito_core::harness::HarnessName::GithubCopilot,
+            HarnessArg::Stub => ito_core::harness::HarnessName::Stub,
+        }
+    }
+}
+
 /// Run iterative AI loop against a change proposal.
 #[derive(Args, Debug, Clone)]
 pub struct RalphArgs {
@@ -1086,8 +1115,8 @@ pub struct RalphArgs {
     pub continue_ready: bool,
 
     /// Harness to run
-    #[arg(long, default_value = "opencode", long_help = ito_core::harness::HarnessName::HARNESS_HELP)]
-    pub harness: String,
+    #[arg(long, value_enum, default_value_t = HarnessArg::Opencode)]
+    pub harness: HarnessArg,
 
     /// Model id for the harness
     #[arg(long)]
