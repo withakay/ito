@@ -883,3 +883,144 @@ fn run_ralph_continue_ready_errors_when_repo_shifts_to_no_eligible_changes() {
     let msg = format!("{err}");
     assert!(msg.contains("changed during selection"), "{msg}");
 }
+
+// --- Retriable exit code tests ---
+
+#[test]
+fn run_ralph_retries_retriable_exit_code_without_counting_against_threshold() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    // Exit code 128 (retriable crash), then a successful completion.
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("crash output".to_string(), "fatal".to_string(), 128),
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.skip_validation = true;
+    // error_threshold=1 would fail on the first non-zero if it were counted,
+    // but 128 is retriable and should not count.
+    opts.error_threshold = 1;
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 2, "should have run both iterations");
+}
+
+#[test]
+fn run_ralph_retries_retriable_exit_code_with_exit_on_error() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    // Exit code 137 (SIGKILL, retriable), then success.
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("killed".to_string(), String::new(), 137),
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.skip_validation = true;
+    opts.exit_on_error = true;
+    // Even with exit_on_error, retriable codes should be retried.
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 2);
+}
+
+#[test]
+fn run_ralph_gives_up_after_max_retriable_retries() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    // All exits are 128 — should give up after MAX_RETRIABLE_RETRIES consecutive crashes.
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("crash-1".to_string(), String::new(), 128),
+            ("crash-2".to_string(), String::new(), 128),
+            ("crash-3".to_string(), String::new(), 128),
+            ("crash-4".to_string(), String::new(), 128),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.max_iterations = Some(20);
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("crashed"), "{msg}");
+    assert!(msg.contains("consecutive"), "{msg}");
+}
+
+#[test]
+fn run_ralph_resets_retriable_counter_on_success() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    // Crash, succeed (resets counter), crash again, then complete.
+    // This proves the counter resets on success and doesn't accumulate.
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![
+            ("crash-1".to_string(), String::new(), 128),
+            ("ok-1".to_string(), String::new(), 0),
+            ("crash-2".to_string(), String::new(), 128),
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.skip_validation = true;
+    opts.max_iterations = Some(10);
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+    assert_eq!(h.idx, 4);
+}
+
+#[test]
+fn run_ralph_non_retriable_exit_still_counts_against_threshold() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    // Exit code 1 is NOT retriable — should count against threshold.
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![("fail".to_string(), "error".to_string(), 1)],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.error_threshold = 1;
+    opts.max_iterations = Some(5);
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("exceeded non-zero exit threshold"), "{msg}");
+}
