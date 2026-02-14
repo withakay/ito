@@ -1,52 +1,89 @@
 use miette::Result;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// Identifier for a harness implementation.
-pub struct HarnessName(pub &'static str);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum HarnessName {
+    /// The OpenCode harness.
+    Opencode,
+    /// The Claude Code harness.
+    Claude,
+    /// The OpenAI Codex harness.
+    Codex,
+    /// The GitHub Copilot harness.
+    GithubCopilot,
+    /// The stub harness (testing only, not user-facing).
+    Stub,
+}
 
 impl HarnessName {
-    /// The OpenCode harness.
-    pub const OPENCODE: HarnessName = HarnessName("opencode");
-    /// The Claude Code harness.
-    pub const CLAUDE: HarnessName = HarnessName("claude");
-    /// The OpenAI Codex harness.
-    pub const CODEX: HarnessName = HarnessName("codex");
-    /// The GitHub Copilot harness (canonical internal name).
-    pub const GITHUB_COPILOT: HarnessName = HarnessName("github-copilot");
-    /// The GitHub Copilot harness (user-facing alias).
-    pub const COPILOT: HarnessName = HarnessName("copilot");
-    /// The stub harness (testing only, not user-facing).
-    pub const STUB: HarnessName = HarnessName("stub");
+    /// The canonical, user-facing name for this harness.
+    ///
+    /// Note: some harnesses accept additional aliases (for example,
+    /// [`HarnessName::GithubCopilot`] also accepts `github-copilot`).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            HarnessName::Opencode => "opencode",
+            HarnessName::Claude => "claude",
+            HarnessName::Codex => "codex",
+            HarnessName::GithubCopilot => "copilot",
+            HarnessName::Stub => "stub",
+        }
+    }
 
-    /// User-facing harness names, suitable for CLI help text.
+    /// Iterator of harnesses intended for user-facing CLI help.
     ///
-    /// Does not include `stub` (testing only) or internal aliases
-    /// like `github-copilot`.
-    pub const USER_FACING: &[&str] = &["opencode", "claude", "codex", "copilot"];
+    /// Does not include [`HarnessName::Stub`] (testing only).
+    pub fn user_facing() -> impl Iterator<Item = HarnessName> {
+        [
+            HarnessName::Opencode,
+            HarnessName::Claude,
+            HarnessName::Codex,
+            HarnessName::GithubCopilot,
+        ]
+        .into_iter()
+    }
+}
 
-    /// Help text for the `--harness` CLI flag.
-    ///
-    /// Update [`USER_FACING`](Self::USER_FACING) when adding a new harness;
-    /// this string and the CLI help derive from it.
-    pub const HARNESS_HELP: &str = "Harness to run [opencode, claude, codex, copilot]";
+impl fmt::Display for HarnessName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
-    /// Formats the user-facing harness names for display in CLI help.
-    ///
-    /// Returns a single `String` containing the entries in `USER_FACING` joined by `, `
-    /// and wrapped in square brackets (for example: `"[opencode, claude, codex, copilot]"`).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let txt = ito_core::harness::HarnessName::help_text();
-    /// assert!(txt.starts_with('[') && txt.ends_with(']'));
-    /// assert!(txt.contains("opencode"));
-    /// ```
-    pub fn help_text() -> String {
-        format!("[{}]", Self::USER_FACING.join(", "))
+/// Parse error for [`HarnessName`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessNameParseError {
+    /// The raw value that could not be parsed.
+    pub input: String,
+}
+
+impl fmt::Display for HarnessNameParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unknown harness name: {}", self.input)
+    }
+}
+
+impl std::error::Error for HarnessNameParseError {}
+
+impl FromStr for HarnessName {
+    type Err = HarnessNameParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "opencode" => Ok(HarnessName::Opencode),
+            "claude" => Ok(HarnessName::Claude),
+            "codex" => Ok(HarnessName::Codex),
+            "copilot" | "github-copilot" => Ok(HarnessName::GithubCopilot),
+            "stub" => Ok(HarnessName::Stub),
+            _ => Err(HarnessNameParseError {
+                input: s.to_string(),
+            }),
+        }
     }
 }
 
@@ -164,7 +201,7 @@ pub trait Harness {
     /// ```ignore
     /// struct Dummy;
     /// impl super::Harness for Dummy {
-    ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
+    ///     fn name(&self) -> super::HarnessName { super::HarnessName::Stub }
     ///     fn run(&mut self, _config: &super::HarnessRunConfig) -> miette::Result<super::HarnessRunResult> {
     ///         unimplemented!()
     ///     }
@@ -186,11 +223,9 @@ mod tests {
 
     #[test]
     fn harness_help_matches_user_facing() {
-        let expected = format!("Harness to run [{}]", HarnessName::USER_FACING.join(", "));
-        assert_eq!(
-            HarnessName::HARNESS_HELP,
-            expected,
-            "HARNESS_HELP is out of sync with USER_FACING — update both when adding a harness"
-        );
+        let names: Vec<&'static str> = HarnessName::user_facing()
+            .map(HarnessName::as_str)
+            .collect();
+        assert_eq!(names, vec!["opencode", "claude", "codex", "copilot"]);
     }
 }

@@ -78,7 +78,7 @@ impl StubHarness {
 
 impl Harness for StubHarness {
     fn name(&self) -> HarnessName {
-        HarnessName::STUB
+        HarnessName::Stub
     }
 
     fn run(&mut self, _config: &HarnessRunConfig) -> Result<HarnessRunResult> {

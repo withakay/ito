@@ -11,7 +11,7 @@ use super::types::{HarnessName, HarnessRunConfig};
 /// use ito_core::harness::{GitHubCopilotHarness, Harness, HarnessName};
 ///
 /// let h = GitHubCopilotHarness;
-/// assert_eq!(h.name(), HarnessName::GITHUB_COPILOT);
+/// assert_eq!(h.name(), HarnessName::GithubCopilot);
 /// assert!(h.streams_output());
 /// ```
 #[derive(Debug, Default)]
@@ -19,7 +19,7 @@ pub struct GitHubCopilotHarness;
 
 impl CliHarness for GitHubCopilotHarness {
     fn harness_name(&self) -> HarnessName {
-        HarnessName::GITHUB_COPILOT
+        HarnessName::GithubCopilot
     }
 
     fn binary(&self) -> &str {

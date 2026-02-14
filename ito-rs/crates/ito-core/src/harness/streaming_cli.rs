@@ -27,7 +27,7 @@ pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// struct MyHarness;
 ///
 /// impl CliHarness for MyHarness {
-///     fn harness_name(&self) -> HarnessName { HarnessName::CODEX }
+///     fn harness_name(&self) -> HarnessName { HarnessName::Codex }
 ///     fn binary(&self) -> &str { "codex" }
 ///     fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
 ///         vec!["exec".into(), config.prompt.clone()]
@@ -35,10 +35,10 @@ pub const DEFAULT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// }
 ///
 /// let h = MyHarness;
-/// assert_eq!(h.harness_name(), HarnessName::CODEX);
+/// assert_eq!(h.harness_name(), HarnessName::Codex);
 /// ```
 pub trait CliHarness: std::fmt::Debug {
-    /// The harness identity (e.g. `HarnessName::CLAUDE`).
+    /// The harness identity (e.g. [`HarnessName::Claude`]).
     fn harness_name(&self) -> HarnessName;
 
     /// The CLI binary to spawn (e.g. `"claude"`, `"codex"`).

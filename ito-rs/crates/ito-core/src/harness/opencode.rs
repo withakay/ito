@@ -11,7 +11,7 @@ use super::types::{HarnessName, HarnessRunConfig};
 /// use ito_core::harness::{Harness, HarnessName, OpencodeHarness};
 ///
 /// let h = OpencodeHarness;
-/// assert_eq!(h.name(), HarnessName::OPENCODE);
+/// assert_eq!(h.name(), HarnessName::Opencode);
 /// assert!(h.streams_output());
 /// ```
 #[derive(Debug, Default)]
@@ -19,7 +19,7 @@ pub struct OpencodeHarness;
 
 impl CliHarness for OpencodeHarness {
     fn harness_name(&self) -> HarnessName {
-        HarnessName::OPENCODE
+        HarnessName::Opencode
     }
 
     fn binary(&self) -> &str {
