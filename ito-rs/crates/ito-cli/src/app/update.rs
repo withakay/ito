@@ -1,13 +1,13 @@
 use crate::app::worktree_wizard::{
-    WorktreeWizardResult, is_worktree_configured, load_worktree_result_from_config,
-    prompt_worktree_wizard, save_worktree_config,
+    is_worktree_configured, load_worktree_result_from_config, prompt_worktree_wizard,
+    save_worktree_config, WorktreeWizardResult,
 };
 use crate::cli::UpdateArgs;
-use crate::cli_error::{CliResult, to_cli_error};
+use crate::cli_error::{to_cli_error, CliResult};
 use crate::runtime::Runtime;
 use ito_config::ito_dir;
 use ito_config::output;
-use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
+use ito_core::installers::{install_default_templates, InitOptions, InstallMode};
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
@@ -121,9 +121,10 @@ fn resolve_update_worktree_config(
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
     // Derive project root from the already-absolute ito_path rather than
     // target_path which could be a relative subdirectory reference.
-    let project_root = ito_path
-        .parent()
-        .unwrap_or(&ito_path)
+    // Defensive absolutize in case get_ito_path contract changes.
+    let project_root_path = ito_path.parent().unwrap_or(&ito_path);
+    let project_root = ito_config::ito_dir::absolutize_and_normalize(project_root_path)
+        .unwrap_or_else(|_| project_root_path.to_path_buf())
         .to_string_lossy()
         .to_string();
 
