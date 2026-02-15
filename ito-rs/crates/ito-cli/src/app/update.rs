@@ -63,10 +63,37 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
-/// Resolve worktree configuration for `ito update`.
+/// Determine the worktree template context for the `ito update` flow and whether a
+/// per-developer (project-local) worktree result should be saved.
 ///
-/// If the user has not configured worktrees yet and we are in interactive mode,
-/// runs the wizard. Otherwise loads existing config, defaulting to disabled.
+/// This resolves configuration in the following precedence:
+/// - If interactive and no local/project/global config exists, runs the interactive
+///   worktree wizard and marks its result for saving to the project-local overlay.
+/// - If a project-local config exists, loads and uses that result (no save).
+/// - If a project config exists, loads and uses that result (no save).
+/// - If a global config exists, loads that result and marks it for migration to the
+///   project-local overlay.
+/// - Otherwise, returns a disabled/default result.
+///
+/// The returned `WorktreeTemplateContext` includes resolved defaults and any overrides
+/// provided by the loaded or wizard result; `project_root` is derived from the
+/// absolute ito directory to ensure the template context references the repository root.
+///
+/// # Returns
+///
+/// A tuple where the first element is the resolved `WorktreeTemplateContext` and the
+/// second element is `Some((path, WorktreeWizardResult))` when the result should be
+/// persisted to the project-local overlay, or `None` when no save is required.
+///
+/// # Examples
+///
+/// ```
+/// # use std::path::Path;
+/// # // Assume `ctx` is a previously constructed ito_config::ConfigContext.
+/// # let ctx: ito_config::ConfigContext = todo!();
+/// let (template_ctx, post_save) = resolve_update_worktree_config(&ctx, Path::new("."), true).unwrap();
+/// // `template_ctx` can be passed to template installation; `post_save` indicates a save target.
+/// ```
 fn resolve_update_worktree_config(
     ctx: &ito_config::ConfigContext,
     target_path: &std::path::Path,
@@ -119,6 +146,15 @@ fn resolve_update_worktree_config(
         };
 
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
+    // Derive project root from the already-absolute ito_path rather than
+    // target_path which could be a relative subdirectory reference.
+    // Defensive absolutize in case get_ito_path contract changes.
+    let project_root_path = ito_path.parent().unwrap_or(&ito_path);
+    let project_root = ito_config::ito_dir::absolutize_and_normalize(project_root_path)
+        .unwrap_or_else(|_| project_root_path.to_path_buf())
+        .to_string_lossy()
+        .to_string();
+
     let ctx_out = if result.enabled {
         WorktreeTemplateContext {
             enabled: true,
@@ -129,6 +165,7 @@ fn resolve_update_worktree_config(
                 .clone()
                 .unwrap_or(defaults.integration_mode),
             default_branch: defaults.default_branch,
+            project_root,
         }
     } else {
         WorktreeTemplateContext::default()

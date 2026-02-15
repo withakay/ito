@@ -27,9 +27,30 @@ pub struct WorktreeTemplateContext {
     pub integration_mode: String,
     /// Default branch name (e.g., `"main"`).
     pub default_branch: String,
+    /// Absolute path to the project root. Empty string when not resolved.
+    pub project_root: String,
 }
 
 impl Default for WorktreeTemplateContext {
+    /// Creates a WorktreeTemplateContext initialized with safe defaults for a disabled worktree setup.
+    ///
+    /// Defaults:
+    /// - `enabled`: false
+    /// - `strategy`: empty string
+    /// - `layout_dir_name`: "ito-worktrees"
+    /// - `integration_mode`: empty string
+    /// - `default_branch`: "main"
+    /// - `project_root`: empty string
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let ctx = WorktreeTemplateContext::default();
+    /// assert!(!ctx.enabled);
+    /// assert_eq!(ctx.layout_dir_name, "ito-worktrees");
+    /// assert_eq!(ctx.default_branch, "main");
+    /// assert!(ctx.project_root.is_empty());
+    /// ```
     fn default() -> Self {
         Self {
             enabled: false,
@@ -37,6 +58,7 @@ impl Default for WorktreeTemplateContext {
             layout_dir_name: "ito-worktrees".to_string(),
             integration_mode: String::new(),
             default_branch: "main".to_string(),
+            project_root: String::new(),
         }
     }
 }
@@ -139,6 +161,7 @@ mod tests {
         assert!(ctx.integration_mode.is_empty());
         assert_eq!(ctx.layout_dir_name, "ito-worktrees");
         assert_eq!(ctx.default_branch, "main");
+        assert!(ctx.project_root.is_empty());
     }
 
     #[test]
@@ -154,6 +177,7 @@ mod tests {
             layout_dir_name: "ito-worktrees".to_string(),
             integration_mode: "commit_pr".to_string(),
             default_branch: "main".to_string(),
+            project_root: "/home/user/project".to_string(),
         };
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
@@ -161,6 +185,14 @@ mod tests {
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
         assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
+        assert!(
+            text.contains("/home/user/project/ito-worktrees/<change-name>/"),
+            "should contain absolute worktree path"
+        );
+        assert!(
+            !text.contains("<project-root>/"),
+            "should not contain placeholder root"
+        );
     }
 
     #[test]
@@ -176,15 +208,23 @@ mod tests {
             layout_dir_name: "worktrees".to_string(),
             integration_mode: "merge_parent".to_string(),
             default_branch: "develop".to_string(),
+            project_root: "/home/user/project".to_string(),
         };
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("**Strategy:** `checkout_siblings`"));
-        assert!(text.contains("../<project-name>-worktrees/<change-name>/"));
         assert!(text.contains(
             "git worktree add \"../<project-name>-worktrees/<change-name>\" -b <change-name>"
         ));
+        assert!(
+            text.contains("/home/user/project/../<project-name>-worktrees/<change-name>/"),
+            "should contain absolute sibling worktree path"
+        );
+        assert!(
+            !text.contains("<project-root>/"),
+            "should not contain placeholder root"
+        );
     }
 
     #[test]
@@ -200,6 +240,7 @@ mod tests {
             layout_dir_name: "ito-worktrees".to_string(),
             integration_mode: "commit_pr".to_string(),
             default_branch: "main".to_string(),
+            project_root: "/home/user/project".to_string(),
         };
         let rendered = render_project_template(agents_md.contents, &ctx).unwrap();
         let text = String::from_utf8(rendered).unwrap();
@@ -207,6 +248,14 @@ mod tests {
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
+        assert!(
+            text.contains("/home/user/project/"),
+            "should contain absolute bare repo path"
+        );
+        assert!(
+            !text.contains("<project>/"),
+            "should not contain placeholder project root"
+        );
     }
 
     #[test]

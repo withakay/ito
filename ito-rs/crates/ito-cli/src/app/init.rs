@@ -240,25 +240,28 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// print_post_init_guidance(Path::new("."));
 /// ```
 fn print_post_init_guidance(target_path: &std::path::Path) {
-    let target_display = if target_path == std::path::Path::new(".") {
-        "current directory".to_string()
-    } else {
-        format!("{}", target_path.display())
-    };
+    let abs_target = ito_config::ito_dir::absolutize_and_normalize(target_path)
+        .unwrap_or_else(|_| target_path.to_path_buf());
+
+    let ito_dir = abs_target.join(".ito");
 
     println!(
         r#"
-Ito initialized in {target_display}
+Ito initialized in {}
 
 Next step: Run /ito-project-setup in your AI assistant to configure the project.
 
 Or manually edit:
-  .ito/project.md        Project overview, tech stack, architecture
-  .ito/user-prompts/     Shared + artifact-specific instruction guidance
-  .ito/config.json       Tool settings and defaults
+  {}/project.md        Project overview, tech stack, architecture
+  {}/user-prompts/     Shared + artifact-specific instruction guidance
+  {}/config.json       Tool settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
-"#
+"#,
+        abs_target.display(),
+        ito_dir.display(),
+        ito_dir.display(),
+        ito_dir.display(),
     );
 }
 
@@ -375,11 +378,24 @@ fn resolve_worktree_config(
     ))
 }
 
-/// Convert a [`WorktreeWizardResult`] into a [`WorktreeTemplateContext`].
+/// Create a WorktreeTemplateContext from a WorktreeWizardResult for template rendering.
 ///
-/// Maps the wizard's raw string fields into the context struct that templates
-/// consume. Falls back to the disabled default when the wizard result indicates
-/// worktrees are not enabled.
+/// If `result.enabled` is false, returns the disabled/default `WorktreeTemplateContext`.
+/// When enabled, maps string and option fields from the wizard result into the context,
+/// using template defaults resolved via `ito_core::config::resolve_worktree_template_defaults`.
+/// The returned context's `project_root` is the absolute, normalized string form of
+/// `target_path`; if normalization fails, `target_path` is used as-is.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a wizard result (disabled for this simple example) and a config context,
+/// // then obtain the template context for the current directory.
+/// let result = WorktreeWizardResult { enabled: false, ..Default::default() };
+/// let ctx = ConfigContext::default();
+/// let tpl_ctx = worktree_template_context(&result, std::path::Path::new("."), &ctx);
+/// assert!(!tpl_ctx.enabled);
+/// ```
 fn worktree_template_context(
     result: &WorktreeWizardResult,
     target_path: &std::path::Path,
@@ -391,6 +407,11 @@ fn worktree_template_context(
 
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
 
+    let project_root = ito_config::ito_dir::absolutize_and_normalize(target_path)
+        .unwrap_or_else(|_| target_path.to_path_buf())
+        .to_string_lossy()
+        .to_string();
+
     WorktreeTemplateContext {
         enabled: true,
         strategy: result.strategy.clone().unwrap_or(defaults.strategy),
@@ -400,5 +421,6 @@ fn worktree_template_context(
             .clone()
             .unwrap_or(defaults.integration_mode),
         default_branch: defaults.default_branch,
+        project_root,
     }
 }
