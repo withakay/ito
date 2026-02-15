@@ -194,7 +194,7 @@ cmd_wait() {
 # --- Main ---
 case "${1:-}" in
     acquire) shift; cmd_acquire "$@" ;;
-    release) cmd_release ;;
+    release) shift; cmd_release "$@" ;;
     check)   cmd_check ;;
     wait)    cmd_wait "$@" ;;
     *)
