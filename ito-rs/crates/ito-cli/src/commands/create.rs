@@ -41,6 +41,10 @@ fn print_change_created_message(
     module_was_explicit: bool,
     has_description: bool,
 ) {
+    debug_assert!(
+        ito_path.is_absolute(),
+        "ito_path should already be absolute"
+    );
     let changes_dir = ito_path.join("changes").join(change_id);
     eprintln!("✔ Created change '{change_id}'");
     eprintln!("  Path: {}", changes_dir.display());
