@@ -4,7 +4,7 @@ use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
 };
 use ito_domain::errors::DomainResult;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -51,6 +51,33 @@ impl Harness for FixedHarness {
             stdout,
             stderr,
             exit_code,
+            duration: Duration::from_millis(1),
+            timed_out: false,
+        })
+    }
+
+    fn stop(&mut self) {
+        // No-op
+    }
+}
+
+/// Harness that captures the cwd it receives from HarnessRunConfig.
+#[derive(Debug)]
+struct CwdCapturingHarness {
+    captured_cwd: Option<PathBuf>,
+}
+
+impl Harness for CwdCapturingHarness {
+    fn name(&self) -> HarnessName {
+        HarnessName::STUB
+    }
+
+    fn run(&mut self, config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
+        self.captured_cwd = Some(config.cwd.clone());
+        Ok(HarnessRunResult {
+            stdout: "<promise>COMPLETE</promise>\n".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
             duration: Duration::from_millis(1),
             timed_out: false,
         })
@@ -863,6 +890,69 @@ fn run_ralph_continue_ready_errors_when_targeting_change_or_module() {
     let msg = format!("{err}");
     assert!(msg.contains("--continue-ready"));
     assert!(msg.contains("--change") || msg.contains("--module"));
+}
+
+#[test]
+fn run_ralph_worktree_disabled_uses_fallback_cwd() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    let mut h = CwdCapturingHarness { captured_cwd: None };
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.min_iterations = 1;
+    opts.max_iterations = Some(1);
+    // worktree is disabled by default
+    assert!(!opts.worktree.enabled);
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+
+    // When worktrees are disabled, cwd should be the process cwd (fallback)
+    let captured = h.captured_cwd.unwrap();
+    let process_cwd = std::env::current_dir().unwrap();
+    assert_eq!(
+        captured,
+        process_cwd,
+        "Expected fallback to process cwd, got: {}",
+        captured.display()
+    );
+}
+
+#[test]
+fn run_ralph_worktree_enabled_state_written_to_effective_ito() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+
+    let mut h = FixedHarness::new(
+        HarnessName::STUB,
+        vec![(
+            "<promise>COMPLETE</promise>\n".to_string(),
+            String::new(),
+            0,
+        )],
+    );
+
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.min_iterations = 1;
+    opts.max_iterations = Some(1);
+    // Worktree enabled but no actual worktree exists, so it falls back
+    opts.worktree = ito_core::ralph::WorktreeConfig {
+        enabled: true,
+        dir_name: "ito-worktrees".to_string(),
+    };
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+
+    // State should still be written to the fallback ito_path since no worktree was found
+    let state_path = ito.join(".state/ralph/006-09_fixture/state.json");
+    assert!(
+        state_path.exists(),
+        "State should be written to fallback .ito when no worktree found"
+    );
 }
 
 #[test]
