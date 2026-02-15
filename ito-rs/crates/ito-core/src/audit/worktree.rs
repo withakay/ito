@@ -14,7 +14,7 @@ use super::writer::audit_log_path;
 ///
 /// Returns an empty vec if git is unavailable, not in a repo, or no
 /// worktrees have audit logs.
-pub fn discover_worktrees(ito_path: &Path) -> Vec<WorktreeInfo> {
+pub fn discover_worktrees(_ito_path: &Path) -> Vec<WorktreeInfo> {
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])
         .output();
@@ -28,11 +28,11 @@ pub fn discover_worktrees(ito_path: &Path) -> Vec<WorktreeInfo> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_worktree_list(&stdout, ito_path)
+    parse_worktree_list(&stdout)
 }
 
 /// Parse `git worktree list --porcelain` output into `WorktreeInfo` entries.
-fn parse_worktree_list(output: &str, _ito_path: &Path) -> Vec<WorktreeInfo> {
+fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
     let mut worktrees = Vec::new();
     let mut current_path: Option<PathBuf> = None;
     let mut current_branch: Option<String> = None;
@@ -121,8 +121,7 @@ pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
 ///
 /// This is the testable core of [`find_worktree_for_branch`].
 fn find_worktree_for_branch_in_output(output: &str, branch: &str) -> Option<PathBuf> {
-    let dummy = Path::new("/unused");
-    let worktrees = parse_worktree_list(output, dummy);
+    let worktrees = parse_worktree_list(output);
     worktrees
         .into_iter()
         .find(|wt| wt.branch.as_deref() == Some(branch))
@@ -166,8 +165,7 @@ mod tests {
     #[test]
     fn parse_single_worktree() {
         let output = "worktree /home/user/project\nHEAD abc1234\nbranch refs/heads/main\n\n";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert_eq!(wts[0].path, PathBuf::from("/home/user/project"));
         assert_eq!(wts[0].branch, Some("main".to_string()));
@@ -186,8 +184,7 @@ HEAD def5678
 branch refs/heads/feature-x
 
 ";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 2);
         assert!(wts[0].is_main);
         assert!(!wts[1].is_main);
@@ -205,8 +202,7 @@ HEAD abc1234
 branch refs/heads/main
 
 ";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert_eq!(wts[0].path, PathBuf::from("/home/user/wt-main"));
     }
@@ -214,8 +210,7 @@ branch refs/heads/main
     #[test]
     fn parse_detached_head() {
         let output = "worktree /home/user/project\nHEAD abc1234\ndetached\n\n";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert!(wts[0].branch.is_none());
     }

@@ -159,15 +159,13 @@ fn resolve_effective_cwd_with(
         ito_path: ito_path.to_path_buf(),
     };
 
-    if !worktree.enabled {
-        return fallback;
-    }
-
-    let Some(change_id) = change_id else {
-        return fallback;
+    let wt_path = if worktree.enabled {
+        change_id.and_then(lookup)
+    } else {
+        None
     };
 
-    let Some(wt_path) = lookup(change_id) else {
+    let Some(wt_path) = wt_path else {
         return fallback;
     };
 

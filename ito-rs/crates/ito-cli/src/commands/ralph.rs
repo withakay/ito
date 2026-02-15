@@ -18,6 +18,24 @@ pub(crate) fn handle_loop_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()> 
     handle_ralph_clap(rt, args)
 }
 
+fn load_worktree_config(ito_path: &std::path::Path, rt: &Runtime) -> core_ralph::WorktreeConfig {
+    let project_root = ito_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    let cfg = ito_config::load_cascading_project_config(project_root, ito_path, rt.ctx());
+    let merged = cfg.merged;
+    let enabled = merged
+        .pointer("/worktrees/enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let dir_name = merged
+        .pointer("/worktrees/layout/dir_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("ito-worktrees")
+        .to_string();
+    core_ralph::WorktreeConfig { enabled, dir_name }
+}
+
 /// Handle the `ito ralph` command using parsed `RalphArgs`.
 ///
 /// Validates mutually dependent flags, composes the prompt from an optional
@@ -119,23 +137,7 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
         }
     };
 
-    let worktree_config = {
-        let project_root = ito_path
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
-        let cfg = ito_config::load_cascading_project_config(project_root, ito_path, rt.ctx());
-        let merged = cfg.merged;
-        let enabled = merged
-            .pointer("/worktrees/enabled")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        let dir_name = merged
-            .pointer("/worktrees/layout/dir_name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("ito-worktrees")
-            .to_string();
-        core_ralph::WorktreeConfig { enabled, dir_name }
-    };
+    let worktree_config = load_worktree_config(ito_path, rt);
 
     let opts = core_ralph::RalphOptions {
         prompt,
