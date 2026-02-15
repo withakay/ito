@@ -20,5 +20,5 @@
 - [x] 002-11_ralph-module-ready-sequencing
 - [x] 002-12_add-ralph-error-threshold
 - [x] 002-13_add-ralph-continue-ready
-- [ ] 002-14_ralph-harnesses-claude-codex-copilot
+- [x] 002-14_ralph-harnesses-claude-codex-copilot
 - [x] 002-15_retriable-harness-crashes

@@ -477,6 +477,7 @@ pub fn run_ralph(
         // Handle timeout - log and continue to next iteration
         if run.timed_out {
             println!("\n=== Inactivity timeout reached. Restarting iteration... ===\n");
+            retriable_retry_count = 0;
             // Don't update state for timed out iterations, just retry
             continue;
         }

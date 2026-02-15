@@ -80,8 +80,8 @@ impl FromStr for HarnessName {
             "codex" => Ok(HarnessName::Codex),
             "copilot" | "github-copilot" => Ok(HarnessName::GithubCopilot),
             "stub" => Ok(HarnessName::Stub),
-            _ => Err(HarnessNameParseError {
-                input: s.to_string(),
+            other => Err(HarnessNameParseError {
+                input: other.to_string(),
             }),
         }
     }
@@ -134,7 +134,9 @@ const RETRIABLE_EXIT_CODES: &[i32] = &[
     129, // SIGHUP
     130, // SIGINT
     131, // SIGQUIT
+    132, // SIGILL
     134, // SIGABRT
+    135, // SIGBUS
     136, // SIGFPE
     137, // SIGKILL
     139, // SIGSEGV
@@ -305,7 +307,7 @@ mod tests {
 
     #[test]
     fn is_retriable_for_all_retriable_codes() {
-        let retriable_codes = vec![128, 129, 130, 131, 134, 136, 137, 139, 141, 143];
+        let retriable_codes = vec![128, 129, 130, 131, 132, 134, 135, 136, 137, 139, 141, 143];
         for code in retriable_codes {
             let result = make_result(code);
             assert!(
@@ -318,7 +320,7 @@ mod tests {
 
     #[test]
     fn is_not_retriable_for_normal_codes() {
-        let normal_codes = vec![0, 1, 2, 127, 132, 144, 255, -1];
+        let normal_codes = vec![0, 1, 2, 127, 133, 144, 255, -1];
         for code in normal_codes {
             let result = make_result(code);
             assert!(
