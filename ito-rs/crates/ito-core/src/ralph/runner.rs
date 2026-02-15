@@ -1,5 +1,6 @@
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::harness::types::MAX_RETRIABLE_RETRIES;
 use crate::harness::{Harness, HarnessName};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
@@ -24,6 +25,10 @@ pub struct WorktreeConfig {
     /// Whether worktree-based workflows are enabled for this project.
     pub enabled: bool,
     /// The directory name where change worktrees live (e.g. `ito-worktrees`).
+    ///
+    /// Not currently used in resolution logic (branch lookup via `git worktree
+    /// list` does not need this), but carried for future use such as
+    /// constructing expected worktree paths without invoking git.
     pub dir_name: String,
 }
 
@@ -384,7 +389,7 @@ pub fn run_ralph(
     let effective_ito_path = &resolved_cwd.ito_path;
 
     if opts.verbose {
-        if resolved_cwd.path != std::env::current_dir().unwrap_or_default() {
+        if effective_ito_path != ito_path {
             println!("Resolved worktree: {}", resolved_cwd.path.display());
         } else {
             println!(
@@ -476,7 +481,7 @@ pub fn run_ralph(
     println!(
         "\n=== Starting Ralph for {change} (harness: {harness}) ===",
         change = change_id,
-        harness = harness.name().0
+        harness = harness.name()
     );
     if let Some(model) = &opts.model {
         println!("Model: {model}");
@@ -494,6 +499,7 @@ pub fn run_ralph(
 
     let mut last_validation_failure: Option<String> = None;
     let mut harness_error_count: u32 = 0;
+    let mut retriable_retry_count: u32 = 0;
 
     for _ in 0..max_iters {
         let iteration = state.iteration.saturating_add(1);
@@ -558,7 +564,7 @@ pub fn run_ralph(
         // Mirror TS: completion promise is detected from stdout (not stderr).
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
-        let file_changes_count = if harness.name() != HarnessName::STUB {
+        let file_changes_count = if harness.name() != HarnessName::Stub {
             count_git_changes(&process_runner, &resolved_cwd.path)? as u32
         } else {
             0
@@ -567,15 +573,38 @@ pub fn run_ralph(
         // Handle timeout - log and continue to next iteration
         if run.timed_out {
             println!("\n=== Inactivity timeout reached. Restarting iteration... ===\n");
+            retriable_retry_count = 0;
             // Don't update state for timed out iterations, just retry
             continue;
         }
 
         if run.exit_code != 0 {
+            if run.is_retriable() {
+                retriable_retry_count = retriable_retry_count.saturating_add(1);
+                if retriable_retry_count > MAX_RETRIABLE_RETRIES {
+                    return Err(CoreError::Process(format!(
+                        "Harness '{name}' crashed {count} consecutive times (exit code {code}); giving up",
+                        name = harness.name(),
+                        count = retriable_retry_count,
+                        code = run.exit_code
+                    )));
+                }
+                println!(
+                    "\n=== Harness process crashed (exit code {code}, attempt {count}/{max}). Retrying... ===\n",
+                    code = run.exit_code,
+                    count = retriable_retry_count,
+                    max = MAX_RETRIABLE_RETRIES
+                );
+                continue;
+            }
+
+            // Non-retriable non-zero exit: reset the consecutive crash counter.
+            retriable_retry_count = 0;
+
             if opts.exit_on_error {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exited with code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     code = run.exit_code
                 )));
             }
@@ -584,7 +613,7 @@ pub fn run_ralph(
             if harness_error_count >= opts.error_threshold {
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exceeded non-zero exit threshold ({count}/{threshold}); last exit code {code}",
-                    name = harness.name().0,
+                    name = harness.name(),
                     count = harness_error_count,
                     threshold = opts.error_threshold,
                     code = run.exit_code
@@ -592,7 +621,7 @@ pub fn run_ralph(
             }
 
             last_validation_failure = Some(render_harness_failure(
-                harness.name().0,
+                harness.name().as_str(),
                 run.exit_code,
                 &run.stdout,
                 &run.stderr,
@@ -605,6 +634,9 @@ pub fn run_ralph(
             );
             continue;
         }
+
+        // Successful exit: reset both counters.
+        retriable_retry_count = 0;
 
         if !opts.no_commit {
             commit_iteration(&process_runner, iteration, &resolved_cwd.path)?;
@@ -1035,6 +1067,10 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::process::{ProcessExecutionError, ProcessOutput, ProcessRunner};
+    use std::sync::Mutex as StdMutex;
+
+    // -- resolve_effective_cwd -------------------------------------------
 
     #[test]
     fn resolve_cwd_worktree_found() {
@@ -1118,5 +1154,231 @@ mod tests {
 
         assert_eq!(result.path, fallback);
         assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
+
+    // -- completion_promise_found ----------------------------------------
+
+    #[test]
+    fn promise_single_match() {
+        assert!(completion_promise_found("x\n<promise>T</promise>\ny", "T"));
+    }
+    #[test]
+    fn promise_no_tags() {
+        assert!(!completion_promise_found("no tags here", "T"));
+    }
+    #[test]
+    fn promise_second_match() {
+        assert!(completion_promise_found(
+            "<promise>W</promise><promise>T</promise>",
+            "T"
+        ));
+    }
+    #[test]
+    fn promise_empty_token() {
+        assert!(completion_promise_found("<promise></promise>", ""));
+    }
+    #[test]
+    fn promise_empty_stdout() {
+        assert!(!completion_promise_found("", "T"));
+    }
+    #[test]
+    fn promise_whitespace_trimmed() {
+        assert!(completion_promise_found("<promise>  T  </promise>", "T"));
+    }
+    #[test]
+    fn promise_nested() {
+        assert!(!completion_promise_found(
+            "<promise><promise>T</promise></promise>",
+            "T"
+        ));
+    }
+    #[test]
+    fn promise_incomplete() {
+        assert!(!completion_promise_found("<promise>T", "T"));
+    }
+
+    // -- infer_module_from_change ----------------------------------------
+
+    #[test]
+    fn infer_module_ok() {
+        assert_eq!(infer_module_from_change("003-05_foo").unwrap(), "003");
+        assert_eq!(infer_module_from_change("003-05").unwrap(), "003");
+    }
+    #[test]
+    fn infer_module_no_hyphen() {
+        let CoreError::Validation(msg) = infer_module_from_change("x").unwrap_err() else {
+            panic!("expected Validation");
+        };
+        assert!(msg.contains("Invalid change ID"));
+    }
+
+    // -- render helpers --------------------------------------------------
+
+    #[test]
+    fn render_validation_pass() {
+        let r = validation::ValidationResult {
+            success: true,
+            message: "ok".into(),
+            output: None,
+        };
+        let s = render_validation_result("T", &r);
+        assert!(s.contains("PASS") && s.contains("### T"));
+    }
+    #[test]
+    fn render_validation_fail_with_output() {
+        let r = validation::ValidationResult {
+            success: false,
+            message: "bad".into(),
+            output: Some("detail".into()),
+        };
+        let s = render_validation_result("T", &r);
+        assert!(s.contains("FAIL") && s.contains("```text"));
+    }
+    #[test]
+    fn render_validation_whitespace_output() {
+        let r = validation::ValidationResult {
+            success: true,
+            message: "ok".into(),
+            output: Some("  \n ".into()),
+        };
+        assert!(!render_validation_result("T", &r).contains("```"));
+    }
+    #[test]
+    fn render_failure_both() {
+        let s = render_harness_failure("h", 1, "out", "err");
+        assert!(s.contains("Stdout:") && s.contains("Stderr:"));
+    }
+    #[test]
+    fn render_failure_empty() {
+        let s = render_harness_failure("h", 1, "", "");
+        assert!(!s.contains("Stdout:") && !s.contains("Stderr:"));
+    }
+
+    // -- ChangeSummary filter helpers ------------------------------------
+
+    fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSummary {
+        ChangeSummary {
+            id: id.into(),
+            module_id: None,
+            completed_tasks: c,
+            shelved_tasks: sh,
+            in_progress_tasks: ip,
+            pending_tasks: p,
+            total_tasks: c + ip + p + sh,
+            last_modified: chrono::Utc::now(),
+            has_proposal: plan,
+            has_design: false,
+            has_specs: plan,
+            has_tasks: plan,
+        }
+    }
+
+    #[test]
+    fn filter_ready() {
+        let c = vec![
+            summary("a", 0, 0, 2, 0, true),
+            summary("b", 3, 0, 0, 0, true),
+        ];
+        assert_eq!(module_ready_change_ids(&c), vec!["a"]);
+    }
+    #[test]
+    fn filter_eligible() {
+        let c = vec![
+            summary("z", 3, 0, 0, 0, true),
+            summary("a", 0, 0, 2, 0, true),
+            summary("m", 1, 1, 0, 0, true),
+        ];
+        assert_eq!(repo_eligible_change_ids(&c), vec!["a", "m"]);
+    }
+    #[test]
+    fn filter_incomplete() {
+        let c = vec![
+            summary("b", 0, 0, 0, 0, false),
+            summary("a", 3, 0, 0, 0, true),
+            summary("c", 0, 0, 1, 0, true),
+        ];
+        assert_eq!(repo_incomplete_change_ids(&c), vec!["b", "c"]);
+    }
+    #[test]
+    fn filter_module_incomplete() {
+        let c = vec![
+            summary("a", 3, 0, 0, 0, true),
+            summary("b", 0, 0, 1, 0, true),
+        ];
+        assert_eq!(module_incomplete_change_ids(&c), vec!["b"]);
+    }
+
+    // -- print helpers (coverage only) -----------------------------------
+
+    #[test]
+    fn print_helpers() {
+        print_eligible_changes(&[]);
+        print_eligible_changes(&["a".into(), "b".into()]);
+        print_ready_changes("x", &[]);
+        print_ready_changes("x", &["a".into(), "b".into()]);
+    }
+
+    // -- Process helpers via mock ----------------------------------------
+
+    struct MockRunner(StdMutex<Vec<Result<ProcessOutput, ProcessExecutionError>>>);
+    impl MockRunner {
+        fn new(r: Vec<Result<ProcessOutput, ProcessExecutionError>>) -> Self {
+            Self(StdMutex::new(r))
+        }
+    }
+    impl ProcessRunner for MockRunner {
+        fn run(
+            &self,
+            _req: &crate::process::ProcessRequest,
+        ) -> Result<ProcessOutput, ProcessExecutionError> {
+            self.0.lock().unwrap().remove(0)
+        }
+        fn run_with_timeout(
+            &self,
+            req: &crate::process::ProcessRequest,
+            _t: Duration,
+        ) -> Result<ProcessOutput, ProcessExecutionError> {
+            self.run(req)
+        }
+    }
+    fn ok(stdout: &str, code: i32) -> Result<ProcessOutput, ProcessExecutionError> {
+        Ok(ProcessOutput {
+            exit_code: code,
+            success: code == 0,
+            stdout: stdout.into(),
+            stderr: String::new(),
+            timed_out: false,
+        })
+    }
+
+    #[test]
+    fn git_changes_and_commit() {
+        let cwd = Path::new("/tmp");
+        assert_eq!(
+            count_git_changes(&MockRunner::new(vec![ok(" M a\n M b\n", 0)]), cwd).unwrap(),
+            2
+        );
+        assert_eq!(
+            count_git_changes(&MockRunner::new(vec![ok("", 0)]), cwd).unwrap(),
+            0
+        );
+        let fail = MockRunner::new(vec![Ok(ProcessOutput {
+            exit_code: 128,
+            success: false,
+            stdout: String::new(),
+            stderr: "fatal".into(),
+            timed_out: false,
+        })]);
+        assert_eq!(count_git_changes(&fail, cwd).unwrap(), 0);
+        commit_iteration(&MockRunner::new(vec![ok("", 0), ok("", 0)]), 1, cwd).unwrap();
+        let bad = MockRunner::new(vec![Ok(ProcessOutput {
+            exit_code: 1,
+            success: false,
+            stdout: String::new(),
+            stderr: "e".into(),
+            timed_out: false,
+        })]);
+        assert!(commit_iteration(&bad, 1, cwd).is_err());
+        assert!(now_ms().unwrap() > 0);
     }
 }

@@ -1,40 +1,32 @@
-use super::streaming_cli::run_streaming_cli;
-use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use miette::Result;
+use super::streaming_cli::CliHarness;
+use super::types::{HarnessName, HarnessRunConfig};
 
 /// Runs the `codex` CLI in non-interactive exec mode (`codex exec`).
+///
 /// Selected via `ito ralph --harness codex`; requires the Codex CLI on PATH.
+///
+/// # Examples
+///
+/// ```
+/// use ito_core::harness::{CodexHarness, Harness, HarnessName};
+///
+/// let h = CodexHarness;
+/// assert_eq!(h.name(), HarnessName::Codex);
+/// assert!(h.streams_output());
+/// ```
 #[derive(Debug, Default)]
 pub struct CodexHarness;
 
-impl Harness for CodexHarness {
-    /// Identify this harness implementation as the Codex harness.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{CodexHarness, Harness, HarnessName};
-    ///
-    /// let h = CodexHarness::default();
-    /// assert_eq!(h.name(), HarnessName::CODEX);
-    /// ```
-    fn name(&self) -> HarnessName {
-        HarnessName::CODEX
+impl CliHarness for CodexHarness {
+    fn harness_name(&self) -> HarnessName {
+        HarnessName::Codex
     }
 
-    /// Execute the `codex` CLI with arguments derived from `config` and stream its output.
-    ///
-    /// The constructed command begins with `"exec"`, includes `--model <model>` if `config.model` is set,
-    /// appends `--yolo` when `config.allow_all` is true, and appends `config.prompt` as the final argument.
-    ///
-    /// # Returns
-    ///
-    /// The resulting `HarnessRunResult` on success.
-    ///
-    /// # Examples
-    ///
-    ///
-    fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
+    fn binary(&self) -> &str {
+        "codex"
+    }
+
+    fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
         let mut args = vec!["exec".to_string()];
         if let Some(model) = config.model.as_deref() {
             args.push("--model".to_string());
@@ -44,41 +36,61 @@ impl Harness for CodexHarness {
             args.push("--yolo".to_string());
         }
         args.push(config.prompt.clone());
+        args
+    }
+}
 
-        run_streaming_cli("codex", &args, config)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    enum Allow {
+        All,
+        None,
     }
 
-    /// Performs no action; provided to satisfy the `Harness` trait.
-    ///
-    /// This method is intentionally empty because `run` executes synchronously and there is nothing to stop.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{CodexHarness, Harness};
-    ///
-    /// let mut h = CodexHarness::default();
-    /// h.stop();
-    /// ```
-    fn stop(&mut self) {
-        // No-op: `run` is synchronous.
+    fn config(allow: Allow, model: Option<&str>) -> HarnessRunConfig {
+        let allow_all = match allow {
+            Allow::All => true,
+            Allow::None => false,
+        };
+        HarnessRunConfig {
+            prompt: "do stuff".to_string(),
+            model: model.map(String::from),
+            cwd: std::env::temp_dir(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all,
+            inactivity_timeout: None,
+        }
     }
 
-    /// Indicates whether this harness emits output incrementally (streaming) during a run.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the harness streams output as it runs, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{CodexHarness, Harness};
-    ///
-    /// let h = CodexHarness::default();
-    /// assert!(h.streams_output());
-    /// ```
-    fn streams_output(&self) -> bool {
-        true
+    #[test]
+    fn harness_name_is_codex() {
+        let harness = CodexHarness;
+        assert_eq!(harness.harness_name(), HarnessName::Codex);
+    }
+
+    #[test]
+    fn binary_is_codex() {
+        let harness = CodexHarness;
+        assert_eq!(harness.binary(), "codex");
+    }
+
+    #[test]
+    fn build_args_with_allow_all() {
+        let harness = CodexHarness;
+        let cfg = config(Allow::All, Some("o3"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["exec", "--model", "o3", "--yolo", "do stuff"]);
+    }
+
+    #[test]
+    fn build_args_without_allow_all() {
+        let harness = CodexHarness;
+        let cfg = config(Allow::None, Some("o3"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["exec", "--model", "o3", "do stuff"]);
     }
 }

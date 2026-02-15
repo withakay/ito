@@ -1,52 +1,89 @@
 use miette::Result;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// Identifier for a harness implementation.
-pub struct HarnessName(pub &'static str);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum HarnessName {
+    /// The OpenCode harness.
+    Opencode,
+    /// The Claude Code harness.
+    Claude,
+    /// The OpenAI Codex harness.
+    Codex,
+    /// The GitHub Copilot harness.
+    GithubCopilot,
+    /// The stub harness (testing only, not user-facing).
+    Stub,
+}
 
 impl HarnessName {
-    /// The OpenCode harness.
-    pub const OPENCODE: HarnessName = HarnessName("opencode");
-    /// The Claude Code harness.
-    pub const CLAUDE: HarnessName = HarnessName("claude");
-    /// The OpenAI Codex harness.
-    pub const CODEX: HarnessName = HarnessName("codex");
-    /// The GitHub Copilot harness (canonical internal name).
-    pub const GITHUB_COPILOT: HarnessName = HarnessName("github-copilot");
-    /// The GitHub Copilot harness (user-facing alias).
-    pub const COPILOT: HarnessName = HarnessName("copilot");
-    /// The stub harness (testing only, not user-facing).
-    pub const STUB: HarnessName = HarnessName("stub");
+    /// The canonical, user-facing name for this harness.
+    ///
+    /// Note: some harnesses accept additional aliases (for example,
+    /// [`HarnessName::GithubCopilot`] also accepts `github-copilot`).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            HarnessName::Opencode => "opencode",
+            HarnessName::Claude => "claude",
+            HarnessName::Codex => "codex",
+            HarnessName::GithubCopilot => "copilot",
+            HarnessName::Stub => "stub",
+        }
+    }
 
-    /// User-facing harness names, suitable for CLI help text.
+    /// Iterator of harnesses intended for user-facing CLI help.
     ///
-    /// Does not include `stub` (testing only) or internal aliases
-    /// like `github-copilot`.
-    pub const USER_FACING: &[&str] = &["opencode", "claude", "codex", "copilot"];
+    /// Does not include [`HarnessName::Stub`] (testing only).
+    pub fn user_facing() -> impl Iterator<Item = HarnessName> {
+        [
+            HarnessName::Opencode,
+            HarnessName::Claude,
+            HarnessName::Codex,
+            HarnessName::GithubCopilot,
+        ]
+        .into_iter()
+    }
+}
 
-    /// Help text for the `--harness` CLI flag.
-    ///
-    /// Update [`USER_FACING`](Self::USER_FACING) when adding a new harness;
-    /// this string and the CLI help derive from it.
-    pub const HARNESS_HELP: &str = "Harness to run [opencode, claude, codex, copilot]";
+impl fmt::Display for HarnessName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
-    /// Formats the user-facing harness names for display in CLI help.
-    ///
-    /// Returns a single `String` containing the entries in `USER_FACING` joined by `, `
-    /// and wrapped in square brackets (for example: `"[opencode, claude, codex, copilot]"`).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let txt = ito_core::harness::HarnessName::help_text();
-    /// assert!(txt.starts_with('[') && txt.ends_with(']'));
-    /// assert!(txt.contains("opencode"));
-    /// ```
-    pub fn help_text() -> String {
-        format!("[{}]", Self::USER_FACING.join(", "))
+/// Parse error for [`HarnessName`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessNameParseError {
+    /// The raw value that could not be parsed.
+    pub input: String,
+}
+
+impl fmt::Display for HarnessNameParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unknown harness name: {}", self.input)
+    }
+}
+
+impl std::error::Error for HarnessNameParseError {}
+
+impl FromStr for HarnessName {
+    type Err = HarnessNameParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "opencode" => Ok(HarnessName::Opencode),
+            "claude" => Ok(HarnessName::Claude),
+            "codex" => Ok(HarnessName::Codex),
+            "copilot" | "github-copilot" => Ok(HarnessName::GithubCopilot),
+            "stub" => Ok(HarnessName::Stub),
+            other => Err(HarnessNameParseError {
+                input: other.to_string(),
+            }),
+        }
     }
 }
 
@@ -84,6 +121,66 @@ pub struct HarnessRunResult {
     pub timed_out: bool,
 }
 
+/// Exit codes that indicate a transient process crash (not a logical agent error).
+///
+/// These are retried automatically without counting against the error threshold,
+/// because the harness process itself failed — not the work it was doing.
+///
+/// - `128` — generic fatal signal on many CLIs
+/// - `128 + signal` — killed by signal (e.g. 137 = SIGKILL, 139 = SIGSEGV, 130 = SIGINT)
+const RETRIABLE_EXIT_CODES: &[i32] = &[
+    128, // Generic fatal signal
+    129, // SIGHUP
+    130, // SIGINT
+    131, // SIGQUIT
+    132, // SIGILL
+    134, // SIGABRT
+    135, // SIGBUS
+    136, // SIGFPE
+    137, // SIGKILL
+    139, // SIGSEGV
+    141, // SIGPIPE
+    143, // SIGTERM
+];
+
+/// Maximum number of consecutive retriable-exit retries before giving up.
+///
+/// Prevents infinite retry loops when a harness consistently crashes.
+pub const MAX_RETRIABLE_RETRIES: u32 = 3;
+
+impl HarnessRunResult {
+    /// Whether the exit code indicates a transient process crash that should be retried.
+    ///
+    /// Signal-based exit codes (128+N) indicate the process was killed by the OS or
+    /// a signal, not that the agent's work failed. These are retried without counting
+    /// against the error threshold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ito_core::harness::HarnessRunResult;
+    /// use std::time::Duration;
+    ///
+    /// let result = HarnessRunResult {
+    ///     stdout: String::new(),
+    ///     stderr: String::new(),
+    ///     exit_code: 128,
+    ///     duration: Duration::from_secs(1),
+    ///     timed_out: false,
+    /// };
+    /// assert!(result.is_retriable());
+    ///
+    /// let normal_failure = HarnessRunResult {
+    ///     exit_code: 1,
+    ///     ..result.clone()
+    /// };
+    /// assert!(!normal_failure.is_retriable());
+    /// ```
+    pub fn is_retriable(&self) -> bool {
+        RETRIABLE_EXIT_CODES.contains(&self.exit_code)
+    }
+}
+
 /// A runnable harness implementation.
 pub trait Harness {
     /// Return the harness identifier.
@@ -105,7 +202,7 @@ pub trait Harness {
     /// ```ignore
     /// struct Dummy;
     /// impl super::Harness for Dummy {
-    ///     fn name(&self) -> super::HarnessName { super::HarnessName("dummy") }
+    ///     fn name(&self) -> super::HarnessName { super::HarnessName::Stub }
     ///     fn run(&mut self, _config: &super::HarnessRunConfig) -> miette::Result<super::HarnessRunResult> {
     ///         unimplemented!()
     ///     }
@@ -127,11 +224,110 @@ mod tests {
 
     #[test]
     fn harness_help_matches_user_facing() {
-        let expected = format!("Harness to run [{}]", HarnessName::USER_FACING.join(", "));
+        let mut names = Vec::new();
+        for name in HarnessName::user_facing() {
+            names.push(name.as_str());
+        }
+        assert_eq!(names, vec!["opencode", "claude", "codex", "copilot"]);
+    }
+
+    #[test]
+    fn from_str_valid_variants() {
         assert_eq!(
-            HarnessName::HARNESS_HELP,
-            expected,
-            "HARNESS_HELP is out of sync with USER_FACING — update both when adding a harness"
+            "opencode".parse::<HarnessName>().unwrap(),
+            HarnessName::Opencode
         );
+        assert_eq!(
+            "claude".parse::<HarnessName>().unwrap(),
+            HarnessName::Claude
+        );
+        assert_eq!("codex".parse::<HarnessName>().unwrap(), HarnessName::Codex);
+        assert_eq!(
+            "copilot".parse::<HarnessName>().unwrap(),
+            HarnessName::GithubCopilot
+        );
+        assert_eq!(
+            "github-copilot".parse::<HarnessName>().unwrap(),
+            HarnessName::GithubCopilot
+        );
+        assert_eq!("stub".parse::<HarnessName>().unwrap(), HarnessName::Stub);
+    }
+
+    #[test]
+    fn from_str_invalid_returns_error() {
+        let invalid_inputs = vec!["invalid", "", "OPENCODE"];
+        for input in invalid_inputs {
+            let result = input.parse::<HarnessName>();
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.input, input);
+        }
+    }
+
+    #[test]
+    fn as_str_all_variants() {
+        assert_eq!(HarnessName::Opencode.as_str(), "opencode");
+        assert_eq!(HarnessName::Claude.as_str(), "claude");
+        assert_eq!(HarnessName::Codex.as_str(), "codex");
+        assert_eq!(HarnessName::GithubCopilot.as_str(), "copilot");
+        assert_eq!(HarnessName::Stub.as_str(), "stub");
+    }
+
+    #[test]
+    fn display_matches_as_str() {
+        let variants = vec![
+            HarnessName::Opencode,
+            HarnessName::Claude,
+            HarnessName::Codex,
+            HarnessName::GithubCopilot,
+            HarnessName::Stub,
+        ];
+        for variant in variants {
+            assert_eq!(format!("{}", variant), variant.as_str());
+        }
+    }
+
+    #[test]
+    fn parse_error_display() {
+        let err = HarnessNameParseError {
+            input: "foo".to_string(),
+        };
+        assert_eq!(format!("{}", err), "Unknown harness name: foo");
+    }
+
+    fn make_result(exit_code: i32) -> HarnessRunResult {
+        HarnessRunResult {
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code,
+            duration: Duration::from_secs(1),
+            timed_out: false,
+        }
+    }
+
+    #[test]
+    fn is_retriable_for_all_retriable_codes() {
+        let retriable_codes = vec![128, 129, 130, 131, 132, 134, 135, 136, 137, 139, 141, 143];
+        for code in retriable_codes {
+            let result = make_result(code);
+            assert!(
+                result.is_retriable(),
+                "Exit code {} should be retriable",
+                code
+            );
+        }
+    }
+
+    #[test]
+    fn is_not_retriable_for_normal_codes() {
+        let normal_codes = vec![0, 1, 2, 127, 133, 144, 255, -1];
+        for code in normal_codes {
+            let result = make_result(code);
+            assert!(
+                !result.is_retriable(),
+                "Exit code {} should not be retriable",
+                code
+            );
+        }
     }
 }

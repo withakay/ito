@@ -123,14 +123,10 @@ pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
 fn find_worktree_for_branch_in_output(output: &str, branch: &str) -> Option<PathBuf> {
     let dummy = Path::new("/unused");
     let worktrees = parse_worktree_list(output, dummy);
-    for wt in worktrees {
-        if let Some(ref wt_branch) = wt.branch
-            && wt_branch == branch
-        {
-            return Some(wt.path);
-        }
-    }
-    None
+    worktrees
+        .into_iter()
+        .find(|wt| wt.branch.as_deref() == Some(branch))
+        .map(|wt| wt.path)
 }
 
 /// Get the audit log path for a worktree.

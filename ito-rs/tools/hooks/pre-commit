@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Custom pre-commit hook wrapper.
+#
+# 1. Acquires an advisory lock so concurrent agents know not to touch the tree.
+# 2. Delegates to prek for actual hook execution.
+# 3. Releases the lock on exit (success or failure).
+#
+# The lock prevents the classic race condition where another process modifies
+# the working tree while prek is stashing/unstashing unstaged changes.
+#
+# Agents should prefer: make check && git commit --no-verify
+# This hook is the safety net for normal human commits.
+
+set -euo pipefail
+
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+LOCK_SCRIPT="${TOPLEVEL}/ito-rs/tools/precommit-lock.sh"
+
+# --- Lock acquisition ---
+if [ -x "$LOCK_SCRIPT" ]; then
+    "$LOCK_SCRIPT" acquire --timeout 30 --owner-pid $$ || {
+        echo "pre-commit: could not acquire lock — another hook may be running" >&2
+        echo "  If this is stale, remove: $(git rev-parse --git-dir)/precommit.lock" >&2
+        exit 1
+    }
+    # Ensure lock is released on exit (normal, error, or signal)
+    trap '"$LOCK_SCRIPT" release --owner-pid '"$$"' 2>/dev/null || true' EXIT INT TERM HUP
+else
+    echo "pre-commit: warning: lock script not found at ${LOCK_SCRIPT}" >&2
+    echo "  Falling through without lock protection." >&2
+fi
+
+# --- Delegate to prek ---
+# Find prek binary (same logic as prek's own shim)
+PREK="${HOME}/.local/share/mise/installs/prek/latest/prek"
+if [ ! -x "$PREK" ]; then
+    # Try version-specific path
+    for p in "${HOME}"/.local/share/mise/installs/prek/*/prek-*/prek; do
+        if [ -x "$p" ]; then
+            PREK="$p"
+            break
+        fi
+    done
+fi
+if [ ! -x "$PREK" ]; then
+    PREK="$(command -v prek 2>/dev/null || true)"
+fi
+if [ -z "$PREK" ] || [ ! -x "$PREK" ]; then
+    echo "pre-commit: prek not found — install with: cargo install prek" >&2
+    exit 1
+fi
+
+exec "$PREK" hook-impl --hook-dir "$HERE" --script-version 4 --hook-type=pre-commit -- "$@"

@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 76
 expression: "snapshot(&[\"--help-all\"])"
 ---
 ================================================================================
@@ -591,9 +592,10 @@ Options:
           Keep working through eligible changes across the repo until work is complete
 
       --harness <HARNESS>
-          Harness to run [opencode, claude, codex, copilot]
+          Harness to run
 
           [default: opencode]
+          [possible values: opencode, claude, codex, copilot]
 
       --model <MODEL>
           Model id for the harness

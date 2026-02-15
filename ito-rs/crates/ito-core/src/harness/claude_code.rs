@@ -1,50 +1,32 @@
-use super::streaming_cli::run_streaming_cli;
-use super::types::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use miette::Result;
+use super::streaming_cli::CliHarness;
+use super::types::{HarnessName, HarnessRunConfig};
 
 /// Runs the `claude` CLI in non-interactive print mode (`claude -p`).
+///
 /// Selected via `ito ralph --harness claude`; requires the Claude Code CLI on PATH.
+///
+/// # Examples
+///
+/// ```
+/// use ito_core::harness::{ClaudeCodeHarness, Harness, HarnessName};
+///
+/// let h = ClaudeCodeHarness;
+/// assert_eq!(h.name(), HarnessName::Claude);
+/// assert!(h.streams_output());
+/// ```
 #[derive(Debug, Default)]
 pub struct ClaudeCodeHarness;
 
-impl Harness for ClaudeCodeHarness {
-    /// Identify the harness as the Claude harness.
-    ///
-    /// # Returns
-    ///
-    /// `HarnessName::CLAUDE`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{ClaudeCodeHarness, Harness, HarnessName};
-    ///
-    /// let h = ClaudeCodeHarness::default();
-    /// assert_eq!(h.name(), HarnessName::CLAUDE);
-    /// ```
-    fn name(&self) -> HarnessName {
-        HarnessName::CLAUDE
+impl CliHarness for ClaudeCodeHarness {
+    fn harness_name(&self) -> HarnessName {
+        HarnessName::Claude
     }
 
-    /// Run the Claude CLI using the provided configuration and stream its output.
-    ///
-    /// # Returns
-    ///
-    /// A `HarnessRunResult` describing the outcome of the run.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use ito_core::harness::{ClaudeCodeHarness, HarnessRunConfig};
-    ///
-    /// let mut harness = ClaudeCodeHarness::default();
-    /// let config = HarnessRunConfig {
-    ///     prompt: "Translate to French: Hello".to_string(),
-    ///     ..Default::default()
-    /// };
-    /// let result = harness.run(&config).unwrap();
-    /// ```
-    fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
+    fn binary(&self) -> &str {
+        "claude"
+    }
+
+    fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
         let mut args = Vec::new();
         if let Some(model) = config.model.as_deref() {
             args.push("--model".to_string());
@@ -55,39 +37,78 @@ impl Harness for ClaudeCodeHarness {
         }
         args.push("-p".to_string());
         args.push(config.prompt.clone());
+        args
+    }
+}
 
-        run_streaming_cli("claude", &args, config)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    enum Allow {
+        All,
+        None,
     }
 
-    /// Stops the harness. This implementation is a no-op because `run` is synchronous.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{ClaudeCodeHarness, Harness};
-    ///
-    /// let mut h = ClaudeCodeHarness::default();
-    /// // Calling stop has no effect for this harness.
-    /// h.stop();
-    /// ```
-    fn stop(&mut self) {
-        // No-op: `run` is synchronous.
+    fn config(allow: Allow, model: Option<&str>) -> HarnessRunConfig {
+        let allow_all = match allow {
+            Allow::All => true,
+            Allow::None => false,
+        };
+        HarnessRunConfig {
+            prompt: "do stuff".to_string(),
+            model: model.map(String::from),
+            cwd: std::env::temp_dir(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all,
+            inactivity_timeout: None,
+        }
     }
 
-    /// Indicates whether this harness produces streaming output.
-    ///
-    /// Returns `true` if the harness produces streaming output, `false` otherwise.
-    /// For this harness, the method always returns `true`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::harness::{ClaudeCodeHarness, Harness};
-    ///
-    /// let h = ClaudeCodeHarness::default();
-    /// assert!(h.streams_output());
-    /// ```
-    fn streams_output(&self) -> bool {
-        true
+    #[test]
+    fn harness_name_is_claude() {
+        let harness = ClaudeCodeHarness;
+        assert_eq!(harness.harness_name(), HarnessName::Claude);
+    }
+
+    #[test]
+    fn binary_is_claude() {
+        let harness = ClaudeCodeHarness;
+        assert_eq!(harness.binary(), "claude");
+    }
+
+    #[test]
+    fn build_args_with_allow_all() {
+        let harness = ClaudeCodeHarness;
+        let cfg = config(Allow::All, Some("sonnet"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(
+            args,
+            vec![
+                "--model",
+                "sonnet",
+                "--dangerously-skip-permissions",
+                "-p",
+                "do stuff"
+            ]
+        );
+    }
+
+    #[test]
+    fn build_args_without_allow_all() {
+        let harness = ClaudeCodeHarness;
+        let cfg = config(Allow::None, Some("sonnet"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["--model", "sonnet", "-p", "do stuff"]);
+    }
+
+    #[test]
+    fn build_args_without_model() {
+        let harness = ClaudeCodeHarness;
+        let cfg = config(Allow::None, None);
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["-p", "do stuff"]);
     }
 }

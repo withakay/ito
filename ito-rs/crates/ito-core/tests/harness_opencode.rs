@@ -252,3 +252,72 @@ fn github_copilot_harness_passes_model_and_allow_all_flags() {
         r.exit_code
     );
 }
+
+/// Verifies that `ClaudeCodeHarness` returns a clear error when the `claude` binary is not found on PATH.
+#[test]
+fn claude_harness_errors_when_claude_missing() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let _path_guard = PathGuard::set_exact(dir.path());
+
+    let mut h = ClaudeCodeHarness;
+    let err = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: None,
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: false,
+            inactivity_timeout: None,
+        })
+        .expect_err("should error");
+
+    assert!(err.to_string().contains("Failed to spawn claude"));
+}
+
+/// Verifies that `CodexHarness` returns a clear error when the `codex` binary is not found on PATH.
+#[test]
+fn codex_harness_errors_when_codex_missing() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let _path_guard = PathGuard::set_exact(dir.path());
+
+    let mut h = CodexHarness;
+    let err = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: None,
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: false,
+            inactivity_timeout: None,
+        })
+        .expect_err("should error");
+
+    assert!(err.to_string().contains("Failed to spawn codex"));
+}
+
+/// Verifies that `GitHubCopilotHarness` returns a clear error when the `copilot` binary is not found on PATH.
+#[test]
+fn copilot_harness_errors_when_copilot_missing() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let _path_guard = PathGuard::set_exact(dir.path());
+
+    let mut h = GitHubCopilotHarness;
+    let err = h
+        .run(&HarnessRunConfig {
+            prompt: "hello".to_string(),
+            model: None,
+            cwd: dir.path().to_path_buf(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all: false,
+            inactivity_timeout: None,
+        })
+        .expect_err("should error");
+
+    assert!(err.to_string().contains("Failed to spawn copilot"));
+}
