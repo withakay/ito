@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
-/// Identifier for a harness implementation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// Identifier for a harness implementation.
 pub enum HarnessName {
     /// The OpenCode harness.
     Opencode,
@@ -55,8 +55,8 @@ impl fmt::Display for HarnessName {
     }
 }
 
-/// Parse error for [`HarnessName`].
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Parse error for [`HarnessName`].
 pub struct HarnessNameParseError {
     /// The raw value that could not be parsed.
     pub input: String,

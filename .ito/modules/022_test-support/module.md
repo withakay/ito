@@ -4,6 +4,9 @@
 Test utilities and helpers for Ito (`ito-test-support` crate). Shared test fixtures, builders, fakes, and assertion helpers used across crate test suites.
 
 ## Scope
-- Test-only utilities, shared fixtures, fakes, builders, and assertion helpers used across crate test suites.
+- Shared test fixtures and mock repository builders
+- PTY helpers for interactive CLI testing
+- Snapshot normalization utilities
+- Assertion helpers and test data generators
 
 ## Changes

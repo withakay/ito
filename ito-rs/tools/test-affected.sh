@@ -78,16 +78,20 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 #   ito-web         -> ito-cli (optional dependency with default feature)
 #   ito-test-support -> ito-cli (dev)
 
-declare -A DEPENDENTS
-DEPENDENTS[ito-common]="ito-config ito-domain ito-core ito-cli"
-DEPENDENTS[ito-config]="ito-core ito-cli"
-DEPENDENTS[ito-domain]="ito-core ito-test-support"
-DEPENDENTS[ito-templates]="ito-core ito-web"
-DEPENDENTS[ito-logging]="ito-cli"
-DEPENDENTS[ito-core]="ito-cli ito-web"
-DEPENDENTS[ito-test-support]="ito-cli"
-DEPENDENTS[ito-cli]=""
-DEPENDENTS[ito-web]="ito-cli"
+dependents_for() {
+    case "$1" in
+        ito-common) echo "ito-config ito-domain ito-core ito-cli" ;;
+        ito-config) echo "ito-core ito-cli" ;;
+        ito-domain) echo "ito-core ito-test-support" ;;
+        ito-templates) echo "ito-core ito-web" ;;
+        ito-logging) echo "ito-cli" ;;
+        ito-core) echo "ito-cli ito-web" ;;
+        ito-test-support) echo "ito-cli" ;;
+        ito-web) echo "ito-cli" ;;
+        ito-cli) echo "" ;;
+        *) echo "" ;;
+    esac
+}
 
 # BFS worklist to collect transitive dependents.
 # Seed with the directly changed crates, then expand until stable.
@@ -108,7 +112,7 @@ while [ ${#WORKLIST[@]} -gt 0 ]; do
     AFFECTED_CRATES+=("$crate")
 
     # Enqueue direct dependents for further expansion
-    for dep in ${DEPENDENTS[$crate]:-}; do
+    for dep in $(dependents_for "$crate"); do
         found=0
         for existing in "${AFFECTED_CRATES[@]+"${AFFECTED_CRATES[@]}"}"; do
             [ "$existing" = "$dep" ] && found=1 && break

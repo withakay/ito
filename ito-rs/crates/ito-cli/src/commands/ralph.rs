@@ -1,4 +1,4 @@
-use crate::cli::RalphArgs;
+use crate::cli::{HarnessArg, RalphArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
@@ -105,27 +105,17 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
 
     let ito_path = rt.ito_path();
 
-    let mut harness_impl: Box<dyn Harness> = match args.harness.as_str() {
-        "claude" => Box::new(ClaudeCodeHarness),
-        "codex" => Box::new(CodexHarness),
-        "github-copilot" | "copilot" => Box::new(GitHubCopilotHarness),
-        "opencode" => Box::new(OpencodeHarness),
-        "stub" => {
+    let mut harness_impl: Box<dyn Harness> = match args.harness {
+        HarnessArg::Claude => Box::new(ClaudeCodeHarness),
+        HarnessArg::Codex => Box::new(CodexHarness),
+        HarnessArg::Copilot => Box::new(GitHubCopilotHarness),
+        HarnessArg::Opencode => Box::new(OpencodeHarness),
+        HarnessArg::Stub => {
             let p = args.stub_script.as_ref().map(std::path::PathBuf::from);
             match StubHarness::from_env_or_default(p) {
                 Ok(h) => Box::new(h),
                 Err(e) => return Err(to_cli_error(e)),
             }
-        }
-        _ => {
-            let known = ito_core::harness::HarnessName::user_facing()
-                .map(|h| h.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-            return fail(format!(
-                "Unknown harness: {h} (known harnesses: {known})",
-                h = args.harness,
-            ));
         }
     };
 
