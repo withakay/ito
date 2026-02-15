@@ -118,6 +118,53 @@ def _replace_version_in_section(
     return (True, old_version)
 
 
+def _sync_workspace_dep_versions(
+    *,
+    manifest: Path,
+    members: list[str],
+    new_version: str,
+) -> None:
+    """Rewrite version constraints for internal crates in [workspace.dependencies].
+
+    Cargo's semver resolver treats pre-release versions as incompatible with
+    a bare ``^MAJOR.MINOR.PATCH`` requirement (e.g. ``^0.1.4`` does **not**
+    match ``0.1.4-local.202602131725``).  When we stamp a local pre-release
+    version we must therefore update the ``version`` field inside each
+    internal workspace dependency entry so that the constraint explicitly
+    matches the stamped version.
+    """
+    text = manifest.read_text(encoding="utf-8")
+
+    # Build set of crate names from workspace member paths (last path component)
+    internal_crate_names: set[str] = set()
+    for member in members:
+        crate_name = Path(member).name
+        internal_crate_names.add(crate_name)
+
+    # Replace version = "..." inside inline-table dependency entries for internal crates.
+    # Matches lines like:  ito-common = { path = "...", version = "0.1.4" }
+    # We only touch lines whose crate name (with underscores normalised to hyphens) is
+    # in the internal set.
+    def _replace_dep_version(m: re.Match[str]) -> str:
+        crate_name = m.group("crate")
+        # Cargo normalises underscores to hyphens for crate names
+        if crate_name.replace("-", "_") not in {
+            n.replace("-", "_") for n in internal_crate_names
+        }:
+            return m.group(0)
+        prefix = m.group("prefix")
+        suffix = m.group("suffix")
+        return f'{prefix}"{new_version}"{suffix}'
+
+    pattern = re.compile(
+        r'^(?P<prefix>(?P<crate>[a-zA-Z_][a-zA-Z0-9_-]*)\s*=\s*\{[^}]*version\s*=\s*)"[^"]+?"(?P<suffix>.*)$',
+        re.MULTILINE,
+    )
+    new_text = pattern.sub(_replace_dep_version, text)
+    if new_text != text:
+        manifest.write_text(new_text, encoding="utf-8")
+
+
 def _read_workspace_members(workspace_manifest: Path) -> list[str]:
     try:
         import tomllib  # py3.11+
@@ -173,8 +220,15 @@ def main() -> None:
         new_version=new_version,
     )
 
-    # 2) Update member crate versions
+    # 2) Update workspace.dependencies version constraints for internal crates
     members = _read_workspace_members(workspace_manifest)
+    _sync_workspace_dep_versions(
+        manifest=workspace_manifest,
+        members=members,
+        new_version=new_version,
+    )
+
+    # 3) Update member crate versions
     workspace_dir = workspace_manifest.parent
     updated: list[Path] = []
     for member in members:
