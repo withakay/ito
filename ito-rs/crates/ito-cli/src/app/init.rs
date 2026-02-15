@@ -240,15 +240,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// print_post_init_guidance(Path::new("."));
 /// ```
 fn print_post_init_guidance(target_path: &std::path::Path) {
-    let abs_target = if target_path.is_absolute() {
-        target_path.to_path_buf()
-    } else if target_path == std::path::Path::new(".") {
-        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-    } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            .join(target_path)
-    };
+    let abs_target = ito_config::ito_dir::absolutize_and_normalize(target_path)
+        .unwrap_or_else(|_| target_path.to_path_buf());
 
     let ito_dir = abs_target.join(".ito");
 
@@ -401,15 +394,10 @@ fn worktree_template_context(
 
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
 
-    let project_root = if target_path.is_absolute() {
-        target_path.to_path_buf()
-    } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            .join(target_path)
-    }
-    .to_string_lossy()
-    .to_string();
+    let project_root = ito_config::ito_dir::absolutize_and_normalize(target_path)
+        .unwrap_or_else(|_| target_path.to_path_buf())
+        .to_string_lossy()
+        .to_string();
 
     WorktreeTemplateContext {
         enabled: true,

@@ -33,13 +33,8 @@ pub(crate) fn handle_templates_clap(rt: &Runtime, args: &TemplatesArgs) -> CliRe
                 TemplatesSchemasAction::Export { to, force } => {
                     let result =
                         templates::export_embedded_schemas(to, *force).map_err(to_cli_error)?;
-                    let abs_to = if to.is_absolute() {
-                        to.clone()
-                    } else {
-                        std::env::current_dir()
-                            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                            .join(to)
-                    };
+                    let abs_to =
+                        ito_config::ito_dir::absolutize_and_normalize(to).map_err(to_cli_error)?;
                     println!("Exported schemas to {}", abs_to.display());
                     println!("Written: {}", result.written);
                     println!("Skipped: {}", result.skipped);

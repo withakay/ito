@@ -50,23 +50,40 @@ pub fn get_ito_path(project_root: &Path, ctx: &ConfigContext) -> PathBuf {
 
 /// Like [`get_ito_path`], but uses an injected file-system.
 pub fn get_ito_path_fs<F: FileSystem>(fs: &F, project_root: &Path, ctx: &ConfigContext) -> PathBuf {
-    let root = absolutize_and_normalize(project_root);
+    let root = absolutize_and_normalize_lossy(project_root);
     root.join(get_ito_dir_name_fs(fs, &root, ctx))
 }
 
-fn absolutize_and_normalize(input: &Path) -> PathBuf {
+/// Resolve a possibly-relative path to an absolute, lexically-normalised form.
+///
+/// If the path is already absolute it is normalised in place; otherwise it is
+/// joined onto the current working directory first.  The result is
+/// lexically normalised (`.` / `..` components are resolved without
+/// touching the filesystem) so it is safe to use for display even when the
+/// path does not yet exist.
+///
+/// # Errors
+///
+/// Returns an `io::Error` when the current directory cannot be determined
+/// and `input` is relative.
+pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
     let abs = if input.is_absolute() {
         input.to_path_buf()
     } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(input)
+        std::env::current_dir()?.join(input)
     };
 
-    lexical_normalize(&abs)
+    Ok(lexical_normalize(&abs))
 }
 
-fn lexical_normalize(path: &Path) -> PathBuf {
+/// Infallible version used internally where a missing cwd is non-fatal.
+fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
+    absolutize_and_normalize(input).unwrap_or_else(|_| lexical_normalize(input))
+}
+
+/// Lexically normalise a path by resolving `.` and `..` components without
+/// touching the filesystem.
+pub fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component;
 
     let mut out = PathBuf::new();
