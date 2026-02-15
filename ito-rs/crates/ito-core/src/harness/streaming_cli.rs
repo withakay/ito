@@ -149,17 +149,43 @@ fn run_streaming_cli(
     let duration = start.elapsed();
     let was_timed_out = timed_out.load(Ordering::SeqCst);
 
+    let exit_code = if was_timed_out {
+        -1
+    } else {
+        exit_code_from_status(&status)
+    };
+
     Ok(HarnessRunResult {
         stdout,
         stderr,
-        exit_code: if was_timed_out {
-            -1
-        } else {
-            status.code().unwrap_or(1)
-        },
+        exit_code,
         duration,
         timed_out: was_timed_out,
     })
+}
+
+/// Extracts an exit code from a [`std::process::ExitStatus`].
+///
+/// On Unix, when a process is killed by a signal, `ExitStatus::code()` returns
+/// `None` and the signal number is available via `ExitStatus::signal()`. This
+/// function converts signal termination to the conventional `128 + signal` exit
+/// code so that [`HarnessRunResult::is_retriable`] can detect crash signals
+/// (SIGSEGV, SIGBUS, etc.).
+fn exit_code_from_status(status: &std::process::ExitStatus) -> i32 {
+    if let Some(code) = status.code() {
+        return code;
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return 128 + signal;
+        }
+    }
+
+    // Fallback for platforms where neither code nor signal is available.
+    1
 }
 
 /// Reads from `pipe` in byte-level chunks, forwarding output to stdout/stderr
