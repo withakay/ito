@@ -333,32 +333,6 @@ fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> CoreResul
     })
 }
 
-/// Truncates a string to at most `max_bytes` bytes while preserving valid UTF-8 boundaries and
-/// appending an explicit truncation marker when truncation occurs.
-///
-/// If the input fits within `max_bytes`, the original string is returned unchanged. When truncation
-/// is necessary, the function cuts at the last valid UTF-8 character boundary at or before
-/// `max_bytes` and appends "\n... (truncated) ...".
-///
-/// # Examples
-///
-/// ```
-/// // No truncation
-/// let s = "short";
-/// assert_eq!(crate::truncate_for_context(s, 10), "short");
-///
-/// // Truncation with ASCII
-/// let s = "abcdefghijklmnopqrstuvwxyz";
-/// let out = crate::truncate_for_context(s, 10);
-/// assert!(out.ends_with("\n... (truncated) ..."));
-/// assert!(out.len() <= 10 + "\n... (truncated) ...".len());
-///
-/// // UTF-8 safety: avoid cutting a multibyte character in half
-/// let s = "ééééé"; // 'é' is two bytes in UTF-8
-/// let out = crate::truncate_for_context(s, 5); // may be in middle of a character
-/// // Result must be valid UTF-8 and include truncation marker when truncated
-/// assert!(out.is_char_boundary(out.len()) || out.ends_with("\n... (truncated) ..."));
-/// ```
 fn truncate_for_context(s: &str, max_bytes: usize) -> String {
     if s.len() <= max_bytes {
         return s.to_string();

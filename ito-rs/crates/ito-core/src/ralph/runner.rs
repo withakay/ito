@@ -920,19 +920,6 @@ fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
     Ok(line_count)
 }
 
-/// Commit the current workspace changes as a single git commit for a Ralph iteration.
-///
-/// Runs `git add -A` followed by `git commit -m "Ralph loop iteration <iteration>"`.
-/// Returns an error if either git command fails or the process runner returns an execution error.
-/// The returned `CoreError::Process` includes relevant `stdout`/`stderr` output when available.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// // Given a `runner` that implements `ProcessRunner`:
-/// let runner: &dyn ProcessRunner = /* ... */;
-/// commit_iteration(runner, 3)?;
-/// ```
 fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()> {
     let add_request = ProcessRequest::new("git").args(["add", "-A"]);
     let add = runner
@@ -1081,28 +1068,6 @@ mod tests {
 
     // -- ChangeSummary filter helpers ------------------------------------
 
-    /// Constructs a ChangeSummary from given identifiers, task counts, and a proposal flag.
-    ///
-    /// The returned `ChangeSummary` sets `module_id` to `None`, `total_tasks` to the sum of
-    /// completed, in-progress, pending, and shelved tasks, `last_modified` to the current UTC time,
-    /// `has_design` to `false`, and `has_specs`, `has_tasks`, and `has_proposal` according to `plan`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let s = summary("chg-123", 2, 1, 3, 0, true);
-    /// assert_eq!(s.id, "chg-123");
-    /// assert_eq!(s.completed_tasks, 2);
-    /// assert_eq!(s.in_progress_tasks, 1);
-    /// assert_eq!(s.pending_tasks, 3);
-    /// assert_eq!(s.shelved_tasks, 0);
-    /// assert_eq!(s.total_tasks, 6);
-    /// assert!(s.has_proposal);
-    /// assert!(s.has_specs);
-    /// assert!(s.has_tasks);
-    /// assert!(!s.has_design);
-    /// assert!(s.module_id.is_none());
-    /// ```
     fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSummary {
         ChangeSummary {
             id: id.into(),
@@ -1169,49 +1134,17 @@ mod tests {
 
     struct MockRunner(StdMutex<Vec<Result<ProcessOutput, ProcessExecutionError>>>);
     impl MockRunner {
-        /// Creates a new mutex-protected collection of process execution results.
-        ///
-        /// The provided vector becomes the initial contents guarded by the internal mutex.
-        ///
-        /// # Returns
-        ///
-        /// The newly created, thread-safe container wrapping the given results.
         fn new(r: Vec<Result<ProcessOutput, ProcessExecutionError>>) -> Self {
             Self(StdMutex::new(r))
         }
     }
     impl ProcessRunner for MockRunner {
-        /// Returns the next pre-seeded process output from the runner's internal queue.
-        ///
-        /// The provided request parameter is ignored; this method simply removes and returns the first
-        /// queued `ProcessOutput`. The method will panic if the internal queue is empty or if the mutex
-        /// protecting it is poisoned.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// // Setup: assume `MockRunner` is defined as `struct MockRunner(std::sync::Mutex<Vec<ProcessOutput>>);`
-        /// let runner = MockRunner(std::sync::Mutex::new(vec![expected_output.clone()]));
-        /// let out = runner.run(&some_request).unwrap();
-        /// assert_eq!(out, expected_output);
-        /// ```
         fn run(
             &self,
             _req: &crate::process::ProcessRequest,
         ) -> Result<ProcessOutput, ProcessExecutionError> {
             self.0.lock().unwrap().remove(0)
         }
-        /// Execute a process request using this runner while ignoring the supplied timeout.
-        ///
-        /// The provided `Duration` argument is not used; this method delegates to `run` and returns its result.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// // assuming `runner` implements the same API and `req` is a ProcessRequest
-        /// let out = runner.run_with_timeout(&req, std::time::Duration::from_secs(5)).unwrap();
-        /// println!("{}", out.stdout);
-        /// ```
         fn run_with_timeout(
             &self,
             req: &crate::process::ProcessRequest,
@@ -1220,19 +1153,6 @@ mod tests {
             self.run(req)
         }
     }
-    /// Construct a ProcessOutput from given stdout text and exit code.
-    ///
-    /// Returns an Ok containing a ProcessOutput with the provided stdout and exit code;
-    /// `success` is set to `true` when `exit_code == 0`, `stderr` is empty, and `timed_out` is `false`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let output = ok("output text", 0).unwrap();
-    /// assert_eq!(output.exit_code, 0);
-    /// assert_eq!(output.stdout, "output text");
-    /// assert!(output.success);
-    /// ```
     fn ok(stdout: &str, code: i32) -> Result<ProcessOutput, ProcessExecutionError> {
         Ok(ProcessOutput {
             exit_code: code,

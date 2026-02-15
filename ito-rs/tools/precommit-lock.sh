@@ -33,28 +33,24 @@ GIT_DIR="$(git rev-parse --git-dir 2>/dev/null)" || {
 
 LOCK_FILE="${GIT_DIR}/precommit.lock"
 
-# _lock_info outputs the contents of the lock file if it exists.
 _lock_info() {
     if [ -f "$LOCK_FILE" ]; then
         cat "$LOCK_FILE"
     fi
 }
 
-# _lock_pid outputs the PID stored in the lock file when the lock exists.
 _lock_pid() {
     if [ -f "$LOCK_FILE" ]; then
         awk '/^PID / { print $2 }' "$LOCK_FILE"
     fi
 }
 
-# _lock_timestamp prints the TIMESTAMP value from the lock file if the lock file exists.
 _lock_timestamp() {
     if [ -f "$LOCK_FILE" ]; then
         awk '/^TIMESTAMP / { print $2 }' "$LOCK_FILE"
     fi
 }
 
-# _is_stale determines whether the lock file is stale: returns success (0) if no lock exists, the recorded PID is not running, or the lock age is greater than or equal to STALE_THRESHOLD; returns failure (1) otherwise.
 _is_stale() {
     local pid ts now age
     pid="$(_lock_pid)"
@@ -78,7 +74,6 @@ _is_stale() {
     return 1
 }
 
-# _remove_stale removes the lock file if it exists and is stale, printing the lock contents to stderr before removal.
 _remove_stale() {
     if [ -f "$LOCK_FILE" ] && _is_stale; then
         echo "precommit-lock: removing stale lock ($(cat "$LOCK_FILE"))" >&2
@@ -86,9 +81,6 @@ _remove_stale() {
     fi
 }
 
-# cmd_acquire attempts to acquire the advisory pre-commit lock for the current worktree, waiting up to a specified timeout and recording the owning PID.
-# It accepts the options `--timeout SECS` to set the maximum wait (defaults to LOCK_TIMEOUT) and `--owner-pid PID` to record a specific owner PID (defaults to the current shell PID).
-# On success the function creates the lock file atomically and returns 0; on timeout it prints the current lock info to stderr and returns non-zero.
 cmd_acquire() {
     local timeout="$LOCK_TIMEOUT"
     local owner_pid="$$"
@@ -139,8 +131,6 @@ cmd_acquire() {
     done
 }
 
-# cmd_release releases the precommit lock if owned by the specified owner PID, the current shell, the parent process, or if the lock is stale.
-# It accepts the option `--owner-pid PID` to specify which PID should be considered the owner; if the lock exists and is owned by another active PID, it prints a warning and returns a nonzero status.
 cmd_release() {
     local owner_pid="$$"
     while [ $# -gt 0 ]; do
@@ -170,7 +160,6 @@ cmd_release() {
     return 1
 }
 
-# cmd_check reports whether a pre-commit lock exists and, if so, echoes the lock's metadata.
 cmd_check() {
     _remove_stale
     if [ -f "$LOCK_FILE" ]; then
@@ -181,11 +170,6 @@ cmd_check() {
     fi
 }
 
-# cmd_wait waits for the pre-commit lock to be released, optionally timing out.
-# While waiting it removes any stale lock it finds.
-# Options:
-#   --timeout SECS  Maximum seconds to wait (defaults to LOCK_TIMEOUT).
-# Exit status: 0 if the lock is released before the timeout, 1 if the wait timed out.
 cmd_wait() {
     local timeout="$LOCK_TIMEOUT"
     while [ $# -gt 0 ]; do

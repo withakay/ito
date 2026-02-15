@@ -21,19 +21,10 @@ pub enum HarnessName {
 }
 
 impl HarnessName {
-    /// The canonical user-facing string for this harness.
+    /// The canonical, user-facing name for this harness.
     ///
-    /// This yields the single canonical identifier shown to users (aliases such as
-    /// `github-copilot` are accepted by parsing but map to the canonical `"copilot"`).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use crate::harness::types::HarnessName;
-    ///
-    /// assert_eq!(HarnessName::Opencode.as_str(), "opencode");
-    /// assert_eq!(HarnessName::GithubCopilot.as_str(), "copilot");
-    /// ```
+    /// Note: some harnesses accept additional aliases (for example,
+    /// [`HarnessName::GithubCopilot`] also accepts `github-copilot`).
     pub const fn as_str(self) -> &'static str {
         match self {
             HarnessName::Opencode => "opencode",
@@ -44,18 +35,9 @@ impl HarnessName {
         }
     }
 
-    /// Iterator over harness variants exposed to users.
+    /// Iterator of harnesses intended for user-facing CLI help.
     ///
-    /// This excludes `HarnessName::Stub` (testing-only harness).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use crate::harness::types::HarnessName;
-    ///
-    /// let names: Vec<_> = HarnessName::user_facing().map(HarnessName::as_str).collect();
-    /// assert_eq!(names, ["opencode", "claude", "codex", "copilot"]);
-    /// ```
+    /// Does not include [`HarnessName::Stub`] (testing only).
     pub fn user_facing() -> impl Iterator<Item = HarnessName> {
         [
             HarnessName::Opencode,
@@ -68,14 +50,6 @@ impl HarnessName {
 }
 
 impl fmt::Display for HarnessName {
-    /// Formats the harness name as its canonical user-facing string.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let s = format!("{}", HarnessName::Opencode);
-    /// assert_eq!(s, "opencode");
-    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
@@ -89,17 +63,6 @@ pub struct HarnessNameParseError {
 }
 
 impl fmt::Display for HarnessNameParseError {
-    /// Formats a human-readable error message for an unknown harness name.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::fmt;
-    ///
-    /// let err = crate::HarnessNameParseError { input: "unknown-harness".into() };
-    /// let s = format!("{}", err);
-    /// assert_eq!(s, "Unknown harness name: unknown-harness");
-    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Unknown harness name: {}", self.input)
     }
@@ -110,28 +73,6 @@ impl std::error::Error for HarnessNameParseError {}
 impl FromStr for HarnessName {
     type Err = HarnessNameParseError;
 
-    /// Parses a string into the corresponding `HarnessName` variant.
-    ///
-    /// Recognized, case-sensitive inputs are:
-    /// - `"opencode"` -> `HarnessName::Opencode`
-    /// - `"claude"` -> `HarnessName::Claude`
-    /// - `"codex"` -> `HarnessName::Codex`
-    /// - `"copilot"` or `"github-copilot"` -> `HarnessName::GithubCopilot`
-    /// - `"stub"` -> `HarnessName::Stub`
-    ///
-    /// # Returns
-    ///
-    /// `Ok(HarnessName)` for recognized inputs; `Err(HarnessNameParseError)` containing the original input for unrecognized strings.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::str::FromStr;
-    ///
-    /// assert_eq!(HarnessName::from_str("opencode").unwrap(), HarnessName::Opencode);
-    /// assert_eq!(HarnessName::from_str("github-copilot").unwrap(), HarnessName::GithubCopilot);
-    /// assert!(HarnessName::from_str("invalid-name").is_err());
-    /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "opencode" => Ok(HarnessName::Opencode),
@@ -209,11 +150,11 @@ const RETRIABLE_EXIT_CODES: &[i32] = &[
 pub const MAX_RETRIABLE_RETRIES: u32 = 3;
 
 impl HarnessRunResult {
-    /// Determines whether the exit code indicates a transient process crash that should be retried.
+    /// Whether the exit code indicates a transient process crash that should be retried.
     ///
-    /// Signal-based exit codes (values of 128 + N) represent termination by an OS signal and are
-    /// treated as transient; they are considered retriable and are not counted toward persistent error thresholds.
-    /// Other exit codes are treated as normal failures.
+    /// Signal-based exit codes (128+N) indicate the process was killed by the OS or
+    /// a signal, not that the agent's work failed. These are retried without counting
+    /// against the error threshold.
     ///
     /// # Examples
     ///
@@ -355,18 +296,6 @@ mod tests {
         assert_eq!(format!("{}", err), "Unknown harness name: foo");
     }
 
-    /// Creates a HarnessRunResult with empty stdout/stderr, the provided exit code, a 1 second duration, and timed_out set to false.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let r = make_result(42);
-    /// assert_eq!(r.exit_code, 42);
-    /// assert_eq!(r.stdout, "");
-    /// assert_eq!(r.stderr, "");
-    /// assert_eq!(r.duration.as_secs(), 1);
-    /// assert!(!r.timed_out);
-    /// ```
     fn make_result(exit_code: i32) -> HarnessRunResult {
         HarnessRunResult {
             stdout: String::new(),

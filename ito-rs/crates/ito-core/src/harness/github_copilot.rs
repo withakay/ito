@@ -18,53 +18,14 @@ use super::types::{HarnessName, HarnessRunConfig};
 pub struct GitHubCopilotHarness;
 
 impl CliHarness for GitHubCopilotHarness {
-    /// Identifies this harness as GitHub Copilot.
-    ///
-    /// # Returns
-    ///
-    /// `HarnessName::GithubCopilot`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let harness = GitHubCopilotHarness::default();
-    /// assert_eq!(harness.harness_name(), HarnessName::GithubCopilot);
-    /// ```
     fn harness_name(&self) -> HarnessName {
         HarnessName::GithubCopilot
     }
 
-    /// Returns the CLI binary name used by the GitHub Copilot harness.
-    ///
-    /// # Returns
-    ///
-    /// `"copilot"` — the binary name to invoke.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = GitHubCopilotHarness::default();
-    /// assert_eq!(h.binary(), "copilot");
-    /// ```
     fn binary(&self) -> &str {
         "copilot"
     }
 
-    /// Builds the command-line arguments for invoking the `copilot` CLI from a run configuration.
-    ///
-    /// The resulting argument vector includes, in order:
-    /// - `--model <model>` when `config.model` is set,
-    /// - `--yolo` when `config.allow_all` is true,
-    /// - `-p` to enable non-interactive print mode,
-    /// - the prompt string from `config.prompt`.
-    ///
-    /// # Parameters
-    ///
-    /// - `config`: run configuration whose `model`, `allow_all`, and `prompt` fields determine the arguments.
-    ///
-    /// # Returns
-    ///
-    /// A `Vec<String>` containing the assembled command-line arguments suitable for passing to the `copilot` binary.
     fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
         let mut args = Vec::new();
         if let Some(model) = config.model.as_deref() {
@@ -90,20 +51,6 @@ mod tests {
         None,
     }
 
-    /// Construct a HarnessRunConfig for tests with a fixed prompt and configurable model and permission.
-    ///
-    /// - `allow` controls whether `allow_all` is set to `true` (Allow::All) or `false` (Allow::None).
-    /// - `model` sets the optional model string used by the config.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let cfg = config(Allow::All, Some("gpt-4"));
-    /// assert_eq!(cfg.prompt, "do stuff");
-    /// assert_eq!(cfg.model.as_deref(), Some("gpt-4"));
-    /// assert!(cfg.allow_all);
-    /// assert!(!cfg.interactive);
-    /// ```
     fn config(allow: Allow, model: Option<&str>) -> HarnessRunConfig {
         let allow_all = match allow {
             Allow::All => true,

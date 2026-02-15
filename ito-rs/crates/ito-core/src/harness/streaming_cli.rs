@@ -53,62 +53,19 @@ pub trait CliHarness: std::fmt::Debug {
 
 /// Blanket impl: every [`CliHarness`] is automatically a [`Harness`].
 impl<T: CliHarness> Harness for T {
-    /// Get the harness's identity.
-    ///
-    /// # Returns
-    ///
-    /// `HarnessName` containing the harness identity.
     fn name(&self) -> HarnessName {
         self.harness_name()
     }
 
-    /// Executes the harness using its configured CLI invocation and run configuration, streaming stdout/stderr and producing an execution result.
-    ///
-    /// On success this returns a `HarnessRunResult` containing captured stdout and stderr, the process exit code, duration, and whether an inactivity timeout occurred; on failure an error is returned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use ito_core::harness::{Harness, HarnessRunConfig};
-    /// # fn example(mut h: impl Harness) {
-    /// let config = HarnessRunConfig::default();
-    /// let result = h.run(&config).unwrap();
-    /// println!("exit code: {}", result.exit_code);
-    /// # }
-    /// ```
     fn run(&mut self, config: &HarnessRunConfig) -> Result<HarnessRunResult> {
         let args = self.build_args(config);
         run_streaming_cli(self.binary(), &args, config)
     }
 
-    /// No-op stop implementation for CLI-based harnesses.
-    ///
-    /// This method intentionally does nothing because CLI harnesses run synchronously
-    /// and cannot be stopped asynchronously via this handle.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// // For a CLI harness `h`, calling `stop` has no effect.
-    /// // let mut h = /* an object implementing `CliHarness` */ todo!();
-    /// // h.stop();
-    /// ```
     fn stop(&mut self) {
         // No-op: `run` is synchronous.
     }
 
-    /// Indicates that this harness forwards the spawned process's output to the current process's standard streams.
-    ///
-    /// # Returns
-    ///
-    /// `true`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// // This harness implementation always streams output, so the result is `true`.
-    /// assert!(true);
-    /// ```
     fn streams_output(&self) -> bool {
         true
     }
@@ -207,19 +164,13 @@ fn run_streaming_cli(
     })
 }
 
-/// Derives a conventional exit code from a `std::process::ExitStatus`.
+/// Extracts an exit code from a [`std::process::ExitStatus`].
 ///
-/// If the status contains a numeric exit code, that code is returned.
-/// On Unix, if the process was terminated by a signal, returns `128 + signal`.
-/// If neither a code nor a signal is available, returns `1`.
-///
-/// # Examples
-///
-/// ```
-/// let status = std::process::Command::new("true").status().unwrap();
-/// let code = exit_code_from_status(&status);
-/// assert_eq!(code, 0);
-/// ```
+/// On Unix, when a process is killed by a signal, `ExitStatus::code()` returns
+/// `None` and the signal number is available via `ExitStatus::signal()`. This
+/// function converts signal termination to the conventional `128 + signal` exit
+/// code so that [`HarnessRunResult::is_retriable`] can detect crash signals
+/// (SIGSEGV, SIGBUS, etc.).
 fn exit_code_from_status(status: &std::process::ExitStatus) -> i32 {
     if let Some(code) = status.code() {
         return code;

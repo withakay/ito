@@ -18,63 +18,14 @@ use super::types::{HarnessName, HarnessRunConfig};
 pub struct CodexHarness;
 
 impl CliHarness for CodexHarness {
-    /// Identifies this harness as the Codex harness.
-    ///
-    /// # Returns
-    ///
-    /// `HarnessName::Codex` representing the Codex harness.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = CodexHarness::default();
-    /// assert_eq!(h.harness_name(), HarnessName::Codex);
-    /// ```
     fn harness_name(&self) -> HarnessName {
         HarnessName::Codex
     }
 
-    /// Executable name for the Codex CLI.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = CodexHarness::default();
-    /// assert_eq!(h.binary(), "codex");
-    /// ```
     fn binary(&self) -> &str {
         "codex"
     }
 
-    /// Build the command-line arguments for running the Codex CLI in non-interactive exec mode.
-    ///
-    /// The returned Vec contains the subcommand "exec", optional `--model <name>` when
-    /// `config.model` is set, the `--yolo` flag when `config.allow_all` is true, and the
-    /// prompt as the final argument.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::BTreeMap;
-    /// use std::path::PathBuf;
-    ///
-    /// let harness = CodexHarness::default();
-    /// let config = HarnessRunConfig {
-    ///     prompt: "do stuff".into(),
-    ///     model: Some("o3".into()),
-    ///     cwd: PathBuf::from("."),
-    ///     env: BTreeMap::new(),
-    ///     interactive: false,
-    ///     inactivity_timeout: None,
-    ///     allow_all: true,
-    /// };
-    /// let args = harness.build_args(&config);
-    /// assert_eq!(args, vec!["exec", "--model", "o3", "--yolo", "do stuff"]);
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A Vec<String> of command-line arguments to pass to the `codex` binary.
     fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
         let mut args = vec!["exec".to_string()];
         if let Some(model) = config.model.as_deref() {

@@ -41,34 +41,10 @@ impl FixedHarness {
 }
 
 impl Harness for FixedHarness {
-    /// Get the harness's configured name.
-    ///
-    /// Returns the stored `HarnessName`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = FixedHarness::new(HarnessName::Stub, vec![]);
-    /// assert_eq!(h.name(), HarnessName::Stub);
-    /// ```
     fn name(&self) -> HarnessName {
         self.name
     }
 
-    /// Produces the next preconfigured harness output as a HarnessRunResult.
-    ///
-    /// The returned `HarnessRunResult` contains the harness' `stdout`, `stderr`, and `exit_code` taken
-    /// from this harness' next queued output, a fixed duration of 1 millisecond, and `timed_out` set
-    /// to `false`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let mut h = FixedHarness::new(HarnessName::Stub, vec![("ok".into(), "".into(), 0)]);
-    /// let res = h.run(&HarnessRunConfig::default()).unwrap();
-    /// assert_eq!(res.stdout, "ok");
-    /// assert_eq!(res.exit_code, 0);
-    /// ```
     fn run(&mut self, _config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
         let (stdout, stderr, exit_code) = self.next();
         Ok(HarnessRunResult {
@@ -311,17 +287,6 @@ fn run_ralph_completion_promise_trims_whitespace() {
     assert_eq!(h.idx, 1);
 }
 
-/// Verifies that Ralph continues iterating when a completion suggestion is rejected by validation.
-///
-/// This test sets up a change with one completed and one remaining task, feeds a harness output
-/// containing a completion promise that should be rejected by validation, and asserts that Ralph
-/// performs the configured minimum/maximum iterations instead of exiting early.
-///
-/// # Examples
-///
-/// ```
-/// // See the test body `run_ralph_continues_when_completion_validation_fails` for setup and usage.
-/// ```
 #[test]
 fn run_ralph_continues_when_completion_validation_fails() {
     let td = tempfile::tempdir().unwrap();
@@ -691,38 +656,10 @@ struct RecordingCompletingHarness {
 }
 
 impl Harness for RecordingCompletingHarness {
-    /// Get the harness's name.
-    ///
-    /// Returns `HarnessName::Stub`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = FixedHarness::new(HarnessName::Stub, vec![]);
-    /// assert_eq!(h.name(), HarnessName::Stub);
-    /// ```
     fn name(&self) -> HarnessName {
         HarnessName::Stub
     }
 
-    /// Simulates a harness execution that records prompts, optionally marks a change complete, and returns a successful run result.
-    ///
-    /// If the provided config prompt contains a change id, that id is appended to `seen_change_ids`. If `complete_in_order` contains an entry at the current index, the corresponding change's tasks are marked complete on disk. The harness advances its internal index and returns a `HarnessRunResult` that indicates success and includes a `<promise>COMPLETE</promise>` marker in `stdout`.
-    ///
-    /// # Returns
-    ///
-    /// `HarnessRunResult` containing `stdout` with `"<promise>COMPLETE</promise>\n"`, an empty `stderr`, `exit_code` 0, a small `duration`, and `timed_out` set to `false`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// // Setup a harness and config appropriate for tests, then run:
-    /// # use std::time::Duration;
-    /// # // let mut harness = CompletingHarness::new(...);
-    /// # // let config = HarnessRunConfig { prompt: "<change: CHG-1>".into(), ..Default::default() };
-    /// // let result = harness.run(&config).unwrap();
-    /// // assert!(result.stdout.contains("<promise>COMPLETE</promise>"));
-    /// ```
     fn run(&mut self, config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
         if let Some(change_id) = extract_change_id_from_prompt(&config.prompt) {
             self.seen_change_ids.push(change_id);
@@ -746,35 +683,10 @@ impl Harness for RecordingCompletingHarness {
 }
 
 impl Harness for CompletingHarness {
-    /// Get the harness's name.
-    ///
-    /// Returns `HarnessName::Stub`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = FixedHarness::new(HarnessName::Stub, vec![]);
-    /// assert_eq!(h.name(), HarnessName::Stub);
-    /// ```
     fn name(&self) -> HarnessName {
         HarnessName::Stub
     }
 
-    /// Marks the next configured change as completed (by writing a done task) and returns a successful harness run result.
-    ///
-    /// The method, if a change id exists at the current internal index, writes a tasks file for that change containing a single completed task, increments the internal index, and returns a `HarnessRunResult` whose stdout contains a `<promise>COMPLETE</promise>` line, `exit_code` is `0`, `duration` is 1 millisecond, and `timed_out` is `false`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// // Construct a CompletingHarness configured to complete "change-1" first,
-    /// // then invoke run and observe a successful exit code.
-    /// let mut h = CompletingHarness::new(ito_path.clone(), vec!["change-1".to_string()]);
-    /// let cfg = HarnessRunConfig::default();
-    /// let res = h.run(&cfg).unwrap();
-    /// assert_eq!(res.exit_code, 0);
-    /// assert!(res.stdout.contains("COMPLETE"));
-    /// ```
     fn run(&mut self, _config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
         if let Some(change_id) = self.complete_in_order.get(self.idx) {
             write_tasks(&self.ito_path, change_id, "# Tasks\n\n- [x] done\n");
@@ -860,16 +772,6 @@ fn run_ralph_continue_ready_processes_all_eligible_changes_across_repo() {
     assert!(ito.join(".state/ralph/007-01_a/state.json").exists());
 }
 
-/// Ensures continue-ready mode errors when there are no eligible changes but at least one draft change remains.
-///
-/// The resulting error message will mention that there are "no eligible changes" and include the remaining change's id.
-///
-/// # Examples
-///
-/// ```rust
-/// // Create a repository with a draft change (missing proposal/specs) and run Ralph with continue-ready.
-/// // The call should return an error mentioning "no eligible changes" and the change id.
-/// ```
 #[test]
 fn run_ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
     let td = tempfile::tempdir().unwrap();
@@ -922,29 +824,6 @@ fn run_ralph_continue_ready_reorients_when_repo_state_shifts() {
     assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
 }
 
-/// Verifies that continue-ready mode exits early when the repository becomes complete before preflight.
-///
-/// Sets up a repository that becomes complete as soon as Ralph inspects it and asserts that the harness
-/// is never invoked (no iterations run).
-///
-/// # Examples
-///
-/// ```
-/// // Arrange a repo that will mark all changes complete on first inspection,
-/// // enable continue_ready and run Ralph; it should exit without running the harness.
-/// let td = tempfile::tempdir().unwrap();
-/// let ito = td.path().join(".ito");
-/// std::fs::create_dir_all(&ito).unwrap();
-/// write_ready_change(&ito, "006-01_a");
-/// let change_repo = DriftingChangeRepo::new(&ito, DriftAction::CompleteAll);
-/// let mut h = FixedHarness::new(HarnessName::Stub, vec![]);
-/// let mut opts = default_opts();
-/// opts.continue_ready = true;
-/// opts.max_iterations = Some(1);
-/// opts.prompt = String::new();
-/// run_ralph_for_test_with_change_repo(&ito, &change_repo, opts, &mut h).unwrap();
-/// assert_eq!(h.idx, 0);
-/// ```
 #[test]
 fn run_ralph_continue_ready_exits_when_repo_becomes_complete_before_preflight() {
     let td = tempfile::tempdir().unwrap();
@@ -1007,18 +886,6 @@ fn run_ralph_continue_ready_errors_when_repo_shifts_to_no_eligible_changes() {
 
 // --- Retriable exit code tests ---
 
-/// Verifies that a retriable harness exit code is retried and does not count toward the error threshold.
-///
-/// The test runs Ralph for a change where the harness first returns a retriable exit code (128)
-/// and then succeeds. With `error_threshold = 1` the run should not abort after the retriable crash;
-/// both iterations must execute.
-///
-/// # Examples
-///
-/// ```rust
-/// // Conceptual example: a harness that first crashes with a retriable code and then succeeds
-/// // should not cause the run to fail when `error_threshold` is small.
-/// ```
 #[test]
 fn run_ralph_retries_retriable_exit_code_without_counting_against_threshold() {
     let td = tempfile::tempdir().unwrap();
@@ -1049,31 +916,6 @@ fn run_ralph_retries_retriable_exit_code_without_counting_against_threshold() {
     assert_eq!(h.idx, 2, "should have run both iterations");
 }
 
-/// Verifies that retriable process exit codes are retried even when `exit_on_error` is enabled.
-///
-/// # Examples
-///
-/// ```
-/// let td = tempfile::tempdir().unwrap();
-/// let ito = td.path().join(".ito");
-/// std::fs::create_dir_all(&ito).unwrap();
-/// write_fixture_ito(&ito, "006-09_fixture");
-///
-/// // Harness emits a retriable exit (137) then a success.
-— let mut h = FixedHarness::new(
-—     HarnessName::Stub,
-—     vec![("killed".to_string(), String::new(), 137),
-—          ("<promise>COMPLETE</promise>\n".to_string(), String::new(), 0)],
-— );
-///
-/// let mut opts = default_opts();
-/// opts.change_id = Some("006-09_fixture".to_string());
-/// opts.skip_validation = true;
-/// opts.exit_on_error = true;
-///
-/// run_ralph_for_test(&ito, opts, &mut h).unwrap();
-/// assert_eq!(h.idx, 2);
-/// ```
 #[test]
 fn run_ralph_retries_retriable_exit_code_with_exit_on_error() {
     let td = tempfile::tempdir().unwrap();
@@ -1130,27 +972,6 @@ fn run_ralph_gives_up_after_max_retriable_retries() {
     assert!(msg.contains("consecutive"), "{msg}");
 }
 
-/// Verifies that the consecutive retriable-crash counter is reset after a successful run.
-///
-/// The test simulates: crash, success, crash, then completion; the intermediate success must reset
-/// the retriable counter so the second crash does not cause premature giving up.
-///
-/// # Examples
-///
-/// ```
-/// // Simulate a crash, success (resets counter), another crash, then completion.
-/// let mut h = FixedHarness::new(
-///     HarnessName::Stub,
-///     vec![
-///         ("crash-1".to_string(), String::new(), 128),
-///         ("ok-1".to_string(), String::new(), 0),
-///         ("crash-2".to_string(), String::new(), 128),
-///         ("<promise>COMPLETE</promise>\n".to_string(), String::new(), 0),
-///     ],
-/// );
-/// // run_ralph_for_test should complete all iterations without treating the two crashes
-/// // as consecutive failures because of the intervening success.
-/// ```
 #[test]
 fn run_ralph_resets_retriable_counter_on_success() {
     let td = tempfile::tempdir().unwrap();

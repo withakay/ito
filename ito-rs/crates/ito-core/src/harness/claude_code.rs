@@ -18,68 +18,14 @@ use super::types::{HarnessName, HarnessRunConfig};
 pub struct ClaudeCodeHarness;
 
 impl CliHarness for ClaudeCodeHarness {
-    /// Identify the harness as Claude.
-    ///
-    /// Returns `HarnessName::Claude`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let h = ClaudeCodeHarness;
-    /// assert_eq!(h.harness_name(), HarnessName::Claude);
-    /// ```
     fn harness_name(&self) -> HarnessName {
         HarnessName::Claude
     }
 
-    /// Binary name used to invoke the Claude CLI.
-    ///
-    /// # Returns
-    ///
-    /// `&str` containing the CLI binary name `claude`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let harness = ClaudeCodeHarness;
-    /// assert_eq!(harness.binary(), "claude");
-    /// ```
     fn binary(&self) -> &str {
         "claude"
     }
 
-    /// Builds the command-line arguments for invoking the Claude CLI from a run configuration.
-    ///
-    /// The returned vector may include:
-    /// - `--model <model>` when `config.model` is `Some`,
-    /// - `--dangerously-skip-permissions` when `config.allow_all` is `true`,
-    /// - and always `-p <prompt>` as the final prompt argument.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// let harness = ClaudeCodeHarness;
-    /// let cfg = HarnessRunConfig {
-    ///     prompt: "do stuff".into(),
-    ///     model: Some("sonnet".into()),
-    ///     cwd: std::env::temp_dir(),
-    ///     env: std::collections::BTreeMap::new(),
-    ///     interactive: false,
-    ///     allow_all: true,
-    ///     inactivity_timeout: None,
-    /// };
-    /// let args = harness.build_args(&cfg);
-    /// assert_eq!(
-    ///     args,
-    ///     vec![
-    ///         "--model".to_string(),
-    ///         "sonnet".to_string(),
-    ///         "--dangerously-skip-permissions".to_string(),
-    ///         "-p".to_string(),
-    ///         "do stuff".to_string(),
-    ///     ]
-    /// );
-    /// ```
     fn build_args(&self, config: &HarnessRunConfig) -> Vec<String> {
         let mut args = Vec::new();
         if let Some(model) = config.model.as_deref() {
@@ -105,18 +51,6 @@ mod tests {
         None,
     }
 
-    /// Creates a HarnessRunConfig with the prompt "do stuff", an optional model, and `allow_all` derived from `allow`.
-    ///
-    /// `allow` maps to `allow_all`: `Allow::All` -> `true`, `Allow::None` -> `false`. If `model` is `Some`, the returned config's `model` is set to that value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let cfg = config(Allow::All, Some("sonnet"));
-    /// assert_eq!(cfg.prompt, "do stuff");
-    /// assert_eq!(cfg.model.as_deref(), Some("sonnet"));
-    /// assert!(cfg.allow_all);
-    /// ```
     fn config(allow: Allow, model: Option<&str>) -> HarnessRunConfig {
         let allow_all = match allow {
             Allow::All => true,

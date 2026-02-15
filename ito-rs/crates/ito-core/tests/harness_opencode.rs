@@ -220,17 +220,6 @@ fn codex_harness_passes_model_and_allow_all_flags() {
     );
 }
 
-/// Verifies that GitHubCopilotHarness forwards the model and allow-all flags to the copilot executable.
-///
-/// Runs the harness with model `"m1"` and `allow_all = true` and asserts the invoked `copilot` binary
-/// receives the expected arguments (`--model m1 --yolo -p hello`).
-///
-/// # Examples
-///
-/// ```
-/// // Creates a temporary copilot executable that echoes its args and runs the harness.
-/// // Asserts the harness invoked the binary with the model and allow-all flags.
-/// ```
 #[test]
 fn github_copilot_harness_passes_model_and_allow_all_flags() {
     let dir = tempfile::tempdir().unwrap();

@@ -174,24 +174,6 @@ fn resolve_change_id(
     }
 }
 
-/// Loads a module's Markdown file and formats it as a prompt-ready section.
-///
-/// If the given `module_id` resolves to a module and that module has an existing Markdown file,
-/// returns `Ok(Some(String))` containing the content prefixed with a header in the form:
-/// `## Module (id)\n\n{content}`. Returns `Ok(None)` if the module cannot be resolved or if the
-/// Markdown file does not exist. Returns `Err(CoreError)` for I/O or validation errors encountered
-/// while resolving or reading the file.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// // `ito_path`, `module_repo` and `module_id` would be provided by the caller's context.
-/// let section = load_module_context(&ito_path, &module_repo, "014")?;
-/// if let Some(md_section) = section {
-///     println!("{}", md_section); // starts with "## Module (014)"
-/// }
-/// # Ok::<(), ito_common::errors::CoreError>(())
-/// ```
 fn load_module_context(
     ito_path: &Path,
     module_repo: &impl DomainModuleRepository,
