@@ -8,6 +8,23 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+/// Creates or overwrites a file at `path` with `contents` and sets its mode to `0o755` (executable).
+///
+/// This function will panic if writing the file or changing its permissions fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::fs;
+/// use std::os::unix::fs::PermissionsExt;
+/// let dir = tempfile::tempdir().unwrap();
+/// let file = dir.path().join("script.sh");
+/// write_executable(&file, "#!/bin/sh\necho hello\n");
+/// let contents = fs::read_to_string(&file).unwrap();
+/// assert!(contents.contains("echo hello"));
+/// let mode = fs::metadata(&file).unwrap().permissions().mode();
+/// assert_eq!(mode & 0o777, 0o755);
+/// ```
 fn write_executable(path: &std::path::Path, contents: &str) {
     std::fs::write(path, contents).unwrap();
     let mut perms = std::fs::metadata(path).unwrap().permissions();
@@ -23,6 +40,29 @@ struct PathGuard {
 }
 
 impl PathGuard {
+    /// Temporarily prepends `path` to the process `PATH` environment variable and returns a guard that restores the original `PATH` when dropped.
+    ///
+    /// The returned `PathGuard` holds a lock that serializes modifications to `PATH` across threads and stores the previous `PATH` value so it can be restored on `Drop`.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: filesystem path to insert at the front of `PATH`.
+    ///
+    /// # Returns
+    ///
+    /// A `PathGuard` which, while alive, keeps the new `PATH` in effect and restores the previous `PATH` when it is dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    ///
+    /// // Prepend "/tmp/bin" to PATH for the duration of the guard.
+    /// let guard = PathGuard::prepend(Path::new("/tmp/bin"));
+    /// // PATH now begins with "/tmp/bin".
+    /// drop(guard);
+    /// // PATH restored to its previous value.
+    /// ```
     fn prepend(path: &std::path::Path) -> Self {
         let lock = ENV_LOCK
             .get_or_init(|| Mutex::new(()))
@@ -42,6 +82,43 @@ impl PathGuard {
 }
 
 impl Drop for PathGuard {
+    /// Restores the previous `PATH` environment variable when the guard is dropped.
+    
+    ///
+    
+    /// The guard sets `PATH` to a modified value for the guard's lifetime; dropping it
+    
+    /// restores the original `PATH` value that was present when the guard was created.
+    
+    ///
+    
+    /// # Examples
+    
+    ///
+    
+    /// ```
+    
+    /// // Save and set a known PATH for the test.
+    
+    /// std::env::set_var("PATH", "/original");
+    
+    /// {
+    
+    ///     // Prepend a directory for the duration of the scope.
+    
+    ///     let _guard = crate::PathGuard::prepend("/tmp/testbin");
+    
+    ///     // While `_guard` is in scope, PATH starts with "/tmp/testbin:".
+    
+    ///     assert!(std::env::var("PATH").unwrap().starts_with("/tmp/testbin:"));
+    
+    /// }
+    
+    /// // After the guard is dropped, PATH is restored to the previous value.
+    
+    /// assert_eq!(std::env::var("PATH").unwrap(), "/original");
+    
+    /// ```
     fn drop(&mut self) {
         unsafe {
             std::env::set_var("PATH", &self.old_path);
@@ -49,6 +126,23 @@ impl Drop for PathGuard {
     }
 }
 
+/// Ensures an opencode process that becomes inactive is terminated after the configured timeout.
+///
+/// Verifies that a stalled child process is killed due to inactivity, that the harness reports
+/// `timed_out` and an exit code of `-1`, that output produced before the timeout is captured,
+/// and that no output produced after the timeout is present. Also asserts the run duration is
+/// at least the timeout and completes within a reasonable upper bound.
+///
+/// # Examples
+///
+/// ```
+/// // Configure a harness with an inactivity timeout and run a command that stalls.
+/// // The harness should report a timeout and an exit code of -1.
+/// let mut h = OpencodeHarness;
+/// let r = h.run(&HarnessRunConfig { inactivity_timeout: Some(Duration::from_secs(2)), ..Default::default() }).unwrap();
+/// assert!(r.timed_out);
+/// assert_eq!(r.exit_code, -1);
+/// ```
 #[test]
 fn inactivity_timeout_kills_stalled_process() {
     let dir = tempfile::tempdir().unwrap();

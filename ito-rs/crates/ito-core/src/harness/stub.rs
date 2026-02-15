@@ -77,10 +77,46 @@ impl StubHarness {
 }
 
 impl Harness for StubHarness {
+    /// Identifies this harness as the stub implementation.
+    ///
+    /// # Returns
+    ///
+    /// `HarnessName::Stub`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let h = StubHarness::new(vec![]);
+    /// assert_eq!(h.name(), HarnessName::Stub);
+    /// ```
     fn name(&self) -> HarnessName {
         HarnessName::Stub
     }
 
+    /// Execute the next scripted step from this stub harness and return its recorded result.
+    ///
+    /// If the harness has no scripted steps an error is returned. The returned `HarnessRunResult`
+    /// contains the step's `stdout`, `stderr`, and `exit_code`. The reported `duration` is the
+    /// elapsed time for this call, with a minimum value of 1 millisecond, and `timed_out` is always
+    /// `false`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `miette::Report` if the harness has no steps.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let step = StubStep {
+    ///     stdout: "ok\n".into(),
+    ///     stderr: String::new(),
+    ///     exit_code: 0,
+    /// };
+    /// let mut harness = StubHarness::new(vec![step]);
+    /// let result = harness.run(&crate::HarnessRunConfig::default()).unwrap();
+    /// assert_eq!(result.stdout, "ok\n");
+    /// assert!(!result.timed_out);
+    /// ```
     fn run(&mut self, _config: &HarnessRunConfig) -> Result<HarnessRunResult> {
         let started = Instant::now();
         let step = self
@@ -96,6 +132,14 @@ impl Harness for StubHarness {
         })
     }
 
+    /// Stops the harness. For the stub harness this operation is a no-op.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut h = StubHarness::new(vec![]);
+    /// h.stop();
+    /// ```
     fn stop(&mut self) {
         // No-op
     }
@@ -106,6 +150,28 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
+    /// Creates a sample `HarnessRunConfig` prepopulated for use in tests.
+    ///
+    /// The returned config has:
+    /// - `prompt` set to `"test"`,
+    /// - `model` set to `None`,
+    /// - `cwd` set to the system temporary directory,
+    /// - an empty `env` map,
+    /// - `interactive` and `allow_all` set to `false`,
+    /// - and `inactivity_timeout` set to `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cfg = dummy_config();
+    /// assert_eq!(cfg.prompt, "test");
+    /// assert!(cfg.model.is_none());
+    /// assert_eq!(cfg.cwd, std::env::temp_dir());
+    /// assert!(cfg.env.is_empty());
+    /// assert!(!cfg.interactive);
+    /// assert!(!cfg.allow_all);
+    /// assert!(cfg.inactivity_timeout.is_none());
+    /// ```
     fn dummy_config() -> HarnessRunConfig {
         HarnessRunConfig {
             prompt: "test".to_string(),
