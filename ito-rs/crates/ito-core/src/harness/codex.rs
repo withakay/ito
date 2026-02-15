@@ -39,3 +39,49 @@ impl CliHarness for CodexHarness {
         args
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn config(allow_all: bool, model: Option<&str>) -> HarnessRunConfig {
+        HarnessRunConfig {
+            prompt: "do stuff".to_string(),
+            model: model.map(String::from),
+            cwd: std::env::temp_dir(),
+            env: BTreeMap::new(),
+            interactive: false,
+            allow_all,
+            inactivity_timeout: None,
+        }
+    }
+
+    #[test]
+    fn harness_name_is_codex() {
+        let harness = CodexHarness;
+        assert_eq!(harness.harness_name(), HarnessName::Codex);
+    }
+
+    #[test]
+    fn binary_is_codex() {
+        let harness = CodexHarness;
+        assert_eq!(harness.binary(), "codex");
+    }
+
+    #[test]
+    fn build_args_with_allow_all() {
+        let harness = CodexHarness;
+        let cfg = config(true, Some("o3"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["exec", "--model", "o3", "--yolo", "do stuff"]);
+    }
+
+    #[test]
+    fn build_args_without_allow_all() {
+        let harness = CodexHarness;
+        let cfg = config(false, Some("o3"));
+        let args = harness.build_args(&cfg);
+        assert_eq!(args, vec!["exec", "--model", "o3", "do stuff"]);
+    }
+}

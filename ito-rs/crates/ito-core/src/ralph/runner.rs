@@ -960,3 +960,220 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ========================================================================
+    // completion_promise_found tests
+    // ========================================================================
+
+    /// Single promise tag with matching token returns true.
+    #[test]
+    fn test_completion_promise_found_single_match() {
+        let stdout = "Some output\n<promise>TOKEN</promise>\nMore output";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(result);
+    }
+
+    /// No promise tags returns false.
+    #[test]
+    fn test_completion_promise_found_no_tags() {
+        let stdout = "Some output without any promise tags";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(!result);
+    }
+
+    /// Multiple promise tags, first doesn't match but second does returns true.
+    #[test]
+    fn test_completion_promise_found_second_match() {
+        let stdout = "<promise>WRONG</promise>\n<promise>TOKEN</promise>";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(result);
+    }
+
+    /// Empty token with empty promise tags returns true.
+    #[test]
+    fn test_completion_promise_found_empty_token() {
+        let stdout = "<promise></promise>";
+        let result = completion_promise_found(stdout, "");
+        assert!(result);
+    }
+
+    /// Token only in stderr (empty stdout) returns false.
+    #[test]
+    fn test_completion_promise_found_empty_stdout() {
+        let stdout = "";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(!result);
+    }
+
+    /// Whitespace around token is trimmed and matches.
+    #[test]
+    fn test_completion_promise_found_whitespace_trimmed() {
+        let stdout = "<promise>  TOKEN  </promise>";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(result);
+    }
+
+    /// Nested promise tags - first closing tag is matched, inner content includes tag.
+    #[test]
+    fn test_completion_promise_found_nested_tags() {
+        let stdout = "<promise><promise>TOKEN</promise></promise>";
+        let result = completion_promise_found(stdout, "TOKEN");
+        // The function finds first <promise>, then first </promise>,
+        // so inner content is "<promise>TOKEN" which doesn't match "TOKEN"
+        assert!(!result);
+    }
+
+    /// Incomplete tag (no closing) returns false.
+    #[test]
+    fn test_completion_promise_found_incomplete_tag() {
+        let stdout = "<promise>TOKEN";
+        let result = completion_promise_found(stdout, "TOKEN");
+        assert!(!result);
+    }
+
+    // ========================================================================
+    // infer_module_from_change tests
+    // ========================================================================
+
+    /// Valid change ID with underscore returns module prefix.
+    #[test]
+    fn test_infer_module_from_change_valid_with_underscore() {
+        let result = infer_module_from_change("003-05_foo");
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert_eq!(module, "003");
+    }
+
+    /// Valid change ID without underscore returns module prefix.
+    #[test]
+    fn test_infer_module_from_change_valid_without_underscore() {
+        let result = infer_module_from_change("003-05");
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert_eq!(module, "003");
+    }
+
+    /// No hyphen in change ID returns validation error.
+    #[test]
+    fn test_infer_module_from_change_no_hyphen() {
+        let result = infer_module_from_change("nohyphen");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let matches_validation = match err {
+            CoreError::Validation(msg) => msg.contains("Invalid change ID format"),
+            _ => false,
+        };
+        assert!(matches_validation);
+    }
+
+    // ========================================================================
+    // render_validation_result tests
+    // ========================================================================
+
+    /// Passing validation result contains PASS and message.
+    #[test]
+    fn test_render_validation_result_passing() {
+        let result = validation::ValidationResult {
+            success: true,
+            message: "All checks passed".to_string(),
+            output: None,
+        };
+        let rendered = render_validation_result("Test Validation", &result);
+        assert!(rendered.contains("### Test Validation"));
+        assert!(rendered.contains("PASS"));
+        assert!(rendered.contains("All checks passed"));
+    }
+
+    /// Failing validation result with output contains FAIL and code block.
+    #[test]
+    fn test_render_validation_result_failing_with_output() {
+        let result = validation::ValidationResult {
+            success: false,
+            message: "Check failed".to_string(),
+            output: Some("Error details here".to_string()),
+        };
+        let rendered = render_validation_result("Test Validation", &result);
+        assert!(rendered.contains("### Test Validation"));
+        assert!(rendered.contains("FAIL"));
+        assert!(rendered.contains("Check failed"));
+        assert!(rendered.contains("```text"));
+        assert!(rendered.contains("Error details here"));
+    }
+
+    /// Result with no output does not include code block.
+    #[test]
+    fn test_render_validation_result_no_output() {
+        let result = validation::ValidationResult {
+            success: true,
+            message: "Success".to_string(),
+            output: None,
+        };
+        let rendered = render_validation_result("Test Validation", &result);
+        assert!(!rendered.contains("```"));
+    }
+
+    /// Result with whitespace-only output does not include code block.
+    #[test]
+    fn test_render_validation_result_whitespace_only_output() {
+        let result = validation::ValidationResult {
+            success: true,
+            message: "Success".to_string(),
+            output: Some("   \n\t  ".to_string()),
+        };
+        let rendered = render_validation_result("Test Validation", &result);
+        assert!(!rendered.contains("```"));
+    }
+
+    // ========================================================================
+    // render_harness_failure tests
+    // ========================================================================
+
+    /// Harness failure with both stdout and stderr includes both code blocks.
+    #[test]
+    fn test_render_harness_failure_both_outputs() {
+        let rendered =
+            render_harness_failure("test-harness", 1, "stdout content", "stderr content");
+        assert!(rendered.contains("### Harness execution"));
+        assert!(rendered.contains("FAIL"));
+        assert!(rendered.contains("test-harness"));
+        assert!(rendered.contains("Exit code: 1"));
+        assert!(rendered.contains("Stdout:"));
+        assert!(rendered.contains("stdout content"));
+        assert!(rendered.contains("Stderr:"));
+        assert!(rendered.contains("stderr content"));
+    }
+
+    /// Harness failure with empty stdout does not include stdout block.
+    #[test]
+    fn test_render_harness_failure_empty_stdout() {
+        let rendered = render_harness_failure("test-harness", 1, "", "stderr content");
+        assert!(!rendered.contains("Stdout:"));
+        assert!(rendered.contains("Stderr:"));
+        assert!(rendered.contains("stderr content"));
+    }
+
+    /// Harness failure with empty stderr does not include stderr block.
+    #[test]
+    fn test_render_harness_failure_empty_stderr() {
+        let rendered = render_harness_failure("test-harness", 1, "stdout content", "");
+        assert!(rendered.contains("Stdout:"));
+        assert!(rendered.contains("stdout content"));
+        assert!(!rendered.contains("Stderr:"));
+    }
+
+    /// Harness failure with both empty includes only header section.
+    #[test]
+    fn test_render_harness_failure_both_empty() {
+        let rendered = render_harness_failure("test-harness", 1, "", "");
+        assert!(rendered.contains("### Harness execution"));
+        assert!(rendered.contains("FAIL"));
+        assert!(rendered.contains("test-harness"));
+        assert!(rendered.contains("Exit code: 1"));
+        assert!(!rendered.contains("Stdout:"));
+        assert!(!rendered.contains("Stderr:"));
+    }
+}
