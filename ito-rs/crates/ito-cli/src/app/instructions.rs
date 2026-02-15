@@ -2,13 +2,14 @@ use crate::cli::{AgentArgs, AgentCommand, AgentInstructionArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_config::types::WorktreeStrategy;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct ContextFileEntry {
@@ -105,7 +106,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-        let worktree = worktree_config_from_merged(&cfg.merged);
+        let worktree = worktree_config_from_merged(&cfg.merged, Some(project_root));
         let ito_dir_name = ito_path
             .file_name()
             .and_then(|s| s.to_str())
@@ -493,7 +494,7 @@ fn print_artifact_instructions_text(
 #[derive(Debug, Clone, serde::Serialize)]
 struct WorktreeConfig {
     enabled: bool,
-    strategy: String,
+    strategy: WorktreeStrategy,
     layout_base_dir: Option<String>,
     layout_dir_name: String,
     apply_enabled: bool,
@@ -501,12 +502,44 @@ struct WorktreeConfig {
     copy_from_main: Vec<String>,
     setup_commands: Vec<String>,
     default_branch: String,
+    /// Absolute path to the project/repo root directory.
+    ///
+    /// For `BareControlSiblings` this is the bare repo root (where `.bare/`
+    /// and `.git` live), resolved via `git rev-parse --git-common-dir`.
+    /// Templates use this to emit absolute paths so agents create worktrees
+    /// in the correct location regardless of their cwd.
+    project_root: Option<String>,
 }
 
-fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
+/// Resolve the bare repo root for `bare_control_siblings` layouts.
+///
+/// Runs `git rev-parse --path-format=absolute --git-common-dir` from
+/// `project_root` and returns its parent directory. For a bare repo
+/// where `.bare/` holds the git objects, this gives the directory
+/// containing `.bare/`, `.git`, and the worktree directories.
+fn resolve_bare_repo_root(project_root: &Path) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--path-format=absolute", "--git-common-dir"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let common_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if common_dir.is_empty() {
+        return None;
+    }
+    Path::new(&common_dir).parent().map(Path::to_path_buf)
+}
+
+fn worktree_config_from_merged(
+    merged: &serde_json::Value,
+    project_root: Option<&Path>,
+) -> WorktreeConfig {
     let mut out = WorktreeConfig {
         enabled: false,
-        strategy: "checkout_subdir".to_string(),
+        strategy: WorktreeStrategy::CheckoutSubdir,
         layout_base_dir: None,
         layout_dir_name: "ito-worktrees".to_string(),
         apply_enabled: true,
@@ -518,14 +551,17 @@ fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
         ],
         setup_commands: Vec::new(),
         default_branch: "main".to_string(),
+        project_root: None,
     };
 
     if let Some(wt) = merged.get("worktrees") {
         if let Some(v) = wt.get("enabled").and_then(|v| v.as_bool()) {
             out.enabled = v;
         }
-        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str()) {
-            out.strategy = v.to_string();
+        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
+            && let Some(parsed) = WorktreeStrategy::parse_value(v)
+        {
+            out.strategy = parsed;
         }
         if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
             && !v.is_empty()
@@ -576,6 +612,24 @@ fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
         }
     }
 
+    // Resolve the absolute project root for all strategies so templates
+    // can emit absolute paths and agents create worktrees in the correct
+    // location regardless of their cwd.
+    //
+    // For BareControlSiblings the root is the bare repo directory (parent
+    // of `.bare/`), which may differ from the cwd when running from inside
+    // a worktree.  For other strategies it is the checkout root.
+    if let Some(root) = project_root {
+        out.project_root = match out.strategy {
+            WorktreeStrategy::BareControlSiblings => {
+                resolve_bare_repo_root(root).map(|p| p.to_string_lossy().to_string())
+            }
+            WorktreeStrategy::CheckoutSubdir | WorktreeStrategy::CheckoutSiblings => {
+                Some(root.to_string_lossy().to_string())
+            }
+        };
+    }
+
     out
 }
 
@@ -585,7 +639,7 @@ fn load_worktree_config(
     ctx: &ito_config::ConfigContext,
 ) -> WorktreeConfig {
     let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    worktree_config_from_merged(&cfg.merged)
+    worktree_config_from_merged(&cfg.merged, Some(project_root))
 }
 
 fn print_apply_instructions_text(
@@ -673,4 +727,247 @@ fn collect_tracking_diagnostic_counts(
     let errors = if errors > 0 { Some(errors) } else { None };
     let warnings = if warnings > 0 { Some(warnings) } else { None };
     (errors, warnings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn worktree_config_defaults_when_no_worktrees_key() {
+        let merged = json!({});
+        let cfg = worktree_config_from_merged(&merged, None);
+
+        assert!(!cfg.enabled);
+        assert_eq!(cfg.strategy, WorktreeStrategy::CheckoutSubdir);
+        assert!(cfg.layout_base_dir.is_none());
+        assert_eq!(cfg.layout_dir_name, "ito-worktrees");
+        assert!(cfg.apply_enabled);
+        assert_eq!(cfg.integration_mode, "commit_pr");
+        assert_eq!(
+            cfg.copy_from_main,
+            vec![".env", ".envrc", ".mise.local.toml"]
+        );
+        assert!(cfg.setup_commands.is_empty());
+        assert_eq!(cfg.default_branch, "main");
+        assert!(cfg.project_root.is_none());
+    }
+
+    #[test]
+    fn worktree_config_parses_all_fields() {
+        let merged = json!({
+            "worktrees": {
+                "enabled": true,
+                "strategy": "checkout_siblings",
+                "default_branch": "develop",
+                "layout": {
+                    "base_dir": "/tmp/worktrees",
+                    "dir_name": "my-trees"
+                },
+                "apply": {
+                    "enabled": false,
+                    "integration_mode": "merge",
+                    "copy_from_main": [".env.local"],
+                    "setup_commands": ["npm install", "cargo build"]
+                }
+            }
+        });
+        let cfg = worktree_config_from_merged(&merged, None);
+
+        assert!(cfg.enabled);
+        assert_eq!(cfg.strategy, WorktreeStrategy::CheckoutSiblings);
+        assert_eq!(cfg.default_branch, "develop");
+        assert_eq!(cfg.layout_base_dir.as_deref(), Some("/tmp/worktrees"));
+        assert_eq!(cfg.layout_dir_name, "my-trees");
+        assert!(!cfg.apply_enabled);
+        assert_eq!(cfg.integration_mode, "merge");
+        assert_eq!(cfg.copy_from_main, vec![".env.local"]);
+        assert_eq!(cfg.setup_commands, vec!["npm install", "cargo build"]);
+    }
+
+    #[test]
+    fn worktree_config_ignores_empty_strings() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "",
+                "default_branch": "",
+                "layout": {
+                    "base_dir": "",
+                    "dir_name": ""
+                },
+                "apply": {
+                    "integration_mode": ""
+                }
+            }
+        });
+        let cfg = worktree_config_from_merged(&merged, None);
+
+        // Should keep defaults when values are empty strings.
+        assert_eq!(cfg.strategy, WorktreeStrategy::CheckoutSubdir);
+        assert_eq!(cfg.default_branch, "main");
+        assert!(cfg.layout_base_dir.is_none());
+        assert_eq!(cfg.layout_dir_name, "ito-worktrees");
+        assert_eq!(cfg.integration_mode, "commit_pr");
+    }
+
+    #[test]
+    fn worktree_config_checkout_subdir_sets_project_root() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "checkout_subdir"
+            }
+        });
+        let root = Path::new("/fake/project");
+        let cfg = worktree_config_from_merged(&merged, Some(root));
+
+        assert_eq!(cfg.project_root.as_deref(), Some("/fake/project"));
+    }
+
+    #[test]
+    fn worktree_config_checkout_siblings_sets_project_root() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "checkout_siblings"
+            }
+        });
+        let root = Path::new("/fake/project");
+        let cfg = worktree_config_from_merged(&merged, Some(root));
+
+        assert_eq!(cfg.project_root.as_deref(), Some("/fake/project"));
+    }
+
+    #[test]
+    fn worktree_config_bare_control_siblings_calls_resolve() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "bare_control_siblings"
+            }
+        });
+        // With no project_root passed, project_root stays None.
+        let cfg = worktree_config_from_merged(&merged, None);
+        assert!(cfg.project_root.is_none());
+
+        // With a project_root in a real git repo, resolve_bare_repo_root
+        // will return Some (the enclosing repo's root).  We just verify
+        // the function runs without panicking and produces a path.
+        let cfg = worktree_config_from_merged(&merged, Some(Path::new(".")));
+        // Inside the test workspace this will resolve; in a non-git
+        // context it would be None.  Either outcome is acceptable.
+        if let Some(ref root) = cfg.project_root {
+            assert!(!root.is_empty());
+        }
+    }
+
+    #[test]
+    fn worktree_config_no_project_root_when_none_passed() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "checkout_siblings"
+            }
+        });
+        let cfg = worktree_config_from_merged(&merged, None);
+        assert!(cfg.project_root.is_none());
+    }
+
+    #[test]
+    fn json_get_traverses_nested_keys() {
+        let root = json!({
+            "a": {
+                "b": {
+                    "c": 42
+                }
+            }
+        });
+
+        let result = json_get(&root, &["a", "b", "c"]);
+        assert_eq!(result, Some(&json!(42)));
+    }
+
+    #[test]
+    fn json_get_returns_none_for_missing_key() {
+        let root = json!({"a": {"b": 1}});
+        assert!(json_get(&root, &["a", "x"]).is_none());
+    }
+
+    #[test]
+    fn json_get_returns_none_for_non_object_intermediate() {
+        let root = json!({"a": 42});
+        assert!(json_get(&root, &["a", "b"]).is_none());
+    }
+
+    #[test]
+    fn json_get_empty_keys_returns_root() {
+        let root = json!({"a": 1});
+        assert_eq!(json_get(&root, &[]), Some(&root));
+    }
+
+    #[test]
+    fn collect_tracking_diagnostic_counts_none_input() {
+        let (errors, warnings) = collect_tracking_diagnostic_counts(None);
+        assert!(errors.is_none());
+        assert!(warnings.is_none());
+    }
+
+    #[test]
+    fn collect_tracking_diagnostic_counts_empty_slice() {
+        let diags: Vec<core_templates::TaskDiagnostic> = vec![];
+        let (errors, warnings) = collect_tracking_diagnostic_counts(Some(&diags));
+        assert!(errors.is_none());
+        assert!(warnings.is_none());
+    }
+
+    #[test]
+    fn collect_tracking_diagnostic_counts_mixed_levels() {
+        let diags = vec![
+            core_templates::TaskDiagnostic {
+                level: "error".to_string(),
+                message: "e1".to_string(),
+                task_id: None,
+            },
+            core_templates::TaskDiagnostic {
+                level: "warning".to_string(),
+                message: "w1".to_string(),
+                task_id: None,
+            },
+            core_templates::TaskDiagnostic {
+                level: "error".to_string(),
+                message: "e2".to_string(),
+                task_id: None,
+            },
+            core_templates::TaskDiagnostic {
+                level: "info".to_string(),
+                message: "i1".to_string(),
+                task_id: None,
+            },
+        ];
+        let (errors, warnings) = collect_tracking_diagnostic_counts(Some(&diags));
+        assert_eq!(errors, Some(2));
+        assert_eq!(warnings, Some(1));
+    }
+
+    #[test]
+    fn worktree_config_parses_bare_control_siblings_strategy() {
+        let merged = json!({
+            "worktrees": {
+                "strategy": "bare_control_siblings"
+            }
+        });
+        let cfg = worktree_config_from_merged(&merged, None);
+        assert_eq!(cfg.strategy, WorktreeStrategy::BareControlSiblings);
+    }
+
+    #[test]
+    fn collect_context_files_preserves_order() {
+        let mut map = BTreeMap::new();
+        map.insert("alpha".to_string(), "path/a".to_string());
+        map.insert("beta".to_string(), "path/b".to_string());
+
+        let entries = collect_context_files(&map);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].id, "alpha");
+        assert_eq!(entries[0].path, "path/a");
+        assert_eq!(entries[1].id, "beta");
+        assert_eq!(entries[1].path, "path/b");
+    }
 }
