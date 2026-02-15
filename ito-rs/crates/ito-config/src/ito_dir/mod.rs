@@ -48,25 +48,94 @@ pub fn get_ito_path(project_root: &Path, ctx: &ConfigContext) -> PathBuf {
     get_ito_path_fs(&StdFs, project_root, ctx)
 }
 
-/// Like [`get_ito_path`], but uses an injected file-system.
+/// Resolve the Ito directory path for a project using an injected filesystem.
+///
+/// This absolutizes and lexically normalizes `project_root` (falling back to a lossy
+/// normalization if the current working directory cannot be determined) and appends
+/// the Ito directory name selected from repository overrides, global configuration, or the default.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// // `fs` and `ctx` are implementations of `FileSystem` and `ConfigContext` from this crate.
+/// let ito_path = get_ito_path_fs(&fs, Path::new("some/project"), &ctx);
+/// assert!(ito_path.ends_with(".ito"));
+/// ```
 pub fn get_ito_path_fs<F: FileSystem>(fs: &F, project_root: &Path, ctx: &ConfigContext) -> PathBuf {
-    let root = absolutize_and_normalize(project_root);
+    let root = absolutize_and_normalize_lossy(project_root);
     root.join(get_ito_dir_name_fs(fs, &root, ctx))
 }
 
-fn absolutize_and_normalize(input: &Path) -> PathBuf {
+/// Resolves a possibly-relative path to an absolute, lexically normalized form.
+///
+/// If `input` is absolute it is normalized in place; otherwise it is joined
+/// onto the current working directory before normalization. The result has no
+/// `.` or `..` components and does not access the filesystem, so it is safe to
+/// use for display even when the path does not exist.
+///
+/// # Errors
+///
+/// Returns an `io::Error` when the current directory cannot be determined and
+/// `input` is relative.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let abs = crate::absolutize_and_normalize(Path::new(".")).unwrap();
+/// assert!(abs.is_absolute());
+/// ```
+pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
     let abs = if input.is_absolute() {
         input.to_path_buf()
     } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(input)
+        std::env::current_dir()?.join(input)
     };
 
-    lexical_normalize(&abs)
+    Ok(lexical_normalize(&abs))
 }
 
-fn lexical_normalize(path: &Path) -> PathBuf {
+/// Resolves a path to an absolute, lexically normalized `PathBuf`, falling back to
+/// lexical normalization when the current working directory cannot be obtained.
+///
+/// This function returns a canonicalized form of `input` where `"."` and `".."`
+/// components are resolved lexically. If obtaining the current directory fails,
+/// the function performs lexical normalization without attempting to make the
+/// path absolute.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+///
+/// let p = crate::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
+/// assert!(p.ends_with(Path::new("foo/bar")));
+/// ```
+fn
+fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
+    absolutize_and_normalize(input).unwrap_or_else(|_| lexical_normalize(input))
+}
+
+/// Lexically normalizes a path by resolving `.` and `..` components without accessing the filesystem.
+///
+/// This performs purely lexical simplification: it removes `.` segments, collapses `..` where possible,
+/// preserves rooted prefixes, and never queries the filesystem.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::{Path, PathBuf};
+/// let p = Path::new("a/./b/../c");
+/// assert_eq!(super::lexical_normalize(p), PathBuf::from("a/c"));
+///
+/// let abs = Path::new("/a/b/../c");
+/// assert_eq!(super::lexical_normalize(abs), PathBuf::from("/a/c"));
+///
+/// let up = Path::new("../a/../b");
+/// assert_eq!(super::lexical_normalize(up), PathBuf::from("../b"));
+/// ```
+pub fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component;
 
     let mut out = PathBuf::new();

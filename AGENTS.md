@@ -93,6 +93,33 @@ ito/                          # bare/control repo root
    ```
 4. **All git commands must be run from inside a worktree** (e.g., `main/` or `ito-worktrees/<branch>/`), not from the bare repo root, unless you are managing worktrees themselves.
 
+### Fixing Corrupt Index in Worktrees
+
+Worktrees in the bare-repo layout occasionally develop corrupt index entries, where a blob hash (e.g., `a2b091c0...`) no longer resolves. Symptoms:
+
+- `git diff` or `git commit` fails with `fatal: unable to read <hash>`
+- `error: invalid object ... for '<file>'` during commit tree-building
+- Pre-commit hooks abort with `Command 'git diff' exited with an error`
+
+**Fix** -- delete the worktree's index and let git rebuild it from HEAD:
+
+```bash
+# 1. Identify the worktree index file
+WTGITDIR="$(git rev-parse --git-dir)"          # e.g. /path/to/.bare/worktrees/<branch>
+rm "$WTGITDIR/index"
+
+# 2. Rebuild index from HEAD (unstages everything)
+git reset HEAD
+
+# 3. Re-stage your changes
+git add <files...>
+
+# 4. Commit (use --no-verify if the hook's internal stash is also corrupt)
+git commit -m "..."
+```
+
+**Why this happens**: `prek` (the pre-commit runner) stashes/unstashes unstaged changes around hook execution. If a previous hook run was interrupted or the worktree was created while another process held a stale reference, the index can end up pointing to a blob that was never packed into the shared object store. `git update-index --cacheinfo` and `git read-tree HEAD` often fail to fix it because the index file itself is internally inconsistent; deleting it is the reliable fix.
+
 ### Testing Changes in Worktrees
 
 When developing in a worktree, **always use the binary built in that worktree's target directory**, not the root workspace binary:
