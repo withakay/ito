@@ -7,4 +7,4 @@ Command-line interface for Ito (`ito-cli` crate). Argument parsing, command disp
 - Argument parsing, command dispatch, output formatting, bridge types, and CLI behaviour.
 
 ## Changes
-- [ ] 016-10_cli-type-safe-args
+- [x] 016-10_cli-type-safe-args

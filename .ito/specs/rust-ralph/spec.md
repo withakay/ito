@@ -1,37 +1,21 @@
-# rust-ralph Specification
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: Non-zero harness exits are classified before counting
 
-TBD - created by archiving change 006-09_port-ralph-loop. Update Purpose after archive.
+The Ralph loop SHALL classify non-zero harness exit codes into retriable (signal-based crashes) and non-retriable (logical errors) before applying error threshold or exit-on-error logic.
 
-## Requirements
+#### Scenario: Retriable exit skips error counting
 
-### Requirement: Completion promise detection matches TypeScript
+- **GIVEN** a Ralph loop with default error handling
+- **WHEN** the harness exits with a signal-based code (128-143)
+- **THEN** the system SHALL retry the iteration without incrementing the harness error counter
+- **AND** the system SHALL NOT feed the crash output back as validation context
 
-Rust MUST detect completion promises using the same rules as TypeScript.
+#### Scenario: Non-retriable exit counts normally
 
-#### Scenario: Detect `<promise>COMPLETE</promise>`
-
-- GIVEN harness output containing `<promise>COMPLETE</promise>`
-- WHEN the loop processes the output
-- THEN Rust stops after meeting `--min-iterations` semantics
-
-### Requirement: State is written under `.ito/.state/ralph/<change>`
-
-Rust MUST write loop state and history in the same location and structure as TypeScript.
-
-#### Scenario: State files exist
-
-- GIVEN a completed loop run
-- WHEN the user inspects `.ito/.state/ralph/<change-id>/`
-- THEN the expected state and history files exist
-
-### Requirement: Tests do not require network
-
-Rust tests MUST run with stub harnesses.
-
-#### Scenario: Parity tests run offline
-
-- GIVEN no network access
-- WHEN `cargo test --workspace` runs
-- THEN ralph tests pass using stub harnesses
+- **GIVEN** a Ralph loop with default error handling
+- **WHEN** the harness exits with a non-retriable code (e.g. 1, 2)
+- **THEN** the system SHALL increment the harness error counter
+- **AND** the system SHALL feed the failure output back as context for the next iteration
+<!-- ITO:END -->

@@ -8,4 +8,4 @@ Serve Ito artifacts and project documentation in a local web UI for fast browsin
 
 ## Changes
 - [x] 010-01_add-local-docs-server
-- [ ] 010-02_generate-docs-site-from-docstrings
+- [x] 010-02_generate-docs-site-from-docstrings
