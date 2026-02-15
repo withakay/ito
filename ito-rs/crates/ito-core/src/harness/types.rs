@@ -80,8 +80,8 @@ impl FromStr for HarnessName {
             "codex" => Ok(HarnessName::Codex),
             "copilot" | "github-copilot" => Ok(HarnessName::GithubCopilot),
             "stub" => Ok(HarnessName::Stub),
-            _ => Err(HarnessNameParseError {
-                input: s.to_string(),
+            other => Err(HarnessNameParseError {
+                input: other.to_string(),
             }),
         }
     }
@@ -128,7 +128,6 @@ pub struct HarnessRunResult {
 ///
 /// - `128` — generic fatal signal on many CLIs
 /// - `128 + signal` — killed by signal (e.g. 137 = SIGKILL, 139 = SIGSEGV, 130 = SIGINT)
-/// - `-1` — used internally for inactivity timeout (handled separately, listed for completeness)
 const RETRIABLE_EXIT_CODES: &[i32] = &[
     128, // Generic fatal signal
     129, // SIGHUP

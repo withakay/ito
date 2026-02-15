@@ -97,7 +97,7 @@ cd "{{ worktree.project_root }}"
 {% endif %}
 # Determine project name and sibling directory
 PROJECT_NAME=$(basename "{{ worktree.project_root | default("$(pwd)") }}")
-WORKTREE_BASE="{{ worktree.project_root | default("..") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
+WORKTREE_BASE="{{ worktree.project_root | default(".") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
 CHANGE_DIR="${WORKTREE_BASE}/{{ instructions.changeName }}"
 
 # Create the worktree base directory if needed
