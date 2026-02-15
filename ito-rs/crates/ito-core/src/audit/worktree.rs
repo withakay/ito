@@ -14,7 +14,7 @@ use super::writer::audit_log_path;
 ///
 /// Returns an empty vec if git is unavailable, not in a repo, or no
 /// worktrees have audit logs.
-pub fn discover_worktrees(ito_path: &Path) -> Vec<WorktreeInfo> {
+pub fn discover_worktrees(_ito_path: &Path) -> Vec<WorktreeInfo> {
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])
         .output();
@@ -28,11 +28,11 @@ pub fn discover_worktrees(ito_path: &Path) -> Vec<WorktreeInfo> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_worktree_list(&stdout, ito_path)
+    parse_worktree_list(&stdout)
 }
 
 /// Parse `git worktree list --porcelain` output into `WorktreeInfo` entries.
-fn parse_worktree_list(output: &str, _ito_path: &Path) -> Vec<WorktreeInfo> {
+fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
     let mut worktrees = Vec::new();
     let mut current_path: Option<PathBuf> = None;
     let mut current_branch: Option<String> = None;
@@ -96,6 +96,38 @@ fn parse_worktree_list(output: &str, _ito_path: &Path) -> Vec<WorktreeInfo> {
     worktrees
 }
 
+/// Find the worktree path for a branch by parsing `git worktree list --porcelain`.
+///
+/// Returns the worktree root directory if a non-bare worktree exists whose
+/// branch name matches `branch`. Bare worktrees are excluded.
+///
+/// Used by Ralph to resolve the effective working directory for a change
+/// when worktree-based workflows are active.
+pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    find_worktree_for_branch_in_output(&stdout, branch)
+}
+
+/// Parse porcelain worktree output and find the path for a given branch name.
+///
+/// This is the testable core of [`find_worktree_for_branch`].
+fn find_worktree_for_branch_in_output(output: &str, branch: &str) -> Option<PathBuf> {
+    let worktrees = parse_worktree_list(output);
+    worktrees
+        .into_iter()
+        .find(|wt| wt.branch.as_deref() == Some(branch))
+        .map(|wt| wt.path)
+}
+
 /// Get the audit log path for a worktree.
 pub fn worktree_audit_log_path(worktree: &WorktreeInfo) -> PathBuf {
     audit_log_path(&worktree.path.join(".ito"))
@@ -133,8 +165,7 @@ mod tests {
     #[test]
     fn parse_single_worktree() {
         let output = "worktree /home/user/project\nHEAD abc1234\nbranch refs/heads/main\n\n";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert_eq!(wts[0].path, PathBuf::from("/home/user/project"));
         assert_eq!(wts[0].branch, Some("main".to_string()));
@@ -153,8 +184,7 @@ HEAD def5678
 branch refs/heads/feature-x
 
 ";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 2);
         assert!(wts[0].is_main);
         assert!(!wts[1].is_main);
@@ -172,8 +202,7 @@ HEAD abc1234
 branch refs/heads/main
 
 ";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert_eq!(wts[0].path, PathBuf::from("/home/user/wt-main"));
     }
@@ -181,8 +210,7 @@ branch refs/heads/main
     #[test]
     fn parse_detached_head() {
         let output = "worktree /home/user/project\nHEAD abc1234\ndetached\n\n";
-        let dummy = Path::new("/unused");
-        let wts = parse_worktree_list(output, dummy);
+        let wts = parse_worktree_list(output);
         assert_eq!(wts.len(), 1);
         assert!(wts[0].branch.is_none());
     }
@@ -199,6 +227,77 @@ branch refs/heads/main
             path,
             PathBuf::from("/project/wt-feature/.ito/.state/audit/events.jsonl")
         );
+    }
+
+    #[test]
+    fn find_worktree_matching_branch() {
+        let output = "\
+worktree /home/user/project
+HEAD abc1234
+branch refs/heads/main
+
+worktree /home/user/wt-feature
+HEAD def5678
+branch refs/heads/002-16_ralph-worktree-awareness
+
+";
+        let result = find_worktree_for_branch_in_output(output, "002-16_ralph-worktree-awareness");
+        assert_eq!(result, Some(PathBuf::from("/home/user/wt-feature")));
+    }
+
+    #[test]
+    fn find_worktree_no_match() {
+        let output = "\
+worktree /home/user/project
+HEAD abc1234
+branch refs/heads/main
+
+";
+        let result = find_worktree_for_branch_in_output(output, "nonexistent-branch");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn find_worktree_bare_excluded() {
+        let output = "\
+worktree /home/user/project.git
+bare
+
+worktree /home/user/wt-main
+HEAD abc1234
+branch refs/heads/main
+
+";
+        // Even though the bare repo is listed first, it should be excluded
+        let result = find_worktree_for_branch_in_output(output, "main");
+        assert_eq!(result, Some(PathBuf::from("/home/user/wt-main")));
+    }
+
+    #[test]
+    fn find_worktree_multiple_returns_first_match() {
+        let output = "\
+worktree /home/user/project.git
+bare
+
+worktree /home/user/wt-main
+HEAD abc1234
+branch refs/heads/main
+
+worktree /home/user/wt-feature-a
+HEAD def5678
+branch refs/heads/feature-a
+
+worktree /home/user/wt-feature-b
+HEAD 9ab0123
+branch refs/heads/feature-b
+
+";
+        let result = find_worktree_for_branch_in_output(output, "feature-b");
+        assert_eq!(result, Some(PathBuf::from("/home/user/wt-feature-b")));
+
+        // Non-matching returns None
+        let result = find_worktree_for_branch_in_output(output, "feature-c");
+        assert!(result.is_none());
     }
 
     #[test]

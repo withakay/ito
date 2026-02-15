@@ -19,4 +19,7 @@ pub mod state;
 pub mod validation;
 
 pub use duration::{format_duration, parse_duration};
-pub use runner::{DEFAULT_ERROR_THRESHOLD, RalphOptions, run_ralph};
+pub use runner::{
+    DEFAULT_ERROR_THRESHOLD, RalphOptions, ResolvedCwd, WorktreeConfig, resolve_effective_cwd,
+    run_ralph,
+};

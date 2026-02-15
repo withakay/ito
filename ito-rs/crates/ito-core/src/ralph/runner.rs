@@ -19,6 +19,19 @@ use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+/// Worktree configuration subset needed for Ralph's working directory resolution.
+#[derive(Debug, Clone, Default)]
+pub struct WorktreeConfig {
+    /// Whether worktree-based workflows are enabled for this project.
+    pub enabled: bool,
+    /// The directory name where change worktrees live (e.g. `ito-worktrees`).
+    ///
+    /// Not currently used in resolution logic (branch lookup via `git worktree
+    /// list` does not need this), but carried for future use such as
+    /// constructing expected worktree paths without invoking git.
+    pub dir_name: String,
+}
+
 #[derive(Debug, Clone)]
 /// Runtime options for a single Ralph loop invocation.
 pub struct RalphOptions {
@@ -94,10 +107,74 @@ pub struct RalphOptions {
     ///
     /// Applies only when `exit_on_error` is false.
     pub error_threshold: u32,
+
+    /// Worktree configuration for working directory resolution.
+    pub worktree: WorktreeConfig,
 }
 
 /// Default maximum number of non-zero harness exits Ralph tolerates.
 pub const DEFAULT_ERROR_THRESHOLD: u32 = 10;
+
+/// Resolved working directory for a Ralph invocation.
+///
+/// Bundles the effective working directory path with the `.ito` directory
+/// that should be used for state file writes.
+#[derive(Debug, Clone)]
+pub struct ResolvedCwd {
+    /// The directory where the harness and git commands should execute.
+    pub path: PathBuf,
+    /// The `.ito` directory for state file writes (may differ from the
+    /// process's `.ito` when a worktree is resolved).
+    pub ito_path: PathBuf,
+}
+
+/// Resolve the effective working directory for a Ralph invocation.
+///
+/// When worktrees are enabled and a matching worktree exists for
+/// `change_id`, returns the worktree path. Otherwise falls back to the
+/// process's current working directory.
+pub fn resolve_effective_cwd(
+    ito_path: &Path,
+    change_id: Option<&str>,
+    worktree: &WorktreeConfig,
+) -> ResolvedCwd {
+    let lookup = |branch: &str| crate::audit::worktree::find_worktree_for_branch(branch);
+    let fallback_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    resolve_effective_cwd_with(ito_path, change_id, worktree, fallback_path, lookup)
+}
+
+/// Testable core of [`resolve_effective_cwd`].
+///
+/// Accepts an explicit fallback path and a worktree lookup function so
+/// callers can inject test doubles.
+fn resolve_effective_cwd_with(
+    ito_path: &Path,
+    change_id: Option<&str>,
+    worktree: &WorktreeConfig,
+    fallback_path: PathBuf,
+    lookup: impl Fn(&str) -> Option<PathBuf>,
+) -> ResolvedCwd {
+    let fallback = ResolvedCwd {
+        path: fallback_path,
+        ito_path: ito_path.to_path_buf(),
+    };
+
+    let wt_path = if worktree.enabled {
+        change_id.and_then(lookup)
+    } else {
+        None
+    };
+
+    let Some(wt_path) = wt_path else {
+        return fallback;
+    };
+
+    let wt_ito_path = wt_path.join(".ito");
+    ResolvedCwd {
+        path: wt_path,
+        ito_path: wt_ito_path,
+    }
+}
 
 /// Run the Ralph loop for a change (or repository/module sequence) until the configured completion promise is detected.
 ///
@@ -303,6 +380,23 @@ pub fn run_ralph(
     }
 
     let unscoped_target = opts.change_id.is_none() && opts.module_id.is_none();
+
+    // Resolve worktree-aware working directory (task 2.1).
+    // Done before target resolution so the change_id raw value can be used for lookup.
+    let resolved_cwd = resolve_effective_cwd(ito_path, opts.change_id.as_deref(), &opts.worktree);
+    let effective_ito_path = &resolved_cwd.ito_path;
+
+    if opts.verbose {
+        if effective_ito_path != ito_path {
+            println!("Resolved worktree: {}", resolved_cwd.path.display());
+        } else {
+            println!(
+                "Using current working directory: {}",
+                resolved_cwd.path.display()
+            );
+        }
+    }
+
     let (change_id, module_id) = if unscoped_target {
         ("unscoped".to_string(), "unscoped".to_string())
     } else {
@@ -315,7 +409,7 @@ pub fn run_ralph(
     };
 
     if opts.status {
-        let state = load_state(ito_path, &change_id)?;
+        let state = load_state(effective_ito_path, &change_id)?;
         if let Some(state) = state {
             println!("\n=== Ralph Status for {id} ===\n", id = state.change_id);
             println!("Iteration: {iter}", iter = state.iteration);
@@ -342,17 +436,17 @@ pub fn run_ralph(
     }
 
     if let Some(text) = opts.add_context.as_deref() {
-        append_context(ito_path, &change_id, text)?;
+        append_context(effective_ito_path, &change_id, text)?;
         println!("Added context to {id}", id = change_id);
         return Ok(());
     }
     if opts.clear_context {
-        clear_context(ito_path, &change_id)?;
+        clear_context(effective_ito_path, &change_id)?;
         println!("Cleared Ralph context for {id}", id = change_id);
         return Ok(());
     }
 
-    let ito_dir_name = ito_path
+    let ito_dir_name = effective_ito_path
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| ".ito".to_string());
@@ -362,7 +456,7 @@ pub fn run_ralph(
         change = change_id
     );
 
-    let mut state = load_state(ito_path, &change_id)?.unwrap_or(RalphState {
+    let mut state = load_state(effective_ito_path, &change_id)?.unwrap_or(RalphState {
         change_id: change_id.clone(),
         iteration: 0,
         history: vec![],
@@ -410,9 +504,9 @@ pub fn run_ralph(
 
         println!("\n=== Ralph Loop Iteration {i} ===\n", i = iteration);
 
-        let context_content = load_context(ito_path, &change_id)?;
+        let context_content = load_context(effective_ito_path, &change_id)?;
         let prompt = build_ralph_prompt(
-            ito_path,
+            effective_ito_path,
             change_repo,
             module_repo,
             &opts.prompt,
@@ -447,7 +541,7 @@ pub fn run_ralph(
             .run(&crate::harness::HarnessRunConfig {
                 prompt,
                 model: opts.model.clone(),
-                cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+                cwd: resolved_cwd.path.clone(),
                 env: std::collections::BTreeMap::new(),
                 interactive: opts.interactive && !opts.allow_all,
                 allow_all: opts.allow_all,
@@ -469,7 +563,7 @@ pub fn run_ralph(
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
         let file_changes_count = if harness.name() != HarnessName::Stub {
-            count_git_changes(&process_runner)? as u32
+            count_git_changes(&process_runner, &resolved_cwd.path)? as u32
         } else {
             0
         };
@@ -543,7 +637,7 @@ pub fn run_ralph(
         retriable_retry_count = 0;
 
         if !opts.no_commit {
-            commit_iteration(&process_runner, iteration)?;
+            commit_iteration(&process_runner, iteration, &resolved_cwd.path)?;
         }
 
         let timestamp = now_ms()?;
@@ -555,7 +649,7 @@ pub fn run_ralph(
             file_changes_count,
         });
         state.iteration = iteration;
-        save_state(ito_path, &change_id, &state)?;
+        save_state(effective_ito_path, &change_id, &state)?;
 
         if completion_found && iteration >= opts.min_iterations {
             if opts.skip_validation {
@@ -568,7 +662,7 @@ pub fn run_ralph(
             }
 
             let report = validate_completion(
-                ito_path,
+                effective_ito_path,
                 task_repo,
                 if unscoped_target {
                     None
@@ -897,8 +991,10 @@ fn now_ms() -> CoreResult<i64> {
     Ok(dur.as_millis() as i64)
 }
 
-fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
-    let request = ProcessRequest::new("git").args(["status", "--porcelain"]);
+fn count_git_changes(runner: &dyn ProcessRunner, cwd: &Path) -> CoreResult<usize> {
+    let request = ProcessRequest::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(cwd.to_path_buf());
     let out = runner
         .run(&request)
         .map_err(|e| CoreError::Process(format!("Failed to run git status: {e}")))?;
@@ -920,8 +1016,10 @@ fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
     Ok(line_count)
 }
 
-fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()> {
-    let add_request = ProcessRequest::new("git").args(["add", "-A"]);
+fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> CoreResult<()> {
+    let add_request = ProcessRequest::new("git")
+        .args(["add", "-A"])
+        .current_dir(cwd.to_path_buf());
     let add = runner
         .run(&add_request)
         .map_err(|e| CoreError::Process(format!("Failed to run git add: {e}")))?;
@@ -941,7 +1039,9 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()
     }
 
     let msg = format!("Ralph loop iteration {iteration}");
-    let commit_request = ProcessRequest::new("git").args(["commit", "-m", &msg]);
+    let commit_request = ProcessRequest::new("git")
+        .args(["commit", "-m", &msg])
+        .current_dir(cwd.to_path_buf());
     let commit = runner
         .run(&commit_request)
         .map_err(|e| CoreError::Process(format!("Failed to run git commit: {e}")))?;
@@ -967,6 +1067,92 @@ mod tests {
     use super::*;
     use crate::process::{ProcessExecutionError, ProcessOutput, ProcessRunner};
     use std::sync::Mutex as StdMutex;
+
+    // -- resolve_effective_cwd -------------------------------------------
+
+    #[test]
+    fn resolve_cwd_worktree_found() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("002-16_ralph-worktree-awareness");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+        let wt_path = PathBuf::from("/project/ito-worktrees/002-16_ralph-worktree-awareness");
+
+        let result =
+            resolve_effective_cwd_with(ito_path, change_id, &worktree, fallback, |_branch| {
+                Some(wt_path.clone())
+            });
+
+        assert_eq!(result.path, wt_path);
+        assert_eq!(result.ito_path, wt_path.join(".ito"));
+    }
+
+    #[test]
+    fn resolve_cwd_no_worktree_found_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("005-01_some-change");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            change_id,
+            &worktree,
+            fallback.clone(),
+            |_branch| None,
+        );
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
+
+    #[test]
+    fn resolve_cwd_worktrees_not_enabled_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("002-16_ralph-worktree-awareness");
+        let worktree = WorktreeConfig {
+            enabled: false,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            change_id,
+            &worktree,
+            fallback.clone(),
+            |_branch| {
+                panic!("lookup should not be called when worktrees disabled");
+            },
+        );
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
+
+    #[test]
+    fn resolve_cwd_no_change_targeted_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result =
+            resolve_effective_cwd_with(ito_path, None, &worktree, fallback.clone(), |_branch| {
+                panic!("lookup should not be called without a change id");
+            });
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
 
     // -- completion_promise_found ----------------------------------------
 
@@ -1165,12 +1351,13 @@ mod tests {
 
     #[test]
     fn git_changes_and_commit() {
+        let cwd = Path::new("/tmp");
         assert_eq!(
-            count_git_changes(&MockRunner::new(vec![ok(" M a\n M b\n", 0)])).unwrap(),
+            count_git_changes(&MockRunner::new(vec![ok(" M a\n M b\n", 0)]), cwd).unwrap(),
             2
         );
         assert_eq!(
-            count_git_changes(&MockRunner::new(vec![ok("", 0)])).unwrap(),
+            count_git_changes(&MockRunner::new(vec![ok("", 0)]), cwd).unwrap(),
             0
         );
         let fail = MockRunner::new(vec![Ok(ProcessOutput {
@@ -1180,8 +1367,8 @@ mod tests {
             stderr: "fatal".into(),
             timed_out: false,
         })]);
-        assert_eq!(count_git_changes(&fail).unwrap(), 0);
-        commit_iteration(&MockRunner::new(vec![ok("", 0), ok("", 0)]), 1).unwrap();
+        assert_eq!(count_git_changes(&fail, cwd).unwrap(), 0);
+        commit_iteration(&MockRunner::new(vec![ok("", 0), ok("", 0)]), 1, cwd).unwrap();
         let bad = MockRunner::new(vec![Ok(ProcessOutput {
             exit_code: 1,
             success: false,
@@ -1189,7 +1376,7 @@ mod tests {
             stderr: "e".into(),
             timed_out: false,
         })]);
-        assert!(commit_iteration(&bad, 1).is_err());
+        assert!(commit_iteration(&bad, 1, cwd).is_err());
         assert!(now_ms().unwrap() > 0);
     }
 }
