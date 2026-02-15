@@ -27,9 +27,13 @@ Worktree directory name: `{{ worktree.layout_dir_name }}`
 
 {% if worktree.strategy == "checkout_subdir" %}
 #### Workspace Layout (checkout_subdir)
+{% if worktree.project_root %}
+
+Project root: `{{ worktree.project_root }}`
+{% endif %}
 
 ```
-<project>/                          # normal git checkout ({{ worktree.default_branch }} branch)
+{{ worktree.project_root | default("<project>") }}/  # normal git checkout ({{ worktree.default_branch }} branch)
 ├── .git/
 ├── src/
 └── .{{ worktree.layout_dir_name }}/  # gitignored subdirectory
@@ -39,35 +43,61 @@ Worktree directory name: `{{ worktree.layout_dir_name }}`
 **Setup steps:**
 
 ```bash
+{% if worktree.project_root %}
+# All worktree commands must run from the project root
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 # Ensure .{{ worktree.layout_dir_name }}/ is gitignored
 grep -qxF '.{{ worktree.layout_dir_name }}/' .gitignore 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> .gitignore
 
 # Create or reuse the change worktree
+{% if worktree.project_root %}
+CHANGE_DIR="{{ worktree.project_root }}/.{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
+{% else %}
 CHANGE_DIR=".{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
+{% endif %}
 if [ ! -d "$CHANGE_DIR" ]; then
-  git worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git worktree add ".{{ worktree.layout_dir_name }}/{{ instructions.changeName }}" -b {{ instructions.changeName }}
 fi
 
 echo "Working directory: $CHANGE_DIR"
 ```
 {% elif worktree.strategy == "checkout_siblings" %}
 #### Workspace Layout (checkout_siblings)
+{% if worktree.project_root %}
+
+Project root: `{{ worktree.project_root }}`
+{% endif %}
 
 ```
+{% if worktree.project_root %}
+{{ worktree.project_root | default("") }}/../
+├── {{ worktree.project_root | default("<project>") }}/  # normal git checkout ({{ worktree.default_branch }} branch)
+│   ├── .git/
+│   └── src/
+└── <project>-{{ worktree.layout_dir_name }}/  # dedicated sibling folder
+{% else %}
 ~/Code/
 ├── <project>/                      # normal git checkout ({{ worktree.default_branch }} branch)
 │   ├── .git/
 │   └── src/
 └── <project>-{{ worktree.layout_dir_name }}/  # dedicated sibling folder
+{% endif %}
     └── {{ instructions.changeName }}/
 ```
 
 **Setup steps:**
 
 ```bash
+{% if worktree.project_root %}
+# All worktree commands must run from the project root
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 # Determine project name and sibling directory
-PROJECT_NAME=$(basename "$(pwd)")
-WORKTREE_BASE="../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
+PROJECT_NAME=$(basename "{{ worktree.project_root | default("$(pwd)") }}")
+WORKTREE_BASE="{{ worktree.project_root | default(".") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
 CHANGE_DIR="${WORKTREE_BASE}/{{ instructions.changeName }}"
 
 # Create the worktree base directory if needed
@@ -82,9 +112,13 @@ echo "Working directory: $CHANGE_DIR"
 ```
 {% elif worktree.strategy == "bare_control_siblings" %}
 #### Workspace Layout (bare_control_siblings)
+{% if worktree.project_root %}
+
+Bare repo root: `{{ worktree.project_root }}`
+{% endif %}
 
 ```
-~/Code/<project>/                   # bare/control repo
+{{ worktree.project_root | default("<bare-repo-root>") }}/  # bare/control repo
 ├── .bare/                          # git object store
 ├── .git                            # gitdir pointer
 ├── {{ worktree.default_branch }}/  # main branch worktree
@@ -92,19 +126,30 @@ echo "Working directory: $CHANGE_DIR"
     └── {{ instructions.changeName }}/
 ```
 
+**IMPORTANT:** All git worktree commands below MUST be run from the bare repo root{% if worktree.project_root %} (`{{ worktree.project_root }}`){% endif %}, NOT from inside a worktree. Running them from a worktree{% if worktree.project_root %} (e.g. `{{ worktree.project_root }}/{{ worktree.default_branch }}/`){% endif %} would create directories in the wrong location.
+
 **Setup steps:**
 
 ```bash
+{% if worktree.project_root %}
+# All worktree commands MUST run from the bare repo root
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 # Ensure main worktree exists
 if [ ! -d "{{ worktree.default_branch }}" ]; then
   git worktree add {{ worktree.default_branch }}
 fi
 
 # Create or reuse the change worktree
+{% if worktree.project_root %}
+CHANGE_DIR="{{ worktree.project_root }}/{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
+{% else %}
 CHANGE_DIR="{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
+{% endif %}
 mkdir -p "{{ worktree.layout_dir_name }}"
 if [ ! -d "$CHANGE_DIR" ]; then
-  git worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git worktree add "{{ worktree.layout_dir_name }}/{{ instructions.changeName }}" -b {{ instructions.changeName }}
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -241,7 +286,13 @@ After implementation is complete:
 2. Switch to the main branch and merge:
    ```bash
 {% if worktree.strategy == "bare_control_siblings" %}
+{% if worktree.project_root %}
+   cd "{{ worktree.project_root }}/{{ worktree.default_branch }}"
+{% else %}
    cd ../{{ worktree.default_branch }}
+{% endif %}
+{% elif worktree.project_root %}
+   cd "{{ worktree.project_root }}"
 {% else %}
    cd "$(git worktree list --porcelain | grep -A1 'worktree.*{{ worktree.default_branch }}' | tail -1 | sed 's/worktree //')" 2>/dev/null || cd ..
 {% endif %}

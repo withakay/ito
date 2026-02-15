@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// Identifier for a harness implementation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HarnessName {
     /// The OpenCode harness.
     Opencode,
@@ -55,8 +55,8 @@ impl fmt::Display for HarnessName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// Parse error for [`HarnessName`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HarnessNameParseError {
     /// The raw value that could not be parsed.
     pub input: String,
@@ -128,7 +128,6 @@ pub struct HarnessRunResult {
 ///
 /// - `128` — generic fatal signal on many CLIs
 /// - `128 + signal` — killed by signal (e.g. 137 = SIGKILL, 139 = SIGSEGV, 130 = SIGINT)
-/// - `-1` — used internally for inactivity timeout (handled separately, listed for completeness)
 const RETRIABLE_EXIT_CODES: &[i32] = &[
     128, // Generic fatal signal
     129, // SIGHUP

@@ -46,9 +46,16 @@ Use the commands below for the configured strategy.
 {% if worktree.strategy == "checkout_subdir" %}
 #### Strategy: `checkout_subdir`
 
-Worktrees live in a gitignored subdirectory inside the checkout:
+Worktrees live in a gitignored subdirectory inside the checkout.
+{% if worktree.project_root %}
+Project root: `{{ worktree.project_root }}`
+{% endif %}
 
 ```bash
+{% if worktree.project_root %}
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 BRANCH_NAME="<change-name>"
 mkdir -p ".{{ worktree.layout_dir_name }}"
 
@@ -60,12 +67,19 @@ git worktree add ".{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_N
 {% elif worktree.strategy == "checkout_siblings" %}
 #### Strategy: `checkout_siblings`
 
-Worktrees live in a sibling directory next to the checkout:
+Worktrees live in a sibling directory next to the checkout.
+{% if worktree.project_root %}
+Project root: `{{ worktree.project_root }}`
+{% endif %}
 
 ```bash
+{% if worktree.project_root %}
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 BRANCH_NAME="<change-name>"
-PROJECT_NAME=$(basename "$(pwd)")
-WORKTREE_BASE="../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
+PROJECT_NAME=$(basename "{{ worktree.project_root | default("$(pwd)") }}")
+WORKTREE_BASE="{{ worktree.project_root | default("..") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
 mkdir -p "${WORKTREE_BASE}"
 
 git worktree add "${WORKTREE_BASE}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
@@ -73,9 +87,18 @@ git worktree add "${WORKTREE_BASE}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
 {% elif worktree.strategy == "bare_control_siblings" %}
 #### Strategy: `bare_control_siblings`
 
-This is a bare/control repo layout with worktrees as siblings:
+This is a bare/control repo layout with worktrees as siblings.
+{% if worktree.project_root %}
+Bare repo root: `{{ worktree.project_root }}`
+{% endif %}
+
+**IMPORTANT:** All git worktree commands MUST be run from the bare repo root{% if worktree.project_root %} (`{{ worktree.project_root }}`){% endif %}, NOT from inside a worktree.
 
 ```bash
+{% if worktree.project_root %}
+cd "{{ worktree.project_root }}"
+
+{% endif %}
 BRANCH_NAME="<change-name>"
 mkdir -p "{{ worktree.layout_dir_name }}"
 git worktree add "{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
