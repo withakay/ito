@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.4-local.202602131733.1] - 2026-02-15
+
+### 🚀 Features
+
+- *(002-15)* Add retriable exit code handling for harness crashes
+- *(019-01)* Normalize all output paths to absolute
+- *(002-16)* Ralph worktree awareness ([#60](https://github.com/withakay/ito/pull/60))
+
+### 🐛 Bug Fixes
+
+- Address PR #58 review feedback from Gemini and CodeRabbit
+
+### 🚜 Refactor
+
+- *(002-15)* Introduce CliHarness trait and deduplicate CLI harnesses
+- *(harness)* Migrate HarnessName from struct to enum
+
+### 🎨 Styling
+
+- Sort imports alphabetically in ito-cli and ito-core
+
+### 🧪 Testing
+
+- *(002-15)* Add tests for retriable harness exit code behavior
 ## [0.1.4] - 2026-02-13
 
 ### 🚀 Features

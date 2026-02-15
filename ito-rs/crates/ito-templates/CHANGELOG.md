@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.4-local.202602131733.1] - 2026-02-15
+
+### 🚀 Features
+
+- *(019-01)* Resolve absolute paths in worktree instruction templates
+- *(019-01)* Normalize all output paths to absolute
+
+### 🐛 Bug Fixes
+
+- Address PR #58 review feedback from Gemini and CodeRabbit
+- *(019-01)* Address PR review feedback
+- *(019-01)* Address CodeRabbit nitpicks
+- *(config)* Restore build by removing stray token
+
+### 📚 Documentation
+
+- *(ito-commit)* Add pre-commit safety guidance for agents
 ## [0.1.4] - 2026-02-13
 ## [0.1.3] - 2026-02-11
 
