@@ -88,7 +88,10 @@ cmd_acquire() {
         case "$1" in
             --timeout) timeout="$2"; shift 2 ;;
             --owner-pid) owner_pid="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 
@@ -98,8 +101,7 @@ cmd_acquire() {
         _remove_stale
 
         if [ ! -f "$LOCK_FILE" ]; then
-            # Write lock atomically via temp file + hard link.
-            # ln fails if LOCK_FILE already exists, preventing clobber.
+            # Write lock atomically via temp file + mv
             local tmp="${LOCK_FILE}.$$"
             {
                 echo "PID ${owner_pid}"
@@ -107,15 +109,14 @@ cmd_acquire() {
                 echo "COMMAND $0 $*"
                 echo "PPID ${PPID:-unknown}"
             } > "$tmp"
-            if ln "$tmp" "$LOCK_FILE" 2>/dev/null; then
-                rm -f "$tmp" 2>/dev/null || true
-                # Verify we own it (belt-and-suspenders)
+            mv "$tmp" "$LOCK_FILE" 2>/dev/null && {
+                # Verify we own it (handle race with another acquirer)
                 local file_pid
                 file_pid="$(_lock_pid)"
                 if [ "$file_pid" = "${owner_pid}" ]; then
                     return 0
                 fi
-            fi
+            }
             rm -f "$tmp" 2>/dev/null || true
         fi
 
@@ -135,7 +136,10 @@ cmd_release() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --owner-pid) owner_pid="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 
@@ -171,7 +175,10 @@ cmd_wait() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --timeout) timeout="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 
@@ -198,7 +205,7 @@ case "${1:-}" in
     acquire) shift; cmd_acquire "$@" ;;
     release) shift; cmd_release "$@" ;;
     check)   cmd_check ;;
-    wait)    shift; cmd_wait "$@" ;;
+    wait)    cmd_wait "$@" ;;
     *)
         echo "Usage: precommit-lock.sh {acquire|release|check|wait} [--timeout SECS]" >&2
         exit 1
