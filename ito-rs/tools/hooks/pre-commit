@@ -13,7 +13,6 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
 TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 LOCK_SCRIPT="${TOPLEVEL}/ito-rs/tools/precommit-lock.sh"
 
