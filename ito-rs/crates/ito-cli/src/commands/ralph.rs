@@ -1,13 +1,13 @@
 use crate::cli::RalphArgs;
-use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::cli_error::{fail, to_cli_error, CliResult};
 use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::harness::stub::StubHarness;
 use ito_core::harness::ClaudeCodeHarness;
 use ito_core::harness::CodexHarness;
 use ito_core::harness::GitHubCopilotHarness;
 use ito_core::harness::Harness;
 use ito_core::harness::OpencodeHarness;
-use ito_core::harness::stub::StubHarness;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::ralph as core_ralph;
 use ito_core::task_repository::FsTaskRepository;
@@ -126,6 +126,27 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
         }
     };
 
+    let worktree_config = {
+        let project_root = ito_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
+        let cfg = ito_config::load_cascading_project_config(project_root, ito_path, rt.ctx());
+        let merged = cfg.merged;
+        let enabled = merged
+            .get("worktrees")
+            .and_then(|w| w.get("enabled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let dir_name = merged
+            .get("worktrees")
+            .and_then(|w| w.get("layout"))
+            .and_then(|l| l.get("dir_name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("ito-worktrees")
+            .to_string();
+        core_ralph::WorktreeConfig { enabled, dir_name }
+    };
+
     let opts = core_ralph::RalphOptions {
         prompt,
         change_id: args.change.clone(),
@@ -148,6 +169,7 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
         validation_command: args.validation_command.clone(),
         exit_on_error: args.exit_on_error,
         error_threshold,
+        worktree: worktree_config,
     };
 
     let change_repo = FsChangeRepository::new(ito_path);

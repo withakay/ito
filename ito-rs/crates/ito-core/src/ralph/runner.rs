@@ -18,6 +18,15 @@ use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+/// Worktree configuration subset needed for Ralph's working directory resolution.
+#[derive(Debug, Clone, Default)]
+pub struct WorktreeConfig {
+    /// Whether worktree-based workflows are enabled for this project.
+    pub enabled: bool,
+    /// The directory name where change worktrees live (e.g. `ito-worktrees`).
+    pub dir_name: String,
+}
+
 #[derive(Debug, Clone)]
 /// Runtime options for a single Ralph loop invocation.
 pub struct RalphOptions {
@@ -93,10 +102,76 @@ pub struct RalphOptions {
     ///
     /// Applies only when `exit_on_error` is false.
     pub error_threshold: u32,
+
+    /// Worktree configuration for working directory resolution.
+    pub worktree: WorktreeConfig,
 }
 
 /// Default maximum number of non-zero harness exits Ralph tolerates.
 pub const DEFAULT_ERROR_THRESHOLD: u32 = 10;
+
+/// Resolved working directory for a Ralph invocation.
+///
+/// Bundles the effective working directory path with the `.ito` directory
+/// that should be used for state file writes.
+#[derive(Debug, Clone)]
+pub struct ResolvedCwd {
+    /// The directory where the harness and git commands should execute.
+    pub path: PathBuf,
+    /// The `.ito` directory for state file writes (may differ from the
+    /// process's `.ito` when a worktree is resolved).
+    pub ito_path: PathBuf,
+}
+
+/// Resolve the effective working directory for a Ralph invocation.
+///
+/// When worktrees are enabled and a matching worktree exists for
+/// `change_id`, returns the worktree path. Otherwise falls back to the
+/// process's current working directory.
+pub fn resolve_effective_cwd(
+    ito_path: &Path,
+    change_id: Option<&str>,
+    worktree: &WorktreeConfig,
+) -> ResolvedCwd {
+    let lookup = |branch: &str| crate::audit::worktree::find_worktree_for_branch(branch);
+    let fallback_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    resolve_effective_cwd_with(ito_path, change_id, worktree, fallback_path, lookup)
+}
+
+/// Testable core of [`resolve_effective_cwd`].
+///
+/// Accepts an explicit fallback path and a worktree lookup function so
+/// callers can inject test doubles.
+fn resolve_effective_cwd_with(
+    ito_path: &Path,
+    change_id: Option<&str>,
+    worktree: &WorktreeConfig,
+    fallback_path: PathBuf,
+    lookup: impl Fn(&str) -> Option<PathBuf>,
+) -> ResolvedCwd {
+    let fallback = ResolvedCwd {
+        path: fallback_path,
+        ito_path: ito_path.to_path_buf(),
+    };
+
+    if !worktree.enabled {
+        return fallback;
+    }
+
+    let Some(change_id) = change_id else {
+        return fallback;
+    };
+
+    let Some(wt_path) = lookup(change_id) else {
+        return fallback;
+    };
+
+    let wt_ito_path = wt_path.join(".ito");
+    ResolvedCwd {
+        path: wt_path,
+        ito_path: wt_ito_path,
+    }
+}
 
 /// Run the Ralph loop for a change (or repository/module sequence) until the configured completion promise is detected.
 ///
@@ -932,4 +1007,101 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()
         return Err(CoreError::Process(msg));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_cwd_worktree_found() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("002-16_ralph-worktree-awareness");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+        let wt_path = PathBuf::from("/project/ito-worktrees/002-16_ralph-worktree-awareness");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            change_id,
+            &worktree,
+            fallback,
+            |_branch| Some(wt_path.clone()),
+        );
+
+        assert_eq!(result.path, wt_path);
+        assert_eq!(result.ito_path, wt_path.join(".ito"));
+    }
+
+    #[test]
+    fn resolve_cwd_no_worktree_found_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("005-01_some-change");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            change_id,
+            &worktree,
+            fallback.clone(),
+            |_branch| None,
+        );
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
+
+    #[test]
+    fn resolve_cwd_worktrees_not_enabled_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let change_id = Some("002-16_ralph-worktree-awareness");
+        let worktree = WorktreeConfig {
+            enabled: false,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            change_id,
+            &worktree,
+            fallback.clone(),
+            |_branch| {
+                panic!("lookup should not be called when worktrees disabled");
+            },
+        );
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
+
+    #[test]
+    fn resolve_cwd_no_change_targeted_fallback() {
+        let ito_path = Path::new("/project/.ito");
+        let worktree = WorktreeConfig {
+            enabled: true,
+            dir_name: "ito-worktrees".to_string(),
+        };
+        let fallback = PathBuf::from("/project");
+
+        let result = resolve_effective_cwd_with(
+            ito_path,
+            None,
+            &worktree,
+            fallback.clone(),
+            |_branch| {
+                panic!("lookup should not be called without a change id");
+            },
+        );
+
+        assert_eq!(result.path, fallback);
+        assert_eq!(result.ito_path, ito_path.to_path_buf());
+    }
 }

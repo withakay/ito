@@ -1,5 +1,5 @@
 use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use ito_core::ralph::{RalphOptions, run_ralph};
+use ito_core::ralph::{run_ralph, RalphOptions};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
 };
@@ -124,6 +124,7 @@ fn default_opts() -> RalphOptions {
         validation_command: None,
         exit_on_error: false,
         error_threshold: 10,
+        worktree: ito_core::ralph::WorktreeConfig::default(),
     }
 }
 
