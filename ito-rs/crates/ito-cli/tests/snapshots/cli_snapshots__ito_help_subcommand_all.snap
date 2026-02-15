@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 81
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
