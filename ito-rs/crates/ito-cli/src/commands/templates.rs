@@ -3,9 +3,14 @@ use crate::cli_error::{CliError, CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::templates;
 
-/// Handle top-level `templates` CLI subcommands and perform the requested action.
+/// Handles top-level `templates` CLI subcommands and performs the requested action.
 ///
-/// Currently supports exporting embedded schemas. When exporting, prints the export destination and the counts of written and skipped files. If files were skipped and `force` is false, prints a hint to use `--force`.
+/// Currently supports exporting embedded schemas. When exporting, prints the absolute,
+/// normalized export destination and the counts of written and skipped files. If files
+/// were skipped and `force` is false, prints a hint to use `--force`.
+///
+/// Returns `Ok(())` on success or a `CliError` if a required subcommand is missing or the
+/// export/absolutization fails.
 ///
 /// # Examples
 ///
