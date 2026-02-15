@@ -112,7 +112,6 @@ pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
 /// let p = crate::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
 /// assert!(p.ends_with(Path::new("foo/bar")));
 /// ```
-fn
 fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
     absolutize_and_normalize(input).unwrap_or_else(|_| lexical_normalize(input))
 }
