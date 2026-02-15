@@ -7,3 +7,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - -
 
 ## Changes
+- [ ] 019-01_absolute-paths-in-output
