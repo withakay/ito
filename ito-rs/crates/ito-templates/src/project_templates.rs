@@ -32,6 +32,25 @@ pub struct WorktreeTemplateContext {
 }
 
 impl Default for WorktreeTemplateContext {
+    /// Creates a WorktreeTemplateContext initialized with safe defaults for a disabled worktree setup.
+    ///
+    /// Defaults:
+    /// - `enabled`: false
+    /// - `strategy`: empty string
+    /// - `layout_dir_name`: "ito-worktrees"
+    /// - `integration_mode`: empty string
+    /// - `default_branch`: "main"
+    /// - `project_root`: empty string
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let ctx = WorktreeTemplateContext::default();
+    /// assert!(!ctx.enabled);
+    /// assert_eq!(ctx.layout_dir_name, "ito-worktrees");
+    /// assert_eq!(ctx.default_branch, "main");
+    /// assert!(ctx.project_root.is_empty());
+    /// ```
     fn default() -> Self {
         Self {
             enabled: false,

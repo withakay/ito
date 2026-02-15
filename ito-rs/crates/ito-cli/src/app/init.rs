@@ -378,11 +378,24 @@ fn resolve_worktree_config(
     ))
 }
 
-/// Convert a [`WorktreeWizardResult`] into a [`WorktreeTemplateContext`].
+/// Create a WorktreeTemplateContext from a WorktreeWizardResult for template rendering.
 ///
-/// Maps the wizard's raw string fields into the context struct that templates
-/// consume. Falls back to the disabled default when the wizard result indicates
-/// worktrees are not enabled.
+/// If `result.enabled` is false, returns the disabled/default `WorktreeTemplateContext`.
+/// When enabled, maps string and option fields from the wizard result into the context,
+/// using template defaults resolved via `ito_core::config::resolve_worktree_template_defaults`.
+/// The returned context's `project_root` is the absolute, normalized string form of
+/// `target_path`; if normalization fails, `target_path` is used as-is.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a wizard result (disabled for this simple example) and a config context,
+/// // then obtain the template context for the current directory.
+/// let result = WorktreeWizardResult { enabled: false, ..Default::default() };
+/// let ctx = ConfigContext::default();
+/// let tpl_ctx = worktree_template_context(&result, std::path::Path::new("."), &ctx);
+/// assert!(!tpl_ctx.enabled);
+/// ```
 fn worktree_template_context(
     result: &WorktreeWizardResult,
     target_path: &std::path::Path,
