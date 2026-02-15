@@ -46,7 +46,16 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
-    fn config(allow_all: bool, model: Option<&str>) -> HarnessRunConfig {
+    enum Allow {
+        All,
+        None,
+    }
+
+    fn config(allow: Allow, model: Option<&str>) -> HarnessRunConfig {
+        let allow_all = match allow {
+            Allow::All => true,
+            Allow::None => false,
+        };
         HarnessRunConfig {
             prompt: "do stuff".to_string(),
             model: model.map(String::from),
@@ -73,7 +82,7 @@ mod tests {
     #[test]
     fn build_args_with_allow_all() {
         let harness = GitHubCopilotHarness;
-        let cfg = config(true, Some("gpt-4"));
+        let cfg = config(Allow::All, Some("gpt-4"));
         let args = harness.build_args(&cfg);
         assert_eq!(args, vec!["--model", "gpt-4", "--yolo", "-p", "do stuff"]);
     }
@@ -81,7 +90,7 @@ mod tests {
     #[test]
     fn build_args_without_allow_all() {
         let harness = GitHubCopilotHarness;
-        let cfg = config(false, Some("gpt-4"));
+        let cfg = config(Allow::None, Some("gpt-4"));
         let args = harness.build_args(&cfg);
         assert_eq!(args, vec!["--model", "gpt-4", "-p", "do stuff"]);
     }

@@ -88,7 +88,10 @@ cmd_acquire() {
         case "$1" in
             --timeout) timeout="$2"; shift 2 ;;
             --owner-pid) owner_pid="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 
@@ -133,7 +136,10 @@ cmd_release() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --owner-pid) owner_pid="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 
@@ -169,7 +175,10 @@ cmd_wait() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --timeout) timeout="$2"; shift 2 ;;
-            *) shift ;;
+            *)
+                echo "precommit-lock: warning: unknown option '$1'" >&2
+                shift
+                ;;
         esac
     done
 

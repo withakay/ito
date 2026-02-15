@@ -337,7 +337,13 @@ fn truncate_for_context(s: &str, max_bytes: usize) -> String {
     if s.len() <= max_bytes {
         return s.to_string();
     }
-    let mut out = s[..max_bytes].to_string();
+    // Find a valid UTF-8 boundary at or before max_bytes to avoid panicking
+    // on multi-byte characters.
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut out = s[..end].to_string();
     out.push_str("\n... (truncated) ...");
     out
 }
@@ -466,6 +472,16 @@ mod tests {
         let result = truncate_for_context(&long_text, 12_000);
         assert!(result.len() < long_text.len());
         assert!(result.contains("... (truncated) ..."));
+    }
+
+    #[test]
+    fn truncate_for_context_multibyte_utf8() {
+        // Each CJK character is 3 bytes in UTF-8.
+        let text = "\u{65E5}".repeat(5_000); // 15,000 bytes
+        let result = truncate_for_context(&text, 12_000);
+        assert!(result.contains("... (truncated) ..."));
+        // The truncated portion must be valid UTF-8 (no panic, no replacement chars).
+        assert!(!result.contains('\u{FFFD}'));
     }
 
     #[test]

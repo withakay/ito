@@ -225,9 +225,10 @@ mod tests {
 
     #[test]
     fn harness_help_matches_user_facing() {
-        let names: Vec<&'static str> = HarnessName::user_facing()
-            .map(HarnessName::as_str)
-            .collect();
+        let mut names = Vec::new();
+        for name in HarnessName::user_facing() {
+            names.push(name.as_str());
+        }
         assert_eq!(names, vec!["opencode", "claude", "codex", "copilot"]);
     }
 
