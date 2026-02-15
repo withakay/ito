@@ -894,6 +894,7 @@ fn run_ralph_continue_ready_errors_when_targeting_change_or_module() {
 
 #[test]
 fn run_ralph_worktree_disabled_uses_fallback_cwd() {
+    let _guard = CWD_LOCK.lock().unwrap();
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
     std::fs::create_dir_all(&ito).unwrap();

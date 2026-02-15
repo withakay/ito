@@ -126,14 +126,11 @@ pub(crate) fn handle_ralph_clap(rt: &Runtime, args: &RalphArgs) -> CliResult<()>
         let cfg = ito_config::load_cascading_project_config(project_root, ito_path, rt.ctx());
         let merged = cfg.merged;
         let enabled = merged
-            .get("worktrees")
-            .and_then(|w| w.get("enabled"))
+            .pointer("/worktrees/enabled")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
         let dir_name = merged
-            .get("worktrees")
-            .and_then(|w| w.get("layout"))
-            .and_then(|l| l.get("dir_name"))
+            .pointer("/worktrees/layout/dir_name")
             .and_then(|v| v.as_str())
             .unwrap_or("ito-worktrees")
             .to_string();
