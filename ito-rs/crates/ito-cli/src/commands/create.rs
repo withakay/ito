@@ -33,6 +33,27 @@ fn sync_coordination_if_enabled(ito_path: &Path, coord_enabled: bool, coord_bran
     }
 }
 
+/// Prints a concise, structured summary about a newly created change to stderr.
+///
+/// The message includes the change path under the repository `changes` directory,
+/// the schema, the files created, module information, and suggested next steps.
+///
+/// # Parameters
+///
+/// - `ito_path`: Absolute path to the repository root that contains the `changes` directory.
+/// - `change_id`: Identifier of the newly created change.
+/// - `schema`: Schema name associated with the change.
+/// - `module_id`: Module identifier associated with the change (e.g., "000" for default).
+/// - `module_was_explicit`: `true` if the module was explicitly provided via `--module`, `false` if the default module was used.
+/// - `has_description`: `true` if a README.md description file was created for the change.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// // Prints a summary for change "chg-123" under "/tmp/ito"
+/// print_change_created_message(Path::new("/tmp/ito"), "chg-123", "default_schema", "000", false, true);
+/// ```
 fn print_change_created_message(
     ito_path: &Path,
     change_id: &str,
@@ -121,6 +142,29 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
     handle_create(rt, &forwarded)
 }
 
+/// Handle the `ito create` command, creating either a module or a change based on CLI arguments.
+///
+/// This processes a slice of CLI tokens where the first token is the create kind ("module" or "change")
+/// and subsequent tokens are flags and positional parameters for that kind. For "module" it creates a new
+/// module folder and emits an audit event; for "change" it creates a new change, emits audit events,
+/// optionally synchronizes/reserves with a coordination branch, and prints a summary of the created change.
+///
+/// # Errors
+///
+/// Returns a CLI error when required arguments are missing or when underlying create/reservation operations fail.
+///
+/// # Returns
+///
+/// `Ok(())` on success, or a `CliResult` error describing the failure.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Example usage (runtime and types omitted for brevity):
+/// // let rt: Runtime = /* obtain runtime */ ;
+/// // let args = vec!["change".to_string(), "my-change".to_string(), "--schema".to_string(), "api".to_string()];
+/// // handle_create(&rt, &args)?;
+/// ```
 pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let Some(kind) = args.first().map(|s| s.as_str()) else {
         return fail("Missing required argument <type>");
