@@ -119,6 +119,16 @@ fn resolve_update_worktree_config(
         };
 
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
+    let project_root = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(target_path)
+    }
+    .to_string_lossy()
+    .to_string();
+
     let ctx_out = if result.enabled {
         WorktreeTemplateContext {
             enabled: true,
@@ -129,6 +139,7 @@ fn resolve_update_worktree_config(
                 .clone()
                 .unwrap_or(defaults.integration_mode),
             default_branch: defaults.default_branch,
+            project_root,
         }
     } else {
         WorktreeTemplateContext::default()

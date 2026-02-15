@@ -289,12 +289,12 @@ After implementation is complete:
 {% if worktree.project_root %}
    cd "{{ worktree.project_root }}/{{ worktree.default_branch }}"
 {% else %}
-   cd ../{{ worktree.default_branch }}
+   cd "$(git worktree list --porcelain | head -2 | tail -1 | sed 's/worktree //')/{{ worktree.default_branch }}"
 {% endif %}
 {% elif worktree.project_root %}
    cd "{{ worktree.project_root }}"
 {% else %}
-   cd "$(git worktree list --porcelain | grep -A1 'worktree.*{{ worktree.default_branch }}' | tail -1 | sed 's/worktree //')" 2>/dev/null || cd ..
+   cd "$(git rev-parse --show-toplevel)"
 {% endif %}
    git merge {{ instructions.changeName }}
    ```

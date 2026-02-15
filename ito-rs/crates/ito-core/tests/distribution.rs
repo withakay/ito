@@ -232,6 +232,7 @@ fn install_manifests_renders_worktree_skill_enabled() {
         layout_dir_name: "ito-worktrees".to_string(),
         integration_mode: "commit_pr".to_string(),
         default_branch: "main".to_string(),
+        project_root: "/home/user/project".to_string(),
     };
     install_manifests(&manifests, Some(&ctx)).unwrap();
 

@@ -33,12 +33,13 @@ Keep this managed block so 'ito update' can refresh the instructions.
 This project uses in-repo worktrees under a dedicated subdirectory:
 
 ```bash
-<project-root>/{{ layout_dir_name }}/<change-name>/
+{{ project_root }}/{{ layout_dir_name }}/<change-name>/
 ```
 
 To create a worktree for a change:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "{{ layout_dir_name }}"
 git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -46,13 +47,13 @@ git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 This project uses sibling-directory worktrees:
 
 ```bash
-<project-root>/
-../<project-name>-{{ layout_dir_name }}/<change-name>/
+{{ project_root }}/../<project-name>-{{ layout_dir_name }}/<change-name>/
 ```
 
 To create a worktree for a change:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
 git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -60,7 +61,7 @@ git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <cha
 This project uses a bare/control repo layout with worktrees as siblings:
 
 ```bash
-<project>/                              # bare/control repo
+{{ project_root }}/                              # bare/control repo
 |-- .bare/                              # git object store
 |-- .git                                # gitdir pointer
 |-- {{ default_branch }}/               # {{ default_branch }} branch worktree
@@ -71,6 +72,7 @@ This project uses a bare/control repo layout with worktrees as siblings:
 To create a worktree for a change:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "{{ layout_dir_name }}"
 git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
