@@ -27,3 +27,7 @@
 - [x] 4.2: Add an integration test verifying fallback: no worktree exists, Ralph runs normally in the process cwd.
 - [x] 4.3: Run `make check` — all checks pass.
 - [x] 4.4: Run `make test` — all tests pass.
+
+## Wave 5: PR review follow-ups
+
+- [x] 5.1: Address bot re-review nitpicks (Gemini): refactor `resolve_effective_cwd_with`, extract `load_worktree_config`, remove unused `parse_worktree_list` parameter, run fmt/clippy/tests, push, and resolve threads.
