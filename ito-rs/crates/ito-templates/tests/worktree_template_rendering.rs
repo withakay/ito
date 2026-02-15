@@ -47,6 +47,27 @@ const DISCOVERY_HEURISTICS: &[&str] = &[
     "ls -d .worktrees",
 ];
 
+/// Placeholders that indicate unresolved project root. These should NOT appear
+/// in rendered output when a `project_root` is set (i.e., `enabled == true`).
+const PLACEHOLDER_ROOTS: &[&str] = &["<project-root>/", "<project>/"];
+
+fn assert_no_placeholder_roots(text: &str, label: &str) {
+    for placeholder in PLACEHOLDER_ROOTS {
+        assert!(
+            !text.contains(placeholder),
+            "{label}: should not contain placeholder '{placeholder}' when project_root is set"
+        );
+    }
+}
+
+/// Assert that the rendered text contains absolute paths derived from project_root.
+fn assert_has_absolute_paths(text: &str, project_root: &str, label: &str) {
+    assert!(
+        text.contains(project_root),
+        "{label}: should contain absolute project_root '{project_root}' in rendered output"
+    );
+}
+
 fn assert_no_discovery_heuristics(text: &str, label: &str) {
     for heuristic in DISCOVERY_HEURISTICS {
         assert!(
@@ -67,6 +88,7 @@ fn checkout_subdir_ctx() -> WorktreeTemplateContext {
         layout_dir_name: "ito-worktrees".to_string(),
         integration_mode: "commit_pr".to_string(),
         default_branch: "main".to_string(),
+        project_root: "/home/user/project".to_string(),
     }
 }
 
@@ -77,6 +99,7 @@ fn checkout_siblings_ctx() -> WorktreeTemplateContext {
         layout_dir_name: "wt".to_string(),
         integration_mode: "merge_parent".to_string(),
         default_branch: "develop".to_string(),
+        project_root: "/home/user/project".to_string(),
     }
 }
 
@@ -87,6 +110,7 @@ fn bare_control_siblings_ctx() -> WorktreeTemplateContext {
         layout_dir_name: "ito-worktrees".to_string(),
         integration_mode: "commit_pr".to_string(),
         default_branch: "main".to_string(),
+        project_root: "/home/user/project".to_string(),
     }
 }
 
@@ -100,37 +124,57 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 
 #[test]
 fn agents_md_checkout_subdir() {
-    let text = render_text(agents_md_bytes(), &checkout_subdir_ctx());
+    let ctx = checkout_subdir_ctx();
+    let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("## Worktree Workflow"));
     assert!(text.contains("**Strategy:** `checkout_subdir`"));
     assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_subdir");
+    assert_no_placeholder_roots(&text, "agents_md_checkout_subdir");
+    assert_has_absolute_paths(&text, &ctx.project_root, "agents_md_checkout_subdir");
+    assert!(
+        text.contains("/home/user/project/ito-worktrees/<change-name>/"),
+        "should show absolute worktree path"
+    );
 }
 
 #[test]
 fn agents_md_checkout_siblings() {
-    let text = render_text(agents_md_bytes(), &checkout_siblings_ctx());
+    let ctx = checkout_siblings_ctx();
+    let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `checkout_siblings`"));
-    assert!(text.contains("../<project-name>-wt/<change-name>/"));
     assert!(
         text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
     );
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_siblings");
+    assert_no_placeholder_roots(&text, "agents_md_checkout_siblings");
+    assert_has_absolute_paths(&text, &ctx.project_root, "agents_md_checkout_siblings");
+    assert!(
+        text.contains("/home/user/project/../<project-name>-wt/<change-name>/"),
+        "should show absolute sibling worktree path"
+    );
 }
 
 #[test]
 fn agents_md_bare_control_siblings() {
-    let text = render_text(agents_md_bytes(), &bare_control_siblings_ctx());
+    let ctx = bare_control_siblings_ctx();
+    let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `bare_control_siblings`"));
     assert!(text.contains(".bare/"));
     assert!(text.contains("ito-worktrees/"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
+    assert_no_placeholder_roots(&text, "agents_md_bare_control_siblings");
+    assert_has_absolute_paths(&text, &ctx.project_root, "agents_md_bare_control_siblings");
+    assert!(
+        text.contains("/home/user/project/"),
+        "should show absolute bare repo path"
+    );
 }
 
 #[test]
@@ -149,36 +193,43 @@ fn agents_md_disabled() {
 
 #[test]
 fn skill_checkout_subdir() {
-    let text = render_text(skill_md_bytes(), &checkout_subdir_ctx());
+    let ctx = checkout_subdir_ctx();
+    let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_subdir`"));
     assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_subdir");
+    assert_no_placeholder_roots(&text, "skill_checkout_subdir");
+    assert_has_absolute_paths(&text, &ctx.project_root, "skill_checkout_subdir");
 }
 
 #[test]
 fn skill_checkout_siblings() {
-    let text = render_text(skill_md_bytes(), &checkout_siblings_ctx());
+    let ctx = checkout_siblings_ctx();
+    let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_siblings`"));
-    assert!(text.contains("../<project-name>-wt/<change-name>/"));
     assert!(
         text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
     );
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_siblings");
+    assert_no_placeholder_roots(&text, "skill_checkout_siblings");
+    assert_has_absolute_paths(&text, &ctx.project_root, "skill_checkout_siblings");
 }
 
 #[test]
 fn skill_bare_control_siblings() {
-    let text = render_text(skill_md_bytes(), &bare_control_siblings_ctx());
+    let ctx = bare_control_siblings_ctx();
+    let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
-    assert!(text.contains("<project>/"));
     assert!(text.contains("ito-worktrees/"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
+    assert_no_placeholder_roots(&text, "skill_bare_control_siblings");
+    assert_has_absolute_paths(&text, &ctx.project_root, "skill_bare_control_siblings");
 }
 
 #[test]

@@ -240,25 +240,35 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// print_post_init_guidance(Path::new("."));
 /// ```
 fn print_post_init_guidance(target_path: &std::path::Path) {
-    let target_display = if target_path == std::path::Path::new(".") {
-        "current directory".to_string()
+    let abs_target = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else if target_path == std::path::Path::new(".") {
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
     } else {
-        format!("{}", target_path.display())
+        std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(target_path)
     };
+
+    let ito_dir = abs_target.join(".ito");
 
     println!(
         r#"
-Ito initialized in {target_display}
+Ito initialized in {}
 
 Next step: Run /ito-project-setup in your AI assistant to configure the project.
 
 Or manually edit:
-  .ito/project.md        Project overview, tech stack, architecture
-  .ito/user-prompts/     Shared + artifact-specific instruction guidance
-  .ito/config.json       Tool settings and defaults
+  {}/project.md        Project overview, tech stack, architecture
+  {}/user-prompts/     Shared + artifact-specific instruction guidance
+  {}/config.json       Tool settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
-"#
+"#,
+        abs_target.display(),
+        ito_dir.display(),
+        ito_dir.display(),
+        ito_dir.display(),
     );
 }
 
@@ -391,6 +401,16 @@ fn worktree_template_context(
 
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
 
+    let project_root = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(target_path)
+    }
+    .to_string_lossy()
+    .to_string();
+
     WorktreeTemplateContext {
         enabled: true,
         strategy: result.strategy.clone().unwrap_or(defaults.strategy),
@@ -400,5 +420,6 @@ fn worktree_template_context(
             .clone()
             .unwrap_or(defaults.integration_mode),
         default_branch: defaults.default_branch,
+        project_root,
     }
 }

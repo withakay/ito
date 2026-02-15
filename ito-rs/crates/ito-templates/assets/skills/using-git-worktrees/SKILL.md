@@ -23,12 +23,13 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 Worktrees live under:
 
 ```bash
-<project-root>/{{ layout_dir_name }}/<change-name>/
+{{ project_root }}/{{ layout_dir_name }}/<change-name>/
 ```
 
 Create a worktree:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "{{ layout_dir_name }}"
 git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -36,13 +37,13 @@ git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 Worktrees live under a sibling directory:
 
 ```bash
-<project-root>/
-../<project-name>-{{ layout_dir_name }}/<change-name>/
+{{ project_root }}/../<project-name>-{{ layout_dir_name }}/<change-name>/
 ```
 
 Create a worktree:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
 git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -50,7 +51,7 @@ git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <cha
 Worktrees live under the bare/control layout:
 
 ```bash
-<project>/
+{{ project_root }}/
 |-- {{ default_branch }}/
 `-- {{ layout_dir_name }}/<change-name>/
 ```
@@ -58,6 +59,7 @@ Worktrees live under the bare/control layout:
 Create a worktree:
 
 ```bash
+cd "{{ project_root }}"
 mkdir -p "{{ layout_dir_name }}"
 git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```

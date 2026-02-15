@@ -41,12 +41,9 @@ fn print_change_created_message(
     module_was_explicit: bool,
     has_description: bool,
 ) {
-    let ito_dir = ito_path
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| ".ito".to_string());
+    let changes_dir = ito_path.join("changes").join(change_id);
     eprintln!("✔ Created change '{change_id}'");
-    eprintln!("  Path: {ito_dir}/changes/{change_id}");
+    eprintln!("  Path: {}", changes_dir.display());
     eprintln!("  Schema: {schema}");
     eprintln!("  Created files:");
     eprintln!("    - .ito.yaml");
@@ -162,7 +159,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             println!("Created module: {}", r.folder_name);
             println!("  Path: {}", r.module_dir.display());
-            println!("  Edit: ito/modules/{}/module.md", r.folder_name);
+            println!("  Edit: {}", r.module_dir.join("module.md").display());
             Ok(())
         }
         "change" => {
