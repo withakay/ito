@@ -2,13 +2,14 @@ use crate::cli::{AgentArgs, AgentCommand, AgentInstructionArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_config::types::WorktreeStrategy;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct ContextFileEntry {
@@ -105,7 +106,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-        let worktree = worktree_config_from_merged(&cfg.merged);
+        let worktree = worktree_config_from_merged(&cfg.merged, Some(project_root));
         let ito_dir_name = ito_path
             .file_name()
             .and_then(|s| s.to_str())
@@ -493,7 +494,7 @@ fn print_artifact_instructions_text(
 #[derive(Debug, Clone, serde::Serialize)]
 struct WorktreeConfig {
     enabled: bool,
-    strategy: String,
+    strategy: WorktreeStrategy,
     layout_base_dir: Option<String>,
     layout_dir_name: String,
     apply_enabled: bool,
@@ -501,12 +502,44 @@ struct WorktreeConfig {
     copy_from_main: Vec<String>,
     setup_commands: Vec<String>,
     default_branch: String,
+    /// Absolute path to the project/repo root directory.
+    ///
+    /// For `BareControlSiblings` this is the bare repo root (where `.bare/`
+    /// and `.git` live), resolved via `git rev-parse --git-common-dir`.
+    /// Templates use this to emit absolute paths so agents create worktrees
+    /// in the correct location regardless of their cwd.
+    project_root: Option<String>,
 }
 
-fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
+/// Resolve the bare repo root for `bare_control_siblings` layouts.
+///
+/// Runs `git rev-parse --path-format=absolute --git-common-dir` from
+/// `project_root` and returns its parent directory. For a bare repo
+/// where `.bare/` holds the git objects, this gives the directory
+/// containing `.bare/`, `.git`, and the worktree directories.
+fn resolve_bare_repo_root(project_root: &Path) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--path-format=absolute", "--git-common-dir"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let common_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if common_dir.is_empty() {
+        return None;
+    }
+    Path::new(&common_dir).parent().map(Path::to_path_buf)
+}
+
+fn worktree_config_from_merged(
+    merged: &serde_json::Value,
+    project_root: Option<&Path>,
+) -> WorktreeConfig {
     let mut out = WorktreeConfig {
         enabled: false,
-        strategy: "checkout_subdir".to_string(),
+        strategy: WorktreeStrategy::CheckoutSubdir,
         layout_base_dir: None,
         layout_dir_name: "ito-worktrees".to_string(),
         apply_enabled: true,
@@ -518,14 +551,17 @@ fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
         ],
         setup_commands: Vec::new(),
         default_branch: "main".to_string(),
+        project_root: None,
     };
 
     if let Some(wt) = merged.get("worktrees") {
         if let Some(v) = wt.get("enabled").and_then(|v| v.as_bool()) {
             out.enabled = v;
         }
-        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str()) {
-            out.strategy = v.to_string();
+        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
+            && let Some(parsed) = WorktreeStrategy::parse_value(v)
+        {
+            out.strategy = parsed;
         }
         if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
             && !v.is_empty()
@@ -576,6 +612,24 @@ fn worktree_config_from_merged(merged: &serde_json::Value) -> WorktreeConfig {
         }
     }
 
+    // Resolve the absolute project root for all strategies so templates
+    // can emit absolute paths and agents create worktrees in the correct
+    // location regardless of their cwd.
+    //
+    // For BareControlSiblings the root is the bare repo directory (parent
+    // of `.bare/`), which may differ from the cwd when running from inside
+    // a worktree.  For other strategies it is the checkout root.
+    if let Some(root) = project_root {
+        out.project_root = match out.strategy {
+            WorktreeStrategy::BareControlSiblings => {
+                resolve_bare_repo_root(root).map(|p| p.to_string_lossy().to_string())
+            }
+            WorktreeStrategy::CheckoutSubdir | WorktreeStrategy::CheckoutSiblings => {
+                Some(root.to_string_lossy().to_string())
+            }
+        };
+    }
+
     out
 }
 
@@ -585,7 +639,7 @@ fn load_worktree_config(
     ctx: &ito_config::ConfigContext,
 ) -> WorktreeConfig {
     let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    worktree_config_from_merged(&cfg.merged)
+    worktree_config_from_merged(&cfg.merged, Some(project_root))
 }
 
 fn print_apply_instructions_text(
