@@ -1,5 +1,5 @@
 use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use ito_core::ralph::{run_ralph, RalphOptions};
+use ito_core::ralph::{RalphOptions, run_ralph};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
 };

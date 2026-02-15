@@ -377,6 +377,23 @@ pub fn run_ralph(
     }
 
     let unscoped_target = opts.change_id.is_none() && opts.module_id.is_none();
+
+    // Resolve worktree-aware working directory (task 2.1).
+    // Done before target resolution so the change_id raw value can be used for lookup.
+    let resolved_cwd = resolve_effective_cwd(ito_path, opts.change_id.as_deref(), &opts.worktree);
+    let effective_ito_path = &resolved_cwd.ito_path;
+
+    if opts.verbose {
+        if resolved_cwd.path != std::env::current_dir().unwrap_or_default() {
+            println!("Resolved worktree: {}", resolved_cwd.path.display());
+        } else {
+            println!(
+                "Using current working directory: {}",
+                resolved_cwd.path.display()
+            );
+        }
+    }
+
     let (change_id, module_id) = if unscoped_target {
         ("unscoped".to_string(), "unscoped".to_string())
     } else {
@@ -389,7 +406,7 @@ pub fn run_ralph(
     };
 
     if opts.status {
-        let state = load_state(ito_path, &change_id)?;
+        let state = load_state(effective_ito_path, &change_id)?;
         if let Some(state) = state {
             println!("\n=== Ralph Status for {id} ===\n", id = state.change_id);
             println!("Iteration: {iter}", iter = state.iteration);
@@ -416,17 +433,17 @@ pub fn run_ralph(
     }
 
     if let Some(text) = opts.add_context.as_deref() {
-        append_context(ito_path, &change_id, text)?;
+        append_context(effective_ito_path, &change_id, text)?;
         println!("Added context to {id}", id = change_id);
         return Ok(());
     }
     if opts.clear_context {
-        clear_context(ito_path, &change_id)?;
+        clear_context(effective_ito_path, &change_id)?;
         println!("Cleared Ralph context for {id}", id = change_id);
         return Ok(());
     }
 
-    let ito_dir_name = ito_path
+    let ito_dir_name = effective_ito_path
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| ".ito".to_string());
@@ -436,7 +453,7 @@ pub fn run_ralph(
         change = change_id
     );
 
-    let mut state = load_state(ito_path, &change_id)?.unwrap_or(RalphState {
+    let mut state = load_state(effective_ito_path, &change_id)?.unwrap_or(RalphState {
         change_id: change_id.clone(),
         iteration: 0,
         history: vec![],
@@ -483,9 +500,9 @@ pub fn run_ralph(
 
         println!("\n=== Ralph Loop Iteration {i} ===\n", i = iteration);
 
-        let context_content = load_context(ito_path, &change_id)?;
+        let context_content = load_context(effective_ito_path, &change_id)?;
         let prompt = build_ralph_prompt(
-            ito_path,
+            effective_ito_path,
             change_repo,
             module_repo,
             &opts.prompt,
@@ -520,7 +537,7 @@ pub fn run_ralph(
             .run(&crate::harness::HarnessRunConfig {
                 prompt,
                 model: opts.model.clone(),
-                cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+                cwd: resolved_cwd.path.clone(),
                 env: std::collections::BTreeMap::new(),
                 interactive: opts.interactive && !opts.allow_all,
                 allow_all: opts.allow_all,
@@ -542,7 +559,7 @@ pub fn run_ralph(
         let completion_found = completion_promise_found(&run.stdout, &opts.completion_promise);
 
         let file_changes_count = if harness.name() != HarnessName::STUB {
-            count_git_changes(&process_runner)? as u32
+            count_git_changes(&process_runner, &resolved_cwd.path)? as u32
         } else {
             0
         };
@@ -590,7 +607,7 @@ pub fn run_ralph(
         }
 
         if !opts.no_commit {
-            commit_iteration(&process_runner, iteration)?;
+            commit_iteration(&process_runner, iteration, &resolved_cwd.path)?;
         }
 
         let timestamp = now_ms()?;
@@ -602,7 +619,7 @@ pub fn run_ralph(
             file_changes_count,
         });
         state.iteration = iteration;
-        save_state(ito_path, &change_id, &state)?;
+        save_state(effective_ito_path, &change_id, &state)?;
 
         if completion_found && iteration >= opts.min_iterations {
             if opts.skip_validation {
@@ -615,7 +632,7 @@ pub fn run_ralph(
             }
 
             let report = validate_completion(
-                ito_path,
+                effective_ito_path,
                 task_repo,
                 if unscoped_target {
                     None
@@ -944,8 +961,10 @@ fn now_ms() -> CoreResult<i64> {
     Ok(dur.as_millis() as i64)
 }
 
-fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
-    let request = ProcessRequest::new("git").args(["status", "--porcelain"]);
+fn count_git_changes(runner: &dyn ProcessRunner, cwd: &Path) -> CoreResult<usize> {
+    let request = ProcessRequest::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(cwd.to_path_buf());
     let out = runner
         .run(&request)
         .map_err(|e| CoreError::Process(format!("Failed to run git status: {e}")))?;
@@ -967,8 +986,10 @@ fn count_git_changes(runner: &dyn ProcessRunner) -> CoreResult<usize> {
     Ok(line_count)
 }
 
-fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()> {
-    let add_request = ProcessRequest::new("git").args(["add", "-A"]);
+fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> CoreResult<()> {
+    let add_request = ProcessRequest::new("git")
+        .args(["add", "-A"])
+        .current_dir(cwd.to_path_buf());
     let add = runner
         .run(&add_request)
         .map_err(|e| CoreError::Process(format!("Failed to run git add: {e}")))?;
@@ -988,7 +1009,9 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32) -> CoreResult<()
     }
 
     let msg = format!("Ralph loop iteration {iteration}");
-    let commit_request = ProcessRequest::new("git").args(["commit", "-m", &msg]);
+    let commit_request = ProcessRequest::new("git")
+        .args(["commit", "-m", &msg])
+        .current_dir(cwd.to_path_buf());
     let commit = runner
         .run(&commit_request)
         .map_err(|e| CoreError::Process(format!("Failed to run git commit: {e}")))?;
@@ -1024,13 +1047,10 @@ mod tests {
         let fallback = PathBuf::from("/project");
         let wt_path = PathBuf::from("/project/ito-worktrees/002-16_ralph-worktree-awareness");
 
-        let result = resolve_effective_cwd_with(
-            ito_path,
-            change_id,
-            &worktree,
-            fallback,
-            |_branch| Some(wt_path.clone()),
-        );
+        let result =
+            resolve_effective_cwd_with(ito_path, change_id, &worktree, fallback, |_branch| {
+                Some(wt_path.clone())
+            });
 
         assert_eq!(result.path, wt_path);
         assert_eq!(result.ito_path, wt_path.join(".ito"));
@@ -1091,15 +1111,10 @@ mod tests {
         };
         let fallback = PathBuf::from("/project");
 
-        let result = resolve_effective_cwd_with(
-            ito_path,
-            None,
-            &worktree,
-            fallback.clone(),
-            |_branch| {
+        let result =
+            resolve_effective_cwd_with(ito_path, None, &worktree, fallback.clone(), |_branch| {
                 panic!("lookup should not be called without a change id");
-            },
-        );
+            });
 
         assert_eq!(result.path, fallback);
         assert_eq!(result.ito_path, ito_path.to_path_buf());

@@ -124,10 +124,10 @@ fn find_worktree_for_branch_in_output(output: &str, branch: &str) -> Option<Path
     let dummy = Path::new("/unused");
     let worktrees = parse_worktree_list(output, dummy);
     for wt in worktrees {
-        if let Some(ref wt_branch) = wt.branch {
-            if wt_branch == branch {
-                return Some(wt.path);
-            }
+        if let Some(ref wt_branch) = wt.branch
+            && wt_branch == branch
+        {
+            return Some(wt.path);
         }
     }
     None
@@ -251,10 +251,7 @@ branch refs/heads/002-16_ralph-worktree-awareness
 
 ";
         let result = find_worktree_for_branch_in_output(output, "002-16_ralph-worktree-awareness");
-        assert_eq!(
-            result,
-            Some(PathBuf::from("/home/user/wt-feature"))
-        );
+        assert_eq!(result, Some(PathBuf::from("/home/user/wt-feature")));
     }
 
     #[test]
