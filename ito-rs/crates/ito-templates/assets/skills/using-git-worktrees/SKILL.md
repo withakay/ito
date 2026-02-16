@@ -23,27 +23,25 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 Worktrees live under:
 
 ```bash
-{{ project_root }}/{{ layout_dir_name }}/<change-name>/
+.{{ layout_dir_name }}/<change-name>/
 ```
 
 Create a worktree:
 
 ```bash
-cd "{{ project_root }}"
-mkdir -p "{{ layout_dir_name }}"
-git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+mkdir -p ".{{ layout_dir_name }}"
+git worktree add ".{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
 {% elif strategy == "checkout_siblings" %}
 Worktrees live under a sibling directory:
 
 ```bash
-{{ project_root }}/../<project-name>-{{ layout_dir_name }}/<change-name>/
+../<project-name>-{{ layout_dir_name }}/<change-name>/
 ```
 
 Create a worktree:
 
 ```bash
-cd "{{ project_root }}"
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
 git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -51,7 +49,7 @@ git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <cha
 Worktrees live under the bare/control layout:
 
 ```bash
-{{ project_root }}/
+../
 |-- {{ default_branch }}/
 `-- {{ layout_dir_name }}/<change-name>/
 ```
@@ -59,15 +57,23 @@ Worktrees live under the bare/control layout:
 Create a worktree:
 
 ```bash
-cd "{{ project_root }}"
-mkdir -p "{{ layout_dir_name }}"
-git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+mkdir -p "../{{ layout_dir_name }}"
+git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
 {% else %}
 Use the configured strategy and directory values above.
 {% endif %}
 
 Do NOT ask the user where to create worktrees.
+
+## Path Helpers
+
+If you need absolute paths (for logs, scripts, or agent instructions), use:
+
+- `ito path project-root`
+- `ito path worktree-root`
+- `ito path worktrees-root`
+- `ito path worktree --main|--branch <name>|--change <id>`
 
 ## Safety Checks
 

@@ -106,7 +106,9 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-        let worktree = worktree_config_from_merged(&cfg.merged, Some(project_root));
+        let mut worktree = worktree_config_from_merged(&cfg.merged, Some(project_root));
+        worktree.worktree_root = Some(project_root.to_string_lossy().to_string());
+        worktree.ito_root = Some(ito_path.to_string_lossy().to_string());
         let ito_dir_name = ito_path
             .file_name()
             .and_then(|s| s.to_str())
@@ -502,6 +504,12 @@ struct WorktreeConfig {
     copy_from_main: Vec<String>,
     setup_commands: Vec<String>,
     default_branch: String,
+    /// Absolute path to the current working worktree root.
+    ///
+    /// This is the directory that contains the `.ito/` folder for this invocation.
+    worktree_root: Option<String>,
+    /// Absolute path to the `.ito/` directory for this invocation.
+    ito_root: Option<String>,
     /// Absolute path to the project/repo root directory.
     ///
     /// For `BareControlSiblings` this is the bare repo root (where `.bare/`
@@ -551,6 +559,8 @@ fn worktree_config_from_merged(
         ],
         setup_commands: Vec::new(),
         default_branch: "main".to_string(),
+        worktree_root: None,
+        ito_root: None,
         project_root: None,
     };
 
@@ -639,7 +649,10 @@ fn load_worktree_config(
     ctx: &ito_config::ConfigContext,
 ) -> WorktreeConfig {
     let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    worktree_config_from_merged(&cfg.merged, Some(project_root))
+    let mut out = worktree_config_from_merged(&cfg.merged, Some(project_root));
+    out.worktree_root = Some(project_root.to_string_lossy().to_string());
+    out.ito_root = Some(ito_path.to_string_lossy().to_string());
+    out
 }
 
 fn print_apply_instructions_text(

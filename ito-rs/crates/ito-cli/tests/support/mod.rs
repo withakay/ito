@@ -248,6 +248,9 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test User"]);
+    // Test environments may have global commit signing enabled (gpg/1Password).
+    // Ensure commits work in hermetic temp repos.
+    run_git(repo, &["config", "commit.gpgsign", "false"]);
     let readme = repo.join("README.md");
     if readme.exists() {
         run_git(repo, &["add", "README.md"]);

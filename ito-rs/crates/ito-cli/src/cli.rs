@@ -4,6 +4,10 @@ use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+mod path;
+
+pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
+
 fn cli_styles() -> Styles {
     Styles::styled()
         .header(Style::new().bold())
@@ -217,6 +221,10 @@ pub enum Commands {
     ///   ito config set defaults.schema "spec-driven"
     #[command(verbatim_doc_comment, visible_alias = "co")]
     Config(ConfigArgs),
+
+    /// Print resolved project and worktree paths
+    #[command(verbatim_doc_comment)]
+    Path(PathArgs),
 
     /// Manage embedded template assets
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]

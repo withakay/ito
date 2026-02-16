@@ -20,14 +20,18 @@ Worktree workflow is intentionally **config-driven** so different developers can
 {% endfor %}
 {% endif %}
 
+{% if worktree.ito_root %}
+Recommended per-developer override file: `{{ worktree.ito_root }}/config.local.json` (gitignored)
+{% else %}
 Recommended per-developer override file: `{{ ito_dir_name }}/config.local.json` (gitignored)
+{% endif %}
 
 ### Guidance
 
 {% if not worktree.enabled %}
 Worktrees are not enabled. Do NOT create git worktrees unless the user explicitly asks.
 
-To enable worktrees for *this developer*, create/update `{{ ito_dir_name }}/config.local.json`:
+To enable worktrees for *this developer*, create/update {% if worktree.ito_root %}`{{ worktree.ito_root }}/config.local.json`{% else %}`{{ ito_dir_name }}/config.local.json`{% endif %}:
 
 ```json
 {
@@ -43,6 +47,12 @@ To enable worktrees for *this developer*, create/update `{{ ito_dir_name }}/conf
 {% else %}
 Use the commands below for the configured strategy.
 
+Helpful path commands:
+
+- `ito path project-root` (stable root shared across worktrees)
+- `ito path worktree-root` (current working worktree root)
+- `ito path worktrees-root` (configured worktrees root)
+
 {% if worktree.strategy == "checkout_subdir" %}
 #### Strategy: `checkout_subdir`
 
@@ -50,19 +60,21 @@ Worktrees live in a gitignored subdirectory inside the checkout.
 {% if worktree.project_root %}
 Project root: `{{ worktree.project_root }}`
 {% endif %}
+{% if worktree.worktree_root %}
+Worktree root: `{{ worktree.worktree_root }}`
+{% endif %}
 
 ```bash
-{% if worktree.project_root %}
-cd "{{ worktree.project_root }}"
-
-{% endif %}
 BRANCH_NAME="<change-name>"
-mkdir -p ".{{ worktree.layout_dir_name }}"
+WORKTREE_ROOT="$(ito path worktree-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+mkdir -p "$WORKTREES_ROOT"
 
 # Ensure the worktree directory is gitignored
-grep -qxF '.{{ worktree.layout_dir_name }}/' .gitignore 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> .gitignore
+GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
+grep -qxF '.{{ worktree.layout_dir_name }}/' "$GITIGNORE_PATH" 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> "$GITIGNORE_PATH"
 
-git worktree add ".{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
 ```
 {% elif worktree.strategy == "checkout_siblings" %}
 #### Strategy: `checkout_siblings`
@@ -71,18 +83,17 @@ Worktrees live in a sibling directory next to the checkout.
 {% if worktree.project_root %}
 Project root: `{{ worktree.project_root }}`
 {% endif %}
+{% if worktree.worktree_root %}
+Worktree root: `{{ worktree.worktree_root }}`
+{% endif %}
 
 ```bash
-{% if worktree.project_root %}
-cd "{{ worktree.project_root }}"
-
-{% endif %}
 BRANCH_NAME="<change-name>"
-PROJECT_NAME=$(basename "{{ worktree.project_root | default("$(pwd)") }}")
-WORKTREE_BASE="{{ worktree.project_root | default("..") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
-mkdir -p "${WORKTREE_BASE}"
+WORKTREE_ROOT="$(ito path worktree-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+mkdir -p "$WORKTREES_ROOT"
 
-git worktree add "${WORKTREE_BASE}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
 ```
 {% elif worktree.strategy == "bare_control_siblings" %}
 #### Strategy: `bare_control_siblings`
@@ -91,17 +102,19 @@ This is a bare/control repo layout with worktrees as siblings.
 {% if worktree.project_root %}
 Bare repo root: `{{ worktree.project_root }}`
 {% endif %}
+{% if worktree.worktree_root %}
+Worktree root: `{{ worktree.worktree_root }}`
+{% endif %}
 
-**IMPORTANT:** All git worktree commands MUST be run from the bare repo root{% if worktree.project_root %} (`{{ worktree.project_root }}`){% endif %}, NOT from inside a worktree.
+Run git worktree commands against the bare/control root.
 
 ```bash
-{% if worktree.project_root %}
-cd "{{ worktree.project_root }}"
-
-{% endif %}
 BRANCH_NAME="<change-name>"
-mkdir -p "{{ worktree.layout_dir_name }}"
-git worktree add "{{ worktree.layout_dir_name }}/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+PROJECT_ROOT="$(ito path project-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+mkdir -p "$WORKTREES_ROOT"
+
+git -C "$PROJECT_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
 ```
 {% endif %}
 

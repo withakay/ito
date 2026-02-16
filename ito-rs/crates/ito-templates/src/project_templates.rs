@@ -45,6 +45,8 @@ impl Default for WorktreeTemplateContext {
     /// # Examples
     ///
     /// ```
+    /// use ito_templates::project_templates::WorktreeTemplateContext;
+    ///
     /// let ctx = WorktreeTemplateContext::default();
     /// assert!(!ctx.enabled);
     /// assert_eq!(ctx.layout_dir_name, "ito-worktrees");
@@ -184,14 +186,16 @@ mod tests {
 
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
-        assert!(text.contains("git worktree add \"ito-worktrees/<change-name>\" -b <change-name>"));
         assert!(
-            text.contains("/home/user/project/ito-worktrees/<change-name>/"),
-            "should contain absolute worktree path"
+            text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>")
         );
         assert!(
-            !text.contains("<project-root>/"),
-            "should not contain placeholder root"
+            text.contains(".ito-worktrees/<change-name>/"),
+            "should contain repo-relative worktree path"
+        );
+        assert!(
+            !text.contains(&ctx.project_root),
+            "should not embed machine-specific absolute project_root"
         );
     }
 
@@ -218,12 +222,12 @@ mod tests {
             "git worktree add \"../<project-name>-worktrees/<change-name>\" -b <change-name>"
         ));
         assert!(
-            text.contains("/home/user/project/../<project-name>-worktrees/<change-name>/"),
-            "should contain absolute sibling worktree path"
+            text.contains("../<project-name>-worktrees/<change-name>/"),
+            "should contain repo-relative sibling worktree path"
         );
         assert!(
-            !text.contains("<project-root>/"),
-            "should not contain placeholder root"
+            !text.contains(&ctx.project_root),
+            "should not embed machine-specific absolute project_root"
         );
     }
 
@@ -249,12 +253,12 @@ mod tests {
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
         assert!(
-            text.contains("/home/user/project/"),
-            "should contain absolute bare repo path"
+            text.contains("../                              # bare/control repo"),
+            "should contain repo-relative bare/control layout"
         );
         assert!(
-            !text.contains("<project>/"),
-            "should not contain placeholder project root"
+            !text.contains(&ctx.project_root),
+            "should not embed machine-specific absolute project_root"
         );
     }
 

@@ -43,22 +43,17 @@ Project root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
-{% if worktree.project_root %}
-# All worktree commands must run from the project root
-cd "{{ worktree.project_root }}"
+WORKTREE_ROOT="$(ito path worktree-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
 
-{% endif %}
-# Ensure .{{ worktree.layout_dir_name }}/ is gitignored
-grep -qxF '.{{ worktree.layout_dir_name }}/' .gitignore 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> .gitignore
+# Ensure .{{ worktree.layout_dir_name }}/ is gitignored (checkout_subdir only)
+GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
+grep -qxF '.{{ worktree.layout_dir_name }}/' "$GITIGNORE_PATH" 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> "$GITIGNORE_PATH"
 
 # Create or reuse the change worktree
-{% if worktree.project_root %}
-CHANGE_DIR="{{ worktree.project_root }}/.{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
-{% else %}
-CHANGE_DIR=".{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
-{% endif %}
 if [ ! -d "$CHANGE_DIR" ]; then
-  git worktree add ".{{ worktree.layout_dir_name }}/{{ instructions.changeName }}" -b {{ instructions.changeName }}
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -90,22 +85,16 @@ Project root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
-{% if worktree.project_root %}
-# All worktree commands must run from the project root
-cd "{{ worktree.project_root }}"
-
-{% endif %}
-# Determine project name and sibling directory
-PROJECT_NAME=$(basename "{{ worktree.project_root | default("$(pwd)") }}")
-WORKTREE_BASE="{{ worktree.project_root | default(".") }}/../${PROJECT_NAME}-{{ worktree.layout_dir_name }}"
-CHANGE_DIR="${WORKTREE_BASE}/{{ instructions.changeName }}"
+WORKTREE_ROOT="$(ito path worktree-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
 
 # Create the worktree base directory if needed
-mkdir -p "$WORKTREE_BASE"
+mkdir -p "$WORKTREES_ROOT"
 
 # Create or reuse the change worktree
 if [ ! -d "$CHANGE_DIR" ]; then
-  git worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -131,25 +120,21 @@ Bare repo root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
-{% if worktree.project_root %}
-# All worktree commands MUST run from the bare repo root
-cd "{{ worktree.project_root }}"
+PROJECT_ROOT="$(ito path project-root)"
+WORKTREES_ROOT="$(ito path worktrees-root)"
+MAIN_DIR="$(ito path worktree --main)"
+CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
 
-{% endif %}
+mkdir -p "$WORKTREES_ROOT"
+
 # Ensure main worktree exists
-if [ ! -d "{{ worktree.default_branch }}" ]; then
-  git worktree add {{ worktree.default_branch }}
+if [ ! -d "$MAIN_DIR" ]; then
+  git -C "$PROJECT_ROOT" worktree add "$MAIN_DIR" {{ worktree.default_branch }}
 fi
 
 # Create or reuse the change worktree
-{% if worktree.project_root %}
-CHANGE_DIR="{{ worktree.project_root }}/{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
-{% else %}
-CHANGE_DIR="{{ worktree.layout_dir_name }}/{{ instructions.changeName }}"
-{% endif %}
-mkdir -p "{{ worktree.layout_dir_name }}"
 if [ ! -d "$CHANGE_DIR" ]; then
-  git worktree add "{{ worktree.layout_dir_name }}/{{ instructions.changeName }}" -b {{ instructions.changeName }}
+  git -C "$PROJECT_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -170,8 +155,10 @@ ito config set worktrees.strategy checkout_subdir
 Copy local/uncommitted setup files from the main worktree into the change worktree (missing files are skipped):
 
 ```bash
+WORKTREE_ROOT="${WORKTREE_ROOT:-$(ito path worktree-root)}"
 {% for pattern in worktree.copy_from_main %}
-[ -f "{{ pattern }}" ] && cp "{{ pattern }}" "$CHANGE_DIR/" 2>/dev/null || true
+SRC="$WORKTREE_ROOT/{{ pattern }}"
+[ -f "$SRC" ] && cp "$SRC" "$CHANGE_DIR/" 2>/dev/null || true
 {% endfor %}
 ```
 {% endif %}
