@@ -10,4 +10,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - Schema asset management
 
 ## Changes
-- [ ] 019-01_absolute-paths-in-output
+- [x] 019-01_absolute-paths-in-output
