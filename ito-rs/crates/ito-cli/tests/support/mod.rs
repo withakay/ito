@@ -227,7 +227,9 @@ fn run_git(repo: &Path, args: &[&str]) {
     );
 }
 
-/// Initialize a git repository at `repo`, configure a test user identity, stage `README.md` if present, and create an initial commit.
+/// Initialize a new Git repository at `repo`, set a test user identity, stage `README.md` if present, and create an initial commit.
+///
+/// Also disables commit GPG signing in the repository to ensure commits succeed in hermetic test environments.
 ///
 /// # Examples
 ///

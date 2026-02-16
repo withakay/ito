@@ -3,12 +3,35 @@ mod fixtures;
 
 use ito_test_support::run_rust_candidate;
 
+/// Normalize a filesystem path string for test assertions.
+///
+/// This trims surrounding whitespace and removes a leading `/private` prefix if present,
+/// returning the adjusted path as an owned `String`.
+///
+/// # Examples
+///
+/// ```
+/// let p = normalize_path_for_assert(" /private/var/tmp/repo ");
+/// assert_eq!(p, "/var/tmp/repo".to_string());
+///
+/// let p2 = normalize_path_for_assert("/home/user/project");
+/// assert_eq!(p2, "/home/user/project".to_string());
+/// ```
 fn normalize_path_for_assert(s: &str) -> String {
     let s = s.trim();
     let s = s.strip_prefix("/private").unwrap_or(s);
     s.to_string()
 }
 
+/// Verifies that `ito path` root subcommands resolve to the repository's absolute paths in an initialized repository.
+///
+/// This test asserts that `project-root`, `worktree-root`, and `ito-root` return the repository path (with `.ito` for `ito-root`), and that the JSON `--json` output contains the same absolute `path` value.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Prepared repository should make `ito path project-root` print the repo absolute path.
+/// ```
 #[test]
 fn path_roots_are_absolute_in_initialized_repo() {
     let base = fixtures::make_empty_repo();
