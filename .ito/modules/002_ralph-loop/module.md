@@ -15,7 +15,7 @@
 - [ ] 002-06_add-agent-preamble-system
 - [ ] 002-07_improve-ralph-loop-parity
 - [ ] 002-08_extract-ralph-into-crate
-- [ ] 002-09_add-ralph-interactive-mode
+- [x] 002-09_add-ralph-interactive-mode
 - [x] 002-10_validate-completion-before-exit
 - [x] 002-11_ralph-module-ready-sequencing
 - [x] 002-12_add-ralph-error-threshold
