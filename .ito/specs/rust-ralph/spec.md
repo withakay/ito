@@ -1,21 +1,17 @@
-<!-- ITO:START -->
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Non-zero harness exits are classified before counting
+### Requirement: State is written under `.ito/.state/ralph/<change>`
 
-The Ralph loop SHALL classify non-zero harness exit codes into retriable (signal-based crashes) and non-retriable (logical errors) before applying error threshold or exit-on-error logic.
+Rust MUST write loop state and history in the same location and structure as TypeScript. When Ralph resolves a worktree for the targeted change, state files SHALL be written relative to the worktree's `.ito` directory, not the invoking process's `.ito` directory.
 
-#### Scenario: Retriable exit skips error counting
+#### Scenario: State files exist
 
-- **GIVEN** a Ralph loop with default error handling
-- **WHEN** the harness exits with a signal-based code (128-143)
-- **THEN** the system SHALL retry the iteration without incrementing the harness error counter
-- **AND** the system SHALL NOT feed the crash output back as validation context
+- **GIVEN** a completed loop run
+- **WHEN** the user inspects `.ito/.state/ralph/<change-id>/`
+- **THEN** the expected state and history files exist
 
-#### Scenario: Non-retriable exit counts normally
+#### Scenario: State written in worktree when resolved
 
-- **GIVEN** a Ralph loop with default error handling
-- **WHEN** the harness exits with a non-retriable code (e.g. 1, 2)
-- **THEN** the system SHALL increment the harness error counter
-- **AND** the system SHALL feed the failure output back as context for the next iteration
-<!-- ITO:END -->
+- **GIVEN** Ralph resolves a worktree at `/project/ito-worktrees/002-16_foo/`
+- **WHEN** a loop iteration completes
+- **THEN** state files SHALL be written under `/project/ito-worktrees/002-16_foo/.ito/.state/ralph/002-16_foo/`
