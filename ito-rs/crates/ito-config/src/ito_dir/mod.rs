@@ -57,11 +57,10 @@ pub fn get_ito_path(project_root: &Path, ctx: &ConfigContext) -> PathBuf {
 /// # Examples
 ///
 /// ```no_run
-/// use std::path::Path;
-///
 /// use ito_common::fs::StdFs;
 /// use ito_config::ConfigContext;
 /// use ito_config::ito_dir::get_ito_path_fs;
+/// use std::path::Path;
 ///
 /// let fs = StdFs;
 /// let ctx = ConfigContext::default();
@@ -88,8 +87,10 @@ pub fn get_ito_path_fs<F: FileSystem>(fs: &F, project_root: &Path, ctx: &ConfigC
 /// # Examples
 ///
 /// ```
+/// use ito_config::ito_dir::absolutize_and_normalize;
 /// use std::path::Path;
-/// let abs = ito_config::ito_dir::absolutize_and_normalize(Path::new(".")).unwrap();
+///
+/// let abs = absolutize_and_normalize(Path::new(".")).unwrap();
 /// assert!(abs.is_absolute());
 /// ```
 pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
@@ -102,22 +103,16 @@ pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
     Ok(lexical_normalize(&abs))
 }
 
-/// Resolves a path to an absolute, lexically normalized `PathBuf`, falling back to
-/// lexical normalization when the current working directory cannot be obtained.
+/// Produce an absolute, lexically normalized PathBuf, falling back to lexical normalization if the current working directory cannot be determined.
 ///
-/// This function returns a canonicalized form of `input` where `"."` and `".."`
-/// components are resolved lexically. If obtaining the current directory fails,
-/// the function performs lexical normalization without attempting to make the
-/// path absolute.
+/// The result is a canonicalized form of `input` where `.` and `..` components are resolved lexically. If obtaining the current directory fails, this function returns the lexically normalized `input` without attempting to make it absolute.
 ///
 /// # Examples
 ///
 /// ```ignore
 /// use std::path::Path;
 ///
-/// // NOTE: `absolutize_and_normalize_lossy` is an internal helper.
-/// // This example is illustrative only.
-/// let p = ito_config::ito_dir::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
+/// let p = super::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
 /// assert!(p.ends_with(Path::new("foo/bar")));
 /// ```
 fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
@@ -132,15 +127,17 @@ fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
 /// # Examples
 ///
 /// ```
+/// use ito_config::ito_dir::lexical_normalize;
 /// use std::path::{Path, PathBuf};
+///
 /// let p = Path::new("a/./b/../c");
-/// assert_eq!(ito_config::ito_dir::lexical_normalize(p), PathBuf::from("a/c"));
+/// assert_eq!(lexical_normalize(p), PathBuf::from("a/c"));
 ///
 /// let abs = Path::new("/a/b/../c");
-/// assert_eq!(ito_config::ito_dir::lexical_normalize(abs), PathBuf::from("/a/c"));
+/// assert_eq!(lexical_normalize(abs), PathBuf::from("/a/c"));
 ///
 /// let up = Path::new("../a/../b");
-/// assert_eq!(ito_config::ito_dir::lexical_normalize(up), PathBuf::from("../b"));
+/// assert_eq!(lexical_normalize(up), PathBuf::from("../b"));
 /// ```
 pub fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component;

@@ -3,24 +3,29 @@
 
 ### Requirement: AGENTS.md rendered with worktree context
 
-The root `AGENTS.md` project template SHALL be rendered via Jinja2 with worktree configuration context, producing strategy-specific instructions with absolute paths inside the managed block.
+The root `AGENTS.md` project template SHALL be rendered via Jinja2 with worktree configuration context, producing strategy-specific instructions inside the managed block.
+
+Because `AGENTS.md` is a file written to disk and expected to be committed, it MUST remain portable:
+
+- The managed block MUST NOT embed machine-specific absolute paths.
+- The managed block SHOULD use repo-relative paths and clearly state assumptions (for example, that commands are run from the repo/worktree root).
 
 #### Scenario: Worktrees enabled with checkout_subdir strategy
 
 - **WHEN** the worktree config has `enabled=true` and `strategy=checkout_subdir`
-- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the directory name (e.g., `ito-worktrees`), and the absolute path pattern `{{ project_root }}/.{{ layout_dir_name }}/` for creating worktrees
-- **AND** SHALL include the exact `git worktree add` command for this strategy using absolute paths
+- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the directory name (e.g., `ito-worktrees`), and the repo-relative path pattern `.{{ layout_dir_name }}/` for creating worktrees
+- **AND** SHALL include the exact `git worktree add` command for this strategy using the repo-relative paths
 - **AND** SHALL instruct agents not to ask the user where to create worktrees
 
 #### Scenario: Worktrees enabled with checkout_siblings strategy
 
 - **WHEN** the worktree config has `enabled=true` and `strategy=checkout_siblings`
-- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the absolute sibling directory pattern `{{ project_root }}/../<project>-{{ layout_dir_name }}/`, and the exact `git worktree add` command for this strategy using absolute paths
+- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the repo-relative sibling directory pattern `../<project>-{{ layout_dir_name }}/`, and the exact `git worktree add` command for this strategy using repo-relative paths
 
 #### Scenario: Worktrees enabled with bare_control_siblings strategy
 
 - **WHEN** the worktree config has `enabled=true` and `strategy=bare_control_siblings`
-- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the bare repo layout with absolute paths, and the exact `git worktree add` command for this strategy using absolute paths
+- **THEN** the rendered AGENTS.md managed block SHALL contain a "Worktree Workflow" section specifying: the strategy name, the bare repo layout with repo-relative paths, and the exact `git worktree add` command for this strategy using repo-relative paths
 
 #### Scenario: Worktrees disabled
 

@@ -21,6 +21,16 @@ Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
+## Path Helpers
+
+Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute paths into committed files):
+
+- `ito path project-root`
+- `ito path worktree-root`
+- `ito path ito-root`
+- `ito path worktrees-root`
+- `ito path worktree --main|--branch <name>|--change <id>`
+
 ## Worktree Workflow
 
 {% if enabled %}
@@ -33,27 +43,25 @@ Keep this managed block so 'ito update' can refresh the instructions.
 This project uses in-repo worktrees under a dedicated subdirectory:
 
 ```bash
-{{ project_root }}/{{ layout_dir_name }}/<change-name>/
+.{{ layout_dir_name }}/<change-name>/
 ```
 
 To create a worktree for a change:
 
 ```bash
-cd "{{ project_root }}"
-mkdir -p "{{ layout_dir_name }}"
-git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+mkdir -p ".{{ layout_dir_name }}"
+git worktree add ".{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
 {% elif strategy == "checkout_siblings" %}
 This project uses sibling-directory worktrees:
 
 ```bash
-{{ project_root }}/../<project-name>-{{ layout_dir_name }}/<change-name>/
+../<project-name>-{{ layout_dir_name }}/<change-name>/
 ```
 
 To create a worktree for a change:
 
 ```bash
-cd "{{ project_root }}"
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
 git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
@@ -61,7 +69,7 @@ git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <cha
 This project uses a bare/control repo layout with worktrees as siblings:
 
 ```bash
-{{ project_root }}/                              # bare/control repo
+../                              # bare/control repo
 |-- .bare/                              # git object store
 |-- .git                                # gitdir pointer
 |-- {{ default_branch }}/               # {{ default_branch }} branch worktree
@@ -72,9 +80,8 @@ This project uses a bare/control repo layout with worktrees as siblings:
 To create a worktree for a change:
 
 ```bash
-cd "{{ project_root }}"
-mkdir -p "{{ layout_dir_name }}"
-git worktree add "{{ layout_dir_name }}/<change-name>" -b <change-name>
+mkdir -p "../{{ layout_dir_name }}"
+git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name>
 ```
 {% else %}
 This project uses a custom worktree strategy. Use the configured values above.
@@ -85,7 +92,7 @@ Do NOT ask the user where to create worktrees. Use the configured locations abov
 After the change branch is merged, clean up:
 
 ```bash
-git worktree remove <change-name> 2>/dev/null || true
+git worktree remove <worktree-path> 2>/dev/null || true
 git branch -d <change-name> 2>/dev/null || true
 git worktree prune
 ```

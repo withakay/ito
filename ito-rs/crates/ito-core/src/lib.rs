@@ -33,6 +33,9 @@ pub mod errors;
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
 
+/// Resolve repository and worktree path roots.
+pub mod repo_paths;
+
 mod error_bridge;
 
 /// Process execution boundary and default runner.

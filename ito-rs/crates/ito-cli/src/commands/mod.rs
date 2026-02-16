@@ -3,6 +3,7 @@ pub(crate) mod completions;
 pub(crate) mod config;
 pub(crate) mod create;
 pub(crate) mod help;
+pub(crate) mod path;
 pub(crate) mod plan;
 pub(crate) mod ralph;
 #[cfg(feature = "web")]
@@ -19,6 +20,7 @@ pub(crate) use create::handle_create_clap;
 pub(crate) use create::handle_new_clap;
 pub(crate) use help::handle_help_all_flags;
 pub(crate) use help::handle_help_clap;
+pub(crate) use path::handle_path_clap;
 pub(crate) use plan::handle_plan_clap;
 pub(crate) use ralph::handle_loop_clap;
 pub(crate) use ralph::handle_ralph_clap;
