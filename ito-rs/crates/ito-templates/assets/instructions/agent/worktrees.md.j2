@@ -72,7 +72,9 @@ mkdir -p "$WORKTREES_ROOT"
 
 # Ensure the worktree directory is gitignored
 GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
-grep -qxF '.{{ worktree.layout_dir_name }}/' "$GITIGNORE_PATH" 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> "$GITIGNORE_PATH"
+LAYOUT_DIR_NAME='{{ worktree.layout_dir_name | replace("'", "'\"'\"'") }}'
+WORKTREES_IGNORE=".$LAYOUT_DIR_NAME/"
+grep -qxF "$WORKTREES_IGNORE" "$GITIGNORE_PATH" 2>/dev/null || printf '%s\n' "$WORKTREES_IGNORE" >> "$GITIGNORE_PATH"
 
 git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
 ```
