@@ -43,17 +43,21 @@ Project root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
+CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
+LAYOUT_DIR_NAME='{{ worktree.layout_dir_name | replace("'", "'\"'\"'") }}'
+
 WORKTREE_ROOT="$(ito path worktree-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
-CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
+CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
 
 # Ensure .{{ worktree.layout_dir_name }}/ is gitignored (checkout_subdir only)
 GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
-grep -qxF '.{{ worktree.layout_dir_name }}/' "$GITIGNORE_PATH" 2>/dev/null || echo '.{{ worktree.layout_dir_name }}/' >> "$GITIGNORE_PATH"
+WORKTREES_IGNORE=".$LAYOUT_DIR_NAME/"
+grep -qxF "$WORKTREES_IGNORE" "$GITIGNORE_PATH" 2>/dev/null || printf '%s\n' "$WORKTREES_IGNORE" >> "$GITIGNORE_PATH"
 
 # Create or reuse the change worktree
 if [ ! -d "$CHANGE_DIR" ]; then
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -85,16 +89,18 @@ Project root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
+CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
+
 WORKTREE_ROOT="$(ito path worktree-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
-CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
+CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
 
 # Create the worktree base directory if needed
 mkdir -p "$WORKTREES_ROOT"
 
 # Create or reuse the change worktree
 if [ ! -d "$CHANGE_DIR" ]; then
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -120,21 +126,24 @@ Bare repo root: `{{ worktree.project_root }}`
 **Setup steps:**
 
 ```bash
+CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
+DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
+
 PROJECT_ROOT="$(ito path project-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
 MAIN_DIR="$(ito path worktree --main)"
-CHANGE_DIR="$(ito path worktree --change {{ instructions.changeName }})"
+CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
 
 mkdir -p "$WORKTREES_ROOT"
 
 # Ensure main worktree exists
 if [ ! -d "$MAIN_DIR" ]; then
-  git -C "$PROJECT_ROOT" worktree add "$MAIN_DIR" {{ worktree.default_branch }}
+  git -C "$PROJECT_ROOT" worktree add "$MAIN_DIR" "$DEFAULT_BRANCH"
 fi
 
 # Create or reuse the change worktree
 if [ ! -d "$CHANGE_DIR" ]; then
-  git -C "$PROJECT_ROOT" worktree add "$CHANGE_DIR" -b {{ instructions.changeName }}
+  git -C "$PROJECT_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
 fi
 
 echo "Working directory: $CHANGE_DIR"
@@ -157,7 +166,8 @@ Copy local/uncommitted setup files from the main worktree into the change worktr
 ```bash
 WORKTREE_ROOT="${WORKTREE_ROOT:-$(ito path worktree-root)}"
 {% for pattern in worktree.copy_from_main %}
-SRC="$WORKTREE_ROOT/{{ pattern }}"
+PATTERN='{{ pattern | replace("'", "'\"'\"'") }}'
+SRC="$WORKTREE_ROOT/$PATTERN"
 [ -f "$SRC" ] && cp "$SRC" "$CHANGE_DIR/" 2>/dev/null || true
 {% endfor %}
 ```

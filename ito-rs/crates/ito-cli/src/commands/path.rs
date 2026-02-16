@@ -1,5 +1,5 @@
 use crate::cli::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
-use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::cli_error::{fail, to_cli_error, CliResult};
 use crate::runtime::Runtime;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::{load_cascading_project_config, types::ItoConfig};
@@ -278,7 +278,8 @@ fn resolve_worktree_paths(env: &ResolvedEnv) -> CliResult<ResolvedWorktreePaths>
     // Load config relative to the current worktree root so repo-local sources
     // like `ito.json` and `.ito.json` resolve within the working checkout.
     let cfg = load_cascading_project_config(&env.worktree_root, &env.ito_root, &ctx);
-    let typed: ItoConfig = serde_json::from_value(cfg.merged).unwrap_or_default();
+    let typed: ItoConfig = serde_json::from_value(cfg.merged)
+        .map_err(|e| to_cli_error(format!("Failed to parse Ito configuration: {e}")))?;
 
     let wt = typed.worktrees;
     let enabled = wt.enabled;
