@@ -8,6 +8,16 @@ mod path;
 
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 
+/// Creates a Styles builder preconfigured for CLI output.
+///
+/// The returned builder sets styles for header and usage (bold), literal (cyan),
+/// and placeholder (yellow).
+///
+/// # Examples
+///
+/// ```
+/// let _ = cli_styles();
+/// ```
 fn cli_styles() -> Styles {
     Styles::styled()
         .header(Style::new().bold())

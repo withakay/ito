@@ -60,6 +60,25 @@ where
     result
 }
 
+/// Builds a normalized command identifier from a list of command-line arguments.
+///
+/// The first non-flag argument is used as the primary command (defaults to `"ito"` when absent).
+/// `"x-templates"` is normalized to `"templates"`. For certain commands a second non-flag
+/// positional argument is appended (e.g., `create project` -> `ito.create.project`); the final
+/// identifier is lowercased, hyphens are replaced with underscores, and prefixed with `"ito"`.
+///
+/// # Examples
+///
+/// ```
+/// let id = command_id_from_args(&vec!["create".to_string(), "My-Project".to_string()]);
+/// assert_eq!(id, "ito.create.my_project");
+///
+/// let id = command_id_from_args(&vec!["--verbose".to_string(), "agent".to_string(), "instruction".to_string()]);
+/// assert_eq!(id, "ito.agent.instruction");
+///
+/// let id = command_id_from_args(&Vec::<String>::new());
+/// assert_eq!(id, "ito");
+/// ```
 pub(crate) fn command_id_from_args(args: &[String]) -> String {
     let mut positional: Vec<&str> = Vec::new();
     for a in args {

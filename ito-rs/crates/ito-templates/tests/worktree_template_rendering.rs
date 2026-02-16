@@ -47,6 +47,17 @@ const DISCOVERY_HEURISTICS: &[&str] = &[
     "ls -d .worktrees",
 ];
 
+/// Asserts that the rendered text does not contain a machine-specific absolute project root.
+///
+/// Panics if `text` contains `project_root`; the panic message includes `label` and the
+/// offending `project_root`.
+///
+/// # Examples
+///
+/// ```
+/// let rendered = "Use .ito-worktrees/feature-x/ for worktree layout.";
+/// assert_no_absolute_project_root(rendered, "/home/user/project", "agents_md_checkout_subdir");
+/// ```
 fn assert_no_absolute_project_root(text: &str, project_root: &str, label: &str) {
     assert!(
         !text.contains(project_root),
@@ -179,6 +190,20 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 // AGENTS.md tests
 // ===========================================================================
 
+/// Verifies that AGENTS.md renders appropriate worktree instructions and paths for the `checkout_subdir` strategy.
+///
+/// Ensures the rendered text includes the "Worktree Workflow" section, the configured strategy label,
+/// a repository-relative `.ito-worktrees/<change-name>/` worktree path and the corresponding `git worktree add` example,
+/// and that it does not contain raw template syntax, discovery heuristics, or an embedded absolute project root.
+///
+/// # Examples
+///
+/// ```
+/// let ctx = checkout_subdir_ctx();
+/// let text = render_text(agents_md_bytes(), &ctx);
+/// assert!(text.contains("**Strategy:** `checkout_subdir`"));
+/// assert!(text.contains(".ito-worktrees/<change-name>/"));
+/// ```
 #[test]
 fn agents_md_checkout_subdir() {
     let ctx = checkout_subdir_ctx();
@@ -214,6 +239,20 @@ fn agents_md_checkout_siblings() {
     assert_no_absolute_project_root(&text, &ctx.project_root, "agents_md_checkout_siblings");
 }
 
+/// Integration test that verifies AGENTS.md rendering for the `bare_control_siblings` worktree configuration.
+///
+/// This test renders the AGENTS.md template with a `bare_control_siblings` context and asserts the output
+/// includes the configured strategy, the expected repository-relative layout snippets (including a `.bare/`
+/// and `ito-worktrees/` appearance), contains no raw template syntax, and does not embed the machine-specific
+/// absolute project root or vague discovery heuristics.
+///
+/// # Examples
+///
+/// ```
+/// let ctx = bare_control_siblings_ctx();
+/// let text = render_text(agents_md_bytes(), &ctx);
+/// assert!(text.contains("**Strategy:** `bare_control_siblings`"));
+/// ```
 #[test]
 fn agents_md_bare_control_siblings() {
     let ctx = bare_control_siblings_ctx();
@@ -271,6 +310,22 @@ fn skill_checkout_siblings() {
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_siblings");
 }
 
+/// Integration test that renders the worktree skill template using the
+/// `bare_control_siblings` configuration and asserts the rendered output
+/// contains the expected fragments and omits machine-specific or discovery
+/// heuristics.
+///
+/// # Examples
+///
+/// ```
+/// let ctx = bare_control_siblings_ctx();
+/// let text = render_text(skill_md_bytes(), &ctx);
+/// assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
+/// assert!(text.contains("ito-worktrees/"));
+/// assert!(!text.contains("{{"));
+/// assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
+/// assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
+/// ```
 #[test]
 fn skill_bare_control_siblings() {
     let ctx = bare_control_siblings_ctx();

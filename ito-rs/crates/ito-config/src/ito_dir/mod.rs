@@ -103,19 +103,17 @@ pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
     Ok(lexical_normalize(&abs))
 }
 
-/// Resolves a path to an absolute, lexically normalized `PathBuf`, falling back to
-/// lexical normalization when the current working directory cannot be obtained.
+/// Produce an absolute, lexically normalized PathBuf, falling back to lexical normalization if the current working directory cannot be determined.
 ///
-/// This function returns a canonicalized form of `input` where `"."` and `".."`
-/// components are resolved lexically. If obtaining the current directory fails,
-/// the function performs lexical normalization without attempting to make the
-/// path absolute.
+/// The result is a canonicalized form of `input` where `.` and `..` components are resolved lexically. If obtaining the current directory fails, this function returns the lexically normalized `input` without attempting to make it absolute.
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Private helper function example:
-/// // absolutize_and_normalize_lossy(Path::new("foo/./bar")) -> .../foo/bar
+/// ```
+/// use std::path::Path;
+///
+/// let p = super::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
+/// assert!(p.ends_with(Path::new("foo/bar")));
 /// ```
 fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
     absolutize_and_normalize(input).unwrap_or_else(|_| lexical_normalize(input))
