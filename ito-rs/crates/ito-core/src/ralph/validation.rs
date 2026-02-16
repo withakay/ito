@@ -317,7 +317,7 @@ impl ShellRunOutput {
 fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> CoreResult<ShellRunOutput> {
     let runner = SystemProcessRunner;
     let request = ProcessRequest::new("sh")
-        .args(["-lc", cmd])
+        .args(["-c", cmd])
         .current_dir(cwd.to_path_buf());
     let output = runner.run_with_timeout(&request, timeout).map_err(|e| {
         CoreError::Process(format!("Failed to run validation command '{cmd}': {e}"))
