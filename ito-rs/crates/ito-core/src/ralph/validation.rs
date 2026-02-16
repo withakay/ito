@@ -314,10 +314,29 @@ impl ShellRunOutput {
     }
 }
 
+/// Run a shell command in the given working directory with a timeout and capture its result.
+///
+/// Executes `sh -c <cmd>` in `cwd` and returns a `ShellRunOutput` describing the executed command,
+/// whether it succeeded, the exit code, whether it timed out, and captured `stdout`/`stderr`.
+///
+/// # Errors
+///
+/// Returns a `CoreError::Process` if the command could not be executed.
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::path::Path;
+/// use std::time::Duration;
+///
+/// let out = run_shell_with_timeout(Path::new("."), "echo hello", Duration::from_secs(5)).unwrap();
+/// assert!(out.success);
+/// assert!(out.stdout.contains("hello"));
+/// ```
 fn run_shell_with_timeout(cwd: &Path, cmd: &str, timeout: Duration) -> CoreResult<ShellRunOutput> {
     let runner = SystemProcessRunner;
     let request = ProcessRequest::new("sh")
-        .args(["-lc", cmd])
+        .args(["-c", cmd])
         .current_dir(cwd.to_path_buf());
     let output = runner.run_with_timeout(&request, timeout).map_err(|e| {
         CoreError::Process(format!("Failed to run validation command '{cmd}': {e}"))

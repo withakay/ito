@@ -446,10 +446,24 @@ fn temp_output_path(stream: &str, pid: u32, now_ms: i64) -> PathBuf {
 mod tests {
     use super::*;
 
+    /// Verifies that SystemProcessRunner captures both standard output and standard error and reports the exit status and timeout flag correctly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let runner = SystemProcessRunner;
+    /// let request = ProcessRequest::new("sh").args(["-c", "echo out; echo err >&2"]);
+    /// let output = runner.run(&request).unwrap();
+    /// assert!(output.success);
+    /// assert_eq!(output.exit_code, 0);
+    /// assert!(output.stdout.contains("out"));
+    /// assert!(output.stderr.contains("err"));
+    /// assert!(!output.timed_out);
+    /// ```
     #[test]
     fn captures_stdout_and_stderr() {
         let runner = SystemProcessRunner;
-        let request = ProcessRequest::new("sh").args(["-lc", "echo out; echo err >&2"]);
+        let request = ProcessRequest::new("sh").args(["-c", "echo out; echo err >&2"]);
         let output = runner.run(&request).unwrap();
         assert!(output.success);
         assert_eq!(output.exit_code, 0);
@@ -461,7 +475,7 @@ mod tests {
     #[test]
     fn captures_non_zero_exit() {
         let runner = SystemProcessRunner;
-        let request = ProcessRequest::new("sh").args(["-lc", "echo boom >&2; exit 7"]);
+        let request = ProcessRequest::new("sh").args(["-c", "echo boom >&2; exit 7"]);
         let output = runner.run(&request).unwrap();
         assert!(!output.success);
         assert_eq!(output.exit_code, 7);

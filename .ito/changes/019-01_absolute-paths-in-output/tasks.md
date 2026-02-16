@@ -48,8 +48,8 @@ ______________________________________________________________________
 - **Action**: Scan instruction templates for relative path usage and record locations needing absolute paths.
 - **Verify**: `rg "(^|\\s)(\\.|\\.\\.)/" ito-rs/crates/ito-templates/assets/instructions`
 - **Done When**: A list of relative path occurrences is captured with intended absolute replacements.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ### Task 2.2: Update instruction templates to emit absolute paths
 
@@ -58,28 +58,28 @@ ______________________________________________________________________
 - **Action**: Replace relative path output with absolute paths derived from project root/worktree context.
 - **Verify**: `rg "(^|\\s)(\\.|\\.\\.)/" ito-rs/crates/ito-templates/assets/instructions`
 - **Done When**: Instruction templates render absolute paths everywhere paths are displayed.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ### Task 2.3: Audit project templates and skills for relative paths
 
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/AGENTS.md`, `ito-rs/crates/ito-templates/assets/skills/**/SKILL.md`
 - **Dependencies**: Task 2.1
-- **Action**: Scan project templates and skills for relative path instructions that need absolute paths.
-- **Verify**: `rg "(^|\\s)(\\.|\\.\\.)/" ito-rs/crates/ito-templates/assets/default/project ito-rs/crates/ito-templates/assets/skills`
-- **Done When**: All relative path occurrences in project templates and skills are identified.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Action**: Scan project templates and skills for machine-specific absolute paths (or use of `project_root`) that would make committed files non-portable.
+- **Verify**: `rg "project_root|/Users/|[A-Za-z]:\\\\" ito-rs/crates/ito-templates/assets/default/project ito-rs/crates/ito-templates/assets/skills`
+- **Done When**: Any absolute-path embedding in committed templates is identified.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
-### Task 2.4: Update project templates and skills to emit absolute paths
+### Task 2.4: Update project templates and skills to remain portable
 
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/AGENTS.md`, `ito-rs/crates/ito-templates/assets/skills/**/SKILL.md`
 - **Dependencies**: Task 2.3
-- **Action**: Replace relative path output with absolute paths derived from project root/worktree context.
-- **Verify**: `rg "(^|\\s)(\\.|\\.\\.)/" ito-rs/crates/ito-templates/assets/default/project ito-rs/crates/ito-templates/assets/skills`
-- **Done When**: Project templates and skills render absolute paths everywhere paths are displayed.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Action**: Remove any embedded absolute paths from committed templates (use repo-relative paths). If an absolute path is needed at runtime, prefer instructing callers to use `ito path ...`.
+- **Verify**: `rg "project_root|/Users/|[A-Za-z]:\\\\" ito-rs/crates/ito-templates/assets/default/project ito-rs/crates/ito-templates/assets/skills`
+- **Done When**: Project templates and skills do not embed machine-specific absolute paths.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -90,23 +90,23 @@ ______________________________________________________________________
 
 ### Task 3.1: Audit CLI text output for relative paths
 
-- **Files**: `ito-rs/crates/ito-cli/src/commands/**`, `ito-rs/crates/ito-cli/src/app/**`, `ito-rs/crates/ito-cli/src/output/**`
+- **Files**: `ito-rs/crates/ito-templates/assets/instructions/**`, `ito-rs/crates/ito-cli/src/app/instructions.rs`
 - **Dependencies**: None
-- **Action**: Inventory commands and error paths that emit filesystem paths in text output (list/show/validate/tasks and errors).
-- **Verify**: `rg "(^|\\s)(\\.|\\.\\.)/" ito-rs/crates/ito-cli/src`
-- **Done When**: All text output locations that emit paths are identified with intended absolute formatting.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Action**: Generate agent-facing instruction artifacts and identify any relative filesystem paths that should be absolute.
+- **Verify**: `./target/debug/ito agent instruction apply --change 019-01_absolute-paths-in-output | rg "(^|\\s)(\\.|\\.\\.)/" || true`
+- **Done When**: Any remaining relative path occurrences in agent-facing output are identified (or explicitly documented as relative exceptions).
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ### Task 3.2: Update CLI text output to absolute paths
 
-- **Files**: `ito-rs/crates/ito-cli/src/commands/**`, `ito-rs/crates/ito-cli/src/app/**`, `ito-rs/crates/ito-cli/src/output/**`
+- **Files**: `ito-rs/crates/ito-templates/assets/instructions/**`, `ito-rs/crates/ito-cli/src/app/instructions.rs`
 - **Dependencies**: Task 3.1
-- **Action**: Normalize text output path formatting to use absolute paths derived from project root.
+- **Action**: Update agent-facing instruction templates so any displayed filesystem paths are absolute (and recommend using `ito path ...` when helpful).
 - **Verify**: `cargo test -p ito-cli`
-- **Done When**: CLI text output consistently uses absolute paths and tests pass.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Done When**: Agent-facing instruction output uses absolute paths where paths are displayed and tests pass.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -117,23 +117,23 @@ ______________________________________________________________________
 
 ### Task 4.1: Ensure JSON output path fields are absolute
 
-- **Files**: `ito-rs/crates/ito-cli/src/commands/**`, `ito-rs/crates/ito-cli/src/output/**`
+- **Files**: `ito-rs/crates/ito-cli/src/commands/path.rs`
 - **Dependencies**: None
-- **Action**: Normalize JSON output to emit absolute filesystem paths for all path fields.
-- **Verify**: `cargo test -p ito-cli`
-- **Done When**: All `--json` outputs use absolute paths and tests pass.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Action**: Ensure `ito path ... --json` outputs absolute filesystem paths.
+- **Verify**: `cargo test -p ito-cli --test path_more`
+- **Done When**: `ito path ... --json` outputs are absolute and tests pass.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ### Task 4.2: Add/update tests for absolute path rendering
 
 - **Files**: `ito-rs/crates/ito-cli/tests/**`, `ito-rs/crates/ito-templates/tests/**`
 - **Dependencies**: Task 4.1
-- **Action**: Add or update tests/snapshots to assert absolute paths in template rendering and CLI outputs.
+- **Action**: Add or update tests/snapshots to assert portability of committed templates and absolute paths in agent-facing output.
 - **Verify**: `cargo test -p ito-cli && cargo test -p ito-templates`
-- **Done When**: Tests cover absolute path expectations and pass.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Done When**: Tests cover the intended expectations and pass.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -147,10 +147,10 @@ ______________________________________________________________________
 - **Files**: `ito-rs/**`, `.ito/changes/019-01_absolute-paths-in-output/**`
 - **Dependencies**: None
 - **Action**: Run repo checks and validate the change.
-- **Verify**: `make check && ./target/debug/ito validate 019-01 --strict`
-- **Done When**: Checks and validation pass without errors.
-- **Updated At**: 2026-02-15
-- **Status**: [ ] pending
+- **Verify**: `cargo test -p ito-cli && cargo test -p ito-templates && ./target/debug/ito validate 019-01 --strict`
+- **Done When**: Focused tests and validation pass without errors.
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

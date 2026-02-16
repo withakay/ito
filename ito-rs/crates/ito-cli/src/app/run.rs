@@ -7,14 +7,10 @@ use clap::error::ErrorKind;
 
 /// Parse CLI arguments, initialize runtime and logging context, and dispatch the selected subcommand.
 ///
-/// This is the program entry point for the CLI: it recognizes the global `--no-color` flag,
-/// handles help and version output, constructs an argv suitable for clap parsing, and routes
-/// execution to the appropriate command handler. If no command is provided or a command is
-/// unimplemented, it prints the long help fallback.
-///
-/// # Returns
-///
-/// `CliResult<()>` indicating the success or failure of the invoked command.
+/// This is the CLI entry point: it recognizes the global `--no-color` flag, handles help and
+/// version output, constructs an argv for clap parsing, and routes execution to the chosen
+/// subcommand. If no command is provided or the selected command is unimplemented, it prints
+/// the long help fallback.
 ///
 /// # Examples
 ///
@@ -189,6 +185,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &project_root,
                 &ito_path_for_logging,
                 || commands::handle_config_clap(&rt, args),
+            );
+        }
+        Some(Commands::Path(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || commands::handle_path_clap(&rt, args),
             );
         }
 
