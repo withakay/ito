@@ -283,7 +283,7 @@ fn ok(stdout: &str, code: i32) -> Result<ProcessOutput, ProcessExecutionError> {
 }
 
 #[test]
-fn git_changes_and_commit() {
+fn count_git_changes_counts_non_empty_lines() {
     let cwd = Path::new("/tmp");
     assert_eq!(
         count_git_changes(&MockRunner::new(vec![ok(" M a\n M b\n", 0)]), cwd).unwrap(),
@@ -293,6 +293,11 @@ fn git_changes_and_commit() {
         count_git_changes(&MockRunner::new(vec![ok("", 0)]), cwd).unwrap(),
         0
     );
+}
+
+#[test]
+fn count_git_changes_returns_zero_on_git_failure() {
+    let cwd = Path::new("/tmp");
     let fail = MockRunner::new(vec![Ok(ProcessOutput {
         exit_code: 128,
         success: false,
@@ -301,7 +306,17 @@ fn git_changes_and_commit() {
         timed_out: false,
     })]);
     assert_eq!(count_git_changes(&fail, cwd).unwrap(), 0);
+}
+
+#[test]
+fn commit_iteration_succeeds_when_git_add_and_commit_succeed() {
+    let cwd = Path::new("/tmp");
     commit_iteration(&MockRunner::new(vec![ok("", 0), ok("", 0)]), 1, cwd).unwrap();
+}
+
+#[test]
+fn commit_iteration_errors_on_git_add_failure() {
+    let cwd = Path::new("/tmp");
     let bad = MockRunner::new(vec![Ok(ProcessOutput {
         exit_code: 1,
         success: false,
@@ -310,5 +325,9 @@ fn git_changes_and_commit() {
         timed_out: false,
     })]);
     assert!(commit_iteration(&bad, 1, cwd).is_err());
+}
+
+#[test]
+fn now_ms_returns_positive_value() {
     assert!(now_ms().unwrap() > 0);
 }

@@ -963,16 +963,13 @@ fn resolve_target(
         )));
     }
 
-    if !interactive {
-        return Err(CoreError::Validation(
-            "No change selected. Provide --change or --module.".into(),
-        ));
-    }
-
-    Err(CoreError::Validation(
+    let msg = if interactive {
         "No change selected. Provide --change or --module (or run `ito ralph` interactively to select a change)."
-            .into(),
-    ))
+    } else {
+        "No change selected. Provide --change or --module."
+    };
+
+    Err(CoreError::Validation(msg.into()))
 }
 
 fn infer_module_from_change(change_id: &str) -> CoreResult<String> {

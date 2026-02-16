@@ -460,6 +460,10 @@ fn prompt_missing_ralph_options(
 fn argv_has_flag(argv: &[String], flag: &str) -> bool {
     let eq_prefix = format!("{flag}=");
     for arg in argv {
+        // Respect `--` separator; anything after is positional input.
+        if arg == "--" {
+            break;
+        }
         if arg == flag || arg.starts_with(&eq_prefix) {
             return true;
         }
