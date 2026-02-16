@@ -3,6 +3,8 @@ name: subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session using subagents
 ---
 
+<!-- ITO:START -->
+
 # Subagent-Driven Development
 
 Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
@@ -155,3 +157,5 @@ If done: dispatch final reviewer, then use `ito-finishing-a-development-branch`
 
 **Alternative workflow:**
 - `ito-apply-change-proposal` - Use for human-in-loop execution with batch checkpoints
+
+<!-- ITO:END -->

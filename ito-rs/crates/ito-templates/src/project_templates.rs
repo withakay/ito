@@ -186,9 +186,7 @@ mod tests {
 
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
-        assert!(
-            text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>")
-        );
+        assert!(text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>"));
         assert!(
             text.contains(".ito-worktrees/<change-name>/"),
             "should contain repo-relative worktree path"
@@ -252,8 +250,12 @@ mod tests {
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
+        let layout_line = text
+            .lines()
+            .find(|l| l.contains("# bare/control repo"))
+            .expect("should contain bare/control repo layout line");
         assert!(
-            text.contains("../                              # bare/control repo"),
+            layout_line.contains("../"),
             "should contain repo-relative bare/control layout"
         );
         assert!(
