@@ -186,7 +186,9 @@ mod tests {
 
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
-        assert!(text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>"));
+        assert!(
+            text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>")
+        );
         assert!(
             text.contains(".ito-worktrees/<change-name>/"),
             "should contain repo-relative worktree path"
