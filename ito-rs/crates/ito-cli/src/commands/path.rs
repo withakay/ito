@@ -1,5 +1,5 @@
 use crate::cli::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
-use crate::cli_error::{fail, to_cli_error, CliResult};
+use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::{load_cascading_project_config, types::ItoConfig};
