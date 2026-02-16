@@ -53,3 +53,25 @@ When `ito ralph` is executed without `--change`, the system SHALL prompt the use
 - **GIVEN** the repository contains archived changes under `.ito/changes/archive/`
 - **WHEN** the interactive selection list is presented
 - **THEN** the selection list SHALL NOT include archived changes
+
+### Requirement: Interactive Ralph option selection
+
+When `ito ralph` enters interactive change selection (no `--change`, no `--file`, and `--no-interactive` is not set), the system SHALL prompt the user for missing Ralph options with prefilled defaults.
+
+- Options explicitly provided on the CLI SHALL NOT be re-prompted.
+- The resolved options SHALL apply to all selected changes.
+
+#### Scenario: Prompt for unset options with defaults
+
+- **GIVEN** `ito ralph` is executed with no `--change` and no `--file`
+- **AND** interactive mode is enabled (default)
+- **AND** the user is prompted to select one or more changes
+- **WHEN** the command is missing any of: `--harness`, `--model`, `--min-iterations`, `--max-iterations`, `--no-commit`, `--allow-all`, `--exit-on-error`
+- **THEN** the system SHALL prompt for the missing values
+- **AND** the prompts SHALL be prefilled with the current defaults
+
+#### Scenario: Do not prompt when option is provided
+
+- **GIVEN** `ito ralph` is executed with an explicit option value (for example `--max-iterations 3`)
+- **WHEN** interactive change selection occurs
+- **THEN** the system SHALL NOT prompt for that option

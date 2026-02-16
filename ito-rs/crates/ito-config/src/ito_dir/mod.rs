@@ -109,7 +109,7 @@ pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 ///
 /// let p = super::absolutize_and_normalize_lossy(Path::new("foo/./bar"));

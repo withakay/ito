@@ -46,7 +46,6 @@ impl Default for WorktreeTemplateContext {
     ///
     /// ```
     /// use ito_templates::project_templates::WorktreeTemplateContext;
-    ///
     /// let ctx = WorktreeTemplateContext::default();
     /// assert!(!ctx.enabled);
     /// assert_eq!(ctx.layout_dir_name, "ito-worktrees");

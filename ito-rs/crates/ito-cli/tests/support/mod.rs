@@ -257,7 +257,10 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     if readme.exists() {
         run_git(repo, &["add", "README.md"]);
     }
-    run_git(repo, &["commit", "--no-verify", "-m", "initial"]);
+    run_git(
+        repo,
+        &["commit", "--no-verify", "--no-gpg-sign", "-m", "initial"],
+    );
 }
 
 /// Creates a bare Git repository in a temporary directory for use as an `origin` remote in tests.

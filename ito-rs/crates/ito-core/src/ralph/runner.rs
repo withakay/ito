@@ -963,15 +963,13 @@ fn resolve_target(
         )));
     }
 
-    if !interactive {
-        return Err(CoreError::Validation(
-            "Change selection requires interactive mode. Use --change to specify or run in interactive mode.".into()
-        ));
-    }
+    let msg = if interactive {
+        "No change selected. Provide --change or --module (or run `ito ralph` interactively to select a change)."
+    } else {
+        "No change selected. Provide --change or --module."
+    };
 
-    Err(CoreError::Validation(
-        "Interactive selection is not yet implemented in Rust. Use --change to specify.".into(),
-    ))
+    Err(CoreError::Validation(msg.into()))
 }
 
 fn infer_module_from_change(change_id: &str) -> CoreResult<String> {
@@ -1063,4 +1061,4 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
 }
 
 #[cfg(test)]
-mod tests;
+mod runner_tests;
