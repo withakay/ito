@@ -58,7 +58,13 @@ pub fn get_ito_path(project_root: &Path, ctx: &ConfigContext) -> PathBuf {
 ///
 /// ```no_run
 /// use std::path::Path;
-/// // `fs` and `ctx` are implementations of `FileSystem` and `ConfigContext` from this crate.
+///
+/// use ito_common::fs::StdFs;
+/// use ito_config::ConfigContext;
+/// use ito_config::ito_dir::get_ito_path_fs;
+///
+/// let fs = StdFs;
+/// let ctx = ConfigContext::default();
 /// let ito_path = get_ito_path_fs(&fs, Path::new("some/project"), &ctx);
 /// assert!(ito_path.ends_with(".ito"));
 /// ```
@@ -83,7 +89,7 @@ pub fn get_ito_path_fs<F: FileSystem>(fs: &F, project_root: &Path, ctx: &ConfigC
 ///
 /// ```
 /// use std::path::Path;
-/// let abs = crate::absolutize_and_normalize(Path::new(".")).unwrap();
+/// let abs = ito_config::ito_dir::absolutize_and_normalize(Path::new(".")).unwrap();
 /// assert!(abs.is_absolute());
 /// ```
 pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
@@ -106,10 +112,12 @@ pub fn absolutize_and_normalize(input: &Path) -> std::io::Result<PathBuf> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 ///
-/// let p = crate::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
+/// // NOTE: `absolutize_and_normalize_lossy` is an internal helper.
+/// // This example is illustrative only.
+/// let p = ito_config::ito_dir::absolutize_and_normalize_lossy(Path::new("foo/./bar"));
 /// assert!(p.ends_with(Path::new("foo/bar")));
 /// ```
 fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
@@ -126,13 +134,13 @@ fn absolutize_and_normalize_lossy(input: &Path) -> PathBuf {
 /// ```
 /// use std::path::{Path, PathBuf};
 /// let p = Path::new("a/./b/../c");
-/// assert_eq!(super::lexical_normalize(p), PathBuf::from("a/c"));
+/// assert_eq!(ito_config::ito_dir::lexical_normalize(p), PathBuf::from("a/c"));
 ///
 /// let abs = Path::new("/a/b/../c");
-/// assert_eq!(super::lexical_normalize(abs), PathBuf::from("/a/c"));
+/// assert_eq!(ito_config::ito_dir::lexical_normalize(abs), PathBuf::from("/a/c"));
 ///
 /// let up = Path::new("../a/../b");
-/// assert_eq!(super::lexical_normalize(up), PathBuf::from("../b"));
+/// assert_eq!(ito_config::ito_dir::lexical_normalize(up), PathBuf::from("../b"));
 /// ```
 pub fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component;

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use ito_test_support::pty::{run_pty_interactive, run_pty_interactive_with_env};
 use ito_test_support::run_rust_candidate;
 
 fn write(path: impl AsRef<Path>, contents: &str) {
@@ -60,6 +61,235 @@ fn write_complete_change(repo: &Path, change_id: &str) {
 
 fn reset_repo(dst: &Path, src: &Path) {
     ito_test_support::reset_dir(dst, src).unwrap();
+}
+
+#[cfg(unix)]
+fn write_executable(path: impl AsRef<Path>, contents: &str) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    std::fs::write(path, contents).unwrap();
+    let mut perms = std::fs::metadata(path).unwrap().permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(path, perms).unwrap();
+}
+
+#[cfg(unix)]
+fn make_fake_opencode(bin_dir: &Path, exit_code: i32) {
+    let script = format!(
+        "#!/bin/sh\n\
+echo OPENCODE_ARGS:$*\n\
+echo '<promise>COMPLETE</promise>'\n\
+exit {exit_code}\n"
+    );
+    write_executable(bin_dir.join("opencode"), &script);
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_interactive_options_wizard_prompts_for_missing_values_and_applies_them() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    make_fake_opencode(bin.path(), 0);
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    // Prompts (in order): Harness (enter default), Model, Min, Max, no-commit (y), allow-all (y), exit-on-error (enter default)
+    //
+    // Note: dialoguer Confirm accepts a single keypress (y/n) without requiring Enter.
+    // If we include a trailing newline after 'y', that newline can be consumed by the
+    // next prompt and shift the input sequence.
+    let input = "\nexample-model\n2\n2\nyy\n";
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &["ralph", "--skip-validation", "do-work"],
+        repo.path(),
+        home.path(),
+        input,
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("--- Ralph Options ---"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("(harness: opencode)"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("-m example-model"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(out.stdout.contains("--yolo"), "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("=== Ralph Loop Iteration 2 ==="),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_interactive_options_wizard_exit_on_error_stops_on_nonzero_harness_exit() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    make_fake_opencode(bin.path(), 42);
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    // Prompts (in order): Harness (enter default), Model (blank), Min (default), Max (blank), no-commit (y), allow-all (default), exit-on-error (y)
+    let input = "\n\n\n\ny\ny";
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &["ralph", "--skip-validation", "do-work"],
+        repo.path(),
+        home.path(),
+        input,
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("exited with code 42"),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+fn ralph_interactive_prompts_and_runs_selected_changes_sequentially() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    // Add a second change so interactive selection has multiple items.
+    write_complete_change(repo.path(), "000-02_other");
+
+    // MultiSelect: space toggles selection, arrows move, enter confirms.
+    // Then the interactive options wizard prompts for any missing values.
+    //
+    // Select first + second change, then accept defaults for:
+    // - model (blank)
+    // - allow-all (false)
+    // - exit-on-error (false)
+    let input = " \x1b[B \n\n\n\n";
+    let out = run_pty_interactive(
+        rust_path,
+        &[
+            "ralph",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+        input,
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    assert!(
+        out.stdout.contains("=== Ralph Selection 1/2"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("Starting Ralph for 000-01_test-change"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("Starting Ralph for 000-02_other"),
+        "stdout={}",
+        out.stdout
+    );
+
+    assert!(
+        repo.path()
+            .join(".ito/.state/ralph/000-01_test-change/state.json")
+            .exists()
+    );
+    assert!(
+        repo.path()
+            .join(".ito/.state/ralph/000-02_other/state.json")
+            .exists()
+    );
+}
+
+#[test]
+fn ralph_interactive_status_prompts_for_exactly_one_change() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write_complete_change(repo.path(), "000-02_other");
+
+    // Select default (first) change.
+    let out = run_pty_interactive(
+        rust_path,
+        &["ralph", "--status"],
+        repo.path(),
+        home.path(),
+        "\n",
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    assert!(
+        out.stdout.contains("Ralph Status for 000-01_test-change"),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+fn ralph_no_interactive_without_target_returns_clear_error() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["ralph", "--no-interactive"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(out.stderr.contains("--change"), "stderr={}", out.stderr);
 }
 
 #[test]

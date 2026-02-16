@@ -230,22 +230,22 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || super::validate::handle_validate_clap(&rt, args),
             );
         }
-        Some(Commands::Ralph(args)) => {
+        Some(Commands::Ralph(ralph_args)) => {
             return util::with_logging(
                 &rt,
                 &command_id,
                 &project_root,
                 &ito_path_for_logging,
-                || commands::handle_ralph_clap(&rt, args),
+                || commands::handle_ralph_clap(&rt, ralph_args, args),
             );
         }
-        Some(Commands::Loop(args)) => {
+        Some(Commands::Loop(ralph_args)) => {
             return util::with_logging(
                 &rt,
                 &command_id,
                 &project_root,
                 &ito_path_for_logging,
-                || commands::handle_loop_clap(&rt, args),
+                || commands::handle_loop_clap(&rt, ralph_args, args),
             );
         }
         Some(Commands::Archive(args)) => {

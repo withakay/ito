@@ -14,7 +14,7 @@ use crate::CmdOutput;
 /// - This helper is intentionally minimal; interactive parity tests can extend
 ///   it to incremental reads/writes.
 pub fn run_pty(program: &Path, args: &[&str], cwd: &Path, home: &Path, input: &str) -> CmdOutput {
-    run_pty_with_interactive(program, args, cwd, home, input, false)
+    run_pty_with_interactive_env(program, args, cwd, home, input, false, &[])
 }
 
 /// Runs a command in a PTY with `ITO_INTERACTIVE=1`.
@@ -28,16 +28,29 @@ pub fn run_pty_interactive(
     home: &Path,
     input: &str,
 ) -> CmdOutput {
-    run_pty_with_interactive(program, args, cwd, home, input, true)
+    run_pty_with_interactive_env(program, args, cwd, home, input, true, &[])
 }
 
-fn run_pty_with_interactive(
+/// Runs a command in a PTY with `ITO_INTERACTIVE=1` and extra environment variables.
+pub fn run_pty_interactive_with_env(
+    program: &Path,
+    args: &[&str],
+    cwd: &Path,
+    home: &Path,
+    input: &str,
+    env: &[(&str, &str)],
+) -> CmdOutput {
+    run_pty_with_interactive_env(program, args, cwd, home, input, true, env)
+}
+
+fn run_pty_with_interactive_env(
     program: &Path,
     args: &[&str],
     cwd: &Path,
     home: &Path,
     input: &str,
     interactive: bool,
+    env: &[(&str, &str)],
 ) -> CmdOutput {
     let pty_system = native_pty_system();
     let pair = pty_system
@@ -62,6 +75,10 @@ fn run_pty_with_interactive(
     cmd.env("TERM", "dumb");
     cmd.env("HOME", home);
     cmd.env("XDG_DATA_HOME", home);
+
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
 
     let mut child = pair.slave.spawn_command(cmd).expect("spawn_command");
     drop(pair.slave);

@@ -41,8 +41,8 @@ ______________________________________________________________________
   - `ito ralph` prompts and runs selected change(s)
   - `ito ralph --module 002` prompts when multiple changes exist
   - `ito ralph --no-interactive` without an explicit target fails with a clear error
-- **Updated At**: 2026-02-04
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ### Task 1.2: Improve core error messaging for missing interactive selection
 
@@ -54,8 +54,8 @@ ______________________________________________________________________
   - do not imply a missing feature once the CLI implements selection
 - **Verify**: `make check`
 - **Done When**: error output is actionable and no longer claims the feature is unimplemented
-- **Updated At**: 2026-02-04
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -67,5 +67,5 @@ ______________________________________________________________________
 - **Dependencies**: All Wave 1 tasks
 - **Action**: Review the implementation before proceeding
 - **Done When**: User confirms implementation is correct
-- **Updated At**: 2026-02-04
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-16
+- **Status**: [x] complete
