@@ -58,9 +58,18 @@ This skill includes templates for different research and review activities. Use 
 
 ## Output Location
 
-Save research outputs to:
-- `.ito/research/{{topic}}/` for feature/technology research
-- `.ito/changes/{{change_id}}/reviews/` for change reviews
+Save research outputs under the Ito directory.
+
+If you need absolute paths at runtime:
+
+```bash
+ITO_ROOT="$(ito path ito-root)"
+```
+
+Then save to:
+
+- `$ITO_ROOT/research/{{topic}}/` for feature/technology research
+- `$ITO_ROOT/changes/{{change_id}}/reviews/` for change reviews
 
 ## Example Usage
 
@@ -99,6 +108,6 @@ Agent: I'll use @review-security.md to audit the change:
 Research outputs can feed into change proposals:
 
 1. Complete research using templates above
-2. Save findings to `.ito/research/{{topic}}/`
+2. Save findings to `$ITO_ROOT/research/{{topic}}/`
 3. Reference research in `proposal.md` or `design.md`
 4. Use research to inform `tasks.md` prioritization

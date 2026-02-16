@@ -191,6 +191,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_config_clap(&rt, args),
             );
         }
+        Some(Commands::Path(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || commands::handle_path_clap(&rt, args),
+            );
+        }
 
         #[cfg(feature = "web")]
         Some(Commands::Serve(args)) => {

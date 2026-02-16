@@ -28,6 +28,7 @@ Commands:
   init         Set up Ito in a project [aliases: in]
   update       Refresh Ito instruction files and AI tool configs [aliases: up]
   config       Read and write global Ito settings [aliases: co]
+  path         Print resolved project and worktree paths
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   audit        Query, validate, and manage the audit event log [aliases: au]
   completions  Output shell completion scripts [aliases: cp]
