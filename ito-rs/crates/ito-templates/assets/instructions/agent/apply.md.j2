@@ -164,10 +164,16 @@ ito config set worktrees.strategy checkout_subdir
 Copy local/uncommitted setup files from the main worktree into the change worktree (missing files are skipped):
 
 ```bash
+{% if worktree.strategy == "bare_control_siblings" %}
+MAIN_DIR="${MAIN_DIR:-$(ito path worktree --main)}"
+SOURCE_ROOT="$MAIN_DIR"
+{% else %}
 WORKTREE_ROOT="${WORKTREE_ROOT:-$(ito path worktree-root)}"
+SOURCE_ROOT="$WORKTREE_ROOT"
+{% endif %}
 {% for pattern in worktree.copy_from_main %}
 PATTERN='{{ pattern | replace("'", "'\"'\"'") }}'
-SRC="$WORKTREE_ROOT/$PATTERN"
+SRC="$SOURCE_ROOT/$PATTERN"
 [ -f "$SRC" ] && cp "$SRC" "$CHANGE_DIR/" 2>/dev/null || true
 {% endfor %}
 ```

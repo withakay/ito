@@ -47,6 +47,7 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// - render and print bootstrap, project-setup, worktrees, proposal, apply, or other artifact instructions,
 /// - validate required flags (e.g., `--tool` for `bootstrap`, `--change` for change-scoped artifacts),
 /// - output either plain instruction text or a JSON-wrapped response when `--json` is provided.
+///
 /// It also loads configuration, testing policy, and optional user guidance as needed and surfaces
 /// user-facing error messages for common failure cases.
 ///
@@ -127,9 +128,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-        let mut worktree = worktree_config_from_merged(&cfg.merged, Some(project_root));
-        worktree.worktree_root = Some(project_root.to_string_lossy().to_string());
-        worktree.ito_root = Some(ito_path.to_string_lossy().to_string());
+        let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
         let ito_dir_name = ito_path
             .file_name()
             .and_then(|s| s.to_str())
@@ -703,6 +702,17 @@ fn worktree_config_from_merged(
     out
 }
 
+fn worktree_config_from_merged_with_paths(
+    merged: &serde_json::Value,
+    project_root: &Path,
+    ito_path: &Path,
+) -> WorktreeConfig {
+    let mut out = worktree_config_from_merged(merged, Some(project_root));
+    out.worktree_root = Some(project_root.to_string_lossy().to_string());
+    out.ito_root = Some(ito_path.to_string_lossy().to_string());
+    out
+}
+
 /// Builds a WorktreeConfig from the project's cascading configuration and records the project and `.ito` root paths.
 ///
 /// The returned WorktreeConfig is populated from the merged cascading configuration for `project_root` and `ito_path`.
@@ -723,10 +733,7 @@ fn load_worktree_config(
     ctx: &ito_config::ConfigContext,
 ) -> WorktreeConfig {
     let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    let mut out = worktree_config_from_merged(&cfg.merged, Some(project_root));
-    out.worktree_root = Some(project_root.to_string_lossy().to_string());
-    out.ito_root = Some(ito_path.to_string_lossy().to_string());
-    out
+    worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path)
 }
 
 /// Render and print the apply instructions using the agent apply template.

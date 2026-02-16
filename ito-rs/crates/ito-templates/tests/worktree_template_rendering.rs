@@ -263,8 +263,12 @@ fn agents_md_bare_control_siblings() {
     assert!(text.contains("ito-worktrees/"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
+    let layout_line = text
+        .lines()
+        .find(|l| l.contains("# bare/control repo"))
+        .expect("should contain bare/control repo layout line");
     assert!(
-        text.contains("../                              # bare/control repo"),
+        layout_line.contains("../"),
         "should show repo-relative bare/control layout"
     );
     assert_no_absolute_project_root(&text, &ctx.project_root, "agents_md_bare_control_siblings");
