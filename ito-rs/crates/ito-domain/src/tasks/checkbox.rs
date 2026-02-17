@@ -1,6 +1,18 @@
-//! Checkbox-format helpers.
-
-/// Return true if `id` looks like a checkbox task id token (e.g. `1`, `1.1`, `2.3.4`).
+/// Determines whether `id` looks like a checkbox task id token (e.g., `1`, `1.1`, `2.3.4`).
+///
+/// The token must be non-empty, start and end with an ASCII digit, contain only ASCII digits and
+/// single dot separators, and must not contain consecutive dots.
+///
+/// # Examples
+///
+/// ```
+/// assert!(is_checkbox_task_id_token("1"));
+/// assert!(is_checkbox_task_id_token("1.2.3"));
+/// assert!(!is_checkbox_task_id_token(""));
+/// assert!(!is_checkbox_task_id_token(".1"));
+/// assert!(!is_checkbox_task_id_token("1."));
+/// assert!(!is_checkbox_task_id_token("1..2"));
+/// ```
 pub(super) fn is_checkbox_task_id_token(id: &str) -> bool {
     let bytes = id.as_bytes();
     if bytes.is_empty() {
@@ -28,9 +40,19 @@ pub(super) fn is_checkbox_task_id_token(id: &str) -> bool {
     true
 }
 
-/// If `s` begins with an id token (like `1.1`) followed by whitespace, split it into (id, rest).
+/// Splits a string that begins with a checkbox-like ID token and returns the token and the remaining text.
 ///
-/// Also tolerates `:` or `.` suffix on the token (`1.1:` / `1.1.`).
+/// Trims leading ASCII whitespace, accepts an ID token composed of digits separated by single dots (e.g., `1`, `1.1`, `2.3.4`),
+/// and tolerates an optional trailing `:` or `.` on the token. Returns `None` if the input is empty, contains no ASCII whitespace
+/// after a candidate token, or the token is not a valid checkbox task ID.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(split_checkbox_task_label("1.1: do this"), Some(("1.1", "do this")));
+/// assert_eq!(split_checkbox_task_label("  2.3.4. do that"), Some(("2.3.4", "do that")));
+/// assert_eq!(split_checkbox_task_label("no-id here"), None);
+/// ```
 pub(super) fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
     let s = s.trim_start();
     if s.is_empty() {

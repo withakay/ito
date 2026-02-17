@@ -120,6 +120,36 @@ fn parse_enhanced_tasks_accepts_all_prior_tasks_dependency_shorthand() {
     assert_eq!(parsed.tasks[0].dependencies, Vec::<String>::new());
 }
 
+/// Verifies that wave heading titles like "Wave 1: ..." and "Wave 2 - ..." are recognized and assign the correct wave numbers to tasks when parsing Enhanced-format documents.
+///
+/// # Examples
+///
+/// ```
+/// let md = r#"
+/// ## Wave 1: Foundations
+/// - **Depends On**: None
+///
+/// ### Task 1.1: A
+/// - **Dependencies**: None
+/// - **Updated At**: 2026-01-28
+/// - **Status**: [ ] pending
+///
+/// ## Wave 2 - Next
+/// - **Depends On**: Wave 1
+///
+/// ### Task 2.1: B
+/// - **Dependencies**: None
+/// - **Updated At**: 2026-01-28
+/// - **Status**: [ ] pending
+/// "#;
+///
+/// let parsed = tasks::parse_tasks_tracking_file(md);
+/// assert!(parsed.diagnostics.is_empty());
+/// assert_eq!(parsed.waves.len(), 2);
+/// assert_eq!(parsed.tasks.len(), 2);
+/// assert_eq!(parsed.tasks[0].wave, Some(1));
+/// assert_eq!(parsed.tasks[1].wave, Some(2));
+/// ```
 #[test]
 fn parse_enhanced_tasks_accepts_wave_heading_titles() {
     let md = r#"
