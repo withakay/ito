@@ -81,10 +81,12 @@ fn enhanced_format_handles_task_without_wave() {
     assert_eq!(parsed.tasks.len(), 1);
     assert_eq!(parsed.tasks[0].wave, None);
     // Should have a warning about being outside wave section
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.message.contains("outside any Wave section")));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("outside any Wave section"))
+    );
 }
 
 #[test]
@@ -233,10 +235,12 @@ fn enhanced_format_validates_date_format_strictly() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.message.contains("Invalid Updated At date")));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Invalid Updated At date"))
+    );
 }
 
 #[test]
@@ -247,10 +251,12 @@ fn enhanced_format_validates_missing_required_fields() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.message.contains("Invalid or missing status")));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Invalid or missing status"))
+    );
 }
 
 #[test]
@@ -262,10 +268,12 @@ fn enhanced_format_handles_status_marker_mismatch() {
 
     let parsed = tasks::parse_tasks_tracking_file(md);
     // Should have a warning about marker mismatch
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.message.contains("Only complete tasks should use [x]")));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Only complete tasks should use [x]"))
+    );
 }
 
 #[test]
@@ -336,10 +344,12 @@ fn wave_dependencies_detect_forward_references() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.message.contains("depends on missing Wave 2")));
+    assert!(
+        parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("depends on missing Wave 2"))
+    );
 }
 
 #[test]

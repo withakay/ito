@@ -401,7 +401,10 @@ fn parse_enhanced_tasks_handles_multiline_action() {
 
     let parsed = tasks::parse_tasks_tracking_file(md);
     assert_eq!(parsed.tasks.len(), 1);
-    assert_eq!(parsed.tasks[0].action, "First line\nSecond line\nThird line");
+    assert_eq!(
+        parsed.tasks[0].action,
+        "First line\nSecond line\nThird line"
+    );
 }
 
 #[test]

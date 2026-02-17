@@ -56,9 +56,11 @@ fn validate_relational_detects_duplicate_task_ids() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Duplicate task id")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Duplicate task id"))
+    );
 }
 
 #[test]
@@ -67,9 +69,11 @@ fn validate_relational_detects_missing_task_dependencies() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Missing dependency: missing")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Missing dependency: missing"))
+    );
 }
 
 #[test]
@@ -78,9 +82,11 @@ fn validate_relational_detects_self_referencing_task() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("cannot depend on itself")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("cannot depend on itself"))
+    );
 }
 
 #[test]
@@ -92,9 +98,11 @@ fn validate_relational_detects_cross_wave_task_dependencies() {
     let waves = vec![wave(1, &[], 0), wave(2, &[], 1)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Cross-wave dependency")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Cross-wave dependency"))
+    );
 }
 
 #[test]
@@ -106,9 +114,11 @@ fn validate_relational_detects_dependency_on_shelved_task() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Dependency is shelved")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Dependency is shelved"))
+    );
 }
 
 #[test]
@@ -121,9 +131,11 @@ fn validate_relational_allows_shelved_task_depending_on_shelved_task() {
 
     let diagnostics = validate_relational(&tasks, &waves);
     // Should not have "Dependency is shelved" error since both are shelved
-    assert!(!diagnostics
-        .iter()
-        .any(|d| d.message.contains("Dependency is shelved")));
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d.message.contains("Dependency is shelved"))
+    );
 }
 
 #[test]
@@ -135,9 +147,11 @@ fn validate_relational_detects_task_dependency_cycle() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Dependency cycle detected")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Dependency cycle detected"))
+    );
 }
 
 #[test]
@@ -150,9 +164,11 @@ fn validate_relational_detects_three_node_task_cycle() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Dependency cycle detected")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Dependency cycle detected"))
+    );
     let cycle_diag = diagnostics
         .iter()
         .find(|d| d.message.contains("Dependency cycle"))
@@ -168,14 +184,22 @@ fn validate_relational_detects_wave_dependency_cycle() {
     let waves = vec![wave(1, &[2], 0), wave(2, &[1], 1)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Wave dependency cycle detected")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Wave dependency cycle detected"))
+    );
 }
 
 #[test]
 fn validate_relational_ignores_empty_and_checkpoint_dependencies() {
-    let tasks = vec![task("1.1", Some(1), TaskStatus::Pending, &["", "Checkpoint"], 0)];
+    let tasks = vec![task(
+        "1.1",
+        Some(1),
+        TaskStatus::Pending,
+        &["", "Checkpoint"],
+        0,
+    )];
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
@@ -199,17 +223,27 @@ fn validate_relational_handles_tasks_without_wave() {
 #[test]
 fn validate_relational_multiple_errors_for_same_task() {
     // Task with both missing dependency and self-reference
-    let tasks = vec![task("1.1", Some(1), TaskStatus::Pending, &["missing", "1.1"], 0)];
+    let tasks = vec![task(
+        "1.1",
+        Some(1),
+        TaskStatus::Pending,
+        &["missing", "1.1"],
+        0,
+    )];
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
     assert!(diagnostics.len() >= 2);
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("Missing dependency")));
-    assert!(diagnostics
-        .iter()
-        .any(|d| d.message.contains("cannot depend on itself")));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("Missing dependency"))
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("cannot depend on itself"))
+    );
 }
 
 #[test]
@@ -247,7 +281,9 @@ fn validate_relational_marks_errors_as_error_level() {
     let waves = vec![wave(1, &[], 0)];
 
     let diagnostics = validate_relational(&tasks, &waves);
-    assert!(diagnostics
-        .iter()
-        .all(|d| d.level == DiagnosticLevel::Error));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|d| d.level == DiagnosticLevel::Error)
+    );
 }

@@ -234,7 +234,10 @@ fn update_enhanced_task_status_only_updates_specified_task() {
 
     // Second task should be unchanged
     let lines: Vec<&str> = out.lines().collect();
-    let second_task_start = lines.iter().position(|&l| l.contains("### Task 1.2")).unwrap();
+    let second_task_start = lines
+        .iter()
+        .position(|&l| l.contains("### Task 1.2"))
+        .unwrap();
     let second_status_line = lines[second_task_start..]
         .iter()
         .find(|&&l| l.contains("- **Status**:"))
