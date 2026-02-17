@@ -1,5 +1,5 @@
 use ito_config::ConfigContext;
-use ito_core::templates::{compute_change_status, ArtifactStatus, WorkflowError};
+use ito_core::templates::{ArtifactStatus, WorkflowError, compute_change_status};
 
 fn find_artifact<'a>(artifacts: &'a [ArtifactStatus], id: &str) -> &'a ArtifactStatus {
     for artifact in artifacts {

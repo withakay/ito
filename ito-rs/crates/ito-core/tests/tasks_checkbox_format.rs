@@ -1,4 +1,4 @@
-use ito_core::tasks::{complete_task, get_next_task, shelve_task, start_task, TaskStatus};
+use ito_core::tasks::{TaskStatus, complete_task, get_next_task, shelve_task, start_task};
 use std::path::Path;
 
 fn write(path: &Path, contents: &str) {

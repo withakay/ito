@@ -1,6 +1,6 @@
 use ito_core::tasks::{
-    add_task, complete_task, get_next_task, init_tasks, shelve_task, start_task, unshelve_task,
-    TaskStatus,
+    TaskStatus, add_task, complete_task, get_next_task, init_tasks, shelve_task, start_task,
+    unshelve_task,
 };
 use std::path::Path;
 
