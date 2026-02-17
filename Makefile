@@ -272,18 +272,17 @@ release: ## Create/update release PR via release-plz
 	fi; \
 	$(MAKE) release-plz-release-pr
 
-version-bump: ## Bump workspace version (BUMP=none|patch|minor|major)
-	@set -e; \
-	MANIFEST="Cargo.toml"; \
-	STAMP=$$(date +%Y%m%d%H%M); \
-	NEW_VERSION=$$(python3 "ito-rs/tools/version_bump.py" --manifest "$$MANIFEST" --stamp "$$STAMP" --bump "$(BUMP)"); \
-	echo "Bumped workspace version to $$NEW_VERSION"
+version-bump: ## Deprecated (use release-plz)
+	@echo "ERROR: 'make version-bump' is deprecated."; \
+	echo "  Do not rewrite Cargo.toml versions for local builds."; \
+	echo "  Use release-plz for release versioning, and ITO_LOCAL_VERSION_STAMP for local build identifiers."; \
+	exit 1
 
-version-sync: ## Sync workspace/crate versions to workspace version + stamp
-	@set -e; \
-	STAMP=$$(date +%Y%m%d%H%M); \
-	NEW_VERSION=$$(python3 "ito-rs/tools/sync_versions.py" --stamp "$$STAMP"); \
-	echo "Synced workspace/crate versions to $$NEW_VERSION"
+version-sync: ## Deprecated (do not rewrite Cargo.toml)
+	@echo "ERROR: 'make version-sync' is deprecated."; \
+	echo "  It used to stamp Cargo.toml versions with -local.* which must never be committed."; \
+	echo "  For local build identifiers, set ITO_LOCAL_VERSION_STAMP=YYYYMMDDHHMM when building."; \
+	exit 1
 
 version-bump-patch: ## Bump patch version (x.y.z -> x.y.(z+1)) + stamp
 	$(MAKE) version-bump BUMP=patch
@@ -335,7 +334,8 @@ rust-lint: ## Run Rust fmt/clippy
 
 rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_DIR=...)
 	@set -e; \
-	$(MAKE) rust-build-release; \
+	STAMP=$${ITO_LOCAL_VERSION_STAMP:-$$(date +%Y%m%d%H%M)}; \
+	ITO_LOCAL_VERSION_STAMP="$$STAMP" $(MAKE) rust-build-release; \
 	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
 	mkdir -p "$$INSTALL_DIR"; \
 	cp "target/release/ito" "$$INSTALL_DIR/ito"; \
@@ -345,11 +345,12 @@ rust-install: ## Install Rust ito as 'ito' into ~/.local/bin (override INSTALL_D
 	fi; \
 	"$$INSTALL_DIR/ito" --version
 
-install: version-sync rust-install ## Sync workspace version stamp + install Rust ito as 'ito'
+install: rust-install ## Install Rust ito as 'ito'
 
 dev: ## Build and install debug version with git info (fast iteration)
 	@set -e; \
-	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito; \
+	STAMP=$${ITO_LOCAL_VERSION_STAMP:-$$(date +%Y%m%d%H%M)}; \
+	ITO_LOCAL_VERSION_STAMP="$$STAMP" $(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito; \
 	INSTALL_DIR=$${INSTALL_DIR:-$${HOME}/.local/bin}; \
 	mkdir -p "$$INSTALL_DIR"; \
 	cp "target/debug/ito" "$$INSTALL_DIR/ito"; \
