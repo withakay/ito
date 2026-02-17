@@ -59,3 +59,7 @@ pub(super) fn find_cycle_path(edges: &[(String, String)]) -> Option<String> {
     let path: Option<String> = stmt.query_row([], |row| row.get(0)).optional().ok()?;
     path.map(|p| p.trim_matches('|').replace('|', " -> "))
 }
+
+#[cfg(test)]
+#[path = "cycle_tests.rs"]
+mod cycle_tests;
