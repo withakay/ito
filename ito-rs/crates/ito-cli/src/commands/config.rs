@@ -211,3 +211,6 @@ fn json_render_value(v: &serde_json::Value) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod config_tests;
