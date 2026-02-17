@@ -100,7 +100,6 @@ repos:
         args: [test-affected]
         pass_filenames: false
         files: ^(ito-rs/.*\.(rs|toml|lock)|Cargo\.toml|Cargo\.lock)$
-        stages: [pre-push]
 
       - id: check-max-lines
         name: check max lines (ito-rs)

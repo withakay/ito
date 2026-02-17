@@ -17,6 +17,8 @@ The module's defining file (`foo.rs` or `foo/mod.rs`) MUST include the sibling t
 - **THEN** unit tests for `foo` MUST be implemented in `foo_tests.rs`
 - **AND** `foo.rs` MUST declare `#[cfg(test)] mod foo_tests;`
 
+Note: We use the explicit `foo_tests` name (instead of a generic `tests`) to make the mapping from `foo.rs` to its sibling test module obvious and easy to search. Rust's module system would prevent conflicts either way; we prefer the explicit pattern for clarity.
+
 #### Scenario: Directory-based module uses sibling test file
 
 - **WHEN** a module `foo` is defined by `foo/mod.rs`
@@ -26,5 +28,5 @@ The module's defining file (`foo.rs` or `foo/mod.rs`) MUST include the sibling t
 #### Scenario: Inline unit test modules are avoided
 
 - **WHEN** adding or modifying unit tests for a module
-- **THEN** tests MUST NOT be added as an inline `#[cfg(test)] mod tests { ... }` block in production code
+- **THEN** tests MUST NOT be added as an inline `#[cfg(test)] mod tests { ... }` block in the module's source file
 - **AND** the tests MUST be placed in the module's sibling `*_tests.rs` file instead

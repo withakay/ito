@@ -68,7 +68,7 @@ ______________________________________________________________________
 ### Task 2.1: Migrate existing inline unit tests to sibling files
 
 - **Files**: `ito-rs/crates/**/src/**/*.rs`
-- **Dependencies**: None
+- **Dependencies**: Wave 1
 - **Action**:
   Move existing unit tests out of production modules and into the corresponding sibling `*_tests.rs` files, updating module declarations and imports so behavior stays identical.
 - **Verify**: `cargo test --workspace`
