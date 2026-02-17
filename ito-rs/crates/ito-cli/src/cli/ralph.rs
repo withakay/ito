@@ -113,3 +113,6 @@ pub struct RalphArgs {
     #[arg(value_name = "PROMPT", num_args = 0.., trailing_var_arg = true)]
     pub prompt: Vec<String>,
 }
+
+#[cfg(test)]
+mod ralph_tests;

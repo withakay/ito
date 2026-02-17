@@ -74,6 +74,7 @@ fn run_pty_with_interactive_env(
     cmd.env("ITO_INTERACTIVE", interactive_value);
     cmd.env("TERM", "dumb");
     cmd.env("HOME", home);
+    cmd.env("XDG_CONFIG_HOME", home.join(".config"));
     cmd.env("XDG_DATA_HOME", home);
 
     for (k, v) in env {

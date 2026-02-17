@@ -178,8 +178,8 @@ ito tasks complete 003-02_crate-code-quality-audit 1.1
   - Remove duplicate tests
 - **Verify**: `cargo test -p ito-core && cargo llvm-cov -p ito-core --summary-only`
 - **Done When**: Code simplified, all files <1000 lines, coverage >= 80%
-- **Updated At**: 2026-02-01
-- **Status**: [ ] in-progress
+- **Updated At**: 2026-02-17
+- **Status**: [x] complete
 
 ### Task 5.2: Simplify and test ito-cli
 
@@ -193,8 +193,8 @@ ito tasks complete 003-02_crate-code-quality-audit 1.1
   - Remove duplicate tests
 - **Verify**: `cargo test -p ito-cli && cargo llvm-cov -p ito-cli --summary-only`
 - **Done When**: Code simplified, coverage >= 80%
-- **Updated At**: 2026-01-31
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-17
+- **Status**: [x] complete
 
 ---
 
@@ -213,8 +213,8 @@ ito tasks complete 003-02_crate-code-quality-audit 1.1
   - Document any exceptions with justification
 - **Verify**: `cargo llvm-cov --workspace --summary-only && wc -l ito-rs/crates/*/src/**/*.rs | sort -rn | head -10`
 - **Done When**: Overall coverage >= 80%, all files < 1000 lines, or exceptions documented
-- **Updated At**: 2026-01-31
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-17
+- **Status**: [x] complete
 
 ### Task 6.2: Review and checkpoint
 
@@ -227,8 +227,8 @@ ito tasks complete 003-02_crate-code-quality-audit 1.1
   - Verify file size compliance
   - Approve for archive
 - **Done When**: Human approves changes
-- **Updated At**: 2026-01-31
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-17
+- **Status**: [x] complete
 
 ---
 

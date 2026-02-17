@@ -262,3 +262,6 @@ pub(crate) fn load_worktree_result_from_config(config_path: &Path) -> WorktreeWi
         integration_mode,
     }
 }
+
+#[cfg(test)]
+mod worktree_wizard_tests;
