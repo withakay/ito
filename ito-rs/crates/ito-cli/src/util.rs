@@ -41,7 +41,7 @@ where
         project_root,
         Some(ito_path_for_logging),
         command_id,
-        env!("CARGO_PKG_VERSION"),
+        option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
     );
     let started = std::time::Instant::now();
     if let Some(l) = &logger {
