@@ -2,24 +2,143 @@
  * Ito OpenCode Plugin
  *
  * Injects Ito bootstrap context via system prompt transform.
+ * Runs Ito audit checks on pre-tool hook with short TTL caching.
  * Skills are resolved from ${OPENCODE_CONFIG_DIR}/skills/ito-skills/
  * (never via relative paths to the plugin file).
  */
 
 import os from 'os';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
+
+const DEFAULT_AUDIT_TTL_MS = 10000;
+const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
+
+const MUTATING_TOOLS = new Set([
+  'Edit',
+  'Write',
+  'Bash',
+  'MultiEdit',
+  'Task',
+  'TodoWrite',
+  'apply_patch'
+]);
 
 export const ItoPlugin = async ({ client, directory }) => {
   const homeDir = os.homedir();
   const envConfigDir = process.env.OPENCODE_CONFIG_DIR?.trim();
   const configDir = envConfigDir || path.join(homeDir, '.config/opencode');
   const skillsDir = path.join(configDir, 'skills', 'ito-skills');
+  const ttlMs = Number.parseInt(process.env.ITO_OPENCODE_AUDIT_TTL_MS || '', 10);
+  const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
+  const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX === '1';
+  const disableAuditHook = process.env.ITO_OPENCODE_AUDIT_DISABLED === '1';
+
+  let lastAuditAt = 0;
+  let lastAudit = null;
+  let pendingAuditNotice = null;
+
+  const runIto = (args) => {
+    try {
+      const stdout = execFileSync('ito', args, {
+        cwd: directory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      return {
+        ok: true,
+        code: 0,
+        stdout: (stdout || '').trim(),
+        stderr: ''
+      };
+    } catch (error) {
+      const stdout = typeof error.stdout === 'string' ? error.stdout : '';
+      const stderr = typeof error.stderr === 'string' ? error.stderr : '';
+      const code = typeof error.status === 'number' ? error.status : 1;
+
+      return {
+        ok: false,
+        code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim()
+      };
+    }
+  };
+
+  const summarize = (result) => {
+    const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+    if (output.length === 0) {
+      return `exit ${result.code}`;
+    }
+
+    const firstLine = output.split(/\r?\n/)[0].trim();
+    return firstLine.length > 280 ? `${firstLine.slice(0, 277)}...` : firstLine;
+  };
+
+  const detectDrift = (reconcileResult) => {
+    if (!reconcileResult.ok) {
+      return true;
+    }
+
+    const output = [reconcileResult.stdout, reconcileResult.stderr].join('\n');
+    return DRIFT_RELATED_TEXT.test(output);
+  };
+
+  const runAuditChecks = () => {
+    const validateResult = runIto(['audit', 'validate']);
+    if (!validateResult.ok) {
+      return {
+        hardFailure: true,
+        message: `Ito audit validation failed: ${summarize(validateResult)}`
+      };
+    }
+
+    const reconcileResult = runIto(['audit', 'reconcile']);
+    const driftDetected = detectDrift(reconcileResult);
+
+    if (!driftDetected) {
+      return {
+        hardFailure: false,
+        notice: null
+      };
+    }
+
+    if (autoFixDrift) {
+      const fixResult = runIto(['audit', 'reconcile', '--fix']);
+      const fixSummary = summarize(fixResult);
+      return {
+        hardFailure: false,
+        notice: fixResult.ok
+          ? `[Ito Audit] Drift detected and reconciled: ${fixSummary}`
+          : `[Ito Audit] Drift detected; auto-fix failed: ${fixSummary}`
+      };
+    }
+
+    return {
+      hardFailure: false,
+      notice: `[Ito Audit] Drift detected: ${summarize(reconcileResult)}`
+    };
+  };
+
+  const maybeRunAudit = (toolName) => {
+    const now = Date.now();
+    const isMutatingTool = MUTATING_TOOLS.has(toolName);
+    const cacheExpired = now - lastAuditAt > auditTtlMs;
+
+    if (!lastAudit || cacheExpired || isMutatingTool) {
+      lastAudit = runAuditChecks();
+      lastAuditAt = now;
+    }
+
+    return lastAudit;
+  };
 
   // Get bootstrap content from Ito CLI
   const getBootstrapContent = () => {
     try {
-      const bootstrap = execSync('ito agent instruction bootstrap --tool opencode', {
+      const bootstrap = execFileSync('ito', ['agent', 'instruction', 'bootstrap', '--tool', 'opencode'], {
+        cwd: directory,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore']
       }).trim();
@@ -68,11 +187,46 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
   };
 
   return {
+    'tool.execute.before': async (input, output) => {
+      if (disableAuditHook) {
+        return;
+      }
+
+      const toolName = input?.tool?.name || input?.toolName || '';
+      const audit = maybeRunAudit(toolName);
+
+      if (audit?.hardFailure) {
+        throw new Error(`${audit.message}. Run \`ito audit validate\` and \`ito audit reconcile --fix\`.`);
+      }
+
+      if (audit?.notice) {
+        pendingAuditNotice = audit.notice;
+        if (output && typeof output === 'object') {
+          if (Array.isArray(output.system)) {
+            output.system.push(audit.notice);
+          } else {
+            output.system = [audit.notice];
+          }
+        }
+      }
+    },
+
     // Use system prompt transform to inject bootstrap
     'experimental.chat.system.transform': async (_input, output) => {
       const bootstrap = getBootstrapContent();
       if (bootstrap) {
-        (output.system ||= []).push(bootstrap);
+        if (!Array.isArray(output.system)) {
+          output.system = [];
+        }
+        output.system.push(bootstrap);
+      }
+
+      if (pendingAuditNotice) {
+        if (!Array.isArray(output.system)) {
+          output.system = [];
+        }
+        output.system.push(pendingAuditNotice);
+        pendingAuditNotice = null;
       }
     }
   };

@@ -340,11 +340,10 @@ fn init_with_tools_csv_installs_selected_adapters() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
     assert!(repo.path().join(".claude/session-start.sh").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
     assert!(!repo.path().join(".opencode").exists());
 }
 
@@ -376,6 +375,37 @@ fn init_tools_csv_ignores_empty_segments() {
 }
 
 #[test]
+fn init_opencode_installs_audit_hook_plugin() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "opencode",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let plugin_path = repo.path().join(".opencode/plugins/ito-skills.js");
+    assert!(plugin_path.exists(), "OpenCode plugin should be installed");
+
+    let plugin = std::fs::read_to_string(plugin_path).unwrap();
+    assert!(plugin.contains("tool.execute.before"));
+    assert!(plugin.contains("ito audit validate"));
+    assert!(plugin.contains("ito audit reconcile"));
+}
+
+#[test]
 fn init_refuses_to_overwrite_existing_file_without_markers_when_not_forced() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -391,10 +421,9 @@ fn init_refuses_to_overwrite_existing_file_without_markers_when_not_forced() {
     let argv = fixtures::args_to_strs(&args);
     let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
     assert_ne!(out.code, 0);
-    assert!(
-        out.stderr
-            .contains("Refusing to overwrite existing file without markers")
-    );
+    assert!(out
+        .stderr
+        .contains("Refusing to overwrite existing file without markers"));
 }
 
 // PTY-based interactive tests are skipped on Windows and in CI due to platform
@@ -437,11 +466,10 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
     // Spot-check adapter outputs from both Claude + OpenCode.
     assert!(repo.path().join(".claude/session-start.sh").exists());
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 
     // Worktree config should be persisted to the per-dev overlay `.ito/config.local.json`.
     let config_path = repo.path().join(".ito/config.local.json");
