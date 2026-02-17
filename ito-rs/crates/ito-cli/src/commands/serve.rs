@@ -6,14 +6,15 @@ use std::process::Command;
 
 /// Detect the Tailscale IPv4 address by running `tailscale ip -4`.
 fn detect_tailscale_ip() -> CliResult<String> {
-    let output = Command::new("tailscale")
-        .args(["ip", "-4"])
-        .output()
-        .map_err(|e| {
-            crate::cli_error::CliError::msg(format!(
-                "Failed to run 'tailscale ip -4': {e}. Is Tailscale installed and on PATH?"
-            ))
-        })?;
+    detect_tailscale_ip_with(Path::new("tailscale"))
+}
+
+fn detect_tailscale_ip_with(cmd: &Path) -> CliResult<String> {
+    let output = Command::new(cmd).args(["ip", "-4"]).output().map_err(|e| {
+        crate::cli_error::CliError::msg(format!(
+            "Failed to run 'tailscale ip -4': {e}. Is Tailscale installed and on PATH?"
+        ))
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -73,3 +74,6 @@ pub(crate) fn handle_serve_clap(rt: &Runtime, args: &ServeArgs) -> CliResult<()>
 
     Ok(())
 }
+
+#[cfg(test)]
+mod serve_tests;
