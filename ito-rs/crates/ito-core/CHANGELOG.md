@@ -8,9 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ## [0.1.6] - 2026-02-17
 
+### 🚀 Features
+
+- *(002-15)* Add retriable exit code handling for harness crashes
+- *(019-01)* Normalize all output paths to absolute
+- *(002-16)* Ralph worktree awareness ([#60](https://github.com/withakay/ito/pull/60))
+- *(002-09)* Add interactive ralph mode ([#64](https://github.com/withakay/ito/pull/64))
+- *(019-01)* Add ito path helpers for agent output ([#65](https://github.com/withakay/ito/pull/65))
+
+### 🐛 Bug Fixes
+
+- Address PR #58 review feedback from Gemini and CodeRabbit
+
+### 🚜 Refactor
+
+- *(002-15)* Introduce CliHarness trait and deduplicate CLI harnesses
+- *(harness)* Migrate HarnessName from struct to enum
+
+### 🎨 Styling
+
+- Sort imports alphabetically in ito-cli and ito-core
+
 ### 🧪 Testing
 
-- *(003-02)* Raise crate coverage to 80% ([#75](https://github.com/withakay/ito/pull/75))
+- *(002-15)* Add tests for retriable harness exit code behavior
 ## [0.1.4] - 2026-02-13
 
 ### 🚀 Features

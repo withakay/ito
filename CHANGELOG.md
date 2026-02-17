@@ -8,9 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ## [0.1.6] - 2026-02-17
 
+### 🚀 Features
+
+- *(016-10)* Type-safe CLI args via bridge type pattern ([#55](https://github.com/withakay/ito/pull/55))
+- *(019-01)* Normalize all output paths to absolute
+- *(002-16)* Ralph worktree awareness ([#60](https://github.com/withakay/ito/pull/60))
+- *(002-09)* Add interactive ralph mode ([#64](https://github.com/withakay/ito/pull/64))
+- *(019-01)* Add ito path helpers for agent output ([#65](https://github.com/withakay/ito/pull/65))
+
+### 🐛 Bug Fixes
+
+- *(019-01)* Address PR review feedback
+- *(019-01)* Address CodeRabbit nitpicks
+- *(019-01)* Address CodeRabbit nitpicks
+- *(config)* Restore build by removing stray token
+
 ### 🧪 Testing
 
-- *(003-02)* Raise crate coverage to 80% ([#75](https://github.com/withakay/ito/pull/75))
+- *(003-05)* Add unit and integration tests for ralph and harness modules ([#57](https://github.com/withakay/ito/pull/57))
 ## [0.1.4] - 2026-02-13
 
 ### 🚀 Features

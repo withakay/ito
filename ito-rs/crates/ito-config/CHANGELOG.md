@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ## [0.1.6] - 2026-02-17
+
+### 🚀 Features
+
+- *(002-09)* Add interactive ralph mode ([#64](https://github.com/withakay/ito/pull/64))
+- *(019-01)* Add ito path helpers for agent output ([#65](https://github.com/withakay/ito/pull/65))
+
+### 🐛 Bug Fixes
+
+- *(019-01)* Address PR review feedback
+- *(config)* Restore build by removing stray token
 ## [0.1.4] - 2026-02-13
 ## [0.1.3] - 2026-02-11
 
