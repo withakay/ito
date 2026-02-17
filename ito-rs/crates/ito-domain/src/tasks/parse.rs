@@ -301,7 +301,11 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     let mut diagnostics: Vec<TaskDiagnostic> = Vec::new();
     let mut tasks: Vec<TaskItem> = Vec::new();
 
-    let wave_re = Regex::new(r"^##\s+Wave\s+(\d+)\s*$").unwrap();
+    // Accept a strict `## Wave <N>` heading, optionally followed by a human title.
+    // Supported separators after the wave number:
+    // - `:` (e.g. `## Wave 1: Foundations`)
+    // - `-` (e.g. `## Wave 1 - Foundations`)
+    let wave_re = Regex::new("^##\\s+Wave\\s+(\\d+)(?:\\s*(?::|-)\\s*.*)?\\s*$").unwrap();
     let wave_dep_re = Regex::new(r"^\s*[-*]\s+\*\*Depends On\*\*:\s*(.+?)\s*$").unwrap();
     let task_re = Regex::new(r"^###\s+(?:Task\s+)?([^:]+):\s+(.+?)\s*$").unwrap();
     let deps_re = Regex::new(r"\*\*Dependencies\*\*:\s*(.+?)\s*$").unwrap();
@@ -760,7 +764,7 @@ fn parse_dependencies_with_checkpoint(raw: &str, kind: TaskKind) -> (Vec<String>
         }
         return (Vec::new(), None);
     }
-    if lower == "all previous waves" {
+    if lower == "all previous waves" || lower == "all prior tasks" {
         // We don't expand this into explicit deps here.
         return (Vec::new(), None);
     }
