@@ -39,15 +39,7 @@ pub(super) fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
 
     // Slice at the first ASCII whitespace. This is safe because the prefix is ASCII.
     let bytes = s.as_bytes();
-    let mut split_at: Option<usize> = None;
-    for (i, &b) in bytes.iter().enumerate() {
-        if b == b' ' || b == b'\t' {
-            split_at = Some(i);
-            break;
-        }
-    }
-
-    let i = split_at?;
+    let i = bytes.iter().position(|&b| b == b' ' || b == b'\t')?;
     let (token, rest) = s.split_at(i);
     let token = token.strip_suffix(':').unwrap_or(token);
     let token = token.strip_suffix('.').unwrap_or(token);
