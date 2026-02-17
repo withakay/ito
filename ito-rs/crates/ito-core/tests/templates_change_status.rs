@@ -1,5 +1,14 @@
 use ito_config::ConfigContext;
-use ito_core::templates::{WorkflowError, compute_change_status};
+use ito_core::templates::{ArtifactStatus, WorkflowError, compute_change_status};
+
+fn find_artifact<'a>(artifacts: &'a [ArtifactStatus], id: &str) -> &'a ArtifactStatus {
+    for artifact in artifacts {
+        if artifact.id == id {
+            return artifact;
+        }
+    }
+    panic!("artifact not found: {id}");
+}
 
 #[test]
 fn compute_change_status_marks_ready_and_blocked_based_on_generated_files() {
@@ -44,8 +53,8 @@ artifacts:
     assert!(!status.is_complete);
     assert_eq!(status.artifacts.len(), 2);
 
-    let a = status.artifacts.iter().find(|a| a.id == "a").unwrap();
-    let b = status.artifacts.iter().find(|a| a.id == "b").unwrap();
+    let a = find_artifact(&status.artifacts, "a");
+    let b = find_artifact(&status.artifacts, "b");
     assert_eq!(a.status, "ready");
     assert_eq!(b.status, "blocked");
     assert!(b.missing_deps.contains(&"a".to_string()));
@@ -59,8 +68,8 @@ artifacts:
 
     let status = compute_change_status(&ito_path, "demo-change", Some("demo"), &ctx)
         .expect("compute_change_status");
-    let a = status.artifacts.iter().find(|a| a.id == "a").unwrap();
-    let b = status.artifacts.iter().find(|a| a.id == "b").unwrap();
+    let a = find_artifact(&status.artifacts, "a");
+    let b = find_artifact(&status.artifacts, "b");
     assert_eq!(a.status, "done");
     assert_eq!(b.status, "ready");
 
@@ -97,5 +106,7 @@ fn compute_change_status_rejects_invalid_change_name() {
 
     let err = compute_change_status(&ito_path, "../escape", Some("demo"), &ctx)
         .expect_err("invalid change name should error");
-    assert!(matches!(err, WorkflowError::InvalidChangeName));
+    let WorkflowError::InvalidChangeName = err else {
+        panic!("expected InvalidChangeName");
+    };
 }

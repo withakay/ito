@@ -146,11 +146,12 @@ fn audit_subcommands_cover_text_output_limit_reconcile_and_stream() {
         home.path(),
     );
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    let lines: Vec<&str> = out
-        .stdout
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .collect();
+    let mut lines = Vec::new();
+    for line in out.stdout.lines() {
+        if !line.trim().is_empty() {
+            lines.push(line);
+        }
+    }
     assert!(!lines.is_empty());
     for line in lines {
         let _: serde_json::Value = serde_json::from_str(line).expect("json line");

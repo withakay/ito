@@ -69,6 +69,16 @@ fn ensure_ito_dir_exists_errors_when_missing() {
 }
 
 #[test]
+fn ensure_ito_dir_exists_errors_when_path_is_file() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+    std::fs::write(&ito, "not a dir").expect("write .ito file");
+
+    let err = ensure_ito_dir_exists(&ito).expect_err("should error");
+    assert!(err.to_string().contains("No .ito directory"));
+}
+
+#[test]
 fn ensure_ito_dir_exists_ok_when_present() {
     let td = tempfile::tempdir().expect("tempdir");
     let ito = td.path().join(".ito");

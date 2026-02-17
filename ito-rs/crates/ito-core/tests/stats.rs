@@ -21,10 +21,12 @@ fn collect_jsonl_files_finds_nested_jsonl_files() {
     let files = collect_jsonl_files(root).expect("collect_jsonl_files");
     assert_eq!(files.len(), 2);
 
-    let names: Vec<_> = files
-        .iter()
-        .filter_map(|p| p.file_name().and_then(|n| n.to_str()))
-        .collect();
+    let mut names = Vec::new();
+    for p in &files {
+        if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+            names.push(name);
+        }
+    }
     assert!(names.contains(&"one.jsonl"));
     assert!(names.contains(&"two.jsonl"));
 }

@@ -30,7 +30,7 @@ fn detect_tailscale_ip_with(cmd: &Path) -> CliResult<String> {
 }
 
 fn ensure_ito_dir_exists(ito_path: &Path) -> CliResult<()> {
-    if ito_path.exists() {
+    if ito_path.is_dir() {
         return Ok(());
     }
     fail("No .ito directory found in this project. Run `ito init` first.")
