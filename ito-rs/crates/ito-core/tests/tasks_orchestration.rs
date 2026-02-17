@@ -211,10 +211,7 @@ fn start_task_rejects_already_complete() {
     let change_id = "001-01_test";
     let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
 
-    write(
-        &tasks_path,
-        "- [x] already done\n",
-    );
+    write(&tasks_path, "- [x] already done\n");
 
     let result = start_task(&ito, change_id, "1");
     assert!(result.is_err(), "should reject starting complete task");
