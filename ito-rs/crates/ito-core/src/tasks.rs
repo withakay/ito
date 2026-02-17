@@ -33,15 +33,17 @@ fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreRe
         return Ok(task_id);
     }
 
-    let Ok(idx) = task_id.parse::<usize>() else {
-        return Err(CoreError::not_found(format!(
+    let not_found_err = || {
+        CoreError::not_found(format!(
             "Task \"{task_id}\" not found in tasks.md"
-        )));
+        ))
+    };
+
+    let Ok(idx) = task_id.parse::<usize>() else {
+        return Err(not_found_err());
     };
     if idx == 0 || idx > parsed.tasks.len() {
-        return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
-        )));
+        return Err(not_found_err());
     }
 
     Ok(parsed.tasks[idx - 1].id.as_str())
