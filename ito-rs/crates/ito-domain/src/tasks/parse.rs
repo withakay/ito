@@ -12,6 +12,8 @@ use regex::Regex;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use super::checkbox::split_checkbox_task_label;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The detected format of a `tasks.md` file.
 pub enum TasksFormat {
@@ -244,14 +246,14 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     for (line_idx, line) in contents.lines().enumerate() {
         let l = line.trim_start();
         let bytes = l.as_bytes();
-        if bytes.len() < 6 {
+        if bytes.len() < 5 {
             continue;
         }
         let bullet = bytes[0] as char;
         if bullet != '-' && bullet != '*' {
             continue;
         }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' || bytes[5] != b' ' {
+        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
             continue;
         }
         let marker = bytes[3] as char;
@@ -259,12 +261,20 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             'x' | 'X' => TaskStatus::Complete,
             ' ' => TaskStatus::Pending,
             '~' | '>' => TaskStatus::InProgress,
-            _ => continue,
+            _other => continue,
         };
-        let rest = &l[6..];
+
+        let rest_start = if let Some(b' ') = bytes.get(5) { 6 } else { 5 };
+        let rest = &l[rest_start..];
+        let rest = rest.trim();
+
+        let (id, name) = match split_checkbox_task_label(rest) {
+            Some((id, name)) => (id.to_string(), name.to_string()),
+            None => ((tasks.len() + 1).to_string(), rest.to_string()),
+        };
         tasks.push(TaskItem {
-            id: (tasks.len() + 1).to_string(),
-            name: rest.trim().to_string(),
+            id,
+            name,
             wave: None,
             status,
             updated_at: None,
