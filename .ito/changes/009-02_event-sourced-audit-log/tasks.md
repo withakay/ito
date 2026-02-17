@@ -276,7 +276,7 @@ Coverage target: 80%.
 
 ### Task 3.9: Implement live event streaming with worktree support
 - **Files**: `ito-rs/crates/ito-core/src/audit/stream.rs`
-- **Dependencies**: 2.4, 3.5
+- **Dependencies**: 3.5
 - **Action**:
   Implement poll-based file watcher for audit stream:
   - Default 500ms poll interval, configurable
@@ -342,7 +342,7 @@ Coverage target: 80%.
 
 ### Checkpoint 1: Review core domain model and event schema
 - **Type**: checkpoint (requires human approval)
-- **Dependencies**: 1.1, 1.2, 1.3, 1.4, 1.5
+- **Dependencies**: All Wave 1 Tasks
 - **Action**: Review AuditEvent schema, operation variants, materialization logic, and reconciliation diff algorithm before proceeding to I/O layer
 - **Done When**: User confirms domain model is correct
 - **Updated At**: 2026-02-08
@@ -350,7 +350,7 @@ Coverage target: 80%.
 
 ### Checkpoint 2: Verify end-to-end audit trail
 - **Type**: checkpoint (requires human approval)
-- **Dependencies**: 3.2, 3.3, 3.4, 3.5
+- **Dependencies**: All Wave 3 Tasks
 - **Action**: Manually test: create a change, start/complete tasks, archive, then run `ito audit log` and `ito audit reconcile` to verify the full pipeline works
 - **Done When**: User confirms audit trail is complete and reconciliation works
 - **Updated At**: 2026-02-08

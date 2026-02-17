@@ -11,6 +11,7 @@
 //! - [`compute_ready_and_blocked`]: Determines which tasks are actionable based on waves/deps.
 //! - [`update_enhanced_task_status`]: Modifies markdown content to reflect status changes.
 
+mod checkbox;
 mod compute;
 mod cycle;
 mod parse;

@@ -24,6 +24,28 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     Ok(path)
 }
 
+fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreResult<&'a str> {
+    if parsed.format != TasksFormat::Checkbox {
+        return Ok(task_id);
+    }
+
+    if parsed.tasks.iter().any(|t| t.id == task_id) {
+        return Ok(task_id);
+    }
+
+    let not_found_err =
+        || CoreError::not_found(format!("Task \"{task_id}\" not found in tasks.md"));
+
+    let Ok(idx) = task_id.parse::<usize>() else {
+        return Err(not_found_err());
+    };
+    if idx == 0 || idx > parsed.tasks.len() {
+        return Err(not_found_err());
+    }
+
+    Ok(parsed.tasks[idx - 1].id.as_str())
+}
+
 /// Ready task list for a single change.
 #[derive(Debug, Clone)]
 pub struct ReadyTasksForChange {
@@ -212,8 +234,10 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
         return Err(CoreError::validation("tasks.md contains errors"));
     }
 
+    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
+
     // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
         return Err(CoreError::not_found(format!(
             "Task \"{task_id}\" not found in tasks.md"
         )));
@@ -225,7 +249,7 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
             .tasks
             .iter()
             .find(|t| t.status == TaskStatus::InProgress)
-        && current.id != task_id
+        && current.id != resolved_task_id
     {
         return Err(CoreError::validation(format!(
             "Task \"{}\" is already in-progress (complete it before starting another task)",
@@ -239,12 +263,12 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
             TaskStatus::Pending => {}
             TaskStatus::InProgress => {
                 return Err(CoreError::validation(format!(
-                    "Task \"{task_id}\" is already in-progress"
+                    "Task \"{resolved_task_id}\" is already in-progress"
                 )));
             }
             TaskStatus::Complete => {
                 return Err(CoreError::validation(format!(
-                    "Task \"{task_id}\" is already complete"
+                    "Task \"{resolved_task_id}\" is already complete"
                 )));
             }
             TaskStatus::Shelved => {
@@ -254,8 +278,9 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
             }
         }
 
-        let updated = update_checkbox_task_status(&contents, task_id, TaskStatus::InProgress)
-            .map_err(CoreError::validation)?;
+        let updated =
+            update_checkbox_task_status(&contents, resolved_task_id, TaskStatus::InProgress)
+                .map_err(CoreError::validation)?;
         ito_common::io::write_std(&path, updated.as_bytes())
             .map_err(|e| CoreError::io("write tasks.md", e))?;
 
@@ -329,15 +354,17 @@ pub fn complete_task(
         return Err(CoreError::validation("tasks.md contains errors"));
     }
 
+    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
+
     // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
         return Err(CoreError::not_found(format!(
             "Task \"{task_id}\" not found in tasks.md"
         )));
     };
 
     let updated = if parsed.format == TasksFormat::Checkbox {
-        update_checkbox_task_status(&contents, task_id, TaskStatus::Complete)
+        update_checkbox_task_status(&contents, resolved_task_id, TaskStatus::Complete)
             .map_err(CoreError::validation)?
     } else {
         update_enhanced_task_status(
@@ -665,7 +692,7 @@ mod tests {
         assert_eq!(ready.len(), 1);
         assert_eq!(ready[0].change_id, "000-01_alpha");
         assert_eq!(ready[0].ready_tasks.len(), 1);
-        assert_eq!(ready[0].ready_tasks[0].id, "1");
+        assert_eq!(ready[0].ready_tasks[0].id, "1.1");
     }
 
     #[test]
