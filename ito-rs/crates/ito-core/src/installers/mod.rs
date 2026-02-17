@@ -633,4 +633,143 @@ mod tests {
         assert!(s.contains(".ito/.state/audit/.session"));
         assert!(s.contains("!.ito/.state/audit/"));
     }
+
+    #[test]
+    fn gitignore_ignores_local_configs() {
+        let td = tempfile::tempdir().unwrap();
+        ensure_repo_gitignore_ignores_local_configs(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert!(s.contains(".ito/config.local.json"));
+        assert!(s.contains(".local/ito/config.json"));
+    }
+
+    #[test]
+    fn gitignore_exact_line_matching_trims_whitespace() {
+        assert!(gitignore_has_exact_line("  foo  \nbar\n", "foo"));
+        assert!(!gitignore_has_exact_line("foo\n", "bar"));
+    }
+
+    #[test]
+    fn should_install_project_rel_filters_by_tool_id() {
+        let mut tools = BTreeSet::new();
+        tools.insert(TOOL_OPENCODE.to_string());
+
+        assert!(should_install_project_rel("AGENTS.md", &tools));
+        assert!(should_install_project_rel(".ito/config.json", &tools));
+        assert!(should_install_project_rel(".opencode/config.json", &tools));
+        assert!(!should_install_project_rel(".claude/settings.json", &tools));
+        assert!(!should_install_project_rel(".codex/config.json", &tools));
+        assert!(!should_install_project_rel(
+            ".github/workflows/x.yml",
+            &tools
+        ));
+    }
+
+    #[test]
+    fn release_tag_is_prefixed_with_v() {
+        let tag = release_tag();
+        assert!(tag.starts_with('v'));
+    }
+
+    #[test]
+    fn update_model_in_yaml_replaces_or_inserts() {
+        let yaml = "name: test\nmodel: \"old\"\n";
+        let updated = update_model_in_yaml(yaml, "new");
+        assert!(updated.contains("model: \"new\""));
+
+        let yaml = "name: test\n";
+        let updated = update_model_in_yaml(yaml, "new");
+        assert!(updated.contains("model: \"new\""));
+    }
+
+    #[test]
+    fn update_agent_model_field_updates_frontmatter_when_present() {
+        let td = tempfile::tempdir().unwrap();
+        let path = td.path().join("agent.md");
+        std::fs::write(&path, "---\nname: test\nmodel: \"old\"\n---\nbody\n").unwrap();
+        update_agent_model_field(&path, "new").unwrap();
+        let s = std::fs::read_to_string(&path).unwrap();
+        assert!(s.contains("model: \"new\""));
+
+        let path = td.path().join("no-frontmatter.md");
+        std::fs::write(&path, "no frontmatter\n").unwrap();
+        update_agent_model_field(&path, "newer").unwrap();
+        let s = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(s, "no frontmatter\n");
+    }
+
+    #[test]
+    fn write_one_non_marker_files_skip_on_init_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("plain.txt");
+        std::fs::write(&target, "existing").unwrap();
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_one(&target, b"new", InstallMode::Init, &opts).unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(s, "existing");
+    }
+
+    #[test]
+    fn write_one_marker_managed_files_refuse_overwrite_without_markers() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("managed.md");
+        std::fs::write(&target, "existing without markers\n").unwrap();
+
+        let template = format!(
+            "before\n{}\nmanaged\n{}\nafter\n",
+            ito_templates::ITO_START_MARKER,
+            ito_templates::ITO_END_MARKER
+        );
+        let opts = InitOptions::new(BTreeSet::new(), false, false);
+        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        assert!(err.to_string().contains("Refusing to overwrite"));
+    }
+
+    #[test]
+    fn write_one_marker_managed_files_update_existing_markers() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("managed.md");
+        let existing = format!(
+            "before\n{}\nold\n{}\nafter\n",
+            ito_templates::ITO_START_MARKER,
+            ito_templates::ITO_END_MARKER
+        );
+        std::fs::write(&target, existing).unwrap();
+
+        let template = format!(
+            "before\n{}\nnew\n{}\nafter\n",
+            ito_templates::ITO_START_MARKER,
+            ito_templates::ITO_END_MARKER
+        );
+        let opts = InitOptions::new(BTreeSet::new(), false, false);
+        write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert!(s.contains("new"));
+        assert!(!s.contains("old"));
+    }
+
+    #[test]
+    fn write_one_marker_managed_files_error_when_markers_missing_in_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("managed.md");
+        // One marker present, one missing -> update should error.
+        std::fs::write(
+            &target,
+            format!(
+                "{}\nexisting without end marker\n",
+                ito_templates::ITO_START_MARKER
+            ),
+        )
+        .unwrap();
+
+        let template = format!(
+            "before\n{}\nmanaged\n{}\nafter\n",
+            ito_templates::ITO_START_MARKER,
+            ito_templates::ITO_END_MARKER
+        );
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        assert!(err.to_string().contains("Failed to update markers"));
+    }
 }
