@@ -337,11 +337,14 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             continue;
         }
         let marker = bytes[3] as char;
-        let status = match marker {
-            'x' | 'X' => TaskStatus::Complete,
-            ' ' => TaskStatus::Pending,
-            '~' | '>' => TaskStatus::InProgress,
-            _other => continue,
+        let status = if marker == 'x' || marker == 'X' {
+            TaskStatus::Complete
+        } else if marker == ' ' {
+            TaskStatus::Pending
+        } else if marker == '~' || marker == '>' {
+            TaskStatus::InProgress
+        } else {
+            continue;
         };
 
         let rest_start = if let Some(b' ') = bytes.get(5) { 6 } else { 5 };

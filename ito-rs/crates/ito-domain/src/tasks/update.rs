@@ -6,6 +6,20 @@ use regex::Regex;
 use super::TaskStatus;
 
 use super::checkbox::split_checkbox_task_label;
+fn split_checkbox_line(t: &str) -> Option<(char, &str)> {
+    let bytes = t.as_bytes();
+    if bytes.len() < 5 {
+        return None;
+    }
+    let bullet = bytes[0] as char;
+    if bullet != '-' && bullet != '*' {
+        return None;
+    }
+    if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
+        return None;
+    }
+    Some((bullet, &t[5..]))
+}
 
 /// Update the status marker of a checkbox-formatted task in the given file contents.
 ///
@@ -47,20 +61,11 @@ pub fn update_checkbox_task_status(
         let indent_len = line.len().saturating_sub(line.trim_start().len());
         let indent = &line[..indent_len];
         let t = &line[indent_len..];
-        let bytes = t.as_bytes();
-        if bytes.len() < 5 {
+        let Some((bullet, after)) = split_checkbox_line(t) else {
             continue;
-        }
-        let bullet = bytes[0] as char;
-        if bullet != '-' && bullet != '*' {
-            continue;
-        }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
-            continue;
-        }
+        };
 
-        let rest = &t[5..];
-        let rest = rest.trim_start();
+        let rest = after.trim_start();
         let Some((id, _name)) = split_checkbox_task_label(rest) else {
             continue;
         };
@@ -68,7 +73,6 @@ pub fn update_checkbox_task_status(
             continue;
         }
 
-        let after = &t[5..];
         *line = format!("{indent}{bullet} [{new_marker}]{after}");
 
         let mut out = lines.join("\n");
@@ -89,24 +93,15 @@ pub fn update_checkbox_task_status(
         let indent_len = line.len().saturating_sub(line.trim_start().len());
         let indent = &line[..indent_len];
         let t = &line[indent_len..];
-        let bytes = t.as_bytes();
-        if bytes.len() < 5 {
+        let Some((bullet, after)) = split_checkbox_line(t) else {
             continue;
-        }
-        let bullet = bytes[0] as char;
-        if bullet != '-' && bullet != '*' {
-            continue;
-        }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
-            continue;
-        }
+        };
 
         count += 1;
         if count != idx {
             continue;
         }
 
-        let after = &t[5..];
         *line = format!("{indent}{bullet} [{new_marker}]{after}");
         break;
     }
