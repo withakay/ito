@@ -238,20 +238,74 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     }
 }
 
+fn is_checkbox_task_id_token(id: &str) -> bool {
+    let bytes = id.as_bytes();
+    if bytes.is_empty() {
+        return false;
+    }
+    if !bytes[0].is_ascii_digit() || !bytes[bytes.len() - 1].is_ascii_digit() {
+        return false;
+    }
+
+    let mut prev_dot = false;
+    for &b in bytes {
+        match b {
+            b'0'..=b'9' => {
+                prev_dot = false;
+            }
+            b'.' => {
+                if prev_dot {
+                    return false;
+                }
+                prev_dot = true;
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
+    let s = s.trim_start();
+    if s.is_empty() {
+        return None;
+    }
+
+    // Slice at the first ASCII whitespace. This is safe because the prefix is ASCII.
+    let bytes = s.as_bytes();
+    let mut split_at: Option<usize> = None;
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b' ' || b == b'\t' {
+            split_at = Some(i);
+            break;
+        }
+    }
+
+    let i = split_at?;
+    let (token, rest) = s.split_at(i);
+    let token = token.strip_suffix(':').unwrap_or(token);
+    let token = token.strip_suffix('.').unwrap_or(token);
+    if !is_checkbox_task_id_token(token) {
+        return None;
+    }
+
+    Some((token, rest.trim()))
+}
+
 fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     // Minimal compat: tasks are numbered 1..N.
     let mut tasks: Vec<TaskItem> = Vec::new();
     for (line_idx, line) in contents.lines().enumerate() {
         let l = line.trim_start();
         let bytes = l.as_bytes();
-        if bytes.len() < 6 {
+        if bytes.len() < 5 {
             continue;
         }
         let bullet = bytes[0] as char;
         if bullet != '-' && bullet != '*' {
             continue;
         }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' || bytes[5] != b' ' {
+        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
             continue;
         }
         let marker = bytes[3] as char;
@@ -261,10 +315,21 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             '~' | '>' => TaskStatus::InProgress,
             _ => continue,
         };
-        let rest = &l[6..];
+
+        let rest_start = match bytes.get(5) {
+            Some(b' ') => 6,
+            _ => 5,
+        };
+        let rest = &l[rest_start..];
+        let rest = rest.trim();
+
+        let (id, name) = match split_checkbox_task_label(rest) {
+            Some((id, name)) => (id.to_string(), name.to_string()),
+            None => ((tasks.len() + 1).to_string(), rest.to_string()),
+        };
         tasks.push(TaskItem {
-            id: (tasks.len() + 1).to_string(),
-            name: rest.trim().to_string(),
+            id,
+            name,
             wave: None,
             status,
             updated_at: None,

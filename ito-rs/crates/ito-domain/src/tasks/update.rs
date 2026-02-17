@@ -5,10 +5,65 @@ use regex::Regex;
 
 use super::TaskStatus;
 
-/// Update a checkbox-format task's status by numeric index.
+fn is_checkbox_task_id_token(id: &str) -> bool {
+    let bytes = id.as_bytes();
+    if bytes.is_empty() {
+        return false;
+    }
+    if !bytes[0].is_ascii_digit() || !bytes[bytes.len() - 1].is_ascii_digit() {
+        return false;
+    }
+
+    let mut prev_dot = false;
+    for &b in bytes {
+        match b {
+            b'0'..=b'9' => {
+                prev_dot = false;
+            }
+            b'.' => {
+                if prev_dot {
+                    return false;
+                }
+                prev_dot = true;
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
+    let s = s.trim_start();
+    if s.is_empty() {
+        return None;
+    }
+
+    let bytes = s.as_bytes();
+    let mut split_at: Option<usize> = None;
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b' ' || b == b'\t' {
+            split_at = Some(i);
+            break;
+        }
+    }
+
+    let i = split_at?;
+    let (token, rest) = s.split_at(i);
+    let token = token.strip_suffix(':').unwrap_or(token);
+    let token = token.strip_suffix('.').unwrap_or(token);
+    if !is_checkbox_task_id_token(token) {
+        return None;
+    }
+    Some((token, rest.trim()))
+}
+
+/// Update a checkbox-format task's status.
 ///
-/// `task_id` is interpreted as a 1-based index of the checkbox items in the
-/// file.
+/// If a checkbox item's text begins with an explicit id token (e.g. `1.1 First`),
+/// `task_id` is matched against that token.
+///
+/// Otherwise, `task_id` is interpreted as a 1-based index of the checkbox items
+/// in the file.
 ///
 /// Returns the full updated file content, or an error if the task id was not found.
 pub fn update_checkbox_task_status(
@@ -25,6 +80,42 @@ pub fn update_checkbox_task_status(
         }
     };
 
+    let mut lines: Vec<String> = contents.lines().map(|l| l.to_string()).collect();
+
+    // Prefer explicit ids when the task text starts with a numeric token (e.g. `1.1 First`).
+    for line in &mut lines {
+        let indent_len = line.len().saturating_sub(line.trim_start().len());
+        let indent = &line[..indent_len];
+        let t = &line[indent_len..];
+        let bytes = t.as_bytes();
+        if bytes.len() < 5 {
+            continue;
+        }
+        let bullet = bytes[0] as char;
+        if bullet != '-' && bullet != '*' {
+            continue;
+        }
+        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
+            continue;
+        }
+
+        let rest = &t[5..];
+        let rest = rest.trim_start();
+        let Some((id, _name)) = split_checkbox_task_label(rest) else {
+            continue;
+        };
+        if id != task_id {
+            continue;
+        }
+
+        let after = &t[5..];
+        *line = format!("{indent}{bullet} [{new_marker}]{after}");
+
+        let mut out = lines.join("\n");
+        out.push('\n');
+        return Ok(out);
+    }
+
     let Ok(idx) = task_id.parse::<usize>() else {
         return Err(format!("Task \"{task_id}\" not found"));
     };
@@ -33,7 +124,6 @@ pub fn update_checkbox_task_status(
     }
 
     let mut count = 0usize;
-    let mut lines: Vec<String> = contents.lines().map(|l| l.to_string()).collect();
 
     for line in &mut lines {
         let indent_len = line.len().saturating_sub(line.trim_start().len());

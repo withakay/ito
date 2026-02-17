@@ -136,7 +136,7 @@ fn tasks_error_paths_cover_more_branches() {
     assert_ne!(out.code, 0);
     assert!(out.stderr.contains("not shelved"));
 
-    // checkbox-only: add not supported; start uses 1-based index
+    // checkbox-only: add not supported; ids may be explicit (e.g. 1.1) or 1-based index
     let change_dir = repo.path().join(".ito/changes/compat");
     std::fs::create_dir_all(&change_dir).unwrap();
     fixtures::write(
@@ -155,7 +155,7 @@ fn tasks_error_paths_cover_more_branches() {
 
     let out = run_rust_candidate(
         rust_path,
-        &["tasks", "start", "compat", "1.1"],
+        &["tasks", "start", "compat", "2"],
         repo.path(),
         home.path(),
     );
