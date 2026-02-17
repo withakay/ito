@@ -1,6 +1,6 @@
 //! Tests for cycle detection in task/wave dependencies.
 
-use super::cycle::find_cycle_path;
+use super::find_cycle_path;
 
 #[test]
 fn find_cycle_path_detects_simple_two_node_cycle() {

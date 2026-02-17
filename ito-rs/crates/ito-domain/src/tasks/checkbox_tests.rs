@@ -1,6 +1,6 @@
 //! Tests for checkbox format helper functions.
 
-use super::checkbox::{is_checkbox_task_id_token, split_checkbox_task_label};
+use super::{is_checkbox_task_id_token, split_checkbox_task_label};
 
 #[test]
 fn is_checkbox_task_id_token_accepts_valid_formats() {
