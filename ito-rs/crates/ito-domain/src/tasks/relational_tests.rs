@@ -1,7 +1,7 @@
 //! Tests for relational validation of task and wave dependencies.
 
-use super::relational::validate_relational;
-use super::{DiagnosticLevel, TaskItem, TaskKind, TaskStatus, WaveInfo};
+use super::validate_relational;
+use crate::tasks::{DiagnosticLevel, TaskItem, TaskKind, TaskStatus, WaveInfo};
 
 fn task(
     id: &str,

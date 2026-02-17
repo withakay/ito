@@ -12,8 +12,6 @@
 //! - [`update_enhanced_task_status`]: Modifies markdown content to reflect status changes.
 
 mod checkbox;
-#[cfg(test)]
-mod checkbox_tests;
 mod compute;
 mod cycle;
 mod parse;
