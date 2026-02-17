@@ -2,6 +2,9 @@ use std::path::Path;
 use vergen_gitcl::{BuildBuilder, Emitter, GitclBuilder};
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=ITO_LOCAL_VERSION_STAMP");
+    println!("cargo:rerun-if-env-changed=ITO_LOCAL_VERSION");
+
     // Emit git and build metadata via vergen
     // This sets VERGEN_GIT_SHA, VERGEN_GIT_BRANCH, VERGEN_GIT_DIRTY, VERGEN_BUILD_TIMESTAMP
     let build = BuildBuilder::default().build_timestamp(true).build();
@@ -42,7 +45,34 @@ fn main() {
         return;
     };
 
+    let version = append_local_suffix(version);
     println!("cargo:rustc-env=ITO_WORKSPACE_VERSION={version}");
+}
+
+fn append_local_suffix(version: String) -> String {
+    let Ok(stamp) = std::env::var("ITO_LOCAL_VERSION_STAMP") else {
+        return append_local_flag(version);
+    };
+
+    let stamp = stamp.trim();
+    if stamp.is_empty() {
+        return append_local_flag(version);
+    }
+    if !stamp.chars().all(|c| c.is_ascii_digit()) || stamp.len() != 12 {
+        return append_local_flag(version);
+    }
+
+    format!("{version}-local.{stamp}")
+}
+
+fn append_local_flag(version: String) -> String {
+    let Some(flag) = std::env::var_os("ITO_LOCAL_VERSION") else {
+        return version;
+    };
+    if flag.is_empty() {
+        return version;
+    }
+    format!("{version}-local")
 }
 
 fn workspace_package_version(contents: &str) -> Option<String> {

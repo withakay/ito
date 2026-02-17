@@ -1,5 +1,3 @@
-
-
 <p align="center">Project-centric spec + workflow system for long-running AI coding work.</p>
 
 <p align="center">
@@ -28,12 +26,12 @@ Ito is not a project management tool, but rather a lightweight, flexible framewo
 - Unified "research" and "adversarial review" workflows available as slash commands in supported tools
 - Ito agent skills installed automatically during repositiroy inititialisaton
 - Built in Ralph loop - create a change proposal and then use `ito ralph` to execute it in a loop with the agent, tracking progress and updating the proposal as you go.
-- Docs server *:
-  - `ito serve` to browse `.ito/` artifacts and project docs over HTTP.
-  - Integrates with Tailscale for secure remote access, allows for a remote terminal based workflow in a cheap VM with easy access to documents in the browser.
-  - Embedded terminal in the docs UI for quick commands.
+- Docs server \*:
+    - `ito serve` to browse `.ito/` artifacts and project docs over HTTP.
+    - Integrates with Tailscale for secure remote access, allows for a remote terminal based workflow in a cheap VM with easy access to documents in the browser.
+    - Embedded terminal in the docs UI for quick commands.
 
-*It is pretty easy to accidentally expose sensitive info with the docs server, so it is opt-in and requires explicit configuration. Use with caution and consider running in a separate VM if you want remote access.
+\*It is pretty easy to accidentally expose sensitive info with the docs server, so it is opt-in and requires explicit configuration. Use with caution and consider running in a separate VM if you want remote access.
 
 ## Quick Start
 
@@ -146,7 +144,7 @@ ito state show
 
 ### 2) Research Phase (`/ito … research`)
 
-Research is meant to happen *before* proposing changes, especially when you're entering an unfamiliar domain.
+Research is meant to happen _before_ proposing changes, especially when you're entering an unfamiliar domain.
 
 The built-in research workflow runs in parallel:
 
@@ -277,12 +275,12 @@ Configure in `.ito/config.json` under `serve`:
 
 ```json
 {
-  "serve": {
-    "bind": "127.0.0.1",
-    "port": 9009,
-    "token": "optional-only-used-for-non-loopback",
-    "caddyBin": "optional-path-to-caddy"
-  }
+    "serve": {
+        "bind": "127.0.0.1",
+        "port": 9009,
+        "token": "optional-only-used-for-non-loopback",
+        "caddyBin": "optional-path-to-caddy"
+    }
 }
 ```
 
