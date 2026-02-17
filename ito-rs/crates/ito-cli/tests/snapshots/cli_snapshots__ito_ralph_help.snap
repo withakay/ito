@@ -28,7 +28,9 @@ Options:
           Print the full CLI reference (equivalent to `ito help --all`)
 
   -m, --module <MODULE>
-          Target a module (selects a change)
+          Target a module.
+
+          Note: when running with `--no-interactive`, `--module` implies `--continue-module`.
 
       --continue-module
           When using --module, keep working through ready changes until module work is complete
