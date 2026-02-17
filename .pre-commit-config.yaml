@@ -62,6 +62,13 @@ repos:
         pass_filenames: false
         files: ^ito-rs/.*\.(rs|toml)$
 
+      - id: cargo-workspace-version-no-local
+        name: forbid local version metadata in Cargo.toml
+        entry: python3 ito-rs/tools/check_cargo_no_local_version.py
+        language: system
+        pass_filenames: false
+        files: ^Cargo\.toml$
+
       - id: cargo-clippy
         name: cargo clippy (ito-rs)
         entry: make
