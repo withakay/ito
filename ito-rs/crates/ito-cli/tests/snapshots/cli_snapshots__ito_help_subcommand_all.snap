@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 81
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -584,7 +583,9 @@ Options:
           Target a specific change
 
   -m, --module <MODULE>
-          Target a module (selects a change)
+          Target a module.
+
+          Note: when running with `--no-interactive`, `--module` implies `--continue-module`.
 
       --continue-module
           When using --module, keep working through ready changes until module work is complete
