@@ -199,6 +199,7 @@ fn run_with_env(cmd: &mut Command, cwd: &Path, home: &Path) -> CmdOutput {
     cmd.env("ITO_INTERACTIVE", "0");
     cmd.env("TERM", "dumb");
     cmd.env("HOME", home);
+    cmd.env("XDG_CONFIG_HOME", home.join(".config"));
     cmd.env("XDG_DATA_HOME", home);
 
     // Hooks (for example, git pre-push) can export repository-scoped Git

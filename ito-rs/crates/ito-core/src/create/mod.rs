@@ -94,17 +94,10 @@ pub fn create_module(
 
     // If a module with the same name already exists, return it.
     if let Some(existing) = find_module_by_name(&modules_dir, name) {
-        let parsed = parse_module_id(&existing).ok();
-        let (module_id, module_name) = match parsed {
-            Some(p) => (
-                p.module_id.to_string(),
-                p.module_name.unwrap_or_else(|| name.to_string()),
-            ),
-            None => (
-                existing.split('_').next().unwrap_or("000").to_string(),
-                name.to_string(),
-            ),
-        };
+        // `find_module_by_name` only returns parseable module folder names.
+        let parsed = parse_module_id(&existing).expect("module folder should be parseable");
+        let module_id = parsed.module_id.to_string();
+        let module_name = parsed.module_name.unwrap_or_else(|| name.to_string());
         let module_dir = modules_dir.join(&existing);
         return Ok(CreateModuleResult {
             module_id,

@@ -1,23 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: Architecture guardrails are enforced
+### Requirement: Repo enforces Rust workspace coverage target
 
-The repository MUST provide an architecture guardrails check runnable as `make arch-guardrails`.
+The repository MUST maintain >= 80% overall test coverage for the Rust workspace.
 
-The architecture guardrails MUST be executed by `prek` (pre-commit) and by CI.
+#### Scenario: Workspace coverage report meets target
 
-#### Scenario: Guardrails are runnable
+- **WHEN** a contributor runs `make test-coverage`
+- **THEN** the reported overall coverage is >= 80%
 
-- **WHEN** a developer runs `make arch-guardrails`
-- **THEN** it MUST exit successfully when constraints are satisfied
+### Requirement: Repo limits Rust source file size
 
-#### Scenario: Guardrails run in prek
+The repository MUST keep Rust source files under 1000 lines to encourage modularity and testability.
 
-- **WHEN** inspecting `.pre-commit-config.yaml`
-- **THEN** it MUST include a local hook `arch-guardrails`
-- **AND** the hook MUST run `make arch-guardrails`
+#### Scenario: Oversized Rust files are detected
 
-#### Scenario: Guardrails run in CI
-
-- **WHEN** inspecting the repository's CI configuration
-- **THEN** CI MUST run `make arch-guardrails` or `prek run --all-files`
+- **WHEN** a contributor audits the workspace Rust sources
+- **THEN** no Rust source file exceeds 1000 lines, or exceptions are documented with justification
