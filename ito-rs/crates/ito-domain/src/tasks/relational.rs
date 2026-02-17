@@ -330,3 +330,7 @@ WHERE t.status <> 'shelved' AND d.status = 'shelved'
 
     diagnostics
 }
+
+#[cfg(test)]
+#[path = "relational_tests.rs"]
+mod relational_tests;
