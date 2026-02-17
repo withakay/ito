@@ -15,8 +15,12 @@ use std::sync::LazyLock;
 
 use super::checkbox::split_checkbox_task_label;
 
-static ENHANCED_HEADING_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?m)^###\s+(Task\s+)?[^:]+:\s+.+$").unwrap());
+static ENHANCED_HEADING_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)^(#\s+Tasks\s+for:.*$|##\s+Wave\s+\d+(?:\s*[:-]\s*.*)?\s*$|###\s+(Task\s+)?[^:]+:\s+.+$)",
+    )
+    .unwrap()
+});
 
 static CHECKBOX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?m)^\s*[-*]\s+\[[ xX~>]\]").unwrap());
@@ -264,7 +268,8 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
 
 /// Detects whether task tracking contents use the enhanced wave-based format or the legacy checkbox format.
 ///
-/// The enhanced format is recognized by an enhanced-style heading plus a **Status** section; otherwise the legacy checkbox format is assumed.
+/// The enhanced format is recognized by enhanced structural headings (e.g. `# Tasks for: ...`, `## Wave N`, `### Task ...`).
+/// This intentionally classifies partially-written enhanced files (missing `- **Status**:` lines) as enhanced so the parser can emit diagnostics.
 ///
 /// # Examples
 ///
@@ -278,8 +283,7 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
 /// ```
 pub fn detect_tasks_format(contents: &str) -> TasksFormat {
     let enhanced_heading = &*ENHANCED_HEADING_RE;
-    let has_status = contents.contains("- **Status**:");
-    if enhanced_heading.is_match(contents) && has_status {
+    if enhanced_heading.is_match(contents) {
         return TasksFormat::Enhanced;
     }
     let checkbox = &*CHECKBOX_RE;
