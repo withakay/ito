@@ -184,3 +184,122 @@ fn path_errors_in_bare_repo() {
     assert_ne!(out.code, 0);
     assert!(out.stderr.contains("Ito must be run from a git worktree"));
 }
+
+#[test]
+fn path_roots_json_includes_worktree_fields_when_enabled() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito")).unwrap();
+    std::fs::write(
+        repo.path().join(".ito/config.json"),
+        r#"{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "checkout_subdir",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["path", "roots", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("roots json");
+    assert_eq!(v["enabled"], true);
+    assert_eq!(v["strategy"], "checkout_subdir");
+
+    let worktrees_root = normalize_path_for_assert(v["worktreesRoot"].as_str().expect("wt root"));
+    assert_eq!(
+        worktrees_root,
+        normalize_path_for_assert(&repo.path().join(".ito-worktrees").to_string_lossy())
+    );
+    let main_root = normalize_path_for_assert(v["mainWorktreeRoot"].as_str().expect("main root"));
+    assert_eq!(
+        main_root,
+        normalize_path_for_assert(&repo.path().to_string_lossy())
+    );
+}
+
+#[test]
+fn path_worktree_requires_a_selector_flag() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito")).unwrap();
+    std::fs::write(
+        repo.path().join(".ito/config.json"),
+        r#"{"worktrees": {"enabled": true, "strategy": "checkout_subdir", "layout": {"dir_name": "ito-worktrees"}}}"#,
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(rust_path, &["path", "worktree"], repo.path(), home.path());
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("Missing selector"));
+}
+
+#[test]
+fn path_missing_subcommand_errors() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito")).unwrap();
+
+    let out = run_rust_candidate(rust_path, &["path"], repo.path(), home.path());
+    assert_ne!(out.code, 0);
+    let msg = format!("{}\n{}", out.stdout, out.stderr);
+    assert!(
+        msg.contains("Missing required subcommand")
+            || msg.contains("Usage")
+            || msg.contains("USAGE"),
+        "stdout={} stderr={}",
+        out.stdout,
+        out.stderr
+    );
+}
+
+#[test]
+fn path_roots_text_renders_worktree_fields_when_available() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito")).unwrap();
+    std::fs::write(
+        repo.path().join(".ito/config.json"),
+        r#"{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "checkout_subdir",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    )
+    .unwrap();
+
+    let out = run_rust_candidate(rust_path, &["path", "roots"], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("project_root:"));
+    assert!(out.stdout.contains("worktree_root:"));
+    assert!(out.stdout.contains("ito_root:"));
+    assert!(out.stdout.contains("worktrees_root:"));
+    assert!(out.stdout.contains("main_worktree_root:"));
+    assert!(out.stdout.contains("worktrees_enabled:"));
+    assert!(out.stdout.contains("worktree_strategy:"));
+}
