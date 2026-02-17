@@ -31,126 +31,260 @@ fn update_checkbox_task_status_errors_for_invalid_or_missing_task_id() {
 }
 
 #[test]
-fn update_checkbox_task_status_handles_deeply_indented_items() {
-    let md = "        - [ ] deeply indented\n";
-    let out = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::Complete)
-        .expect("should succeed");
-    assert!(out.contains("        - [x] deeply indented"));
+fn update_checkbox_task_status_matches_explicit_ids_over_index() {
+    let md = "- [ ] 1.1 First task\n- [ ] 1.2 Second task\n- [ ] 1.3 Third task\n";
+
+    let out = tasks::update_checkbox_task_status(md, "1.2", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+
+    assert!(out.contains("- [ ] 1.1 First task"));
+    assert!(out.contains("- [x] 1.2 Second task"));
+    assert!(out.contains("- [ ] 1.3 Third task"));
 }
 
 #[test]
-fn update_checkbox_task_status_handles_mixed_spaces_and_tabs() {
-    let md = "  \t  - [ ] mixed whitespace\n";
-    let out = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::Complete)
-        .expect("should succeed");
-    assert!(out.contains("  \t  - [x] mixed whitespace"));
+fn update_checkbox_task_status_handles_mixed_explicit_and_implicit_ids() {
+    let md = "- [ ] 1 First\n- [ ] Second\n- [ ] 3 Third\n";
+
+    // Update by explicit ID
+    let out = tasks::update_checkbox_task_status(md, "3", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [x] 3 Third"));
+
+    // Update by index (second item)
+    let out = tasks::update_checkbox_task_status(md, "2", tasks::TaskStatus::InProgress)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [~] Second"));
 }
 
 #[test]
-fn update_checkbox_task_status_handles_task_with_trailing_whitespace() {
-    let md = "- [ ] task with spaces    \n";
-    let out = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::Complete)
-        .expect("should succeed");
-    assert!(out.contains("- [x] task with spaces    "));
+fn update_checkbox_task_status_preserves_bullet_style() {
+    let md = "- [ ] dash\n* [ ] star\n";
+
+    let out1 = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out1.contains("- [x] dash"));
+
+    let out2 = tasks::update_checkbox_task_status(md, "2", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out2.contains("* [x] star"));
 }
 
 #[test]
-fn update_checkbox_task_status_transitions_all_statuses() {
-    let md = "- [ ] task\n";
+fn update_checkbox_task_status_handles_various_markers() {
+    let md = "- [ ] pending\n- [x] complete\n- [X] complete_upper\n- [~] in_progress\n";
 
-    // Pending -> InProgress
-    let out = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::InProgress).unwrap();
-    assert!(out.contains("- [~] task"));
+    let out = tasks::update_checkbox_task_status(md, "1", tasks::TaskStatus::InProgress)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [~] pending"));
 
-    // InProgress -> Complete
-    let out = tasks::update_checkbox_task_status(&out, "1", tasks::TaskStatus::Complete).unwrap();
-    assert!(out.contains("- [x] task"));
+    let out = tasks::update_checkbox_task_status(md, "2", tasks::TaskStatus::Pending)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [ ] complete"));
 
-    // Complete -> Pending (unusual but valid)
-    let out = tasks::update_checkbox_task_status(&out, "1", tasks::TaskStatus::Pending).unwrap();
-    assert!(out.contains("- [ ] task"));
+    let out = tasks::update_checkbox_task_status(md, "4", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [x] in_progress"));
 }
 
 #[test]
-fn update_enhanced_task_status_handles_task_with_minimal_fields() {
-    let md = "### Task 1.1: Minimal\n";
-    let now = chrono::Local
-        .with_ymd_and_hms(2026, 1, 28, 0, 0, 0)
-        .unwrap();
-    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
-    assert!(out.contains("- **Updated At**: 2026-01-28"));
-    assert!(out.contains("- **Status**: [x] complete"));
+fn update_checkbox_task_status_handles_unicode_in_task_text() {
+    let md = "- [ ] 测试任务\n- [ ] Tâche française\n- [ ] 🚀 Rocket\n";
+
+    let out = tasks::update_checkbox_task_status(md, "2", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [x] Tâche française"));
 }
 
 #[test]
-fn update_enhanced_task_status_handles_multiple_tasks() {
-    let md = r#"
-### Task 1.1: First
-- **Updated At**: 2026-01-28
-- **Status**: [ ] pending
+fn update_checkbox_task_status_with_id_suffix_colon() {
+    let md = "- [ ] 1.1: First task\n- [ ] 2.1: Second task\n";
 
-### Task 1.2: Second
-- **Updated At**: 2026-01-28
+    let out = tasks::update_checkbox_task_status(md, "1.1", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [x] 1.1: First task"));
+}
+
+#[test]
+fn update_checkbox_task_status_with_id_suffix_dot() {
+    let md = "- [ ] 1.1. First task\n- [ ] 2.1. Second task\n";
+
+    let out = tasks::update_checkbox_task_status(md, "2.1", tasks::TaskStatus::Complete)
+        .expect("expected update to succeed");
+    assert!(out.contains("- [x] 2.1. Second task"));
+}
+
+#[test]
+fn update_enhanced_task_status_updates_status_and_date() {
+    let md = r#"## Wave 1
+
+### Task 1.1: Do something
+- **Dependencies**: None
+- **Updated At**: 2026-01-01
 - **Status**: [ ] pending
 "#;
+
     let now = chrono::Local
         .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
         .unwrap();
-    let out = tasks::update_enhanced_task_status(md, "1.2", tasks::TaskStatus::Complete, now);
 
-    // First task should be unchanged
-    assert!(out.contains("### Task 1.1: First"));
-    // Second task should be updated
-    assert!(out.contains("### Task 1.2: Second"));
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
     assert!(out.contains("- **Updated At**: 2026-02-15"));
     assert!(out.contains("- **Status**: [x] complete"));
 }
 
 #[test]
-fn update_enhanced_task_status_with_all_status_markers() {
-    let md = "### Task 1.1: Test\n- **Updated At**: 2026-01-01\n- **Status**: [ ] pending\n";
+fn update_enhanced_task_status_handles_in_progress() {
+    let md = r#"### Task 1.1: Do something
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+"#;
+
     let now = chrono::Local
         .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
         .unwrap();
 
-    // Test each status marker
     let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::InProgress, now);
-    assert!(out.contains("- **Status**: [ ] in-progress"));
 
-    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
-    assert!(out.contains("- **Status**: [x] complete"));
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
+    assert!(out.contains("- **Status**: [ ] in-progress"));
+}
+
+#[test]
+fn update_enhanced_task_status_handles_shelved() {
+    let md = r#"### Task 1.1: Do something
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+"#;
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
 
     let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Shelved, now);
-    assert!(out.contains("- **Status**: [-] shelved"));
 
-    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Pending, now);
-    assert!(out.contains("- **Status**: [ ] pending"));
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
+    assert!(out.contains("- **Status**: [-] shelved"));
+}
+
+#[test]
+fn update_enhanced_task_status_inserts_missing_fields() {
+    let md = "### Task 1.1: Do something\n- **Dependencies**: None\n";
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
+
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
+    assert!(out.contains("- **Status**: [x] complete"));
+}
+
+#[test]
+fn update_enhanced_task_status_preserves_other_fields() {
+    let md = r#"### Task 1.1: Do something
+- **Files**: `a.rs, b.rs`
+- **Dependencies**: Task 1.2
+- **Action**:
+  Do this and that
+- **Verify**: `cargo test`
+- **Done When**: It works
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+
+### Task 1.2: Other task
+- **Status**: [ ] pending
+"#;
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
+
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    assert!(out.contains("- **Files**: `a.rs, b.rs`"));
+    assert!(out.contains("- **Dependencies**: Task 1.2"));
+    assert!(out.contains("Do this and that"));
+    assert!(out.contains("- **Verify**: `cargo test`"));
+    assert!(out.contains("- **Done When**: It works"));
+    assert!(out.contains("### Task 1.2: Other task"));
+}
+
+#[test]
+fn update_enhanced_task_status_only_updates_specified_task() {
+    let md = r#"### Task 1.1: First
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+
+### Task 1.2: Second
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+"#;
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
+
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    assert!(out.contains("### Task 1.1: First"));
+    assert!(out.contains("- **Status**: [x] complete"));
+
+    // Second task should be unchanged
+    let lines: Vec<&str> = out.lines().collect();
+    let second_task_start = lines.iter().position(|&l| l.contains("### Task 1.2")).unwrap();
+    let second_status_line = lines[second_task_start..]
+        .iter()
+        .find(|&&l| l.contains("- **Status**:"))
+        .unwrap();
+    assert!(second_status_line.contains("[ ] pending"));
+}
+
+#[test]
+fn update_enhanced_task_status_handles_task_prefix_optional() {
+    let md = r#"### 1.1: Without Task prefix
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+"#;
+
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
+
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
+    assert!(out.contains("- **Status**: [x] complete"));
 }
 
 #[test]
 fn update_enhanced_task_status_preserves_trailing_newline() {
     let md = "### Task 1.1: Test\n- **Status**: [ ] pending\n";
+
     let now = chrono::Local
         .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
         .unwrap();
+
     let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
     assert!(out.ends_with('\n'));
 }
 
 #[test]
-fn update_enhanced_task_status_handles_task_before_wave_heading() {
-    // Edge case: task appears before wave heading ends
-    let md = r#"
-### Task 1.1: Task
+fn update_enhanced_task_status_handles_complex_task_ids() {
+    let md = r#"### Task 10.20: Complex ID
 - **Updated At**: 2026-01-01
 - **Status**: [ ] pending
-
-## Wave 2
 "#;
+
     let now = chrono::Local
         .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
         .unwrap();
-    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    let out = tasks::update_enhanced_task_status(md, "10.20", tasks::TaskStatus::Complete, now);
+
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
     assert!(out.contains("- **Status**: [x] complete"));
-    assert!(out.contains("## Wave 2"));
 }
