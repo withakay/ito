@@ -15,6 +15,24 @@ pub use ito_domain::tasks::{
     update_enhanced_task_status,
 };
 
+/// Computes and validated filesystem path to a change's tasks.md file.
+///
+/// # Arguments
+///
+/// * `ito_path` - Root repository path containing change directories.
+/// * `change_id` - Change identifier used as a path segment; must not contain invalid traversal or path characters.
+///
+/// # Returns
+///
+/// `PathBuf` pointing to the change's tasks.md on success. Returns `CoreError::validation` when `change_id` is an invalid path segment.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let p = checked_tasks_path(Path::new("repo"), "1.1").unwrap();
+/// assert!(p.ends_with("tasks.md"));
+/// ```
 fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     let Some(path) = ito_domain::tasks::tasks_path_checked(ito_path, change_id) else {
         return Err(CoreError::validation(format!(
@@ -24,6 +42,31 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     Ok(path)
 }
 
+/// Resolves a user-supplied task identifier to the canonical task id used in the parsed tasks.
+///
+/// For non-checkbox task formats the input `task_id` is returned unchanged. For checkbox-format
+/// task lists this will:
+/// - return `task_id` unchanged if it already matches a task's canonical id, or
+/// - treat a numeric `task_id` as a 1-based index and return the canonical id of that indexed task.
+///
+/// # Returns
+///
+/// `Ok(&str)` containing the canonical task id when resolution succeeds, `Err(CoreError::not_found)`
+/// when the provided `task_id` does not match any task and cannot be resolved as a valid index.
+///
+/// # Examples
+///
+/// ```
+/// // Checkbox format: "1" resolves to the first task's canonical id "1.1"
+/// let parsed = /* TasksParseResult with format Checkbox and tasks[0].id == "1.1" */;
+/// let resolved = resolve_task_id(&parsed, "1").unwrap();
+/// assert_eq!(resolved, "1.1");
+///
+/// // Enhanced format: id is returned unchanged
+/// let parsed_enh = /* TasksParseResult with format Enhanced */;
+/// let id = resolve_task_id(&parsed_enh, "task-abc").unwrap();
+/// assert_eq!(id, "task-abc");
+/// ```
 fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreResult<&'a str> {
     if parsed.format != TasksFormat::Checkbox {
         return Ok(task_id);
@@ -33,17 +76,15 @@ fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreRe
         return Ok(task_id);
     }
 
-    let not_found_err = || {
-        CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
-        ))
-    };
-
     let Ok(idx) = task_id.parse::<usize>() else {
-        return Err(not_found_err());
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in tasks.md"
+        )));
     };
     if idx == 0 || idx > parsed.tasks.len() {
-        return Err(not_found_err());
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in tasks.md"
+        )));
     }
 
     Ok(parsed.tasks[idx - 1].id.as_str())
@@ -218,9 +259,31 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
     }
 }
 
-/// Start a task (transition to in_progress).
+/// Mark a task as in-progress in a change's tasks.md.
 ///
-/// Validates preconditions and updates the tasks.md file.
+/// Validates parsing diagnostics and task preconditions, updates the tasks.md file on disk,
+/// and returns the updated TaskItem with its status set to `InProgress`.
+///
+/// Parameters:
+/// - `ito_path`: root repository path used to resolve the change's tasks.md.
+/// - `change_id`: canonical change identifier whose tasks.md will be modified.
+/// - `task_id`: task identifier to start; for checkbox-format files this may be a numeric index
+///   that will be resolved to the canonical task id.
+///
+/// Errors:
+/// Returns a `CoreError` when the tasks.md cannot be read/written, when parsing diagnostics
+/// contain errors, when the task cannot be resolved or located, or when preconditions for
+/// transitioning the task to `InProgress` are not met (including blocked, already in-progress,
+/// completed, or shelved states).
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// // Start task "1.1" for change "1" in the repository at "/repo"
+/// let repo = Path::new("/repo");
+/// let _ = ito_core::tasks::start_task(repo, "1", "1.1");
+/// ```
 pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
     let contents = ito_common::io::read_to_string_std(&path)
@@ -333,9 +396,32 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
     Ok(result)
 }
 
-/// Complete a task (transition to complete).
+/// Mark a task in a change's tasks.md as complete.
 ///
-/// Validates preconditions and updates the tasks.md file.
+/// Reads and validates the change's tasks.md, resolves the provided task identifier
+/// (supports enhanced ids and numeric indexes for checkbox format), updates the file
+/// setting the task's status to `Complete`, and returns the updated task item.
+///
+/// # Returns
+///
+/// `TaskItem` representing the task with its status set to `Complete`.
+///
+/// # Errors
+///
+/// Returns a `CoreError::validation` if the tasks.md contains parse errors or the update
+/// operation is rejected; `CoreError::not_found` if the specified task cannot be located;
+/// and `CoreError::io` for filesystem read/write failures.
+///
+/// # Examples
+///
+/// ```
+/// # use std::path::Path;
+/// # use ito_core::tasks::complete_task;
+/// # use ito_core::error::CoreResult;
+/// // Attempt to mark task "1.1" complete for change "1" in the repository at "."
+/// let res: CoreResult<_> = complete_task(Path::new("."), "1", "1.1", None);
+/// // `res` will be `Ok(task)` on success or an error describing the failure.
+/// ```
 pub fn complete_task(
     ito_path: &Path,
     change_id: &str,

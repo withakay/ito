@@ -262,7 +262,20 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
     )
 }
 
-/// Detect whether the file is in enhanced or checkbox format.
+/// Detects whether task tracking contents use the enhanced wave-based format or the legacy checkbox format.
+///
+/// The enhanced format is recognized by an enhanced-style heading plus a **Status** section; otherwise the legacy checkbox format is assumed.
+///
+/// # Examples
+///
+/// ```
+/// use crate::TasksFormat;
+/// let enhanced = "Task: Example\n- **Status**: Pending\n";
+/// assert_eq!(detect_tasks_format(enhanced), TasksFormat::Enhanced);
+///
+/// let checkbox = "- [ ] Task 1";
+/// assert_eq!(detect_tasks_format(checkbox), TasksFormat::Checkbox);
+/// ```
 pub fn detect_tasks_format(contents: &str) -> TasksFormat {
     let enhanced_heading = &*ENHANCED_HEADING_RE;
     let has_status = contents.contains("- **Status**:");
@@ -284,6 +297,29 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     }
 }
 
+/// Parses a legacy checkbox-style tasks.md into a normalized TasksParseResult.
+///
+/// This recognizes list items that start with `- ` or `* ` followed by a status checkbox
+/// (`[ ]`, `[x]`, `[~]`, `[>]`) and an optional label of the form `ID: Name`. Each matched
+/// line produces a TaskItem with a sequential numeric id if no explicit id is present.
+/// The returned result uses the Checkbox format, contains no wave metadata, and includes
+/// computed progress information.
+///
+/// # Returns
+///
+/// A TasksParseResult containing all parsed TaskItem entries, no waves, no diagnostics,
+/// and computed ProgressInfo.
+///
+/// # Examples
+///
+/// ```
+/// let contents = "- [ ] 1: First task\n- [x] Second task\n";
+/// let result = parse_checkbox_tasks(contents);
+/// assert_eq!(result.format, TasksFormat::Checkbox);
+/// assert_eq!(result.tasks.len(), 2);
+/// assert_eq!(result.tasks[0].id, "1");
+/// assert_eq!(result.tasks[1].id, "2");
+/// ```
 fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     // Minimal compat: tasks are numbered 1..N.
     let mut tasks: Vec<TaskItem> = Vec::new();
@@ -341,6 +377,36 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     }
 }
 
+/// Parses a tasks.md document written in the enhanced (wave-based) format into a normalized TasksParseResult.
+///
+/// The parser extracts waves, per-task metadata (id, name, wave, status, updated date, dependencies, files, action, verify, and done-when),
+/// validates fields (emitting diagnostics for missing/invalid status or dates, duplicate or missing wave dependency lines, self-dependencies, and missing referenced waves),
+/// and computes overall progress information.
+///
+/// # Returns
+///
+/// A `TasksParseResult` containing the detected `TasksFormat::Enhanced`, the parsed `tasks`, `waves`, any `diagnostics` produced during parsing, and computed `progress`.
+///
+/// # Examples
+///
+/// ```
+/// let src = r#"
+/// ## Wave 1
+/// - Depends On: none
+///
+/// ### 1: Example task
+/// - **Dependencies**: none
+/// - **Updated At**: 2025-01-01
+/// - **Status**: [ ] pending
+/// - **Action**:
+///   Do something
+/// "#;
+///
+/// let res = parse_enhanced_tasks(src);
+/// assert_eq!(res.format, TasksFormat::Enhanced);
+/// assert_eq!(res.tasks.len(), 1);
+/// assert_eq!(res.waves.len(), 1);
+/// ```
 fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     let mut diagnostics: Vec<TaskDiagnostic> = Vec::new();
     let mut tasks: Vec<TaskItem> = Vec::new();
@@ -782,6 +848,38 @@ fn parse_dependencies(raw: &str) -> Vec<String> {
     parse_dependencies_with_checkpoint(raw, TaskKind::Normal).0
 }
 
+/// Parses a dependency string and returns explicit task IDs and an optional checkpoint wave.
+///
+/// This accepts comma-separated dependency lists (optionally prefixed with "Task "), trims whitespace,
+/// and treats the following special cases:
+/// - empty or "none" yields no dependencies and no wave;
+/// - "all previous waves" or "all prior tasks" yields no explicit dependencies and no wave;
+/// - strings matching "all wave N tasks" capture N and return it as `Some(N)` only when `kind` is `Checkpoint`.
+///
+/// The returned tuple is (dependencies, checkpoint_wave). `dependencies` contains parsed task identifiers
+/// (without the "Task " prefix). `checkpoint_wave` is `Some(wave)` only for the captured "all wave N tasks"
+/// case when `kind` is `Checkpoint`.
+///
+/// # Examples
+///
+/// ```
+/// use crate::TaskKind;
+///
+/// assert_eq!(
+///     parse_dependencies_with_checkpoint("Task 1, Task 2", TaskKind::Normal),
+///     (vec!["1".to_string(), "2".to_string()], None)
+/// );
+///
+/// assert_eq!(
+///     parse_dependencies_with_checkpoint("none", TaskKind::Normal),
+///     (Vec::<String>::new(), None)
+/// );
+///
+/// assert_eq!(
+///     parse_dependencies_with_checkpoint("All wave 3 tasks", TaskKind::Checkpoint),
+///     (Vec::<String>::new(), Some(3))
+/// );
+/// ```
 fn parse_dependencies_with_checkpoint(raw: &str, kind: TaskKind) -> (Vec<String>, Option<u32>) {
     let r = raw.trim();
     if r.is_empty() {

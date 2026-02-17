@@ -7,15 +7,22 @@ use super::TaskStatus;
 
 use super::checkbox::split_checkbox_task_label;
 
-/// Update a checkbox-format task's status.
+/// Update the status marker of a checkbox-formatted task in the given file contents.
 ///
-/// If a checkbox item's text begins with an explicit id token (e.g. `1.1 First`),
-/// `task_id` is matched against that token.
+/// This prefers an explicit numeric task label at the start of a checkbox item's text (e.g. `1.1 First`)
+/// and falls back to interpreting `task_id` as a 1-based index of checkbox items when no explicit label matches.
+/// Maps `TaskStatus` to checkbox markers: `Pending` -> `[ ]`, `InProgress` -> `[~]`, `Complete` -> `[x]`.
 ///
-/// Otherwise, `task_id` is interpreted as a 1-based index of the checkbox items
-/// in the file.
+/// Returns `Ok(String)` with the full updated file content (always ending with a trailing newline),
+/// or `Err(String)` if the requested task cannot be found or if `Shelved` is requested (not supported for checkbox-only tasks).
 ///
-/// Returns the full updated file content, or an error if the task id was not found.
+/// # Examples
+///
+/// ```
+/// let contents = "- [ ] 1.1 First task\n- [ ] Second task\n";
+/// let updated = update_checkbox_task_status(contents, "1.1", TaskStatus::Complete).unwrap();
+/// assert!(updated.contains("- [x] 1.1 First task"));
+/// ```
 pub fn update_checkbox_task_status(
     contents: &str,
     task_id: &str,
@@ -113,10 +120,23 @@ pub fn update_checkbox_task_status(
     Ok(out)
 }
 
-/// Update an enhanced-format task's status and `Updated At` metadata.
+/// Update the status and "Updated At" metadata of an enhanced-format task block.
 ///
-/// Uses regex replacement to preserve the existing structure and formatting
-/// of the task block.
+/// Locates the task block whose heading starts with `###` and contains the given `task_id`
+/// (e.g., `### Task 123:` or `### 123:`), replaces or inserts the `- **Status**: ...` and
+/// `- **Updated At**: YYYY-MM-DD` lines as needed, and returns the modified file contents
+/// (ensuring a trailing newline).
+///
+/// # Examples
+///
+/// ```
+/// use chrono::{Local, TimeZone};
+/// let contents = "## Project\n\n### Task 42: Example task\n- **Status**: [ ] pending\n";
+/// let now = Local.ymd(2025, 2, 1).and_hms(0, 0, 0);
+/// let out = update_enhanced_task_status(contents, "42", TaskStatus::Complete, now);
+/// assert!(out.contains("- **Status**: [x] complete"));
+/// assert!(out.contains("- **Updated At**: 2025-02-01"));
+/// ```
 pub fn update_enhanced_task_status(
     contents: &str,
     task_id: &str,
