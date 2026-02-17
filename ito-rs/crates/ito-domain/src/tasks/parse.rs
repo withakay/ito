@@ -11,6 +11,52 @@ use chrono::{DateTime, Local, NaiveDate};
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+use super::checkbox::split_checkbox_task_label;
+
+static ENHANCED_HEADING_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^###\s+(Task\s+)?[^:]+:\s+.+$").unwrap());
+
+static CHECKBOX_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*[-*]\s+\[[ xX~>]\]").unwrap());
+
+static WAVE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    // Accept a strict `## Wave <N>` heading, optionally followed by a human title.
+    // Supported separators after the wave number:
+    // - `:` (e.g. `## Wave 1: Foundations`)
+    // - `-` (e.g. `## Wave 1 - Foundations`)
+    Regex::new(r"^##\s+Wave\s+(\d+)(?:\s*[:-]\s*.*)?\s*$").unwrap()
+});
+
+static WAVE_DEP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*[-*]\s+\*\*Depends On\*\*:\s*(.+?)\s*$").unwrap());
+
+static TASK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^###\s+(?:Task\s+)?([^:]+):\s+(.+?)\s*$").unwrap());
+
+static DEPS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Dependencies\*\*:\s*(.+?)\s*$").unwrap());
+
+static STATUS_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\*\*Status\*\*:\s*\[([ xX\-~])\]\s+(pending|in-progress|complete|shelved)\s*$")
+        .unwrap()
+});
+
+static UPDATED_AT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Updated At\*\*:\s*(\d{4}-\d{2}-\d{2})\s*$").unwrap());
+
+static FILES_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Files\*\*:\s*`([^`]+)`\s*$").unwrap());
+
+static VERIFY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Verify\*\*:\s*`([^`]+)`\s*$").unwrap());
+
+static DONE_WHEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Done When\*\*:\s*(.+?)\s*$").unwrap());
+
+static ALL_WAVE_CAPTURE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^all\s+wave\s+(\d+)\s+tasks$").unwrap());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The detected format of a `tasks.md` file.
@@ -218,12 +264,12 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
 
 /// Detect whether the file is in enhanced or checkbox format.
 pub fn detect_tasks_format(contents: &str) -> TasksFormat {
-    let enhanced_heading = Regex::new(r"(?m)^###\s+(Task\s+)?[^:]+:\s+.+$").unwrap();
+    let enhanced_heading = &*ENHANCED_HEADING_RE;
     let has_status = contents.contains("- **Status**:");
     if enhanced_heading.is_match(contents) && has_status {
         return TasksFormat::Enhanced;
     }
-    let checkbox = Regex::new(r"(?m)^\s*[-*]\s+\[[ xX~>]\]").unwrap();
+    let checkbox = &*CHECKBOX_RE;
     if checkbox.is_match(contents) {
         return TasksFormat::Checkbox;
     }
@@ -244,27 +290,38 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     for (line_idx, line) in contents.lines().enumerate() {
         let l = line.trim_start();
         let bytes = l.as_bytes();
-        if bytes.len() < 6 {
+        if bytes.len() < 5 {
             continue;
         }
         let bullet = bytes[0] as char;
         if bullet != '-' && bullet != '*' {
             continue;
         }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' || bytes[5] != b' ' {
+        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' {
             continue;
         }
         let marker = bytes[3] as char;
-        let status = match marker {
-            'x' | 'X' => TaskStatus::Complete,
-            ' ' => TaskStatus::Pending,
-            '~' | '>' => TaskStatus::InProgress,
-            _ => continue,
+        let status = if marker == 'x' || marker == 'X' {
+            TaskStatus::Complete
+        } else if marker == ' ' {
+            TaskStatus::Pending
+        } else if marker == '~' || marker == '>' {
+            TaskStatus::InProgress
+        } else {
+            continue;
         };
-        let rest = &l[6..];
+
+        let rest_start = if let Some(b' ') = bytes.get(5) { 6 } else { 5 };
+        let rest = &l[rest_start..];
+        let rest = rest.trim();
+
+        let (id, name) = match split_checkbox_task_label(rest) {
+            Some((id, name)) => (id.to_string(), name.to_string()),
+            None => ((tasks.len() + 1).to_string(), rest.to_string()),
+        };
         tasks.push(TaskItem {
-            id: (tasks.len() + 1).to_string(),
-            name: rest.trim().to_string(),
+            id,
+            name,
             wave: None,
             status,
             updated_at: None,
@@ -291,18 +348,15 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     let mut diagnostics: Vec<TaskDiagnostic> = Vec::new();
     let mut tasks: Vec<TaskItem> = Vec::new();
 
-    let wave_re = Regex::new(r"^##\s+Wave\s+(\d+)\s*$").unwrap();
-    let wave_dep_re = Regex::new(r"^\s*[-*]\s+\*\*Depends On\*\*:\s*(.+?)\s*$").unwrap();
-    let task_re = Regex::new(r"^###\s+(?:Task\s+)?([^:]+):\s+(.+?)\s*$").unwrap();
-    let deps_re = Regex::new(r"\*\*Dependencies\*\*:\s*(.+?)\s*$").unwrap();
-    let status_re = Regex::new(
-        r"\*\*Status\*\*:\s*\[([ xX\-~])\]\s+(pending|in-progress|complete|shelved)\s*$",
-    )
-    .unwrap();
-    let updated_at_re = Regex::new(r"\*\*Updated At\*\*:\s*(\d{4}-\d{2}-\d{2})\s*$").unwrap();
-    let files_re = Regex::new(r"\*\*Files\*\*:\s*`([^`]+)`\s*$").unwrap();
-    let verify_re = Regex::new(r"\*\*Verify\*\*:\s*`([^`]+)`\s*$").unwrap();
-    let done_when_re = Regex::new(r"\*\*Done When\*\*:\s*(.+?)\s*$").unwrap();
+    let wave_re = &*WAVE_RE;
+    let wave_dep_re = &*WAVE_DEP_RE;
+    let task_re = &*TASK_RE;
+    let deps_re = &*DEPS_RE;
+    let status_re = &*STATUS_RE;
+    let updated_at_re = &*UPDATED_AT_RE;
+    let files_re = &*FILES_RE;
+    let verify_re = &*VERIFY_RE;
+    let done_when_re = &*DONE_WHEN_RE;
 
     let mut current_wave: Option<u32> = None;
     let mut in_checkpoints = false;
@@ -742,7 +796,7 @@ fn parse_dependencies_with_checkpoint(raw: &str, kind: TaskKind) -> (Vec<String>
     }
 
     // Special-case strings from the enhanced template.
-    let all_wave_capture = Regex::new(r"(?i)^all\s+wave\s+(\d+)\s+tasks$").unwrap();
+    let all_wave_capture = &*ALL_WAVE_CAPTURE_RE;
     if let Some(cap) = all_wave_capture.captures(r) {
         let wave = cap.get(1).and_then(|m| m.as_str().parse::<u32>().ok());
         if kind == TaskKind::Checkpoint {
@@ -750,7 +804,7 @@ fn parse_dependencies_with_checkpoint(raw: &str, kind: TaskKind) -> (Vec<String>
         }
         return (Vec::new(), None);
     }
-    if lower == "all previous waves" {
+    if lower == "all previous waves" || lower == "all prior tasks" {
         // We don't expand this into explicit deps here.
         return (Vec::new(), None);
     }

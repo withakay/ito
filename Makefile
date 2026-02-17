@@ -60,9 +60,9 @@ init: ## Initialize development environment (check rust, install prek hooks)
 		exit 1; \
 	fi; \
 	echo "Installing git hooks via prek..."; \
-	prek install; \
+	prek install -t commit-msg; \
 	prek install -t pre-push; \
-	echo "Installing pre-commit lock wrapper..."; \
+	echo "Installing custom hook wrappers..."; \
 	$(MAKE) hooks-install; \
 	echo ""; \
 	echo "✓ Development environment ready!"; \
@@ -212,10 +212,10 @@ clippy: ## Run cargo clippy
 		-D clippy::todo \
 		-D clippy::unimplemented
 
-check: ## Run pre-commit hooks via prek
+check: ## Run repo checks via prek (pre-push stage)
 	@set -e; \
 	if prek --version >/dev/null 2>&1; then \
-		prek run --all-files; \
+		prek run --all-files --stage pre-push; \
 	else \
 		echo "prek is not installed."; \
 		echo "Install: cargo install prek"; \
@@ -399,7 +399,7 @@ docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
 docs-site-check: docs-site-build ## Validate docs site build
 	@echo "Docs site check passed"
 
-hooks-install: ## Install custom pre-commit hook wrapper (with advisory lock)
+hooks-install: ## Install custom git hook wrappers
 	@set -e; \
 	HOOKS_DIR="$$(git rev-parse --git-common-dir)/hooks"; \
 	if [ ! -d "$$HOOKS_DIR" ]; then \
@@ -408,7 +408,7 @@ hooks-install: ## Install custom pre-commit hook wrapper (with advisory lock)
 	fi; \
 	cp ito-rs/tools/hooks/pre-commit "$$HOOKS_DIR/pre-commit"; \
 	chmod +x "$$HOOKS_DIR/pre-commit"; \
-	echo "  ✓ Installed pre-commit hook with advisory lock to $$HOOKS_DIR/pre-commit"
+	echo "  ✓ Installed pre-commit hook to $$HOOKS_DIR/pre-commit"
 
 clean: ## Remove build artifacts
 	rm -rf target ito-rs/target
