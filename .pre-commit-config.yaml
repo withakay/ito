@@ -1,6 +1,13 @@
 default_language_version:
   python: python3
 
+# Run the full quality gate at push time.
+#
+# This avoids `prek` stashing/unstashing during `git commit` (a common source of
+# worktree index corruption in worktree-based setups) and keeps `git commit`
+# fast. Developers should run `make check` before creating a batch of commits.
+default_stages: [pre-push]
+
 repos:
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
@@ -93,7 +100,7 @@ repos:
         args: [test-affected]
         pass_filenames: false
         files: ^(ito-rs/.*\.(rs|toml|lock)|Cargo\.toml|Cargo\.lock)$
-        stages: [pre-commit]
+        stages: [pre-push]
 
       - id: check-max-lines
         name: check max lines (ito-rs)
