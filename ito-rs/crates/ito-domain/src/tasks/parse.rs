@@ -12,6 +12,8 @@ use regex::Regex;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use super::checkbox::split_checkbox_task_label;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The detected format of a `tasks.md` file.
 pub enum TasksFormat {
@@ -238,60 +240,6 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     }
 }
 
-fn is_checkbox_task_id_token(id: &str) -> bool {
-    let bytes = id.as_bytes();
-    if bytes.is_empty() {
-        return false;
-    }
-    if !bytes[0].is_ascii_digit() || !bytes[bytes.len() - 1].is_ascii_digit() {
-        return false;
-    }
-
-    let mut prev_dot = false;
-    for &b in bytes {
-        match b {
-            b'0'..=b'9' => {
-                prev_dot = false;
-            }
-            b'.' => {
-                if prev_dot {
-                    return false;
-                }
-                prev_dot = true;
-            }
-            _ => return false,
-        }
-    }
-    true
-}
-
-fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
-    let s = s.trim_start();
-    if s.is_empty() {
-        return None;
-    }
-
-    // Slice at the first ASCII whitespace. This is safe because the prefix is ASCII.
-    let bytes = s.as_bytes();
-    let mut split_at: Option<usize> = None;
-    for (i, &b) in bytes.iter().enumerate() {
-        if b == b' ' || b == b'\t' {
-            split_at = Some(i);
-            break;
-        }
-    }
-
-    let i = split_at?;
-    let (token, rest) = s.split_at(i);
-    let token = token.strip_suffix(':').unwrap_or(token);
-    let token = token.strip_suffix('.').unwrap_or(token);
-    if !is_checkbox_task_id_token(token) {
-        return None;
-    }
-
-    Some((token, rest.trim()))
-}
-
 fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
     // Minimal compat: tasks are numbered 1..N.
     let mut tasks: Vec<TaskItem> = Vec::new();
@@ -313,13 +261,10 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             'x' | 'X' => TaskStatus::Complete,
             ' ' => TaskStatus::Pending,
             '~' | '>' => TaskStatus::InProgress,
-            _ => continue,
+            _other => continue,
         };
 
-        let rest_start = match bytes.get(5) {
-            Some(b' ') => 6,
-            _ => 5,
-        };
+        let rest_start = if let Some(b' ') = bytes.get(5) { 6 } else { 5 };
         let rest = &l[rest_start..];
         let rest = rest.trim();
 

@@ -24,6 +24,29 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     Ok(path)
 }
 
+fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreResult<&'a str> {
+    if parsed.format != TasksFormat::Checkbox {
+        return Ok(task_id);
+    }
+
+    if parsed.tasks.iter().any(|t| t.id == task_id) {
+        return Ok(task_id);
+    }
+
+    let Ok(idx) = task_id.parse::<usize>() else {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in tasks.md"
+        )));
+    };
+    if idx == 0 || idx > parsed.tasks.len() {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in tasks.md"
+        )));
+    }
+
+    Ok(parsed.tasks[idx - 1].id.as_str())
+}
+
 /// Ready task list for a single change.
 #[derive(Debug, Clone)]
 pub struct ReadyTasksForChange {
@@ -212,25 +235,7 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
         return Err(CoreError::validation("tasks.md contains errors"));
     }
 
-    let resolved_task_id = if parsed.format == TasksFormat::Checkbox {
-        if parsed.tasks.iter().any(|t| t.id == task_id) {
-            task_id
-        } else {
-            let Ok(idx) = task_id.parse::<usize>() else {
-                return Err(CoreError::not_found(format!(
-                    "Task \"{task_id}\" not found in tasks.md"
-                )));
-            };
-            if idx == 0 || idx > parsed.tasks.len() {
-                return Err(CoreError::not_found(format!(
-                    "Task \"{task_id}\" not found in tasks.md"
-                )));
-            }
-            parsed.tasks[idx - 1].id.as_str()
-        }
-    } else {
-        task_id
-    };
+    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
@@ -350,25 +355,7 @@ pub fn complete_task(
         return Err(CoreError::validation("tasks.md contains errors"));
     }
 
-    let resolved_task_id = if parsed.format == TasksFormat::Checkbox {
-        if parsed.tasks.iter().any(|t| t.id == task_id) {
-            task_id
-        } else {
-            let Ok(idx) = task_id.parse::<usize>() else {
-                return Err(CoreError::not_found(format!(
-                    "Task \"{task_id}\" not found in tasks.md"
-                )));
-            };
-            if idx == 0 || idx > parsed.tasks.len() {
-                return Err(CoreError::not_found(format!(
-                    "Task \"{task_id}\" not found in tasks.md"
-                )));
-            }
-            parsed.tasks[idx - 1].id.as_str()
-        }
-    } else {
-        task_id
-    };
+    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
