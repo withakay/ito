@@ -32,6 +32,24 @@ THEN the task update SHALL be preserved (already written to disk)
 AND the audit failure SHALL be logged at `warn` level
 AND the command SHALL exit successfully (exit code 0)
 
+### Requirement: Task structure validation
+
+The CLI SHALL parse and validate task dependencies in enhanced tasks.md files.
+
+#### Scenario: Accept "All prior tasks" dependency shorthand
+
+WHEN parsing an enhanced task block containing `- **Dependencies**: All prior tasks`
+THEN the CLI SHALL treat the task as having no explicit task dependencies
+AND it SHALL NOT emit a "Missing dependency" validation error for that dependency string
+AND the shorthand SHALL be interpreted equivalently to `All previous waves` for gating behavior
+
+#### Scenario: Accept wave heading titles
+
+WHEN parsing an enhanced tasks.md containing a wave heading of the form `## Wave <N>: <title>`
+OR a wave heading of the form `## Wave <N> - <title>`
+THEN the CLI SHALL recognize the wave number as `<N>`
+AND tasks under that heading SHALL be associated with that wave for gating and dependency checks
+
 ### Requirement: Task shelving
 
 The CLI SHALL support shelving and unshelving tasks to reflect changes in plan without deleting tasks.
