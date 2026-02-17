@@ -11,6 +11,10 @@ fn write(path: impl AsRef<Path>, contents: &str) {
 }
 
 fn write_local_ito_skills(root: &Path) {
+    write_local_ito_skills_with_plugin(root, "// test plugin\n");
+}
+
+fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
     // `ito update` installs adapter files for all tool ids, which in turn
     // installs ito-skills assets. In tests we avoid network fetches by
     // providing a local `ito-skills/` directory.
@@ -19,7 +23,7 @@ fn write_local_ito_skills(root: &Path) {
     // Minimal adapter files.
     write(
         base.join("adapters/opencode/ito-skills.js"),
-        "// test plugin\n",
+        plugin_contents,
     );
     write(
         base.join("adapters/claude/session-start.sh"),
@@ -52,6 +56,36 @@ fn write_local_ito_skills(root: &Path) {
 }
 
 #[test]
+fn update_refreshes_opencode_plugin_and_preserves_user_config() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills_with_plugin(
+        repo.path(),
+        "export const ItoPlugin = async () => ({ 'tool.execute.before': async () => {} });\n",
+    );
+
+    let plugin_path = repo.path().join(".opencode/plugins/ito-skills.js");
+    write(&plugin_path, "// stale plugin\n");
+    write(
+        repo.path().join(".opencode/config.json"),
+        "{\n  \"userOwned\": true\n}\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let plugin = std::fs::read_to_string(&plugin_path).unwrap();
+    assert!(plugin.contains("tool.execute.before"));
+    assert!(!plugin.contains("stale plugin"));
+
+    let config = std::fs::read_to_string(repo.path().join(".opencode/config.json")).unwrap();
+    assert!(config.contains("\"userOwned\": true"));
+}
+
+#[test]
 fn update_installs_adapter_files_from_local_ito_skills() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");
@@ -67,16 +101,14 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     // Spot-check adapter outputs.
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(repo.path().join(".claude/session-start.sh").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 }
 
 #[test]

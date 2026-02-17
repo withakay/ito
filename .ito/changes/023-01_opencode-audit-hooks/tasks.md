@@ -51,7 +51,7 @@ ______________________________________________________________________
 ### Task 2.1: Validation and documentation touch-ups
 
 - **Files**: `docs/` or relevant harness docs (if any)
-- **Dependencies**: Task 1.2, Task 1.3
+- **Dependencies**: None
 - **Action**: Add a short note describing the audit hook behavior and how to disable it (if supported).
 - **Verify**: `ito validate 023-01_opencode-audit-hooks --strict`
 - **Done When**: Change validates and docs are updated.
