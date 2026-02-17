@@ -6,11 +6,23 @@ use ito_core::repo_paths::{
 use std::path::Path;
 
 fn run(cmd: &str, args: &[&str], dir: &Path) {
-    let status = std::process::Command::new(cmd)
-        .args(args)
-        .current_dir(dir)
-        .status()
-        .expect("spawn command");
+    let mut command = std::process::Command::new(cmd);
+    command.args(args);
+    command.current_dir(dir);
+
+    // Tests can run under coverage/hook environments where git env vars are set.
+    // Clear them so subprocess `git` runs against our tempdir.
+    for k in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ] {
+        command.env_remove(k);
+    }
+
+    let status = command.status().expect("spawn command");
     assert!(status.success(), "{cmd} {:?} failed", args);
 }
 
