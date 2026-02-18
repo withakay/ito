@@ -27,6 +27,43 @@ fn create_module_and_change_error_paths_and_outputs() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Created module"));
 
+    // Create a module with explicit description.
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "create",
+            "module",
+            "demo-described",
+            "--scope",
+            "*",
+            "--description",
+            "Demo module description",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let modules_dir = repo.path().join(".ito/modules");
+    let module_dir = std::fs::read_dir(&modules_dir)
+        .expect("read modules dir")
+        .filter_map(|entry| entry.ok())
+        .find_map(|entry| {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.ends_with("_demo-described") {
+                Some(entry.path())
+            } else {
+                None
+            }
+        })
+        .expect("expected demo-described module directory");
+    let module_md = module_dir.join("module.md");
+    let module_md_content =
+        std::fs::read_to_string(&module_md).expect("expected module.md for described module");
+    assert!(
+        module_md_content.contains("Demo module description"),
+        "module.md should include provided description, got: {module_md_content}"
+    );
+
     // Creating it again should hit the already-exists path.
     let out = run_rust_candidate(
         rust_path,
