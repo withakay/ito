@@ -909,11 +909,17 @@ mod tests {
         merge_json_objects(&mut existing, &template);
 
         assert_eq!(
-            existing.pointer("/permissions/allow/0").and_then(Value::as_str),
+            existing
+                .pointer("/permissions/allow/0")
+                .and_then(Value::as_str),
             Some("Bash(ls)")
         );
         assert!(existing.pointer("/hooks/SessionStart/0/matcher").is_some());
-        assert!(existing.pointer("/hooks/PreToolUse/0/hooks/0/command").is_some());
+        assert!(
+            existing
+                .pointer("/hooks/PreToolUse/0/hooks/0/command")
+                .is_some()
+        );
     }
 
     #[test]
@@ -950,7 +956,11 @@ mod tests {
         let updated = std::fs::read_to_string(&target).unwrap();
         let value: Value = serde_json::from_str(&updated).unwrap();
         assert!(value.pointer("/permissions/allow").is_some());
-        assert!(value.pointer("/hooks/PreToolUse/0/hooks/0/command").is_some());
+        assert!(
+            value
+                .pointer("/hooks/PreToolUse/0/hooks/0/command")
+                .is_some()
+        );
     }
 
     #[test]
