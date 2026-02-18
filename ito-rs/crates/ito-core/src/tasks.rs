@@ -42,31 +42,10 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     Ok(path)
 }
 
-/// Resolves a user-supplied task identifier to the canonical task id used in the parsed tasks.
+/// Resolve a user-supplied task identifier to a canonical parsed task id.
 ///
-/// For non-checkbox task formats the input `task_id` is returned unchanged. For checkbox-format
-/// task lists this will:
-/// - return `task_id` unchanged if it already matches a task's canonical id, or
-/// - treat a numeric `task_id` as a 1-based index and return the canonical id of that indexed task.
-///
-/// # Returns
-///
-/// `Ok(&str)` containing the canonical task id when resolution succeeds, `Err(CoreError::not_found)`
-/// when the provided `task_id` does not match any task and cannot be resolved as a valid index.
-///
-/// # Examples
-///
-/// ```
-/// // Checkbox format: "1" resolves to the first task's canonical id "1.1"
-/// let parsed = /* TasksParseResult with format Checkbox and tasks[0].id == "1.1" */;
-/// let resolved = resolve_task_id(&parsed, "1").unwrap();
-/// assert_eq!(resolved, "1.1");
-///
-/// // Enhanced format: id is returned unchanged
-/// let parsed_enh = /* TasksParseResult with format Enhanced */;
-/// let id = resolve_task_id(&parsed_enh, "task-abc").unwrap();
-/// assert_eq!(id, "task-abc");
-/// ```
+/// For enhanced-format tasks, this returns the input id unchanged.
+/// For checkbox-format tasks, this accepts either a canonical id or a 1-based numeric index.
 fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreResult<&'a str> {
     if parsed.format != TasksFormat::Checkbox {
         return Ok(task_id);

@@ -33,6 +33,7 @@ fn split_checkbox_line(t: &str) -> Option<(char, &str)> {
 /// # Examples
 ///
 /// ```
+/// use ito_domain::tasks::{TaskStatus, update_checkbox_task_status};
 /// let contents = "- [ ] 1.1 First task\n- [ ] Second task\n";
 /// let updated = update_checkbox_task_status(contents, "1.1", TaskStatus::Complete).unwrap();
 /// assert!(updated.contains("- [x] 1.1 First task"));
@@ -126,8 +127,9 @@ pub fn update_checkbox_task_status(
 ///
 /// ```
 /// use chrono::{Local, TimeZone};
+/// use ito_domain::tasks::{TaskStatus, update_enhanced_task_status};
 /// let contents = "## Project\n\n### Task 42: Example task\n- **Status**: [ ] pending\n";
-/// let now = Local.ymd(2025, 2, 1).and_hms(0, 0, 0);
+/// let now = Local.with_ymd_and_hms(2025, 2, 1, 0, 0, 0).unwrap();
 /// let out = update_enhanced_task_status(contents, "42", TaskStatus::Complete, now);
 /// assert!(out.contains("- **Status**: [x] complete"));
 /// assert!(out.contains("- **Updated At**: 2025-02-01"));
