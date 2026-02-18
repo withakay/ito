@@ -248,7 +248,7 @@ fn complete_task_handles_enhanced_format() {
 ### Task 1.1: Test
 - **Dependencies**: None
 - **Updated At**: 2026-01-01
-- **Status**: [ ] in-progress
+- **Status**: [>] in-progress
 "#,
     );
 

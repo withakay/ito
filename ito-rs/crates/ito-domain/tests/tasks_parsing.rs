@@ -421,7 +421,7 @@ fn parse_enhanced_tasks_progress_counts_all_statuses() {
 ### Task 1.2: InProgress
 - **Dependencies**: None
 - **Updated At**: 2026-01-28
-- **Status**: [ ] in-progress
+- **Status**: [>] in-progress
 
 ### Task 1.3: Pending
 - **Dependencies**: None
@@ -504,7 +504,7 @@ fn update_enhanced_task_status_preserves_existing_fields() {
     assert!(out.contains("- **Verify**: `cargo test`"));
     assert!(out.contains("- **Done When**: Done"));
     assert!(out.contains("- **Updated At**: 2026-02-15"));
-    assert!(out.contains("- **Status**: [ ] in-progress"));
+    assert!(out.contains("- **Status**: [>] in-progress"));
 }
 
 #[test]

@@ -149,7 +149,7 @@ pub fn update_enhanced_task_status(
 
     let status_line = match new_status {
         TaskStatus::Complete => "- **Status**: [x] complete".to_string(),
-        TaskStatus::InProgress => "- **Status**: [ ] in-progress".to_string(),
+        TaskStatus::InProgress => "- **Status**: [>] in-progress".to_string(),
         TaskStatus::Pending => "- **Status**: [ ] pending".to_string(),
         TaskStatus::Shelved => "- **Status**: [-] shelved".to_string(),
     };

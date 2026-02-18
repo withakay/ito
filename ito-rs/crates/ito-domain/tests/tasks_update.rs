@@ -149,7 +149,7 @@ fn update_enhanced_task_status_handles_in_progress() {
     let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::InProgress, now);
 
     assert!(out.contains("- **Updated At**: 2026-02-15"));
-    assert!(out.contains("- **Status**: [ ] in-progress"));
+    assert!(out.contains("- **Status**: [>] in-progress"));
 }
 
 #[test]

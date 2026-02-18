@@ -23,7 +23,7 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 Worktrees live under the bare/control layout:
 
 ```bash
-<project>/
+../
 |-- main/
 `-- ito-worktrees/<change-name>/
 ```
@@ -31,12 +31,21 @@ Worktrees live under the bare/control layout:
 Create a worktree:
 
 ```bash
-mkdir -p "ito-worktrees"
-git worktree add "ito-worktrees/<change-name>" -b <change-name>
+mkdir -p "../ito-worktrees"
+git worktree add "../ito-worktrees/<change-name>" -b <change-name>
 ```
 
 
 Do NOT ask the user where to create worktrees.
+
+## Path Helpers
+
+If you need absolute paths (for logs, scripts, or agent instructions), use:
+
+- `ito path project-root`
+- `ito path worktree-root`
+- `ito path worktrees-root`
+- `ito path worktree --main|--branch <name>|--change <id>`
 
 ## Safety Checks
 

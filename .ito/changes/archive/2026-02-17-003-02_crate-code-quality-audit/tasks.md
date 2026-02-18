@@ -235,6 +235,6 @@ ito tasks complete 003-02_crate-code-quality-audit 1.1
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet
-- `[ ] in-progress` - Currently being worked on
+- `[>] in-progress` - Currently being worked on
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Intentionally not-to-be-done (reversible)

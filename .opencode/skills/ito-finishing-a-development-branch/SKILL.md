@@ -52,7 +52,8 @@ Check if working on a ito change:
 
 ```bash
 # Check for in-progress ito changes
-ls .ito/changes/ 2>/dev/null | head -5
+ITO_ROOT="$(ito path ito-root)"
+ls "$ITO_ROOT/changes/" 2>/dev/null | head -5
 ```
 
 **If ito change detected:** Include Option 5 (Archive) in the options.
