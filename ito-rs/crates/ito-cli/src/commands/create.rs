@@ -97,6 +97,7 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
             name,
             scope,
             depends_on,
+            description,
         } => {
             let mut out = vec!["module".to_string()];
             if let Some(name) = name {
@@ -109,6 +110,10 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
             if let Some(depends_on) = depends_on {
                 out.push("--depends-on".to_string());
                 out.push(depends_on.clone());
+            }
+            if let Some(description) = description {
+                out.push("--description".to_string());
+                out.push(description.clone());
             }
             out
         }
@@ -184,8 +189,15 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let depends_on = parse_string_flag(args, "--depends-on")
                 .map(|raw| split_csv(&raw))
                 .unwrap_or_default();
+            let description = parse_string_flag(args, "--description");
 
-            let r = core_create::create_module(ito_path, name, scope, depends_on)
+            let r = core_create::create_module(
+                ito_path,
+                name,
+                scope,
+                depends_on,
+                description.as_deref(),
+            )
                 .map_err(to_cli_error)?;
             if !r.created {
                 println!("Module \"{}\" already exists as {}", name, r.folder_name);

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
+use clap::builder::Styles;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod path;
@@ -672,6 +672,10 @@ pub enum CreateAction {
         /// Module dependencies (comma-separated module ids)
         #[arg(long = "depends-on")]
         depends_on: Option<String>,
+
+        /// Description (writes module purpose)
+        #[arg(long)]
+        description: Option<String>,
     },
 
     /// Create a change
