@@ -66,6 +66,12 @@ pub enum InstallMode {
     Update,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileOwnership {
+    ItoManaged,
+    UserOwned,
+}
+
 /// Install the default project templates and selected tool adapters.
 ///
 /// When `worktree_ctx` is `Some`, templates containing Jinja2 syntax will be
@@ -190,7 +196,6 @@ fn install_project_templates(
     let selected = &opts.tools;
     let current_date = Utc::now().format("%Y-%m-%d").to_string();
     let state_rel = format!("{ito_dir}/planning/STATE.md");
-    let project_md_rel = format!("{ito_dir}/project.md");
     let config_json_rel = format!("{ito_dir}/config.json");
     let release_tag = release_tag();
     let default_ctx = WorktreeTemplateContext::default();
@@ -225,23 +230,14 @@ fn install_project_templates(
             })?;
         }
 
-        // Preserve project-owned config/docs on `ito update`.
-        // These files are explicitly user-editable (e.g. `ito init` tells users
-        // to edit `.ito/project.md` and `.ito/config.json`), so `ito update`
-        // must not clobber them once they exist.
-        if mode == InstallMode::Update
-            && (rel == project_md_rel || rel == config_json_rel)
-            && project_root.join(rel).exists()
-        {
-            continue;
-        }
+        let ownership = classify_project_file_ownership(rel, ito_dir);
 
         let target = project_root.join(rel);
         if rel == ".claude/settings.json" {
             write_claude_settings(&target, &bytes, mode, opts)?;
             continue;
         }
-        write_one(&target, &bytes, mode, opts)?;
+        write_one(&target, &bytes, mode, opts, ownership)?;
     }
 
     Ok(())
@@ -283,11 +279,36 @@ fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {
     false
 }
 
+fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
+    let project_md_rel = format!("{ito_dir}/project.md");
+    if rel == project_md_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let config_json_rel = format!("{ito_dir}/config.json");
+    if rel == config_json_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let user_guidance_rel = format!("{ito_dir}/user-guidance.md");
+    if rel == user_guidance_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let user_prompts_prefix = format!("{ito_dir}/user-prompts/");
+    if rel.starts_with(&user_prompts_prefix) {
+        return FileOwnership::UserOwned;
+    }
+
+    FileOwnership::ItoManaged
+}
+
 fn write_one(
     target: &Path,
     rendered_bytes: &[u8],
     mode: InstallMode,
     opts: &InitOptions,
+    ownership: FileOwnership,
 ) -> CoreResult<()> {
     if let Some(parent) = target.parent() {
         ito_common::io::create_dir_all_std(parent)
@@ -344,16 +365,28 @@ fn write_one(
         return Ok(());
     }
 
-    // Non-marker-managed files: init refuses to overwrite unless --force.
-    // With --update, silently skip existing files to preserve user edits.
-    if mode == InstallMode::Init && target.exists() && !opts.force {
-        if opts.update {
-            return Ok(());
+    if target.exists() {
+        match mode {
+            InstallMode::Init => {
+                if opts.force {
+                    // --force always overwrites on init.
+                } else if opts.update {
+                    if ownership == FileOwnership::UserOwned {
+                        return Ok(());
+                    }
+                } else {
+                    return Err(CoreError::Validation(format!(
+                        "Refusing to overwrite existing file without markers: {} (re-run with --force)",
+                        target.display()
+                    )));
+                }
+            }
+            InstallMode::Update => {
+                if ownership == FileOwnership::UserOwned {
+                    return Ok(());
+                }
+            }
         }
-        return Err(CoreError::Validation(format!(
-            "Refusing to overwrite existing file without markers: {} (re-run with --force)",
-            target.display()
-        )));
     }
 
     ito_common::io::write_std(target, rendered_bytes)
@@ -808,7 +841,52 @@ mod tests {
         std::fs::write(&target, "existing").unwrap();
 
         let opts = InitOptions::new(BTreeSet::new(), false, true);
-        write_one(&target, b"new", InstallMode::Init, &opts).unwrap();
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Init,
+            &opts,
+            FileOwnership::UserOwned,
+        )
+        .unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(s, "existing");
+    }
+
+    #[test]
+    fn write_one_non_marker_ito_managed_files_overwrite_on_init_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("plain.txt");
+        std::fs::write(&target, "existing").unwrap();
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(s, "new");
+    }
+
+    #[test]
+    fn write_one_non_marker_user_owned_files_preserve_on_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("plain.txt");
+        std::fs::write(&target, "existing").unwrap();
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Update,
+            &opts,
+            FileOwnership::UserOwned,
+        )
+        .unwrap();
         let s = std::fs::read_to_string(&target).unwrap();
         assert_eq!(s, "existing");
     }
@@ -825,7 +903,14 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, false);
-        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        let err = write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("Refusing to overwrite"));
     }
 
@@ -846,7 +931,14 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, false);
-        write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap();
+        write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap();
         let s = std::fs::read_to_string(&target).unwrap();
         assert!(s.contains("new"));
         assert!(!s.contains("old"));
@@ -872,7 +964,14 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, true);
-        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        let err = write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("Failed to update markers"));
     }
 
@@ -919,6 +1018,32 @@ mod tests {
             existing
                 .pointer("/hooks/PreToolUse/0/hooks/0/command")
                 .is_some()
+        );
+    }
+
+    #[test]
+    fn classify_project_file_ownership_handles_user_owned_paths() {
+        let ito_dir = ".ito";
+
+        assert_eq!(
+            classify_project_file_ownership(".ito/project.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/config.json", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/user-guidance.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/user-prompts/tasks.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/commands/review-edge.md", ito_dir),
+            FileOwnership::ItoManaged
         );
     }
 
