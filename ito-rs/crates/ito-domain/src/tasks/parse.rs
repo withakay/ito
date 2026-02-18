@@ -274,8 +274,8 @@ pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String 
 /// # Examples
 ///
 /// ```
-/// use crate::TasksFormat;
-/// let enhanced = "Task: Example\n- **Status**: Pending\n";
+/// use ito_domain::tasks::{TasksFormat, detect_tasks_format};
+/// let enhanced = "# Tasks for: 001-01\n\n## Wave 1\n\n### Task 1.1: Example\n";
 /// assert_eq!(detect_tasks_format(enhanced), TasksFormat::Enhanced);
 ///
 /// let checkbox = "- [ ] Task 1";
@@ -317,6 +317,7 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
 /// # Examples
 ///
 /// ```
+/// use ito_domain::tasks::{TasksFormat, parse_checkbox_tasks};
 /// let contents = "- [ ] 1: First task\n- [x] Second task\n";
 /// let result = parse_checkbox_tasks(contents);
 /// assert_eq!(result.format, TasksFormat::Checkbox);
