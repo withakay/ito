@@ -118,11 +118,21 @@ pub fn opencode_manifests(config_dir: &Path) -> Vec<FileManifest> {
 
 /// Return manifest entries for Claude Code template installation.
 pub fn claude_manifests(project_root: &Path) -> Vec<FileManifest> {
-    let mut out = vec![FileManifest {
-        source: "claude/session-start.sh".to_string(),
-        dest: project_root.join(".claude").join("session-start.sh"),
-        asset_type: AssetType::Adapter,
-    }];
+    let mut out = vec![
+        FileManifest {
+            source: "claude/session-start.sh".to_string(),
+            dest: project_root.join(".claude").join("session-start.sh"),
+            asset_type: AssetType::Adapter,
+        },
+        FileManifest {
+            source: "claude/hooks/ito-audit.sh".to_string(),
+            dest: project_root
+                .join(".claude")
+                .join("hooks")
+                .join("ito-audit.sh"),
+            asset_type: AssetType::Adapter,
+        },
+    ];
 
     // Skills go directly under .claude/skills/ (flat structure with ito- prefix)
     let skills_dir = project_root.join(".claude").join("skills");
@@ -194,7 +204,7 @@ pub fn install_manifests(
     manifests: &[FileManifest],
     worktree_ctx: Option<&ito_templates::project_templates::WorktreeTemplateContext>,
 ) -> CoreResult<()> {
-    use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
+    use ito_templates::project_templates::{render_project_template, WorktreeTemplateContext};
 
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
