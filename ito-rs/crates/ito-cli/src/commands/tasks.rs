@@ -689,8 +689,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 let parsed = core_tasks::parse_tasks_tracking_file(&contents);
 
                 let tasks: Vec<serde_json::Value> = status.items.iter().map(json_task).collect();
-                let waves: Vec<serde_json::Value> = parsed
-                    .waves
+                let mut wave_refs: Vec<_> = parsed.waves.iter().collect();
+                wave_refs.sort_by_key(|wave| wave.wave);
+                let waves: Vec<serde_json::Value> = wave_refs
                     .iter()
                     .map(|wave| {
                         serde_json::json!({

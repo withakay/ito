@@ -8,7 +8,7 @@
 
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -268,7 +268,7 @@ fn acquire_lock(path: &Path) -> Result<fs::File, CreateError> {
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct AllocationState {
     #[serde(default)]
-    modules: HashMap<String, ModuleAllocationState>,
+    modules: BTreeMap<String, ModuleAllocationState>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -520,6 +520,7 @@ fn add_change_to_module(
             planned: false,
         });
     }
+    changes.sort_by(|a, b| a.id.cmp(&b.id));
 
     let md = generate_module_content(&title, purpose.as_deref(), &scope, &depends_on, &changes);
     ito_common::io::write_std(&module_md, md)?;

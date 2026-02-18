@@ -344,4 +344,37 @@ mod tests {
                 .any(|m| m.contains("Dependency not complete: 2.1"))
         );
     }
+
+    #[test]
+    fn enhanced_ready_and_blocked_lists_are_sorted_by_task_id() {
+        let parsed = TasksParseResult {
+            format: TasksFormat::Enhanced,
+            tasks: vec![
+                task("1.2", Some(1), TaskStatus::Pending, &[], 0),
+                task("1.1", Some(1), TaskStatus::Pending, &["missing"], 1),
+                task("1.3", Some(1), TaskStatus::Pending, &[], 2),
+            ],
+            waves: vec![WaveInfo {
+                wave: 1,
+                depends_on: Vec::new(),
+                header_line_index: 0,
+                depends_on_line_index: None,
+            }],
+            diagnostics: Vec::new(),
+            progress: progress_zero(),
+        };
+
+        let (ready, blocked) = compute_ready_and_blocked(&parsed);
+        assert_eq!(
+            ready.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(),
+            vec!["1.2", "1.3"]
+        );
+        assert_eq!(
+            blocked
+                .iter()
+                .map(|(t, _)| t.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["1.1"]
+        );
+    }
 }

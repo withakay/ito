@@ -156,13 +156,34 @@ fn list_default_text_and_json_shape_regression() {
     let out = run_rust_candidate(rust_path, &["list"], repo.path(), home.path());
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("Changes:"));
-    assert!(out.stdout.contains("000-03_new-complete"));
-    assert!(out.stdout.contains("000-02_mid-partial"));
-    assert!(out.stdout.contains("000-01_old-pending"));
+    let idx_01 = out
+        .stdout
+        .find("000-01_old-pending")
+        .expect("default list output should contain 000-01_old-pending");
+    let idx_02 = out
+        .stdout
+        .find("000-02_mid-partial")
+        .expect("default list output should contain 000-02_mid-partial");
+    let idx_03 = out
+        .stdout
+        .find("000-03_new-complete")
+        .expect("default list output should contain 000-03_new-complete");
+    assert!(
+        idx_01 < idx_02 && idx_02 < idx_03,
+        "default text list should be ascending by change ID"
+    );
 
     let out = run_rust_candidate(rust_path, &["list", "--json"], repo.path(), home.path());
     assert_eq!(out.code, 0);
     let parsed: serde_json::Value = serde_json::from_str(&out.stdout).expect("list json");
+    assert_eq!(
+        extract_names(&out.stdout),
+        vec![
+            "000-01_old-pending",
+            "000-02_mid-partial",
+            "000-03_new-complete"
+        ]
+    );
     let first = &parsed["changes"][0];
     assert!(first.get("name").is_some());
     assert!(first.get("completedTasks").is_some());

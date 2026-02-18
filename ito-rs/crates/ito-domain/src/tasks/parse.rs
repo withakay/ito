@@ -43,7 +43,7 @@ static DEPS_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\*\*Dependencies\*\*:\s*(.+?)\s*$").unwrap());
 
 static STATUS_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\*\*Status\*\*:\s*\[([ xX\-~])\]\s+(pending|in-progress|complete|shelved)\s*$")
+    Regex::new(r"\*\*Status\*\*:\s*\[([ xX\-~>])\]\s+(pending|in-progress|complete|shelved)\s*$")
         .unwrap()
 });
 

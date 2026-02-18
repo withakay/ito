@@ -1,5 +1,25 @@
 use ito_core::create::{CreateError, create_change, create_module};
 
+fn write(path: impl AsRef<std::path::Path>, contents: &str) {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("create parent directories");
+    }
+    std::fs::write(path, contents).expect("write fixture file");
+}
+
+fn create_module_fixture(ito: &std::path::Path, module_id: &str, module_name: &str) {
+    let module_dir = ito
+        .join("modules")
+        .join(format!("{module_id}_{module_name}"));
+    write(
+        module_dir.join("module.md"),
+        &format!(
+            "# {module_name}\n\n## Purpose\nfixture\n\n## Scope\n- fixture\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n"
+        ),
+    );
+}
+
 #[test]
 fn create_module_creates_directory_and_module_md() {
     let td = tempfile::tempdir().expect("tempdir should succeed");
@@ -118,5 +138,61 @@ fn create_change_rejects_uppercase_names() {
     assert!(
         msg.contains("lowercase"),
         "message should mention lowercase"
+    );
+}
+
+#[test]
+fn create_change_writes_allocation_modules_in_ascending_id_order() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+
+    for module_id in ["008", "004", "006", "002", "007", "003", "005", "001"] {
+        create_module_fixture(&ito, module_id, &format!("module-{module_id}"));
+        let name = format!("change-{module_id}");
+        create_change(&ito, &name, "spec-driven", Some(module_id), None)
+            .expect("create change in module");
+    }
+
+    let state = std::fs::read_to_string(ito.join("workflows/.state/change-allocations.json"))
+        .expect("read allocation state");
+    let value: serde_json::Value = serde_json::from_str(&state).expect("parse allocation json");
+    let modules = value["modules"].as_object().expect("modules object");
+    let observed: Vec<String> = modules.keys().cloned().collect();
+
+    let mut expected = observed.clone();
+    expected.sort();
+    assert_eq!(
+        observed, expected,
+        "allocation module keys should be sorted"
+    );
+}
+
+#[test]
+fn create_change_rewrites_module_changes_in_ascending_change_id_order() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    write(
+        ito.join("modules/001_demo/module.md"),
+        "# Demo\n\n## Purpose\nfixture\n\n## Scope\n- fixture\n\n## Changes\n- [ ] 001-03_third\n- [ ] 001-01_first\n",
+    );
+
+    let created =
+        create_change(&ito, "second", "spec-driven", Some("001"), None).expect("create change");
+    assert_eq!(created.change_id, "001-04_second");
+
+    let module_md =
+        std::fs::read_to_string(ito.join("modules/001_demo/module.md")).expect("read module.md");
+    let idx_01 = module_md
+        .find("001-01_first")
+        .expect("module list should contain first");
+    let idx_03 = module_md
+        .find("001-03_third")
+        .expect("module list should contain third");
+    let idx_04 = module_md
+        .find("001-04_second")
+        .expect("module list should contain created change");
+    assert!(
+        idx_01 < idx_03 && idx_03 < idx_04,
+        "module change list should be sorted ascending by change ID"
     );
 }
