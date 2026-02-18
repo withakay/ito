@@ -101,14 +101,16 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     // Spot-check adapter outputs.
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(repo.path().join(".claude/session-start.sh").exists());
-    assert!(repo
-        .path()
-        .join(".codex/instructions/ito-skills-bootstrap.md")
-        .exists());
-    assert!(repo
-        .path()
-        .join(".opencode/skills/ito-brainstorming/SKILL.md")
-        .exists());
+    assert!(
+        repo.path()
+            .join(".codex/instructions/ito-skills-bootstrap.md")
+            .exists()
+    );
+    assert!(
+        repo.path()
+            .join(".opencode/skills/ito-brainstorming/SKILL.md")
+            .exists()
+    );
 }
 
 #[test]

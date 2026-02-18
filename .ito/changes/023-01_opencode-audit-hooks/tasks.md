@@ -20,7 +20,7 @@ ______________________________________________________________________
 - **Verify**: `make test -p ito-templates` (or workspace tests)
 - **Done When**: Template assets exist in `ito-templates` and are wired for installation.
 - **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Implement OpenCode plugin behavior
 
@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Verify**: `bun test` (if added) and/or lightweight node/bun execution smoke test
 - **Done When**: Plugin runs audits pre-tool and blocks on hard validation failures.
 - **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Installer tests for init/update
 
@@ -40,7 +40,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Tests cover init/update behavior for OpenCode plugin assets.
 - **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -56,4 +56,4 @@ ______________________________________________________________________
 - **Verify**: `ito validate 023-01_opencode-audit-hooks --strict`
 - **Done When**: Change validates and docs are updated.
 - **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Status**: [x] complete
