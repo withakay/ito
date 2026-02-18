@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::builder::Styles;
+use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod path;

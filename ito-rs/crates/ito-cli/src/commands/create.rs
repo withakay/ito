@@ -198,7 +198,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 depends_on,
                 description.as_deref(),
             )
-                .map_err(to_cli_error)?;
+            .map_err(to_cli_error)?;
             if !r.created {
                 println!("Module \"{}\" already exists as {}", name, r.folder_name);
                 return Ok(());
