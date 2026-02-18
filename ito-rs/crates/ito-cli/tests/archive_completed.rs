@@ -3,6 +3,7 @@
 #[path = "support/mod.rs"]
 mod fixtures;
 
+use ito_test_support::pty::run_pty_interactive;
 use ito_test_support::run_rust_candidate;
 
 /// Create a repo with multiple changes at various completion states.
@@ -231,5 +232,114 @@ fn archive_completed_conflict_with_positional() {
         combined.contains("cannot be used with"),
         "Expected conflict error, got: {}",
         combined
+    );
+}
+
+/// `ito archive --completed` respects interactive decline confirmation.
+#[test]
+fn archive_completed_decline_confirmation_cancels() {
+    let base = make_repo_with_mixed_changes();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_pty_interactive(
+        rust_path,
+        &["archive", "--completed"],
+        repo.path(),
+        home.path(),
+        "N\n",
+    );
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("Archive cancelled."),
+        "Expected cancellation output, got: {}",
+        out.stdout
+    );
+
+    // No completed changes should be archived.
+    assert!(
+        !repo.path().join(".ito/changes/archive").exists(),
+        "archive directory should not exist after declining confirmation"
+    );
+    assert!(
+        repo.path().join(".ito/changes/000-01_completed-a").exists(),
+        "completed change A should remain when confirmation is declined"
+    );
+    assert!(
+        repo.path().join(".ito/changes/000-02_completed-b").exists(),
+        "completed change B should remain when confirmation is declined"
+    );
+}
+
+/// `ito archive --completed` proceeds when user confirms with `yes`.
+#[test]
+fn archive_completed_accept_yes_confirmation_archives() {
+    let base = make_repo_with_mixed_changes();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_pty_interactive(
+        rust_path,
+        &["archive", "--completed"],
+        repo.path(),
+        home.path(),
+        "yes\n",
+    );
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+
+    let archive_root = repo.path().join(".ito/changes/archive");
+    assert!(archive_root.exists(), "archive directory should exist");
+
+    let entries: Vec<String> = std::fs::read_dir(&archive_root)
+        .expect("read archive dir")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
+
+    assert!(
+        entries.iter().any(|e| e.contains("000-01_completed-a")),
+        "000-01_completed-a should be archived, entries: {:?}",
+        entries
+    );
+    assert!(
+        entries.iter().any(|e| e.contains("000-02_completed-b")),
+        "000-02_completed-b should be archived, entries: {:?}",
+        entries
+    );
+}
+
+/// `ito archive --completed` defaults to cancel on empty confirmation.
+#[test]
+fn archive_completed_empty_confirmation_cancels() {
+    let base = make_repo_with_mixed_changes();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_pty_interactive(
+        rust_path,
+        &["archive", "--completed"],
+        repo.path(),
+        home.path(),
+        "\n",
+    );
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("Archive cancelled."),
+        "Expected cancellation output, got: {}",
+        out.stdout
+    );
+
+    assert!(
+        !repo.path().join(".ito/changes/archive").exists(),
+        "archive directory should not exist after empty confirmation"
     );
 }
