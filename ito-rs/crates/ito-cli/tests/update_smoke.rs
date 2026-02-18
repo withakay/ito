@@ -107,16 +107,14 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     assert!(repo.path().join(".claude/session-start.sh").exists());
     assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
     assert!(repo.path().join(".claude/settings.json").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 }
 
 #[test]
@@ -205,6 +203,35 @@ fn update_preserves_project_config_and_project_md() {
 
     let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
     assert!(config.contains("\"custom\": true"));
+}
+
+#[test]
+fn update_preserves_user_guidance_and_user_prompt_files() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".ito/user-guidance.md"),
+        "My team guidance\n",
+    );
+    write(
+        repo.path().join(".ito/user-prompts/tasks.md"),
+        "Custom task prompt guidance\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let user_guidance = std::fs::read_to_string(repo.path().join(".ito/user-guidance.md")).unwrap();
+    assert!(user_guidance.contains("My team guidance"));
+
+    let task_prompt =
+        std::fs::read_to_string(repo.path().join(".ito/user-prompts/tasks.md")).unwrap();
+    assert!(task_prompt.contains("Custom task prompt guidance"));
 }
 
 #[test]
