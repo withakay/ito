@@ -77,8 +77,8 @@ pub(crate) fn handle_ralph_clap(
     raw_args: &[String],
 ) -> CliResult<()> {
     let interactive = !args.no_interactive;
-    let continue_module = args.continue_module
-        || (!interactive && args.module.is_some() && args.change.is_none());
+    let continue_module =
+        args.continue_module || (!interactive && args.module.is_some() && args.change.is_none());
 
     if !interactive
         && args.change.is_none()
