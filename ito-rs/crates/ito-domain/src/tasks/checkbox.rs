@@ -49,3 +49,6 @@ pub(super) fn split_checkbox_task_label(s: &str) -> Option<(&str, &str)> {
 
     Some((token, rest.trim()))
 }
+#[cfg(test)]
+#[path = "checkbox_tests.rs"]
+mod checkbox_tests;

@@ -103,6 +103,6 @@ ______________________________________________________________________
 ## Task Status Legend
 
 - `[ ] pending` - Not started
-- `[ ] in-progress` - Currently working
+- `[>] in-progress` - Currently working
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Deferred

@@ -32,9 +32,6 @@ impl CliHarness for OpencodeHarness {
             args.push("-m".to_string());
             args.push(model.to_string());
         }
-        if config.allow_all {
-            args.push("--yolo".to_string());
-        }
         args.push(config.prompt.clone());
         args
     }

@@ -45,7 +45,7 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
         .iter()
         .map(|s| (*s).to_string())
         .collect();
-    let opts = InitOptions::new(tools, true, false);
+    let opts = InitOptions::new(tools, false, true);
 
     install_default_templates(
         target_path,

@@ -25,5 +25,5 @@ fn update_enhanced_task_status_inserts_or_replaces_status_line() {
     assert!(out.contains("- **Status**: [x] complete"));
 
     let out2 = tasks::update_enhanced_task_status(&out, "1.1", tasks::TaskStatus::InProgress, now);
-    assert!(out2.contains("- **Status**: [ ] in-progress"));
+    assert!(out2.contains("- **Status**: [>] in-progress"));
 }

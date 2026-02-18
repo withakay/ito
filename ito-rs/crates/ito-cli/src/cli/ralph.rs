@@ -35,7 +35,9 @@ pub struct RalphArgs {
     #[arg(short = 'c', long)]
     pub change: Option<String>,
 
-    /// Target a module (selects a change)
+    /// Target a module.
+    ///
+    /// Note: when running with `--no-interactive`, `--module` implies `--continue-module`.
     #[arg(short = 'm', long)]
     pub module: Option<String>,
 

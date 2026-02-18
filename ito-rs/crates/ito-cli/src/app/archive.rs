@@ -291,6 +291,24 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
         return Ok(());
     }
 
+    if !args.yes {
+        eprintln!("Completed changes ready to archive:");
+        for summary in &completed {
+            eprintln!("  - {}", summary.id);
+        }
+        eprint!("Archive {} completed change(s)? [y/N]: ", completed.len());
+
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(|_| CliError::msg("Failed to read input"))?;
+        let input = input.trim().to_lowercase();
+        if input != "y" && input != "yes" {
+            eprintln!("Archive cancelled.");
+            return Ok(());
+        }
+    }
+
     let mut archived: Vec<String> = Vec::new();
     let mut failed: Vec<(String, String)> = Vec::new();
 

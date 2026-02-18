@@ -11,6 +11,10 @@ fn write(path: impl AsRef<Path>, contents: &str) {
 }
 
 fn write_local_ito_skills(root: &Path) {
+    write_local_ito_skills_with_plugin(root, "// test plugin\n");
+}
+
+fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
     // `ito update` installs adapter files for all tool ids, which in turn
     // installs ito-skills assets. In tests we avoid network fetches by
     // providing a local `ito-skills/` directory.
@@ -19,11 +23,15 @@ fn write_local_ito_skills(root: &Path) {
     // Minimal adapter files.
     write(
         base.join("adapters/opencode/ito-skills.js"),
-        "// test plugin\n",
+        plugin_contents,
     );
     write(
         base.join("adapters/claude/session-start.sh"),
         "#!/usr/bin/env sh\necho test\n",
+    );
+    write(
+        base.join("adapters/claude/hooks/ito-audit.sh"),
+        "#!/usr/bin/env sh\nexit 0\n",
     );
     write(base.join(".codex/ito-skills-bootstrap.md"), "# Bootstrap\n");
 
@@ -52,6 +60,36 @@ fn write_local_ito_skills(root: &Path) {
 }
 
 #[test]
+fn update_refreshes_opencode_plugin_and_preserves_user_config() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills_with_plugin(
+        repo.path(),
+        "export const ItoPlugin = async () => ({ 'tool.execute.before': async () => {} });\n",
+    );
+
+    let plugin_path = repo.path().join(".opencode/plugins/ito-skills.js");
+    write(&plugin_path, "// stale plugin\n");
+    write(
+        repo.path().join(".opencode/config.json"),
+        "{\n  \"userOwned\": true\n}\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let plugin = std::fs::read_to_string(&plugin_path).unwrap();
+    assert!(plugin.contains("tool.execute.before"));
+    assert!(!plugin.contains("stale plugin"));
+
+    let config = std::fs::read_to_string(repo.path().join(".opencode/config.json")).unwrap();
+    assert!(config.contains("\"userOwned\": true"));
+}
+
+#[test]
 fn update_installs_adapter_files_from_local_ito_skills() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");
@@ -67,6 +105,8 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     // Spot-check adapter outputs.
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(repo.path().join(".claude/session-start.sh").exists());
+    assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
+    assert!(repo.path().join(".claude/settings.json").exists());
     assert!(
         repo.path()
             .join(".codex/instructions/ito-skills-bootstrap.md")
@@ -76,6 +116,38 @@ fn update_installs_adapter_files_from_local_ito_skills() {
         repo.path()
             .join(".opencode/skills/ito-brainstorming/SKILL.md")
             .exists()
+    );
+}
+
+#[test]
+fn update_merges_claude_settings_without_clobbering_user_keys() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".claude/settings.json"),
+        "{\n  \"permissions\": {\n    \"allow\": [\"Bash(ls)\"]\n  }\n}\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let settings = std::fs::read_to_string(repo.path().join(".claude/settings.json")).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&settings).unwrap();
+    assert!(
+        value
+            .pointer("/permissions/allow")
+            .and_then(|v| v.as_array())
+            .is_some(),
+        "existing user settings should remain"
+    );
+    assert!(
+        value.pointer("/hooks/PreToolUse").is_some(),
+        "ito hook config should be merged into settings"
     );
 }
 
@@ -133,4 +205,96 @@ fn update_preserves_project_config_and_project_md() {
 
     let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
     assert!(config.contains("\"custom\": true"));
+}
+
+#[test]
+fn update_preserves_user_guidance_and_user_prompt_files() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".ito/user-guidance.md"),
+        "My team guidance\n",
+    );
+    write(
+        repo.path().join(".ito/user-prompts/tasks.md"),
+        "Custom task prompt guidance\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let user_guidance = std::fs::read_to_string(repo.path().join(".ito/user-guidance.md")).unwrap();
+    assert!(user_guidance.contains("My team guidance"));
+
+    let task_prompt =
+        std::fs::read_to_string(repo.path().join(".ito/user-prompts/tasks.md")).unwrap();
+    assert!(task_prompt.contains("Custom task prompt guidance"));
+}
+
+#[test]
+fn update_refreshes_github_copilot_audit_assets() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path()
+            .join(".github/workflows/copilot-setup-steps.yml"),
+        "name: stale\n",
+    );
+    write(
+        repo.path().join(".github/prompts/ito-apply.prompt.md"),
+        "stale prompt\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let workflow = std::fs::read_to_string(
+        repo.path()
+            .join(".github/workflows/copilot-setup-steps.yml"),
+    )
+    .unwrap();
+    assert!(workflow.contains("copilot-setup-steps"));
+    assert!(workflow.contains("ito audit validate"));
+    assert!(!workflow.contains("name: stale"));
+
+    let prompt =
+        std::fs::read_to_string(repo.path().join(".github/prompts/ito-apply.prompt.md")).unwrap();
+    assert!(prompt.contains("Audit guardrail (GitHub Copilot)"));
+    assert!(prompt.contains("ito audit validate"));
+    assert!(!prompt.contains("stale prompt"));
+}
+
+#[test]
+fn update_refreshes_codex_audit_instruction_assets() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".codex/instructions/ito-audit.md"),
+        "stale instruction\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let instruction =
+        std::fs::read_to_string(repo.path().join(".codex/instructions/ito-audit.md")).unwrap();
+    assert!(instruction.contains("Ito Audit Guardrails (Codex)"));
+    assert!(instruction.contains("ito audit validate"));
+    assert!(instruction.contains("stop and request user guidance"));
+    assert!(!instruction.contains("stale instruction"));
 }
