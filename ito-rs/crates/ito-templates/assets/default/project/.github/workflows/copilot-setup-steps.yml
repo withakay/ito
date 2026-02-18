@@ -20,7 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Detect Ito CLI
+        run: |
+          if command -v ito >/dev/null 2>&1; then
+            echo "ITO_AVAILABLE=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Ito CLI not found on PATH; skipping Ito audit checks in copilot-setup-steps."
+            echo "ITO_AVAILABLE=0" >> "$GITHUB_ENV"
+          fi
+
       - name: Validate Ito audit log
+        if: env.ITO_AVAILABLE == '1'
         run: |
           if ! ito audit validate; then
             echo "::error::Ito audit validation failed before GitHub Copilot agent startup."
@@ -29,6 +39,7 @@ jobs:
           fi
 
       - name: Check Ito audit drift
+        if: env.ITO_AVAILABLE == '1'
         run: |
           if ! ito audit reconcile; then
             echo "::warning::Ito audit drift detected. Run 'ito audit reconcile --fix' to write compensating audit events."
