@@ -488,6 +488,13 @@ fn merge_json_values(existing: &mut Value, template: &Value) {
                 }
             }
         }
+        (Value::Array(existing_items), Value::Array(template_items)) => {
+            for template_item in template_items {
+                if !existing_items.contains(template_item) {
+                    existing_items.push(template_item.clone());
+                }
+            }
+        }
         (existing_value, template_value) => *existing_value = template_value.clone(),
     }
 }
@@ -1085,6 +1092,64 @@ mod tests {
             value
                 .pointer("/hooks/PreToolUse/0/hooks/0/command")
                 .is_some()
+        );
+    }
+
+    #[test]
+    fn merge_json_objects_appends_and_deduplicates_array_entries() {
+        let mut existing = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)"]
+            },
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "echo existing"}]
+                    }
+                ]
+            }
+        });
+        let template = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)", "Bash(git status)"]
+            },
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "echo existing"}]
+                    },
+                    {
+                        "matcher": "Edit|Write",
+                        "hooks": [{"type": "command", "command": "echo template"}]
+                    }
+                ]
+            }
+        });
+
+        merge_json_objects(&mut existing, &template);
+
+        let permissions = existing
+            .pointer("/permissions/allow")
+            .and_then(Value::as_array)
+            .expect("permissions allow should remain an array");
+        assert_eq!(permissions.len(), 2);
+        assert_eq!(permissions[0].as_str(), Some("Bash(ls)"));
+        assert_eq!(permissions[1].as_str(), Some("Bash(git status)"));
+
+        let hooks = existing
+            .pointer("/hooks/PreToolUse")
+            .and_then(Value::as_array)
+            .expect("PreToolUse should remain an array");
+        assert_eq!(hooks.len(), 2);
+        assert_eq!(
+            hooks[0].pointer("/hooks/0/command").and_then(Value::as_str),
+            Some("echo existing")
+        );
+        assert_eq!(
+            hooks[1].pointer("/hooks/0/command").and_then(Value::as_str),
+            Some("echo template")
         );
     }
 

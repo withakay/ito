@@ -4,15 +4,8 @@ use ito_core::tasks::{
     add_task, complete_task, get_next_task, get_task_status, init_tasks, shelve_task, start_task,
     unshelve_task,
 };
-use std::path::Path;
-
-fn write(path: &Path, contents: &str) {
-    let Some(parent) = path.parent() else {
-        panic!("path has no parent: {}", path.display());
-    };
-    std::fs::create_dir_all(parent).expect("create dir should succeed");
-    std::fs::write(path, contents).expect("write should succeed");
-}
+mod support;
+use support::write;
 
 #[test]
 fn init_tasks_creates_file_when_missing() {
