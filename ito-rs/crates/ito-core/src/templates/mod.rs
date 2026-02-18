@@ -1108,7 +1108,7 @@ mod tests {
  - **Status**: [x] complete
 
  ### Task 1.2: Second
- - **Status**: [ ] in-progress
+ - **Status**: [>] in-progress
  "#;
 
         let tasks = parse_enhanced_tasks(contents);

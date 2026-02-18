@@ -92,6 +92,6 @@ ito tasks complete 013-18_cleanup-ito-skills-repo 1.1
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet
-- `[ ] in-progress` - Currently being worked on
+- `[>] in-progress` - Currently being worked on
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Intentionally not-to-be-done (reversible)

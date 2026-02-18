@@ -170,7 +170,7 @@ fn complete_task_accepts_note_parameter() {
     write(
         &tasks_path,
         &format!(
-            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [ ] in-progress\n"
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [>] in-progress\n"
         ),
     );
 

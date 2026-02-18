@@ -396,7 +396,7 @@ fn progress_info_calculates_remaining_correctly() {
 
 ### Task 1.3: In Progress
 - **Updated At**: 2026-01-01
-- **Status**: [ ] in-progress
+- **Status**: [>] in-progress
 
 ### Task 1.4: Pending
 - **Updated At**: 2026-01-01

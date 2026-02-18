@@ -164,7 +164,7 @@ ______________________________________________________________________
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet
-- `[ ] in-progress` - Currently being worked on
+- `[>] in-progress` - Currently being worked on
 - `[x] complete` - Finished and verified
 
 ## Wave Guidelines

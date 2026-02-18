@@ -185,7 +185,7 @@ Status line remains:
 
 ```md
 - **Status**: [ ] pending
-- **Status**: [ ] in-progress
+- **Status**: [>] in-progress
 - **Status**: [x] complete
 - **Status**: [-] shelved
 ```

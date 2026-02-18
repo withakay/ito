@@ -1,4 +1,4 @@
-use ito_core::create::{create_change, create_module, CreateError};
+use ito_core::create::{CreateError, create_change, create_module};
 
 #[test]
 fn create_module_creates_directory_and_module_md() {

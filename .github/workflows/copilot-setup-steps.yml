@@ -1,7 +1,5 @@
 name: "Copilot Setup Steps"
 
-# Automatically run the setup steps when they are changed to allow for easy validation, and
-# allow manual testing through the repository's "Actions" tab
 on:
   workflow_dispatch:
   push:
@@ -12,24 +10,26 @@ on:
       - .github/workflows/copilot-setup-steps.yml
 
 jobs:
-  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
+  # This job name is required by GitHub Copilot repository agent.
   copilot-setup-steps:
-    runs-on: withakay-selfhosted
+    runs-on: ubuntu-latest
 
-    # Set the permissions to the lowest permissions possible needed for your steps.
-    # Copilot will be given its own token for its operations.
     permissions:
-      # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
       contents: read
 
-    # You can define any steps you want, and they will run before the agent starts.
-    # If you do not check out your code, Copilot will do this for you.
     steps:
       - uses: actions/checkout@v6
 
-      # using withakay-selfhosted runner, we have rust and python preinstalled,
-      # so we can use them to verify that the setup steps are working correctly.
+      - name: Validate Ito audit log
+        run: |
+          if ! ito audit validate; then
+            echo "::error::Ito audit validation failed before GitHub Copilot agent startup."
+            echo "::error::Run 'ito audit validate' for details and 'ito audit reconcile --fix' if drift must be repaired."
+            exit 1
+          fi
 
-      - run: |
-          cargo --version
-          python --version
+      - name: Check Ito audit drift
+        run: |
+          if ! ito audit reconcile; then
+            echo "::warning::Ito audit drift detected. Run 'ito audit reconcile --fix' to write compensating audit events."
+          fi

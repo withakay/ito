@@ -21,6 +21,16 @@ Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito
 
 Keep this managed block so 'ito update' can refresh the instructions.
 
+## Path Helpers
+
+Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute paths into committed files):
+
+- `ito path project-root`
+- `ito path worktree-root`
+- `ito path ito-root`
+- `ito path worktrees-root`
+- `ito path worktree --main|--branch <name>|--change <id>`
+
 ## Worktree Workflow
 
 
@@ -33,7 +43,7 @@ Keep this managed block so 'ito update' can refresh the instructions.
 This project uses a bare/control repo layout with worktrees as siblings:
 
 ```bash
-<project>/                              # bare/control repo
+../                              # bare/control repo
 |-- .bare/                              # git object store
 |-- .git                                # gitdir pointer
 |-- main/               # main branch worktree
@@ -44,8 +54,8 @@ This project uses a bare/control repo layout with worktrees as siblings:
 To create a worktree for a change:
 
 ```bash
-mkdir -p "ito-worktrees"
-git worktree add "ito-worktrees/<change-name>" -b <change-name>
+mkdir -p "../ito-worktrees"
+git worktree add "../ito-worktrees/<change-name>" -b <change-name>
 ```
 
 
@@ -54,7 +64,7 @@ Do NOT ask the user where to create worktrees. Use the configured locations abov
 After the change branch is merged, clean up:
 
 ```bash
-git worktree remove <change-name> 2>/dev/null || true
+git worktree remove <worktree-path> 2>/dev/null || true
 git branch -d <change-name> 2>/dev/null || true
 git worktree prune
 ```
