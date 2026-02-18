@@ -27,6 +27,11 @@ Use the Ito agent skill `ito-write-change-proposal` (alias: `ito-proposal`) as t
 
 Tell the model to use the `ito-write-change-proposal` skill to complete this workflow, using any supplied arguments or context from the prompt.
 
+**Audit guardrail (GitHub Copilot)**
+
+- In GitHub Copilot repository-agent sessions, treat audit checks as mandatory before stateful Ito actions: run `ito audit validate` first.
+- If validation fails or drift is reported, run `ito audit reconcile` and use `ito audit reconcile --fix` when remediation is required.
+
 **Testing Policy (TDD + coverage)**
 
 - Follow the Testing Policy printed by `ito agent instruction proposal` / `ito agent instruction apply`.

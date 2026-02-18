@@ -204,3 +204,41 @@ fn update_preserves_project_config_and_project_md() {
     let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
     assert!(config.contains("\"custom\": true"));
 }
+
+#[test]
+fn update_refreshes_github_copilot_audit_assets() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path()
+            .join(".github/workflows/copilot-setup-steps.yml"),
+        "name: stale\n",
+    );
+    write(
+        repo.path().join(".github/prompts/ito-apply.prompt.md"),
+        "stale prompt\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let workflow = std::fs::read_to_string(
+        repo.path()
+            .join(".github/workflows/copilot-setup-steps.yml"),
+    )
+    .unwrap();
+    assert!(workflow.contains("copilot-setup-steps"));
+    assert!(workflow.contains("ito audit validate"));
+    assert!(!workflow.contains("name: stale"));
+
+    let prompt =
+        std::fs::read_to_string(repo.path().join(".github/prompts/ito-apply.prompt.md")).unwrap();
+    assert!(prompt.contains("Audit guardrail (GitHub Copilot)"));
+    assert!(prompt.contains("ito audit validate"));
+    assert!(!prompt.contains("stale prompt"));
+}
