@@ -14,6 +14,25 @@ import { execFileSync } from 'child_process';
 const DEFAULT_AUDIT_TTL_MS = 10000;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
+const ITO_MANAGED_FILE_RULES = [
+  {
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/tasks\.md/,
+    advice: '[Ito Guardrail] Direct edits to tasks.md detected. Prefer `ito tasks start/complete/shelve/unshelve/add` so audit stays consistent.'
+  },
+  {
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/(proposal|design)\.md/,
+    advice: '[Ito Guardrail] Direct edits to change artifacts detected. Prefer `ito agent instruction proposal|design|tasks|specs --change <id>` and then `ito validate <id> --strict`.'
+  },
+  {
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/specs\/[^/]+\/spec\.md/,
+    advice: '[Ito Guardrail] Direct edits to spec deltas detected. Prefer `ito agent instruction specs --change <id>` and validate with `ito validate <id> --strict`.'
+  },
+  {
+    pattern: /(^|\/)\.ito\/specs\/[^/]+\/spec\.md/,
+    advice: '[Ito Guardrail] Direct edits to canonical specs detected. Prefer change-proposal workflow and validate via `ito validate --specs --strict`.'
+  }
+];
+
 const MUTATING_TOOLS = new Set([
   'Edit',
   'Write',
@@ -23,6 +42,8 @@ const MUTATING_TOOLS = new Set([
   'TodoWrite',
   'apply_patch'
 ]);
+
+const FILE_EDITING_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'apply_patch']);
 
 export const ItoPlugin = async ({ client, directory }) => {
   const homeDir = os.homedir();
@@ -83,6 +104,90 @@ export const ItoPlugin = async ({ client, directory }) => {
 
     const output = [reconcileResult.stdout, reconcileResult.stderr].join('\n');
     return DRIFT_RELATED_TEXT.test(output);
+  };
+
+  const addSystemNotice = (output, notice) => {
+    if (!output || typeof output !== 'object') {
+      return;
+    }
+    if (!Array.isArray(output.system)) {
+      output.system = [];
+    }
+    output.system.push(notice);
+  };
+
+  const coerceString = (value) => {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return '';
+  };
+
+  const collectLikelyPaths = (toolName, input) => {
+    const out = [];
+    const push = (value) => {
+      const text = coerceString(value).trim();
+      if (!text) {
+        return;
+      }
+      out.push(text);
+    };
+
+    const toolInput = input?.tool?.input || input?.toolInput || input?.input || {};
+    if (toolName === 'Bash') {
+      push(toolInput.command || input?.tool?.command || input?.command);
+      return out;
+    }
+
+    push(toolInput.filePath);
+    push(toolInput.path);
+    push(toolInput.newPath);
+    push(toolInput.oldPath);
+    push(toolInput.to);
+    push(toolInput.patchText);
+
+    return out;
+  };
+
+  const matchManagedFileAdvice = (toolName, text) => {
+    if (!text) {
+      return null;
+    }
+
+    if (toolName === 'Bash') {
+      const maybeMutates = /(\>|\>\>|\btee\b|\bsed\s+-i\b|\bcp\b|\bmv\b|\btouch\b|\brm\b|\btruncate\b)/.test(text);
+      if (!maybeMutates) {
+        return null;
+      }
+    }
+
+    const normalized = text.replace(/\\/g, '/');
+    for (const rule of ITO_MANAGED_FILE_RULES) {
+      if (rule.pattern.test(normalized)) {
+        return rule.advice;
+      }
+    }
+
+    return null;
+  };
+
+  const maybeWarnForManagedFileWrites = (toolName, input, output) => {
+    const paths = collectLikelyPaths(toolName, input);
+    const notices = new Set();
+
+    for (const value of paths) {
+      const advice = matchManagedFileAdvice(toolName, value);
+      if (advice) {
+        notices.add(advice);
+      }
+    }
+
+    for (const notice of notices) {
+      addSystemNotice(output, notice);
+    }
   };
 
   const runAuditChecks = () => {
@@ -193,6 +298,11 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
       }
 
       const toolName = input?.tool?.name || input?.toolName || '';
+
+      if (FILE_EDITING_TOOLS.has(toolName) || toolName === 'Bash') {
+        maybeWarnForManagedFileWrites(toolName, input, output);
+      }
+
       const audit = maybeRunAudit(toolName);
 
       if (audit?.hardFailure) {
@@ -201,13 +311,7 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
 
       if (audit?.notice) {
         pendingAuditNotice = audit.notice;
-        if (output && typeof output === 'object') {
-          if (Array.isArray(output.system)) {
-            output.system.push(audit.notice);
-          } else {
-            output.system = [audit.notice];
-          }
-        }
+        addSystemNotice(output, audit.notice);
       }
     },
 

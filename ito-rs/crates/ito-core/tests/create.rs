@@ -10,6 +10,7 @@ fn create_module_creates_directory_and_module_md() {
         "demo",
         vec!["build".to_string(), "ship".to_string()],
         vec!["platform".to_string()],
+        None,
     )
     .expect("create_module should succeed");
 
@@ -32,14 +33,35 @@ fn create_module_returns_existing_module_when_name_matches() {
     let td = tempfile::tempdir().expect("tempdir should succeed");
     let ito = td.path().join(".ito");
 
-    let first = create_module(&ito, "demo", vec![], vec![]).expect("first create");
+    let first = create_module(&ito, "demo", vec![], vec![], None).expect("first create");
     assert!(first.created);
 
-    let second = create_module(&ito, "demo", vec![], vec![]).expect("second create");
+    let second = create_module(&ito, "demo", vec![], vec![], None).expect("second create");
     assert!(!second.created);
     assert_eq!(second.module_id, first.module_id);
     assert_eq!(second.folder_name, first.folder_name);
     assert_eq!(second.module_md, first.module_md);
+}
+
+#[test]
+fn create_module_writes_description_to_purpose_section() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+
+    let r = create_module(
+        &ito,
+        "described-module",
+        vec!["*".to_string()],
+        vec![],
+        Some("This module handles described behavior."),
+    )
+    .expect("create_module should succeed");
+
+    let md = std::fs::read_to_string(&r.module_md).expect("read module.md");
+    assert!(
+        md.contains("This module handles described behavior."),
+        "module.md should include provided description"
+    );
 }
 
 #[test]

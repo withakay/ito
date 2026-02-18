@@ -8,3 +8,4 @@ Command-line interface for Ito (`ito-cli` crate). Argument parsing, command disp
 
 ## Changes
 - [x] 016-10_cli-type-safe-args
+- [ ] 016-11_module-description-args
