@@ -83,6 +83,7 @@ pub fn create_module(
     name: &str,
     scope: Vec<String>,
     depends_on: Vec<String>,
+    description: Option<&str>,
 ) -> Result<CreateModuleResult, CreateError> {
     let name = name.trim();
     if name.is_empty() {
@@ -117,7 +118,7 @@ pub fn create_module(
     let title = to_title_case(name);
     let md = generate_module_content(
         &title,
-        Some("<!-- Describe the purpose of this module/epic -->"),
+        description.or(Some("<!-- Describe the purpose of this module/epic -->")),
         &scope,
         &depends_on,
         &[],
