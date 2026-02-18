@@ -18,8 +18,8 @@ ______________________________________________________________________
 - **Action**: Decide exact hook config location/format and script path (e.g., `.claude/settings.json` + `.claude/hooks/ito-audit.sh`).
 - **Verify**: `make test -p ito-templates` (or workspace tests)
 - **Done When**: Templates include the hook configuration and script.
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-18
+- **Status**: [ ] in-progress
 
 ### Task 1.2: Implement hook script behavior
 
