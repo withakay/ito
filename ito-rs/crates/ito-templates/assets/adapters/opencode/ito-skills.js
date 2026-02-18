@@ -16,19 +16,19 @@ const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i
 
 const ITO_MANAGED_FILE_RULES = [
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/tasks\.md$/,
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/tasks\.md/,
     advice: '[Ito Guardrail] Direct edits to tasks.md detected. Prefer `ito tasks start/complete/shelve/unshelve/add` so audit stays consistent.'
   },
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/(proposal|design)\.md$/,
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/(proposal|design)\.md/,
     advice: '[Ito Guardrail] Direct edits to change artifacts detected. Prefer `ito agent instruction proposal|design|tasks|specs --change <id>` and then `ito validate <id> --strict`.'
   },
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/specs\/[^/]+\/spec\.md$/,
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/specs\/[^/]+\/spec\.md/,
     advice: '[Ito Guardrail] Direct edits to spec deltas detected. Prefer `ito agent instruction specs --change <id>` and validate with `ito validate <id> --strict`.'
   },
   {
-    pattern: /(^|\/)\.ito\/specs\/[^/]+\/spec\.md$/,
+    pattern: /(^|\/)\.ito\/specs\/[^/]+\/spec\.md/,
     advice: '[Ito Guardrail] Direct edits to canonical specs detected. Prefer change-proposal workflow and validate via `ito validate --specs --strict`.'
   }
 ];
