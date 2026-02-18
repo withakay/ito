@@ -18,8 +18,8 @@ ______________________________________________________________________
 - **Action**: Add a dedicated audit instruction file and reference it from existing prompts if needed.
 - **Verify**: `make test -p ito-templates` (or workspace tests)
 - **Done When**: Audit instructions exist and are installed for Codex.
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-18
+- **Status**: [x] complete
 
 ### Task 1.2: Add installer tests for `.codex/` assets
 
@@ -28,5 +28,5 @@ ______________________________________________________________________
 - **Action**: Verify init installs and update refreshes the Codex instruction assets.
 - **Verify**: `make test`
 - **Done When**: Tests cover Codex asset install/update deterministically.
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-18
+- **Status**: [x] complete

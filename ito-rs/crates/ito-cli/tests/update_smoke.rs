@@ -244,3 +244,28 @@ fn update_refreshes_github_copilot_audit_assets() {
     assert!(prompt.contains("ito audit validate"));
     assert!(!prompt.contains("stale prompt"));
 }
+
+#[test]
+fn update_refreshes_codex_audit_instruction_assets() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".codex/instructions/ito-audit.md"),
+        "stale instruction\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let instruction =
+        std::fs::read_to_string(repo.path().join(".codex/instructions/ito-audit.md")).unwrap();
+    assert!(instruction.contains("Ito Audit Guardrails (Codex)"));
+    assert!(instruction.contains("ito audit validate"));
+    assert!(instruction.contains("stop and request user guidance"));
+    assert!(!instruction.contains("stale instruction"));
+}
