@@ -1,6 +1,6 @@
 use ito_core::distribution::{
-    claude_manifests, codex_manifests, github_manifests, install_manifests, opencode_manifests,
-    AssetType,
+    AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
+    opencode_manifests,
 };
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::path::Path;
@@ -90,9 +90,11 @@ fn codex_manifests_includes_bootstrap_and_skills() {
     assert!(adapter.is_some(), "should include codex bootstrap");
     let adapter = adapter.unwrap();
     assert_eq!(adapter.asset_type, AssetType::Adapter);
-    assert!(adapter
-        .dest
-        .ends_with(".codex/instructions/ito-skills-bootstrap.md"));
+    assert!(
+        adapter
+            .dest
+            .ends_with(".codex/instructions/ito-skills-bootstrap.md")
+    );
 
     // Should include skills
     let skills: Vec<_> = manifests

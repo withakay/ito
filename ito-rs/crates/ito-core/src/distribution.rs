@@ -204,7 +204,7 @@ pub fn install_manifests(
     manifests: &[FileManifest],
     worktree_ctx: Option<&ito_templates::project_templates::WorktreeTemplateContext>,
 ) -> CoreResult<()> {
-    use ito_templates::project_templates::{render_project_template, WorktreeTemplateContext};
+    use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
 
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
