@@ -131,6 +131,10 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
         base.join("adapters/claude/session-start.sh"),
         "#!/usr/bin/env sh\necho test\n",
     );
+    write(
+        base.join("adapters/claude/hooks/ito-audit.sh"),
+        "#!/usr/bin/env sh\nexit 0\n",
+    );
     write(base.join(".codex/ito-skills-bootstrap.md"), "# Bootstrap\n");
 
     // Must match ito-core `distribution.rs` ITO_SKILLS list.

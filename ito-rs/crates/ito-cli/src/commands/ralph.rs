@@ -77,6 +77,8 @@ pub(crate) fn handle_ralph_clap(
     raw_args: &[String],
 ) -> CliResult<()> {
     let interactive = !args.no_interactive;
+    let continue_module =
+        args.continue_module || (!interactive && args.module.is_some() && args.change.is_none());
 
     if !interactive
         && args.change.is_none()
@@ -146,7 +148,7 @@ pub(crate) fn handle_ralph_clap(
         && args.change.is_none()
         && args.file.is_none()
         && !args.continue_ready
-        && !args.continue_module;
+        && !continue_module;
 
     if needs_picker {
         let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
@@ -180,7 +182,7 @@ pub(crate) fn handle_ralph_clap(
             add_context: args.add_context.clone(),
             clear_context: args.clear_context,
             verbose: args.verbose,
-            continue_module: args.continue_module,
+            continue_module,
             continue_ready: args.continue_ready,
             inactivity_timeout,
             skip_validation: args.skip_validation,
@@ -233,7 +235,7 @@ pub(crate) fn handle_ralph_clap(
         add_context: args.add_context.clone(),
         clear_context: args.clear_context,
         verbose: args.verbose,
-        continue_module: args.continue_module,
+        continue_module,
         continue_ready: args.continue_ready,
         inactivity_timeout,
         skip_validation: args.skip_validation,

@@ -194,6 +194,6 @@ ito tasks complete 000-04_ready-work-commands 1.1
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet
-- `[ ] in-progress` - Currently being worked on
+- `[>] in-progress` - Currently being worked on
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Intentionally not-to-be-done (reversible)

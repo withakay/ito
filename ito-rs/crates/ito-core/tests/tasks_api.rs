@@ -2,15 +2,8 @@ use ito_core::tasks::{
     TaskStatus, add_task, complete_task, get_next_task, init_tasks, shelve_task, start_task,
     unshelve_task,
 };
-use std::path::Path;
-
-fn write(path: &Path, contents: &str) {
-    let Some(parent) = path.parent() else {
-        panic!("path has no parent: {}", path.display());
-    };
-    std::fs::create_dir_all(parent).expect("create dir should succeed");
-    std::fs::write(path, contents).expect("write should succeed");
-}
+mod support;
+use support::write;
 
 fn enhanced_tasks_fixture(change_id: &str) -> String {
     format!(
@@ -112,4 +105,143 @@ fn add_task_appends_new_task_with_next_id() {
 
     let contents = std::fs::read_to_string(&tasks_path).expect("read tasks.md");
     assert!(contents.contains("### Task 1.2: Second"));
+}
+
+#[test]
+fn init_tasks_returns_true_when_file_already_exists() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+
+    let (_, existed1) = init_tasks(&ito, change_id).expect("first init should succeed");
+    assert!(!existed1);
+
+    let (_, existed2) = init_tasks(&ito, change_id).expect("second init should succeed");
+    assert!(existed2);
+}
+
+#[test]
+fn get_next_task_returns_none_when_all_tasks_complete() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [x] complete\n"
+        ),
+    );
+
+    let next = get_next_task(&ito, change_id).expect("get_next_task");
+    assert!(next.is_none());
+}
+
+#[test]
+fn start_task_rejects_starting_shelved_task_directly() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [-] shelved\n"
+        ),
+    );
+
+    let err = start_task(&ito, change_id, "1.1").expect_err("should fail for shelved task");
+    assert!(err.to_string().contains("shelved"));
+}
+
+#[test]
+fn complete_task_accepts_note_parameter() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [>] in-progress\n"
+        ),
+    );
+
+    let result = complete_task(&ito, change_id, "1.1", Some("Done early".to_string()))
+        .expect("complete with note should succeed");
+    assert_eq!(result.status, TaskStatus::Complete);
+}
+
+#[test]
+fn shelve_task_accepts_reason_parameter() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [ ] pending\n"
+        ),
+    );
+
+    let result = shelve_task(&ito, change_id, "1.1", Some("No longer needed".to_string()))
+        .expect("shelve with reason should succeed");
+    assert_eq!(result.status, TaskStatus::Shelved);
+}
+
+#[test]
+fn shelve_task_rejects_shelving_complete_task() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [x] complete\n"
+        ),
+    );
+
+    let err = shelve_task(&ito, change_id, "1.1", None).expect_err("should fail for complete task");
+    assert!(err.to_string().contains("already complete"));
+}
+
+#[test]
+fn add_task_creates_wave_if_not_exists() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_demo";
+    let tasks_path = ito.join("changes").join(change_id).join("tasks.md");
+    write(
+        &tasks_path,
+        &format!(
+            "# Tasks for: {change_id}\n\n## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [x] complete\n\n## Checkpoints\n"
+        ),
+    );
+
+    let item = add_task(&ito, change_id, "New wave task", Some(2))
+        .expect("add_task to new wave should succeed");
+    assert_eq!(item.id, "2.1");
+    assert_eq!(item.wave, Some(2));
+
+    let contents = std::fs::read_to_string(&tasks_path).expect("read tasks.md");
+    assert!(contents.contains("## Wave 2"));
+    assert!(contents.contains("### Task 2.1: New wave task"));
+}
+
+#[test]
+fn list_ready_tasks_across_changes_handles_empty_repo() {
+    use ito_core::change_repository::FsChangeRepository;
+    use ito_core::tasks::list_ready_tasks_across_changes;
+
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).expect("create ito dir");
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let ready = list_ready_tasks_across_changes(&change_repo, &ito)
+        .expect("list should succeed on empty repo");
+
+    assert!(ready.is_empty());
 }

@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use chrono::Utc;
+use serde_json::{Map, Value};
 
 use crate::errors::{CoreError, CoreResult};
 
@@ -63,6 +64,12 @@ pub enum InstallMode {
     Init,
     /// Update installation (`ito update`).
     Update,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileOwnership {
+    ItoManaged,
+    UserOwned,
 }
 
 /// Install the default project templates and selected tool adapters.
@@ -189,7 +196,6 @@ fn install_project_templates(
     let selected = &opts.tools;
     let current_date = Utc::now().format("%Y-%m-%d").to_string();
     let state_rel = format!("{ito_dir}/planning/STATE.md");
-    let project_md_rel = format!("{ito_dir}/project.md");
     let config_json_rel = format!("{ito_dir}/config.json");
     let release_tag = release_tag();
     let default_ctx = WorktreeTemplateContext::default();
@@ -224,19 +230,14 @@ fn install_project_templates(
             })?;
         }
 
-        // Preserve project-owned config/docs on `ito update`.
-        // These files are explicitly user-editable (e.g. `ito init` tells users
-        // to edit `.ito/project.md` and `.ito/config.json`), so `ito update`
-        // must not clobber them once they exist.
-        if mode == InstallMode::Update
-            && (rel == project_md_rel || rel == config_json_rel)
-            && project_root.join(rel).exists()
-        {
-            continue;
-        }
+        let ownership = classify_project_file_ownership(rel, ito_dir);
 
         let target = project_root.join(rel);
-        write_one(&target, &bytes, mode, opts)?;
+        if rel == ".claude/settings.json" {
+            write_claude_settings(&target, &bytes, mode, opts)?;
+            continue;
+        }
+        write_one(&target, &bytes, mode, opts, ownership)?;
     }
 
     Ok(())
@@ -278,11 +279,36 @@ fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {
     false
 }
 
+fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
+    let project_md_rel = format!("{ito_dir}/project.md");
+    if rel == project_md_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let config_json_rel = format!("{ito_dir}/config.json");
+    if rel == config_json_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let user_guidance_rel = format!("{ito_dir}/user-guidance.md");
+    if rel == user_guidance_rel {
+        return FileOwnership::UserOwned;
+    }
+
+    let user_prompts_prefix = format!("{ito_dir}/user-prompts/");
+    if rel.starts_with(&user_prompts_prefix) {
+        return FileOwnership::UserOwned;
+    }
+
+    FileOwnership::ItoManaged
+}
+
 fn write_one(
     target: &Path,
     rendered_bytes: &[u8],
     mode: InstallMode,
     opts: &InitOptions,
+    ownership: FileOwnership,
 ) -> CoreResult<()> {
     if let Some(parent) = target.parent() {
         ito_common::io::create_dir_all_std(parent)
@@ -339,21 +365,138 @@ fn write_one(
         return Ok(());
     }
 
-    // Non-marker-managed files: init refuses to overwrite unless --force.
-    // With --update, silently skip existing files to preserve user edits.
-    if mode == InstallMode::Init && target.exists() && !opts.force {
-        if opts.update {
-            return Ok(());
+    if target.exists() {
+        match mode {
+            InstallMode::Init => {
+                if opts.force {
+                    // --force always overwrites on init.
+                } else if opts.update {
+                    if ownership == FileOwnership::UserOwned {
+                        return Ok(());
+                    }
+                } else {
+                    return Err(CoreError::Validation(format!(
+                        "Refusing to overwrite existing file without markers: {} (re-run with --force)",
+                        target.display()
+                    )));
+                }
+            }
+            InstallMode::Update => {
+                if ownership == FileOwnership::UserOwned {
+                    return Ok(());
+                }
+            }
         }
+    }
+
+    ito_common::io::write_std(target, rendered_bytes)
+        .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+    Ok(())
+}
+
+fn write_claude_settings(
+    target: &Path,
+    rendered_bytes: &[u8],
+    mode: InstallMode,
+    opts: &InitOptions,
+) -> CoreResult<()> {
+    if let Some(parent) = target.parent() {
+        ito_common::io::create_dir_all_std(parent)
+            .map_err(|e| CoreError::io(format!("creating directory {}", parent.display()), e))?;
+    }
+
+    if mode == InstallMode::Init && target.exists() && !opts.force && !opts.update {
         return Err(CoreError::Validation(format!(
             "Refusing to overwrite existing file without markers: {} (re-run with --force)",
             target.display()
         )));
     }
 
-    ito_common::io::write_std(target, rendered_bytes)
+    let template_value: Value = serde_json::from_slice(rendered_bytes).map_err(|e| {
+        CoreError::Validation(format!(
+            "Failed to parse Claude settings template {}: {}",
+            target.display(),
+            e
+        ))
+    })?;
+
+    if !target.exists() || (mode == InstallMode::Init && opts.force) {
+        let mut bytes = serde_json::to_vec_pretty(&template_value).map_err(|e| {
+            CoreError::Validation(format!(
+                "Failed to render Claude settings template {}: {}",
+                target.display(),
+                e
+            ))
+        })?;
+        bytes.push(b'\n');
+        ito_common::io::write_std(target, bytes)
+            .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+        return Ok(());
+    }
+
+    let existing_raw = ito_common::io::read_to_string_std(target)
+        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
+    let Ok(mut existing_value) = serde_json::from_str::<Value>(&existing_raw) else {
+        // Preserve user-owned files that are not valid JSON during update flows.
+        return Ok(());
+    };
+
+    merge_json_objects(&mut existing_value, &template_value);
+    let mut merged = serde_json::to_vec_pretty(&existing_value).map_err(|e| {
+        CoreError::Validation(format!(
+            "Failed to render merged Claude settings {}: {}",
+            target.display(),
+            e
+        ))
+    })?;
+    merged.push(b'\n');
+    ito_common::io::write_std(target, merged)
         .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
     Ok(())
+}
+
+fn merge_json_objects(existing: &mut Value, template: &Value) {
+    let Value::Object(template_map) = template else {
+        *existing = template.clone();
+        return;
+    };
+    if !existing.is_object() {
+        *existing = Value::Object(Map::new());
+    }
+
+    let Some(existing_map) = existing.as_object_mut() else {
+        return;
+    };
+
+    for (key, template_value) in template_map {
+        if let Some(existing_value) = existing_map.get_mut(key) {
+            merge_json_values(existing_value, template_value);
+        } else {
+            existing_map.insert(key.clone(), template_value.clone());
+        }
+    }
+}
+
+fn merge_json_values(existing: &mut Value, template: &Value) {
+    match (existing, template) {
+        (Value::Object(existing_map), Value::Object(template_map)) => {
+            for (key, template_value) in template_map {
+                if let Some(existing_value) = existing_map.get_mut(key) {
+                    merge_json_values(existing_value, template_value);
+                } else {
+                    existing_map.insert(key.clone(), template_value.clone());
+                }
+            }
+        }
+        (Value::Array(existing_items), Value::Array(template_items)) => {
+            for template_item in template_items {
+                if !existing_items.contains(template_item) {
+                    existing_items.push(template_item.clone());
+                }
+            }
+        }
+        (existing_value, template_value) => *existing_value = template_value.clone(),
+    }
 }
 
 fn install_adapter_files(
@@ -705,7 +848,52 @@ mod tests {
         std::fs::write(&target, "existing").unwrap();
 
         let opts = InitOptions::new(BTreeSet::new(), false, true);
-        write_one(&target, b"new", InstallMode::Init, &opts).unwrap();
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Init,
+            &opts,
+            FileOwnership::UserOwned,
+        )
+        .unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(s, "existing");
+    }
+
+    #[test]
+    fn write_one_non_marker_ito_managed_files_overwrite_on_init_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("plain.txt");
+        std::fs::write(&target, "existing").unwrap();
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap();
+        let s = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(s, "new");
+    }
+
+    #[test]
+    fn write_one_non_marker_user_owned_files_preserve_on_update_mode() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join("plain.txt");
+        std::fs::write(&target, "existing").unwrap();
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_one(
+            &target,
+            b"new",
+            InstallMode::Update,
+            &opts,
+            FileOwnership::UserOwned,
+        )
+        .unwrap();
         let s = std::fs::read_to_string(&target).unwrap();
         assert_eq!(s, "existing");
     }
@@ -722,7 +910,14 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, false);
-        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        let err = write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("Refusing to overwrite"));
     }
 
@@ -743,7 +938,14 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, false);
-        write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap();
+        write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap();
         let s = std::fs::read_to_string(&target).unwrap();
         assert!(s.contains("new"));
         assert!(!s.contains("old"));
@@ -769,7 +971,216 @@ mod tests {
             ito_templates::ITO_END_MARKER
         );
         let opts = InitOptions::new(BTreeSet::new(), false, true);
-        let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
+        let err = write_one(
+            &target,
+            template.as_bytes(),
+            InstallMode::Init,
+            &opts,
+            FileOwnership::ItoManaged,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("Failed to update markers"));
+    }
+
+    #[test]
+    fn merge_json_objects_keeps_existing_and_adds_template_keys() {
+        let mut existing = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)"]
+            },
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "matcher": "*"
+                    }
+                ]
+            }
+        });
+        let template = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash|Edit|Write",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "bash .claude/hooks/ito-audit.sh"
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        merge_json_objects(&mut existing, &template);
+
+        assert_eq!(
+            existing
+                .pointer("/permissions/allow/0")
+                .and_then(Value::as_str),
+            Some("Bash(ls)")
+        );
+        assert!(existing.pointer("/hooks/SessionStart/0/matcher").is_some());
+        assert!(
+            existing
+                .pointer("/hooks/PreToolUse/0/hooks/0/command")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn classify_project_file_ownership_handles_user_owned_paths() {
+        let ito_dir = ".ito";
+
+        assert_eq!(
+            classify_project_file_ownership(".ito/project.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/config.json", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/user-guidance.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/user-prompts/tasks.md", ito_dir),
+            FileOwnership::UserOwned
+        );
+        assert_eq!(
+            classify_project_file_ownership(".ito/commands/review-edge.md", ito_dir),
+            FileOwnership::ItoManaged
+        );
+    }
+
+    #[test]
+    fn write_claude_settings_merges_existing_file_on_update() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join(".claude/settings.json");
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::write(
+            &target,
+            "{\n  \"permissions\": {\n    \"allow\": [\"Bash(ls)\"]\n  }\n}\n",
+        )
+        .unwrap();
+
+        let template = br#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ito-audit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+"#;
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
+
+        let updated = std::fs::read_to_string(&target).unwrap();
+        let value: Value = serde_json::from_str(&updated).unwrap();
+        assert!(value.pointer("/permissions/allow").is_some());
+        assert!(
+            value
+                .pointer("/hooks/PreToolUse/0/hooks/0/command")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn merge_json_objects_appends_and_deduplicates_array_entries() {
+        let mut existing = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)"]
+            },
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "echo existing"}]
+                    }
+                ]
+            }
+        });
+        let template = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)", "Bash(git status)"]
+            },
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "echo existing"}]
+                    },
+                    {
+                        "matcher": "Edit|Write",
+                        "hooks": [{"type": "command", "command": "echo template"}]
+                    }
+                ]
+            }
+        });
+
+        merge_json_objects(&mut existing, &template);
+
+        let permissions = existing
+            .pointer("/permissions/allow")
+            .and_then(Value::as_array)
+            .expect("permissions allow should remain an array");
+        assert_eq!(permissions.len(), 2);
+        assert_eq!(permissions[0].as_str(), Some("Bash(ls)"));
+        assert_eq!(permissions[1].as_str(), Some("Bash(git status)"));
+
+        let hooks = existing
+            .pointer("/hooks/PreToolUse")
+            .and_then(Value::as_array)
+            .expect("PreToolUse should remain an array");
+        assert_eq!(hooks.len(), 2);
+        assert_eq!(
+            hooks[0].pointer("/hooks/0/command").and_then(Value::as_str),
+            Some("echo existing")
+        );
+        assert_eq!(
+            hooks[1].pointer("/hooks/0/command").and_then(Value::as_str),
+            Some("echo template")
+        );
+    }
+
+    #[test]
+    fn write_claude_settings_preserves_invalid_json_on_update() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join(".claude/settings.json");
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::write(&target, "not-json\n").unwrap();
+
+        let template = br#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ito-audit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+"#;
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
+
+        let updated = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(updated, "not-json\n");
     }
 }

@@ -340,6 +340,8 @@ fn init_with_tools_csv_installs_selected_adapters() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
     assert!(repo.path().join(".claude/session-start.sh").exists());
+    assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
+    assert!(repo.path().join(".claude/settings.json").exists());
     assert!(
         repo.path()
             .join(".codex/instructions/ito-skills-bootstrap.md")
@@ -372,7 +374,113 @@ fn init_tools_csv_ignores_empty_segments() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
     assert!(repo.path().join(".claude/session-start.sh").exists());
+    assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
+    assert!(repo.path().join(".claude/settings.json").exists());
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
+}
+
+#[test]
+fn init_opencode_installs_audit_hook_plugin() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "opencode",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let plugin_path = repo.path().join(".opencode/plugins/ito-skills.js");
+    assert!(plugin_path.exists(), "OpenCode plugin should be installed");
+
+    let plugin = std::fs::read_to_string(plugin_path).unwrap();
+    assert!(plugin.contains("tool.execute.before"));
+    assert!(plugin.contains("ito audit validate"));
+    assert!(plugin.contains("ito audit reconcile"));
+}
+
+#[test]
+fn init_github_copilot_installs_audit_preflight_assets() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "github-copilot",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let workflow_path = repo
+        .path()
+        .join(".github/workflows/copilot-setup-steps.yml");
+    assert!(
+        workflow_path.exists(),
+        "copilot setup workflow should be installed"
+    );
+    let workflow = std::fs::read_to_string(workflow_path).unwrap();
+    assert!(workflow.contains("ito audit validate"));
+
+    let prompt_path = repo.path().join(".github/prompts/ito-apply.prompt.md");
+    assert!(prompt_path.exists(), "copilot prompt should be installed");
+    let prompt = std::fs::read_to_string(prompt_path).unwrap();
+    assert!(prompt.contains("Audit guardrail (GitHub Copilot)"));
+    assert!(prompt.contains("ito audit validate"));
+}
+
+#[test]
+fn init_codex_installs_audit_instruction_assets() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write_local_ito_skills(repo.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "codex",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let instruction_path = repo.path().join(".codex/instructions/ito-audit.md");
+    assert!(
+        instruction_path.exists(),
+        "codex audit instruction should be installed"
+    );
+
+    let instruction = std::fs::read_to_string(instruction_path).unwrap();
+    assert!(instruction.contains("ito audit validate"));
+    assert!(instruction.contains("stop and request user guidance"));
 }
 
 #[test]
@@ -436,6 +544,8 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
 
     // Spot-check adapter outputs from both Claude + OpenCode.
     assert!(repo.path().join(".claude/session-start.sh").exists());
+    assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
+    assert!(repo.path().join(".claude/settings.json").exists());
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(
         repo.path()

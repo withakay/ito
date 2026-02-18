@@ -929,6 +929,14 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
                 current_status = Some(status.trim().to_string());
                 continue;
             }
+            if let Some(status) = status
+                .strip_prefix("[>]")
+                .or_else(|| status.strip_prefix("[~]"))
+            {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
             if let Some(status) = status.strip_prefix("[ ]") {
                 current_done = false;
                 current_status = Some(status.trim().to_string());
@@ -1108,7 +1116,7 @@ mod tests {
  - **Status**: [x] complete
 
  ### Task 1.2: Second
- - **Status**: [ ] in-progress
+ - **Status**: [>] in-progress
  "#;
 
         let tasks = parse_enhanced_tasks(contents);
