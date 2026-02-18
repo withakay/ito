@@ -410,6 +410,45 @@ fn init_opencode_installs_audit_hook_plugin() {
 }
 
 #[test]
+fn init_github_copilot_installs_audit_preflight_assets() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "github-copilot",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let workflow_path = repo
+        .path()
+        .join(".github/workflows/copilot-setup-steps.yml");
+    assert!(
+        workflow_path.exists(),
+        "copilot setup workflow should be installed"
+    );
+    let workflow = std::fs::read_to_string(workflow_path).unwrap();
+    assert!(workflow.contains("ito audit validate"));
+
+    let prompt_path = repo.path().join(".github/prompts/ito-apply.prompt.md");
+    assert!(prompt_path.exists(), "copilot prompt should be installed");
+    let prompt = std::fs::read_to_string(prompt_path).unwrap();
+    assert!(prompt.contains("Audit guardrail (GitHub Copilot)"));
+    assert!(prompt.contains("ito audit validate"));
+}
+
+#[test]
 fn init_refuses_to_overwrite_existing_file_without_markers_when_not_forced() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");

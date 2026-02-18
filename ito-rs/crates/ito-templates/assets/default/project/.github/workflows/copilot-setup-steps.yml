@@ -1,0 +1,35 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # This job name is required by GitHub Copilot repository agent.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate Ito audit log
+        run: |
+          if ! ito audit validate; then
+            echo "::error::Ito audit validation failed before GitHub Copilot agent startup."
+            echo "::error::Run 'ito audit validate' for details and 'ito audit reconcile --fix' if drift must be repaired."
+            exit 1
+          fi
+
+      - name: Check Ito audit drift
+        run: |
+          if ! ito audit reconcile; then
+            echo "::warning::Ito audit drift detected. Run 'ito audit reconcile --fix' to write compensating audit events."
+          fi
