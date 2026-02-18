@@ -29,6 +29,10 @@ fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
         base.join("adapters/claude/session-start.sh"),
         "#!/usr/bin/env sh\necho test\n",
     );
+    write(
+        base.join("adapters/claude/hooks/ito-audit.sh"),
+        "#!/usr/bin/env sh\nexit 0\n",
+    );
     write(base.join(".codex/ito-skills-bootstrap.md"), "# Bootstrap\n");
 
     // Must match ito-core `distribution.rs` ITO_SKILLS list.
@@ -101,15 +105,47 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     // Spot-check adapter outputs.
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(repo.path().join(".claude/session-start.sh").exists());
+    assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
+    assert!(repo.path().join(".claude/settings.json").exists());
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
+}
+
+#[test]
+fn update_merges_claude_settings_without_clobbering_user_keys() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    write(
+        repo.path().join(".claude/settings.json"),
+        "{\n  \"permissions\": {\n    \"allow\": [\"Bash(ls)\"]\n  }\n}\n",
+    );
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let settings = std::fs::read_to_string(repo.path().join(".claude/settings.json")).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&settings).unwrap();
     assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
+        value
+            .pointer("/permissions/allow")
+            .and_then(|v| v.as_array())
+            .is_some(),
+        "existing user settings should remain"
     );
     assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
+        value.pointer("/hooks/PreToolUse").is_some(),
+        "ito hook config should be merged into settings"
     );
 }
 

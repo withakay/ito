@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use chrono::Utc;
+use serde_json::{Map, Value};
 
 use crate::errors::{CoreError, CoreResult};
 
@@ -236,6 +237,10 @@ fn install_project_templates(
         }
 
         let target = project_root.join(rel);
+        if rel == ".claude/settings.json" {
+            write_claude_settings(&target, &bytes, mode, opts)?;
+            continue;
+        }
         write_one(&target, &bytes, mode, opts)?;
     }
 
@@ -354,6 +359,104 @@ fn write_one(
     ito_common::io::write_std(target, rendered_bytes)
         .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
     Ok(())
+}
+
+fn write_claude_settings(
+    target: &Path,
+    rendered_bytes: &[u8],
+    mode: InstallMode,
+    opts: &InitOptions,
+) -> CoreResult<()> {
+    if let Some(parent) = target.parent() {
+        ito_common::io::create_dir_all_std(parent)
+            .map_err(|e| CoreError::io(format!("creating directory {}", parent.display()), e))?;
+    }
+
+    if mode == InstallMode::Init && target.exists() && !opts.force && !opts.update {
+        return Err(CoreError::Validation(format!(
+            "Refusing to overwrite existing file without markers: {} (re-run with --force)",
+            target.display()
+        )));
+    }
+
+    let template_value: Value = serde_json::from_slice(rendered_bytes).map_err(|e| {
+        CoreError::Validation(format!(
+            "Failed to parse Claude settings template {}: {}",
+            target.display(),
+            e
+        ))
+    })?;
+
+    if !target.exists() || (mode == InstallMode::Init && opts.force) {
+        let mut bytes = serde_json::to_vec_pretty(&template_value).map_err(|e| {
+            CoreError::Validation(format!(
+                "Failed to render Claude settings template {}: {}",
+                target.display(),
+                e
+            ))
+        })?;
+        bytes.push(b'\n');
+        ito_common::io::write_std(target, bytes)
+            .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+        return Ok(());
+    }
+
+    let existing_raw = ito_common::io::read_to_string_std(target)
+        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
+    let Ok(mut existing_value) = serde_json::from_str::<Value>(&existing_raw) else {
+        // Preserve user-owned files that are not valid JSON during update flows.
+        return Ok(());
+    };
+
+    merge_json_objects(&mut existing_value, &template_value);
+    let mut merged = serde_json::to_vec_pretty(&existing_value).map_err(|e| {
+        CoreError::Validation(format!(
+            "Failed to render merged Claude settings {}: {}",
+            target.display(),
+            e
+        ))
+    })?;
+    merged.push(b'\n');
+    ito_common::io::write_std(target, merged)
+        .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+    Ok(())
+}
+
+fn merge_json_objects(existing: &mut Value, template: &Value) {
+    let Value::Object(template_map) = template else {
+        *existing = template.clone();
+        return;
+    };
+    if !existing.is_object() {
+        *existing = Value::Object(Map::new());
+    }
+
+    let Some(existing_map) = existing.as_object_mut() else {
+        return;
+    };
+
+    for (key, template_value) in template_map {
+        if let Some(existing_value) = existing_map.get_mut(key) {
+            merge_json_values(existing_value, template_value);
+        } else {
+            existing_map.insert(key.clone(), template_value.clone());
+        }
+    }
+}
+
+fn merge_json_values(existing: &mut Value, template: &Value) {
+    match (existing, template) {
+        (Value::Object(existing_map), Value::Object(template_map)) => {
+            for (key, template_value) in template_map {
+                if let Some(existing_value) = existing_map.get_mut(key) {
+                    merge_json_values(existing_value, template_value);
+                } else {
+                    existing_map.insert(key.clone(), template_value.clone());
+                }
+            }
+        }
+        (existing_value, template_value) => *existing_value = template_value.clone(),
+    }
 }
 
 fn install_adapter_files(
@@ -771,5 +874,113 @@ mod tests {
         let opts = InitOptions::new(BTreeSet::new(), false, true);
         let err = write_one(&target, template.as_bytes(), InstallMode::Init, &opts).unwrap_err();
         assert!(err.to_string().contains("Failed to update markers"));
+    }
+
+    #[test]
+    fn merge_json_objects_keeps_existing_and_adds_template_keys() {
+        let mut existing = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(ls)"]
+            },
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "matcher": "*"
+                    }
+                ]
+            }
+        });
+        let template = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash|Edit|Write",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "bash .claude/hooks/ito-audit.sh"
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        merge_json_objects(&mut existing, &template);
+
+        assert_eq!(
+            existing.pointer("/permissions/allow/0").and_then(Value::as_str),
+            Some("Bash(ls)")
+        );
+        assert!(existing.pointer("/hooks/SessionStart/0/matcher").is_some());
+        assert!(existing.pointer("/hooks/PreToolUse/0/hooks/0/command").is_some());
+    }
+
+    #[test]
+    fn write_claude_settings_merges_existing_file_on_update() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join(".claude/settings.json");
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::write(
+            &target,
+            "{\n  \"permissions\": {\n    \"allow\": [\"Bash(ls)\"]\n  }\n}\n",
+        )
+        .unwrap();
+
+        let template = br#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ito-audit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+"#;
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
+
+        let updated = std::fs::read_to_string(&target).unwrap();
+        let value: Value = serde_json::from_str(&updated).unwrap();
+        assert!(value.pointer("/permissions/allow").is_some());
+        assert!(value.pointer("/hooks/PreToolUse/0/hooks/0/command").is_some());
+    }
+
+    #[test]
+    fn write_claude_settings_preserves_invalid_json_on_update() {
+        let td = tempfile::tempdir().unwrap();
+        let target = td.path().join(".claude/settings.json");
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::write(&target, "not-json\n").unwrap();
+
+        let template = br#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ito-audit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+"#;
+
+        let opts = InitOptions::new(BTreeSet::new(), false, true);
+        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
+
+        let updated = std::fs::read_to_string(&target).unwrap();
+        assert_eq!(updated, "not-json\n");
     }
 }

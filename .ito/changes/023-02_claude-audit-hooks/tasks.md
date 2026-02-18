@@ -19,7 +19,7 @@ ______________________________________________________________________
 - **Verify**: `make test -p ito-templates` (or workspace tests)
 - **Done When**: Templates include the hook configuration and script.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement hook script behavior
 
@@ -28,8 +28,8 @@ ______________________________________________________________________
 - **Action**: Implement stdin JSON parsing and Ito CLI delegation; return structured output for warnings; block on hard validation failures.
 - **Verify**: Add a small script-level test harness (or installer-level integration test) to validate JSON output and exit codes.
 - **Done When**: Script behavior is deterministic and minimal.
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-18
+- **Status**: [x] complete
 
 ### Task 1.3: Installer tests for init/update
 
@@ -38,5 +38,5 @@ ______________________________________________________________________
 - **Action**: Add tests verifying files are installed and updated without clobbering user-owned local config.
 - **Verify**: `make test`
 - **Done When**: Tests cover init/update behavior for Claude hook assets.
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-18
+- **Status**: [x] complete
