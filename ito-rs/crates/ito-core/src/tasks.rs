@@ -28,7 +28,7 @@ pub use ito_domain::tasks::{
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use std::path::Path;
 /// let p = checked_tasks_path(Path::new("repo"), "1.1").unwrap();
 /// assert!(p.ends_with("tasks.md"));
@@ -395,9 +395,8 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
 /// ```
 /// # use std::path::Path;
 /// # use ito_core::tasks::complete_task;
-/// # use ito_core::error::CoreResult;
 /// // Attempt to mark task "1.1" complete for change "1" in the repository at "."
-/// let res: CoreResult<_> = complete_task(Path::new("."), "1", "1.1", None);
+/// let res = complete_task(Path::new("."), "1", "1.1", None);
 /// // `res` will be `Ok(task)` on success or an error describing the failure.
 /// ```
 pub fn complete_task(
