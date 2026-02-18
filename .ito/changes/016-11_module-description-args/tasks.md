@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test create_more`
 - **Done When**: Test fails on current behavior and demonstrates missing description-argument support.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Implement clap and forwarding support for module description
 
@@ -41,7 +41,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test create_more`
 - **Done When**: New and existing create-module tests pass, including the description-argument case.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -58,7 +58,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test create_more && cargo test -p ito-cli --test cli_smoke`
 - **Done When**: Regression coverage exists for both legacy and new invocation forms.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Run focused validation for strict completion
 
@@ -69,7 +69,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 016-11_module-description-args --strict`
 - **Done When**: Validation passes without strict-mode errors.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
