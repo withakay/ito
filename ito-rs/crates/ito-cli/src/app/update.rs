@@ -1,13 +1,13 @@
 use crate::app::worktree_wizard::{
-    is_worktree_configured, load_worktree_result_from_config, prompt_worktree_wizard,
-    save_worktree_config, WorktreeWizardResult,
+    WorktreeWizardResult, is_worktree_configured, load_worktree_result_from_config,
+    prompt_worktree_wizard, save_worktree_config,
 };
 use crate::cli::UpdateArgs;
-use crate::cli_error::{to_cli_error, CliResult};
+use crate::cli_error::{CliResult, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::ito_dir;
 use ito_config::output;
-use ito_core::installers::{install_default_templates, InitOptions, InstallMode};
+use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
