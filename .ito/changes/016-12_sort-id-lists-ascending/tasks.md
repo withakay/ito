@@ -32,7 +32,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core list::tests -- --nocapture && cargo test -p ito-core tasks::tests -- --nocapture && cargo test -p ito-cli -- --nocapture`
 - **Done When**: Tests fail before implementation and capture required ordering behavior.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Add failing tests for allocation-state serialization stability
 
@@ -43,7 +43,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core create::tests -- --nocapture`
 - **Done When**: Tests fail under current non-deterministic ordering and define expected canonical JSON behavior.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -60,7 +60,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core list::tests tasks::tests -- --nocapture && cargo test -p ito-cli -- --nocapture`
 - **Done When**: All ordering assertions pass and outputs are deterministic for identical inputs.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Implement canonical allocation-state and module checklist ordering
 
@@ -71,7 +71,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core create::tests -- --nocapture`
 - **Done When**: Allocation-state and module checklist order is stable and ascending by ID under repeated updates.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -88,7 +88,7 @@ ______________________________________________________________________
 - **Verify**: `make check && make test`
 - **Done When**: All checks pass and command behavior matches spec deltas.
 - **Updated At**: 2026-02-18
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

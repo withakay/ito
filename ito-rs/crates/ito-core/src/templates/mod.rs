@@ -942,6 +942,19 @@ fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
                 current_status = Some(status.trim().to_string());
                 continue;
             }
+            if let Some(status) = status
+                .strip_prefix("[>]")
+                .or_else(|| status.strip_prefix("[~]"))
+            {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+            if let Some(status) = status.strip_prefix("[-]") {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
         }
     }
 
