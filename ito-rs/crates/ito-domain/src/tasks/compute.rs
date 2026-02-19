@@ -327,22 +327,28 @@ mod tests {
         assert!(ready.is_empty());
 
         let b_1_2 = blocked.iter().find(|(t, _)| t.id == "1.2").unwrap();
-        assert!(b_1_2
-            .1
-            .iter()
-            .any(|m| m.contains("Missing dependency: missing")));
+        assert!(
+            b_1_2
+                .1
+                .iter()
+                .any(|m| m.contains("Missing dependency: missing"))
+        );
 
         let b_2_1 = blocked.iter().find(|(t, _)| t.id == "2.1").unwrap();
-        assert!(b_2_1
-            .1
-            .iter()
-            .any(|m| m.contains("Cross-wave dependency: 1.1")));
+        assert!(
+            b_2_1
+                .1
+                .iter()
+                .any(|m| m.contains("Cross-wave dependency: 1.1"))
+        );
 
         let b_2_2 = blocked.iter().find(|(t, _)| t.id == "2.2").unwrap();
-        assert!(b_2_2
-            .1
-            .iter()
-            .any(|m| m.contains("Dependency not complete: 2.1")));
+        assert!(
+            b_2_2
+                .1
+                .iter()
+                .any(|m| m.contains("Dependency not complete: 2.1"))
+        );
     }
 
     #[test]
