@@ -68,6 +68,30 @@ fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreRe
     Ok(parsed.tasks[idx - 1].id.as_str())
 }
 
+fn parse_numeric_task_id(id: &str) -> Option<(u32, u32)> {
+    let (wave, task) = id.split_once('.')?;
+    let wave = wave.parse::<u32>().ok()?;
+    let task = task.parse::<u32>().ok()?;
+    Some((wave, task))
+}
+
+fn compare_task_ids(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_numeric_task_id(a), parse_numeric_task_id(b)) {
+        (Some(aa), Some(bb)) => aa.cmp(&bb).then(a.cmp(b)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
+fn sort_task_items_by_id(items: &mut [TaskItem]) {
+    items.sort_by(|a, b| compare_task_ids(&a.id, &b.id));
+}
+
+fn sort_blocked_tasks_by_id(items: &mut [(TaskItem, Vec<String>)]) {
+    items.sort_by(|(a, _), (b, _)| compare_task_ids(&a.id, &b.id));
+}
+
 /// Ready task list for a single change.
 #[derive(Debug, Clone)]
 pub struct ReadyTasksForChange {
@@ -109,10 +133,12 @@ pub fn list_ready_tasks_across_changes(
             continue;
         }
 
-        let (ready, _blocked) = compute_ready_and_blocked(&parsed);
+        let (mut ready, _blocked) = compute_ready_and_blocked(&parsed);
         if ready.is_empty() {
             continue;
         }
+
+        sort_task_items_by_id(&mut ready);
 
         results.push(ReadyTasksForChange {
             change_id: summary.id.clone(),
@@ -180,11 +206,15 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
     let parsed = parse_tasks_tracking_file(&contents);
-    let (ready, blocked) = compute_ready_and_blocked(&parsed);
+    let (mut ready, mut blocked) = compute_ready_and_blocked(&parsed);
+    sort_task_items_by_id(&mut ready);
+    sort_blocked_tasks_by_id(&mut blocked);
+    let mut items = parsed.tasks;
+    sort_task_items_by_id(&mut items);
 
     Ok(TaskStatusResult {
         format: parsed.format,
-        items: parsed.tasks,
+        items,
         progress: parsed.progress,
         diagnostics: parsed.diagnostics,
         ready,

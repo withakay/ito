@@ -43,7 +43,7 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return fail("Flags --completed, --partial, and --pending are mutually exclusive.");
     }
 
-    let sort = parse_sort_order(args).unwrap_or("recent");
+    let sort = parse_sort_order(args).unwrap_or("name");
     let mode = if want_specs {
         "specs"
     } else if want_modules {
