@@ -185,7 +185,9 @@ pub fn list_changes(
 
     match input.sort {
         ChangeSortOrder::Name => summaries.sort_by(|a, b| a.id.cmp(&b.id)),
-        ChangeSortOrder::Recent => summaries.sort_by(|a, b| b.last_modified.cmp(&a.last_modified)),
+        ChangeSortOrder::Recent => {
+            summaries.sort_by(|a, b| b.last_modified.cmp(&a.last_modified).then(a.id.cmp(&b.id)))
+        }
     }
 
     Ok(summaries

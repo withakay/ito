@@ -1,10 +1,10 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"list\", \"--help\"])"
 ---
 List changes, specs, or modules with status summaries
 
-By default lists changes sorted by most recent. Use --specs or --modules
+By default lists changes sorted by ascending change ID. Use --specs or --modules
 to list other item types. Use --ready to filter to changes ready for
 implementation (have proposal, specs, tasks, and pending work).
 
@@ -50,7 +50,7 @@ Options:
       --sort <SORT>
           Sort order
 
-          [default: recent]
+          [default: name]
           [possible values: recent, name]
 
       --json
