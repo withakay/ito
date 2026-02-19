@@ -1,27 +1,6 @@
 use ito_core::tasks::{TaskStatus, complete_task, get_next_task, shelve_task, start_task};
-use std::path::Path;
-
-/// Writes `contents` to `path`, creating any missing parent directories.
-///
-/// This function will panic if `path` has no parent directory or if directory
-/// creation or file writing fail.
-///
-/// # Examples
-///
-/// ```
-/// use std::path::Path;
-/// let tmp = tempfile::tempdir().unwrap();
-/// let p = tmp.path().join("a").join("file.txt");
-/// write(&p, "hello");
-/// assert_eq!(std::fs::read_to_string(p).unwrap(), "hello");
-/// ```
-fn write(path: &Path, contents: &str) {
-    let Some(parent) = path.parent() else {
-        panic!("path has no parent: {}", path.display());
-    };
-    std::fs::create_dir_all(parent).expect("create dir should succeed");
-    std::fs::write(path, contents).expect("write should succeed");
-}
+mod support;
+use support::write;
 
 /// Verifies checkbox-format tasks enforce a single in-progress task and next-task selection when tasks have explicit IDs.
 ///

@@ -317,9 +317,9 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
 /// # Examples
 ///
 /// ```
-/// use ito_domain::tasks::{TasksFormat, parse_checkbox_tasks};
+/// use ito_domain::tasks::{parse_tasks_tracking_file, TasksFormat};
 /// let contents = "- [ ] 1: First task\n- [x] Second task\n";
-/// let result = parse_checkbox_tasks(contents);
+/// let result = parse_tasks_tracking_file(contents);
 /// assert_eq!(result.format, TasksFormat::Checkbox);
 /// assert_eq!(result.tasks.len(), 2);
 /// assert_eq!(result.tasks[0].id, "1");
@@ -398,21 +398,12 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
 /// # Examples
 ///
 /// ```
-/// let src = r#"
-/// ## Wave 1
-/// - Depends On: none
-///
-/// ### 1: Example task
-/// - **Dependencies**: none
-/// - **Updated At**: 2025-01-01
-/// - **Status**: [ ] pending
-/// - **Action**:
-///   Do something
-/// "#;
-///
-/// let res = parse_enhanced_tasks(src);
+/// use chrono::Local;
+/// use ito_domain::tasks::{enhanced_tasks_template, parse_tasks_tracking_file, TasksFormat};
+/// let src = enhanced_tasks_template("001-01", Local::now());
+/// let res = parse_tasks_tracking_file(&src);
 /// assert_eq!(res.format, TasksFormat::Enhanced);
-/// assert_eq!(res.tasks.len(), 1);
+/// assert_eq!(res.tasks.len(), 2);
 /// assert_eq!(res.waves.len(), 1);
 /// ```
 fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
@@ -870,8 +861,8 @@ fn parse_dependencies(raw: &str) -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```
-/// use crate::TaskKind;
+/// ```ignore
+/// use ito_domain::tasks::TaskKind;
 ///
 /// assert_eq!(
 ///     parse_dependencies_with_checkpoint("Task 1, Task 2", TaskKind::Normal),

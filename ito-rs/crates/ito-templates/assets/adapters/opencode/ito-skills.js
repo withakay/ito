@@ -12,6 +12,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 
 const DEFAULT_AUDIT_TTL_MS = 10000;
+const ITO_EXEC_TIMEOUT_MS = 20000;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
 const ITO_MANAGED_FILE_RULES = [
@@ -64,7 +65,8 @@ export const ItoPlugin = async ({ client, directory }) => {
       const stdout = execFileSync('ito', args, {
         cwd: directory,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: ITO_EXEC_TIMEOUT_MS
       });
 
       return {
@@ -245,7 +247,8 @@ export const ItoPlugin = async ({ client, directory }) => {
       const bootstrap = execFileSync('ito', ['agent', 'instruction', 'bootstrap', '--tool', 'opencode'], {
         cwd: directory,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: ITO_EXEC_TIMEOUT_MS
       }).trim();
 
       const fallback = `You have access to Ito workflows.

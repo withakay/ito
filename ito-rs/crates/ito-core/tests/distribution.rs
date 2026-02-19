@@ -11,11 +11,14 @@ fn opencode_manifests_includes_plugin_and_skills() {
     let manifests = opencode_manifests(config_dir);
 
     // Should include the plugin adapter
-    let plugin = manifests
-        .iter()
-        .find(|m| m.source == "opencode/ito-skills.js");
-    assert!(plugin.is_some(), "should include opencode plugin adapter");
-    let plugin = plugin.unwrap();
+    let mut plugin = None;
+    for manifest in &manifests {
+        if manifest.source == "opencode/ito-skills.js" {
+            plugin = Some(manifest);
+            break;
+        }
+    }
+    let plugin = plugin.expect("should include opencode plugin adapter");
     assert_eq!(plugin.asset_type, AssetType::Adapter);
     assert!(plugin.dest.ends_with("plugins/ito-skills.js"));
 
@@ -43,20 +46,26 @@ fn claude_manifests_includes_hooks_and_skills() {
     let manifests = claude_manifests(project_root);
 
     // Should include session-start.sh adapter
-    let adapter = manifests
-        .iter()
-        .find(|m| m.source == "claude/session-start.sh");
-    assert!(adapter.is_some(), "should include claude session-start.sh");
-    let adapter = adapter.unwrap();
+    let mut adapter = None;
+    for manifest in &manifests {
+        if manifest.source == "claude/session-start.sh" {
+            adapter = Some(manifest);
+            break;
+        }
+    }
+    let adapter = adapter.expect("should include claude session-start.sh");
     assert_eq!(adapter.asset_type, AssetType::Adapter);
     assert!(adapter.dest.ends_with(".claude/session-start.sh"));
 
     // Should include pre-tool audit hook adapter
-    let hook = manifests
-        .iter()
-        .find(|m| m.source == "claude/hooks/ito-audit.sh");
-    assert!(hook.is_some(), "should include claude pre-tool audit hook");
-    let hook = hook.unwrap();
+    let mut hook = None;
+    for manifest in &manifests {
+        if manifest.source == "claude/hooks/ito-audit.sh" {
+            hook = Some(manifest);
+            break;
+        }
+    }
+    let hook = hook.expect("should include claude pre-tool audit hook");
     assert_eq!(hook.asset_type, AssetType::Adapter);
     assert!(hook.dest.ends_with(".claude/hooks/ito-audit.sh"));
 
@@ -84,11 +93,14 @@ fn codex_manifests_includes_bootstrap_and_skills() {
     let manifests = codex_manifests(project_root);
 
     // Should include bootstrap adapter
-    let adapter = manifests
-        .iter()
-        .find(|m| m.source == "codex/ito-skills-bootstrap.md");
-    assert!(adapter.is_some(), "should include codex bootstrap");
-    let adapter = adapter.unwrap();
+    let mut adapter = None;
+    for manifest in &manifests {
+        if manifest.source == "codex/ito-skills-bootstrap.md" {
+            adapter = Some(manifest);
+            break;
+        }
+    }
+    let adapter = adapter.expect("should include codex bootstrap");
     assert_eq!(adapter.asset_type, AssetType::Adapter);
     assert!(
         adapter

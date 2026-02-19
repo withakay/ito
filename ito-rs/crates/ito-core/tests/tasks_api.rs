@@ -2,15 +2,8 @@ use ito_core::tasks::{
     TaskStatus, add_task, complete_task, get_next_task, init_tasks, shelve_task, start_task,
     unshelve_task,
 };
-use std::path::Path;
-
-fn write(path: &Path, contents: &str) {
-    let Some(parent) = path.parent() else {
-        panic!("path has no parent: {}", path.display());
-    };
-    std::fs::create_dir_all(parent).expect("create dir should succeed");
-    std::fs::write(path, contents).expect("write should succeed");
-}
+mod support;
+use support::write;
 
 fn enhanced_tasks_fixture(change_id: &str) -> String {
     format!(
