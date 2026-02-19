@@ -212,7 +212,7 @@ clippy: ## Run cargo clippy
 		-D clippy::todo \
 		-D clippy::unimplemented
 
-check: ## Run repo checks via prek (pre-push stage)
+check: ## Run repo checks via prek (pre-push stage, incl rustdoc)
 	@set -e; \
 	if prek --version >/dev/null 2>&1; then \
 		prek run --all-files --stage pre-push; \

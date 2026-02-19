@@ -747,11 +747,10 @@ fn load_worktree_config(
 ///
 /// # Examples
 ///
-/// ```no_run
-/// // Prepare or obtain `instructions`, `testing_policy`, `worktree_config`,
-/// // and optionally `user_guidance` from the surrounding application logic,
-/// // then render and print the apply instructions:
-/// // print_apply_instructions_text(&instructions, &testing_policy, Some("Extra notes"), &worktree_config);
+/// ```text
+/// Prepare or obtain `instructions`, `testing_policy`, and `worktree_config`
+/// from surrounding application logic, then call:
+/// print_apply_instructions_text(&instructions, &testing_policy, Some("Extra notes"), &worktree_config)
 /// ```
 fn print_apply_instructions_text(
     instructions: &core_templates::ApplyInstructionsResponse,
