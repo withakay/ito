@@ -10,6 +10,22 @@ use std::collections::BTreeMap;
 
 use super::{TaskItem, TaskStatus, TasksFormat, TasksParseResult};
 
+fn parse_numeric_task_id(id: &str) -> Option<(u32, u32)> {
+    let (wave, task) = id.split_once('.')?;
+    let wave = wave.parse::<u32>().ok()?;
+    let task = task.parse::<u32>().ok()?;
+    Some((wave, task))
+}
+
+fn compare_task_ids(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_numeric_task_id(a), parse_numeric_task_id(b)) {
+        (Some(aa), Some(bb)) => aa.cmp(&bb).then(a.cmp(b)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
 /// Compute ready tasks and blocked tasks (with reasons) from a parsed tasks file.
 pub fn compute_ready_and_blocked(
     parsed: &TasksParseResult,
@@ -140,18 +156,8 @@ pub fn compute_ready_and_blocked(
         }
     }
 
-    ready.sort_by(|a, b| {
-        let aw = a.wave.unwrap_or(u32::MAX);
-        let bw = b.wave.unwrap_or(u32::MAX);
-        aw.cmp(&bw)
-            .then(a.header_line_index.cmp(&b.header_line_index))
-    });
-    blocked.sort_by(|(a, _), (b, _)| {
-        let aw = a.wave.unwrap_or(u32::MAX);
-        let bw = b.wave.unwrap_or(u32::MAX);
-        aw.cmp(&bw)
-            .then(a.header_line_index.cmp(&b.header_line_index))
-    });
+    ready.sort_by(|a, b| compare_task_ids(&a.id, &b.id));
+    blocked.sort_by(|(a, _), (b, _)| compare_task_ids(&a.id, &b.id));
 
     (ready, blocked)
 }
@@ -321,28 +327,22 @@ mod tests {
         assert!(ready.is_empty());
 
         let b_1_2 = blocked.iter().find(|(t, _)| t.id == "1.2").unwrap();
-        assert!(
-            b_1_2
-                .1
-                .iter()
-                .any(|m| m.contains("Missing dependency: missing"))
-        );
+        assert!(b_1_2
+            .1
+            .iter()
+            .any(|m| m.contains("Missing dependency: missing")));
 
         let b_2_1 = blocked.iter().find(|(t, _)| t.id == "2.1").unwrap();
-        assert!(
-            b_2_1
-                .1
-                .iter()
-                .any(|m| m.contains("Cross-wave dependency: 1.1"))
-        );
+        assert!(b_2_1
+            .1
+            .iter()
+            .any(|m| m.contains("Cross-wave dependency: 1.1")));
 
         let b_2_2 = blocked.iter().find(|(t, _)| t.id == "2.2").unwrap();
-        assert!(
-            b_2_2
-                .1
-                .iter()
-                .any(|m| m.contains("Dependency not complete: 2.1"))
-        );
+        assert!(b_2_2
+            .1
+            .iter()
+            .any(|m| m.contains("Dependency not complete: 2.1")));
     }
 
     #[test]
@@ -350,14 +350,14 @@ mod tests {
         let parsed = TasksParseResult {
             format: TasksFormat::Enhanced,
             tasks: vec![
-                task("1.2", Some(1), TaskStatus::Pending, &[], 0),
-                task("1.1", Some(1), TaskStatus::Pending, &["missing"], 1),
-                task("1.3", Some(1), TaskStatus::Pending, &[], 2),
+                task("1.2", Some(1), TaskStatus::Pending, &[], 80),
+                task("1.1", Some(1), TaskStatus::Pending, &["missing"], 120),
+                task("1.3", Some(1), TaskStatus::Pending, &[], 40),
             ],
             waves: vec![WaveInfo {
                 wave: 1,
                 depends_on: Vec::new(),
-                header_line_index: 0,
+                header_line_index: 200,
                 depends_on_line_index: None,
             }],
             diagnostics: Vec::new(),
