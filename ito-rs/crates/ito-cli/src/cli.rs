@@ -72,7 +72,7 @@ pub enum Commands {
 
     /// List changes, specs, or modules with status summaries
     ///
-    /// By default lists changes sorted by most recent. Use --specs or --modules
+    /// By default lists changes sorted by ascending change ID. Use --specs or --modules
     /// to list other item types. Use --ready to filter to changes ready for
     /// implementation (have proposal, specs, tasks, and pending work).
     ///
@@ -800,7 +800,7 @@ pub struct ListArgs {
     pub pending: bool,
 
     /// Sort order
-    #[arg(long, value_enum, default_value_t = ListSortOrder::Recent)]
+    #[arg(long, value_enum, default_value_t = ListSortOrder::Name)]
     pub sort: ListSortOrder,
 
     /// Output as JSON

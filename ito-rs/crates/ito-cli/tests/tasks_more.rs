@@ -475,3 +475,51 @@ fn tasks_commands_support_json_output() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("\"action\": \"show\""));
 }
+
+#[test]
+fn tasks_json_lists_are_sorted_by_task_id() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    let change_dir = repo.path().join(".ito/changes/test-change");
+    std::fs::create_dir_all(&change_dir).expect("create change dir");
+    fixtures::write(
+        change_dir.join("tasks.md"),
+        "# Tasks for: test-change\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.2: Second\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [ ] pending\n\n### Task 1.1: First\n- **Dependencies**: None\n- **Updated At**: 2026-02-01\n- **Status**: [ ] pending\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let status_json: serde_json::Value = serde_json::from_str(&out.stdout).expect("status json");
+    let ready_ids: Vec<&str> = status_json["ready_tasks"]
+        .as_array()
+        .expect("ready_tasks array")
+        .iter()
+        .map(|t| t["id"].as_str().expect("task id"))
+        .collect();
+    assert_eq!(ready_ids, vec!["1.1", "1.2"]);
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "show", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let show_json: serde_json::Value = serde_json::from_str(&out.stdout).expect("show json");
+    let show_ids: Vec<&str> = show_json["tasks"]
+        .as_array()
+        .expect("tasks array")
+        .iter()
+        .map(|t| t["id"].as_str().expect("task id"))
+        .collect();
+    assert_eq!(show_ids, vec!["1.1", "1.2"]);
+}

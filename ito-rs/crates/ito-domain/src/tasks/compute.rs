@@ -10,6 +10,22 @@ use std::collections::BTreeMap;
 
 use super::{TaskItem, TaskStatus, TasksFormat, TasksParseResult};
 
+fn parse_numeric_task_id(id: &str) -> Option<(u32, u32)> {
+    let (wave, task) = id.split_once('.')?;
+    let wave = wave.parse::<u32>().ok()?;
+    let task = task.parse::<u32>().ok()?;
+    Some((wave, task))
+}
+
+fn compare_task_ids(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_numeric_task_id(a), parse_numeric_task_id(b)) {
+        (Some(aa), Some(bb)) => aa.cmp(&bb).then(a.cmp(b)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
 /// Compute ready tasks and blocked tasks (with reasons) from a parsed tasks file.
 pub fn compute_ready_and_blocked(
     parsed: &TasksParseResult,
@@ -140,18 +156,8 @@ pub fn compute_ready_and_blocked(
         }
     }
 
-    ready.sort_by(|a, b| {
-        let aw = a.wave.unwrap_or(u32::MAX);
-        let bw = b.wave.unwrap_or(u32::MAX);
-        aw.cmp(&bw)
-            .then(a.header_line_index.cmp(&b.header_line_index))
-    });
-    blocked.sort_by(|(a, _), (b, _)| {
-        let aw = a.wave.unwrap_or(u32::MAX);
-        let bw = b.wave.unwrap_or(u32::MAX);
-        aw.cmp(&bw)
-            .then(a.header_line_index.cmp(&b.header_line_index))
-    });
+    ready.sort_by(|a, b| compare_task_ids(&a.id, &b.id));
+    blocked.sort_by(|(a, _), (b, _)| compare_task_ids(&a.id, &b.id));
 
     (ready, blocked)
 }
@@ -342,6 +348,39 @@ mod tests {
                 .1
                 .iter()
                 .any(|m| m.contains("Dependency not complete: 2.1"))
+        );
+    }
+
+    #[test]
+    fn enhanced_ready_and_blocked_lists_are_sorted_by_task_id() {
+        let parsed = TasksParseResult {
+            format: TasksFormat::Enhanced,
+            tasks: vec![
+                task("1.2", Some(1), TaskStatus::Pending, &[], 80),
+                task("1.1", Some(1), TaskStatus::Pending, &["missing"], 120),
+                task("1.3", Some(1), TaskStatus::Pending, &[], 40),
+            ],
+            waves: vec![WaveInfo {
+                wave: 1,
+                depends_on: Vec::new(),
+                header_line_index: 200,
+                depends_on_line_index: None,
+            }],
+            diagnostics: Vec::new(),
+            progress: progress_zero(),
+        };
+
+        let (ready, blocked) = compute_ready_and_blocked(&parsed);
+        assert_eq!(
+            ready.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(),
+            vec!["1.2", "1.3"]
+        );
+        assert_eq!(
+            blocked
+                .iter()
+                .map(|(t, _)| t.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["1.1"]
         );
     }
 }
