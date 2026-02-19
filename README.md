@@ -53,7 +53,7 @@ cargo install --locked bacon
 
 ```bash
 brew tap withakay/ito
-brew install ito
+brew install ito-cli
 ```
 
 **Build from source:**

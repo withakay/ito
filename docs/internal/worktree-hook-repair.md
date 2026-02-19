@@ -13,6 +13,10 @@ error: invalid object ...
 
 ```bash
 WTGITDIR="$(git rev-parse --git-dir)"
+if [ -f "$WTGITDIR/precommit.lock" ]; then
+  echo "precommit.lock present; stop hooks before repairing the index."
+  exit 1
+fi
 rm "$WTGITDIR/index"
 git reset HEAD
 git add -A

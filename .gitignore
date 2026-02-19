@@ -86,6 +86,7 @@ dist/
 site/
 /docs/rustdoc/
 /docs/assets/
+/.venv-docs/
 
 # Gatsby files
 .cache/

@@ -129,7 +129,5 @@ Before you say "done", show the exact verification commands you ran (and whether
 
 - If you are running `make docs-site-serve`, do not run a clean rebuild in parallel. Stop the server first, then rebuild.
 
-## Placeholders to fill
-
-- Placeholder: add harness-specific tips for OpenCode vs Claude Code (how to paste instruction artifacts, how to preserve command outputs, etc.).
-- Placeholder: add one small, stable example change id that new contributors can practice on.
+<!-- TODO (internal): add harness-specific tips for OpenCode vs Claude Code (how to paste instruction artifacts, how to preserve command outputs, etc.). -->
+<!-- TODO (internal): add one small, stable example change id that new contributors can practice on. -->
