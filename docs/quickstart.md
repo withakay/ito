@@ -1,11 +1,11 @@
-# Quick Start
+# Developer Quick Start
 
-This guide gets you to a working Ito setup quickly.
+This guide gets contributors set up to build and work on Ito locally.
 
 ## Prerequisites
 
 - Rust toolchain (`rustup`, `cargo`)
-- Python 3
+- `uv` for docs tooling and isolated Python environments
 - `prek` for hooks
 
 ## 1) Initialize developer environment

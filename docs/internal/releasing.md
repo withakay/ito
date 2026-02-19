@@ -11,11 +11,18 @@ This project uses:
 2. **release-plz opens/updates a release PR** with version bumps and `CHANGELOG.md` updates (via git-cliff)
 3. **Merging the release PR** causes release-plz to publish crates to crates.io and create a `vX.Y.Z` tag
 4. **The tag triggers cargo-dist** to:
-   - Build cross-platform binaries and installers
-   - Create/update the GitHub Release and upload assets
+    - Build cross-platform binaries and installers
+    - Create/update the GitHub Release and upload assets
 5. **Publishing the GitHub release** triggers:
-   - release note polishing (optional)
-   - Homebrew formula update
+    - release note polishing (optional)
+    - Homebrew formula update
+    - GitHub Pages docs deploy (builds `site/` and publishes it)
+
+## GitHub Pages Prerequisite
+
+The repository must have GitHub Pages configured to deploy from GitHub Actions:
+
+- Repo Settings -> Pages -> Source = "GitHub Actions"
 
 ## Commit Message Format
 

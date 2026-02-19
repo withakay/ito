@@ -84,6 +84,8 @@ out
 # Build output
 dist/
 site/
+/docs/rustdoc/
+/docs/assets/
 
 # Gatsby files
 .cache/
