@@ -13,6 +13,12 @@ It is designed for AI-assisted development where work spans multiple sessions an
 
 
 
+> ### Ito
+> - Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
+> - Intention/Aim (意図): Often used in the context of plans, aims, or intent.
+
+
+
 This site combines:
 
 - curated project guides from `docs/`
