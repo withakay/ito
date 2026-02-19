@@ -84,6 +84,14 @@ repos:
         pass_filenames: false
         files: ^ito-rs/.*\.(rs|toml)$
 
+      - id: cargo-docs
+        name: cargo doc warnings as errors (ito-rs)
+        entry: make
+        language: system
+        args: [docs]
+        pass_filenames: false
+        files: ^(ito-rs/.*\.(rs|toml)|Cargo\.toml|Cargo\.lock)$
+
       - id: cargo-test-coverage
         name: cargo test with coverage (ito-rs)
         entry: make

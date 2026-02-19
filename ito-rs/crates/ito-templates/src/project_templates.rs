@@ -1,7 +1,7 @@
 //! Jinja2 rendering for project templates (AGENTS.md, skills).
 //!
 //! Project templates may contain `minijinja` syntax (`{% ... %}` / `{{ ... }}`)
-//! that gets rendered with a [`WorktreeTemplateContext`] before being written
+//! that gets rendered with a [`WorktreeTemplateContext`](crate::project_templates::WorktreeTemplateContext) before being written
 //! to disk. Templates without Jinja2 syntax are returned unchanged.
 
 use serde::Serialize;

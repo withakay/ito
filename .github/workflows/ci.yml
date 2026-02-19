@@ -245,13 +245,13 @@ jobs:
       - name: Setup toolchain (mise)
         uses: jdx/mise-action@v3
 
-      - name: Install Rust components (rustfmt, clippy)
+      - name: Install Rust components (rustfmt, clippy, rust-docs)
         run: |
           set -eu
           mise install
           mise trust
           TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
-          rustup component add --toolchain "$TOOLCHAIN" rustfmt clippy
+          rustup component add --toolchain "$TOOLCHAIN" rustfmt clippy rust-docs
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -279,6 +279,9 @@ jobs:
             -D clippy::dbg_macro \
             -D clippy::todo \
             -D clippy::unimplemented
+
+      - name: Rust docs (warnings denied)
+        run: make docs
 
   arch_guardrails:
     name: Architecture Guardrails
