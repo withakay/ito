@@ -383,20 +383,38 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 
 docs: ## Build Rust documentation (warns on missing docs)
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+	rm -rf docs/rustdoc
+	cp -R target/doc docs/rustdoc
 
 docs-open: ## Build and open Rust documentation in browser
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
+	rm -rf docs/rustdoc
+	cp -R target/doc docs/rustdoc
 
-docs-site-install: ## Install MkDocs docs-site dependencies
-	python3 -m pip install -r docs/requirements.txt
+docs-site-install: ## Ensure uv is available for docs-site tooling
+	@set -e; \
+	if uv --version >/dev/null 2>&1; then \
+		:; \
+	else \
+		echo "uv is not installed."; \
+		echo "Install: https://docs.astral.sh/uv/getting-started/installation/"; \
+		exit 1; \
+	fi; \
+	rm -rf docs/.venv; \
+	UV_PROJECT_ENVIRONMENT=.venv-docs uv sync --project docs; \
+	UV_PROJECT_ENVIRONMENT=.venv-docs uv run --project docs python -c "import shutil,pathlib,zensical; src=pathlib.Path(zensical.__file__).resolve().parent/'templates'/'assets'; dst=pathlib.Path('docs/assets'); shutil.rmtree(dst, ignore_errors=True); shutil.copytree(src, dst)"
 
-docs-site-build: docs-site-install ## Build MkDocs docs site (strict)
-	python3 -m mkdocs build --strict
+docs-site-build: docs-site-install docs ## Build docs site with Zensical
+	python3 -c "import shutil; shutil.rmtree('site', ignore_errors=True)"
+	UV_PROJECT_ENVIRONMENT=.venv-docs uv run --project docs zensical build
 
-docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
-	python3 -m mkdocs serve
+docs-site-serve: docs-site-install docs ## Serve docs site locally with Zensical
+	UV_PROJECT_ENVIRONMENT=.venv-docs uv run --project docs zensical serve
 
-docs-site-check: docs-site-build ## Validate docs site build
+docs-site-check: docs-site-install docs ## Validate docs site build (isolated output dir)
+	python3 -c "import pathlib; p=pathlib.Path('.local'); p.mkdir(parents=True, exist_ok=True); src=pathlib.Path('zensical.toml').read_text(encoding='utf-8'); src=src.replace('site_dir = \"site\"', 'site_dir = \"site-check\"'); (p/'zensical.check.toml').write_text(src, encoding='utf-8')"
+	python3 -c "import shutil; shutil.rmtree('site-check', ignore_errors=True)"
+	UV_PROJECT_ENVIRONMENT=.venv-docs uv run --project docs zensical build -f .local/zensical.check.toml
 	@echo "Docs site check passed"
 
 hooks-install: ## Install custom git hook wrappers

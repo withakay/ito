@@ -342,12 +342,11 @@ make docs-site-check
 
 ### Docs Site
 
-Build and serve the MkDocs site (includes Rust API docs generated via `mkdocs-rustdoc-plugin`):
+Build and serve the Zensical docs site (dark theme + Rust API docs). Python dependencies are isolated via `uv` and `docs/pyproject.toml`:
 
 ```bash
 make docs-site-build
 make docs-site-serve
-make bacon
 ```
 
 ## License

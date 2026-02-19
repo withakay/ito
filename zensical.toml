@@ -1,0 +1,55 @@
+[project]
+site_name = "Ito Documentation"
+site_description = "Project-centric specs and workflow docs for Ito"
+site_url = "https://withakay.github.io/ito"
+repo_name = "withakay/ito"
+repo_url = "https://github.com/withakay/ito"
+edit_uri = "edit/main/docs/"
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = false
+nav = [
+  { "Home" = "index.md" },
+  { "Developer Quick Start" = "quickstart.md" },
+  { "Install" = "install.md" },
+  { "Config" = "config.md" },
+  { "Agent Workflow" = "agent-workflow.md" },
+  { "Schema Customization" = "schema-customization.md" },
+  { "Telemetry" = "telemetry.md" },
+  { "Developers" = [
+    { "Worktrees" = "developers/worktrees.md" },
+  ] },
+  { "Internal" = [
+    { "Overview" = "internal/index.md" },
+    { "Releasing" = "internal/releasing.md" },
+    { "CI App Setup" = "internal/ci-app-setup.md" },
+    { "Worktree Hook Repair" = "internal/worktree-hook-repair.md" },
+    { "Roadmap Notes" = "internal/roadmap.md" },
+  ] },
+  { "API" = [
+    { "Rustdoc" = "api/rustdoc.md" },
+  ] },
+]
+
+[project.theme]
+variant = "modern"
+features = [
+  "navigation.instant",
+  "navigation.tracking",
+  "content.code.copy",
+  "content.action.edit",
+  "content.action.view",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
