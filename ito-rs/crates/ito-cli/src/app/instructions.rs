@@ -270,21 +270,25 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     }
 
     if artifact == "review" {
-        let review =
-            match core_templates::compute_review_context(ito_path, &change, schema.as_deref(), ctx, user_guidance.clone())
-            {
-                Ok(r) => r,
-                Err(core_templates::TemplatesError::InvalidChangeName) => {
-                    return fail("Invalid change name");
-                }
-                Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
-                    return fail(format!("Change '{name}' not found"));
-                }
-                Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
-                    return fail(super::common::schema_not_found_message(ctx, &name));
-                }
-                Err(e) => return Err(to_cli_error(e)),
-            };
+        let review = match core_templates::compute_review_context(
+            ito_path,
+            &change,
+            schema.as_deref(),
+            ctx,
+            user_guidance.clone(),
+        ) {
+            Ok(r) => r,
+            Err(core_templates::TemplatesError::InvalidChangeName) => {
+                return fail("Invalid change name");
+            }
+            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
+                return fail(format!("Change '{name}' not found"));
+            }
+            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
+                return fail(super::common::schema_not_found_message(ctx, &name));
+            }
+            Err(e) => return Err(to_cli_error(e)),
+        };
 
         let instruction =
             ito_templates::instructions::render_instruction_template("agent/review.md.j2", &review)
