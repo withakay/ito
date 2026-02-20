@@ -1,85 +1,27 @@
-# change-creation Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Deterministic allocation state serialization
 
-Provide programmatic utilities for creating and validating Ito change directories.
+The change-allocation state file SHALL be serialized deterministically with module IDs in ascending order.
 
-## Requirements
+#### Scenario: Allocation state write is module-ID ordered
 
-### Requirement: Change Creation
+- **WHEN** a new change number is allocated for any module
+- **THEN** `.ito/workflows/.state/change-allocations.json` is written with module entries ordered by ascending module ID
+- **AND** repeated writes with the same logical state produce equivalent key ordering
 
-The system SHALL provide a function to create new change directories programmatically.
+#### Scenario: Allocation state remains JSON snapshot format
 
-#### Scenario: Create change
+- **WHEN** allocation state is persisted
+- **THEN** the file format remains JSON object snapshot format
+- **AND** readers continue to load existing JSON state without a migration step
 
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called
-- **THEN** the system creates `ito/changes/add-auth/` directory
+### Requirement: Deterministic module change checklist ordering
 
-#### Scenario: Duplicate change rejected
+Module change checklist entries SHALL be emitted in ascending canonical change ID order.
 
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called and `ito/changes/add-auth/` already exists
-- **THEN** the system throws an error indicating the change already exists
+#### Scenario: Adding a change preserves sorted module checklist
 
-#### Scenario: Creates parent directories if needed
-
-- **WHEN** `createChange(projectRoot, 'add-auth')` is called and `ito/changes/` does not exist
-- **THEN** the system creates the full path including parent directories
-
-#### Scenario: Invalid change name rejected
-
-- **WHEN** `createChange(projectRoot, 'Add Auth')` is called with an invalid name
-- **THEN** the system throws a validation error
-
-### Requirement: Change Name Validation
-
-The system SHALL validate change names follow kebab-case conventions.
-
-#### Scenario: Valid kebab-case name accepted
-
-- **WHEN** a change name like `add-user-auth` is validated
-- **THEN** validation returns `{ valid: true }`
-
-#### Scenario: Numeric suffixes accepted
-
-- **WHEN** a change name like `add-feature-2` is validated
-- **THEN** validation returns `{ valid: true }`
-
-#### Scenario: Single word accepted
-
-- **WHEN** a change name like `refactor` is validated
-- **THEN** validation returns `{ valid: true }`
-
-#### Scenario: Uppercase characters rejected
-
-- **WHEN** a change name like `Add-Auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Spaces rejected
-
-- **WHEN** a change name like `add auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Underscores rejected
-
-- **WHEN** a change name like `add_auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Special characters rejected
-
-- **WHEN** a change name like `add-auth!` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Leading hyphen rejected
-
-- **WHEN** a change name like `-add-auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Trailing hyphen rejected
-
-- **WHEN** a change name like `add-auth-` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
-
-#### Scenario: Consecutive hyphens rejected
-
-- **WHEN** a change name like `add--auth` is validated
-- **THEN** validation returns `{ valid: false, error: "..." }`
+- **WHEN** `ito create change` adds a new change to a module's `module.md`
+- **THEN** entries under `## Changes` are written in ascending canonical change ID order
+- **AND** existing entries are retained without duplication
