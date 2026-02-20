@@ -1,11 +1,4 @@
-# Cli Module Specification
-
-## Purpose
-
-Define the `cli-module` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Verb-first module entrypoints
 
@@ -20,6 +13,12 @@ The CLI SHALL expose verb-first command entrypoints for module operations, while
 
 - **WHEN** user executes `ito create module <name>`
 - **THEN** behavior matches `ito module new <name>`
+
+#### Scenario: Create module with description argument
+
+- **WHEN** user executes `ito create module <name> --description <text>`
+- **THEN** the created module metadata includes the provided description text
+- **AND** command exits successfully without requiring manual post-create edits
 
 #### Scenario: Show module via verb-first command
 
