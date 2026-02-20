@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.8] - 2026-02-20
+
+### 🚀 Features
+
+- *(001-18)* Add peer-review agent instruction workflow ([#88](https://github.com/withakay/ito/pull/88))
+
+### 🐛 Bug Fixes
+
+- *(ci)* Skip ito audit checks when ito CLI is unavailable
+
+### 📚 Documentation
+
+- Migrate docs site to Zensical and publish via Pages ([#87](https://github.com/withakay/ito/pull/87))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release v0.1.7 ([#82](https://github.com/withakay/ito/pull/82))
 ## [0.1.7] - 2026-02-18
 
 ### 🚀 Features
