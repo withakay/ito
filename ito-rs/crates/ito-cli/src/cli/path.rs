@@ -15,7 +15,7 @@ pub enum PathCommand {
     ProjectRoot(PathCommonArgs),
     /// Print the current working worktree root (errors in bare repos).
     WorktreeRoot(PathCommonArgs),
-    /// Print the resolved Ito directory path (e.g. <root>/.ito).
+    /// Print the resolved Ito directory path (e.g. `<root>/.ito`).
     ItoRoot(PathCommonArgs),
     /// Print the configured worktrees root directory (errors if worktrees disabled).
     WorktreesRoot(PathCommonArgs),

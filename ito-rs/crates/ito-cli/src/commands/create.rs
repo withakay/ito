@@ -164,11 +164,9 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
 ///
 /// # Examples
 ///
-/// ```no_run
-/// // Example usage (runtime and types omitted for brevity):
-/// // let rt: Runtime = /* obtain runtime */ ;
-/// // let args = vec!["change".to_string(), "my-change".to_string(), "--schema".to_string(), "api".to_string()];
-/// // handle_create(&rt, &args)?;
+/// ```text
+/// Example invocation shape:
+/// handle_create(&runtime, &["change", "my-change", "--schema", "api"])
 /// ```
 pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let Some(kind) = args.first().map(|s| s.as_str()) else {

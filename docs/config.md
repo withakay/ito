@@ -1,112 +1,71 @@
 # Configuration
 
-Ito reads configuration from a few different places, depending on what you're trying to control.
+Ito configuration is JSON-based and merges multiple sources (defaults, global config, and project config).
 
-## Configuration Layers
+When in doubt, treat `schemas/ito-config.schema.json` as the source of truth for available keys and types.
 
-Ito has a few different config locations with different purposes:
+## Configuration Files
 
-- **Repo root config**: `ito.json` and `.ito.json`
-- **Project Ito-dir config**: `<ito-dir>/config.json`
-- **User (global) config**: `<config-dir>/config.json`
-- **Per-change metadata**: `<ito-dir>/changes/<change-id>/.ito.yaml`
+### Global config (`config.json`)
 
-## Project Config: `ito.json`
+This is per-user and applies to all projects.
 
-Location:
+- Path: run `ito config path`
+- Default locations:
+  - `$XDG_CONFIG_HOME/ito/config.json` (if `XDG_CONFIG_HOME` is set)
+  - `~/.config/ito/config.json` (macOS/Linux)
+  - `%APPDATA%\ito\config.json` (Windows)
 
-- `<repo-root>/ito.json`
+You can manage this file via the CLI:
 
-Purpose:
-
-- Configure project-level Ito behavior.
-- Today, this file is primarily used to control the Ito working directory name.
-
-This file also participates in cascading config merging (see `<ito-dir>/config.json`).
-
-## Project Config: `.ito.json`
-
-Location:
-
-- `<repo-root>/.ito.json`
-
-Purpose:
-
-- Same role as `ito.json`, but higher precedence for repo-local overrides.
-
-Supported keys:
-
-- `projectPath` (string): overrides the directory name used for the Ito working directory in this repo.
-  - Default is `.ito`.
-  - This is useful for compatibility with older docs that refer to `ito/` instead of `.ito/`.
-
-Example:
-
-```json
-{
-  "projectPath": ".ito"
-}
-```
-
-## Global Config: `config.json`
-
-Location (directory):
-
-- If `XDG_CONFIG_HOME` is set: `$XDG_CONFIG_HOME/ito/`
-- Otherwise on Unix/macOS: `~/.config/ito/`
-- On Windows: `%APPDATA%\ito\`
-
-Location (file):
-
-- `<config-dir>/config.json`
-
-Environment variables used for resolution:
-
-- `XDG_CONFIG_HOME`
-- `HOME` (and `USERPROFILE` as a fallback)
-- `APPDATA` (Windows)
-
-Supported keys (Rust CLI today):
-
-- `projectPath` (string): default Ito working directory name used when the repo does not have a `ito.json` override.
-
-Ito directory name resolution for `projectPath` (highest precedence first):
-
-1. `<repo-root>/.ito.json` `projectPath`
-1. `<repo-root>/ito.json` `projectPath`
-1. `<config-dir>/config.json` `projectPath`
-1. default: `.ito`
-
-Example:
-
-```json
-{
-  "projectPath": ".ito"
-}
+```bash
+ito config list
+ito config get worktrees.enabled
+ito config set worktrees.enabled true
+ito config unset worktrees.enabled
+ito config schema
 ```
 
 Notes:
 
-- If `config.json` is missing, Ito falls back to defaults.
-- If `config.json` contains invalid JSON, Ito falls back to defaults (and prints a warning).
+- Values passed to `ito config set` are parsed as JSON by default. Use `--string` to force a string value.
+- If the file is missing, Ito falls back to defaults.
 
-## Project Config: `<ito-dir>/config.json`
+### Repo root config (`ito.json` and `.ito.json`)
 
-Location:
+Optional project config files at the repository root:
 
-- `<ito-dir>/config.json` (default: `.ito/config.json`)
+- `ito.json`
+- `.ito.json` (higher precedence; useful for repo-local overrides)
 
-Purpose:
+These files participate in project-level config merging.
 
-- Configure project-level Ito behavior (including AI tool and agent preferences).
-- This file is intended to be checked into version control so teams get consistent behavior.
+### Ito directory config (`.ito/config.json`)
 
-Cascading config (merged in order, later overrides earlier):
+This is the team/shared project configuration file and is intended to be committed.
 
-1. `<repo-root>/ito.json`
-1. `<repo-root>/.ito.json`
-1. `<ito-dir>/config.json`
-1. If `PROJECT_DIR` is set: `$PROJECT_DIR/config.json`
+- Path: `.ito/config.json`
+- Use `$schema` for editor completion:
+
+```json
+{
+  "$schema": "../schemas/ito-config.schema.json"
+}
+```
+
+## Merge Order and Semantics
+
+Ito loads defaults (built into the binary) and then merges config files.
+
+At a high level:
+
+1. Built-in defaults
+2. Global config (`~/.config/ito/config.json`)
+3. Project config cascade:
+   - `ito.json`
+   - `.ito.json`
+   - `.ito/config.json`
+   - `$PROJECT_DIR/config.json` (if `PROJECT_DIR` is set)
 
 Merge semantics:
 
@@ -114,80 +73,117 @@ Merge semantics:
 - scalars: later source overrides earlier
 - arrays: later source replaces earlier
 
-Note: `projectPath` (the Ito working directory name) is resolved from repo-level config and global config. It does not consult `<ito-dir>/config.json` to avoid a resolution cycle.
+## Common Settings
 
-### JSON schema metadata (`$schema`)
+### Worktrees
 
-Generated project config includes a `$schema` field for editor autocomplete and validation.
+Worktree behavior is controlled by the `worktrees` object.
 
-- Canonical schema artifact path in this repo: `schemas/ito-config.schema.json`
-- Generated config reference format:
-  - `https://raw.githubusercontent.com/withakay/ito/v<version>/schemas/ito-config.schema.json`
-- Runtime behavior:
-  - Ito ignores the `$schema` field when loading config
+Common keys:
 
-Regenerate/update the committed schema artifact:
+- `worktrees.enabled`
+- `worktrees.strategy` (`checkout_subdir`, `checkout_siblings`, `bare_control_siblings`)
+- `worktrees.layout.base_dir`
+- `worktrees.layout.dir_name`
+- `worktrees.apply.enabled`
+- `worktrees.apply.integration_mode` (`commit_pr` or `merge_parent`)
+- `worktrees.apply.copy_from_main` (array of glob strings)
+- `worktrees.apply.setup_commands` (array of shell strings)
+- `worktrees.default_branch`
 
-```bash
-make config-schema
+Example (global config):
+
+```json
+{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "bare_control_siblings",
+    "layout": { "dir_name": "ito-worktrees" },
+    "apply": {
+      "enabled": true,
+      "integration_mode": "commit_pr",
+      "copy_from_main": [".env", ".envrc", ".mise.local.toml"],
+      "setup_commands": []
+    },
+    "default_branch": "main"
+  }
+}
 ```
 
-Verify the committed schema is current (used by CI):
+### Harness and agent model selection
 
-```bash
-make config-schema-check
+Agent harness preferences live under `harnesses.<harness-id>`. Supported harness IDs include:
+
+- `opencode`
+- `claude-code`
+- `codex`
+- `github-copilot`
+
+Each harness can set:
+
+- `provider` (optional constraint)
+- `agents` mapping for `ito-quick`, `ito-general`, `ito-thinking`
+
+Example:
+
+```json
+{
+  "harnesses": {
+    "opencode": {
+      "agents": {
+        "ito-quick": "anthropic/claude-haiku-4-5",
+        "ito-general": { "model": "openai/gpt-5.2-codex", "variant": "high", "temperature": 0.3 },
+        "ito-thinking": { "model": "openai/gpt-5.2-codex", "variant": "xhigh", "temperature": 0.5 }
+      }
+    }
+  }
+}
 ```
 
-Related commands (planned):
+### Testing defaults
 
-```bash
-ito agent-config init
-ito agent-config summary
-ito agent-config get tools.opencode.default_model
-ito agent-config set tools.opencode.context_budget 100000
-```
+Project-wide testing defaults live under `defaults.testing`.
 
-### Coordination Branch Setup During Init
+Keys include:
 
-If you want to provision the coordination branch before the first `ito create change`, run init with:
+- `defaults.testing.coverage.target_percent`
+- `defaults.testing.tdd.workflow`
 
-```bash
-ito init --tools <...> --setup-coordination-branch
-```
+### Cache
 
-Behavior:
+Cache settings live under `cache`:
 
-- Reads the coordination branch name from `changes.coordination_branch.name` (default: `ito/internal/changes`).
-- Checks whether that branch already exists on `origin`.
-- Creates it on `origin` when missing (by pushing `HEAD`).
+- `cache.ttl_hours`
 
-Prerequisites:
+### Change coordination
 
-- The repo is a Git worktree.
-- `origin` remote is configured.
-- You have permission to push the configured branch.
+Change coordination settings live under `changes.coordination_branch`:
 
-If setup fails, init prints a deterministic error so you can fix remote/auth configuration and retry.
+- `changes.coordination_branch.enabled`
+- `changes.coordination_branch.name`
 
-## Per-Change Metadata: `.ito.yaml`
+## Ito Directory Name (`projectPath`)
 
-Location:
+`projectPath` controls the Ito working directory name (defaults to `.ito`).
 
-- `<repo-root>/.ito/changes/<change-id>/.ito.yaml`
+Resolution precedence (highest first):
 
-Purpose:
+1. `.ito.json` `projectPath`
+2. `ito.json` `projectPath`
+3. global config `config.json` `projectPath`
+4. default: `.ito`
 
-- Store per-change metadata (such as schema choice) alongside the change.
+Note: `projectPath` is intentionally not read from `.ito/config.json` to avoid a resolution cycle.
 
-Common fields:
+## Per-change metadata (`.ito.yaml`)
 
-- `schema` (string): workflow schema for the change (e.g. `spec-driven`).
-- `created` (date): creation date (`YYYY-MM-DD`).
+Each change has a small metadata file:
 
-Optional fields used by validation:
-
-- `ignore_warnings` (array of strings): suppress specific validator warnings for this change.
-  - Example: `ignore_warnings: ["max_deltas"]`
+- Path: `.ito/changes/<change-id>/.ito.yaml`
+- Common fields:
+  - `schema` (string)
+  - `created` (`YYYY-MM-DD`)
+  - `ignore_warnings` (array of validator warning IDs)
 
 Example:
 
@@ -197,13 +193,12 @@ created: 2026-01-31
 ignore_warnings: ["max_deltas"]
 ```
 
-## Where To Put Extra Guidance (Avoiding Overwrites)
+## Avoiding template overwrites
 
-Some files are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten.
+Some files are installed/updated by `ito init` / `ito update` and may be overwritten.
 
-If you want to add project-specific guidance for humans and LLMs, prefer:
+For project-specific guidance, prefer:
 
-- `.ito/user-prompts/guidance.md` (shared guidance injected into agent instruction outputs)
-- `.ito/user-prompts/<artifact-id>.md` (artifact-specific guidance, e.g. `proposal.md`, `apply.md`)
-- `.ito/user-guidance.md` (legacy shared guidance fallback)
-- `AGENTS.md` and/or `CLAUDE.md` (project-level guidance)
+- `.ito/user-prompts/guidance.md`
+- `.ito/user-prompts/<artifact-id>.md`
+- `AGENTS.md` (repo)

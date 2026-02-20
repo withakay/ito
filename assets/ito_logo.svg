@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img" aria-label="ITO logo">
+  <!--
+    Simple, editable vector riff on the "top-left" mark:
+    - Spool as the I
+    - Geometric T + O
+    - Thread swoosh + loop
+    Change color by editing the `color:` value below (uses currentColor).
+  -->
+  <g style="color:#000">
+    <!-- Spool / I -->
+    <g transform="translate(60,35)">
+      <!-- outer body -->
+      <rect x="0" y="10" width="120" height="180" rx="18" fill="currentColor"/>
+      <!-- top cap / bottom cap (white cutouts) -->
+      <rect x="-10" y="0" width="140" height="34" rx="16" fill="#fff"/>
+      <rect x="-10" y="186" width="140" height="34" rx="16" fill="#fff"/>
+
+      <!-- inner window -->
+      <rect x="18" y="34" width="84" height="152" rx="14" fill="#fff"/>
+
+      <!-- stripes -->
+      <rect x="26" y="46" width="68" height="12" rx="6" fill="currentColor"/>
+      <rect x="26" y="70" width="68" height="12" rx="6" fill="currentColor"/>
+      <rect x="26" y="94" width="68" height="12" rx="6" fill="currentColor"/>
+      <rect x="26" y="118" width="68" height="12" rx="6" fill="currentColor"/>
+      <rect x="26" y="142" width="68" height="12" rx="6" fill="currentColor"/>
+      <rect x="26" y="166" width="68" height="12" rx="6" fill="currentColor"/>
+    </g>
+
+    <!-- T -->
+    <g transform="translate(215,40)">
+      <!-- top bar -->
+      <rect x="0" y="0" width="150" height="44" rx="10" fill="currentColor"/>
+      <!-- stem -->
+      <rect x="52" y="0" width="46" height="185" rx="10" fill="currentColor"/>
+    </g>
+
+    <!-- O (outer + inner knockout) -->
+    <g transform="translate(400,40)">
+      <circle cx="120" cy="96" r="92" fill="currentColor"/>
+      <circle cx="120" cy="96" r="54" fill="#fff"/>
+    </g>
+
+    <!-- Thread swoosh + loop (stroke-based for a clean CLI-logo vibe) -->
+    <path
+      d="M 205 205
+         C 310 190, 400 190, 510 205
+         S 710 230, 820 205
+         C 858 196, 870 168, 840 155
+         C 808 141, 760 156, 738 182
+         C 715 210, 742 236, 790 236
+         C 835 236, 862 210, 862 176"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="14"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

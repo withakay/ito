@@ -6,10 +6,10 @@
 //! - **Checkbox**: Legacy simple checklist format.
 //!
 //! Key components:
-//! - [`TaskRepository`]: Port for accessing task data (implemented by core).
-//! - [`parse_tasks_tracking_file`]: Normalizes markdown into [`TasksParseResult`].
-//! - [`compute_ready_and_blocked`]: Determines which tasks are actionable based on waves/deps.
-//! - [`update_enhanced_task_status`]: Modifies markdown content to reflect status changes.
+//! - [`TaskRepository`](crate::tasks::TaskRepository): Port for accessing task data (implemented by core).
+//! - [`parse_tasks_tracking_file`](crate::tasks::parse_tasks_tracking_file): Normalizes markdown into [`TasksParseResult`](crate::tasks::TasksParseResult).
+//! - [`compute_ready_and_blocked`](crate::tasks::compute_ready_and_blocked): Determines which tasks are actionable based on waves/deps.
+//! - [`update_enhanced_task_status`](crate::tasks::update_enhanced_task_status): Modifies markdown content to reflect status changes.
 
 mod checkbox;
 mod compute;
