@@ -177,6 +177,9 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         if artifact == "proposal" {
             return handle_new_proposal_guide(rt, want_json);
         }
+        if artifact == "review" {
+            return fail("review instruction requires --change <id>");
+        }
 
         let change_repo = FsChangeRepository::new(rt.ito_path());
         let changes = change_repo.list().unwrap_or_default();
@@ -263,6 +266,41 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             user_guidance.as_deref(),
             &worktree_config,
         );
+        return Ok(());
+    }
+
+    if artifact == "review" {
+        let review =
+            match core_templates::compute_review_context(ito_path, &change, schema.as_deref(), ctx, user_guidance.clone())
+            {
+                Ok(r) => r,
+                Err(core_templates::TemplatesError::InvalidChangeName) => {
+                    return fail("Invalid change name");
+                }
+                Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
+                    return fail(format!("Change '{name}' not found"));
+                }
+                Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
+                    return fail(super::common::schema_not_found_message(ctx, &name));
+                }
+                Err(e) => return Err(to_cli_error(e)),
+            };
+
+        let instruction =
+            ito_templates::instructions::render_instruction_template("agent/review.md.j2", &review)
+                .map_err(to_cli_error)?;
+
+        if want_json {
+            let response = core_templates::AgentInstructionResponse {
+                artifact_id: artifact.to_string(),
+                instruction,
+            };
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        print!("{instruction}");
         return Ok(());
     }
 
