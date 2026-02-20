@@ -10,7 +10,7 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 
 .PHONY: \
 	init \
-	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
+	build test test-timed test-watch test-coverage lint check check-prek check-max-lines clean help \
 	bacon bacon-export \
 	fmt clippy \
 	arch-guardrails cargo-deny \
