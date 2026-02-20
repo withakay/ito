@@ -56,6 +56,8 @@ brew tap withakay/ito
 brew install ito-cli
 ```
 
+Note: the Homebrew formula name is `ito-cli` (it installs the `ito` binary).
+
 **Build from source:**
 
 ```bash

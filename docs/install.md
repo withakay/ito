@@ -8,6 +8,8 @@ brew install ito-cli
 ito --version
 ```
 
+Note: the Homebrew formula name is `ito-cli` (it installs the `ito` binary).
+
 ## Prebuilt Binary (macOS/Linux)
 
 ```bash
