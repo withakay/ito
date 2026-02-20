@@ -43,8 +43,8 @@ ______________________________________________________________________
   Define the supporting info structs (`ArtifactInfo`, `ValidationIssueInfo`, `TaskSummaryInfo`, `AffectedSpecInfo`). All must derive `Serialize`.
 - **Verify**: `cargo check -p ito-core`
 - **Done When**: `PeerReviewContext` and supporting types compile with Serialize
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ### Task 1.2: Implement compute_review_context() function
 
@@ -64,8 +64,8 @@ ______________________________________________________________________
   Follow the same pattern as `compute_apply_instructions()` for error handling and runtime usage.
 - **Verify**: `cargo test -p ito-core --lib -- workflow`
 - **Done When**: Function compiles and returns a populated context for a test change directory
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -127,8 +127,8 @@ ______________________________________________________________________
   Use `{% if %}` blocks for conditional sections. Use `{{ }}` for variable interpolation. Follow the style of `apply.md.j2`.
 - **Verify**: Template syntax check via minijinja (covered by unit test in task 2.2)
 - **Done When**: Template file exists with all sections, conditional rendering, and variable references matching PeerReviewContext fields
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ### Task 2.2: Unit test for template rendering
 
@@ -145,8 +145,8 @@ ______________________________________________________________________
   Follow the pattern of existing `workflow_templates.rs` tests.
 - **Verify**: `cargo test -p ito-core --test workflow_review`
 - **Done When**: Both test cases pass — full context and minimal context render correctly
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -168,8 +168,8 @@ ______________________________________________________________________
   Place this block before the generic `resolve_instructions()` fallthrough, alongside the existing `apply` handler. Follow the same error handling pattern.
 - **Verify**: `cargo build -p ito-cli && ito agent instruction review --change 001-18_agent-instruction-peer-review`
 - **Done When**: `ito agent instruction review --change <id>` produces rendered review instructions instead of ArtifactNotFound error
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ### Task 3.2: Integration test for review instruction
 
@@ -184,8 +184,8 @@ ______________________________________________________________________
   5. Tests error case: `ito agent instruction review` without `--change` returns error
 - **Verify**: `cargo test -p ito-cli --test instruction_review`
 - **Done When**: Both success and error test cases pass
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -207,8 +207,8 @@ ______________________________________________________________________
   Ensure the skill continues to work with the existing `ito-review` OpenCode skill (which delegates to this).
 - **Verify**: Read the updated skill file and verify it matches the actual command behavior
 - **Done When**: Skill accurately documents the working review instruction
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ### Task 4.2: Update bootstrap template to reflect working review instruction
 
@@ -218,8 +218,8 @@ ______________________________________________________________________
   Review the bootstrap template's references to `ito agent instruction review`. Ensure they accurately describe the command now that it works. Add a brief note about when to use it in the workflow (post-proposal, pre-implementation).
 - **Verify**: Read the template and verify consistency with the actual command
 - **Done When**: Bootstrap template accurately describes the working review instruction
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -239,8 +239,8 @@ ______________________________________________________________________
   4. Verify the ito-review skill works end-to-end
   5. Verify `ito agent instruction review` without `--change` gives a clear error
 - **Done When**: Human confirms all checks pass and output quality is acceptable
-- **Updated At**: 2026-02-07
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-19
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

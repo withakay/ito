@@ -191,3 +191,58 @@ fn agent_instruction_change_flag_supports_slug_query() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("<artifact id=\"proposal\""));
 }
+
+#[test]
+fn agent_instruction_review_requires_change_flag() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["agent", "instruction", "review"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0);
+    assert!(
+        out.stderr
+            .contains("review instruction requires --change <id>"),
+        "stderr was: {}",
+        out.stderr
+    );
+}
+
+#[test]
+fn agent_instruction_review_renders_review_template() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "review",
+            "--change",
+            "000-01_test-change",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Peer Review"));
+    assert!(out.stdout.contains("000-01_test-change"));
+    assert!(out.stdout.contains("## Testing Policy"));
+    assert!(out.stdout.contains("## Output Format"));
+    assert!(out.stdout.contains("Verdict: needs-discussion"));
+}
