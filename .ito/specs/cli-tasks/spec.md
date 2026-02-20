@@ -4,7 +4,7 @@
 
 The CLI SHALL emit deterministic ascending ID order for ID-bearing task list outputs.
 
-#### Scenario: Status ready and blocked lists are task-ID ordered
+#### Scenario: Status ready and blocked lists are ordered by task ID
 
 - **WHEN** executing `ito tasks status <change-id>`
 - **THEN** ready tasks are output in ascending canonical task ID order

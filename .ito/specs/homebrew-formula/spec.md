@@ -60,6 +60,6 @@ The formula SHALL include a test block that verifies the installation succeeded.
 
 #### Scenario: Homebrew test passes after install
 
-- **WHEN** user runs `brew test ito`
+- **WHEN** user runs `brew test ito-cli`
 - **THEN** Homebrew executes the test block
 - **AND** the test verifies `ito --version` runs successfully

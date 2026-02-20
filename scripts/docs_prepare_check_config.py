@@ -1,4 +1,5 @@
 import pathlib
+import re
 
 
 def main() -> int:
@@ -8,13 +9,16 @@ def main() -> int:
     src_path = pathlib.Path("zensical.toml")
     text = src_path.read_text(encoding="utf-8")
 
-    needle = 'site_dir = "site"'
+    pattern = r'(?m)^site_dir\s*=\s*"site"\s*$'
     replacement = 'site_dir = "site-check"'
-    if needle not in text:
-        raise SystemExit(f"Expected {needle!r} in {src_path}")
+    text, count = re.subn(pattern, replacement, text, count=1)
+    if count != 1:
+        raise SystemExit(
+            f"Expected exactly one site_dir assignment in {src_path}; found {count}"
+        )
 
     out_path = local_dir / "zensical.check.toml"
-    out_path.write_text(text.replace(needle, replacement), encoding="utf-8")
+    out_path.write_text(text, encoding="utf-8")
     print(f"Wrote {out_path}")
     return 0
 
