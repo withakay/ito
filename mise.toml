@@ -2,3 +2,4 @@
 prek = "latest"
 rust = "1.93"
 python = "3.14"
+uv = "latest"

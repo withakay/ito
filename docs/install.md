@@ -4,9 +4,11 @@
 
 ```bash
 brew tap withakay/ito
-brew install ito
+brew install ito-cli
 ito --version
 ```
+
+Note: the Homebrew formula name is `ito-cli` (it installs the `ito` binary).
 
 ## Prebuilt Binary (macOS/Linux)
 
@@ -19,12 +21,5 @@ ito --version
 
 ```bash
 make rust-install
-ito --version
-```
-
-## npm (optional)
-
-```bash
-npm install -g @withakay/ito
 ito --version
 ```

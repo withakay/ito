@@ -4,9 +4,11 @@
 
 A Homebrew tap repository SHALL exist at `withakay/homebrew-ito` containing the formula for installing the `ito` CLI.
 
+Note: the current user-facing formula name is `ito-cli` (it installs the `ito` binary).
+
 #### Scenario: User adds tap and installs ito
 
-- **WHEN** user runs `brew tap withakay/ito && brew install ito`
+- **WHEN** user runs `brew tap withakay/ito && brew install ito-cli`
 - **THEN** the `ito` binary is installed to the Homebrew prefix
 - **AND** running `ito --version` outputs the installed version
 
@@ -16,13 +18,13 @@ The Homebrew formula SHALL support both Intel (x86_64) and Apple Silicon (arm64)
 
 #### Scenario: Install on Apple Silicon Mac
 
-- **WHEN** user runs `brew install ito` on an arm64 Mac
+- **WHEN** user runs `brew install ito-cli` on an arm64 Mac
 - **THEN** Homebrew downloads the arm64-apple-darwin release artifact
 - **AND** the installed binary runs natively without Rosetta
 
 #### Scenario: Install on Intel Mac
 
-- **WHEN** user runs `brew install ito` on an x86_64 Mac
+- **WHEN** user runs `brew install ito-cli` on an x86_64 Mac
 - **THEN** Homebrew downloads the x86_64-apple-darwin release artifact
 - **AND** the installed binary runs natively
 
@@ -32,7 +34,7 @@ The formula SHALL download pre-built binaries from GitHub Releases rather than b
 
 #### Scenario: Formula downloads release binary
 
-- **WHEN** Homebrew installs ito
+- **WHEN** Homebrew installs ito-cli
 - **THEN** it downloads the tarball from `https://github.com/withakay/ito/releases/download/vX.Y.Z/ito-*-apple-darwin.tar.gz`
 - **AND** verifies the SHA256 checksum matches the formula
 
@@ -58,6 +60,6 @@ The formula SHALL include a test block that verifies the installation succeeded.
 
 #### Scenario: Homebrew test passes after install
 
-- **WHEN** user runs `brew test ito`
+- **WHEN** user runs `brew test ito-cli`
 - **THEN** Homebrew executes the test block
 - **AND** the test verifies `ito --version` runs successfully

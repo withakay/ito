@@ -53,8 +53,10 @@ cargo install --locked bacon
 
 ```bash
 brew tap withakay/ito
-brew install ito
+brew install ito-cli
 ```
+
+Note: the Homebrew formula name is `ito-cli` (it installs the `ito` binary).
 
 **Build from source:**
 
@@ -342,12 +344,11 @@ make docs-site-check
 
 ### Docs Site
 
-Build and serve the MkDocs site (includes Rust API docs generated via `mkdocs-rustdoc-plugin`):
+Build and serve the Zensical docs site (dark theme + Rust API docs). Python dependencies are isolated via `uv` and `docs/pyproject.toml`:
 
 ```bash
 make docs-site-build
 make docs-site-serve
-make bacon
 ```
 
 ## License

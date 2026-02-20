@@ -1,0 +1,8 @@
+[project]
+name = "ito-docs"
+version = "0.1.0"
+description = "Documentation tooling for Ito"
+requires-python = ">=3.12"
+dependencies = [
+  "zensical>=0.0.23",
+]

@@ -10,7 +10,7 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 
 .PHONY: \
 	init \
-	build test test-timed test-watch test-coverage lint check check-max-lines clean help \
+	build test test-timed test-watch test-coverage lint check check-prek check-max-lines clean help \
 	bacon bacon-export \
 	fmt clippy \
 	arch-guardrails cargo-deny \
@@ -212,7 +212,9 @@ clippy: ## Run cargo clippy
 		-D clippy::todo \
 		-D clippy::unimplemented
 
-check: ## Run repo checks via prek (pre-push stage)
+check: check-prek ## Run repo checks via prek (pre-push stage, incl rustdoc)
+
+check-prek:
 	@set -e; \
 	if prek --version >/dev/null 2>&1; then \
 		prek run --all-files --stage pre-push; \
@@ -383,20 +385,38 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 
 docs: ## Build Rust documentation (warns on missing docs)
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+	rm -rf docs/rustdoc
+	cp -R target/doc docs/rustdoc
 
 docs-open: ## Build and open Rust documentation in browser
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
+	rm -rf docs/rustdoc
+	cp -R target/doc docs/rustdoc
 
-docs-site-install: ## Install MkDocs docs-site dependencies
-	python3 -m pip install -r docs/requirements.txt
+docs-site-install: ## Ensure uv is available for docs-site tooling
+	@set -e; \
+	if uv --version >/dev/null 2>&1; then \
+		:; \
+	else \
+		echo "uv is not installed."; \
+		echo "Install: https://docs.astral.sh/uv/getting-started/installation/"; \
+		exit 1; \
+	fi; \
+	rm -rf .venv-docs; \
+	(cd docs && UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv-docs" uv sync); \
+	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv-docs" uv run --project docs python scripts/docs_copy_zensical_assets.py
 
-docs-site-build: docs-site-install ## Build MkDocs docs site (strict)
-	python3 -m mkdocs build --strict
+docs-site-build: docs-site-install docs ## Build docs site with Zensical
+	python3 -c "import shutil; shutil.rmtree('site', ignore_errors=True)"
+	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv-docs" uv run --project docs zensical build
 
-docs-site-serve: docs-site-install ## Serve MkDocs docs site locally
-	python3 -m mkdocs serve
+docs-site-serve: docs-site-install docs ## Serve docs site locally with Zensical
+	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv-docs" uv run --project docs zensical serve
 
-docs-site-check: docs-site-build ## Validate docs site build
+docs-site-check: docs-site-install docs ## Validate docs site build (isolated output dir)
+	python3 scripts/docs_prepare_check_config.py
+	python3 -c "import shutil; shutil.rmtree('site-check', ignore_errors=True)"
+	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv-docs" uv run --project docs zensical build -f .local/zensical.check.toml
 	@echo "Docs site check passed"
 
 hooks-install: ## Install custom git hook wrappers

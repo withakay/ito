@@ -1,7 +1,7 @@
 //! Core-layer error types.
 //!
-//! [`CoreError`] is the canonical error type for `ito-core`. All public
-//! functions in this crate return [`CoreResult<T>`] rather than adapter-level
+//! [`CoreError`](crate::errors::CoreError) is the canonical error type for `ito-core`. All public
+//! functions in this crate return [`CoreResult`](crate::errors::CoreResult) rather than adapter-level
 //! error types. Adapter layers (CLI, web) convert `CoreError` into their own
 //! presentation types (e.g., miette `Report` for rich terminal output).
 
