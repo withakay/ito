@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ## [0.1.8] - 2026-02-20
 
 ### 🚀 Features
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 📚 Documentation
 
 - Migrate docs site to Zensical and publish via Pages ([#87](https://github.com/withakay/ito/pull/87))
+
 ## [0.1.7] - 2026-02-18
 
 ### 🚀 Features
@@ -41,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Autofix lint and formatting issues
 - Autofix lint and formatting issues
+
 ## [0.1.6] - 2026-02-17
 
 ### 🚀 Features
@@ -67,11 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🧪 Testing
 
 - *(002-15)* Add tests for retriable harness exit code behavior
+
 ## [0.1.4] - 2026-02-13
 
 ### 🚀 Features
 
 - *(002-14)* Add Ralph harnesses for Claude Code, Codex, and GitHub Copilot ([#48](https://github.com/withakay/ito/pull/48))
+
 ## [0.1.3] - 2026-02-11
 
 ### 🚀 Features
@@ -106,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *(ito-core)* Add ValidationIssue helper tests
 - *(ito-core)* Add ReportBuilder behavior coverage
+
 ## [0.1.2] - 2026-02-11
 
 ### 🐛 Bug Fixes
@@ -126,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🧪 Testing
 
 - Raise coverage for validation and template helpers ([#25](https://github.com/withakay/ito/pull/25))
+
 ## [0.1.1] - 2026-02-10
 
 ### 🐛 Bug Fixes
