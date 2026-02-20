@@ -271,7 +271,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
 
     if artifact == "review" {
         let review =
-            match core_templates::compute_review_context(ito_path, &change, schema.as_deref(), ctx)
+            match core_templates::compute_review_context(ito_path, &change, schema.as_deref(), ctx, user_guidance.clone())
             {
                 Ok(r) => r,
                 Err(core_templates::TemplatesError::InvalidChangeName) => {
