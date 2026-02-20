@@ -13,7 +13,8 @@ The command SHALL support deterministic ordering for all list results and SHALL 
 
 - **GIVEN** multiple changes exist
 - **WHEN** `ito list --sort name` is executed
-- **THEN** sort them in ascending canonical change ID order
+- **THEN** sort them in ascending alphanumeric name order
+- **AND** when two changes have the same name, order those ties by ascending canonical change ID
 
 #### Scenario: Sorting changes by recent remains deterministic
 
