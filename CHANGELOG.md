@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.8] - 2026-02-20
+
+### 🚀 Features
+
+- *(016-12)* Standardize ascending ID ordering across list surfaces ([#85](https://github.com/withakay/ito/pull/85))
+- *(001-18)* Add peer-review agent instruction workflow ([#88](https://github.com/withakay/ito/pull/88))
+
+### 🐛 Bug Fixes
+
+- Remove extra argument from compute_review_context call ([#89](https://github.com/withakay/ito/pull/89))
+
+### 📚 Documentation
+
+- Migrate docs site to Zensical and publish via Pages ([#87](https://github.com/withakay/ito/pull/87))
+
 ## [0.1.7] - 2026-02-18
 
 ### 🚀 Features
@@ -16,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Bug Fixes
 
 - Improve tasks handling and move checks to pre-push ([#77](https://github.com/withakay/ito/pull/77))
+
 ## [0.1.6] - 2026-02-17
 
 ### 🚀 Features
@@ -36,11 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🧪 Testing
 
 - *(003-05)* Add unit and integration tests for ralph and harness modules ([#57](https://github.com/withakay/ito/pull/57))
+
 ## [0.1.4] - 2026-02-13
 
 ### 🚀 Features
 
 - *(002-14)* Add Ralph harnesses for Claude Code, Codex, and GitHub Copilot ([#48](https://github.com/withakay/ito/pull/48))
+
 ## [0.1.3] - 2026-02-11
 
 ### 🚀 Features
@@ -55,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🚜 Refactor
 
 - *(coordination)* Address remaining PR nitpicks
+
 ## [0.1.2] - 2026-02-11
 
 ### 🐛 Bug Fixes
@@ -74,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🧪 Testing
 
 - Raise coverage for validation and template helpers ([#25](https://github.com/withakay/ito/pull/25))
+
 ## [0.1.1] - 2026-02-10
 
 ### 🐛 Bug Fixes
