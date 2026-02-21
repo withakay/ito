@@ -5,12 +5,24 @@ This is a minimal bootstrap preamble for {{ tool }}. For complete workflow instr
 {% if tool == "codex" %}
 ## Tool Notes
 
-Shell-first environment. Use standard Unix tools for file operations and direct git commands for version control.
+Shell-first environment. Use standard Unix tools for file operations and direct git commands for version control. Skills are in `.codex/skills/`, prompts in `.codex/prompts/`.
+
+{% elif tool == "github-copilot" %}
+## Tool Notes
+
+GitHub Copilot discovers instructions from `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md` (with `applyTo` frontmatter for path scoping). Reusable prompts live in `.github/prompts/*.prompt.md`. Skills in `.github/skills/` are Ito-managed but not auto-discovered by Copilot — reference them explicitly when needed via file read.
+
+Copilot CLI (`gh copilot`) has no project-level instruction discovery; it is stateless per invocation.
 
 {% else %}
 ## Tool Notes
 
 Prefer dedicated tools (Read, Write, Edit, Glob, Grep) over shell commands. Use Task to delegate independent subtasks to specialized agents.
+{% if tool == "claude" %}
+Skills are in `.claude/skills/`, commands in `.claude/commands/`.
+{% elif tool == "opencode" %}
+Skills are in `.opencode/skills/`, commands in `.opencode/commands/`.
+{% endif %}
 
 {% endif %}
 
