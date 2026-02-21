@@ -2,49 +2,33 @@
 
 This is a minimal bootstrap preamble for {{ tool }}. For complete workflow instructions, use the artifact-specific commands below.
 
-{% if tool == "opencode" %}
-## Tool-Specific Notes: OpenCode
+{% if tool == "codex" %}
+## Tool Notes
 
-OpenCode provides MCP (Model Context Protocol) tools for file operations and task delegation:
+Shell-first environment. Use standard Unix tools for file operations and direct git commands for version control. Skills are in `.codex/skills/`, prompts in `.codex/prompts/`.
 
-- **File Operations**: Use Read, Write, Edit, Glob, Grep tools for file manipulation
-- **Shell Commands**: Use Bash tool for git, npm, docker, etc.
-- **Task Delegation**: Use Task tool to launch specialized agents for complex subtasks
-- **Parallel Invocation**: You can call multiple independent tools in a single response for optimal performance
+{% elif tool == "github-copilot" %}
+## Tool Notes
 
-When working with Ito changes, always prefer the dedicated tools over shell commands for file operations.
+GitHub Copilot discovers instructions from `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md` (with `applyTo` frontmatter for path scoping). Reusable prompts live in `.github/prompts/*.prompt.md`. Skills in `.github/skills/` are Ito-managed but not auto-discovered by Copilot — reference them explicitly when needed via file read.
 
-{% elif tool == "claude" %}
-## Tool-Specific Notes: Claude Code
+Copilot CLI (`gh copilot`) has no project-level instruction discovery; it is stateless per invocation.
 
-Claude Code provides a comprehensive toolkit for development workflows:
+{% else %}
+## Tool Notes
 
-- **File Operations**: Use Read, Write, Edit tools for file manipulation
-- **Search**: Use Glob (file patterns) and Grep (content search) instead of shell commands
-- **Task Delegation**: Use Task tool to launch specialized agents for complex, multi-step work
-- **Shell Commands**: Use Bash tool for git, npm, docker, and other CLI operations
-- **Tool Routing**: Prefer specialized tools (Read/Write/Edit/Grep/Glob) over generic shell commands
-
-When implementing Ito changes, use the Task tool for independent subtasks and the dedicated file tools for code modifications.
-
-{% elif tool == "codex" %}
-## Tool-Specific Notes: Codex
-
-Codex is a shell-first environment with command execution as the primary interface:
-
-- **Shell Commands**: All operations are performed via shell commands
-- **File Operations**: Use standard Unix tools (cat, grep, find, sed, awk)
-- **Git Operations**: Direct git commands for version control
-- **Available Commands**: Standard Unix utilities, git, npm, make, and project-specific tools
-- **Bootstrap**: This bootstrap snippet is always included in your system prompt
-
-When working with Ito changes, use shell commands and standard Unix tools for all operations.
+Prefer dedicated tools (Read, Write, Edit, Glob, Grep) over shell commands. Use Task to delegate independent subtasks to specialized agents.
+{% if tool == "claude" %}
+Skills are in `.claude/skills/`, commands in `.claude/commands/`.
+{% elif tool == "opencode" %}
+Skills are in `.opencode/skills/`, commands in `.opencode/commands/`.
+{% endif %}
 
 {% endif %}
 
 ## Retrieving Workflow Instructions
 
-To get detailed instructions for working with a Ito change, use these commands:
+To get detailed instructions for working with an Ito change, use these commands:
 
 ### View Change Proposal
 ```bash
@@ -68,11 +52,7 @@ Shows the implementation task list.
 ```bash
 ito agent instruction apply --change <change-id>
 ```
-Shows comprehensive instructions for implementing the change, including:
-- Context files to read
-- Task progress tracking
-- Implementation guidance
-- Completion criteria
+Shows implementation instructions: context files, task tracking, and completion criteria.
 
 ### Review Instructions
 ```bash
@@ -94,18 +74,9 @@ Guides initial project setup: stack detection, dev commands (Makefile), and tool
 
 ## Audit Trail
 
-Ito automatically records audit events for CLI operations. The audit log lives at `.ito/.state/audit/events.jsonl`.
+Use `ito tasks` CLI commands for all task state changes (emits audit events automatically). Avoid editing `tasks.md` directly, but if you do, run `ito audit reconcile --fix` immediately after.
 
-- View log: `ito audit log` (optionally `--change <id>`, `--entity-type <type>`)
-- Check for drift: `ito audit reconcile`
-- Fix drift: `ito audit reconcile --fix`
-- Validate log integrity: `ito audit validate`
-
-**Audit requirements:**
-- MUST use `ito tasks start/complete/shelve/unshelve/add` CLI commands for all task state changes
-- If a direct edit to `tasks.md` is unavoidable, run `ito audit reconcile --fix` immediately after
-- Run `ito audit validate` at session start to verify audit log integrity
-- Run `ito audit reconcile` before `ito archive` to ensure consistency
+Key commands: `ito audit log`, `ito audit reconcile`, `ito audit validate`.
 
 ## Workflow Overview
 

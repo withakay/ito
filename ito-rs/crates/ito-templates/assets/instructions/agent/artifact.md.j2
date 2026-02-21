@@ -59,10 +59,6 @@ Write to: {{ out_path }}
 {{ instructions.template|trim }}
 </template>
 
-<success_criteria>
-<!-- To be defined in schema validation rules -->
-</success_criteria>
-
 {% if instructions.unlocks and instructions.unlocks|length > 0 %}
 <unlocks>
 Completing this artifact enables: {{ instructions.unlocks|join(", ") }}
