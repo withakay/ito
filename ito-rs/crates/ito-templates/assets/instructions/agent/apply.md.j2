@@ -18,171 +18,52 @@ Use the ito-continue-change skill to create these first.
 {% if worktree.enabled and worktree.apply_enabled %}
 ### Worktree Setup
 
-Strategy: `{{ worktree.strategy }}`
-Default branch: `{{ worktree.default_branch }}`
-{% if worktree.layout_base_dir %}
-Base directory: `{{ worktree.layout_base_dir }}`
-{% endif %}
-Worktree directory name: `{{ worktree.layout_dir_name }}`
+Strategy: `{{ worktree.strategy }}` | Branch: `{{ worktree.default_branch }}` | Dir: `{{ worktree.layout_dir_name }}`
 
-{% if worktree.strategy == "checkout_subdir" %}
-#### Workspace Layout (checkout_subdir)
-{% if worktree.project_root %}
+For full layout diagrams and setup commands, run:
 
-Project root: `{{ worktree.project_root }}`
-{% endif %}
-
-```
-{{ worktree.project_root | default("<project>") }}/  # normal git checkout ({{ worktree.default_branch }} branch)
-├── .git/
-├── src/
-└── .{{ worktree.layout_dir_name }}/  # gitignored subdirectory
-    └── {{ instructions.changeName }}/
+```bash
+ito agent instruction worktrees
 ```
 
-**Setup steps:**
+**Quick start for this change:**
 
 ```bash
 CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
-LAYOUT_DIR_NAME='{{ worktree.layout_dir_name | replace("'", "'\"'\"'") }}'
-
-WORKTREE_ROOT="$(ito path worktree-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
 CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
 
-# Ensure .{{ worktree.layout_dir_name }}/ is gitignored (checkout_subdir only)
-GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
-WORKTREES_IGNORE=".$LAYOUT_DIR_NAME/"
-grep -qxF "$WORKTREES_IGNORE" "$GITIGNORE_PATH" 2>/dev/null || printf '%s\n' "$WORKTREES_IGNORE" >> "$GITIGNORE_PATH"
-
-# Create or reuse the change worktree
 if [ ! -d "$CHANGE_DIR" ]; then
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
-fi
-
-echo "Working directory: $CHANGE_DIR"
-```
-{% elif worktree.strategy == "checkout_siblings" %}
-#### Workspace Layout (checkout_siblings)
-{% if worktree.project_root %}
-
-Project root: `{{ worktree.project_root }}`
-{% endif %}
-
-```
-{% if worktree.project_root %}
-{{ worktree.project_root | default("") }}/../
-├── {{ worktree.project_root | default("<project>") }}/  # normal git checkout ({{ worktree.default_branch }} branch)
-│   ├── .git/
-│   └── src/
-└── <project>-{{ worktree.layout_dir_name }}/  # dedicated sibling folder
-{% else %}
-~/Code/
-├── <project>/                      # normal git checkout ({{ worktree.default_branch }} branch)
-│   ├── .git/
-│   └── src/
-└── <project>-{{ worktree.layout_dir_name }}/  # dedicated sibling folder
-{% endif %}
-    └── {{ instructions.changeName }}/
-```
-
-**Setup steps:**
-
-```bash
-CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
-
-WORKTREE_ROOT="$(ito path worktree-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
-CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
-
-# Create the worktree base directory if needed
-mkdir -p "$WORKTREES_ROOT"
-
-# Create or reuse the change worktree
-if [ ! -d "$CHANGE_DIR" ]; then
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
-fi
-
-echo "Working directory: $CHANGE_DIR"
-```
-{% elif worktree.strategy == "bare_control_siblings" %}
-#### Workspace Layout (bare_control_siblings)
-{% if worktree.project_root %}
-
-Bare repo root: `{{ worktree.project_root }}`
-{% endif %}
-
-```
-{{ worktree.project_root | default("<bare-repo-root>") }}/  # bare/control repo
-├── .bare/                          # git object store
-├── .git                            # gitdir pointer
-├── {{ worktree.default_branch }}/  # main branch worktree
-└── {{ worktree.layout_dir_name }}/  # Ito-managed change worktrees
-    └── {{ instructions.changeName }}/
-```
-
-**IMPORTANT:** All git worktree commands below MUST be run from the bare repo root{% if worktree.project_root %} (`{{ worktree.project_root }}`){% endif %}, NOT from inside a worktree. Running them from a worktree{% if worktree.project_root %} (e.g. `{{ worktree.project_root }}/{{ worktree.default_branch }}/`){% endif %} would create directories in the wrong location.
-
-**Setup steps:**
-
-```bash
-CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
-DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
-
-PROJECT_ROOT="$(ito path project-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
-MAIN_DIR="$(ito path worktree --main)"
-CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
-
-mkdir -p "$WORKTREES_ROOT"
-
-# Ensure main worktree exists
-if [ ! -d "$MAIN_DIR" ]; then
-  git -C "$PROJECT_ROOT" worktree add "$MAIN_DIR" "$DEFAULT_BRANCH"
-fi
-
-# Create or reuse the change worktree
-if [ ! -d "$CHANGE_DIR" ]; then
+{% if worktree.strategy == "bare_control_siblings" %}
+  PROJECT_ROOT="$(ito path project-root)"
+  mkdir -p "$(ito path worktrees-root)"
   git -C "$PROJECT_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
+{% else %}
+  WORKTREE_ROOT="$(ito path worktree-root)"
+  mkdir -p "$(ito path worktrees-root)"
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
+{% endif %}
 fi
 
 echo "Working directory: $CHANGE_DIR"
 ```
-{% else %}
-#### ⚠️ Unknown Strategy
-
-The configured strategy `{{ worktree.strategy }}` is not recognized. Please set `worktrees.strategy` to one of: `checkout_subdir`, `checkout_siblings`, or `bare_control_siblings`.
-
-```bash
-ito config set worktrees.strategy checkout_subdir
-```
-{% endif %}
 {% if worktree.copy_from_main and worktree.copy_from_main|length > 0 %}
 
-#### Copy Local Files from Main
-
-Copy local/uncommitted setup files from the main worktree into the change worktree (missing files are skipped):
+Copy local setup files into the change worktree (missing files are skipped):
 
 ```bash
 {% if worktree.strategy == "bare_control_siblings" %}
-MAIN_DIR="${MAIN_DIR:-$(ito path worktree --main)}"
-SOURCE_ROOT="$MAIN_DIR"
+SOURCE_ROOT="$(ito path worktree --main)"
 {% else %}
-WORKTREE_ROOT="${WORKTREE_ROOT:-$(ito path worktree-root)}"
-SOURCE_ROOT="$WORKTREE_ROOT"
+SOURCE_ROOT="$(ito path worktree-root)"
 {% endif %}
 {% for pattern in worktree.copy_from_main %}
-PATTERN='{{ pattern | replace("'", "'\"'\"'") }}'
-SRC="$SOURCE_ROOT/$PATTERN"
-[ -f "$SRC" ] && cp "$SRC" "$CHANGE_DIR/" 2>/dev/null || true
+[ -f "$SOURCE_ROOT/{{ pattern }}" ] && cp "$SOURCE_ROOT/{{ pattern }}" "$CHANGE_DIR/" 2>/dev/null || true
 {% endfor %}
 ```
 {% endif %}
 {% if worktree.setup_commands and worktree.setup_commands|length > 0 %}
 
-#### Setup Commands
-
-Run the following commands in the change worktree before starting implementation:
+Run in the change worktree before starting:
 
 ```bash
 cd "$CHANGE_DIR"
@@ -195,7 +76,7 @@ cd "$CHANGE_DIR"
 {% elif worktree.enabled and not worktree.apply_enabled %}
 ### Worktree Mode
 
-Worktrees are enabled but apply-time worktree setup is disabled. Work in your current directory.
+Worktrees are enabled but apply-time setup is disabled. Work in your current directory.
 
 {% endif %}
 {% if instructions.tracksFile and instructions.tracksPath %}
@@ -236,104 +117,52 @@ Worktrees are enabled but apply-time worktree setup is disabled. Work in your cu
 {% endfor %}
 
 {% endif %}
-### Audit Trail
+### Audit
 
-Ito automatically records audit events for CLI operations (task changes, module/change creation, archival, config updates). No manual action is needed.
-
-- View the audit log: `ito audit log --change {{ instructions.changeName }}`
-- Check for drift: `ito audit reconcile`
-- Fix drift: `ito audit reconcile --fix`
-- Validate log integrity: `ito audit validate`
-
-**Audit requirements:**
-- MUST use `ito tasks start/complete/shelve/unshelve/add` CLI commands for all task state changes (this emits audit events automatically)
-- If a direct edit to `tasks.md` is unavoidable, MUST run `ito audit reconcile --change {{ instructions.changeName }} --fix` immediately after
-- Run `ito audit reconcile --change {{ instructions.changeName }}` before `ito archive` to ensure audit consistency
+Use `ito tasks` CLI commands for all task state changes (emits audit events automatically).
+Avoid editing `tasks.md` directly, but if you do, run `ito audit reconcile --change {{ instructions.changeName }} --fix` immediately after.
+Run `ito audit reconcile --change {{ instructions.changeName }}` before archiving.
 
 ### Instruction
 {{ instructions.instruction }}
 {% if worktree.enabled and worktree.apply_enabled %}
 
-### Integration Guidance
+### Integration
+
 {% if worktree.integration_mode == "commit_pr" %}
+Mode: **Commit & PR** — commit on the change branch, push, open a PR into `{{ worktree.default_branch }}`.
 
-**Mode: Commit & PR** (`commit_pr`)
-
-After implementation is complete:
-
-1. Stage and commit your changes in the change worktree:
-   ```bash
-   cd "$CHANGE_DIR"
-   git add -A
-   git commit -m "feat: {{ instructions.changeName }}"
-   ```
-2. Push the branch and create a pull request:
-   ```bash
-   git push -u origin {{ instructions.changeName }}
-   # Create PR using gh, or your preferred method
-   gh pr create --title "{{ instructions.changeName }}" --body "Implements change {{ instructions.changeName }}"
-   ```
-3. After PR is merged, proceed to cleanup (below).
+```bash
+cd "$CHANGE_DIR"
+git add -A && git commit -m "feat: {{ instructions.changeName }}"
+git push -u origin {{ instructions.changeName }}
+gh pr create --title "{{ instructions.changeName }}" --body "Implements change {{ instructions.changeName }}"
+```
 {% elif worktree.integration_mode == "merge_parent" %}
+Mode: **Merge into Parent** — commit on the change branch, then merge into `{{ worktree.default_branch }}`.
 
-**Mode: Merge into Parent** (`merge_parent`)
-
-After implementation is complete:
-
-1. Stage and commit your changes in the change worktree:
-   ```bash
-   cd "$CHANGE_DIR"
-   git add -A
-   git commit -m "feat: {{ instructions.changeName }}"
-   ```
-2. Switch to the main branch and merge:
-   ```bash
-{% if worktree.strategy == "bare_control_siblings" %}
-{% if worktree.project_root %}
-   cd "{{ worktree.project_root }}/{{ worktree.default_branch }}"
+```bash
+cd "$CHANGE_DIR"
+git add -A && git commit -m "feat: {{ instructions.changeName }}"
+cd "$(ito path worktree --main)"
+git merge {{ instructions.changeName }}
+```
 {% else %}
-   cd "$(git worktree list --porcelain | awk '
-     /^worktree / { path = substr($0,10) }
-     /^branch / { if ($2 == "refs/heads/{{ worktree.default_branch }}") { print path; exit } }
-   ')"
-{% endif %}
-{% elif worktree.project_root %}
-   cd "{{ worktree.project_root }}"
-{% else %}
-   cd "$(git rev-parse --show-toplevel)"
-{% endif %}
-   git merge {{ instructions.changeName }}
-   ```
-3. After merge is complete, proceed to cleanup (below).
-{% else %}
-
-**Mode: {{ worktree.integration_mode }}** (unrecognized)
-
-Please set `worktrees.apply.integration_mode` to `commit_pr` or `merge_parent`:
+Mode: `{{ worktree.integration_mode }}` (unrecognized). Set to `commit_pr` or `merge_parent`:
 ```bash
 ito config set worktrees.apply.integration_mode commit_pr
 ```
 {% endif %}
 
-### Post-Merge Cleanup
+### Cleanup
 
-After the change branch has been merged (via PR or direct merge):
+After the change branch is merged:
 
 ```bash
-# 1. Remove the change worktree
-git worktree remove {{ instructions.changeName }} 2>/dev/null || git worktree remove "$CHANGE_DIR" 2>/dev/null || true
-
-# 2. Delete the local branch
+git worktree remove "$CHANGE_DIR" 2>/dev/null || true
 git branch -d {{ instructions.changeName }} 2>/dev/null || true
-
-# 3. Prune stale worktree metadata
 git worktree prune
 ```
-
-**Safety notes:**
-- `git worktree remove` will refuse to remove a worktree with uncommitted changes. Force with `--force` only if you are sure.
-- `git branch -d` will refuse to delete an unmerged branch. Force with `-D` only if you are sure.
-- Run `git worktree list` to verify cleanup was successful.
 {% endif %}
 
 {% if user_guidance %}

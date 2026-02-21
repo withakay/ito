@@ -22,7 +22,7 @@ When invoking this skill, check for these parameters in context:
   - `false` or missing: ask for confirmation of each commit message
   - CRITICAL: this only applies to the current invocation and is reset afterwards
 
-- **change_id**: optional, a Ito change id (recommended)
+- **change_id**: optional, an Ito change id (recommended)
   - If missing, prompt the user to pick from `ito list --json`
 
 - **stacked_mode**: optional boolean
