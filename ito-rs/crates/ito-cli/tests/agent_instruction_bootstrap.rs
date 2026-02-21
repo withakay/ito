@@ -22,7 +22,9 @@ fn bootstrap_rejects_invalid_tool() {
         .assert()
         .failure()
         .stderr(contains("Invalid tool 'invalid'"))
-        .stderr(contains("Valid tools: opencode, claude, codex"));
+        .stderr(contains(
+            "Valid tools: opencode, claude, codex, github-copilot",
+        ));
 }
 
 #[test]
@@ -38,6 +40,7 @@ fn bootstrap_opencode_success() {
         .stdout(contains("Ito Bootstrap Instructions"))
         .stdout(contains("Tool Notes"))
         .stdout(contains("dedicated tools"))
+        .stdout(contains(".opencode/skills/"))
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
@@ -57,6 +60,7 @@ fn bootstrap_claude_success() {
         .stdout(contains("Ito Bootstrap Instructions"))
         .stdout(contains("Tool Notes"))
         .stdout(contains("dedicated tools"))
+        .stdout(contains(".claude/skills/"))
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
@@ -76,6 +80,26 @@ fn bootstrap_codex_success() {
         .stdout(contains("Ito Bootstrap Instructions"))
         .stdout(contains("Tool Notes"))
         .stdout(contains("Shell-first"))
+        .stdout(contains("ito agent instruction proposal"))
+        .stdout(contains("ito agent instruction apply"))
+        .stdout(contains("ito agent instruction review"))
+        .stdout(contains("ito agent instruction archive"));
+}
+
+#[test]
+fn bootstrap_github_copilot_success() {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    cmd.arg("agent")
+        .arg("instruction")
+        .arg("bootstrap")
+        .arg("--tool")
+        .arg("github-copilot")
+        .assert()
+        .success()
+        .stdout(contains("Ito Bootstrap Instructions"))
+        .stdout(contains("Tool Notes"))
+        .stdout(contains("GitHub Copilot"))
+        .stdout(contains("copilot-instructions.md"))
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
