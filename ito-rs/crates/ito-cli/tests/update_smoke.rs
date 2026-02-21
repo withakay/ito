@@ -37,19 +37,13 @@ fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
 
     // Must match ito-core `distribution.rs` ITO_SKILLS list.
     let skills = [
-        "brainstorming",
-        "dispatching-parallel-agents",
-        "finishing-a-development-branch",
-        "receiving-code-review",
-        "requesting-code-review",
-        "research",
-        "subagent-driven-development",
-        "systematic-debugging",
-        "test-driven-development",
-        "using-git-worktrees",
+        "ito-brainstorming",
+        "ito-finishing-a-development-branch",
+        "ito-research",
+        "ito-subagent-driven-development",
+        "ito-using-git-worktrees",
+        "ito-verification-before-completion",
         "using-ito-skills",
-        "verification-before-completion",
-        "writing-skills",
     ];
     for skill in skills {
         write(
@@ -107,16 +101,14 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     assert!(repo.path().join(".claude/session-start.sh").exists());
     assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
     assert!(repo.path().join(".claude/settings.json").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 }
 
 #[test]

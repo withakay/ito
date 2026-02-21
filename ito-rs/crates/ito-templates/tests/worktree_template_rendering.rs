@@ -4,7 +4,7 @@
 //! four worktree configuration states and asserts the output contains
 //! expected content and does not contain discovery heuristics.
 
-use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
+use ito_templates::project_templates::{render_project_template, WorktreeTemplateContext};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,8 +21,8 @@ fn agents_md_bytes() -> &'static [u8] {
 fn skill_md_bytes() -> &'static [u8] {
     ito_templates::skills_files()
         .into_iter()
-        .find(|f| f.relative_path == "using-git-worktrees/SKILL.md")
-        .expect("using-git-worktrees/SKILL.md should exist in skill templates")
+        .find(|f| f.relative_path == "ito-using-git-worktrees/SKILL.md")
+        .expect("ito-using-git-worktrees/SKILL.md should exist in skill templates")
         .contents
 }
 
