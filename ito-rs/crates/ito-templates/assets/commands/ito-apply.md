@@ -27,24 +27,10 @@ Tell the model to use the `ito-apply-change-proposal` skill to complete this wor
 - In GitHub Copilot repository-agent sessions, treat audit checks as mandatory before stateful Ito actions: run `ito audit validate` first.
 - If validation fails or drift is reported, run `ito audit reconcile` and use `ito audit reconcile --fix` when remediation is required.
 
-**Testing Policy (TDD + coverage)**
+**Testing Policy**
 
-- Follow the Testing Policy printed by `ito agent instruction proposal` / `ito agent instruction apply`.
-- Default workflow: RED/GREEN/REFACTOR (write a failing test, implement the minimum to pass, then refactor).
-- Coverage target: 80% (guidance; projects may override).
-- Override defaults via cascading project config (low -> high precedence): `ito.json`, `.ito.json`, `.ito/config.json`, `$PROJECT_DIR/config.json` (when set).
-- Keys: `defaults.testing.tdd.workflow`, `defaults.testing.coverage.target_percent`.
-
-```json
-{
-  "defaults": {
-    "testing": {
-      "tdd": { "workflow": "red-green-refactor" },
-      "coverage": { "target_percent": 80 }
-    }
-  }
-}
-```
+- Follow the Testing Policy printed by `ito agent instruction apply --change <id>`.
+- Project-level overrides in `.ito/config.json` under `defaults.testing`.
 
 **Guardrails**
 

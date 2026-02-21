@@ -1,8 +1,8 @@
 # Ito Workflow Instructions
 
-When working on a Ito change, get the canonical workflow instructions from the CLI:
+When working on an Ito change, get the canonical workflow instructions from the CLI:
 
-- **Proposal/specs/design/tasks**: `ito agent instruction proposal|specs|design|tasks --change "<id>"`
+- **Proposal/specs/tasks**: `ito agent instruction proposal|specs|tasks --change "<id>"`
 - **Implementation**: `ito agent instruction apply --change "<id>"`
 - **Review**: `ito agent instruction review --change "<id>"`
 - **Archive**: `ito agent instruction archive --change "<id>"`
