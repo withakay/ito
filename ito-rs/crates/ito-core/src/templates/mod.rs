@@ -29,6 +29,9 @@ use ito_common::fs::StdFs;
 use ito_common::paths;
 use ito_config::ConfigContext;
 
+const ITO_INTERNAL_COMMENT_START: &str = "<!-- ITO:INTERNAL:START -->";
+const ITO_INTERNAL_COMMENT_END: &str = "<!-- ITO:INTERNAL:END -->";
+
 /// Backward-compatible alias for callers using the renamed error type.
 pub type TemplatesError = WorkflowError;
 /// Default schema name used when a change does not specify one.
@@ -1024,12 +1027,39 @@ fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
         Some(i) => &content[i + ITO_END_MARKER.len()..],
         None => content.as_str(),
     };
+    let content = strip_ito_internal_comment_blocks(content);
     let content = content.trim();
     if content.is_empty() {
         return Ok(None);
     }
 
     Ok(Some(content.to_string()))
+}
+
+fn strip_ito_internal_comment_blocks(content: &str) -> String {
+    let mut out = String::new();
+    let mut in_block = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if in_block {
+            if trimmed == ITO_INTERNAL_COMMENT_END {
+                in_block = false;
+            }
+            continue;
+        }
+
+        if trimmed == ITO_INTERNAL_COMMENT_START {
+            in_block = true;
+            continue;
+        }
+
+        out.push_str(line);
+        out.push('\n');
+    }
+
+    out
 }
 
 fn is_safe_artifact_id(artifact_id: &str) -> bool {
@@ -1143,5 +1173,23 @@ mod tests {
         assert_eq!(tasks[1].description, "Second");
         assert!(!tasks[1].done);
         assert_eq!(tasks[1].status.as_deref(), Some("in-progress"));
+    }
+
+    #[test]
+    fn strip_ito_internal_comment_blocks_removes_internal_template_guidance() {
+        let contents = r#"
+Keep this.
+<!-- ITO:INTERNAL:START -->
+## Your Guidance
+(placeholder)
+<!-- ITO:INTERNAL:END -->
+Keep this too.
+"#;
+
+        let stripped = strip_ito_internal_comment_blocks(contents);
+        assert!(stripped.contains("Keep this."));
+        assert!(stripped.contains("Keep this too."));
+        assert!(!stripped.contains("## Your Guidance"));
+        assert!(!stripped.contains("(placeholder)"));
     }
 }

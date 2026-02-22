@@ -42,6 +42,24 @@ fn load_user_guidance_strips_managed_header_block() {
 }
 
 #[test]
+fn load_user_guidance_strips_ito_internal_comment_block() {
+    let dir = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = dir.path();
+
+    std::fs::write(
+        ito_path.join("user-guidance.md"),
+        "<!-- ITO:START -->\nheader\n<!-- ITO:END -->\n\n<!-- ITO:INTERNAL:START -->\n## Your Guidance\n\n(Add your defaults here.)\n<!-- ITO:INTERNAL:END -->\n\nPrefer BDD.\n",
+    )
+    .expect("write should succeed");
+
+    let guidance = load_user_guidance(ito_path)
+        .expect("load should succeed")
+        .expect("should be present");
+
+    assert_eq!(guidance, "Prefer BDD.");
+}
+
+#[test]
 fn load_user_guidance_for_artifact_reads_scoped_file() {
     let dir = tempfile::tempdir().expect("tempdir should succeed");
     let ito_path = dir.path();
