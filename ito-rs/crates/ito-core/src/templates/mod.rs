@@ -998,7 +998,23 @@ pub fn load_user_guidance_for_artifact(
     load_guidance_file(&path)
 }
 
-/// Compose artifact-scoped and shared user guidance text for instruction output.
+/// Compose scoped (artifact-specific) and shared user guidance into a single guidance string.
+///
+/// When both scoped and shared guidance are present, the returned text contains two sections:
+/// "Scoped Guidance (<artifact_id>)" followed by the scoped content, and "Shared Guidance" followed
+/// by the shared content. If only one source exists, that content is returned as-is. If neither
+/// source exists, `None` is returned.
+///
+/// # Examples
+///
+/// ```
+/// // Example (pseudo-usage):
+/// // let guidance = load_composed_user_guidance(Path::new("."), "deploy")?;
+/// // match guidance {
+/// //     Some(text) => println!("{}", text),
+/// //     None => println!("No guidance available"),
+/// // }
+/// ```
 pub fn load_composed_user_guidance(
     ito_path: &Path,
     artifact_id: &str,
@@ -1046,9 +1062,27 @@ pub fn load_composed_user_guidance(
 /// <!-- ITO_INTERNAL_COMMENT_END -->
 /// <!-- ITO_END_MARKER -->private";
 // ;
+/// Loads a guidance file, normalizes its content, and returns it if non-empty.
+///
+/// The function:
+/// - returns `Ok(None)` if the path does not exist or the resulting content is empty after processing;
+/// - normalizes CRLF (`\r\n`) to LF (`\n`);
+/// - if the special `ITO_END_MARKER` is present, uses the text that follows the marker as the guidance content;
+/// - removes internal comment blocks delimited by `ITO_INTERNAL_COMMENT_START` / `ITO_INTERNAL_COMMENT_END`;
+/// - trims surrounding whitespace and returns the remaining text as `Some(String)`.
+///
+/// # Examples
+///
+/// ```
+/// use std::fs;
+/// use std::path::Path;
+/// use ito_workflow::load_guidance_file;
+///
+/// let p = Path::new("test_guidance.md");
+/// let contents = "public guidance\n";
 /// fs::write(&p, contents).unwrap();
 ///
-/// let res = crate::load_guidance_file(&p).unwrap();
+/// let res = load_guidance_file(&p).unwrap();
 /// assert_eq!(res, Some("public guidance".to_string()));
 ///
 /// // cleanup
@@ -1074,10 +1108,11 @@ fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     Ok(Some(content.to_string()))
 }
 
-/// Removes sections of text enclosed between the internal guidance markers.
+/// Removes text blocks enclosed by the internal guidance markers `ITO_INTERNAL_COMMENT_START`
+/// and `ITO_INTERNAL_COMMENT_END`, returning the remaining content.
 ///
-/// The function returns a new string composed of all lines from `content` that are outside
-/// the regions delimited by `ITO_INTERNAL_COMMENT_START` and `ITO_INTERNAL_COMMENT_END`.
+/// Lines that fall between a start marker and the next end marker (inclusive) are omitted;
+/// all other lines are preserved in their original order with newline separators.
 ///
 /// # Examples
 ///
@@ -1090,6 +1125,7 @@ fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
 /// <!-- ITO_INTERNAL_COMMENT_END -->
 /// public line 2
 /// ";
+///
 /// let out = strip_ito_internal_comment_blocks(input);
 /// assert_eq!(out, "public line 1\npublic line 2\n");
 /// ```
