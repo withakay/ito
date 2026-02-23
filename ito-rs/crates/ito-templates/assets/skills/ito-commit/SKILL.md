@@ -3,6 +3,8 @@ name: ito-commit
 description: Create atomic git commits aligned to Ito changes. Use when you want to commit work after applying a change, optionally with auto-mode.
 ---
 
+<!-- ITO:START -->
+
 Create atomic git commits aligned to Ito changes.
 
 **Concept:** In Ito-driven workflows, you typically make progress by creating/applying a change. After applying and verifying a change, you should usually create a git commit that corresponds to that change.
@@ -113,3 +115,5 @@ After committing, show:
 - Change committed: <change-id>
 - Commit SHA + message (`git log -1 --oneline`)
 - Remaining uncommitted changes (if any)
+
+<!-- ITO:END -->

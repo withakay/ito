@@ -340,8 +340,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
       - name: Setup toolchain (mise)
         uses: jdx/mise-action@v3
+
+      - name: Install Rust components (rust-docs)
+        run: |
+          set -eu
+          mise install
+          mise trust
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add --toolchain "$TOOLCHAIN" rust-docs
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2

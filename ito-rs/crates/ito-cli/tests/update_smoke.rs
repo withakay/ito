@@ -14,6 +14,32 @@ fn write_local_ito_skills(root: &Path) {
     write_local_ito_skills_with_plugin(root, "// test plugin\n");
 }
 
+/// Create a minimal local `ito-skills` layout under `root` containing adapter files,
+/// bootstrap instructions, and a fixed set of skill `SKILL.md` files used by tests.
+///
+/// The layout mirrors the assets `ito update` expects so tests can exercise update
+/// logic without network access.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use std::fs;
+///
+/// // Choose a temporary directory for the example.
+/// let root = std::env::temp_dir().join("ito_skills_example");
+/// let _ = fs::remove_dir_all(&root); // ignore errors from prior runs
+/// fs::create_dir_all(&root).unwrap();
+///
+/// let plugin = "module.exports = { name: 'ito-skills' };";
+/// write_local_ito_skills_with_plugin(root.as_path(), plugin);
+///
+/// // Spot-check one installed file and one skill file.
+/// let plugin_installed = fs::read_to_string(root.join("ito-skills/adapters/opencode/ito-skills.js")).unwrap();
+/// assert!(plugin_installed.contains("ito-skills"));
+/// let skill = fs::read_to_string(root.join("ito-skills/skills/ito-brainstorming/SKILL.md")).unwrap();
+/// assert!(skill.contains("# ito-brainstorming"));
+/// ```
 fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
     // `ito update` installs adapter files for all tool ids, which in turn
     // installs ito-skills assets. In tests we avoid network fetches by
@@ -43,7 +69,7 @@ fn write_local_ito_skills_with_plugin(root: &Path, plugin_contents: &str) {
         "ito-subagent-driven-development",
         "ito-using-git-worktrees",
         "ito-verification-before-completion",
-        "using-ito-skills",
+        "ito-using-ito-skills",
     ];
     for skill in skills {
         write(

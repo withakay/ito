@@ -10,6 +10,8 @@ fn user_guidance_template_exists_and_has_markers() {
     let contents = fs::read_to_string(&path).expect("read should succeed");
     assert!(contents.contains("<!-- ITO:START -->"));
     assert!(contents.contains("<!-- ITO:END -->"));
+    assert!(contents.contains("<!-- ITO:INTERNAL:START -->"));
+    assert!(contents.contains("<!-- ITO:INTERNAL:END -->"));
     assert!(
         contents.contains("## Your Guidance"),
         "expected guidance section header"
@@ -41,6 +43,14 @@ fn user_prompt_stub_templates_exist() {
         assert!(
             contents.contains("<!-- ITO:END -->"),
             "expected managed end marker in {path:?}"
+        );
+        assert!(
+            contents.contains("<!-- ITO:INTERNAL:START -->"),
+            "expected internal comment start marker in {path:?}"
+        );
+        assert!(
+            contents.contains("<!-- ITO:INTERNAL:END -->"),
+            "expected internal comment end marker in {path:?}"
         );
     }
 }
