@@ -41,6 +41,9 @@ use ito_common::fs::StdFs;
 use ito_common::paths;
 use ito_config::ConfigContext;
 
+const ITO_INTERNAL_COMMENT_START: &str = "<!-- ITO:INTERNAL:START -->";
+const ITO_INTERNAL_COMMENT_END: &str = "<!-- ITO:INTERNAL:END -->";
+
 /// Backward-compatible alias for callers using the renamed error type.
 pub type TemplatesError = WorkflowError;
 /// Default schema name used when a change does not specify one.
@@ -826,6 +829,336 @@ pub fn compute_apply_instructions(
     })
 }
 
+fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
+    let mut tasks: Vec<TaskItem> = Vec::new();
+    for line in contents.lines() {
+        let l = line.trim_start();
+        let bytes = l.as_bytes();
+        if bytes.len() < 6 {
+            continue;
+        }
+        let bullet = bytes[0] as char;
+        if bullet != '-' && bullet != '*' {
+            continue;
+        }
+        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' || bytes[5] != b' ' {
+            continue;
+        }
+
+        let marker = bytes[3] as char;
+        let (done, rest, status) = match marker {
+            'x' | 'X' => (true, &l[6..], None),
+            ' ' => (false, &l[6..], None),
+            '~' | '>' => (false, &l[6..], Some("in-progress".to_string())),
+            _ => continue,
+        };
+        tasks.push(TaskItem {
+            id: (tasks.len() + 1).to_string(),
+            description: rest.trim().to_string(),
+            done,
+            status,
+        });
+    }
+    tasks
+}
+
+/// Detects whether the given text uses the enhanced task format.
+fn looks_like_enhanced_tasks(contents: &str) -> bool {
+    for line in contents.lines() {
+        let l = line.trim_start();
+        if l.starts_with("### Task ") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Parses an enhanced task list into `TaskItem` values.
+fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
+    let mut tasks: Vec<TaskItem> = Vec::new();
+    let mut current_id: Option<String> = None;
+    let mut current_desc: Option<String> = None;
+    let mut current_done = false;
+    let mut current_status: Option<String> = None;
+
+    fn push_current(
+        tasks: &mut Vec<TaskItem>,
+        current_id: &mut Option<String>,
+        current_desc: &mut Option<String>,
+        current_done: &mut bool,
+        current_status: &mut Option<String>,
+    ) {
+        let Some(desc) = current_desc.take() else {
+            current_id.take();
+            *current_done = false;
+            *current_status = None;
+            return;
+        };
+        let id = current_id
+            .take()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| (tasks.len() + 1).to_string());
+        tasks.push(TaskItem {
+            id,
+            description: desc,
+            done: *current_done,
+            status: current_status.take(),
+        });
+        *current_done = false;
+    }
+
+    for line in contents.lines() {
+        let l = line.trim_start();
+
+        if let Some(rest) = l.strip_prefix("### Task ") {
+            push_current(
+                &mut tasks,
+                &mut current_id,
+                &mut current_desc,
+                &mut current_done,
+                &mut current_status,
+            );
+
+            let (id, desc) = rest.split_once(':').unwrap_or((rest, ""));
+            let id = id.trim();
+            let desc = if desc.trim().is_empty() {
+                rest.trim()
+            } else {
+                desc.trim()
+            };
+
+            current_id = Some(id.to_string());
+            current_desc = Some(desc.to_string());
+            current_done = false;
+            current_status = Some("pending".to_string());
+            continue;
+        }
+
+        if let Some(rest) = l.strip_prefix("- **Status**:") {
+            let status = rest.trim();
+            if let Some(status) = status
+                .strip_prefix("[x]")
+                .or_else(|| status.strip_prefix("[X]"))
+            {
+                current_done = true;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+            if let Some(status) = status
+                .strip_prefix("[>]")
+                .or_else(|| status.strip_prefix("[~]"))
+            {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+            if let Some(status) = status.strip_prefix("[ ]") {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+            if let Some(status) = status
+                .strip_prefix("[>]")
+                .or_else(|| status.strip_prefix("[~]"))
+            {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+            if let Some(status) = status.strip_prefix("[-]") {
+                current_done = false;
+                current_status = Some(status.trim().to_string());
+                continue;
+            }
+        }
+    }
+
+    push_current(
+        &mut tasks,
+        &mut current_id,
+        &mut current_desc,
+        &mut current_done,
+        &mut current_status,
+    );
+
+    tasks
+}
+
+/// Load shared user guidance text.
+///
+/// Prefers `.ito/user-prompts/guidance.md`, with fallback to `.ito/user-guidance.md`.
+pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
+    let path = ito_path.join("user-prompts").join("guidance.md");
+    if path.exists() {
+        return load_guidance_file(&path);
+    }
+    let path = ito_path.join("user-guidance.md");
+    load_guidance_file(&path)
+}
+
+/// Load artifact-scoped user guidance text from `.ito/user-prompts/<artifact-id>.md`.
+pub fn load_user_guidance_for_artifact(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    if !is_safe_artifact_id(artifact_id) {
+        return Err(WorkflowError::InvalidArtifactId(artifact_id.to_string()));
+    }
+    let path = ito_path
+        .join("user-prompts")
+        .join(format!("{artifact_id}.md"));
+    load_guidance_file(&path)
+}
+
+/// Compose artifact-scoped and shared user guidance text for instruction output.
+pub fn load_composed_user_guidance(
+    ito_path: &Path,
+    artifact_id: &str,
+) -> Result<Option<String>, WorkflowError> {
+    let scoped = load_user_guidance_for_artifact(ito_path, artifact_id)?;
+    let shared = load_user_guidance(ito_path)?;
+
+    match (scoped, shared) {
+        (None, None) => Ok(None),
+        (Some(scoped), None) => Ok(Some(scoped)),
+        (None, Some(shared)) => Ok(Some(shared)),
+        (Some(scoped), Some(shared)) => Ok(Some(format!(
+            "## Scoped Guidance ({artifact_id})\n\n{scoped}\n\n## Shared Guidance\n\n{shared}"
+        ))),
+    }
+}
+
+/// Load and normalize a guidance file from disk.
+///
+/// The file is read as UTF-8, CRLF line endings are normalized to LF, any content
+/// before the `ITO_END_MARKER` is removed, internal guidance blocks marked by
+/// `ITO_INTERNAL_COMMENT_START` / `ITO_INTERNAL_COMMENT_END` are stripped, and
+/// the result is trimmed. If the file does not exist or the processed content
+/// is empty, `Ok(None)` is returned.
+///
+/// # Returns
+///
+/// `Ok(Some(String))` with the processed guidance text when present, `Ok(None)` if
+/// the file is missing or contains no meaningful content after processing, or
+/// `Err(WorkflowError)` if reading the file fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use std::fs;
+/// // create a temporary file path in the system temp directory
+/// let mut p = std::env::temp_dir();
+/// p.push("ito_guidance_file_test.md");
+///
+/// let contents = "\
+/// public guidance
+/// <!-- ITO_INTERNAL_COMMENT_START -->
+/// internal note
+/// <!-- ITO_INTERNAL_COMMENT_END -->
+/// <!-- ITO_END_MARKER -->private";
+// ;
+/// fs::write(&p, contents).unwrap();
+///
+/// let res = crate::load_guidance_file(&p).unwrap();
+/// assert_eq!(res, Some("public guidance".to_string()));
+///
+/// // cleanup
+/// let _ = fs::remove_file(&p);
+/// ```
+fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = ito_common::io::read_to_string_std(path)?;
+    let content = content.replace("\r\n", "\n");
+    let content = match content.find(ITO_END_MARKER) {
+        Some(i) => &content[i + ITO_END_MARKER.len()..],
+        None => content.as_str(),
+    };
+    let content = strip_ito_internal_comment_blocks(content);
+    let content = content.trim();
+    if content.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(content.to_string()))
+}
+
+/// Removes sections of text enclosed between the internal guidance markers.
+///
+/// The function returns a new string composed of all lines from `content` that are outside
+/// the regions delimited by `ITO_INTERNAL_COMMENT_START` and `ITO_INTERNAL_COMMENT_END`.
+///
+/// # Examples
+///
+/// ```
+/// let input = "\
+/// public line 1
+/// <!-- ITO_INTERNAL_COMMENT_START -->
+/// secret line 1
+/// secret line 2
+/// <!-- ITO_INTERNAL_COMMENT_END -->
+/// public line 2
+/// ";
+/// let out = strip_ito_internal_comment_blocks(input);
+/// assert_eq!(out, "public line 1\npublic line 2\n");
+/// ```
+fn strip_ito_internal_comment_blocks(content: &str) -> String {
+    let mut out = String::new();
+    let mut in_block = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if in_block {
+            if trimmed == ITO_INTERNAL_COMMENT_END {
+                in_block = false;
+            }
+            continue;
+        }
+
+        if trimmed == ITO_INTERNAL_COMMENT_START {
+            in_block = true;
+            continue;
+        }
+
+        out.push_str(line);
+        out.push('\n');
+    }
+
+    out
+}
+
+/// Determines whether a string is a valid artifact identifier.
+///
+/// An identifier is considered valid when it is non-empty, does not contain the substring `".."`,
+/// and consists only of ASCII letters, digits, hyphens (`-`), or underscores (`_`).
+///
+/// # Examples
+///
+/// ```
+/// assert!(is_safe_artifact_id("artifact_1"));
+/// assert!(is_safe_artifact_id("artifact-123"));
+/// assert!(!is_safe_artifact_id("")); // empty
+/// assert!(!is_safe_artifact_id("bad/dir"));
+/// assert!(!is_safe_artifact_id("has..dots"));
+/// assert!(!is_safe_artifact_id("contains space"));
+/// ```
+fn is_safe_artifact_id(artifact_id: &str) -> bool {
+    if artifact_id.is_empty() || artifact_id.contains("..") {
+        return false;
+    }
+
+    for c in artifact_id.chars() {
+        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return false;
+        }
+    }
+
+    true
+}
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     let s = ito_common::io::read_to_string_std(&schema_dir.join("schema.yaml"))?;
     Ok(serde_yaml::from_str(&s)?)
