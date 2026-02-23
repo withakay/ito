@@ -11,3 +11,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 
 ## Changes
 - [x] 019-01_absolute-paths-in-output
+- [x] 019-02_internal-guidance-comments

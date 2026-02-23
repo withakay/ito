@@ -9,6 +9,8 @@ This file is for optional, user-authored guidance specific to `ito agent instruc
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Your Tasks Guidance
 
 (Add tasks-specific guidance here: granularity, wave/dependency conventions, verification commands.)
+<!-- ITO:INTERNAL:END -->
