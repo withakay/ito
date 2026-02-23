@@ -218,6 +218,101 @@ pub struct ApplyInstructionsResponse {
     pub instruction: String,
 }
 
+/// Artifact presence information for review instruction rendering.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewArtifactInfo {
+    /// Artifact identifier from schema (for example `proposal`).
+    pub id: String,
+    /// Absolute or workspace-relative path to the expected artifact file.
+    pub path: String,
+    /// Whether the artifact currently exists in the change directory.
+    pub present: bool,
+}
+
+/// Serializable validation issue payload for review templates.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewValidationIssueInfo {
+    /// Severity level (`error`, `warning`, `info`).
+    pub level: String,
+    /// File path associated with the issue.
+    pub path: String,
+    /// Human-readable issue message.
+    pub message: String,
+    /// Optional 1-based line number.
+    pub line: Option<u32>,
+    /// Optional 1-based column number.
+    pub column: Option<u32>,
+}
+
+/// Aggregate task progress summary for change review.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewTaskSummaryInfo {
+    /// Total number of tasks.
+    pub total: usize,
+    /// Number of completed tasks.
+    pub complete: usize,
+    /// Number of tasks currently in progress.
+    #[serde(rename = "in_progress")]
+    pub in_progress: usize,
+    /// Number of pending tasks.
+    pub pending: usize,
+    /// Number of shelved tasks.
+    pub shelved: usize,
+    /// Number of task waves detected in the task tracking file.
+    pub wave_count: usize,
+}
+
+/// Affected spec entry derived from change deltas.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewAffectedSpecInfo {
+    /// Target main spec identifier (for example `agent-instructions`).
+    pub spec_id: String,
+    /// Delta operation (`MODIFIED`, `ADDED`, etc.).
+    pub operation: String,
+    /// Optional delta description.
+    pub description: Option<String>,
+}
+
+/// Testing policy values injected into review instruction output.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewTestingPolicy {
+    /// TDD workflow mode.
+    pub tdd_workflow: String,
+    /// Coverage target percentage.
+    pub coverage_target_percent: u64,
+}
+
+/// Complete context payload for rendering peer-review instructions.
+#[derive(Debug, Clone, Serialize)]
+pub struct PeerReviewContext {
+    /// Change identifier.
+    pub change_name: String,
+    /// Absolute path to the change directory.
+    pub change_dir: String,
+    /// Resolved schema name.
+    pub schema_name: String,
+    /// Optional module identifier for module-scoped changes.
+    pub module_id: Option<String>,
+    /// Optional human-readable module name.
+    pub module_name: Option<String>,
+    /// Inventory of expected schema artifacts.
+    pub artifacts: Vec<ReviewArtifactInfo>,
+    /// Structural validation findings.
+    pub validation_issues: Vec<ReviewValidationIssueInfo>,
+    /// Whether structural validation passed.
+    pub validation_passed: bool,
+    /// Optional task summary when tasks are present.
+    pub task_summary: Option<ReviewTaskSummaryInfo>,
+    /// List of modified main specs referenced by change deltas.
+    pub affected_specs: Vec<ReviewAffectedSpecInfo>,
+    /// Optional user guidance text composed for review artifact.
+    pub user_guidance: Option<String>,
+    /// Effective testing policy from project configuration.
+    pub testing_policy: ReviewTestingPolicy,
+    /// RFC3339 UTC generation timestamp.
+    pub generated_at: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 /// Instruction payload for agent-oriented endpoints.
 pub struct AgentInstructionResponse {

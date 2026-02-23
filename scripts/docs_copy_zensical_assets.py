@@ -6,10 +6,10 @@ import importlib
 def main() -> int:
     """
     Copy the installed `zensical` package's templates/assets directory into the repository's docs/assets directory, replacing any existing destination.
-    
+
     Returns:
         int: Exit code 0 on success.
-    
+
     Raises:
         SystemExit: If the `zensical` module has no `__file__` attribute or if the source assets directory does not exist.
     """
