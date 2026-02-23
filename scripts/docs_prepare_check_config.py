@@ -11,6 +11,7 @@ def main() -> int:
     Returns:
         int: Exit code 0 on success.
 
+
     Raises:
         SystemExit: If the number of `site_dir` replacements is not exactly one.
     """

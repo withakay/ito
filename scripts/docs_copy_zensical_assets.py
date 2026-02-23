@@ -10,6 +10,7 @@ def main() -> int:
     Returns:
         int: Exit code 0 on success.
 
+
     Raises:
         SystemExit: If the `zensical` module has no `__file__` attribute or if the source assets directory does not exist.
     """
