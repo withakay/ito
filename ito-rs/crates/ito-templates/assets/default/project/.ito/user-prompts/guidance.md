@@ -9,6 +9,8 @@ This file is for optional, user-authored guidance shared across instruction arti
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Your Shared Guidance
 
 (Add project-wide guidance here: coding standards, testing expectations, review criteria.)
+<!-- ITO:INTERNAL:END -->

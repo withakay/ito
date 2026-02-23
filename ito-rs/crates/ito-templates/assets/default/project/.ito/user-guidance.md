@@ -11,6 +11,8 @@ Use this file for project-specific preferences (style, constraints, defaults). A
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Your Guidance
 
 (Add any preferences or constraints here: TDD/BDD/DDD, research rigor, commit cadence, etc.)
+<!-- ITO:INTERNAL:END -->

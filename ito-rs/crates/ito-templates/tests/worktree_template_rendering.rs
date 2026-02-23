@@ -18,6 +18,17 @@ fn agents_md_bytes() -> &'static [u8] {
         .contents
 }
 
+/// Returns the raw bytes of the `ito-using-git-worktrees/SKILL.md` template.
+///
+/// Panics if the template file is not present in the registered skill templates.
+///
+/// # Examples
+///
+/// ```
+/// let bytes = skill_md_bytes();
+/// let s = std::str::from_utf8(bytes).unwrap();
+/// assert!(!s.is_empty());
+/// ```
 fn skill_md_bytes() -> &'static [u8] {
     ito_templates::skills_files()
         .into_iter()

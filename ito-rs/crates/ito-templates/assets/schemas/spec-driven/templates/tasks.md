@@ -1,3 +1,4 @@
+<!-- ITO:START -->
 # Tasks for: <!-- CHANGE_ID -->
 
 ## Execution Notes
@@ -57,3 +58,4 @@ ______________________________________________________________________
 - Wave N depends on all prior waves completing
 - Task dependencies within a wave are fine; cross-wave deps use the wave dependency
 - Checkpoint waves require human approval before proceeding
+<!-- ITO:END -->
