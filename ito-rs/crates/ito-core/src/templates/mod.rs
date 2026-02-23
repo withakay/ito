@@ -7,30 +7,36 @@
 //! wants to present "what should I do next?" without duplicating the filesystem
 //! logic.
 
-use ito_templates::ITO_END_MARKER;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod guidance;
+mod review;
 mod schema_assets;
+mod task_parsing;
 mod types;
+pub use guidance::{
+    load_composed_user_guidance, load_user_guidance, load_user_guidance_for_artifact,
+};
+pub use review::compute_review_context;
 pub use schema_assets::{ExportSchemasResult, export_embedded_schemas};
 use schema_assets::{
     embedded_schema_names, is_safe_relative_path, is_safe_schema_name, load_embedded_schema_yaml,
     package_schemas_dir, project_schemas_dir, read_schema_template, user_schemas_dir,
 };
+use task_parsing::{looks_like_enhanced_tasks, parse_checkbox_tasks, parse_enhanced_tasks};
 pub use types::{
     AgentInstructionResponse, ApplyInstructionsResponse, ApplyYaml, ArtifactStatus, ArtifactYaml,
-    ChangeStatus, DependencyInfo, InstructionsResponse, ProgressInfo, ResolvedSchema, SchemaSource,
-    SchemaYaml, TaskDiagnostic, TaskItem, TemplateInfo, WorkflowError,
+    ChangeStatus, DependencyInfo, InstructionsResponse, PeerReviewContext, ProgressInfo,
+    ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewTaskSummaryInfo,
+    ReviewTestingPolicy, ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic,
+    TaskItem, TemplateInfo, WorkflowError,
 };
 
 use ito_common::fs::StdFs;
 use ito_common::paths;
 use ito_config::ConfigContext;
-
-const ITO_INTERNAL_COMMENT_START: &str = "<!-- ITO:INTERNAL:START -->";
-const ITO_INTERNAL_COMMENT_END: &str = "<!-- ITO:INTERNAL:END -->";
 
 /// Backward-compatible alias for callers using the renamed error type.
 pub type TemplatesError = WorkflowError;
@@ -817,372 +823,6 @@ pub fn compute_apply_instructions(
     })
 }
 
-fn parse_checkbox_tasks(contents: &str) -> Vec<TaskItem> {
-    let mut tasks: Vec<TaskItem> = Vec::new();
-    for line in contents.lines() {
-        let l = line.trim_start();
-        let bytes = l.as_bytes();
-        if bytes.len() < 6 {
-            continue;
-        }
-        let bullet = bytes[0] as char;
-        if bullet != '-' && bullet != '*' {
-            continue;
-        }
-        if bytes[1] != b' ' || bytes[2] != b'[' || bytes[4] != b']' || bytes[5] != b' ' {
-            continue;
-        }
-
-        let marker = bytes[3] as char;
-        let (done, rest, status) = match marker {
-            'x' | 'X' => (true, &l[6..], None),
-            ' ' => (false, &l[6..], None),
-            '~' | '>' => (false, &l[6..], Some("in-progress".to_string())),
-            _ => continue,
-        };
-        tasks.push(TaskItem {
-            id: (tasks.len() + 1).to_string(),
-            description: rest.trim().to_string(),
-            done,
-            status,
-        });
-    }
-    tasks
-}
-
-/// Detects whether the given text uses the enhanced task format.
-fn looks_like_enhanced_tasks(contents: &str) -> bool {
-    for line in contents.lines() {
-        let l = line.trim_start();
-        if l.starts_with("### Task ") {
-            return true;
-        }
-    }
-    false
-}
-
-/// Parses an enhanced task list into `TaskItem` values.
-fn parse_enhanced_tasks(contents: &str) -> Vec<TaskItem> {
-    let mut tasks: Vec<TaskItem> = Vec::new();
-    let mut current_id: Option<String> = None;
-    let mut current_desc: Option<String> = None;
-    let mut current_done = false;
-    let mut current_status: Option<String> = None;
-
-    fn push_current(
-        tasks: &mut Vec<TaskItem>,
-        current_id: &mut Option<String>,
-        current_desc: &mut Option<String>,
-        current_done: &mut bool,
-        current_status: &mut Option<String>,
-    ) {
-        let Some(desc) = current_desc.take() else {
-            current_id.take();
-            *current_done = false;
-            *current_status = None;
-            return;
-        };
-        let id = current_id
-            .take()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| (tasks.len() + 1).to_string());
-        tasks.push(TaskItem {
-            id,
-            description: desc,
-            done: *current_done,
-            status: current_status.take(),
-        });
-        *current_done = false;
-    }
-
-    for line in contents.lines() {
-        let l = line.trim_start();
-
-        if let Some(rest) = l.strip_prefix("### Task ") {
-            push_current(
-                &mut tasks,
-                &mut current_id,
-                &mut current_desc,
-                &mut current_done,
-                &mut current_status,
-            );
-
-            let (id, desc) = rest.split_once(':').unwrap_or((rest, ""));
-            let id = id.trim();
-            let desc = if desc.trim().is_empty() {
-                rest.trim()
-            } else {
-                desc.trim()
-            };
-
-            current_id = Some(id.to_string());
-            current_desc = Some(desc.to_string());
-            current_done = false;
-            current_status = Some("pending".to_string());
-            continue;
-        }
-
-        if let Some(rest) = l.strip_prefix("- **Status**:") {
-            let status = rest.trim();
-            if let Some(status) = status
-                .strip_prefix("[x]")
-                .or_else(|| status.strip_prefix("[X]"))
-            {
-                current_done = true;
-                current_status = Some(status.trim().to_string());
-                continue;
-            }
-            if let Some(status) = status
-                .strip_prefix("[>]")
-                .or_else(|| status.strip_prefix("[~]"))
-            {
-                current_done = false;
-                current_status = Some(status.trim().to_string());
-                continue;
-            }
-            if let Some(status) = status.strip_prefix("[ ]") {
-                current_done = false;
-                current_status = Some(status.trim().to_string());
-                continue;
-            }
-            if let Some(status) = status
-                .strip_prefix("[>]")
-                .or_else(|| status.strip_prefix("[~]"))
-            {
-                current_done = false;
-                current_status = Some(status.trim().to_string());
-                continue;
-            }
-            if let Some(status) = status.strip_prefix("[-]") {
-                current_done = false;
-                current_status = Some(status.trim().to_string());
-                continue;
-            }
-        }
-    }
-
-    push_current(
-        &mut tasks,
-        &mut current_id,
-        &mut current_desc,
-        &mut current_done,
-        &mut current_status,
-    );
-
-    tasks
-}
-
-/// Load shared user guidance text.
-///
-/// Prefers `.ito/user-prompts/guidance.md`, with fallback to `.ito/user-guidance.md`.
-pub fn load_user_guidance(ito_path: &Path) -> Result<Option<String>, WorkflowError> {
-    let path = ito_path.join("user-prompts").join("guidance.md");
-    if path.exists() {
-        return load_guidance_file(&path);
-    }
-    let path = ito_path.join("user-guidance.md");
-    load_guidance_file(&path)
-}
-
-/// Load artifact-scoped user guidance text from `.ito/user-prompts/<artifact-id>.md`.
-pub fn load_user_guidance_for_artifact(
-    ito_path: &Path,
-    artifact_id: &str,
-) -> Result<Option<String>, WorkflowError> {
-    if !is_safe_artifact_id(artifact_id) {
-        return Err(WorkflowError::InvalidArtifactId(artifact_id.to_string()));
-    }
-    let path = ito_path
-        .join("user-prompts")
-        .join(format!("{artifact_id}.md"));
-    load_guidance_file(&path)
-}
-
-/// Compose scoped (artifact-specific) and shared user guidance into a single guidance string.
-///
-/// When both scoped and shared guidance are present, the returned text contains two sections:
-/// "Scoped Guidance (<artifact_id>)" followed by the scoped content, and "Shared Guidance" followed
-/// by the shared content. If only one source exists, that content is returned as-is. If neither
-/// source exists, `None` is returned.
-///
-/// # Examples
-///
-/// ```
-/// // Example (pseudo-usage):
-/// // let guidance = load_composed_user_guidance(Path::new("."), "deploy")?;
-/// // match guidance {
-/// //     Some(text) => println!("{}", text),
-/// //     None => println!("No guidance available"),
-/// // }
-/// ```
-pub fn load_composed_user_guidance(
-    ito_path: &Path,
-    artifact_id: &str,
-) -> Result<Option<String>, WorkflowError> {
-    let scoped = load_user_guidance_for_artifact(ito_path, artifact_id)?;
-    let shared = load_user_guidance(ito_path)?;
-
-    match (scoped, shared) {
-        (None, None) => Ok(None),
-        (Some(scoped), None) => Ok(Some(scoped)),
-        (None, Some(shared)) => Ok(Some(shared)),
-        (Some(scoped), Some(shared)) => Ok(Some(format!(
-            "## Scoped Guidance ({artifact_id})\n\n{scoped}\n\n## Shared Guidance\n\n{shared}"
-        ))),
-    }
-}
-
-/// Load and normalize a guidance file from disk.
-///
-/// The file is read as UTF-8, CRLF line endings are normalized to LF, any content
-/// before the `ITO_END_MARKER` is removed, internal guidance blocks marked by
-/// `ITO_INTERNAL_COMMENT_START` / `ITO_INTERNAL_COMMENT_END` are stripped, and
-/// the result is trimmed. If the file does not exist or the processed content
-/// is empty, `Ok(None)` is returned.
-///
-/// # Returns
-///
-/// `Ok(Some(String))` with the processed guidance text when present, `Ok(None)` if
-/// the file is missing or contains no meaningful content after processing, or
-/// `Err(WorkflowError)` if reading the file fails.
-///
-/// # Examples
-///
-/// ```
-/// use std::path::PathBuf;
-/// use std::fs;
-/// // create a temporary file path in the system temp directory
-/// let mut p = std::env::temp_dir();
-/// p.push("ito_guidance_file_test.md");
-///
-/// let contents = "\
-/// public guidance
-/// <!-- ITO_INTERNAL_COMMENT_START -->
-/// internal note
-/// <!-- ITO_INTERNAL_COMMENT_END -->
-/// <!-- ITO_END_MARKER -->private";
-// ;
-/// Loads a guidance file, normalizes its content, and returns it if non-empty.
-///
-/// The function:
-/// - returns `Ok(None)` if the path does not exist or the resulting content is empty after processing;
-/// - normalizes CRLF (`\r\n`) to LF (`\n`);
-/// - if the special `ITO_END_MARKER` is present, uses the text that follows the marker as the guidance content;
-/// - removes internal comment blocks delimited by `ITO_INTERNAL_COMMENT_START` / `ITO_INTERNAL_COMMENT_END`;
-/// - trims surrounding whitespace and returns the remaining text as `Some(String)`.
-///
-/// # Examples
-///
-/// ```
-/// use std::fs;
-/// use std::path::Path;
-/// use ito_workflow::load_guidance_file;
-///
-/// let p = Path::new("test_guidance.md");
-/// let contents = "public guidance\n";
-/// fs::write(&p, contents).unwrap();
-///
-/// let res = load_guidance_file(&p).unwrap();
-/// assert_eq!(res, Some("public guidance".to_string()));
-///
-/// // cleanup
-/// let _ = fs::remove_file(&p);
-/// ```
-fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let content = ito_common::io::read_to_string_std(path)?;
-    let content = content.replace("\r\n", "\n");
-    let content = match content.find(ITO_END_MARKER) {
-        Some(i) => &content[i + ITO_END_MARKER.len()..],
-        None => content.as_str(),
-    };
-    let content = strip_ito_internal_comment_blocks(content);
-    let content = content.trim();
-    if content.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(content.to_string()))
-}
-
-/// Removes text blocks enclosed by the internal guidance markers `ITO_INTERNAL_COMMENT_START`
-/// and `ITO_INTERNAL_COMMENT_END`, returning the remaining content.
-///
-/// Lines that fall between a start marker and the next end marker (inclusive) are omitted;
-/// all other lines are preserved in their original order with newline separators.
-///
-/// # Examples
-///
-/// ```
-/// let input = "\
-/// public line 1
-/// <!-- ITO_INTERNAL_COMMENT_START -->
-/// secret line 1
-/// secret line 2
-/// <!-- ITO_INTERNAL_COMMENT_END -->
-/// public line 2
-/// ";
-///
-/// let out = strip_ito_internal_comment_blocks(input);
-/// assert_eq!(out, "public line 1\npublic line 2\n");
-/// ```
-fn strip_ito_internal_comment_blocks(content: &str) -> String {
-    let mut out = String::new();
-    let mut in_block = false;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-
-        if in_block {
-            if trimmed == ITO_INTERNAL_COMMENT_END {
-                in_block = false;
-            }
-            continue;
-        }
-
-        if trimmed == ITO_INTERNAL_COMMENT_START {
-            in_block = true;
-            continue;
-        }
-
-        out.push_str(line);
-        out.push('\n');
-    }
-
-    out
-}
-
-/// Determines whether a string is a valid artifact identifier.
-///
-/// An identifier is considered valid when it is non-empty, does not contain the substring `".."`,
-/// and consists only of ASCII letters, digits, hyphens (`-`), or underscores (`_`).
-///
-/// # Examples
-///
-/// ```
-/// assert!(is_safe_artifact_id("artifact_1"));
-/// assert!(is_safe_artifact_id("artifact-123"));
-/// assert!(!is_safe_artifact_id("")); // empty
-/// assert!(!is_safe_artifact_id("bad/dir"));
-/// assert!(!is_safe_artifact_id("has..dots"));
-/// assert!(!is_safe_artifact_id("contains space"));
-/// ```
-fn is_safe_artifact_id(artifact_id: &str) -> bool {
-    if artifact_id.is_empty() || artifact_id.contains("..") {
-        return false;
-    }
-
-    for c in artifact_id.chars() {
-        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-            return false;
-        }
-    }
-
-    true
-}
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     let s = ito_common::io::read_to_string_std(&schema_dir.join("schema.yaml"))?;
     Ok(serde_yaml::from_str(&s)?)
@@ -1256,48 +896,3 @@ fn dir_contains_filename_suffix(dir: &Path, suffix: &str) -> bool {
 }
 
 // (intentionally no checkbox counting helpers here; checkbox tasks are parsed into TaskItems)
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_enhanced_tasks_extracts_ids_status_and_done() {
-        let contents = r#"### Task 1.1: First
- - **Status**: [x] complete
-
- ### Task 1.2: Second
- - **Status**: [>] in-progress
- "#;
-
-        let tasks = parse_enhanced_tasks(contents);
-        assert_eq!(tasks.len(), 2);
-        assert_eq!(tasks[0].id, "1.1");
-        assert_eq!(tasks[0].description, "First");
-        assert!(tasks[0].done);
-        assert_eq!(tasks[0].status.as_deref(), Some("complete"));
-
-        assert_eq!(tasks[1].id, "1.2");
-        assert_eq!(tasks[1].description, "Second");
-        assert!(!tasks[1].done);
-        assert_eq!(tasks[1].status.as_deref(), Some("in-progress"));
-    }
-
-    #[test]
-    fn strip_ito_internal_comment_blocks_removes_internal_template_guidance() {
-        let contents = r#"
-Keep this.
-<!-- ITO:INTERNAL:START -->
-## Your Guidance
-(placeholder)
-<!-- ITO:INTERNAL:END -->
-Keep this too.
-"#;
-
-        let stripped = strip_ito_internal_comment_blocks(contents);
-        assert!(stripped.contains("Keep this."));
-        assert!(stripped.contains("Keep this too."));
-        assert!(!stripped.contains("## Your Guidance"));
-        assert!(!stripped.contains("(placeholder)"));
-    }
-}
