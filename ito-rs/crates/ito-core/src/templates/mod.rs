@@ -12,12 +12,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod guidance;
+mod review;
 mod schema_assets;
 mod task_parsing;
 mod types;
 pub use guidance::{
     load_composed_user_guidance, load_user_guidance, load_user_guidance_for_artifact,
 };
+pub use review::compute_review_context;
 pub use schema_assets::{ExportSchemasResult, export_embedded_schemas};
 use schema_assets::{
     embedded_schema_names, is_safe_relative_path, is_safe_schema_name, load_embedded_schema_yaml,
@@ -26,8 +28,10 @@ use schema_assets::{
 use task_parsing::{looks_like_enhanced_tasks, parse_checkbox_tasks, parse_enhanced_tasks};
 pub use types::{
     AgentInstructionResponse, ApplyInstructionsResponse, ApplyYaml, ArtifactStatus, ArtifactYaml,
-    ChangeStatus, DependencyInfo, InstructionsResponse, ProgressInfo, ResolvedSchema, SchemaSource,
-    SchemaYaml, TaskDiagnostic, TaskItem, TemplateInfo, WorkflowError,
+    ChangeStatus, DependencyInfo, InstructionsResponse, PeerReviewContext, ProgressInfo,
+    ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewTaskSummaryInfo,
+    ReviewTestingPolicy, ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic,
+    TaskItem, TemplateInfo, WorkflowError,
 };
 
 use ito_common::fs::StdFs;

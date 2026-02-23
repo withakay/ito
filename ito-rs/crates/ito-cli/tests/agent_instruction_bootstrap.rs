@@ -121,7 +121,7 @@ fn bootstrap_codex_success() {
         .stdout(contains("ito agent instruction archive"));
 }
 
-/// Verifies that `ito agent instruction bootstrap --tool github-copilot` succeeds and emits GitHub Copilot–specific bootstrap instructions.
+/// Verifies that `ito agent instruction bootstrap --tool github-copilot` succeeds and emits GitHub Copilot-specific bootstrap instructions.
 ///
 /// The test asserts the command exits successfully and that stdout contains the generic bootstrap headings and GitHub Copilot-specific markers, including a reference to `copilot-instructions.md` and the expected instruction subcommands (`proposal`, `apply`, `review`, `archive`).
 ///

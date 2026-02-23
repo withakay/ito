@@ -5,12 +5,12 @@ import re
 def main() -> int:
     """
     Prepare a check configuration by copying `zensical.toml` to `.local/zensical.check.toml` with `site_dir` changed to "site-check".
-    
+
     Reads `zensical.toml`, replaces exactly one line setting `site_dir = "site"` with `site_dir = "site-check"`, ensures the replacement count is exactly one, creates the `.local` directory if needed, and writes the modified content to `.local/zensical.check.toml`. Prints the path written.
-    
+
     Returns:
         int: Exit code 0 on success.
-    
+
     Raises:
         SystemExit: If the number of `site_dir` replacements is not exactly one.
     """

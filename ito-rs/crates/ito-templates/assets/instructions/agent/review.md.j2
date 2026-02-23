@@ -1,0 +1,124 @@
+# Peer Review Instructions
+
+<review change="{{ change_name }}" generated-at="{{ generated_at }}" />
+
+You are reviewing an Ito change proposal package before implementation. Focus on proposal/spec/design/tasks quality, internal consistency, and risk.
+
+## Change Context
+
+- Change: `{{ change_name }}`
+- Change directory: `{{ change_dir }}`
+- Schema: `{{ schema_name }}`
+{% if module_id %}- Module: `{{ module_id }}`{% if module_name %} ({{ module_name }}){% endif %}
+{% endif %}
+
+## Artifact Inventory
+
+| Artifact | Present | Path |
+| --- | --- | --- |
+{% for artifact in artifacts %}| `{{ artifact.id }}` | {{ "yes" if artifact.present else "no" }} | `{{ artifact.path }}` |
+{% endfor %}
+
+## Structural Validation
+
+- Validation passed: {{ "yes" if validation_passed else "no" }}
+{% if validation_issues|length > 0 %}
+- Issues:
+{% for issue in validation_issues %}
+  - `[{{ issue.level }}]` `{{ issue.path }}`{% if issue.line %}:{{ issue.line }}{% endif %}{% if issue.column %}:{{ issue.column }}{% endif %} - {{ issue.message }}
+{% endfor %}
+{% else %}
+- Issues: none reported.
+{% endif %}
+
+## Context Files
+
+Use these files as review inputs:
+{% for artifact in artifacts if artifact.present %}
+- `{{ artifact.path }}`
+{% endfor %}
+
+{% if artifacts | selectattr("id", "equalto", "proposal") | selectattr("present") | list | length > 0 %}
+## Proposal Review
+
+Check and report:
+- Problem framing is specific and evidence-based.
+- Scope is bounded and exclusions are explicit.
+- Claimed impact aligns with listed changes.
+- Risks and trade-offs are concrete and testable.
+- Success criteria are measurable and falsifiable.
+{% endif %}
+
+{% if artifacts | selectattr("id", "equalto", "specs") | selectattr("present") | list | length > 0 %}
+## Spec Review
+
+Check and report:
+- Requirement statements use normative language (`SHALL`, `MUST`) consistently.
+- Every requirement has at least one scenario with clear WHEN/THEN behavior.
+- Edge cases and failure behavior are covered, not implied.
+- Added/modified/removed deltas are coherent with existing specs.
+- Requirement wording is implementation-agnostic where appropriate.
+- No contradictory behavior appears across spec files.
+{% endif %}
+
+{% if artifacts | selectattr("id", "equalto", "design") | selectattr("present") | list | length > 0 %}
+## Design Review
+
+Check and report:
+- Architecture choices directly satisfy spec requirements.
+- Alternatives and trade-offs are documented.
+- Operational concerns (observability, rollback, migration) are addressed.
+- Security/performance implications are explicit and actionable.
+{% endif %}
+
+{% if task_summary %}
+## Task Review
+
+- Task summary: total={{ task_summary.total }}, complete={{ task_summary.complete }}, in-progress={{ task_summary.in_progress }}, pending={{ task_summary.pending }}, shelved={{ task_summary.shelved }}, waves={{ task_summary.wave_count }}
+
+Check and report:
+- Tasks map directly to proposal/spec/design deliverables.
+- Dependencies and wave sequencing are realistic.
+- Verification commands validate intended behavior.
+- Task granularity is actionable and reviewable.
+{% endif %}
+
+## Cross-Cutting Concerns
+
+- Identify likely conflicts with other active work in this module{% if module_id %} (`{{ module_id }}`){% endif %}.
+- Flag any system-wide impacts that are not captured in requirements.
+- Evaluate whether testing strategy is sufficient for risk level.
+- Confirm decomposition supports incremental, reversible delivery.
+{% if affected_specs|length > 0 %}
+- Affected main specs (`MODIFIED` deltas):
+{% for spec in affected_specs %}
+  - `{{ spec.spec_id }}`{% if spec.description %} - {{ spec.description }}{% endif %}
+{% endfor %}
+{% else %}
+- Affected main specs (`MODIFIED` deltas): none.
+{% endif %}
+
+## Testing Policy
+
+- TDD workflow: `{{ testing_policy.tdd_workflow }}`
+- Coverage target: `{{ testing_policy.coverage_target_percent }}%`
+
+{% if user_guidance %}
+<user_guidance>
+{{ user_guidance }}
+</user_guidance>
+{% endif %}
+
+## Output Format
+
+Return findings using this exact tag format at the start of each item:
+
+- `[blocking]` for issues that must be fixed before implementation proceeds.
+- `[suggestion]` for improvements that are non-blocking but valuable.
+- `[note]` for informational context.
+
+End with a single verdict line:
+
+- `Verdict: approve`
+- `Verdict: request-changes`
+- `Verdict: needs-discussion`
