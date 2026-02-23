@@ -156,7 +156,7 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// // Invocation shape example:
 /// let runtime = /* obtain Runtime */;
 /// handle_create(&runtime, &["change".to_string(), "my-change".to_string(), "--schema".to_string(), "api".to_string()]);

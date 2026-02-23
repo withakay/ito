@@ -131,7 +131,6 @@ pub(crate) fn make_repo_changes_dir_but_empty() -> tempfile::TempDir {
 /// write_local_ito_skills(tmp.path());
 /// assert!(tmp.path().join("ito-skills/skills/ito-research/SKILL.md").exists());
 /// ```
-pub(crate) fn write_local_ito_skills(root: &Path);
 pub(crate) fn write_local_ito_skills(root: &Path) {
     // Avoid network fetches for adapter installation by providing a minimal local
     // ito-skills/ directory.
@@ -160,7 +159,7 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
         "ito-subagent-driven-development",
         "ito-using-git-worktrees",
         "ito-verification-before-completion",
-        "using-ito-skills",
+        "ito-using-ito-skills",
     ];
     for skill in skills {
         write(

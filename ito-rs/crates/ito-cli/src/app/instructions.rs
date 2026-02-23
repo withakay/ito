@@ -41,7 +41,7 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
 /// Generate and print instructions for a requested agent artifact.
 ///
-/// Parses the provided CLI arguments to determine the artifact and options, loads configuration and testing policy as needed, validates required flags (for example, `--tool` for `bootstrap` and `--change` for change-scoped artifacts), and emits either plain instruction text or a JSON-wrapped response when `--json` is present. Prints the long help text when no arguments or a help flag is supplied and surfaces user-facing error messages for common failure cases.
+/// Parses the provided CLI arguments to determine the artifact and options, loads configuration and testing policy as needed, validates required flags (for example, `--tool` for `bootstrap` where allowed values are `opencode`, `claude`, `codex`, or `github-copilot`, and `--change` for change-scoped artifacts), and emits either plain instruction text or a JSON-wrapped response when `--json` is present. Prints the long help text when no arguments or a help flag is supplied and surfaces user-facing error messages for common failure cases.
 ///
 /// # Examples
 ///
