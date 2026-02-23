@@ -1016,6 +1016,44 @@ pub fn load_composed_user_guidance(
     }
 }
 
+/// Load and normalize a guidance file from disk.
+///
+/// The file is read as UTF-8, CRLF line endings are normalized to LF, any content
+/// before the `ITO_END_MARKER` is removed, internal guidance blocks marked by
+/// `ITO_INTERNAL_COMMENT_START` / `ITO_INTERNAL_COMMENT_END` are stripped, and
+/// the result is trimmed. If the file does not exist or the processed content
+/// is empty, `Ok(None)` is returned.
+///
+/// # Returns
+///
+/// `Ok(Some(String))` with the processed guidance text when present, `Ok(None)` if
+/// the file is missing or contains no meaningful content after processing, or
+/// `Err(WorkflowError)` if reading the file fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use std::fs;
+/// // create a temporary file path in the system temp directory
+/// let mut p = std::env::temp_dir();
+/// p.push("ito_guidance_file_test.md");
+///
+/// let contents = "\
+/// public guidance
+/// <!-- ITO_INTERNAL_COMMENT_START -->
+/// internal note
+/// <!-- ITO_INTERNAL_COMMENT_END -->
+/// <!-- ITO_END_MARKER -->private";
+// ;
+/// fs::write(&p, contents).unwrap();
+///
+/// let res = crate::load_guidance_file(&p).unwrap();
+/// assert_eq!(res, Some("public guidance".to_string()));
+///
+/// // cleanup
+/// let _ = fs::remove_file(&p);
+/// ```
 fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     if !path.exists() {
         return Ok(None);
@@ -1036,6 +1074,25 @@ fn load_guidance_file(path: &Path) -> Result<Option<String>, WorkflowError> {
     Ok(Some(content.to_string()))
 }
 
+/// Removes sections of text enclosed between the internal guidance markers.
+///
+/// The function returns a new string composed of all lines from `content` that are outside
+/// the regions delimited by `ITO_INTERNAL_COMMENT_START` and `ITO_INTERNAL_COMMENT_END`.
+///
+/// # Examples
+///
+/// ```
+/// let input = "\
+/// public line 1
+/// <!-- ITO_INTERNAL_COMMENT_START -->
+/// secret line 1
+/// secret line 2
+/// <!-- ITO_INTERNAL_COMMENT_END -->
+/// public line 2
+/// ";
+/// let out = strip_ito_internal_comment_blocks(input);
+/// assert_eq!(out, "public line 1\npublic line 2\n");
+/// ```
 fn strip_ito_internal_comment_blocks(content: &str) -> String {
     let mut out = String::new();
     let mut in_block = false;
@@ -1062,6 +1119,21 @@ fn strip_ito_internal_comment_blocks(content: &str) -> String {
     out
 }
 
+/// Determines whether a string is a valid artifact identifier.
+///
+/// An identifier is considered valid when it is non-empty, does not contain the substring `".."`,
+/// and consists only of ASCII letters, digits, hyphens (`-`), or underscores (`_`).
+///
+/// # Examples
+///
+/// ```
+/// assert!(is_safe_artifact_id("artifact_1"));
+/// assert!(is_safe_artifact_id("artifact-123"));
+/// assert!(!is_safe_artifact_id("")); // empty
+/// assert!(!is_safe_artifact_id("bad/dir"));
+/// assert!(!is_safe_artifact_id("has..dots"));
+/// assert!(!is_safe_artifact_id("contains space"));
+/// ```
 fn is_safe_artifact_id(artifact_id: &str) -> bool {
     if artifact_id.is_empty() || artifact_id.contains("..") {
         return false;
