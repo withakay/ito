@@ -39,25 +39,16 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 }
 
-/// Handle the "agent instruction" subcommand, generating and printing instructions for a requested artifact.
+/// Generate and print instructions for a requested agent artifact.
 ///
-/// This function processes the provided CLI arguments for the `ito agent instruction` subcommand and
-/// performs one of:
-/// - print long help when no arguments or help flag is present,
-/// - render and print bootstrap, project-setup, worktrees, proposal, apply, or other artifact instructions,
-/// - validate required flags (e.g., `--tool` for `bootstrap`, `--change` for change-scoped artifacts),
-/// - output either plain instruction text or a JSON-wrapped response when `--json` is provided.
-///
-/// It also loads configuration, testing policy, and optional user guidance as needed and surfaces
-/// user-facing error messages for common failure cases.
+/// Parses the provided CLI arguments to determine the artifact and options, loads configuration and testing policy as needed, validates required flags (for example, `--tool` for `bootstrap` and `--change` for change-scoped artifacts), and emits either plain instruction text or a JSON-wrapped response when `--json` is present. Prints the long help text when no arguments or a help flag is supplied and surfaces user-facing error messages for common failure cases.
 ///
 /// # Examples
 ///
-/// ```no_run
-/// use ito_cli::app::instructions::handle_agent_instruction;
-/// // `rt` should be a properly constructed `Runtime` from the hosting application.
-/// // The following demonstrates calling the handler to print help (no arguments).
-/// let rt = /* construct Runtime here */;
+/// ```
+/// # use ito_cli::app::instructions::handle_agent_instruction;
+/// # use ito_core::Runtime; // placeholder: construct a real Runtime in the hosting application
+/// let rt = /* construct Runtime here */ unimplemented!();
 /// let args: Vec<String> = vec![];
 /// let _ = handle_agent_instruction(&rt, &args);
 /// ```
@@ -736,21 +727,19 @@ fn load_worktree_config(
     worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path)
 }
 
-/// Render and print the apply instructions using the agent apply template.
+/// Render the apply instructions using the agent apply template and print the result to stdout.
 ///
-/// This builds a template context from `instructions`, `testing_policy`, optional
-/// `user_guidance`, and `worktree_config`, collects context-file entries and
-/// tracking diagnostic counts, renders the `agent/apply.md.j2` template, and
-/// writes the resulting text to standard output.
-///
-/// The provided `user_guidance` string is trimmed and ignored if empty.
+/// The function renders the `agent/apply.md.j2` template with a context constructed from
+/// `instructions`, `testing_policy`, optional `user_guidance`, and `worktree_config`, then writes
+/// the rendered text to standard output. The provided `user_guidance` is trimmed and ignored if
+/// empty.
 ///
 /// # Examples
 ///
-/// ```text
-/// Prepare or obtain `instructions`, `testing_policy`, and `worktree_config`
-/// from surrounding application logic, then call:
-/// print_apply_instructions_text(&instructions, &testing_policy, Some("Extra notes"), &worktree_config)
+/// ```no_run
+/// // Prepare or obtain `instructions`, `testing_policy`, and `worktree_config` from application logic
+/// // then call:
+/// print_apply_instructions_text(&instructions, &testing_policy, Some("Extra notes"), &worktree_config);
 /// ```
 fn print_apply_instructions_text(
     instructions: &core_templates::ApplyInstructionsResponse,

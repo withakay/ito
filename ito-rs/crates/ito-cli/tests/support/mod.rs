@@ -117,6 +117,21 @@ pub(crate) fn make_repo_changes_dir_but_empty() -> tempfile::TempDir {
     td
 }
 
+/// Create a minimal local `ito-skills` directory under `root` to avoid network fetches.
+///
+/// This writes a small set of adapter files, a bootstrap document, and `SKILL.md` files
+/// for the canonical list of ito skills used by ito-core's distribution.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// let tmp = tempfile::tempdir().unwrap();
+/// // create minimal local ito-skills under the temporary directory
+/// write_local_ito_skills(tmp.path());
+/// assert!(tmp.path().join("ito-skills/skills/ito-research/SKILL.md").exists());
+/// ```
+pub(crate) fn write_local_ito_skills(root: &Path);
 pub(crate) fn write_local_ito_skills(root: &Path) {
     // Avoid network fetches for adapter installation by providing a minimal local
     // ito-skills/ directory.

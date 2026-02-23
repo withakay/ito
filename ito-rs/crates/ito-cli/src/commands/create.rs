@@ -147,26 +147,19 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
     handle_create(rt, &forwarded)
 }
 
-/// Handle the `ito create` command, creating either a module or a change based on CLI arguments.
+/// Create a module or a change based on the provided CLI tokens.
 ///
-/// This processes a slice of CLI tokens where the first token is the create kind ("module" or "change")
-/// and subsequent tokens are flags and positional parameters for that kind. For "module" it creates a new
-/// module folder and emits an audit event; for "change" it creates a new change, emits audit events,
-/// optionally synchronizes/reserves with a coordination branch, and prints a summary of the created change.
-///
-/// # Errors
-///
-/// Returns a CLI error when required arguments are missing or when underlying create/reservation operations fail.
-///
-/// # Returns
-///
-/// `Ok(())` on success, or a `CliResult` error describing the failure.
+/// Processes a slice of tokens where the first token selects the create kind (`"module"` or `"change"`)
+/// and subsequent tokens provide the name and optional flags. When invoked it will create the requested
+/// entity, emit audit events, print a concise summary to stdout/stderr, and — for changes — optionally
+/// coordinate with a remote coordination branch (reservation) when enabled.
 ///
 /// # Examples
 ///
-/// ```text
-/// Example invocation shape:
-/// handle_create(&runtime, &["change", "my-change", "--schema", "api"])
+/// ```
+/// // Invocation shape example:
+/// let runtime = /* obtain Runtime */;
+/// handle_create(&runtime, &["change".to_string(), "my-change".to_string(), "--schema".to_string(), "api".to_string()]);
 /// ```
 pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let Some(kind) = args.first().map(|s| s.as_str()) else {
