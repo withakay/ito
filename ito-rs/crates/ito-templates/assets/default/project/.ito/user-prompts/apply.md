@@ -9,6 +9,8 @@ This file is for optional, user-authored guidance specific to `ito agent instruc
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Your Apply Guidance
 
 (Add apply-specific guidance here: implementation workflow, verification gates, commit/PR conventions.)
+<!-- ITO:INTERNAL:END -->

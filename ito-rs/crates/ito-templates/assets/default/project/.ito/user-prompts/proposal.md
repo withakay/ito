@@ -9,6 +9,8 @@ This file is for optional, user-authored guidance specific to `ito agent instruc
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Your Proposal Guidance
 
 (Add proposal-specific guidance here: detail level, capability naming, review checklist.)
+<!-- ITO:INTERNAL:END -->
