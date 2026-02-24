@@ -1,6 +1,10 @@
 # Ito Documentation
 
-Welcome to the Ito docs site.
+Project-centric spec + workflow system for long-running AI coding work.
+
+Ito is a change-driven development tool that brings together project-centric planning, design notes (when needed), specifications, and tasks.
+
+It is designed for AI-assisted development where work spans multiple sessions and benefits from explicit artifacts, validation, and repeatable workflows.
 
 ## Ito
 

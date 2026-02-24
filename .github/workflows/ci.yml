@@ -367,11 +367,28 @@ jobs:
         run: |
           make docs-site-check
 
+  powershell:
+    name: PowerShell Scripts (parse)
+    needs: [autofix]
+    if: |
+      always()
+      && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
+      && needs.autofix.outputs.pushed != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Parse scripts/install.ps1
+        run: |
+          pwsh -NoProfile -Command '$t=@();$e=@();[System.Management.Automation.Language.Parser]::ParseFile("scripts/install.ps1",[ref]$t,[ref]$e) | Out-Null; if ($e.Count -gt 0) { $e | Format-List -Property Message,Extent | Out-String; exit 1 } else { "OK: scripts/install.ps1 parsed cleanly" }'
+
   required-checks-pr:
     name: All checks passed
     # runs-on: ubuntu-latest
     runs-on: namespace-profile-linux-amd64-4c8gb
-    needs: [autofix, test, lint, arch_guardrails, docs]
+    needs: [autofix, test, lint, arch_guardrails, docs, powershell]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Verify all checks passed
@@ -399,13 +416,17 @@ jobs:
             echo "Docs job failed"
             exit 1
           fi
+          if [[ "${{ needs.powershell.result }}" != "success" ]]; then
+            echo "PowerShell job failed"
+            exit 1
+          fi
           echo "All required checks passed!"
 
   required-checks-main:
     name: All checks passed
     # runs-on: withakay-selfhosted
     runs-on: namespace-profile-linux-amd64-4c8gb
-    needs: [test, lint, arch_guardrails, docs]
+    needs: [test, lint, arch_guardrails, docs, powershell]
     if: always() && github.event_name != 'pull_request'
     steps:
       - name: Verify all checks passed
@@ -424,6 +445,10 @@ jobs:
           fi
           if [[ "${{ needs.docs.result }}" != "success" ]]; then
             echo "Docs job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.powershell.result }}" != "success" ]]; then
+            echo "PowerShell job failed"
             exit 1
           fi
           echo "All required checks passed!"
