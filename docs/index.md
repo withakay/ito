@@ -6,12 +6,6 @@ Ito is a change-driven development tool that brings together project-centric pla
 
 It is designed for AI-assisted development where work spans multiple sessions and benefits from explicit artifacts, validation, and repeatable workflows.
 
-## Ito
-
-- Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
-- Intention/Aim (意図): Often used in the context of plans, aims, or intent.
-
-
 
 ## Ito
 
