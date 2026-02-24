@@ -25,9 +25,23 @@ jobs:
           gh release view "${{ github.event.release.tag_name }}" --json body -q '.body' > current-notes.md
           echo "Fetched release notes for ${{ github.event.release.tag_name }}"
 
+      - name: Prepare install block
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          {
+            printf '%s\n' '## Install'
+            printf '\n'
+            printf '%s\n' '- **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito-cli`'
+            printf '%s\n' "- **macOS/Linux (script)**: \`ITO_VERSION=${TAG} curl -fsSL https://raw.githubusercontent.com/withakay/ito/${TAG}/scripts/install.sh | sh\`"
+            printf '%s\n' "- **Windows (PowerShell script)**: download \`https://raw.githubusercontent.com/withakay/ito/${TAG}/scripts/install.ps1\` and run \`./install.ps1 -Version ${TAG} -AddToPath\`"
+            printf '\n'
+            printf '%s\n' 'Docs: https://withakay.github.io/ito'
+          } > install-block.md
+
       - name: Transform release notes with Claude
         uses: anthropics/claude-code-action@v1
         id: claude
+        if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -81,6 +95,12 @@ jobs:
             ### Fixed
 
             - What was broken, now works
+
+            ## Install
+
+            - **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito-cli`
+            - **macOS/Linux (script)**: `ITO_VERSION=${{ github.event.release.tag_name }} curl -fsSL https://raw.githubusercontent.com/withakay/ito/${{ github.event.release.tag_name }}/scripts/install.sh | sh`
+            - **Windows (PowerShell script)**: download `https://raw.githubusercontent.com/withakay/ito/${{ github.event.release.tag_name }}/scripts/install.ps1` and run `./install.ps1 -Version ${{ github.event.release.tag_name }} -AddToPath`
             ```
 
             Omit empty sections.
@@ -94,6 +114,7 @@ jobs:
             5. Use **bold** for feature/area names
             6. Skip internal changes (CI, refactors, tests) unless they affect users
             7. If the input is already well-formatted, just clean up structure and remove noise
+            8. Keep the Install section short and correct; don't invent installers that don't exist
 
             ## Example
 
@@ -118,6 +139,17 @@ jobs:
             ```
 
             Write both files. No other output.
+
+      - name: Ensure release notes include install section
+        run: |
+          if [ ! -f polished-notes.md ]; then
+            cp current-notes.md polished-notes.md
+          fi
+
+          if ! grep -qF "## Install" polished-notes.md; then
+            printf '\n\n' >> polished-notes.md
+            cat install-block.md >> polished-notes.md
+          fi
 
       - name: Update release
         env:
