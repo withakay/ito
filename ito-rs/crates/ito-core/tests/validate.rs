@@ -58,7 +58,7 @@ fn validate_change_requires_at_least_one_delta() {
     std::fs::create_dir_all(ito.join("changes").join("001-01_demo")).unwrap();
     let change_repo = FsChangeRepository::new(&ito);
 
-    let r = validate_change(&change_repo, "001-01_demo", false).unwrap();
+    let r = validate_change(&change_repo, &ito, "001-01_demo", false).unwrap();
     assert!(!r.valid);
     assert!(
         r.issues
@@ -91,12 +91,260 @@ ok
 "#,
     );
 
-    let r = validate_change(&change_repo, change_id, false).unwrap();
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
     assert!(!r.valid);
     assert!(
         r.issues
             .iter()
             .any(|i| i.message.contains("SHALL") || i.message.contains("MUST"))
+    );
+}
+
+#[test]
+fn validate_change_with_unknown_schema_and_no_validation_yaml_does_not_require_deltas() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    // Project-local schema without validation.yaml.
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("unknown")
+            .join("schema.yaml"),
+        r#"
+name: unknown
+version: 1
+artifacts:
+  - id: notes
+    generates: notes.md
+    template: notes.md
+    requires: []
+apply:
+  requires: [notes]
+"#,
+    );
+
+    // Change selects the unknown schema.
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: unknown\n",
+    );
+
+    // Create the apply-required artifact so we only test delta validation behavior.
+    write(
+        &ito.join("changes").join(change_id).join("notes.md"),
+        "ok\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        !r.issues
+            .iter()
+            .any(|i| i.message.contains("at least one delta")),
+        "unknown schema should not require deltas, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("manual validation required")),
+        "unknown schema should emit manual validation issue, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_change_uses_validation_yaml_delta_specs_validator_when_configured() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    // Project-local schema with validation.yaml.
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("delta")
+            .join("schema.yaml"),
+        r#"
+name: delta
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("delta")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: delta\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: R
+No keywords here.
+
+#### Scenario: S
+ok
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("SHALL") || i.message.contains("MUST")),
+        "delta validator should run, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        !r.issues
+            .iter()
+            .any(|i| i.message.contains("manual validation required")),
+        "schema with validation.yaml should not emit manual-validation issue, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_change_with_validation_yaml_and_no_delta_validator_does_not_require_deltas() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("nodeltas")
+            .join("schema.yaml"),
+        r#"
+name: nodeltas
+version: 1
+artifacts:
+  - id: notes
+    generates: notes.md
+    template: notes.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("nodeltas")
+            .join("validation.yaml"),
+        "version: 1\n",
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: nodeltas\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        !r.issues
+            .iter()
+            .any(|i| i.message.contains("at least one delta")),
+        "schema validation without delta validator should not require deltas, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_change_validates_apply_tracks_file_when_configured() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracks")
+            .join("schema.yaml"),
+        r#"
+name: tracks
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+apply:
+  tracks: todo.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracks")
+            .join("validation.yaml"),
+        r#"
+version: 1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracks\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("todo.md"),
+        "- [ ] 1: Do the thing\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        !r.issues.iter().any(|i| i.message.contains("tasks.md")),
+        "apply.tracks validation should not require tasks.md, got issues: {:?}",
+        r.issues
     );
 }
 

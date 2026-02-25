@@ -1,4 +1,4 @@
-use super::{ResolvedSchema, SchemaSource, SchemaYaml, WorkflowError};
+use super::{ResolvedSchema, SchemaSource, SchemaYaml, ValidationYaml, WorkflowError};
 use ito_config::ConfigContext;
 use ito_templates::{get_schema_file, schema_files};
 use std::collections::BTreeSet;
@@ -159,6 +159,27 @@ pub(super) fn load_embedded_schema_yaml(name: &str) -> Result<Option<SchemaYaml>
     })?;
     let schema = serde_yaml::from_str(s)?;
     Ok(Some(schema))
+}
+
+/// Load an embedded schema's `validation.yaml` by schema name.
+///
+/// Returns `Ok(None)` when the embedded file is not present.
+pub(super) fn load_embedded_validation_yaml(
+    name: &str,
+) -> Result<Option<ValidationYaml>, WorkflowError> {
+    let path = format!("{name}/validation.yaml");
+    let Some(bytes) = get_schema_file(&path) else {
+        return Ok(None);
+    };
+
+    let s = std::str::from_utf8(bytes).map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("embedded validation is not utf-8 ({path}): {e}"),
+        )
+    })?;
+    let parsed = serde_yaml::from_str(s)?;
+    Ok(Some(parsed))
 }
 
 /// Load a schema template string for a resolved schema.
