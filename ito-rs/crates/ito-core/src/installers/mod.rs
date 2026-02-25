@@ -364,7 +364,8 @@ fn write_one(
             }
 
             // Read the existing file once and check for both Ito markers.
-            let existing = ito_common::io::read_to_string_or_default(target);
+            let existing = ito_common::io::read_to_string_std(target)
+                .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
             let has_markers = existing.contains(ito_templates::ITO_START_MARKER)
                 && existing.contains(ito_templates::ITO_END_MARKER);
 
