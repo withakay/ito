@@ -141,7 +141,9 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 };
 
                 // tasks.md validation (enhanced + checkbox)
-                if let Ok(task_issues) = core_validate::validate_tasks_file(ito_path, &dir_name) {
+                if let Ok(task_issues) =
+                    core_validate::validate_tasks_file(ito_path, &dir_name, strict)
+                {
                     issues.extend(task_issues);
                 }
 

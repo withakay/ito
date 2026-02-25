@@ -1,31 +1,37 @@
-# Cli Validate Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Schema-aware change validation
 
-Define the `cli-validate` capability so repository/change/spec validation behavior is stable and testable.
+When a change declares a schema, `ito validate <change-id>` MUST resolve that schema and apply schema-defined validation rules when they are available.
 
-## Requirements
+#### Scenario: Change uses schema validation.yaml
 
-### Requirement: Validate duplicate numeric change IDs
+- **GIVEN** `.ito/changes/<change-id>/.ito.yaml` selects schema `<schema-name>`
+- **AND** the resolved schema directory contains `validation.yaml`
+- **WHEN** executing `ito validate <change-id>`
+- **THEN** validation MUST use the schema validation rules from `validation.yaml`
+- **AND** validation output MUST report the resolved schema name
 
-The `ito validate` command SHALL treat `NNN-NN` as the canonical change identity and SHALL fail validation if multiple change directories share the same numeric identity.
+### Requirement: Manual validation signal when schema has no validation spec
 
-#### Scenario: Duplicate numeric change IDs
+If a schema does not provide `validation.yaml`, `ito validate <change-id>` MUST NOT assume Ito delta spec semantics and MUST emit an explicit issue indicating the schema requires manual validation.
 
-- **GIVEN** `.ito/changes/008-01_foo/` exists
-- **AND** `.ito/changes/008-01_bar/` exists
-- **WHEN** executing `ito validate --changes`
-- **THEN** validation reports an error for duplicate change ID `008-01`
-- **AND** the error includes both directory paths
-- **AND** the error suggests renaming/removing one directory
+#### Scenario: Change schema has no validation.yaml
 
-### Requirement: Validate canonical change directory naming
+- **GIVEN** `.ito/changes/<change-id>/.ito.yaml` selects schema `<schema-name>`
+- **AND** the resolved schema directory does not contain `validation.yaml`
+- **WHEN** executing `ito validate <change-id>`
+- **THEN** validation MUST emit an informational issue indicating manual validation is required
+- **AND** validation MUST NOT fail solely because no Ito delta specs are present
 
-The `ito validate` command SHALL require that change directories match the canonical pattern `NNN-NN_<slug>`.
+### Requirement: Tracking file validation is schema-driven
 
-#### Scenario: Missing slug in change directory
+When schema validation is configured to validate a tracking file derived from `apply.tracks`, `ito validate <change-id>` MUST validate the tracking file at that path, not a hard-coded filename.
 
-- **GIVEN** `.ito/changes/008-01/` exists
-- **WHEN** executing `ito validate --changes`
-- **THEN** validation reports an error indicating the slug is required
-- **AND** the error suggests renaming the directory to `008-01_<slug>`
+#### Scenario: Tracking file uses apply.tracks path
+
+- **GIVEN** the resolved schema's `apply.tracks` is `todo.md`
+- **AND** `validation.yaml` declares tracking validation sourced from `apply.tracks`
+- **WHEN** executing `ito validate <change-id>`
+- **THEN** validation MUST validate `.ito/changes/<change-id>/todo.md`
+- **AND** validation MUST NOT require `.ito/changes/<change-id>/tasks.md`
