@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: homebrew-formula
+
+## Purpose
+
+Define the `homebrew-formula` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Homebrew tap repository).
+
+## Requirements
 
 ### Requirement: Homebrew tap repository
 

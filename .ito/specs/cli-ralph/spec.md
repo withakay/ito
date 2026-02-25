@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-ralph
+
+## Purpose
+
+Define the `cli-ralph` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Interactive change selection).
+
+## Requirements
 
 ### Requirement: Interactive change selection
 

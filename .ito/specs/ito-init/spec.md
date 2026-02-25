@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: ito-init
+
+## Purpose
+
+Define the `ito-init` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Tool-Specific Installation via ito init).
+
+## Requirements
 
 ### Requirement: Tool-Specific Installation via ito init
 

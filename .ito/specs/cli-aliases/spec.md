@@ -1,8 +1,12 @@
 # CLI Aliases Specification
 
+## Purpose
+
+Define the `cli-aliases` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Main commands have 2-letter aliases).
+
 <!-- ITO:START -->
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Main commands have 2-letter aliases
 All main CLI commands SHALL have 2-letter visible aliases for faster typing.

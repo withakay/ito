@@ -43,6 +43,26 @@ ______________________________________________________________________
 - **Updated At**: 2026-02-25
 - **Status**: [x] complete
 
+### Task 1.3: (Removed) Placeholder task (merge reconciliation)
+
+- **Files**: (none)
+- **Dependencies**: None
+- **Action**: No-op. This task id exists to preserve audit/task numbering after a merge.
+- **Verify**: (none)
+- **Done When**: Task is shelved.
+- **Updated At**: 2026-02-25
+- **Status**: [-] shelved
+
+### Task 1.4: (Removed) Placeholder task (merge reconciliation)
+
+- **Files**: (none)
+- **Dependencies**: None
+- **Action**: No-op. This task id exists to preserve audit/task numbering after a merge.
+- **Verify**: (none)
+- **Done When**: Task is shelved.
+- **Updated At**: 2026-02-25
+- **Status**: [-] shelved
+
 ______________________________________________________________________
 
 ## Wave 2

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: bacon-config
+
+## Purpose
+
+Define the `bacon-config` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Bacon configuration file exists).
+
+## Requirements
 
 ### Requirement: Bacon configuration file exists
 

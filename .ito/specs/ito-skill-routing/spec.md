@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 001-03_add-ito-skill. Update Purpose after archive.
+Define the `ito-skill-routing` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Skill-first command routing).
 
 ## Requirements
 

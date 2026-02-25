@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: list-pending-filter
+
+## Purpose
+
+Define the `list-pending-filter` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Pending progress filter flag).
+
+## Requirements
 
 ### Requirement: Pending progress filter flag
 

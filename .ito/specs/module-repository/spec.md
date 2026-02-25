@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: module-repository
+
+## Purpose
+
+Define the `module-repository` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: ModuleRepository provides centralized module access).
+
+## Requirements
 
 ### Requirement: ModuleRepository provides centralized module access
 

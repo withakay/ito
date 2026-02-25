@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Spec: retriable-harness-crashes
+
+## Purpose
+
+Define the `retriable-harness-crashes` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Signal-based exit codes are classified as retriable).
+
+## Requirements
 
 ### Requirement: Signal-based exit codes are classified as retriable
 

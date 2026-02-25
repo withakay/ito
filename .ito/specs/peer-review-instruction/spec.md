@@ -4,7 +4,7 @@
 
 Defines the agent instruction for peer-reviewing change proposals before implementation begins. This instruction provides structured guidance for an agent to evaluate proposal quality, spec completeness, design soundness, and task coverage, producing a clear verdict.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Review instruction command
 

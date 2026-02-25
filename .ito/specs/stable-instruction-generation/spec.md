@@ -4,7 +4,7 @@
 
 Ensure the review instruction honors the same configurable testing policy and user guidance injection patterns as all other instruction types.
 
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: User guidance injection
 

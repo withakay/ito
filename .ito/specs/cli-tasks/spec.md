@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-tasks
+
+## Purpose
+
+Define the `cli-tasks` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: ID-ordered task and change lists).
+
+## Requirements
 
 ### Requirement: ID-ordered task and change lists
 
