@@ -1,10 +1,4 @@
-# Spec: rust-installers
 
-## Purpose
-
-Define the `rust-installers` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Deterministic Init/Update Merge Policy).
-
-## Requirements
 
 ### Requirement: Deterministic Init/Update Merge Policy
 
