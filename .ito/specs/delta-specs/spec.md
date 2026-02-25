@@ -1,18 +1,24 @@
-## ADDED Requirements
+# Delta Specs Specification
 
-### Requirement: Delta spec format has a stable validator id and normative spec
+## Purpose
 
-The delta spec markdown format SHALL be documented as a first-class, versioned specification.
+Define the v1 delta spec markdown format used for change deltas under `.ito/changes/<change-id>/specs/**`.
 
-The v1 validator id for this format SHALL be `ito.delta-specs.v1`.
+This specification exists so validators and schema validation can reference the format via a stable validator id.
 
-#### Scenario: Author discovers the correct spec from a validator id
+## Requirements
 
-- **GIVEN** a validation issue references `ito.delta-specs.v1`
-- **WHEN** an author searches the repository for the spec
-- **THEN** the normative spec document for v1 is discoverable at `.ito/specs/delta-specs/spec.md`
+### Requirement: Delta specs have a stable validator id
 
-### Requirement: Delta spec operations are expressed as operation sections
+The v1 validator id for the delta specs format SHALL be `ito.delta-specs.v1`.
+
+#### Scenario: Author can locate the normative spec
+
+- **GIVEN** a validation issue cites `ito.delta-specs.v1`
+- **WHEN** an author searches this repository
+- **THEN** they find this normative spec at `.ito/specs/delta-specs/spec.md`
+
+### Requirement: Delta specs declare change operations
 
 Delta specs MUST express changes using operation sections.
 
@@ -23,45 +29,43 @@ Canonical operation section headers SHALL be:
 - `## REMOVED Requirements`
 - `## RENAMED Requirements`
 
-#### Scenario: Operation sections exist
+#### Scenario: Delta spec contains at least one operation section
 
-- **WHEN** a delta spec is authored
-- **THEN** it MUST contain one or more operation sections
-- **AND** each operation section header MUST match one of the canonical operation headers
+- **WHEN** a change delta spec file is validated
+- **THEN** it MUST contain at least one canonical operation section
 
-### Requirement: Delta specs use requirement blocks with normative language
+### Requirement: Delta specs use requirement blocks
 
 Each operation section MUST contain one or more requirement blocks.
 
-Each requirement block MUST start with a level-3 heading of the form `### Requirement: <name>`.
+Each requirement block MUST begin with a level-3 heading of the form `### Requirement: <name>`.
 
-Each requirement statement MUST use normative language and include at least one of: `SHALL`, `MUST`.
+Each requirement's normative statement MUST contain at least one of: `SHALL`, `MUST`.
 
-#### Scenario: Requirement block is structurally valid
+#### Scenario: Requirement statement uses normative language
 
 - **GIVEN** a delta spec requirement block
-- **WHEN** the block begins with `### Requirement: ...`
-- **THEN** it is recognized as a requirement
-- **AND** the requirement text contains `SHALL` or `MUST`
+- **WHEN** its requirement text is validated
+- **THEN** validation fails if the text contains neither `SHALL` nor `MUST`
 
 ### Requirement: Delta specs include scenario blocks
 
-Every requirement block MUST include at least one scenario block.
+Each requirement block MUST include at least one scenario block.
 
 Each scenario block MUST start with a level-4 heading of the form `#### Scenario: <name>`.
 
-#### Scenario: Scenario heading exists
+#### Scenario: Missing scenario heading fails validation
 
-- **GIVEN** a requirement block in a delta spec
-- **WHEN** the delta spec is validated
-- **THEN** validation fails if the requirement contains zero `#### Scenario:` headings
+- **GIVEN** a delta spec requirement block
+- **WHEN** it contains zero `#### Scenario:` headings
+- **THEN** validation fails
 
-### Requirement: Delta spec validation issues cite the validator id
+### Requirement: Validation issues cite the delta specs validator id
 
-Validation issues for delta spec markdown SHALL cite the format validator id.
+Validation issues attributable to delta spec markdown SHALL cite `ito.delta-specs.v1`.
 
-#### Scenario: Validation issue cites validator id
+#### Scenario: Error message includes validator id
 
-- **GIVEN** a delta spec fails structural validation
-- **WHEN** a validation issue is produced
-- **THEN** the issue text (or structured metadata) includes `ito.delta-specs.v1`
+- **GIVEN** a delta spec fails validation
+- **WHEN** a validation issue is reported
+- **THEN** the issue message includes `ito.delta-specs.v1`
