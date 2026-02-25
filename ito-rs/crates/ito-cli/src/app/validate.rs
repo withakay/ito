@@ -115,19 +115,17 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }
 
                 // Existing delta validation (if we can)
-                let report = core_validate::validate_change(&change_repo, &dir_name, strict)
-                    .unwrap_or_else(|e| {
-                        core_validate::ValidationReport::new(
-                            vec![core_validate::error(
-                                "validate",
-                                format!("Validation failed: {e}"),
-                            )],
-                            strict,
-                        )
-                    });
-
-                // tasks.md validation (enhanced + checkbox)
-                issues.extend(validate_tasks_file(ito_path, &dir_name));
+                let report =
+                    core_validate::validate_change(&change_repo, ito_path, &dir_name, strict)
+                        .unwrap_or_else(|e| {
+                            core_validate::ValidationReport::new(
+                                vec![core_validate::error(
+                                    "validate",
+                                    format!("Validation failed: {e}"),
+                                )],
+                                strict,
+                            )
+                        });
 
                 // Audit consistency check (warnings only)
                 if !skip_audit {
@@ -354,13 +352,10 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 issues.extend(extra.clone());
             }
 
-            let report = core_validate::validate_change(&change_repo, &actual, strict)
+            let report = core_validate::validate_change(&change_repo, ito_path, &actual, strict)
                 .map_err(to_cli_error)?;
             let mut merged = report.issues.clone();
             merged.extend(issues);
-
-            // tasks.md validation (enhanced + checkbox)
-            merged.extend(validate_tasks_file(ito_path, &actual));
 
             // Audit consistency check (warnings only)
             if !skip_audit {
@@ -385,10 +380,6 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
             ))
         }
     }
-}
-
-fn validate_tasks_file(ito_path: &Path, change_id: &str) -> Vec<core_validate::ValidationIssue> {
-    core_validate::validate_tasks_file(ito_path, change_id).unwrap_or_default()
 }
 
 /// Check audit log consistency for a change. Returns warnings for any drift detected.
