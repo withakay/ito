@@ -4,7 +4,7 @@
 //! four worktree configuration states and asserts the output contains
 //! expected content and does not contain discovery heuristics.
 
-use ito_templates::project_templates::{render_project_template, WorktreeTemplateContext};
+use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
 
 // ---------------------------------------------------------------------------
 // Helpers
