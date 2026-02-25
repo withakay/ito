@@ -1,28 +1,22 @@
-# Tasks Tracking Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Tasks tracking format has a stable validator id and normative spec
 
-Define the v1 tasks tracking markdown format used by `tasks.md` files under `.ito/changes/<change-id>/tasks.md`.
+The tasks tracking markdown format for `tasks.md` SHALL be documented as a first-class, versioned specification.
 
-This specification exists so validators and schema validation can reference the format via a stable validator id.
+The v1 validator id for this format SHALL be `ito.tasks-tracking.v1`.
 
-## Requirements
+#### Scenario: Author discovers the correct spec from a validator id
 
-### Requirement: Tasks tracking has a stable validator id
-
-The v1 validator id for the tasks tracking format SHALL be `ito.tasks-tracking.v1`.
-
-#### Scenario: Author can locate the normative spec
-
-- **GIVEN** a validation issue cites `ito.tasks-tracking.v1`
-- **WHEN** an author searches this repository
-- **THEN** they find this normative spec at `.ito/specs/tasks-tracking/spec.md`
+- **GIVEN** a validation issue references `ito.tasks-tracking.v1`
+- **WHEN** an author searches the repository for the spec
+- **THEN** the normative spec document for v1 is discoverable at `.ito/specs/tasks-tracking/spec.md`
 
 ### Requirement: Tasks tracking supports checkbox encoding
 
 The tasks tracking format MUST support a checkbox-list encoding.
 
-In checkbox encoding, a task SHALL be a markdown list item starting with one of:
+In checkbox encoding, a task SHALL be represented by a markdown list item beginning with one of:
 
 - `- [ ]` (pending)
 - `- [x]` (complete)
@@ -31,49 +25,68 @@ In checkbox encoding, a task SHALL be a markdown list item starting with one of:
 
 #### Scenario: Checkbox tasks are recognized
 
-- **WHEN** a `tasks.md` contains checkbox tasks with supported markers
-- **THEN** those tasks are recognized and assigned the corresponding status
+- **WHEN** a `tasks.md` contains checkbox-list items using the supported markers
+- **THEN** the system recognizes those items as tasks
+- **AND** it assigns each one a status consistent with the marker
 
 ### Requirement: Tasks tracking supports enhanced wave-based encoding
 
-The tasks tracking format MUST support an enhanced wave-based encoding suitable for `ito tasks`.
+The tasks tracking format MUST support an enhanced wave-based encoding suitable for the `ito tasks` CLI.
 
 In enhanced encoding:
 
-- Waves SHOULD be declared as headings of the form `## Wave <N>`.
-- Each wave section MUST include a dependency line of the form `- **Depends On**: ...`.
-- Tasks SHOULD be declared as headings of the form `### Task <id>: <name>`.
-- Each enhanced task block MUST include `- **Status**: ...` and `- **Updated At**: YYYY-MM-DD`.
+- Waves SHOULD be declared using headings of the form `## Wave <N>`.
+- Tasks SHOULD be declared using headings of the form `### Task <id>: <name>`.
+- Tasks MAY declare dependencies using bold-key metadata lines (e.g., `- **Dependencies**: ...`).
+- Task status and updated-at requirements are defined normatively below.
+
+#### Scenario: Enhanced tasks file is considered tracking
+
+- **GIVEN** a `tasks.md` file authored in enhanced format
+- **WHEN** it contains at least one recognizable task block
+- **THEN** the file is considered a valid tasks tracking file
+
+### Requirement: Enhanced wave-based encoding defines wave and dependency semantics
+
+In enhanced wave-based encoding:
+
+- A wave heading of the form `## Wave <N>` defines a wave number `<N>`.
+- Each wave section MUST include a wave dependency line of the form `- **Depends On**: ...`.
+- Wave `<N>` MUST be treated as dependent on completion of all prior waves unless explicitly documented otherwise.
 - Task dependencies declared via `- **Dependencies**: ...` MUST reference tasks within the same wave.
 
-#### Scenario: Cross-wave dependency fails validation
+#### Scenario: Cross-wave task dependency is rejected
 
-- **GIVEN** an enhanced tasks file with Wave 2 depending on Wave 1
-- **WHEN** a Wave 2 task declares a dependency on a Wave 1 task id
-- **THEN** validation fails with an actionable error
+- **GIVEN** an enhanced tasks file declares Wave 2 depends on Wave 1
+- **WHEN** a Wave 2 task declares `- **Dependencies**: 1.1`
+- **THEN** validation fails with an actionable message
 
-#### Scenario: Missing updated-at fails validation
+### Requirement: Enhanced task blocks include status and updated-at metadata
 
-- **GIVEN** an enhanced task block without an `- **Updated At**:` line
-- **WHEN** the tasks file is validated
-- **THEN** validation fails
+Enhanced task blocks MUST include `- **Status**: ...` and `- **Updated At**: YYYY-MM-DD` lines.
 
-### Requirement: Tracking files contain at least one recognizable task
+#### Scenario: Missing updated-at metadata is rejected
 
-If a file is used as a tasks tracking file, it MUST contain at least one recognizable task (checkbox task or enhanced task block).
+- **GIVEN** an enhanced tasks file contains a task block without an `- **Updated At**:` line
+- **WHEN** the file is validated
+- **THEN** validation fails with an actionable message
 
-#### Scenario: Empty tasks file fails validation
+### Requirement: Declared tracking files contain at least one task
+
+If a file is used as a tasks tracking file, it MUST contain at least one recognizable task.
+
+#### Scenario: Empty tracking file is invalid
 
 - **GIVEN** a `tasks.md` file with no checkbox tasks and no enhanced task blocks
-- **WHEN** it is validated as a tracking file
-- **THEN** validation fails
+- **WHEN** the file is validated as a tasks tracking file
+- **THEN** validation fails with an actionable message
 
-### Requirement: Validation issues cite the tasks tracking validator id
+### Requirement: Tasks tracking validation issues cite the validator id
 
-Validation issues attributable to tasks tracking markdown SHALL cite `ito.tasks-tracking.v1`.
+Validation issues for tasks tracking markdown SHALL cite the format validator id.
 
-#### Scenario: Error message includes validator id
+#### Scenario: Validation issue cites validator id
 
 - **GIVEN** a tasks tracking file fails validation
-- **WHEN** a validation issue is reported
-- **THEN** the issue message includes `ito.tasks-tracking.v1`
+- **WHEN** a validation issue is produced
+- **THEN** the issue text (or structured metadata) includes `ito.tasks-tracking.v1`
