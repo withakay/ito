@@ -27,7 +27,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: A schema directory containing `validation.yaml` can be parsed into a typed structure and surfaced to callers.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Resolve schema during change validation
 
@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Validation code can determine the change's schema name/source deterministically.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Apply validation.yaml rules when present
 
@@ -47,7 +47,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: `ito validate <change>` uses schema validation rules when available and reports the resolved schema name.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.4: Legacy mode emits manual validation required issue
 
@@ -57,7 +57,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Unknown schemas do not fail solely due to missing Ito deltas, and an explicit manual-validation signal is returned.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -73,7 +73,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: A schema that tracks `todo.md` validates `todo.md` and does not require `tasks.md`.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Add unit/integration tests for schema-driven validation
 
@@ -83,7 +83,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Tests fail before implementation and pass after, and they lock in the expected behavior in specs.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Run full checks
 
@@ -93,5 +93,5 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: `make check` passes cleanly.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 <!-- ITO:END -->
