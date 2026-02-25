@@ -67,6 +67,7 @@ impl InitOptions {
     ///
     /// ```
     /// use std::collections::BTreeSet;
+    /// use ito_core::installers::InitOptions;
     /// let tools = BTreeSet::from(["claude".to_string()]);
     /// let opts = InitOptions::new(tools, true, false);
     /// assert!(!opts.upgrade);
@@ -93,6 +94,7 @@ impl InitOptions {
     ///
     /// ```
     /// use std::collections::BTreeSet;
+    /// use ito_core::installers::InitOptions;
     /// let opts = InitOptions::new_upgrade(BTreeSet::new());
     /// assert!(opts.upgrade && opts.update && !opts.force);
     /// ```
@@ -114,6 +116,7 @@ impl InitOptions {
     /// # Examples
     ///
     /// ```
+    /// use ito_core::installers::InitOptions;
     /// let opts = InitOptions::new(std::collections::BTreeSet::new(), false, false)
     ///     .with_upgrade();
     /// assert!(opts.upgrade && opts.update && !opts.force);
@@ -389,16 +392,15 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use std::collections::BTreeSet;
 /// use std::path::Path;
-/// // Assume these types and the function are available from the crate:
-/// // crate::installers::{write_one, InstallMode, InitOptions, FileOwnership};
+/// use ito_core::installers::{InitOptions, InstallMode};
 ///
-/// let opts = crate::installers::InitOptions::new(BTreeSet::new(), false, false);
+/// let opts = InitOptions::new(BTreeSet::new(), false, false);
 /// let target = Path::new("/tmp/example.txt");
 /// let bytes = b"example content";
-/// let _ = crate::installers::write_one(target, bytes, crate::installers::InstallMode::Init, &opts, crate::installers::FileOwnership::ItoManaged);
+/// // write_one is private; shown here for documentation purposes only.
 /// ```
 fn write_one(
     target: &Path,
@@ -808,7 +810,7 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let src = "---\ntitle: Example\nmodel: \"old\"\n---\ncontent\n";
 /// let updated = update_model_in_yaml(src, "new-model");
 /// assert!(updated.contains("model: \"new-model\""));
