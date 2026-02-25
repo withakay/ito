@@ -8,6 +8,7 @@ use ito_core::audit;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::nearest_matches;
+use ito_core::templates;
 use ito_core::validate as core_validate;
 use std::path::Path;
 
@@ -114,8 +115,9 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     ));
                 }
 
-                // Existing delta validation (if we can)
-                let report =
+                // Delta validation only applies to the spec-driven workflow.
+                let schema = templates::read_change_schema(ito_path, &dir_name);
+                let report = if schema == "spec-driven" {
                     core_validate::validate_change(&change_repo, ito_path, &dir_name, strict)
                         .unwrap_or_else(|e| {
                             core_validate::ValidationReport::new(
@@ -125,7 +127,23 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                                 )],
                                 strict,
                             )
-                        });
+                        })
+                } else {
+                    core_validate::ValidationReport::new(
+                        vec![core_validate::info(
+                            "validate",
+                            format!(
+                                "Schema '{schema}' does not use Ito delta specs; semantic validation is manual"
+                            ),
+                        )],
+                        strict,
+                    )
+                };
+
+                // tasks.md validation (enhanced + checkbox)
+                if let Ok(task_issues) = core_validate::validate_tasks_file(ito_path, &dir_name) {
+                    issues.extend(task_issues);
+                }
 
                 // Audit consistency check (warnings only)
                 if !skip_audit {
@@ -352,8 +370,21 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 issues.extend(extra.clone());
             }
 
-            let report = core_validate::validate_change(&change_repo, ito_path, &actual, strict)
-                .map_err(to_cli_error)?;
+            let schema = templates::read_change_schema(ito_path, &actual);
+            let report = if schema == "spec-driven" {
+                core_validate::validate_change(&change_repo, ito_path, &actual, strict)
+                    .map_err(to_cli_error)?
+            } else {
+                core_validate::ValidationReport::new(
+                    vec![core_validate::info(
+                        "validate",
+                        format!(
+                            "Schema '{schema}' does not use Ito delta specs; semantic validation is manual"
+                        ),
+                    )],
+                    strict,
+                )
+            };
             let mut merged = report.issues.clone();
             merged.extend(issues);
 
