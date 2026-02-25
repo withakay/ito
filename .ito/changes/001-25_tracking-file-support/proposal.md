@@ -1,31 +1,32 @@
 <!-- ITO:START -->
 ## Why
 
-Schemas can already declare `apply.tracks`, but Ito tooling is still effectively hard-coded to `tasks.md` for task operations and task validation. This makes schema-specific workflows unreliable and can cause Ito to validate or update the wrong tracking file.
+Workflow schemas can declare `apply.tracks`, but Ito currently hard-codes `tasks.md` for validation and `ito tasks` operations. This causes schema authors and users to track progress in one file while Ito reads and writes a different one.
 
 ## What Changes
 
-- Resolve a change's tracking file path from the selected schema's `apply.tracks`, defaulting to `tasks.md` for backwards compatibility.
-- Update `ito validate <change-id>` (in schema-driven validation mode) to validate the resolved tracking file and to avoid validating `tasks.md` when the schema tracks a different file.
-- Update `ito tasks ...` commands to read and update the resolved tracking file.
-- When the schema declares a tracking format other than `ito.tasks-tracking.v1`, `ito tasks` MUST exit with a helpful error explaining the mismatch and how to proceed.
-- Add defensive path handling for `apply.tracks` values (reject traversal and path separators).
-- If a file is declared as `ito.tasks-tracking.v1` but contains zero recognizable tasks, emit a warning (or fail validation in strict mode).
+- Resolve a change's tracking file path from the selected schema's `apply.tracks` (when present), otherwise default to `tasks.md`.
+- Update `ito validate` tasks tracking validation to validate the resolved tracking file and to avoid validating `tasks.md` when a schema tracks a different file.
+- Update `ito tasks` to read and update the resolved tracking file.
+- Add defensive path handling for `apply.tracks` to prevent traversal and separators.
+- Improve empty tasks-tracking handling: if a file is declared as `ito.tasks-tracking.v1` but has zero recognizable tasks, emit a warning (or an error in strict mode).
 
 ## Capabilities
 
 ### New Capabilities
 
-- `schema-tracking-file`: Resolve and sanitize schema-provided tracking file paths for changes.
+<!-- None -->
 
 ### Modified Capabilities
 
-- `cli-tasks`: Operate on schema-resolved tracking files and reject incompatible tracking formats.
-- `cli-validate`: Validate the schema-resolved tracking file (not a hard-coded `tasks.md`) and warn/error on empty `ito.tasks-tracking.v1` tracking files.
-- `task-repository`: Load task counts and task data from a resolved tracking file path rather than assuming `tasks.md`.
+- `cli-tasks`: operate on a schema-selected tracking file instead of always `tasks.md`.
+- `cli-validate`: validate the schema-selected tracking file instead of always `tasks.md`.
+- `task-repository`: load task counts and task data from the resolved tracking file.
+- `tasks-tracking`: clarify format applicability to schema-selected tracking files and empty-file severity.
 
 ## Impact
 
-- Tasks and validation plumbing in `ito-core` / `ito-domain` will need to thread a resolved tracking file path through task loading, validation, and audit reconcile behaviors.
-- Schema/validation configuration becomes part of day-to-day workflows (agents/users running `ito tasks` and `ito validate`).
+- Rust CLI behavior changes for `ito validate` and `ito tasks` when `apply.tracks` is configured.
+- Validation diagnostics may change (file path, severity) for empty tracking files and for schemas that track a non-`tasks.md` file.
+- Implementation touches schema parsing, validation pipeline, task repository, and tasks CLI.
 <!-- ITO:END -->

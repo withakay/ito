@@ -217,6 +217,7 @@ pub fn validate_change(
                     change_id,
                     resolved,
                     &validation,
+                    strict,
                 )?;
                 return Ok(rep.finish());
             }
@@ -232,7 +233,29 @@ pub fn validate_change(
 
         if is_legacy_delta_schema(&resolved.schema.name) {
             validate_change_delta_specs(&mut rep, change_repo, change_id)?;
-            rep.extend(validate_tasks_file(ito_path, change_id)?);
+
+            let tracks_rel = resolved
+                .schema
+                .apply
+                .as_ref()
+                .and_then(|a| a.tracks.as_deref())
+                .unwrap_or("tasks.md");
+
+            if !ito_domain::tasks::is_safe_tracking_filename(tracks_rel) {
+                rep.push(error(
+                    "tracking",
+                    format!("Invalid tracking file path in apply.tracks: '{tracks_rel}'"),
+                ));
+                return Ok(rep.finish());
+            }
+
+            let report_path = format!("changes/{change_id}/{tracks_rel}");
+            let abs_path = paths::change_dir(ito_path, change_id).join(tracks_rel);
+            rep.extend(validate_tasks_tracking_path(
+                &abs_path,
+                &report_path,
+                strict,
+            ));
             return Ok(rep.finish());
         }
 
@@ -321,6 +344,7 @@ fn validate_change_against_schema_validation(
     change_id: &str,
     resolved: &ResolvedSchema,
     validation: &ValidationYaml,
+    strict: bool,
 ) -> CoreResult<()> {
     let change_dir = paths::change_dir(ito_path, change_id);
 
@@ -363,11 +387,15 @@ fn validate_change_against_schema_validation(
         let Some(validator_id) = cfg.validate_as else {
             continue;
         };
+        let ctx = ArtifactValidatorContext {
+            ito_path,
+            change_id,
+            strict,
+        };
         run_validator_for_artifact(
             rep,
             change_repo,
-            ito_path,
-            change_id,
+            ctx,
             artifact_id,
             &schema_artifact.generates,
             validator_id,
@@ -393,7 +421,7 @@ fn validate_change_against_schema_validation(
                     return Ok(());
                 };
 
-                if !is_safe_tracking_file(tracks_rel) {
+                if !ito_domain::tasks::is_safe_tracking_filename(tracks_rel) {
                     rep.push(error(
                         "tracking",
                         format!("Invalid tracking file path in apply.tracks: '{tracks_rel}'"),
@@ -417,7 +445,11 @@ fn validate_change_against_schema_validation(
 
                 match tracking.validate_as {
                     ValidatorId::TasksTrackingV1 => {
-                        rep.extend(validate_tasks_tracking_path(&abs_path, &report_path));
+                        rep.extend(validate_tasks_tracking_path(
+                            &abs_path,
+                            &report_path,
+                            strict,
+                        ));
                     }
                     ValidatorId::DeltaSpecsV1 => {
                         rep.push(error(
@@ -433,42 +465,17 @@ fn validate_change_against_schema_validation(
     Ok(())
 }
 
-// Tracking file paths are intentionally stricter than other schema-relative paths.
-//
-// `apply.tracks` is treated as a *filename* at the change directory root (e.g. `tasks.md`).
-// We reject directory separators and traversal so schemas cannot point tracking at nested files.
-//
-// This differs from template paths (see `templates::schema_assets::is_safe_relative_path`) which
-// allow nested paths under `templates/`.
-fn is_safe_tracking_file(path: &str) -> bool {
-    let path = path.trim();
-    if path.is_empty() {
-        return false;
-    }
-    if path.starts_with('/') || path.starts_with('\\') {
-        return false;
-    }
-    if path.contains('/') || path.contains('\\') {
-        return false;
-    }
-    if path.contains("..") {
-        return false;
-    }
-    true
-}
-
 fn run_validator_for_artifact(
     rep: &mut ReportBuilder,
     change_repo: &impl DomainChangeRepository,
-    ito_path: &Path,
-    change_id: &str,
+    ctx: ArtifactValidatorContext<'_>,
     artifact_id: &str,
     generates: &str,
     validator_id: ValidatorId,
 ) -> CoreResult<()> {
     match validator_id {
         ValidatorId::DeltaSpecsV1 => {
-            validate_change_delta_specs(rep, change_repo, change_id)?;
+            validate_change_delta_specs(rep, change_repo, ctx.change_id)?;
         }
         ValidatorId::TasksTrackingV1 => {
             use format_specs::TASKS_TRACKING_V1;
@@ -487,15 +494,30 @@ fn run_validator_for_artifact(
                 return Ok(());
             }
 
-            let report_path = format!("changes/{change_id}/{generates}");
-            let abs_path = paths::change_dir(ito_path, change_id).join(generates);
-            rep.extend(validate_tasks_tracking_path(&abs_path, &report_path));
+            let report_path = format!("changes/{}/{generates}", ctx.change_id);
+            let abs_path = paths::change_dir(ctx.ito_path, ctx.change_id).join(generates);
+            rep.extend(validate_tasks_tracking_path(
+                &abs_path,
+                &report_path,
+                ctx.strict,
+            ));
         }
     }
     Ok(())
 }
 
-fn validate_tasks_tracking_path(path: &Path, report_path: &str) -> Vec<ValidationIssue> {
+#[derive(Debug, Clone, Copy)]
+struct ArtifactValidatorContext<'a> {
+    ito_path: &'a Path,
+    change_id: &'a str,
+    strict: bool,
+}
+
+fn validate_tasks_tracking_path(
+    path: &Path,
+    report_path: &str,
+    strict: bool,
+) -> Vec<ValidationIssue> {
     use format_specs::TASKS_TRACKING_V1;
     use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file};
 
@@ -511,6 +533,16 @@ fn validate_tasks_tracking_path(path: &Path, report_path: &str) -> Vec<Validatio
 
     let parsed = parse_tasks_tracking_file(&contents);
     let mut issues = Vec::new();
+
+    if parsed.tasks.is_empty() {
+        let msg = "Tracking file contains no recognizable tasks";
+        let i = if strict {
+            error(report_path, msg)
+        } else {
+            warning(report_path, msg)
+        };
+        issues.push(with_format_spec(i, TASKS_TRACKING_V1));
+    }
     for d in &parsed.diagnostics {
         let level = match d.level {
             DiagnosticLevel::Error => LEVEL_ERROR,
@@ -728,10 +760,14 @@ fn extract_section(markdown: &str, header: &str) -> String {
 }
 
 /// Validate a change's tasks.md file and return any issues found.
-pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
+pub fn validate_tasks_file(
+    ito_path: &Path,
+    change_id: &str,
+    strict: bool,
+) -> CoreResult<Vec<ValidationIssue>> {
     use ito_domain::tasks::tasks_path;
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");
-    Ok(validate_tasks_tracking_path(&path, &report_path))
+    Ok(validate_tasks_tracking_path(&path, &report_path, strict))
 }

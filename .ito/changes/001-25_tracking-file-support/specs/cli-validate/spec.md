@@ -1,33 +1,39 @@
 ## ADDED Requirements
 
-### Requirement: Tracking file validation is schema-driven
+### Requirement: Schema-selected tracking file is validated
 
-When schema validation is configured to validate a tracking file derived from `apply.tracks`, `ito validate <change-id>` MUST validate the tracking file at that path, not a hard-coded filename.
+When validating a change, the system MUST resolve the change's tracking file path from the selected schema and validate that file.
 
-#### Scenario: Tracking file uses apply.tracks path
+Tracking file resolution MUST follow this precedence:
 
-- **GIVEN** the resolved schema's `apply.tracks` is `todo.md`
-- **AND** `validation.yaml` declares tracking validation sourced from `apply.tracks`
-- **WHEN** executing `ito validate <change-id>`
-- **THEN** validation MUST validate `.ito/changes/<change-id>/todo.md`
-- **AND** validation MUST NOT require `.ito/changes/<change-id>/tasks.md`
+1) `schema.yaml` `apply.tracks` if present
+2) otherwise default to `tasks.md`
 
-### Requirement: Empty tasks-tracking file produces a warning
+#### Scenario: apply.tracks overrides tasks.md for validation
 
-If the resolved tracking file is validated as `ito.tasks-tracking.v1` but contains zero recognizable tasks, validation MUST produce a warning issue by default.
+- **GIVEN** a schema declares `apply.tracks: todo.md`
+- **WHEN** executing `ito validate <change>`
+- **THEN** the tracking-file validation reads and validates `todo.md`
+- **AND** the tracking-file validation does not validate `tasks.md`
 
-In strict mode, validation MUST treat this condition as an error.
+#### Scenario: Missing apply.tracks falls back to tasks.md
 
-#### Scenario: Empty tasks-tracking file warns
+- **GIVEN** a schema does not declare `apply.tracks`
+- **WHEN** executing `ito validate <change>`
+- **THEN** the tracking-file validation reads and validates `tasks.md`
 
-- **GIVEN** the resolved tracking file is `.ito/changes/<change-id>/todo.md`
-- **AND** tracking validation uses `ito.tasks-tracking.v1`
-- **AND** the tracking file contains zero recognizable tasks
-- **WHEN** executing `ito validate <change-id>`
-- **THEN** validation produces a warning issue indicating no tasks were found
+### Requirement: Tracking file path configuration is safe
 
-#### Scenario: Empty tasks-tracking file fails in strict mode
+The system MUST reject any `apply.tracks` value that attempts path traversal or includes a path separator.
 
-- **GIVEN** the resolved tracking file contains zero recognizable tasks
-- **WHEN** executing `ito validate <change-id> --strict`
-- **THEN** validation fails with an error indicating no tasks were found
+#### Scenario: Path traversal is rejected
+
+- **GIVEN** a schema declares `apply.tracks: ../tasks.md`
+- **WHEN** executing `ito validate <change>`
+- **THEN** validation fails with an actionable error
+
+#### Scenario: Path separators are rejected
+
+- **GIVEN** a schema declares `apply.tracks: dir/tasks.md`
+- **WHEN** executing `ito validate <change>`
+- **THEN** validation fails with an actionable error

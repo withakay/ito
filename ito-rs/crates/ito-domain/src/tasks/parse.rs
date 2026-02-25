@@ -980,3 +980,45 @@ pub fn is_safe_change_id_segment(change_id: &str) -> bool {
     }
     true
 }
+
+/// Return `true` when `tracking_file` is safe as a single filename.
+///
+/// Tracking file paths are intentionally stricter than other schema-relative paths:
+/// callers treat `apply.tracks` as a filename at the change directory root.
+pub fn is_safe_tracking_filename(tracking_file: &str) -> bool {
+    let tracking_file = tracking_file.trim();
+    if tracking_file.is_empty() {
+        return false;
+    }
+    if tracking_file == "." {
+        return false;
+    }
+    if tracking_file.len() > 256 {
+        return false;
+    }
+    if tracking_file.starts_with('/') || tracking_file.starts_with('\\') {
+        return false;
+    }
+    if tracking_file.contains('/') || tracking_file.contains('\\') {
+        return false;
+    }
+    if tracking_file.contains("..") {
+        return false;
+    }
+    true
+}
+
+/// Path to `{ito_path}/changes/{change_id}/{tracking_file}` when both inputs are safe.
+pub fn tracking_path_checked(
+    ito_path: &Path,
+    change_id: &str,
+    tracking_file: &str,
+) -> Option<PathBuf> {
+    if !is_safe_change_id_segment(change_id) {
+        return None;
+    }
+    if !is_safe_tracking_filename(tracking_file) {
+        return None;
+    }
+    Some(ito_path.join("changes").join(change_id).join(tracking_file))
+}

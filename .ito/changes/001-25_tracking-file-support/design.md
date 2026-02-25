@@ -1,45 +1,43 @@
 <!-- ITO:START -->
 ## Context
 
-Ito schemas include `apply.tracks` (for example `tasks.md` in `schemas/spec-driven/schema.yaml`), but several parts of Ito still assume the tracking filename is always `tasks.md`. In schema-driven validation workflows, this can result in validating the wrong file or failing to validate the intended tracking file.
+Schemas can declare a tracking file via `apply.tracks`, but Ito currently assumes `tasks.md` for:
 
-This change treats the selected schema's `apply.tracks` as the canonical tracking file path for a change, while keeping existing behavior working for schemas that do not set `apply.tracks`.
+- tasks validation in `ito validate`
+- `ito tasks` operations
 
-## Goals / Non-Goals
-
-**Goals:**
-
-- Resolve a change's tracking file path from `schema.yaml` `apply.tracks`, with a `tasks.md` fallback.
-- Ensure `ito validate` and `ito tasks` act on the same resolved tracking file.
-- Keep path handling defensive (no traversal, no separators) so schemas cannot escape the change directory.
-- Provide a clear, actionable error when `ito tasks` is used with a schema that tracks progress in a non-`ito.tasks-tracking.v1` format.
-
-**Non-Goals:**
-
-- Supporting nested tracking paths (for example `progress/todo.md`) or absolute paths.
-- Automatically migrating existing changes between tracking formats.
-- Updating every existing feature that reads `tasks.md` (for example archive or list status) as part of this change.
+To make schemas genuinely schema-driven, Ito must resolve and operate on the same tracking file that the schema declares.
 
 ## Decisions
 
-- Tracking file resolution:
-  - If the resolved schema declares `apply.tracks`, use it.
-  - Otherwise, default to `tasks.md`.
-  - The resolved path is always interpreted relative to the change directory.
+### Tracking file resolution
 
-- Path safety:
-  - Reject tracking paths containing path separators (`/` or `\\`), traversal (`..`), or absolute-path prefixes.
-  - Treat the configured value as a filename (basename) only.
+- Resolve the tracking file path for a change as:
+  1) `schema.yaml` `apply.tracks` if present
+  2) otherwise `tasks.md`
 
-- Tasks CLI format gate:
-  - `ito tasks ...` is only supported when the schema's tracking file is validated/declared as `ito.tasks-tracking.v1`.
-  - If the schema uses a different tracking validator/format, `ito tasks` exits non-zero and explains that the schema uses a different tracking format, plus points at the schema/workflow documentation.
+### Path safety
 
-## Risks / Trade-offs
+- Treat `apply.tracks` as a file name relative to the change directory.
+- Reject any configured tracking value that includes path separators or traversal (`/`, `\\`, `..`).
 
-- [Risk] Some commands may still implicitly assume `tasks.md` and show inconsistent status for schemas tracking a different file.
-  -> Mitigation: constrain scope to validation + tasks CLI for now; track follow-on changes to update other consumers.
+### Validation integration
 
-- [Risk] Overly-permissive paths could enable reading/writing outside the change directory.
-  -> Mitigation: treat `apply.tracks` as a basename; reject separators/traversal/absolute prefixes.
+- When schema validation is configured (via `validation.yaml`), validate only the resolved tracking file.
+- Do not validate `tasks.md` if the schema tracks a different file.
+
+### Tasks CLI integration
+
+- `ito tasks ...` reads and updates the resolved tracking file.
+- If the resolved tracking file is not an Ito tasks-tracking file (schema chooses a different format), `ito tasks` fails with a clear, actionable error.
+
+### Empty tasks-tracking severity
+
+- When validating a file as `ito.tasks-tracking.v1`, if it contains zero recognizable tasks, emit:
+  - a warning in non-strict mode
+  - an error in strict mode
+
+## Notes
+
+- Prefer a single path-resolution helper used by validate/tasks/audit so behavior stays consistent.
 <!-- ITO:END -->
