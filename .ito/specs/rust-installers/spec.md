@@ -1,9 +1,8 @@
-<!-- ITO:START -->
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Deterministic Init/Update Merge Policy
 
-The system SHALL apply a deterministic, test-covered merge/overwrite policy when installing templates via `ito init` and `ito update`.
+The system SHALL apply a deterministic, test-covered merge/overwrite policy when installing templates via `ito init --update`, `ito init --upgrade`, and `ito update`.
 
 #### Scenario: Update preserves user-owned files
 
@@ -23,4 +22,17 @@ The system SHALL apply a deterministic, test-covered merge/overwrite policy when
 - **WHEN** `ito update` is executed
 - **THEN** the installer SHALL update the managed block content
 - **AND** preserve user content outside the managed block
-<!-- ITO:END -->
+
+#### Scenario: Upgrade refreshes prompt/template managed blocks only
+
+- **GIVEN** a prompt/template file contains `<!-- ITO:START -->` and `<!-- ITO:END -->` markers
+- **WHEN** `ito init --upgrade` is executed
+- **THEN** only content between those markers SHALL be replaced from embedded templates
+- **AND** all content outside those markers SHALL be preserved exactly
+
+#### Scenario: Missing markers fail safe during upgrade
+
+- **GIVEN** a prompt/template file is expected to be marker-managed but no longer contains valid Ito markers
+- **WHEN** `ito init --upgrade` is executed
+- **THEN** the installer SHALL leave the file unchanged
+- **AND** SHALL emit actionable guidance describing how to restore markers or manually reconcile the file
