@@ -178,6 +178,7 @@ pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJso
             "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
         ));
     }
+
     let mut specs: Vec<BundledSpec> = Vec::new();
     for id in ids {
         let path = paths::spec_markdown_path(ito_path, &id);
