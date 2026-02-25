@@ -7,14 +7,6 @@
 - -
 
 ## Changes
-- [ ] \[
-- [ ] \[
-- [ ] \[
-- [ ] \[
-- [ ] \[
-- [ ] \[
-- [ ] \[
-- [ ] \[
 - [x] 001-09_improve-archive-completed-detection
 - [x] 001-10_comprehensive-cli-help-system
 - [x] 001-11_tdd-red-green-coverage-guidance
@@ -26,3 +18,12 @@
 - [x] 001-20_init-update-flag
 - [x] 001-21_phase-specific-user-prompts
 - [x] 001-22_sunset-legacy-workflow-command
+- [ ] 001-25_tracking-file-support
+- [ ] \[
+- [ ] \[
+- [ ] \[
+- [ ] \[
+- [ ] \[
+- [ ] \[
+- [ ] \[
+- [ ] \[
