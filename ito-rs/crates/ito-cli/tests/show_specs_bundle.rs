@@ -48,14 +48,12 @@ fn show_specs_bundles_truth_specs_as_markdown_with_metadata() {
         .to_string_lossy()
         .to_string();
 
-    assert!(
-        out.stdout
-            .contains(&format!("<!-- spec-id: alpha; source: {alpha_path} -->"))
-    );
-    assert!(
-        out.stdout
-            .contains(&format!("<!-- spec-id: beta; source: {beta_path} -->"))
-    );
+    assert!(out
+        .stdout
+        .contains(&format!("<!-- spec-id: alpha; source: {alpha_path} -->")));
+    assert!(out
+        .stdout
+        .contains(&format!("<!-- spec-id: beta; source: {beta_path} -->")));
     assert!(out.stdout.contains("# Alpha"));
     assert!(out.stdout.contains("# Beta"));
     assert!(!out.stdout.contains("DELTA CONTENT MUST NOT APPEAR"));
