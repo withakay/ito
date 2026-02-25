@@ -447,6 +447,17 @@ pub enum ValidationLevelYaml {
     Error,
 }
 
+impl ValidationLevelYaml {
+    /// Converts the enum to the corresponding validation level string slice.
+    pub fn as_level_str(self) -> crate::validate::ValidationLevel {
+        use crate::validate::{LEVEL_ERROR, LEVEL_WARNING};
+        match self {
+            ValidationLevelYaml::Warning => LEVEL_WARNING,
+            ValidationLevelYaml::Error => LEVEL_ERROR,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 /// Validation rules for one schema artifact.
 pub struct ValidationArtifactYaml {
