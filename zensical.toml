@@ -16,6 +16,7 @@ nav = [
   { "Agent Workflow" = "agent-workflow.md" },
   { "Schema Customization" = "schema-customization.md" },
   { "Telemetry" = "telemetry.md" },
+  { "Migrating from OpenSpec" = "migrating-from-openspec.md" },
   { "Developers" = [
     { "Worktrees" = "developers/worktrees.md" },
   ] },
