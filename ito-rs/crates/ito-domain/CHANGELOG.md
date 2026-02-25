@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.10] - 2026-02-25
+
+### 🚀 Features
+
+- *(001-25)* Honor apply.tracks for task tracking ([#103](https://github.com/withakay/ito/pull/103))
 ## [0.1.9] - 2026-02-23
 
 ## [0.1.8] - 2026-02-20

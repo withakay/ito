@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.10] - 2026-02-25
+
+### 🚀 Features
+
+- *(019-04)* Schema-driven validation ([#99](https://github.com/withakay/ito/pull/99))
+- *(templates)* Add github-copilot harness support to bootstrap
+- *(019-05)* Schema-aware validate and tasks.md validation
+- *(001-25)* Add tracking_file_path and fix missing review module export
+- *(001-25)* Honor apply.tracks for task tracking ([#103](https://github.com/withakay/ito/pull/103))
+- *(019-03)* Add --upgrade flag to ito init for marker-scoped template refresh ([#102](https://github.com/withakay/ito/pull/102))
+
+### 🐛 Bug Fixes
+
+- *(pr95)* Address review feedback on bootstrap and templates
+- Align templates exports and formatting for push checks
+- Remove duplicate tracking_file_path introduced by rebase
+
+### 🚜 Refactor
+
+- *(templates)* Remove generic skills, rename kept skills to ito- prefix
 ## [0.1.9] - 2026-02-23
 
 ## [0.1.8] - 2026-02-20
