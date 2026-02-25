@@ -5,7 +5,7 @@
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
-use crate::validate::{ValidationIssue, error};
+use crate::validate::{error, ValidationIssue};
 use ito_common::fs::StdFs;
 use ito_common::id;
 use ito_domain::discovery;
