@@ -14,7 +14,7 @@ Run the CLI-generated apply instructions for a specific change.
    - Ask the user which change to apply if multiple are ready.
 
 2. Generate instructions (source of truth):
-3. 
+3.
    ```bash
    ito agent instruction apply --change "<change-id>"
    ```
