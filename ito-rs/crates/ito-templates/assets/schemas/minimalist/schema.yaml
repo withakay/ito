@@ -1,0 +1,19 @@
+name: minimalist
+version: 1
+description: Lightweight workflow for small, low-risk changes
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    description: User-story specs with testable acceptance criteria
+    template: specs/spec.md
+    requires: []
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    requires:
+      - specs
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
