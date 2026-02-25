@@ -33,7 +33,8 @@ pub use types::{
     ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewTaskSummaryInfo,
     ReviewTestingPolicy, ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic,
     TaskItem, TemplateInfo, ValidationArtifactYaml, ValidationDefaultsYaml, ValidationLevelYaml,
-    ValidationTrackingSourceYaml, ValidationTrackingYaml, ValidationYaml, WorkflowError,
+    ValidationTrackingSourceYaml, ValidationTrackingYaml, ValidationYaml, ValidatorId,
+    WorkflowError,
 };
 
 use ito_common::fs::StdFs;
@@ -861,11 +862,7 @@ fn compute_done_by_id(change_dir: &Path, schema: &SchemaYaml) -> BTreeMap<String
 ///
 /// This is used outside the templates module (for example, schema-aware validation) to
 /// reuse the same minimal glob semantics as schema artifact completion.
-pub(crate) fn artifact_present(change_dir: &Path, generates: &str) -> bool {
-    artifact_done(change_dir, generates)
-}
-
-fn artifact_done(change_dir: &Path, generates: &str) -> bool {
+pub(crate) fn artifact_done(change_dir: &Path, generates: &str) -> bool {
     if !generates.contains('*') {
         return change_dir.join(generates).exists();
     }

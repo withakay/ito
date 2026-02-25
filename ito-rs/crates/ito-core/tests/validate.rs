@@ -365,6 +365,62 @@ tracking:
 }
 
 #[test]
+fn validate_change_skips_optional_validator_when_artifact_is_missing() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("optional")
+            .join("schema.yaml"),
+        r#"
+name: optional
+version: 1
+artifacts:
+  - id: tasks
+    generates: tasks.md
+    template: tasks.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("optional")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  tasks:
+    required: false
+    validate_as: ito.tasks-tracking.v1
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: optional\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        !r.issues
+            .iter()
+            .any(|i| i.message.contains("Failed to read") && i.path.contains("tasks.md")),
+        "optional missing artifact should skip validators, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");

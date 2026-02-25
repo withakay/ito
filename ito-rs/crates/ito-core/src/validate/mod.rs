@@ -16,8 +16,8 @@ use ito_common::paths;
 
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
 use crate::templates::{
-    ResolvedSchema, ValidationLevelYaml, ValidationYaml, artifact_present, load_schema_validation,
-    read_change_schema, resolve_schema,
+    ResolvedSchema, ValidationLevelYaml, ValidationYaml, ValidatorId, artifact_done,
+    load_schema_validation, read_change_schema, resolve_schema,
 };
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
@@ -290,7 +290,7 @@ fn validate_apply_required_artifacts(
             ));
             continue;
         };
-        if artifact_present(&change_dir, &a.generates) {
+        if artifact_done(&change_dir, &a.generates) {
             continue;
         }
         rep.push(warning(
@@ -324,14 +324,11 @@ fn validate_change_against_schema_validation(
 ) -> CoreResult<()> {
     let change_dir = paths::change_dir(ito_path, change_id);
 
-    let missing_level = match validation
+    let missing_level = validation
         .defaults
         .missing_required_artifact_level
         .unwrap_or(ValidationLevelYaml::Warning)
-    {
-        ValidationLevelYaml::Warning => LEVEL_WARNING,
-        ValidationLevelYaml::Error => LEVEL_ERROR,
-    };
+        .as_level_str();
 
     for (artifact_id, cfg) in &validation.artifacts {
         let Some(schema_artifact) = resolved
@@ -347,7 +344,7 @@ fn validate_change_against_schema_validation(
             continue;
         };
 
-        let present = artifact_present(&change_dir, &schema_artifact.generates);
+        let present = artifact_done(&change_dir, &schema_artifact.generates);
         if cfg.required && !present {
             rep.push(issue(
                 missing_level,
@@ -359,7 +356,11 @@ fn validate_change_against_schema_validation(
             ));
         }
 
-        let Some(validator_id) = cfg.validate_as.as_deref() else {
+        if !present {
+            continue;
+        }
+
+        let Some(validator_id) = cfg.validate_as else {
             continue;
         };
         run_validator_for_artifact(
@@ -402,14 +403,26 @@ fn validate_change_against_schema_validation(
 
                 let report_path = format!("changes/{change_id}/{tracks_rel}");
                 let abs_path = paths::change_dir(ito_path, change_id).join(tracks_rel);
-                match tracking.validate_as.as_str() {
-                    "ito.tasks-tracking.v1" => {
+
+                let present = abs_path.exists();
+                if tracking.required && !present {
+                    rep.push(error(
+                        "tracking",
+                        format!("Missing required tracking file: {report_path}"),
+                    ));
+                }
+                if !present {
+                    return Ok(());
+                }
+
+                match tracking.validate_as {
+                    ValidatorId::TasksTrackingV1 => {
                         rep.extend(validate_tasks_tracking_path(&abs_path, &report_path));
                     }
-                    _ => {
+                    ValidatorId::DeltaSpecsV1 => {
                         rep.push(error(
                             "schema.validation",
-                            format!("Unknown validator id '{}'", tracking.validate_as),
+                            "Validator 'ito.delta-specs.v1' is not valid for tracking files",
                         ));
                     }
                 }
@@ -451,19 +464,19 @@ fn run_validator_for_artifact(
     change_id: &str,
     artifact_id: &str,
     generates: &str,
-    validator_id: &str,
+    validator_id: ValidatorId,
 ) -> CoreResult<()> {
     match validator_id {
-        "ito.delta-specs.v1" => {
+        ValidatorId::DeltaSpecsV1 => {
             validate_change_delta_specs(rep, change_repo, change_id)?;
         }
-        "ito.tasks-tracking.v1" => {
+        ValidatorId::TasksTrackingV1 => {
             if generates.contains('*') {
                 rep.push(error(
                     format!("artifacts.{artifact_id}"),
                     format!(
                         "Validator '{}' requires a single file path; got pattern '{}'",
-                        validator_id, generates
+                        "ito.tasks-tracking.v1", generates
                     ),
                 ));
                 return Ok(());
@@ -472,12 +485,6 @@ fn run_validator_for_artifact(
             let report_path = format!("changes/{change_id}/{generates}");
             let abs_path = paths::change_dir(ito_path, change_id).join(generates);
             rep.extend(validate_tasks_tracking_path(&abs_path, &report_path));
-        }
-        _ => {
-            rep.push(error(
-                "schema.validation",
-                format!("Unknown validator id '{validator_id}'"),
-            ));
         }
     }
     Ok(())
