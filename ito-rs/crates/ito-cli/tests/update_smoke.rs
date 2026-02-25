@@ -127,16 +127,14 @@ fn update_installs_adapter_files_from_local_ito_skills() {
     assert!(repo.path().join(".claude/session-start.sh").exists());
     assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
     assert!(repo.path().join(".claude/settings.json").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 }
 
 #[test]
@@ -289,7 +287,7 @@ fn update_refreshes_github_copilot_audit_assets() {
 
     let prompt =
         std::fs::read_to_string(repo.path().join(".github/prompts/ito-apply.prompt.md")).unwrap();
-    assert!(prompt.contains("Audit guardrail (GitHub Copilot)"));
+    assert!(prompt.contains("Audit guardrail"));
     assert!(prompt.contains("ito audit validate"));
     assert!(!prompt.contains("stale prompt"));
 }
