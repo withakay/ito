@@ -1,9 +1,9 @@
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::errors::CoreError;
 use ito_core::show::{
-    bundle_main_specs_markdown, bundle_main_specs_show_json, load_delta_spec_file,
+    DeltaSpecFile, bundle_main_specs_markdown, bundle_main_specs_show_json, load_delta_spec_file,
     parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files,
-    read_module_markdown, DeltaSpecFile,
+    read_module_markdown,
 };
 use std::path::Path;
 
@@ -46,9 +46,11 @@ Then Y
     assert_eq!(json.requirement_count, 2);
     assert_eq!(json.requirements.len(), 2);
     assert_eq!(json.requirements[0].scenarios.len(), 1);
-    assert!(json.requirements[0].scenarios[0]
-        .raw_text
-        .contains("Given A"));
+    assert!(
+        json.requirements[0].scenarios[0]
+            .raw_text
+            .contains("Given A")
+    );
 }
 
 #[test]
