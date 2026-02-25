@@ -15,7 +15,7 @@ use serde::Serialize;
 use ito_common::paths;
 
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
-use crate::templates::{read_change_schema, resolve_schema, SchemaSource};
+use crate::templates::{SchemaSource, read_change_schema, resolve_schema};
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
@@ -26,7 +26,7 @@ mod report;
 
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
-pub use report::{report, ReportBuilder};
+pub use report::{ReportBuilder, report};
 
 /// Severity level for a [`ValidationIssue`].
 pub type ValidationLevel = &'static str;
@@ -371,7 +371,7 @@ fn extract_section(markdown: &str, header: &str) -> String {
 
 /// Validate a change's tasks.md file and return any issues found.
 pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
-    use ito_domain::tasks::{parse_tasks_tracking_file, tasks_path, DiagnosticLevel};
+    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file, tasks_path};
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");
