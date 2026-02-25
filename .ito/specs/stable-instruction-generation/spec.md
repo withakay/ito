@@ -1,24 +1,25 @@
-# Stable Instruction Generation Specification
+# Spec: stable-instruction-generation
 
 ## Purpose
 
-Define the `stable-instruction-generation` capability: instruction artifacts must be consistent, testable, and configurable.
+Ensure the review instruction honors the same configurable testing policy and user guidance injection patterns as all other instruction types.
 
-## Requirements
+## MODIFIED Requirements
 
-### Requirement: Instruction artifacts include configurable testing policy guidance
+### Requirement: User guidance injection
 
-The CLI SHALL allow instruction artifacts to include a short "Testing Policy" guidance section that reflects project configuration.
+All instruction templates, including the review template, SHALL inject user guidance from `.ito/user-guidance.md` when present. The guidance SHALL appear in a dedicated `<user_guidance>` section within the rendered output.
 
-#### Scenario: Proposal instructions show default testing policy
+#### Scenario: Review instruction includes user guidance
 
-- **GIVEN** no explicit testing policy override is configured
-- **WHEN** an agent runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the instruction output includes guidance to use a RED/GREEN/REFACTOR workflow
-- **AND** it references a default coverage target of 80%
+- **WHEN** the review instruction is generated and `.ito/user-guidance.md` exists
+- **THEN** the rendered output SHALL contain a `<user_guidance>` section with the contents of user-guidance.md
 
-#### Scenario: Proposal instructions honor configured override
+### Requirement: Testing policy injection
 
-- **GIVEN** a project config source sets a coverage target override
-- **WHEN** an agent runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the instruction output references the configured target instead of 80%
+All instruction templates, including the review template, SHALL include the project's testing policy (TDD workflow and coverage target) derived from the cascading config system.
+
+#### Scenario: Review instruction includes testing policy
+
+- **WHEN** the review instruction is generated
+- **THEN** the rendered output SHALL contain testing policy information consistent with the project's configured TDD workflow and coverage target

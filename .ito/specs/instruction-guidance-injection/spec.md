@@ -1,41 +1,26 @@
 ## ADDED Requirements
 
-### Requirement: Artifact-scoped guidance injection
+### Requirement: Ito internal comments are excluded from rendered guidance
 
-Instruction generation SHALL inject artifact-scoped guidance from `.ito/user-prompts/<artifact-id>.md` when present.
+Guidance loading SHALL ignore content contained in Ito internal comment blocks when composing instruction guidance text.
 
-#### Scenario: Proposal includes proposal-scoped guidance
+Internal comment block delimiters:
 
-- **GIVEN** `.ito/user-prompts/proposal.md` contains guidance text
-- **WHEN** a user runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the output includes the proposal-scoped guidance text
+- `<!-- ITO:INTERNAL:START -->`
+- `<!-- ITO:INTERNAL:END -->`
 
-#### Scenario: Apply includes apply-scoped guidance
+#### Scenario: Scoped guidance excludes internal scaffold content
 
-- **GIVEN** `.ito/user-prompts/apply.md` contains guidance text
+- **GIVEN** `.ito/user-prompts/apply.md` contains placeholder scaffold content inside Ito internal comment block delimiters
+- **AND** the file contains real guidance content outside those delimiters
 - **WHEN** a user runs `ito agent instruction apply --change "<change-id>"`
-- **THEN** the output includes the apply-scoped guidance text
+- **THEN** the rendered output includes only the real guidance content
+- **AND** the placeholder scaffold content is not rendered
 
-#### Scenario: No artifact-scoped file falls back cleanly
+#### Scenario: Shared guidance excludes internal scaffold content
 
-- **GIVEN** `.ito/user-prompts/<artifact-id>.md` does not exist
-- **WHEN** a user runs `ito agent instruction <artifact-id> --change "<change-id>"`
-- **THEN** instruction generation proceeds without artifact-scoped guidance errors
-
-### Requirement: Shared and scoped guidance composition
-
-When both shared and scoped guidance are available, instruction output SHALL include both as additive guidance.
-
-#### Scenario: Output includes both shared and scoped guidance
-
-- **GIVEN** `.ito/user-prompts/guidance.md` and `.ito/user-prompts/proposal.md` both exist
+- **GIVEN** `.ito/user-prompts/guidance.md` contains placeholder scaffold content inside Ito internal comment block delimiters
+- **AND** the file contains real guidance content outside those delimiters
 - **WHEN** a user runs `ito agent instruction proposal --change "<change-id>"`
-- **THEN** the output includes guidance from both files
-- **AND** schema-defined requirements remain unchanged and authoritative
-
-#### Scenario: Legacy shared guidance is used when new shared file is absent
-
-- **GIVEN** `.ito/user-prompts/guidance.md` does not exist
-- **AND** `.ito/user-guidance.md` exists
-- **WHEN** a user runs `ito agent instruction apply --change "<change-id>"`
-- **THEN** the output includes shared guidance from `.ito/user-guidance.md`
+- **THEN** composed guidance includes the real shared guidance content
+- **AND** the placeholder scaffold content is not rendered
