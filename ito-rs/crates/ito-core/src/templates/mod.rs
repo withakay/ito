@@ -826,7 +826,6 @@ pub fn compute_apply_instructions(
     })
 }
 
-
 fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     let s = ito_common::io::read_to_string_std(&schema_dir.join("schema.yaml"))?;
     Ok(serde_yaml::from_str(&s)?)
