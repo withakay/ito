@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 001-02_interactive-splitting. Update Purpose after archive.
+Define the `interactive-change-splitting` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Interactive splitting prompt).
 
 ## Requirements
 

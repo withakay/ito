@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: docs-quick-start
+
+## Purpose
+
+Define the `docs-quick-start` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Quick Start guide is published in docs site navigation).
+
+## Requirements
 
 ### Requirement: Quick Start guide is published in docs site navigation
 The system SHALL publish a Quick Start guide within the documentation site that is accessible from primary navigation.

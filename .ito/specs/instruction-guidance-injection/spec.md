@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: instruction-guidance-injection
+
+## Purpose
+
+Define the `instruction-guidance-injection` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Ito internal comments are excluded from rendered guidance).
+
+## Requirements
 
 ### Requirement: Ito internal comments are excluded from rendered guidance
 

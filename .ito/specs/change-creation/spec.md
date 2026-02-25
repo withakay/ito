@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: change-creation
+
+## Purpose
+
+Define the `change-creation` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Deterministic allocation state serialization).
+
+## Requirements
 
 ### Requirement: Deterministic allocation state serialization
 

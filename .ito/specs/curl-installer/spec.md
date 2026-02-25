@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: curl-installer
+
+## Purpose
+
+Define the `curl-installer` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: macOS/Linux install script installs the correct binary).
+
+## Requirements
 
 ### Requirement: macOS/Linux install script installs the correct binary
 

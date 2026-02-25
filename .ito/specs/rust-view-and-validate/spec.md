@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 006-05_port-list-show-validate. Update Purpose after archive.
+Define the `rust-view-and-validate` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: `list` matches output and JSON shapes).
 
 ## Requirements
 

@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: change-repository
+
+## Purpose
+
+Define the `change-repository` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: ChangeRepository provides centralized change access).
+
+## Requirements
 
 ### Requirement: ChangeRepository provides centralized change access
 

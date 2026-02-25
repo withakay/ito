@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: artifact-graph
+
+## Purpose
+
+Define the `artifact-graph` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Schema Directory Structure).
+
+## Requirements
 
 ### Requirement: Schema Directory Structure
 

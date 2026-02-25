@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: list-partial-filter
+
+## Purpose
+
+Define the `list-partial-filter` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Partial progress filter flag).
+
+## Requirements
 
 ### Requirement: Partial progress filter flag
 

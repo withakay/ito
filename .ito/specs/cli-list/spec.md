@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: cli-list
+
+## Purpose
+
+Define the `cli-list` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Sorting).
+
+## Requirements
 
 ### Requirement: Sorting
 

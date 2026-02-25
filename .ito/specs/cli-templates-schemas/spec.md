@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-templates-schemas
+
+## Purpose
+
+Define the `cli-templates-schemas` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Export built-in schema bundles).
+
+## Requirements
 
 ### Requirement: Export built-in schema bundles
 

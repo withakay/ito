@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: config-schema
+
+## Purpose
+
+Define the `config-schema` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Repository-tracked generated config schema artifact).
+
+## Requirements
 
 ### Requirement: Repository-tracked generated config schema artifact
 

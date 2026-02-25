@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: rust-ralph
+
+## Purpose
+
+Define the `rust-ralph` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: State is written under `.ito/.state/ralph/<change>`).
+
+## Requirements
 
 ### Requirement: State is written under `.ito/.state/ralph/<change>`
 
