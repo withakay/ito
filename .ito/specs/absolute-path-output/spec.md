@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Spec: absolute-path-output
+
+## Purpose
+
+Define the `absolute-path-output` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: CLI text output uses absolute paths).
+
+## Requirements
 
 ### Requirement: CLI text output uses absolute paths
 

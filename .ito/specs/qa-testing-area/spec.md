@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: qa-testing-area
+
+## Purpose
+
+Define the `qa-testing-area` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Ralph module minimum line coverage).
+
+## Requirements
 
 ### Requirement: Ralph module minimum line coverage
 

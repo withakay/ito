@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: cli-workflow
+
+## Purpose
+
+Define the `cli-workflow` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Workflow initialization).
+
+## Requirements
 
 ### Requirement: Workflow initialization
 
@@ -89,7 +95,6 @@ Workflow guidance quality SHALL be maintained in instruction artifacts and skill
 - **THEN** the artifacts SHALL provide clear staged guidance equivalent to or better than legacy templates
 - **AND** they SHALL include task/checkpoint-oriented direction where applicable
 
-## ADDED Requirements
 
 ### Requirement: Workflow commands are explicit no-ops
 

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: ito-schemas
+
+## Purpose
+
+Define the `ito-schemas` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Schemas may define validation.yaml).
+
+## Requirements
 
 ### Requirement: Schemas may define validation.yaml
 

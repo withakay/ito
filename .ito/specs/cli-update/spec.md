@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Spec: cli-update
+
+## Purpose
+
+Define the `cli-update` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Update Is Idempotent and Non-Destructive).
+
+## Requirements
 
 ### Requirement: Update Is Idempotent and Non-Destructive
 

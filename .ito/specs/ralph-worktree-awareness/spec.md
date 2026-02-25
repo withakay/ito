@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: ralph-worktree-awareness
+
+## Purpose
+
+Define the `ralph-worktree-awareness` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Resolve worktree for targeted change).
+
+## Requirements
 
 ### Requirement: Resolve worktree for targeted change
 

@@ -96,6 +96,7 @@ pub enum Commands {
     ///   ito show 005-01_add-auth
     ///   ito show --type spec auth-service
     ///   ito show module 005
+    ///   ito show specs
     #[command(verbatim_doc_comment, visible_alias = "sh")]
     Show(ShowArgs),
 
@@ -709,7 +710,10 @@ pub enum CreateAction {
 
 /// Show a change, spec, or module.
 #[derive(Args, Debug, Clone)]
-#[command(args_conflicts_with_subcommands = true)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    override_usage = "ito show [OPTIONS] <ITEM>\nito show module <MODULE_ID>\nito show specs [--json]"
+)]
 pub struct ShowArgs {
     /// Output as JSON
     #[arg(long)]
@@ -755,6 +759,9 @@ pub struct ShowArgs {
 pub enum ShowCommand {
     /// Show a module
     Module(ShowModuleArgs),
+
+    /// Show all specs as one bundled prompt
+    Specs(ShowSpecsArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -765,6 +772,13 @@ pub struct ShowModuleArgs {
 
     /// Module id
     pub module_id: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct ShowSpecsArgs {
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]

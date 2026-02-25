@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-bridge-types
+
+## Purpose
+
+Define the `cli-bridge-types` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Domain enums SHALL NOT depend on CLI frameworks).
+
+## Requirements
 
 ### Requirement: Domain enums SHALL NOT depend on CLI frameworks
 

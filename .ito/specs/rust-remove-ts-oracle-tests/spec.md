@@ -1,3 +1,5 @@
+# Spec: rust-remove-ts-oracle-tests
+
 ## Purpose
 
 Ensure Rust tests do not require the legacy TypeScript/Bun implementation at all.

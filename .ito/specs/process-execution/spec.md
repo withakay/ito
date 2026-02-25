@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: process-execution
+
+## Purpose
+
+Define the `process-execution` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Process execution is centralized in core).
+
+## Requirements
 
 ### Requirement: Process execution is centralized in core
 

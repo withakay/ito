@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: task-repository
+
+## Purpose
+
+Define the `task-repository` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: TaskRepository provides centralized task access).
+
+## Requirements
 
 ### Requirement: TaskRepository provides centralized task access
 

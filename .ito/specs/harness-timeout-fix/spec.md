@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: harness-timeout-fix
+
+## Purpose
+
+Define the `harness-timeout-fix` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Timeout monitor thread exits on process completion).
+
+## Requirements
 
 ### Requirement: Timeout monitor thread exits on process completion
 
@@ -28,7 +34,6 @@ The full test suite SHALL complete within 60 seconds on a typical development ma
 - **THEN** all tests complete within 60 seconds
 - **AND** no individual test takes longer than 10 seconds (unless marked `#[ignore]`)
 
-## ADDED Requirements
 
 ### Requirement: Test timing visibility
 

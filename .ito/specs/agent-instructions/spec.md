@@ -4,7 +4,7 @@
 
 Extend the agent instruction dispatcher to handle the `review` instruction type as a special-cased handler, following the same pattern as `apply`, `bootstrap`, `project-setup`, and `new-proposal`.
 
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: Instruction dispatcher supports standard instruction types
 

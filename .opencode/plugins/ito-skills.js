@@ -12,23 +12,24 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 
 const DEFAULT_AUDIT_TTL_MS = 10000;
+const ITO_EXEC_TIMEOUT_MS = 20000;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
 const ITO_MANAGED_FILE_RULES = [
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/tasks\.md$/,
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/tasks\.md/,
     advice: '[Ito Guardrail] Direct edits to tasks.md detected. Prefer `ito tasks start/complete/shelve/unshelve/add` so audit stays consistent.'
   },
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/(proposal|design)\.md$/,
-    advice: '[Ito Guardrail] Direct edits to change artifacts detected. Prefer `ito agent instruction proposal|design|tasks|specs --change <id>` and then `ito validate <id> --strict`.'
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/(proposal|design)\.md/,
+    advice: '[Ito Guardrail] Direct edits to change artifacts detected. Prefer `ito agent instruction proposal|tasks|specs --change <id>` and then `ito validate <id> --strict`.'
   },
   {
-    pattern: /(^|\/)\.ito\/changes\/[^/]+\/specs\/[^/]+\/spec\.md$/,
+    pattern: /(^|\/)\.ito\/changes\/[^/]+\/specs\/[^/]+\/spec\.md/,
     advice: '[Ito Guardrail] Direct edits to spec deltas detected. Prefer `ito agent instruction specs --change <id>` and validate with `ito validate <id> --strict`.'
   },
   {
-    pattern: /(^|\/)\.ito\/specs\/[^/]+\/spec\.md$/,
+    pattern: /(^|\/)\.ito\/specs\/[^/]+\/spec\.md/,
     advice: '[Ito Guardrail] Direct edits to canonical specs detected. Prefer change-proposal workflow and validate via `ito validate --specs --strict`.'
   }
 ];
@@ -49,7 +50,7 @@ export const ItoPlugin = async ({ client, directory }) => {
   const homeDir = os.homedir();
   const envConfigDir = process.env.OPENCODE_CONFIG_DIR?.trim();
   const configDir = envConfigDir || path.join(homeDir, '.config/opencode');
-  const skillsDir = path.join(configDir, 'skills', 'ito-skills');
+  const skillsDir = path.join(configDir, 'skills');
   const ttlMs = Number.parseInt(process.env.ITO_OPENCODE_AUDIT_TTL_MS || '', 10);
   const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
   const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX === '1';
@@ -64,7 +65,8 @@ export const ItoPlugin = async ({ client, directory }) => {
       const stdout = execFileSync('ito', args, {
         cwd: directory,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: ITO_EXEC_TIMEOUT_MS
       });
 
       return {
@@ -245,35 +247,18 @@ export const ItoPlugin = async ({ client, directory }) => {
       const bootstrap = execFileSync('ito', ['agent', 'instruction', 'bootstrap', '--tool', 'opencode'], {
         cwd: directory,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: ITO_EXEC_TIMEOUT_MS
       }).trim();
 
-      const fallback = `You have access to Ito workflows.
+      const fallback = `You have access to Ito workflows via skills prefixed with \`ito-\`.
 
-To load a Ito workflow, use OpenCode's native \`skill\` tool:
+Load a skill with OpenCode's native \`skill\` tool. Start with:
 \`\`\`
-use skill tool to load ito-skills/<workflow-name>
-\`\`\`
-
-Ito skills are available at: \`${skillsDir}\`
-
-**Tool Mapping for OpenCode:**
-When Ito workflows reference Claude Code tools, use these OpenCode equivalents:
-- \`TodoWrite\` → \`update_plan\`
-- \`Task\` tool with subagents → Use OpenCode's subagent system (@mention)
-- \`Skill\` tool → OpenCode's native \`skill\` tool
-- \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
-
-**Getting Started:**
-List available Ito skills:
-\`\`\`
-use skill tool to list skills
+use skill tool to load using-ito-skills
 \`\`\`
 
-Load a specific workflow:
-\`\`\`
-use skill tool to load ito-skills/using-ito-skills
-\`\`\``;
+Skills are installed to: \`${skillsDir}\``;
 
       const content = bootstrap.length > 0 ? bootstrap : fallback;
       return `<EXTREMELY_IMPORTANT>

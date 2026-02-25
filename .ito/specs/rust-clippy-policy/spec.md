@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: rust-clippy-policy
+
+## Purpose
+
+Define the `rust-clippy-policy` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Domain-restriction checks prioritize lint or compiler-backed enforcement).
+
+## Requirements
 
 ### Requirement: Domain-restriction checks prioritize lint or compiler-backed enforcement
 
