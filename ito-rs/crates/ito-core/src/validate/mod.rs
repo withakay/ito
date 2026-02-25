@@ -246,8 +246,17 @@ pub fn validate_change(
     Ok(rep.finish())
 }
 
+/// Returns true for built-in schemas that predate schema-driven `validation.yaml`.
 fn is_legacy_delta_schema(schema_name: &str) -> bool {
     schema_name == "spec-driven" || schema_name == "tdd"
+}
+
+fn schema_artifact_ids(resolved: &ResolvedSchema) -> Vec<String> {
+    let mut ids = Vec::new();
+    for a in &resolved.schema.artifacts {
+        ids.push(a.id.clone());
+    }
+    ids
 }
 
 fn validate_apply_required_artifacts(
@@ -266,20 +275,11 @@ fn validate_apply_required_artifacts(
     }
 
     let required_ids: Vec<String> = match resolved.schema.apply.as_ref() {
-        Some(apply) => apply.requires.clone().unwrap_or_else(|| {
-            resolved
-                .schema
-                .artifacts
-                .iter()
-                .map(|a| a.id.clone())
-                .collect()
-        }),
-        None => resolved
-            .schema
-            .artifacts
-            .iter()
-            .map(|a| a.id.clone())
-            .collect(),
+        Some(apply) => apply
+            .requires
+            .clone()
+            .unwrap_or_else(|| schema_artifact_ids(resolved)),
+        None => schema_artifact_ids(resolved),
     };
 
     for id in required_ids {
@@ -307,9 +307,7 @@ fn resolve_validation_context(ito_path: &Path, change_id: &str) -> (ConfigContex
     let schema_name = read_change_schema(ito_path, change_id);
 
     let mut ctx = ConfigContext::from_process_env();
-    if ctx.project_dir.is_none() {
-        ctx.project_dir = ito_path.parent().map(|p| p.to_path_buf());
-    }
+    ctx.project_dir = ito_path.parent().map(|p| p.to_path_buf());
 
     (ctx, schema_name)
 }
