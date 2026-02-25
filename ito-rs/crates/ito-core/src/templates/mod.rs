@@ -840,7 +840,9 @@ fn load_validation_yaml(schema_dir: &Path) -> Result<Option<ValidationYaml>, Wor
 }
 
 /// Load schema validation configuration when present.
-pub fn load_schema_validation(resolved: &ResolvedSchema) -> Result<Option<ValidationYaml>, WorkflowError> {
+pub fn load_schema_validation(
+    resolved: &ResolvedSchema,
+) -> Result<Option<ValidationYaml>, WorkflowError> {
     if resolved.source == SchemaSource::Embedded {
         return load_embedded_validation_yaml(&resolved.schema.name);
     }
