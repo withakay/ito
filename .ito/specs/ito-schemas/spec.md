@@ -1,41 +1,30 @@
 ## ADDED Requirements
 
-### Requirement: ito-schemas contains only on-disk serde models
+### Requirement: Schemas may define validation.yaml
 
-The `ito-schemas` crate MUST contain serde models for Ito's on-disk formats.
+Ito MUST allow a workflow schema directory to include a `validation.yaml` file next to `schema.yaml` to declare validation rules for that schema's artifacts.
 
-`ito-schemas` MUST NOT contain filesystem access or process execution.
+#### Scenario: Schema includes validation.yaml
 
-Guardrails MUST exist to detect forbidden filesystem/process references in `ito-schemas` source.
+- **GIVEN** a schema directory contains `schema.yaml`
+- **WHEN** the directory also contains `validation.yaml`
+- **THEN** Ito MUST treat `validation.yaml` as the schema's validation configuration
 
-#### Scenario: Schemas crate has crate-level documentation
+### Requirement: validation.yaml uses versioned validator identifiers
 
-- **WHEN** inspecting `ito-rs/crates/ito-schemas/src/lib.rs`
-- **THEN** it MUST contain crate-level documentation describing it as serde models for on-disk formats
+Schema validation rules MUST reference validators using stable, versioned identifier strings (for example, `ito.delta-specs.v1`).
 
-#### Scenario: Schemas crate has no filesystem access
+#### Scenario: Unknown validator identifier
 
-- **WHEN** searching `ito-rs/crates/ito-schemas/` source code
-- **THEN** it MUST NOT reference `std::fs`
+- **GIVEN** `validation.yaml` references a validator identifier that Ito does not recognize
+- **WHEN** validating a change that uses this schema
+- **THEN** validation MUST report an error indicating the validator is unknown
 
-#### Scenario: Schemas crate has no process execution
+### Requirement: validation.yaml uses snake_case keys
 
-- **WHEN** searching `ito-rs/crates/ito-schemas/` source code
-- **THEN** it MUST NOT reference `std::process::Command`
+The `validation.yaml` format MUST use `snake_case` keys.
 
-#### Scenario: Guardrail tests protect crate boundaries
+#### Scenario: validation.yaml uses snake_case
 
-- **WHEN** running tests for `ito-rs/crates/ito-schemas/`
-- **THEN** guardrail tests MUST fail if `src/` references `std::fs` or `std::process::Command`
-
-### Requirement: Schema types may be used pragmatically
-
-Schema types MAY be used directly in domain or core code when they are pure data and align with the domain concept.
-
-When a schema diverges from the domain concept (legacy fields, format-driven naming, or rule-heavy behavior), the domain MUST define a domain type and map at the boundary.
-
-#### Scenario: Divergent schema is mapped at the boundary
-
-- **GIVEN** an on-disk schema contains legacy fields or format-driven structure
-- **WHEN** the data is used for business logic
-- **THEN** the logic MUST operate on a domain type rather than the raw schema type
+- **WHEN** parsing `validation.yaml`
+- **THEN** Ito MUST accept `snake_case` field names as the canonical format
