@@ -5,23 +5,21 @@ category: Ito
 tags: [ito, proposal, change]
 ---
 
-The user wants to propose a change.
 <UserRequest>
 $ARGUMENTS
 </UserRequest>
 
 <!-- ITO:START -->
 
-Use the `ito-write-change-proposal` skill as the source of truth for this workflow.
+Load and follow the `ito-write-change-proposal` skill. Pass the <UserRequest> block as input.
 
-**Before anything else: collaborate with the user.** The request above is a starting point, not a final spec. Ask clarifying questions, surface ambiguity, and confirm your understanding before creating any files or changes. See the skill for detailed guidance.
+**Audit guardrail**
 
-**Module selection:** Prefer an existing module that fits (`ito list --modules`). Create a new one only if nothing fits.
+- Before stateful Ito actions: run `ito audit validate`.
+- If validation fails or drift is reported, run `ito audit reconcile` and `ito audit reconcile --fix` to remediate.
 
-**Audit:** In GitHub Copilot sessions, run `ito audit validate` before stateful actions.
+**Testing policy**: follow the policy printed by `ito agent instruction proposal --change <id>`.
 
-**Testing Policy:** Follow the Testing Policy printed by `ito agent instruction proposal|apply`. Default: RED/GREEN/REFACTOR, 80% coverage target (projects may override).
-
-**Guardrails:** If the `ito-write-change-proposal` skill is missing, ask the user to run `ito init` or `ito update`, then stop.
+If the skill is missing, ask the user to run `ito init` or `ito update`, then stop.
 
 <!-- ITO:END -->
