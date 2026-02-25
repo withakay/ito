@@ -1,5 +1,5 @@
 ---
-name: brainstorming
+name: ito-brainstorming
 description: "You MUST use this before any creative work - creating features, proposing changes,building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
 ---
 

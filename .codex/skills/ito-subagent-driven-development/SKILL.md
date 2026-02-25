@@ -1,5 +1,5 @@
 ---
-name: subagent-driven-development
+name: ito-subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session using subagents
 ---
 
