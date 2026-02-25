@@ -13,8 +13,8 @@ Currently the following agents are supported to a greater or lesser extent, with
 - GitHub Copilot CLI
 - OpenCode
 
-Ito is a personal project and not affiliated with any of the above agents or their respective companies. 
-There will be rough edges and different agents will have different levels of support and reliability. 
+Ito is a personal project and not affiliated with any of the above agents or their respective companies.
+There will be rough edges and different agents will have different levels of support and reliability.
 The goal is to provide a flexible framework that can be adapted as agents evolve, rather than a rigid system that tries to predict the future of AI coding.
 I hope it can be a useful tool for people experimenting with AI-assisted development and multi-agent workflows, and I welcome contributions and feedback to help improve it.
 It is open source under the MIT License.
