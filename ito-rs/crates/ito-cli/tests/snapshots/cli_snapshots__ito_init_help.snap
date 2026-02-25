@@ -1,5 +1,5 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"init\", \"--help\"])"
 ---
 Set up Ito in a project
@@ -11,6 +11,7 @@ Examples:
   ito init
   ito init --tools claude,codex
   ito init --tools all --force
+  ito init --upgrade              # refresh managed template blocks only
 
 Usage: ito init [OPTIONS] [PATH]
 
@@ -33,6 +34,9 @@ Options:
 
   -u, --update
           Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
+
+      --upgrade
+          Refresh managed prompt/template content (marker-scoped upgrade; preserves user content outside markers)
 
       --setup-coordination-branch
           Ensure coordination branch exists on origin after init

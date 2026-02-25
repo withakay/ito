@@ -16,7 +16,8 @@ Use `@/.ito/AGENTS.md` to learn:
 Note: Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten.
 Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito/user-prompts/<artifact>.md` (artifact-specific), and/or below this managed block.
 
-Keep this managed block so 'ito update' can refresh the instructions.
+Keep this managed block so `ito init --upgrade` can refresh the managed instructions non-destructively.
+To refresh only the Ito-managed content in this file, run: `ito init --upgrade`
 
 <!-- ITO:END -->
 
