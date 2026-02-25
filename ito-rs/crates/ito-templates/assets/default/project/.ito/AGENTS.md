@@ -178,6 +178,7 @@ ito audit stream           # Tail recent events
 
 # Project management
 ito init [path]           # Initialize Ito
+ito init --upgrade [path] # Refresh managed template blocks (marker-scoped, preserves user content)
 ito update [path]         # Update instruction files
 
 # Interactive mode

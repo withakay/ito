@@ -213,6 +213,7 @@ pub enum Commands {
     ///   ito init
     ///   ito init --tools claude,codex
     ///   ito init --tools all --force
+    ///   ito init --upgrade              # refresh managed template blocks only
     #[command(verbatim_doc_comment, visible_alias = "in")]
     Init(InitArgs),
 
@@ -506,6 +507,10 @@ pub struct InitArgs {
     /// Update managed files while preserving user-edited files (project.md, user-guidance.md, etc.)
     #[arg(short = 'u', long)]
     pub update: bool,
+
+    /// Refresh managed prompt/template content (marker-scoped upgrade; preserves user content outside markers)
+    #[arg(long, conflicts_with = "force")]
+    pub upgrade: bool,
 
     /// Ensure coordination branch exists on origin after init
     #[arg(long = "setup-coordination-branch")]
