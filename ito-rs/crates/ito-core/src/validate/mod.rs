@@ -471,13 +471,18 @@ fn run_validator_for_artifact(
             validate_change_delta_specs(rep, change_repo, change_id)?;
         }
         ValidatorId::TasksTrackingV1 => {
+            use format_specs::TASKS_TRACKING_V1;
+
             if generates.contains('*') {
-                rep.push(error(
-                    format!("artifacts.{artifact_id}"),
-                    format!(
-                        "Validator '{}' requires a single file path; got pattern '{}'",
-                        "ito.tasks-tracking.v1", generates
+                rep.push(with_format_spec(
+                    error(
+                        format!("artifacts.{artifact_id}"),
+                        format!(
+                            "Validator '{}' requires a single file path; got pattern '{}'",
+                            TASKS_TRACKING_V1.validator_id, generates
+                        ),
                     ),
+                    TASKS_TRACKING_V1,
                 ));
                 return Ok(());
             }
