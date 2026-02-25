@@ -336,7 +336,16 @@ tracking:
     );
     write(
         &ito.join("changes").join(change_id).join("todo.md"),
-        "- [ ] 1: Do the thing\n",
+        r#"
+# Tasks for: 001-01_demo
+
+## Wave 1
+
+### Task 1.1: Demo
+
+- **Dependencies**: Task 2.1
+- **Status**: [ ] pending
+"#,
     );
 
     let change_repo = FsChangeRepository::new(&ito);
@@ -344,6 +353,13 @@ tracking:
     assert!(
         !r.issues.iter().any(|i| i.message.contains("tasks.md")),
         "apply.tracks validation should not require tasks.md, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.path == "changes/001-01_demo/todo.md" && i.level == "ERROR"),
+        "apply.tracks validation should run and report todo.md diagnostics, got issues: {:?}",
         r.issues
     );
 }

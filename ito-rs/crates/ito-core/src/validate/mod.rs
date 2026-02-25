@@ -420,6 +420,13 @@ fn validate_change_against_schema_validation(
     Ok(())
 }
 
+// Tracking file paths are intentionally stricter than other schema-relative paths.
+//
+// `apply.tracks` is treated as a *filename* at the change directory root (e.g. `tasks.md`).
+// We reject directory separators and traversal so schemas cannot point tracking at nested files.
+//
+// This differs from template paths (see `templates::schema_assets::is_safe_relative_path`) which
+// allow nested paths under `templates/`.
 fn is_safe_tracking_file(path: &str) -> bool {
     let path = path.trim();
     if path.is_empty() {
@@ -677,36 +684,10 @@ fn extract_section(markdown: &str, header: &str) -> String {
 
 /// Validate a change's tasks.md file and return any issues found.
 pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
-    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file, tasks_path};
+    use ito_domain::tasks::tasks_path;
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");
 
-    let contents = match ito_common::io::read_to_string(&path) {
-        Ok(c) => c,
-        Err(e) => {
-            return Ok(vec![error(
-                &report_path,
-                format!("Failed to read {report_path}: {e}"),
-            )]);
-        }
-    };
-
-    let parsed = parse_tasks_tracking_file(&contents);
-    let mut issues = Vec::new();
-    for d in &parsed.diagnostics {
-        let level = match d.level {
-            DiagnosticLevel::Error => LEVEL_ERROR,
-            DiagnosticLevel::Warning => LEVEL_WARNING,
-        };
-        issues.push(ValidationIssue {
-            path: report_path.clone(),
-            level: level.to_string(),
-            message: d.message.clone(),
-            line: d.line.map(|l| l as u32),
-            column: None,
-            metadata: None,
-        });
-    }
-    Ok(issues)
+    Ok(validate_tasks_tracking_path(&path, &report_path))
 }

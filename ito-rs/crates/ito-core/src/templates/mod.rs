@@ -857,6 +857,10 @@ fn compute_done_by_id(change_dir: &Path, schema: &SchemaYaml) -> BTreeMap<String
     out
 }
 
+/// Returns whether an artifact output is present for the given `generates` pattern.
+///
+/// This is used outside the templates module (for example, schema-aware validation) to
+/// reuse the same minimal glob semantics as schema artifact completion.
 pub(crate) fn artifact_present(change_dir: &Path, generates: &str) -> bool {
     artifact_done(change_dir, generates)
 }
