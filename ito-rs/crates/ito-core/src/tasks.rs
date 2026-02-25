@@ -57,13 +57,13 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
         .and_then(|a| a.tracks.as_deref())
         .unwrap_or("tasks.md");
 
-    let Some(path) = ito_domain::tasks::tracking_path_checked(ito_path, change_id, tracking_file)
-    else {
+    if !ito_domain::tasks::is_safe_tracking_filename(tracking_file) {
         return Err(CoreError::validation(format!(
             "Invalid tracking file path in apply.tracks: '{tracking_file}'"
         )));
-    };
-    Ok(path)
+    }
+
+    Ok(ito_path.join("changes").join(change_id).join(tracking_file))
 }
 
 fn tracking_file_label(path: &Path) -> &str {
