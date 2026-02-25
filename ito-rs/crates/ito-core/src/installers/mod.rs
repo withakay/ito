@@ -57,7 +57,22 @@ pub struct InitOptions {
 }
 
 impl InitOptions {
-    /// Create new init options for non-upgrade scenarios.
+    /// Constructs an `InitOptions` configured for a standard (non-upgrade) installation.
+    ///
+    /// The returned value has `upgrade` set to `false`. The `force` flag controls whether
+    /// existing files may be overwritten, and `update` enables update semantics that merge
+    /// managed marker blocks instead of unconditional replacement.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::BTreeSet;
+    /// let tools = BTreeSet::from(["claude".to_string()]);
+    /// let opts = InitOptions::new(tools, true, false);
+    /// assert!(!opts.upgrade);
+    /// assert!(opts.force);
+    /// assert!(!opts.update);
+    /// ```
     pub fn new(tools: BTreeSet<String>, force: bool, update: bool) -> Self {
         Self {
             tools,
@@ -67,11 +82,20 @@ impl InitOptions {
         }
     }
 
-    /// Create init options with explicit upgrade mode.
+    /// Constructs `InitOptions` configured for upgrade mode.
     ///
-    /// Upgrade mode implies update semantics: user-owned files are preserved,
-    /// and marker-managed files that are missing their Ito markers are left
-    /// unchanged with actionable guidance rather than returning an error.
+    /// In upgrade mode the options enable update semantics and preserve user-owned
+    /// files. The `force` flag is disabled and `update` and `upgrade` are enabled,
+    /// so marker-managed files missing Ito markers are left unchanged with guidance
+    /// rather than causing an error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::BTreeSet;
+    /// let opts = InitOptions::new_upgrade(BTreeSet::new());
+    /// assert!(opts.upgrade && opts.update && !opts.force);
+    /// ```
     pub fn new_upgrade(tools: BTreeSet<String>) -> Self {
         Self {
             tools,
@@ -81,11 +105,18 @@ impl InitOptions {
         }
     }
 
-    /// Set `upgrade` mode, which also enables `update` semantics.
+    /// Enable upgrade mode and its update semantics on this `InitOptions`.
     ///
-    /// This is the canonical way to enable upgrade mode after constructing
-    /// with [`InitOptions::new`]. Using this method ensures the `update`
-    /// invariant is always satisfied when `upgrade` is set.
+    /// When upgrade is enabled it implies `update = true`; this method sets both
+    /// fields and returns the modified `InitOptions`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let opts = InitOptions::new(std::collections::BTreeSet::new(), false, false)
+    ///     .with_upgrade();
+    /// assert!(opts.upgrade && opts.update);
+    /// ```
     pub fn with_upgrade(mut self) -> Self {
         self.upgrade = true;
         self.update = true;
@@ -339,6 +370,34 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
     FileOwnership::ItoManaged
 }
 
+/// Writes a rendered template to `target`, handling Ito-managed marker blocks, overwrite/update semantics,
+/// and ownership rules.
+///
+/// When the rendered template contains Ito start/end markers, this function treats the file as
+/// marker-managed: it will update only the managed block when the target exists (honoring `--force`,
+/// `--update`, and `--upgrade` semantics), or write the template verbatim when the target does not
+/// exist. For non-marker files, behavior depends on `mode`, `opts.force`, `opts.update`, and `ownership`:
+/// - On Init: `--force` overwrites; `--update` skips user-owned files; otherwise the function refuses
+///   to overwrite existing files without markers.
+/// - On Update: skips user-owned files; otherwise writes/overwrites the target.
+///
+/// Errors are returned for IO failures and for invalid marker states when an update is attempted
+/// (except when `opts.upgrade` is true, in which case a missing marker in an expected marker-managed
+/// file produces a warning and the existing file is preserved).
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::collections::BTreeSet;
+/// use std::path::Path;
+/// // Assume these types and the function are available from the crate:
+/// // crate::installers::{write_one, InstallMode, InitOptions, FileOwnership};
+///
+/// let opts = crate::installers::InitOptions::new(BTreeSet::new(), false, false);
+/// let target = Path::new("/tmp/example.txt");
+/// let bytes = b"example content";
+/// let _ = crate::installers::write_one(target, bytes, crate::installers::InstallMode::Init, &opts, crate::installers::FileOwnership::ItoManaged);
+/// ```
 fn write_one(
     target: &Path,
     rendered_bytes: &[u8],
@@ -740,7 +799,22 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Update the model field in YAML frontmatter string
+/// Replaces or inserts a `model` field in a YAML frontmatter string.
+///
+/// If a `model:` line exists (ignoring leading whitespace) it is replaced with `model: "<new_model>"`.
+/// If no `model:` line is present, a `model: "<new_model>"` line is appended. Other lines are preserved and the resulting YAML is returned.
+///
+/// # Examples
+///
+/// ```
+/// let src = "---\ntitle: Example\nmodel: \"old\"\n---\ncontent\n";
+/// let updated = update_model_in_yaml(src, "new-model");
+/// assert!(updated.contains("model: \"new-model\""));
+/// // When model is missing it is appended:
+/// let src2 = "---\ntitle: Example\n---\ncontent\n";
+/// let updated2 = update_model_in_yaml(src2, "new-model");
+/// assert!(updated2.contains("model: \"new-model\""));
+/// ```
 fn update_model_in_yaml(yaml: &str, new_model: &str) -> String {
     let mut lines: Vec<String> = yaml.lines().map(|l| l.to_string()).collect();
     let mut found = false;

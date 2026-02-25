@@ -959,8 +959,15 @@ fn init_update_renders_agents_md_without_raw_jinja2() {
 
 // ─── --upgrade flag tests ────────────────────────────────────────────────────
 
-/// Verifies that `ito init --upgrade` refreshes the managed block in AGENTS.md while
-/// preserving user-authored content outside the Ito markers.
+/// Verifies that running `ito init --upgrade` refreshes the ITO-managed block in AGENTS.md and preserves user-authored content outside the Ito markers.
+///
+/// The test performs an initial `ito init` to create AGENTS.md with managed markers, appends user content outside the managed block, runs `ito init --upgrade`, and asserts that the ITO markers are present and the user content remains.
+///
+/// # Examples
+///
+/// ```
+/// // Integration test; execute with `cargo test` (this function is a test case).
+/// ```
 #[test]
 fn init_upgrade_refreshes_marker_managed_block_and_preserves_user_content() {
     let base = fixtures::make_empty_repo();
