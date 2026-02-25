@@ -237,6 +237,7 @@ fn bundle_main_specs_markdown_includes_metadata_comments_and_excludes_deltas() {
     let beta_idx = md.find("<!-- spec-id: beta").unwrap();
     assert!(alpha_idx < beta_idx);
 }
+
 #[test]
 fn bundle_main_specs_show_json_returns_not_found_when_no_specs_exist() {
     let td = tempfile::tempdir().unwrap();
