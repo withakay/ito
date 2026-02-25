@@ -1,0 +1,46 @@
+name: event-driven
+version: 1
+description: Event-driven workflow from discovery to AsyncAPI-first planning
+artifacts:
+  - id: event-storming
+    generates: event-storming.md
+    description: Discovery of events, commands, actors, and boundaries
+    template: event-storming.md
+    requires: []
+  - id: event-modeling
+    generates: event-modeling.md
+    description: Flow modeling from triggers to read models
+    template: event-modeling.md
+    requires:
+      - event-storming
+  - id: specs
+    generates: specs/**/*.md
+    description: User-story specs with testable acceptance criteria
+    template: specs/spec.md
+    requires:
+      - event-modeling
+  - id: design
+    generates: design.md
+    description: Architecture and implementation decisions
+    template: design.md
+    requires:
+      - specs
+  - id: asyncapi
+    generates: asyncapi.yaml
+    description: AsyncAPI specification derived from prior artifacts
+    template: asyncapi.yaml
+    requires:
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist created after AsyncAPI is authored
+    template: tasks.md
+    requires:
+      - asyncapi
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, and mark them complete as you go.
+    If the workflow requires manual validation (for example AsyncAPI validation), do that before moving on.
