@@ -57,10 +57,7 @@ pub struct InitOptions {
 }
 
 impl InitOptions {
-    /// Create new init options.
-    ///
-    /// When `upgrade` is `true`, `update` is automatically set to `true` as well,
-    /// since upgrade semantics are a superset of update semantics.
+    /// Create new init options for non-upgrade scenarios.
     pub fn new(tools: BTreeSet<String>, force: bool, update: bool) -> Self {
         Self {
             tools,
