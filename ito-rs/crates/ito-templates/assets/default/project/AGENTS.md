@@ -105,6 +105,7 @@ Worktrees are not configured for this project.
 
 <!-- ITO:END -->
 
+<!-- ITO:INTERNAL:START -->
 ## Project Guidance
-
 (Add any project-specific assistant guidance here. Prefer `.ito/user-prompts/guidance.md` for shared instruction guidance and `.ito/user-prompts/<artifact>.md` for phase-specific guidance.)
+<!-- ITO:INTERNAL:END -->
