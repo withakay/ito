@@ -42,6 +42,14 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     Ok(path)
 }
 
+/// Resolve the canonical tracking file path for a change.
+///
+/// This uses the selected schema's `apply.tracks` when set, falling back to
+/// `tasks.md` when unset.
+pub fn tracking_file_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
+    checked_tasks_path(ito_path, change_id)
+}
+
 /// Resolve a user-supplied task identifier to a canonical parsed task id.
 ///
 /// For enhanced-format tasks, this returns the input id unchanged.
