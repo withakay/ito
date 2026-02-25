@@ -11,11 +11,11 @@
 - Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
 - Intention/Aim (意図): Often used in the context of plans, aims, or intent.
 
-Ito is a Change Driven development tool that brings together project-centric planning, design, specifications and tasks with an emphasis on **long-running, multi-agent tasks** to AI coding agents.
+Ito is a Change Driven development tool for your terminal that brings together project-centric planning, design, specifications and tasks with an emphasis on **long-running, multi-agent tasks** to AI coding agents.
 
 It's designed for the type of AI-assisted development where work spans multiple sessions, needs explicit verification criteria, and benefits from parallel subagents. The approach draws inspiration from software development best practices, Easy Approach to Requirements Syntax and RFCs adapted for the challenges of AI-assisted coding.
 
-Ito is not a project management tool, but rather a lightweight, flexible framework for structuring and orchestrating the work itself. It provides templates, conventions, and automation to help you plan, execute, and review changes in a way that tries to align with AI agents abilites. It tries to strike a balance between structure and flexibility, providing enough scaffolding to be useful without stiffling the ag.
+Ito is not a project management tool, but rather a lightweight, flexible framework for structuring and orchestrating the work itself. It provides templates, conventions, and automation to help you plan, execute, and review changes in a way that tries to align with AI agents abilites. It tries to strike a balance between structure and flexibility, providing enough scaffolding to be useful without stiffling the agent and will quite likely become irrelvant as LLMs become more capable and context-aware.
 
 ## What You Get
 
