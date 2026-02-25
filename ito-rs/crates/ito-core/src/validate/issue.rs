@@ -12,7 +12,7 @@
 //! let warn = with_loc(warning("path/to/file", "Check this"), 10, 5);
 //! ```
 
-use super::{ValidationIssue, ValidationLevel, LEVEL_ERROR, LEVEL_INFO, LEVEL_WARNING};
+use super::{LEVEL_ERROR, LEVEL_INFO, LEVEL_WARNING, ValidationIssue, ValidationLevel};
 
 /// Construct a [`ValidationIssue`] with a fixed `level`, `path`, and message.
 ///

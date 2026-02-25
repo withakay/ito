@@ -60,10 +60,11 @@ fn validate_change_requires_at_least_one_delta() {
 
     let r = validate_change(&change_repo, &ito, "001-01_demo", false).unwrap();
     assert!(!r.valid);
-    assert!(r
-        .issues
-        .iter()
-        .any(|i| i.message.contains("at least one delta")));
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("at least one delta"))
+    );
 }
 
 #[test]
@@ -92,10 +93,11 @@ ok
 
     let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
     assert!(!r.valid);
-    assert!(r
-        .issues
-        .iter()
-        .any(|i| i.message.contains("SHALL") || i.message.contains("MUST")));
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("SHALL") || i.message.contains("MUST"))
+    );
 }
 
 #[test]

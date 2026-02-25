@@ -23,7 +23,7 @@ After the tool succeeds, reply with exactly: noted
 ---
 ## 2026-02-25 07:21:21 UTC - One more check
 
-Okay, one more check. It's probably something that I could have said here, but I'm going to. 
+Okay, one more check. It's probably something that I could have said here, but I'm going to.
 
 If empty or whitespace-only, output exactly: no text
 If not empty, use the `note_append` tool and output exactly the tool result.
