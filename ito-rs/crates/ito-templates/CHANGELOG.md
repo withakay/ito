@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.10] - 2026-02-25
+
+### 🚀 Features
+
+- *(templates)* Add interview-first guidance to proposal workflow
+- *(templates)* Add github-copilot harness support to bootstrap
+- *(ito)* Add pending schema and instruction artifacts
+- *(019-03)* Add --upgrade flag to ito init for marker-scoped template refresh ([#102](https://github.com/withakay/ito/pull/102))
+
+### 🐛 Bug Fixes
+
+- *(templates)* Tighten commands, adapters, schemas, remove stale refs
+- *(019-02)* Hide internal guidance scaffolding from instruction output ([#93](https://github.com/withakay/ito/pull/93))
+- *(pr95)* Address review feedback on bootstrap and templates
+- Align templates exports and formatting for push checks
+- *(templates)* Harden apply instruction shell snippets
+
+### 💼 Other
+
+- Resolve PR #95 conflicts by merging main into dev
+
+### 🚜 Refactor
+
+- *(templates)* Deduplicate and tighten instruction templates
+- *(templates)* Remove generic skills, rename kept skills to ito- prefix
+- *(validate)* Sort imports and add format validation module
+- *(templates)* Remove generic skills, rename kept skills to ito- prefix
+
+### 📚 Documentation
+
+- *(commands)* Simplify ito command documentation across harnesses
+
+### 🎨 Styling
+
+- Apply cargo fmt import sorting to validate and template test files
+
+### ⚙️ Miscellaneous Tasks
+
+- Add rust-docs to toolchain and enable doc checks in CI
 ## [0.1.9] - 2026-02-23
 
 ## [0.1.8] - 2026-02-20
