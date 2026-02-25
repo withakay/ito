@@ -146,6 +146,77 @@ fn init_update_preserves_user_owned_files() {
     );
 }
 
+/// Verifies that `ito init --upgrade` replaces the managed block content while
+/// preserving user-authored content outside the Ito markers.
+///
+/// Uses a sentinel string injected inside the managed block to prove the block
+/// was actually refreshed (sentinel gone), not merely left intact.
+#[test]
+fn init_upgrade_refreshes_marker_managed_block_and_preserves_user_content() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    // First, do a normal init to install AGENTS.md with markers.
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "initial init failed: {}", out.stderr);
+
+    // Read the installed AGENTS.md and splice a sentinel into the managed block,
+    // then append user content after the closing marker.
+    let agents_content = std::fs::read_to_string(repo.path().join("AGENTS.md")).unwrap();
+    let agents_with_sentinel = agents_content.replace(
+        "<!-- ITO:START -->",
+        "<!-- ITO:START -->\nSENTINEL_MANAGED_BLOCK",
+    );
+    let updated_agents =
+        format!("{agents_with_sentinel}\n## My Team Section\nUser authored content here.\n");
+    fixtures::write(repo.path().join("AGENTS.md"), &updated_agents);
+
+    // Run init --upgrade — should replace the managed block (removing sentinel)
+    // and preserve user content outside the markers.
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--upgrade",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "init --upgrade failed: {}", out.stderr);
+
+    let agents = std::fs::read_to_string(repo.path().join("AGENTS.md")).unwrap();
+
+    assert!(
+        !agents.contains("SENTINEL_MANAGED_BLOCK"),
+        "managed block should be refreshed (sentinel removed) after --upgrade"
+    );
+    assert!(
+        agents.contains("My Team Section"),
+        "user content outside markers should be preserved after --upgrade"
+    );
+    assert!(
+        agents.contains("<!-- ITO:START -->"),
+        "managed markers should be present after --upgrade"
+    );
+}
+
 #[test]
 fn init_update_does_not_error_on_existing_agents_md_without_markers() {
     let base = fixtures::make_empty_repo();

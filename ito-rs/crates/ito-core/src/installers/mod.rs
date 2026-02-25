@@ -107,19 +107,21 @@ impl InitOptions {
 
     /// Enable upgrade mode and its update semantics on this `InitOptions`.
     ///
-    /// When upgrade is enabled it implies `update = true`; this method sets both
-    /// fields and returns the modified `InitOptions`.
+    /// When upgrade is enabled it implies `update = true` and `force = false`; this
+    /// method sets all three fields so that `force` cannot override the non-destructive
+    /// marker-scoped upgrade behavior.
     ///
     /// # Examples
     ///
     /// ```
     /// let opts = InitOptions::new(std::collections::BTreeSet::new(), false, false)
     ///     .with_upgrade();
-    /// assert!(opts.upgrade && opts.update);
+    /// assert!(opts.upgrade && opts.update && !opts.force);
     /// ```
     pub fn with_upgrade(mut self) -> Self {
         self.upgrade = true;
         self.update = true;
+        self.force = false;
         self
     }
 }
