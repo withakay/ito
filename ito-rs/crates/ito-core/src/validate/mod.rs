@@ -15,6 +15,8 @@ use serde::Serialize;
 use ito_common::paths;
 
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
+use crate::templates::{read_change_schema, resolve_schema, SchemaSource};
+use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
@@ -24,7 +26,7 @@ mod report;
 
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
-pub use report::{ReportBuilder, report};
+pub use report::{report, ReportBuilder};
 
 /// Severity level for a [`ValidationIssue`].
 pub type ValidationLevel = &'static str;
@@ -170,18 +172,47 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult
 /// Validate a change's delta specs by change id.
 pub fn validate_change(
     change_repo: &impl DomainChangeRepository,
+    ito_path: &Path,
     change_id: &str,
     strict: bool,
 ) -> CoreResult<ValidationReport> {
+    let mut rep = report(strict);
+
+    let schema_name = read_change_schema(ito_path, change_id);
+    let mut ctx = ConfigContext::from_process_env();
+    if ctx.project_dir.is_none() {
+        ctx.project_dir = ito_path.parent().map(|p| p.to_path_buf());
+    }
+    let resolved_schema = match resolve_schema(Some(&schema_name), &ctx) {
+        Ok(s) => {
+            rep.push(info(
+                "schema",
+                format!(
+                    "Resolved schema '{}' from {}",
+                    s.schema.name,
+                    s.source.as_str()
+                ),
+            ));
+            Some(s)
+        }
+        Err(e) => {
+            rep.push(error(
+                "schema",
+                format!("Failed to resolve schema '{schema_name}': {e}"),
+            ));
+            None
+        }
+    };
+
+    let _ = resolved_schema;
+
     let files = read_change_delta_spec_files(change_repo, change_id)?;
     if files.is_empty() {
-        let mut r = report(strict);
-        r.push(error("specs", "Change must have at least one delta"));
-        return Ok(r.finish());
+        rep.push(error("specs", "Change must have at least one delta"));
+        return Ok(rep.finish());
     }
 
     let show = parse_change_show_json(change_id, &files);
-    let mut rep = report(strict);
     if show.deltas.is_empty() {
         rep.push(error("specs", "Change must have at least one delta"));
         return Ok(rep.finish());
@@ -340,7 +371,7 @@ fn extract_section(markdown: &str, header: &str) -> String {
 
 /// Validate a change's tasks.md file and return any issues found.
 pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
-    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file, tasks_path};
+    use ito_domain::tasks::{parse_tasks_tracking_file, tasks_path, DiagnosticLevel};
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");

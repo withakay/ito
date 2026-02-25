@@ -1,24 +1,21 @@
-## ADDED Requirements
+# Spec: agent-instructions
 
-### Requirement: Lifecycle-stage workflow guidance
+## Purpose
 
-Agent instruction artifacts SHALL present proposal, execution, and review as a coherent staged workflow for change delivery.
+Extend the agent instruction dispatcher to handle the `review` instruction type as a special-cased handler, following the same pattern as `apply`, `bootstrap`, `project-setup`, and `new-proposal`.
 
-#### Scenario: Proposal stage includes research framing
+## MODIFIED Requirements
 
-- **WHEN** a user runs `ito agent instruction proposal --change <change-id>`
-- **THEN** the output SHALL include guidance for structured research inputs that improve proposal quality
-- **AND** it SHALL explain how research outcomes feed specs and design artifacts
+### Requirement: Instruction dispatcher supports standard instruction types
 
-#### Scenario: Apply stage includes structured execution guidance
+The instruction dispatcher SHALL support the following special-cased instruction types: `bootstrap`, `project-setup`, `new-proposal` (proposal without --change), `apply`, and `review`. Each type SHALL have its own handler and Jinja2 template. Unknown instruction types SHALL fall through to schema-based artifact resolution.
 
-- **WHEN** a user runs `ito agent instruction apply --change <change-id>`
-- **THEN** the output SHALL provide structured execution guidance equivalent in intent to legacy execute workflows
-- **AND** it SHALL direct progress tracking through `ito tasks` commands
-- **AND** it SHALL include checkpoints or pause guidance when human review is required
+#### Scenario: Review instruction dispatched
 
-#### Scenario: Review is represented as a first-class stage
+- **WHEN** an agent runs `ito agent instruction review --change <id>`
+- **THEN** the dispatcher SHALL route to the `review` handler, NOT to the generic artifact resolver
 
-- **WHEN** a user runs `ito agent instruction review --change <change-id>`
-- **THEN** the output SHALL position review as a stage in the proposal-to-archive lifecycle
-- **AND** it SHALL describe expected review inputs and outputs relative to proposal/specs/tasks artifacts
+#### Scenario: Review instruction requires change flag
+
+- **WHEN** an agent runs `ito agent instruction review` without `--change`
+- **THEN** the system SHALL return an error indicating that `--change` is required for review instructions
