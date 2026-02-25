@@ -1,4 +1,5 @@
 use ito_core::change_repository::FsChangeRepository;
+use ito_core::errors::CoreError;
 use ito_core::show::{
     bundle_main_specs_markdown, bundle_main_specs_show_json, load_delta_spec_file,
     parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files,
@@ -233,4 +234,36 @@ fn bundle_main_specs_markdown_includes_metadata_comments_and_excludes_deltas() {
     let alpha_idx = md.find("<!-- spec-id: alpha").unwrap();
     let beta_idx = md.find("<!-- spec-id: beta").unwrap();
     assert!(alpha_idx < beta_idx);
+}
+
+#[test]
+fn bundle_main_specs_show_json_returns_not_found_when_no_specs_exist() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    let err = bundle_main_specs_show_json(&ito).expect_err("should fail when no specs exist");
+    let CoreError::NotFound(msg) = err else {
+        panic!("expected not-found error, got: {err:?}");
+    };
+    assert!(
+        msg.contains("No specs found"),
+        "expected not-found message to mention no specs, got: {msg}"
+    );
+}
+
+#[test]
+fn bundle_main_specs_show_json_returns_io_error_when_spec_md_is_missing() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(ito.join("specs").join("orphan")).unwrap();
+
+    let err = bundle_main_specs_show_json(&ito).expect_err("should fail when spec.md missing");
+    let CoreError::Io { context, .. } = err else {
+        panic!("expected io error, got: {err:?}");
+    };
+    assert!(
+        context.contains("reading spec orphan"),
+        "expected context to mention orphan spec, got: {context}"
+    );
 }
