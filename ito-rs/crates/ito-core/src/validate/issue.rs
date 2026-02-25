@@ -13,8 +13,8 @@
 //! ```
 
 use super::{
-    format_specs::FormatSpecRef, ValidationIssue, ValidationLevel, LEVEL_ERROR, LEVEL_INFO,
-    LEVEL_WARNING,
+    LEVEL_ERROR, LEVEL_INFO, LEVEL_WARNING, ValidationIssue, ValidationLevel,
+    format_specs::FormatSpecRef,
 };
 
 /// Construct a [`ValidationIssue`] with a fixed `level`, `path`, and message.
