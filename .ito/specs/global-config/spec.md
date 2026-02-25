@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: global-config
+
+## Purpose
+
+Define the `global-config` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Worktree workspace defaults).
+
+## Requirements
 
 ### Requirement: Worktree workspace defaults
 

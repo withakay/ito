@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: rust-workspace
+
+## Purpose
+
+Define the `rust-workspace` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Adapter crates do not depend on each other).
+
+## Requirements
 
 ### Requirement: Adapter crates do not depend on each other
 

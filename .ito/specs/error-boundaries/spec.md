@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: error-boundaries
+
+## Purpose
+
+Define the `error-boundaries` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Domain errors are framework-agnostic).
+
+## Requirements
 
 ### Requirement: Domain errors are framework-agnostic
 

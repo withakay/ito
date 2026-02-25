@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-archive
+
+## Purpose
+
+Define the `cli-archive` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Batch Archive Completed Changes).
+
+## Requirements
 
 ### Requirement: Batch Archive Completed Changes
 

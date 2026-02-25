@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: change-coordination-branch
+
+## Purpose
+
+Define the `change-coordination-branch` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Coordination branch can be provisioned before first change creation).
+
+## Requirements
 
 ### Requirement: Coordination branch can be provisioned before first change creation
 

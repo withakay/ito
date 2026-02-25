@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: rust-cli-plumbing
+
+## Purpose
+
+Define the `rust-cli-plumbing` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: CLI command handlers live under commands).
+
+## Requirements
 
 ### Requirement: CLI command handlers live under commands
 

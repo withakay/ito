@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: distribution
+
+## Purpose
+
+Define the `distribution` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: CI/CD workflows use self-hosted runner group).
+
+## Requirements
 
 ### Requirement: CI/CD workflows use self-hosted runner group
 

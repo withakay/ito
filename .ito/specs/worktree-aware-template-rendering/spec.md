@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Spec: worktree-aware-template-rendering
+
+## Purpose
+
+Define the `worktree-aware-template-rendering` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: AGENTS.md rendered with worktree context).
+
+## Requirements
 
 ### Requirement: AGENTS.md rendered with worktree context
 
