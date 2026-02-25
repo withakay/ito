@@ -12,7 +12,10 @@
 //! let warn = with_loc(warning("path/to/file", "Check this"), 10, 5);
 //! ```
 
-use super::{LEVEL_ERROR, LEVEL_INFO, LEVEL_WARNING, ValidationIssue, ValidationLevel};
+use super::{
+    LEVEL_ERROR, LEVEL_INFO, LEVEL_WARNING, ValidationIssue, ValidationLevel,
+    format_specs::FormatSpecRef,
+};
 
 /// Construct a [`ValidationIssue`] with a fixed `level`, `path`, and message.
 ///
@@ -82,6 +85,37 @@ pub fn with_metadata(mut i: ValidationIssue, metadata: serde_json::Value) -> Val
     i
 }
 
+/// Attach a stable validator id and spec path reference.
+pub(crate) fn with_format_spec(mut i: ValidationIssue, spec: FormatSpecRef) -> ValidationIssue {
+    let mut obj = match i.metadata.take() {
+        Some(serde_json::Value::Object(map)) => map,
+        Some(other) => {
+            let mut map = serde_json::Map::new();
+            map.insert("original_metadata".to_string(), other);
+            map
+        }
+        None => serde_json::Map::new(),
+    };
+    obj.insert(
+        "validator_id".to_string(),
+        serde_json::Value::String(spec.validator_id.to_string()),
+    );
+    obj.insert(
+        "spec_path".to_string(),
+        serde_json::Value::String(spec.spec_path.to_string()),
+    );
+    i.metadata = Some(serde_json::Value::Object(obj));
+
+    if !i.message.contains(spec.validator_id) {
+        i.message = format!(
+            "{} (validator: {})",
+            i.message.trim_end(),
+            spec.validator_id
+        );
+    }
+    i
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,5 +158,35 @@ mod tests {
         let enriched = with_metadata(base, metadata.clone());
 
         assert_eq!(enriched.metadata, Some(metadata));
+    }
+
+    #[test]
+    fn format_spec_preserves_non_object_metadata() {
+        let base = with_metadata(
+            error("tasks.md", "bad"),
+            serde_json::Value::String("preexisting".to_string()),
+        );
+        let out = with_format_spec(base, super::super::format_specs::TASKS_TRACKING_V1);
+
+        let Some(meta) = out.metadata.as_ref().and_then(|m| m.as_object()) else {
+            panic!("expected metadata object");
+        };
+        assert_eq!(
+            meta.get("original_metadata").and_then(|v| v.as_str()),
+            Some("preexisting")
+        );
+        assert_eq!(
+            meta.get("validator_id").and_then(|v| v.as_str()),
+            Some("ito.tasks-tracking.v1")
+        );
+    }
+
+    #[test]
+    fn format_spec_is_idempotent_for_message_suffix() {
+        let base = error("specs", "no deltas");
+        let out1 = with_format_spec(base, super::super::format_specs::DELTA_SPECS_V1);
+        let out2 = with_format_spec(out1.clone(), super::super::format_specs::DELTA_SPECS_V1);
+        assert_eq!(out1.message, out2.message);
+        assert!(out2.message.contains("ito.delta-specs.v1"));
     }
 }
