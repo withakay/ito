@@ -87,13 +87,14 @@ pub fn with_metadata(mut i: ValidationIssue, metadata: serde_json::Value) -> Val
 
 /// Attach a stable validator id and spec path reference.
 pub(crate) fn with_format_spec(mut i: ValidationIssue, spec: FormatSpecRef) -> ValidationIssue {
-    let mut obj = serde_json::Map::new();
-    match i.metadata.take() {
-        Some(serde_json::Value::Object(map)) => obj = map,
+    let mut obj = match i.metadata.take() {
+        Some(serde_json::Value::Object(map)) => map,
         Some(other) => {
-            obj.insert("original_metadata".to_string(), other);
+            let mut map = serde_json::Map::new();
+            map.insert("original_metadata".to_string(), other);
+            map
         }
-        None => {}
+        None => serde_json::Map::new(),
     };
     obj.insert(
         "validator_id".to_string(),
