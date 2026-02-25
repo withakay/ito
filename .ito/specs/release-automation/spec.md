@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: release-automation
+
+## Purpose
+
+Define the `release-automation` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Release PR is created and maintained automatically).
+
+## Requirements
 
 ### Requirement: Release PR is created and maintained automatically
 

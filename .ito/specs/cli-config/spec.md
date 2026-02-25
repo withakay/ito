@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: cli-config
+
+## Purpose
+
+Define the `cli-config` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Configure worktree workspace defaults).
+
+## Requirements
 
 ### Requirement: Configure worktree workspace defaults
 

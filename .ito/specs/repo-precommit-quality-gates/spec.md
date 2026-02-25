@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: repo-precommit-quality-gates
+
+## Purpose
+
+Define the `repo-precommit-quality-gates` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Repo enforces Rust workspace coverage target).
+
+## Requirements
 
 ### Requirement: Repo enforces Rust workspace coverage target
 

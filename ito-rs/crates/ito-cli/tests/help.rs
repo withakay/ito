@@ -32,6 +32,29 @@ fn agent_instruction_help_shows_instruction_details() {
 }
 
 #[test]
+fn dash_h_help_matches_dash_dash_help() {
+    let out_short = assert_cmd::cargo::cargo_bin_cmd!("ito")
+        .args(["show", "-h"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let out_long = assert_cmd::cargo::cargo_bin_cmd!("ito")
+        .args(["show", "--help"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let short = String::from_utf8_lossy(&out_short).to_string();
+    let long = String::from_utf8_lossy(&out_long).to_string();
+    assert_eq!(short, long);
+}
+
+#[test]
 fn help_all_shows_complete_reference() {
     let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("ito");
     cmd.args(["help", "--all"])

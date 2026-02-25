@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 001-02_interactive-splitting. Update Purpose after archive.
+Define the `validator-warnings` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Validate delta count threshold).
 
 ## Requirements
 

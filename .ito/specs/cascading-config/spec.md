@@ -1,5 +1,3 @@
-## MODIFIED Requirements
-
 # Cascading Config Specification
 
 ## Purpose

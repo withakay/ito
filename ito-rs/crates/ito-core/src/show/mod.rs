@@ -62,6 +62,30 @@ pub struct SpecMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// JSON-serializable view of all main specs bundled together.
+pub struct SpecsBundleJson {
+    #[serde(rename = "specCount")]
+    /// Total number of bundled specs.
+    pub spec_count: u32,
+
+    /// Bundled specs, ordered by ascending spec id.
+    pub specs: Vec<BundledSpec>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One bundled spec entry (id + source path + raw markdown).
+pub struct BundledSpec {
+    /// Spec id (folder name under `.ito/specs/`).
+    pub id: String,
+
+    /// Absolute path to the source `.ito/specs/<id>/spec.md` file.
+    pub path: String,
+
+    /// Raw markdown contents of the spec.
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// JSON-serializable view of a change (proposal + deltas).
 pub struct ChangeShowJson {
     /// Change id (folder name under `.ito/changes/`).
@@ -138,6 +162,59 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
             format: "ito".to_string(),
         },
     }
+}
+
+/// Bundle all main specs under `.ito/specs/*/spec.md` into a JSON-friendly structure.
+pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJson> {
+    use crate::error_bridge::IntoCoreResult;
+    use ito_common::fs::StdFs;
+
+    let fs = StdFs;
+    let mut ids = ito_domain::discovery::list_spec_dir_names(&fs, ito_path).into_core()?;
+    ids.sort();
+
+    if ids.is_empty() {
+        return Err(CoreError::not_found(
+            "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
+        ));
+    }
+
+    let mut specs: Vec<BundledSpec> = Vec::new();
+    for id in ids {
+        let path = paths::spec_markdown_path(ito_path, &id);
+        let markdown = ito_common::io::read_to_string(&path)
+            .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))?;
+        specs.push(BundledSpec {
+            id,
+            path: path.to_string_lossy().to_string(),
+            markdown,
+        });
+    }
+
+    Ok(SpecsBundleJson {
+        spec_count: specs.len() as u32,
+        specs,
+    })
+}
+
+/// Bundle all main specs under `.ito/specs/*/spec.md` into a single markdown stream.
+///
+/// Each spec is preceded by a metadata comment line:
+/// `<!-- spec-id: <id>; source: <absolute-path-to-spec.md> -->`.
+pub fn bundle_main_specs_markdown(ito_path: &Path) -> CoreResult<String> {
+    let bundle = bundle_main_specs_show_json(ito_path)?;
+    let mut out = String::new();
+    for (i, spec) in bundle.specs.iter().enumerate() {
+        if i != 0 {
+            out.push_str("\n\n");
+        }
+        out.push_str(&format!(
+            "<!-- spec-id: {}; source: {} -->\n",
+            spec.id, spec.path
+        ));
+        out.push_str(&spec.markdown);
+    }
+    Ok(out)
 }
 
 /// Return all delta spec files for a change from the repository.

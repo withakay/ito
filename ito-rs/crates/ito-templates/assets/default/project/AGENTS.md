@@ -108,5 +108,24 @@ Worktrees are not configured for this project.
 
 <!-- ITO:INTERNAL:START -->
 ## Project Guidance
-(Add any project-specific assistant guidance here. Prefer `.ito/user-prompts/guidance.md` for shared instruction guidance and `.ito/user-prompts/<artifact>.md` for phase-specific guidance.)
+
+### Subagent Collaboration
+
+Subagents are first-class tools. Prefer delegating independent work to specialist subagents (often in parallel), then synthesize the results.
+
+Diversity is good: for non-trivial changes, get at least two independent review passes (for example: a Rust-focused reviewer plus a general diff reviewer).
+
+Commonly useful subagents:
+
+- `explore` - fast codebase navigation/search
+- `test-runner` - runs project tests/checks with curated output
+- `rust-quality-checker` - Rust style/idioms/conventions checks
+- `rust-code-reviewer` - Rust-focused review (safety/idioms/architecture)
+- `rust-test-engineer` - test strategy and coverage design
+- `codex-review` - diff review for correctness and edge cases
+- `documentation-police` - docs coverage/quality
+- `code-simplifier` - refactor for clarity and maintainability
+- `code-quality-squad` - parallel quality workflows
+- `perplexity-researcher` / `perplexity-researcher-pro` - web research with citations
+- `multi-agent` - explore multiple approaches and synthesize
 <!-- ITO:INTERNAL:END -->

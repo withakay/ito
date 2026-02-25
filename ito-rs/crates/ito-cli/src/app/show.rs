@@ -7,6 +7,19 @@ use ito_core::change_repository::FsChangeRepository;
 use ito_core::nearest_matches;
 use ito_core::show as core_show;
 
+fn handle_show_specs(rt: &Runtime, want_json: bool) -> CliResult<()> {
+    let ito_path = rt.ito_path();
+    if want_json {
+        let json = core_show::bundle_main_specs_show_json(ito_path).map_err(to_cli_error)?;
+        let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+        println!("{rendered}");
+    } else {
+        let md = core_show::bundle_main_specs_markdown(ito_path).map_err(to_cli_error)?;
+        print!("{md}");
+    }
+    Ok(())
+}
+
 pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
@@ -14,6 +27,12 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
             super::common::render_command_long_help(&["show"], "ito show")
         );
         return Ok(());
+    }
+
+    // Parse subcommand: `ito show specs`
+    if args.first().map(|s| s.as_str()) == Some("specs") {
+        let want_json = args.iter().any(|a| a == "--json");
+        return handle_show_specs(rt, want_json);
     }
 
     // Parse subcommand: `ito show module <id>`
@@ -46,10 +65,15 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
             // Interactive selection is not implemented yet.
         }
         return fail(
-            "Nothing to show. Try one of:\n  ito show <item>\n  ito show (for interactive selection)\nOr run in an interactive terminal.",
+            "Nothing to show. Try one of:\n  ito show <item>\n  ito show specs\n  ito show (for interactive selection)\nOr run in an interactive terminal.",
         );
     }
     let item = item.expect("checked");
+
+    // Back-compat: allow `ito show specs` to be treated as a positional item.
+    if item == "specs" {
+        return handle_show_specs(rt, want_json);
+    }
 
     let ito_path = rt.ito_path();
     let change_repo = FsChangeRepository::new(ito_path);
@@ -192,6 +216,13 @@ pub(crate) fn handle_show_clap(rt: &Runtime, args: &ShowArgs) -> CliResult<()> {
                 argv.push("--json".to_string());
             }
             argv.push(m.module_id.clone());
+            return handle_show(rt, &argv);
+        }
+        Some(ShowCommand::Specs(s)) => {
+            argv.push("specs".to_string());
+            if s.json {
+                argv.push("--json".to_string());
+            }
             return handle_show(rt, &argv);
         }
         None => {}

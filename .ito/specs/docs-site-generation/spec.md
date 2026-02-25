@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: docs-site-generation
+
+## Purpose
+
+Define the `docs-site-generation` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Documentation site is generated from code docstrings and curated docs pages).
+
+## Requirements
 
 ### Requirement: Documentation site is generated from code docstrings and curated docs pages
 The system SHALL generate a static documentation site that combines API reference content extracted from code docstrings with selected pages sourced from the repository `docs/` directory.

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: phase-specific-user-prompts
+
+## Purpose
+
+Define the `phase-specific-user-prompts` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Artifact-scoped user prompt files).
+
+## Requirements
 
 ### Requirement: Artifact-scoped user prompt files
 

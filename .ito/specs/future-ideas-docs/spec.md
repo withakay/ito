@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 000-02_consolidate-workflow-docs. Update Purpose after archive.
+Define the `future-ideas-docs` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Future Ideas Documentation).
 
 ## Requirements
 

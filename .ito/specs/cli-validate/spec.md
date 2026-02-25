@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-validate
+
+## Purpose
+
+Define the `cli-validate` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Schema-aware change validation).
+
+## Requirements
 
 ### Requirement: Schema-aware change validation
 

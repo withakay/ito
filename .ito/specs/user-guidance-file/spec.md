@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: user-guidance-file
+
+## Purpose
+
+Define the `user-guidance-file` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: User prompts directory).
+
+## Requirements
 
 ### Requirement: User prompts directory
 

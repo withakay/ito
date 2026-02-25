@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: cli-module
+
+## Purpose
+
+Define the `cli-module` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Verb-first module entrypoints).
+
+## Requirements
 
 ### Requirement: Verb-first module entrypoints
 

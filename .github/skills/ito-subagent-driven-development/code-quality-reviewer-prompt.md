@@ -6,15 +6,24 @@ Use this template when dispatching a code quality reviewer subagent.
 
 **Only dispatch after spec compliance review passes.**
 
-```
-Task tool (ito-code-reviewer):
-  Use template at requesting-code-review/code-reviewer.md
+## Reviewer Prompt
 
-  WHAT_WAS_IMPLEMENTED: [from implementer's report]
-  PLAN_OR_REQUIREMENTS: Task N from [plan-file]
-  BASE_SHA: [commit before task]
-  HEAD_SHA: [current commit]
-  DESCRIPTION: [task summary]
+```
+You are reviewing code for quality and maintainability.
+
+Context:
+- What was implemented: {WHAT_WAS_IMPLEMENTED}
+- Requirements: {PLAN_OR_REQUIREMENTS}
+- Diff range: {BASE_SHA}..{HEAD_SHA}
+
+Review the diff and report:
+
+1. **Strengths** — what's done well
+2. **Issues** — categorized as Critical / Important / Minor
+   - Critical: bugs, security, data loss risks
+   - Important: design problems, missing error handling, untested paths
+   - Minor: style, naming, small improvements
+3. **Assessment** — APPROVE, APPROVE_WITH_SUGGESTIONS, or REQUEST_CHANGES
 ```
 
-**Code reviewer returns:** Strengths, Issues (Critical/Important/Minor), Assessment
+**If REQUEST_CHANGES:** fix critical/important issues before proceeding.

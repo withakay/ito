@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: rust-artifact-workflow
+
+## Purpose
+
+Define the `rust-artifact-workflow` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: `create module` matches TS).
+
+## Requirements
 
 ### Requirement: `create module` matches TS
 

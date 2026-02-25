@@ -31,7 +31,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
 
     let mut argv: Vec<String> = Vec::with_capacity(args.len() + 1);
     argv.push("ito".to_string());
-    argv.extend(args.iter().cloned());
+    for a in args {
+        // Unify help output: clap prints a short help for `-h` by default.
+        // Rewrite `-h` to `--help` so `-h` and `--help` produce identical output.
+        if a == "-h" {
+            argv.push("--help".to_string());
+        } else {
+            argv.push(a.clone());
+        }
+    }
 
     let cli = match Cli::try_parse_from(argv) {
         Ok(v) => v,
