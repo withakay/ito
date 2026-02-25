@@ -16,8 +16,8 @@ use ito_common::paths;
 
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
 use crate::templates::{
-    ResolvedSchema, ValidationLevelYaml, ValidationYaml, ValidatorId, artifact_done,
-    load_schema_validation, read_change_schema, resolve_schema,
+    artifact_done, load_schema_validation, read_change_schema, resolve_schema, ResolvedSchema,
+    ValidationLevelYaml, ValidationYaml, ValidatorId,
 };
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
@@ -31,7 +31,7 @@ mod report;
 pub(crate) use issue::with_format_spec;
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
-pub use report::{ReportBuilder, report};
+pub use report::{report, ReportBuilder};
 
 /// Severity level for a [`ValidationIssue`].
 pub type ValidationLevel = &'static str;
@@ -536,7 +536,7 @@ fn validate_tasks_tracking_path(
     strict: bool,
 ) -> Vec<ValidationIssue> {
     use format_specs::TASKS_TRACKING_V1;
-    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file};
+    use ito_domain::tasks::{parse_tasks_tracking_file, DiagnosticLevel};
 
     let contents = match ito_common::io::read_to_string(path) {
         Ok(c) => c,
