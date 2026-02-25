@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::templates::{read_change_schema, resolve_schema};
+use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 
 // Re-export domain types and functions for CLI convenience
@@ -15,7 +17,7 @@ pub use ito_domain::tasks::{
     update_enhanced_task_status,
 };
 
-/// Computes and validated filesystem path to a change's tasks.md file.
+/// Computes and validates filesystem path to a change's tracking file.
 ///
 /// # Arguments
 ///
@@ -24,29 +26,69 @@ pub use ito_domain::tasks::{
 ///
 /// # Returns
 ///
-/// `PathBuf` pointing to the change's tasks.md on success. Returns `CoreError::validation` when `change_id` is an invalid path segment.
+/// `PathBuf` pointing to the change's tracking file on success. Returns `CoreError::validation` when inputs are unsafe.
 ///
 /// # Examples
 ///
 /// ```ignore
 /// use std::path::Path;
 /// let p = checked_tasks_path(Path::new("repo"), "1.1").unwrap();
-/// assert!(p.ends_with("tasks.md"));
+/// assert!(p.file_name().is_some());
 /// ```
 fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
-    let Some(path) = ito_domain::tasks::tasks_path_checked(ito_path, change_id) else {
+    if ito_domain::tasks::tasks_path_checked(ito_path, change_id).is_none() {
         return Err(CoreError::validation(format!(
             "invalid change id path segment: \"{change_id}\""
         )));
+    }
+
+    let schema_name = read_change_schema(ito_path, change_id);
+    let mut ctx = ConfigContext::from_process_env();
+    ctx.project_dir = ito_path.parent().map(|p| p.to_path_buf());
+
+    let resolved = resolve_schema(Some(&schema_name), &ctx).map_err(|e| {
+        CoreError::validation(format!("Failed to resolve schema '{schema_name}': {e}"))
+    })?;
+
+    let tracking_file = resolved
+        .schema
+        .apply
+        .as_ref()
+        .and_then(|a| a.tracks.as_deref())
+        .unwrap_or("tasks.md");
+
+    let Some(path) = ito_domain::tasks::tracking_path_checked(ito_path, change_id, tracking_file)
+    else {
+        return Err(CoreError::validation(format!(
+            "Invalid tracking file path in apply.tracks: '{tracking_file}'"
+        )));
     };
     Ok(path)
+}
+
+fn tracking_file_label(path: &Path) -> &str {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("tracking file")
+}
+
+/// Resolve the canonical tracking file path for a change.
+///
+/// This uses the selected schema's `apply.tracks` when set, falling back to
+/// `tasks.md` when unset.
+pub fn tracking_file_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
+    checked_tasks_path(ito_path, change_id)
 }
 
 /// Resolve a user-supplied task identifier to a canonical parsed task id.
 ///
 /// For enhanced-format tasks, this returns the input id unchanged.
 /// For checkbox-format tasks, this accepts either a canonical id or a 1-based numeric index.
-fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreResult<&'a str> {
+fn resolve_task_id<'a>(
+    parsed: &'a TasksParseResult,
+    task_id: &'a str,
+    file: &str,
+) -> CoreResult<&'a str> {
     if parsed.format != TasksFormat::Checkbox {
         return Ok(task_id);
     }
@@ -55,8 +97,7 @@ fn resolve_task_id<'a>(parsed: &'a TasksParseResult, task_id: &'a str) -> CoreRe
         return Ok(task_id);
     }
 
-    let not_found_err =
-        || CoreError::not_found(format!("Task \"{task_id}\" not found in tasks.md"));
+    let not_found_err = || CoreError::not_found(format!("Task \"{task_id}\" not found in {file}"));
 
     let Ok(idx) = task_id.parse::<usize>() else {
         return Err(not_found_err());
@@ -181,11 +222,11 @@ pub fn init_tasks(ito_path: &Path, change_id: &str) -> CoreResult<(PathBuf, bool
 
     if let Some(parent) = path.parent() {
         ito_common::io::create_dir_all_std(parent)
-            .map_err(|e| CoreError::io("create tasks.md parent directory", e))?;
+            .map_err(|e| CoreError::io("create tracking file parent directory", e))?;
     }
 
     ito_common::io::write_std(&path, contents.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io("write tracking file", e))?;
 
     Ok((path, false))
 }
@@ -197,8 +238,12 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
     let path = checked_tasks_path(ito_path, change_id)?;
 
     if !path.exists() {
+        let file = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("tracking file");
         return Err(CoreError::not_found(format!(
-            "No tasks.md found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
+            "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
         )));
     }
 
@@ -226,6 +271,8 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
 ///
 /// Returns None if all tasks are complete or if no tasks are ready.
 pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<TaskItem>> {
+    let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let status = get_task_status(ito_path, change_id)?;
 
     // Check for errors
@@ -234,7 +281,7 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
     // All complete?
@@ -294,6 +341,7 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
 /// ```
 pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -305,15 +353,15 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
-    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
+    let resolved_task_id = resolve_task_id(&parsed, task_id, file)?;
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
         return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
+            "Task \"{task_id}\" not found in {file}"
         )));
     };
 
@@ -346,9 +394,9 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
                 )));
             }
             TaskStatus::Shelved => {
-                return Err(CoreError::validation(
-                    "Checkbox-only tasks.md does not support shelving".to_string(),
-                ));
+                return Err(CoreError::validation(format!(
+                    "Checkbox-only {file} does not support shelving"
+                )));
             }
         }
 
@@ -356,7 +404,7 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
             update_checkbox_task_status(&contents, resolved_task_id, TaskStatus::InProgress)
                 .map_err(CoreError::validation)?;
         ito_common::io::write_std(&path, updated.as_bytes())
-            .map_err(|e| CoreError::io("write tasks.md", e))?;
+            .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
         let mut result = task.clone();
         result.status = TaskStatus::InProgress;
@@ -397,7 +445,7 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
         chrono::Local::now(),
     );
     ito_common::io::write_std(&path, updated.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
     let mut result = task.clone();
     result.status = TaskStatus::InProgress;
@@ -436,6 +484,7 @@ pub fn complete_task(
     _note: Option<String>,
 ) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -447,15 +496,15 @@ pub fn complete_task(
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
-    let resolved_task_id = resolve_task_id(&parsed, task_id)?;
+    let resolved_task_id = resolve_task_id(&parsed, task_id, file)?;
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
         return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
+            "Task \"{task_id}\" not found in {file}"
         )));
     };
 
@@ -472,7 +521,7 @@ pub fn complete_task(
     };
 
     ito_common::io::write_std(&path, updated.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
     let mut result = task.clone();
     result.status = TaskStatus::Complete;
@@ -489,15 +538,16 @@ pub fn shelve_task(
     _reason: Option<String>,
 ) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
     let parsed = parse_tasks_tracking_file(&contents);
 
     if parsed.format == TasksFormat::Checkbox {
-        return Err(CoreError::validation(
-            "Checkbox-only tasks.md does not support shelving",
-        ));
+        return Err(CoreError::validation(format!(
+            "Checkbox-only {file} does not support shelving"
+        )));
     }
 
     // Check for errors
@@ -506,13 +556,13 @@ pub fn shelve_task(
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
         return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
+            "Task \"{task_id}\" not found in {file}"
         )));
     };
 
@@ -530,7 +580,7 @@ pub fn shelve_task(
     );
 
     ito_common::io::write_std(&path, updated.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
     let mut result = task.clone();
     result.status = TaskStatus::Shelved;
@@ -542,15 +592,16 @@ pub fn shelve_task(
 /// Only supported for enhanced format. Validates preconditions and updates the tasks.md file.
 pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
     let parsed = parse_tasks_tracking_file(&contents);
 
     if parsed.format == TasksFormat::Checkbox {
-        return Err(CoreError::validation(
-            "Checkbox-only tasks.md does not support shelving",
-        ));
+        return Err(CoreError::validation(format!(
+            "Checkbox-only {file} does not support shelving"
+        )));
     }
 
     // Check for errors
@@ -559,13 +610,13 @@ pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreRes
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
     // Find the task
     let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
         return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in tasks.md"
+            "Task \"{task_id}\" not found in {file}"
         )));
     };
 
@@ -583,7 +634,7 @@ pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreRes
     );
 
     ito_common::io::write_std(&path, updated.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
     let mut result = task.clone();
     result.status = TaskStatus::Pending;
@@ -601,6 +652,7 @@ pub fn add_task(
 ) -> CoreResult<TaskItem> {
     let wave = wave.unwrap_or(1);
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -618,7 +670,7 @@ pub fn add_task(
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
     // Compute next task ID for this wave
@@ -664,7 +716,7 @@ pub fn add_task(
     }
 
     ito_common::io::write_std(&path, out.as_bytes())
-        .map_err(|e| CoreError::io("write tasks.md", e))?;
+        .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
     Ok(TaskItem {
         id: new_id,
@@ -687,6 +739,7 @@ pub fn add_task(
 /// Returns the full task details.
 pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
@@ -698,7 +751,7 @@ pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation("tasks.md contains errors"));
+        return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
     parsed
@@ -712,9 +765,10 @@ pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<
 /// Read the raw markdown contents of a change's tasks.md file.
 pub fn read_tasks_markdown(ito_path: &Path, change_id: &str) -> CoreResult<String> {
     let path = checked_tasks_path(ito_path, change_id)?;
+    let file = tracking_file_label(&path);
     ito_common::io::read_to_string(&path).map_err(|e| {
         CoreError::io(
-            format!("reading tasks.md for \"{change_id}\""),
+            format!("reading {file} for \"{change_id}\""),
             std::io::Error::other(e),
         )
     })

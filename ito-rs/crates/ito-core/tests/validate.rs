@@ -386,6 +386,250 @@ tracking:
 }
 
 #[test]
+fn validate_change_uses_apply_tracks_for_legacy_delta_schemas() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("spec-driven")
+            .join("schema.yaml"),
+        r#"
+name: spec-driven
+version: 1
+artifacts: []
+apply:
+  tracks: todo.md
+"#,
+    );
+
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("a")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: R
+The system SHALL do it.
+
+#### Scenario: S
+- **WHEN** ok
+- **THEN** ok
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join("todo.md"),
+        r#"
+## Wave 1
+
+### Task 1.1: First
+
+- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+
+### Task 1.1: Duplicate
+
+- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        !r.issues.iter().any(|i| i.path.contains("tasks.md")),
+        "apply.tracks should override legacy tasks.md validation, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.path == "changes/001-01_demo/todo.md"),
+        "expected validation to report issues against todo.md, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_change_rejects_unsafe_apply_tracks_for_schema_validation_tracking() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracks")
+            .join("schema.yaml"),
+        r#"
+name: tracks
+version: 1
+artifacts: []
+apply:
+  tracks: ../todo.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracks")
+            .join("validation.yaml"),
+        r#"
+version: 1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracks\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.path == "tracking" && i.message.contains("Invalid tracking file path")),
+        "expected unsafe apply.tracks to be rejected, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_change_rejects_unsafe_apply_tracks_for_legacy_delta_schemas() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("spec-driven")
+            .join("schema.yaml"),
+        r#"
+name: spec-driven
+version: 1
+artifacts: []
+apply:
+  tracks: dir/todo.md
+"#,
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("a")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: R
+The system SHALL do it.
+
+#### Scenario: S
+- **WHEN** ok
+- **THEN** ok
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.path == "tracking" && i.message.contains("Invalid tracking file path")),
+        "expected unsafe apply.tracks to be rejected, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn empty_tracking_file_is_warning_in_non_strict_and_error_in_strict() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("spec-driven")
+            .join("schema.yaml"),
+        r#"
+name: spec-driven
+version: 1
+artifacts: []
+"#,
+    );
+
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("a")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: R
+The system SHALL do it.
+
+#### Scenario: S
+- **WHEN** ok
+- **THEN** ok
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        "# just notes\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+
+    let non_strict = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    assert!(
+        non_strict
+            .issues
+            .iter()
+            .any(|i| i.path == "changes/001-01_demo/tasks.md" && i.level == "WARNING"),
+        "expected warning for empty tracking file, got issues: {:?}",
+        non_strict.issues
+    );
+
+    let strict = validate_change(&change_repo, &ito, change_id, true).unwrap();
+    assert!(
+        strict
+            .issues
+            .iter()
+            .any(|i| i.path == "changes/001-01_demo/tasks.md" && i.level == "ERROR"),
+        "expected error for empty tracking file in strict mode, got issues: {:?}",
+        strict.issues
+    );
+}
+
+#[test]
 fn validate_change_skips_optional_validator_when_artifact_is_missing() {
     let td = tempfile::tempdir().unwrap();
     let project_root = td.path();

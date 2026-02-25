@@ -3,11 +3,14 @@
 use std::path::Path;
 
 use ito_common::fs::{FileSystem, StdFs};
+use ito_config::ConfigContext;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::tasks::{
     TaskRepository as DomainTaskRepository, TasksParseResult, parse_tasks_tracking_file,
-    tasks_path_checked,
+    tracking_path_checked,
 };
+
+use crate::templates::{read_change_schema, resolve_schema};
 
 /// Filesystem-backed implementation of the domain `TaskRepository` port.
 pub struct FsTaskRepository<'a, F: FileSystem = StdFs> {
@@ -31,7 +34,19 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
 
 impl<F: FileSystem> DomainTaskRepository for FsTaskRepository<'_, F> {
     fn load_tasks(&self, change_id: &str) -> DomainResult<TasksParseResult> {
-        let Some(path) = tasks_path_checked(self.ito_path, change_id) else {
+        let schema_name = read_change_schema(self.ito_path, change_id);
+        let mut ctx = ConfigContext::from_process_env();
+        ctx.project_dir = self.ito_path.parent().map(|p| p.to_path_buf());
+
+        let mut tracking_file = "tasks.md".to_string();
+        if let Ok(resolved) = resolve_schema(Some(&schema_name), &ctx)
+            && let Some(apply) = resolved.schema.apply.as_ref()
+            && let Some(tracks) = apply.tracks.as_deref()
+        {
+            tracking_file = tracks.to_string();
+        }
+
+        let Some(path) = tracking_path_checked(self.ito_path, change_id, &tracking_file) else {
             return Ok(TasksParseResult::empty());
         };
         if !self.fs.is_file(&path) {
@@ -62,6 +77,42 @@ mod tests {
         let change_dir = ito_dir.join("changes").join(change_id);
         fs::create_dir_all(&change_dir).unwrap();
         fs::write(change_dir.join("tasks.md"), tasks_content).unwrap();
+    }
+
+    #[test]
+    fn load_tasks_uses_schema_apply_tracks_when_set() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let ito_path = root.join(".ito");
+        fs::create_dir_all(&ito_path).unwrap();
+
+        // Override the project schema to point tracking at todo.md.
+        let schema_dir = root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("spec-driven");
+        fs::create_dir_all(&schema_dir).unwrap();
+        fs::write(
+            schema_dir.join("schema.yaml"),
+            "name: spec-driven\nversion: 1\nartifacts: []\napply:\n  tracks: todo.md\n",
+        )
+        .unwrap();
+
+        let change_id = "001-03_tracks";
+        let change_dir = ito_path.join("changes").join(change_id);
+        fs::create_dir_all(&change_dir).unwrap();
+        fs::write(
+            change_dir.join("todo.md"),
+            "## Tasks\n- [x] one\n- [ ] two\n",
+        )
+        .unwrap();
+
+        let repo = TaskRepository::new(&ito_path);
+        let (completed, total) = repo.get_task_counts(change_id).unwrap();
+
+        assert_eq!(completed, 1);
+        assert_eq!(total, 2);
     }
 
     #[test]

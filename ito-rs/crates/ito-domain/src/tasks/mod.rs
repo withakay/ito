@@ -25,12 +25,16 @@ pub use compute::compute_ready_and_blocked;
 pub use parse::detect_tasks_format;
 /// Generate the enhanced `tasks.md` template for a change.
 pub use parse::enhanced_tasks_template;
+/// Returns true when a tracking filename is safe as a single path segment.
+pub use parse::is_safe_tracking_filename;
 /// Parse task tracking markdown into a normalized representation.
 pub use parse::parse_tasks_tracking_file;
 /// Build a tasks path with fallback behavior for invalid ids.
 pub use parse::tasks_path;
 /// Build a tasks path only when the change id is a safe path segment.
 pub use parse::tasks_path_checked;
+/// Build a tracking file path when change id + filename are safe.
+pub use parse::tracking_path_checked;
 /// Repository port for loading and querying task data.
 pub use repository::TaskRepository;
 /// Update checkbox-format task status markers.
