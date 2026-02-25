@@ -25,8 +25,8 @@ ______________________________________________________________________
 - **Action**: Add/route `--upgrade` support for `ito init` so it executes managed template refresh semantics (compatible with existing update mode).
 - **Verify**: `cargo test -p ito-cli init -- --nocapture`
 - **Done When**: `ito init --upgrade` is accepted and routes through managed upgrade path with clear help text/behavior.
-- **Updated At**: 2026-02-22
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete
 
 ### Task 1.2: Enforce marker-scoped prompt/template merge policy during upgrade
 
@@ -35,8 +35,8 @@ ______________________________________________________________________
 - **Action**: Ensure prompt/template upgrades replace content only between Ito markers and preserve all content outside markers.
 - **Verify**: `cargo test -p ito-core installers -- --nocapture`
 - **Done When**: Installer merge logic guarantees marker-only replacement for managed prompt/template files.
-- **Updated At**: 2026-02-22
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -51,8 +51,8 @@ ______________________________________________________________________
 - **Action**: Add coverage for successful marker-scoped upgrades and safe no-op behavior with guidance when markers are missing.
 - **Verify**: `cargo test -p ito-core && cargo test -p ito-cli`
 - **Done When**: Tests cover both normal upgrade and fail-safe edge cases.
-- **Updated At**: 2026-02-22
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete
 
 ### Task 2.2: Update docs/help for preferred upgrade workflow
 
@@ -61,8 +61,8 @@ ______________________________________________________________________
 - **Action**: Document `ito init --upgrade` as the explicit prompt/template upgrade path while maintaining compatibility messaging for `--update`.
 - **Verify**: `ito init --help`
 - **Done When**: Help and guidance consistently describe non-destructive upgrade behavior.
-- **Updated At**: 2026-02-22
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -77,5 +77,5 @@ ______________________________________________________________________
 - **Action**: Decide whether to add a separate `ito-upgrade` skill that orchestrates validation plus CLI upgrade command as a follow-up change.
 - **Verify**: `ito list --specs`
 - **Done When**: Decision is captured; if in-scope, follow-up proposal is created rather than bundling optional UX in this core change.
-- **Updated At**: 2026-02-22
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete

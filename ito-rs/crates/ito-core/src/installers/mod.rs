@@ -44,16 +44,55 @@ pub struct InitOptions {
     /// managed blocks updated. Adapter files, skills, and commands are
     /// overwritten as usual.
     pub update: bool,
+    /// When `true`, perform a marker-scoped upgrade of prompt/template assets.
+    ///
+    /// Only content between `<!-- ITO:START -->` and `<!-- ITO:END -->` markers
+    /// is replaced from the embedded templates. All content outside the managed
+    /// block is preserved exactly. When a marker-managed file is found to be
+    /// missing valid Ito markers the file is left unchanged and actionable
+    /// guidance is emitted rather than returning an error.
+    ///
+    /// `upgrade` implies `update` semantics (user-owned files are preserved).
+    pub upgrade: bool,
 }
 
 impl InitOptions {
     /// Create new init options.
+    ///
+    /// When `upgrade` is `true`, `update` is automatically set to `true` as well,
+    /// since upgrade semantics are a superset of update semantics.
     pub fn new(tools: BTreeSet<String>, force: bool, update: bool) -> Self {
         Self {
             tools,
             force,
             update,
+            upgrade: false,
         }
+    }
+
+    /// Create init options with explicit upgrade mode.
+    ///
+    /// Upgrade mode implies update semantics: user-owned files are preserved,
+    /// and marker-managed files that are missing their Ito markers are left
+    /// unchanged with actionable guidance rather than returning an error.
+    pub fn new_upgrade(tools: BTreeSet<String>) -> Self {
+        Self {
+            tools,
+            force: false,
+            update: true,
+            upgrade: true,
+        }
+    }
+
+    /// Set `upgrade` mode, which also enables `update` semantics.
+    ///
+    /// This is the canonical way to enable upgrade mode after constructing
+    /// with [`InitOptions::new`]. Using this method ensures the `update`
+    /// invariant is always satisfied when `upgrade` is set.
+    pub fn with_upgrade(mut self) -> Self {
+        self.upgrade = true;
+        self.update = true;
+        self
     }
 }
 
@@ -320,24 +359,49 @@ fn write_one(
         && let Some(block) = ito_templates::extract_managed_block(text)
     {
         if target.exists() {
+            // --force always overwrites the file wholesale on init.
             if mode == InstallMode::Init && opts.force {
                 ito_common::io::write_std(target, rendered_bytes)
                     .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
                 return Ok(());
             }
 
-            if mode == InstallMode::Init && !opts.force && !opts.update {
-                // If the file exists but doesn't contain Ito markers, mimic TS init behavior:
-                // refuse to overwrite without --force or --update.
-                let existing = ito_common::io::read_to_string_or_default(target);
-                let has_start = existing.contains(ito_templates::ITO_START_MARKER);
-                let has_end = existing.contains(ito_templates::ITO_END_MARKER);
-                if !(has_start && has_end) {
+            // Read the existing file once and check for both Ito markers.
+            let existing = ito_common::io::read_to_string_or_default(target);
+            let has_markers = existing.contains(ito_templates::ITO_START_MARKER)
+                && existing.contains(ito_templates::ITO_END_MARKER);
+
+            if !has_markers {
+                if opts.upgrade {
+                    // Upgrade fail-safe: when a file is expected to be marker-managed but no
+                    // longer contains valid Ito markers, preserve the file unchanged and emit
+                    // actionable guidance rather than returning an error.
+                    eprintln!(
+                        "warning: skipping upgrade of {} — Ito markers not found.\n\
+                        To restore managed upgrade support, re-add the markers manually:\n\
+                        \n\
+                        {start}\n\
+                        <ito-managed content>\n\
+                        {end}\n\
+                        \n\
+                        Then re-run `ito init --upgrade`.",
+                        target.display(),
+                        start = ito_templates::ITO_START_MARKER,
+                        end = ito_templates::ITO_END_MARKER,
+                    );
+                    return Ok(());
+                }
+
+                if mode == InstallMode::Init && !opts.update {
+                    // Plain init: refuse to overwrite without --force or --update.
                     return Err(CoreError::Validation(format!(
                         "Refusing to overwrite existing file without markers: {} (re-run with --force)",
                         target.display()
                     )));
                 }
+
+                // update mode (no upgrade): fall through to update_file_with_markers,
+                // which will produce a proper error on malformed marker state.
             }
 
             update_file_with_markers(
@@ -700,6 +764,9 @@ fn update_model_in_yaml(yaml: &str, new_model: &str) -> String {
 }
 
 #[cfg(test)]
+mod json_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -980,207 +1047,5 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.to_string().contains("Failed to update markers"));
-    }
-
-    #[test]
-    fn merge_json_objects_keeps_existing_and_adds_template_keys() {
-        let mut existing = serde_json::json!({
-            "permissions": {
-                "allow": ["Bash(ls)"]
-            },
-            "hooks": {
-                "SessionStart": [
-                    {
-                        "matcher": "*"
-                    }
-                ]
-            }
-        });
-        let template = serde_json::json!({
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": "Bash|Edit|Write",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "bash .claude/hooks/ito-audit.sh"
-                            }
-                        ]
-                    }
-                ]
-            }
-        });
-
-        merge_json_objects(&mut existing, &template);
-
-        assert_eq!(
-            existing
-                .pointer("/permissions/allow/0")
-                .and_then(Value::as_str),
-            Some("Bash(ls)")
-        );
-        assert!(existing.pointer("/hooks/SessionStart/0/matcher").is_some());
-        assert!(
-            existing
-                .pointer("/hooks/PreToolUse/0/hooks/0/command")
-                .is_some()
-        );
-    }
-
-    #[test]
-    fn classify_project_file_ownership_handles_user_owned_paths() {
-        let ito_dir = ".ito";
-
-        assert_eq!(
-            classify_project_file_ownership(".ito/project.md", ito_dir),
-            FileOwnership::UserOwned
-        );
-        assert_eq!(
-            classify_project_file_ownership(".ito/config.json", ito_dir),
-            FileOwnership::UserOwned
-        );
-        assert_eq!(
-            classify_project_file_ownership(".ito/user-guidance.md", ito_dir),
-            FileOwnership::UserOwned
-        );
-        assert_eq!(
-            classify_project_file_ownership(".ito/user-prompts/tasks.md", ito_dir),
-            FileOwnership::UserOwned
-        );
-        assert_eq!(
-            classify_project_file_ownership(".ito/commands/review-edge.md", ito_dir),
-            FileOwnership::ItoManaged
-        );
-    }
-
-    #[test]
-    fn write_claude_settings_merges_existing_file_on_update() {
-        let td = tempfile::tempdir().unwrap();
-        let target = td.path().join(".claude/settings.json");
-        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
-        std::fs::write(
-            &target,
-            "{\n  \"permissions\": {\n    \"allow\": [\"Bash(ls)\"]\n  }\n}\n",
-        )
-        .unwrap();
-
-        let template = br#"{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/ito-audit.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-"#;
-
-        let opts = InitOptions::new(BTreeSet::new(), false, true);
-        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
-
-        let updated = std::fs::read_to_string(&target).unwrap();
-        let value: Value = serde_json::from_str(&updated).unwrap();
-        assert!(value.pointer("/permissions/allow").is_some());
-        assert!(
-            value
-                .pointer("/hooks/PreToolUse/0/hooks/0/command")
-                .is_some()
-        );
-    }
-
-    #[test]
-    fn merge_json_objects_appends_and_deduplicates_array_entries() {
-        let mut existing = serde_json::json!({
-            "permissions": {
-                "allow": ["Bash(ls)"]
-            },
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": "Bash",
-                        "hooks": [{"type": "command", "command": "echo existing"}]
-                    }
-                ]
-            }
-        });
-        let template = serde_json::json!({
-            "permissions": {
-                "allow": ["Bash(ls)", "Bash(git status)"]
-            },
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": "Bash",
-                        "hooks": [{"type": "command", "command": "echo existing"}]
-                    },
-                    {
-                        "matcher": "Edit|Write",
-                        "hooks": [{"type": "command", "command": "echo template"}]
-                    }
-                ]
-            }
-        });
-
-        merge_json_objects(&mut existing, &template);
-
-        let permissions = existing
-            .pointer("/permissions/allow")
-            .and_then(Value::as_array)
-            .expect("permissions allow should remain an array");
-        assert_eq!(permissions.len(), 2);
-        assert_eq!(permissions[0].as_str(), Some("Bash(ls)"));
-        assert_eq!(permissions[1].as_str(), Some("Bash(git status)"));
-
-        let hooks = existing
-            .pointer("/hooks/PreToolUse")
-            .and_then(Value::as_array)
-            .expect("PreToolUse should remain an array");
-        assert_eq!(hooks.len(), 2);
-        assert_eq!(
-            hooks[0].pointer("/hooks/0/command").and_then(Value::as_str),
-            Some("echo existing")
-        );
-        assert_eq!(
-            hooks[1].pointer("/hooks/0/command").and_then(Value::as_str),
-            Some("echo template")
-        );
-    }
-
-    #[test]
-    fn write_claude_settings_preserves_invalid_json_on_update() {
-        let td = tempfile::tempdir().unwrap();
-        let target = td.path().join(".claude/settings.json");
-        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
-        std::fs::write(&target, "not-json\n").unwrap();
-
-        let template = br#"{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/ito-audit.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-"#;
-
-        let opts = InitOptions::new(BTreeSet::new(), false, true);
-        write_claude_settings(&target, template, InstallMode::Update, &opts).unwrap();
-
-        let updated = std::fs::read_to_string(&target).unwrap();
-        assert_eq!(updated, "not-json\n");
     }
 }

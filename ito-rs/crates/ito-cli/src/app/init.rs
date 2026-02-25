@@ -42,6 +42,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
+    let upgrade = args.iter().any(|a| a == "--upgrade");
+    // --update activates non-destructive update semantics; --upgrade implies update semantics.
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let tools_arg = parse_string_flag(args, "--tools");
@@ -180,7 +182,11 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         resolve_worktree_config(ctx, target_path, is_interactive)?;
     let worktree_ctx = worktree_template_context(&worktree_result, target_path, ctx);
 
-    let opts = InitOptions::new(tools, force, update);
+    let opts = if upgrade {
+        InitOptions::new_upgrade(tools)
+    } else {
+        InitOptions::new(tools, force, update)
+    };
     install_default_templates(
         target_path,
         ctx,
@@ -268,8 +274,8 @@ Learn more: ito --help | ito agent instruction --help
 /// Convert parsed `InitArgs` into CLI-style argv, optionally override `HOME`, and run the init flow.
 ///
 /// If `args.home` is provided, the `HOME` environment variable is set to that value. The function
-/// translates the present `tools`, `force`, `update`, `setup_coordination_branch`, and `path` fields
-/// into their corresponding CLI flags and arguments, then delegates to `handle_init`.
+/// translates the present `tools`, `force`, `update`, `upgrade`, `setup_coordination_branch`, and
+/// `path` fields into their corresponding CLI flags and arguments, then delegates to `handle_init`.
 ///
 /// # Examples
 ///
@@ -280,8 +286,9 @@ Learn more: ito --help | ito agent instruction --help
 /// let args = InitArgs {
 ///     home: None,
 ///     tools: Some("all".to_string()),
-///     force: true,
+///     force: false,
 ///     update: false,
+///     upgrade: true,
 ///     setup_coordination_branch: false,
 ///     path: Some(".".to_string()),
 /// };
@@ -309,6 +316,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.update {
         argv.push("--update".to_string());
+    }
+    if args.upgrade {
+        argv.push("--upgrade".to_string());
     }
     if args.setup_coordination_branch {
         argv.push("--setup-coordination-branch".to_string());

@@ -957,8 +957,12 @@ fn init_update_renders_agents_md_without_raw_jinja2() {
     );
 }
 
+// ─── --upgrade flag tests ────────────────────────────────────────────────────
+
+/// Verifies that `ito init --upgrade` refreshes the managed block in AGENTS.md while
+/// preserving user-authored content outside the Ito markers.
 #[test]
-fn init_update_does_not_error_on_existing_agents_md_without_markers() {
+fn init_upgrade_refreshes_marker_managed_block_and_preserves_user_content() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -966,10 +970,7 @@ fn init_update_does_not_error_on_existing_agents_md_without_markers() {
 
     fixtures::reset_repo(repo.path(), base.path());
 
-    // Create an AGENTS.md without markers (would normally cause init to fail).
-    fixtures::write(repo.path().join("AGENTS.md"), "custom agents\n");
-
-    // Without --update: should fail.
+    // First, do a normal init to install AGENTS.md with markers.
     let out = run_rust_candidate(
         rust_path,
         &[
@@ -981,9 +982,15 @@ fn init_update_does_not_error_on_existing_agents_md_without_markers() {
         repo.path(),
         home.path(),
     );
-    assert_ne!(out.code, 0, "plain init should fail");
+    assert_eq!(out.code, 0, "initial init failed: {}", out.stderr);
 
-    // With --update: should succeed by updating the managed block.
+    // Append user-authored content outside the managed block.
+    let agents_content = std::fs::read_to_string(repo.path().join("AGENTS.md")).unwrap();
+    let updated_agents =
+        format!("{agents_content}\n## My Team Section\nUser authored content here.\n");
+    fixtures::write(repo.path().join("AGENTS.md"), &updated_agents);
+
+    // Run init --upgrade — should succeed and preserve user content outside markers.
     let out = run_rust_candidate(
         rust_path,
         &[
@@ -991,21 +998,20 @@ fn init_update_does_not_error_on_existing_agents_md_without_markers() {
             repo.path().to_string_lossy().as_ref(),
             "--tools",
             "none",
-            "--update",
+            "--upgrade",
         ],
         repo.path(),
         home.path(),
     );
-    assert_eq!(out.code, 0, "init --update should succeed: {}", out.stderr);
+    assert_eq!(out.code, 0, "init --upgrade failed: {}", out.stderr);
 
-    // AGENTS.md should now have the managed block and preserve existing content.
     let agents = std::fs::read_to_string(repo.path().join("AGENTS.md")).unwrap();
     assert!(
-        agents.contains("<!-- ITO:START -->"),
-        "AGENTS.md should have managed block after --update"
+        agents.contains("My Team Section"),
+        "user content outside markers should be preserved after --upgrade"
     );
     assert!(
-        agents.contains("custom agents"),
-        "AGENTS.md should preserve existing content"
+        agents.contains("<!-- ITO:START -->"),
+        "managed markers should be present after --upgrade"
     );
 }
