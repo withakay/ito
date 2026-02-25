@@ -414,6 +414,7 @@ pub struct ApplyYaml {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 /// Schema validation configuration (`validation.yaml`).
 pub struct ValidationYaml {
     /// Validation schema version.
@@ -430,6 +431,7 @@ pub struct ValidationYaml {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 /// Default validation rules.
 pub struct ValidationDefaultsYaml {
     #[serde(default)]
@@ -447,7 +449,29 @@ pub enum ValidationLevelYaml {
     Error,
 }
 
+impl ValidationLevelYaml {
+    /// Converts the enum to the corresponding validation level string slice.
+    pub fn as_level_str(self) -> crate::validate::ValidationLevel {
+        use crate::validate::{LEVEL_ERROR, LEVEL_WARNING};
+        match self {
+            ValidationLevelYaml::Warning => LEVEL_WARNING,
+            ValidationLevelYaml::Error => LEVEL_ERROR,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Known validator identifiers.
+pub enum ValidatorId {
+    #[serde(rename = "ito.delta-specs.v1")]
+    /// Ito delta spec markdown validation.
+    DeltaSpecsV1,
+    #[serde(rename = "ito.tasks-tracking.v1")]
+    /// Ito task tracking file validation.
+    TasksTrackingV1,
+}
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 /// Validation rules for one schema artifact.
 pub struct ValidationArtifactYaml {
     #[serde(default)]
@@ -455,10 +479,11 @@ pub struct ValidationArtifactYaml {
     pub required: bool,
     #[serde(default)]
     /// Validator identifier (for example `ito.delta-specs.v1`).
-    pub validate_as: Option<String>,
+    pub validate_as: Option<ValidatorId>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 /// Validation rules for a tracking file.
 pub struct ValidationTrackingYaml {
     /// Tracking file source.
@@ -467,7 +492,7 @@ pub struct ValidationTrackingYaml {
     /// Whether the tracking file is required for validity.
     pub required: bool,
     /// Validator identifier to apply to the tracking file.
-    pub validate_as: String,
+    pub validate_as: ValidatorId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -480,7 +505,7 @@ pub enum ValidationTrackingSourceYaml {
 
 #[cfg(test)]
 mod tests {
-    use super::{SchemaSource, ValidationTrackingSourceYaml};
+    use super::{SchemaSource, ValidationTrackingSourceYaml, ValidatorId};
 
     #[test]
     fn schema_source_as_str_returns_expected_labels() {
@@ -509,16 +534,13 @@ tracking:
         assert_eq!(parsed.artifacts.len(), 1);
         assert!(parsed.artifacts.get("specs").expect("specs").required);
         assert_eq!(
-            parsed
-                .artifacts
-                .get("specs")
-                .and_then(|a| a.validate_as.as_deref()),
-            Some("ito.delta-specs.v1")
+            parsed.artifacts.get("specs").and_then(|a| a.validate_as),
+            Some(ValidatorId::DeltaSpecsV1)
         );
 
         let tracking = parsed.tracking.expect("tracking");
         assert_eq!(tracking.source, ValidationTrackingSourceYaml::ApplyTracks);
         assert!(tracking.required);
-        assert_eq!(tracking.validate_as, "ito.tasks-tracking.v1");
+        assert_eq!(tracking.validate_as, ValidatorId::TasksTrackingV1);
     }
 }

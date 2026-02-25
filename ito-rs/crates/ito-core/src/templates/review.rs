@@ -53,34 +53,34 @@ pub fn compute_review_context(
         });
     }
 
-    let (validation_passed, validation_issues) = match validate_change(&change_repo, change, false)
-    {
-        Ok(report) => {
-            let mut issues = Vec::new();
-            for issue in report.issues {
-                issues.push(ReviewValidationIssueInfo {
-                    level: issue.level,
-                    path: issue.path,
-                    message: issue.message,
-                    line: issue.line,
-                    column: issue.column,
-                });
+    let (validation_passed, validation_issues) =
+        match validate_change(&change_repo, ito_path, change, false) {
+            Ok(report) => {
+                let mut issues = Vec::new();
+                for issue in report.issues {
+                    issues.push(ReviewValidationIssueInfo {
+                        level: issue.level,
+                        path: issue.path,
+                        message: issue.message,
+                        line: issue.line,
+                        column: issue.column,
+                    });
+                }
+                (report.valid, issues)
             }
-            (report.valid, issues)
-        }
-        Err(err) => (
-            false,
-            vec![ReviewValidationIssueInfo {
-                level: "error".to_string(),
-                path: paths::change_dir(ito_path, change)
-                    .to_string_lossy()
-                    .to_string(),
-                message: err.to_string(),
-                line: None,
-                column: None,
-            }],
-        ),
-    };
+            Err(err) => (
+                false,
+                vec![ReviewValidationIssueInfo {
+                    level: "error".to_string(),
+                    path: paths::change_dir(ito_path, change)
+                        .to_string_lossy()
+                        .to_string(),
+                    message: err.to_string(),
+                    line: None,
+                    column: None,
+                }],
+            ),
+        };
 
     let wave_count = {
         let distinct_waves: BTreeSet<u32> = change_data
