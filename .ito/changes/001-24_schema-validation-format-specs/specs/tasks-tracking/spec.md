@@ -37,7 +37,8 @@ In enhanced encoding:
 
 - Waves SHOULD be declared using headings of the form `## Wave <N>`.
 - Tasks SHOULD be declared using headings of the form `### Task <id>: <name>`.
-- Tasks MAY declare dependencies and status using bold-key metadata lines (e.g., `- **Dependencies**: ...`, `- **Status**: ...`).
+- Tasks MAY declare dependencies using bold-key metadata lines (e.g., `- **Dependencies**: ...`).
+- Task status and updated-at requirements are defined normatively below.
 
 #### Scenario: Enhanced tasks file is considered tracking
 
