@@ -91,11 +91,12 @@ fn init_upgrade_flag_is_accepted() {
     assert!(repo.path().join("AGENTS.md").exists());
 }
 
-/// Verifies that `ito init --update` still behaves as an alias for upgrade mode.
-/// Both flags should produce the same outcome: update managed files while
-/// preserving user-owned files.
+/// Verifies that `ito init --update` preserves user-owned files.
+///
+/// This is part of the non-destructive update semantics that both `--update` and
+/// `--upgrade` share for user-owned content.
 #[test]
-fn init_update_is_compatible_with_upgrade_behavior() {
+fn init_update_preserves_user_owned_files() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
