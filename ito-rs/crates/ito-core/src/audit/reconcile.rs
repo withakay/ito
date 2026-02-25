@@ -7,7 +7,7 @@ use ito_domain::audit::context::resolve_context;
 use ito_domain::audit::materialize::{EntityKey, materialize_state};
 use ito_domain::audit::reconcile::{Drift, FileState, compute_drift, generate_compensating_events};
 use ito_domain::audit::writer::AuditWriter;
-use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file, tasks_path};
+use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file};
 
 use super::reader::read_audit_events;
 use super::writer::FsAuditWriter;
@@ -23,11 +23,13 @@ pub struct ReconcileReport {
     pub scoped_to: String,
 }
 
-/// Build file state from tasks.md for a specific change.
+/// Build file state from a change's tracking file for a specific change.
 ///
 /// Reads the tasks file and produces a `FileState` map of task statuses.
 pub fn build_file_state(ito_path: &Path, change_id: &str) -> FileState {
-    let path = tasks_path(ito_path, change_id);
+    let Ok(path) = crate::tasks::tracking_file_path(ito_path, change_id) else {
+        return FileState::new();
+    };
     let Ok(contents) = ito_common::io::read_to_string_std(&path) else {
         return FileState::new();
     };
@@ -175,14 +177,34 @@ mod tests {
         }
     }
 
-    fn write_tasks(root: &Path, change_id: &str, content: &str) {
+    fn write_tasks_file(root: &Path, change_id: &str, file: &str, content: &str) {
         let path = root.join(".ito/changes").join(change_id);
         std::fs::create_dir_all(&path).expect("create dirs");
-        std::fs::write(path.join("tasks.md"), content).expect("write tasks");
+        std::fs::write(path.join(file), content).expect("write tasks");
+    }
+
+    fn write_tasks(root: &Path, change_id: &str, content: &str) {
+        write_tasks_file(root, change_id, "tasks.md", content);
+    }
+
+    fn write_schema_apply_tracks(root: &Path, tracking_file: &str) {
+        let schema_dir = root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("spec-driven");
+        std::fs::create_dir_all(&schema_dir).expect("schema dirs");
+        std::fs::write(
+            schema_dir.join("schema.yaml"),
+            format!(
+                "name: spec-driven\nversion: 1\nartifacts: []\napply:\n  tracks: {tracking_file}\n"
+            ),
+        )
+        .expect("write schema.yaml");
     }
 
     #[test]
-    fn build_file_state_from_tasks_md() {
+    fn build_file_state_from_default_tasks_md() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let ito_path = tmp.path().join(".ito");
 
@@ -201,6 +223,35 @@ mod tests {
             scope: Some("test-change".to_string()),
         };
         assert_eq!(state.get(&key1), Some(&"complete".to_string()));
+    }
+
+    #[test]
+    fn build_file_state_uses_apply_tracks_when_set() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let ito_path = tmp.path().join(".ito");
+
+        write_schema_apply_tracks(tmp.path(), "todo.md");
+        write_tasks_file(
+            tmp.path(),
+            "test-change",
+            "todo.md",
+            "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
+        );
+        std::fs::write(
+            tmp.path().join(".ito/changes/test-change/.ito.yaml"),
+            "schema: spec-driven\n",
+        )
+        .expect("write .ito.yaml");
+
+        let state = build_file_state(&ito_path, "test-change");
+        assert_eq!(state.len(), 1);
+
+        let key = EntityKey {
+            entity: "task".to_string(),
+            entity_id: "1.1".to_string(),
+            scope: Some("test-change".to_string()),
+        };
+        assert_eq!(state.get(&key), Some(&"complete".to_string()));
     }
 
     #[test]

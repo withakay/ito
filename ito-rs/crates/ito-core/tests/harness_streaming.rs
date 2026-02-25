@@ -5,7 +5,6 @@
 use ito_core::harness::{Harness, HarnessRunConfig, OpencodeHarness};
 use std::collections::BTreeMap;
 use std::os::unix::fs::PermissionsExt;
-use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 fn write_executable(path: &std::path::Path, contents: &str) {
@@ -15,38 +14,9 @@ fn write_executable(path: &std::path::Path, contents: &str) {
     std::fs::set_permissions(path, perms).unwrap();
 }
 
-static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-
-struct PathGuard {
-    _lock: std::sync::MutexGuard<'static, ()>,
-    old_path: String,
-}
-
-impl PathGuard {
-    fn prepend(path: &std::path::Path) -> Self {
-        let lock = ENV_LOCK
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let old_path = std::env::var("PATH").unwrap_or_default();
-
-        unsafe {
-            std::env::set_var("PATH", format!("{}:{}", path.to_string_lossy(), old_path));
-        }
-
-        Self {
-            _lock: lock,
-            old_path,
-        }
-    }
-}
-
-impl Drop for PathGuard {
-    fn drop(&mut self) {
-        unsafe {
-            std::env::set_var("PATH", &self.old_path);
-        }
-    }
+fn child_path_with_prepend(path: &std::path::Path) -> String {
+    let old = std::env::var("PATH").unwrap_or_default();
+    format!("{}:{}", path.to_string_lossy(), old)
 }
 
 #[test]
@@ -61,7 +31,8 @@ fn inactivity_timeout_kills_stalled_process() {
         "#!/bin/sh\necho 'Starting...'\nwhile true; do sleep 1; done\necho 'Should not reach here'\n",
     );
 
-    let _path_guard = PathGuard::prepend(dir.path());
+    let mut env = BTreeMap::new();
+    env.insert("PATH".to_string(), child_path_with_prepend(dir.path()));
 
     let mut h = OpencodeHarness;
     let start = std::time::Instant::now();
@@ -71,7 +42,7 @@ fn inactivity_timeout_kills_stalled_process() {
             prompt: "test".to_string(),
             model: None,
             cwd: dir.path().to_path_buf(),
-            env: BTreeMap::new(),
+            env,
             interactive: false,
             allow_all: false,
             inactivity_timeout: Some(Duration::from_secs(2)),
@@ -123,7 +94,8 @@ fn no_timeout_when_process_exits_normally() {
         "#!/bin/sh\necho 'Line 1'\necho 'Line 2'\necho 'Line 3'\nexit 0\n",
     );
 
-    let _path_guard = PathGuard::prepend(dir.path());
+    let mut env = BTreeMap::new();
+    env.insert("PATH".to_string(), child_path_with_prepend(dir.path()));
 
     let mut h = OpencodeHarness;
     let start = std::time::Instant::now();
@@ -133,7 +105,7 @@ fn no_timeout_when_process_exits_normally() {
             prompt: "test".to_string(),
             model: None,
             cwd: dir.path().to_path_buf(),
-            env: BTreeMap::new(),
+            env,
             interactive: false,
             allow_all: false,
             inactivity_timeout: Some(Duration::from_secs(2)),

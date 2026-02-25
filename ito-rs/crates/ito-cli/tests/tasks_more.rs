@@ -12,6 +12,10 @@ fn tasks_add_shelve_unshelve_show_cover_more_paths() {
 
     fixtures::reset_repo(repo.path(), base.path());
     std::fs::create_dir_all(repo.path().join(".ito/changes/test-change")).unwrap();
+    fixtures::write(
+        repo.path().join(".ito/changes/test-change/.ito.yaml"),
+        "schema: spec-driven\n",
+    );
 
     let out = run_rust_candidate(
         rust_path,
@@ -61,6 +65,57 @@ fn tasks_add_shelve_unshelve_show_cover_more_paths() {
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("Tasks for:"));
     assert!(out.stdout.contains("## Wave 1"));
+}
+
+#[test]
+fn tasks_commands_use_apply_tracks_filename_when_set() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    std::fs::create_dir_all(repo.path().join(".ito/changes/test-change")).unwrap();
+
+    fixtures::write(
+        repo.path()
+            .join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        r#"
+name: spec-driven
+version: 1
+artifacts: []
+apply:
+  tracks: todo.md
+"#,
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "init", "test-change"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0);
+    assert!(
+        repo.path()
+            .join(".ito/changes/test-change/todo.md")
+            .exists()
+    );
+    assert!(
+        !repo
+            .path()
+            .join(".ito/changes/test-change/tasks.md")
+            .exists()
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["tasks", "status", "test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0);
+    assert!(out.stdout.contains("todo.md"));
 }
 
 #[test]
