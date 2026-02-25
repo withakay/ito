@@ -23,10 +23,12 @@ use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
+mod format_specs;
 mod issue;
 mod repo_integrity;
 mod report;
 
+pub(crate) use issue::with_format_spec;
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
 pub use report::{ReportBuilder, report};
@@ -469,13 +471,18 @@ fn run_validator_for_artifact(
             validate_change_delta_specs(rep, change_repo, change_id)?;
         }
         ValidatorId::TasksTrackingV1 => {
+            use format_specs::TASKS_TRACKING_V1;
+
             if generates.contains('*') {
-                rep.push(error(
-                    format!("artifacts.{artifact_id}"),
-                    format!(
-                        "Validator '{}' requires a single file path; got pattern '{}'",
-                        "ito.tasks-tracking.v1", generates
+                rep.push(with_format_spec(
+                    error(
+                        format!("artifacts.{artifact_id}"),
+                        format!(
+                            "Validator '{}' requires a single file path; got pattern '{}'",
+                            TASKS_TRACKING_V1.validator_id, generates
+                        ),
                     ),
+                    TASKS_TRACKING_V1,
                 ));
                 return Ok(());
             }
@@ -489,14 +496,15 @@ fn run_validator_for_artifact(
 }
 
 fn validate_tasks_tracking_path(path: &Path, report_path: &str) -> Vec<ValidationIssue> {
+    use format_specs::TASKS_TRACKING_V1;
     use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file};
 
     let contents = match ito_common::io::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
-            return vec![error(
-                report_path,
-                format!("Failed to read {report_path}: {e}"),
+            return vec![with_format_spec(
+                error(report_path, format!("Failed to read {report_path}: {e}")),
+                TASKS_TRACKING_V1,
             )];
         }
     };
@@ -508,14 +516,17 @@ fn validate_tasks_tracking_path(path: &Path, report_path: &str) -> Vec<Validatio
             DiagnosticLevel::Error => LEVEL_ERROR,
             DiagnosticLevel::Warning => LEVEL_WARNING,
         };
-        issues.push(ValidationIssue {
-            path: report_path.to_string(),
-            level: level.to_string(),
-            message: d.message.clone(),
-            line: d.line.map(|l| l as u32),
-            column: None,
-            metadata: None,
-        });
+        issues.push(with_format_spec(
+            ValidationIssue {
+                path: report_path.to_string(),
+                level: level.to_string(),
+                message: d.message.clone(),
+                line: d.line.map(|l| l as u32),
+                column: None,
+                metadata: None,
+            },
+            TASKS_TRACKING_V1,
+        ));
     }
     issues
 }
@@ -525,48 +536,77 @@ fn validate_change_delta_specs(
     change_repo: &impl DomainChangeRepository,
     change_id: &str,
 ) -> CoreResult<()> {
+    use format_specs::DELTA_SPECS_V1;
+
     let files = read_change_delta_spec_files(change_repo, change_id)?;
     if files.is_empty() {
-        rep.push(error("specs", "Change must have at least one delta"));
+        rep.push(with_format_spec(
+            error("specs", "Change must have at least one delta"),
+            DELTA_SPECS_V1,
+        ));
         return Ok(());
     }
 
     let show = parse_change_show_json(change_id, &files);
     if show.deltas.is_empty() {
-        rep.push(error("specs", "Change must have at least one delta"));
+        rep.push(with_format_spec(
+            error("specs", "Change must have at least one delta"),
+            DELTA_SPECS_V1,
+        ));
         return Ok(());
     }
 
     if show.deltas.len() > MAX_DELTAS_PER_CHANGE {
-        rep.push(info(
-            "deltas",
-            "Consider splitting changes with more than 10 deltas",
+        rep.push(with_format_spec(
+            info(
+                "deltas",
+                "Consider splitting changes with more than 10 deltas",
+            ),
+            DELTA_SPECS_V1,
         ));
     }
 
     for (idx, d) in show.deltas.iter().enumerate() {
         let base = format!("deltas[{idx}]");
         if d.description.trim().is_empty() {
-            rep.push(error(&base, "Delta description cannot be empty"));
+            rep.push(with_format_spec(
+                error(&base, "Delta description cannot be empty"),
+                DELTA_SPECS_V1,
+            ));
         } else if d.description.trim().len() < 20 {
-            rep.push(warning(&base, "Delta description is too brief"));
+            rep.push(with_format_spec(
+                warning(&base, "Delta description is too brief"),
+                DELTA_SPECS_V1,
+            ));
         }
 
         if d.requirements.is_empty() {
-            rep.push(warning(&base, "Delta should include requirements"));
+            rep.push(with_format_spec(
+                warning(&base, "Delta should include requirements"),
+                DELTA_SPECS_V1,
+            ));
         }
 
         for (ridx, req) in d.requirements.iter().enumerate() {
             let rp = format!("{base}.requirements[{ridx}]");
             if req.text.trim().is_empty() {
-                rep.push(error(&rp, "Requirement text cannot be empty"));
+                rep.push(with_format_spec(
+                    error(&rp, "Requirement text cannot be empty"),
+                    DELTA_SPECS_V1,
+                ));
             }
             let up = req.text.to_ascii_uppercase();
             if !up.contains("SHALL") && !up.contains("MUST") {
-                rep.push(error(&rp, "Requirement must contain SHALL or MUST keyword"));
+                rep.push(with_format_spec(
+                    error(&rp, "Requirement must contain SHALL or MUST keyword"),
+                    DELTA_SPECS_V1,
+                ));
             }
             if req.scenarios.is_empty() {
-                rep.push(error(&rp, "Requirement must have at least one scenario"));
+                rep.push(with_format_spec(
+                    error(&rp, "Requirement must have at least one scenario"),
+                    DELTA_SPECS_V1,
+                ));
             }
         }
     }
@@ -693,6 +733,5 @@ pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<V
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");
-
     Ok(validate_tasks_tracking_path(&path, &report_path))
 }

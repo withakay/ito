@@ -236,6 +236,27 @@ ok
         "schema with validation.yaml should not emit manual-validation issue, got issues: {:?}",
         r.issues
     );
+
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("ito.delta-specs.v1")),
+        "expected delta spec issues to cite validator id, got issues: {:?}",
+        r.issues
+    );
+
+    let with_meta = r.issues.iter().any(|i| {
+        let Some(meta) = i.metadata.as_ref().and_then(|m| m.as_object()) else {
+            return false;
+        };
+        meta.get("validator_id").and_then(|v| v.as_str()) == Some("ito.delta-specs.v1")
+            && meta.get("spec_path").and_then(|v| v.as_str())
+                == Some(".ito/specs/delta-specs/spec.md")
+    });
+    assert!(
+        with_meta,
+        "expected delta spec issues to include metadata references"
+    );
 }
 
 #[test]
@@ -507,5 +528,48 @@ fn validate_tasks_file_returns_diagnostics_for_malformed_content() {
     assert!(
         !issues.is_empty(),
         "malformed tasks file should produce diagnostics, got empty"
+    );
+}
+
+#[test]
+fn validate_tasks_file_issues_cite_tasks_tracking_validator_id() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let change_id = "001-01_broken";
+    let malformed_tasks = "\
+## Wave 1\n\n\
+### Task 1.1: First task\n\
+- **Status**: [x] complete\n\
+- **Updated At**: 2026-02-25\n\n\
+### Task 1.1: Duplicate ID task\n\
+- **Status**: [ ] pending\n\
+- **Updated At**: 2026-02-25\n";
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        malformed_tasks,
+    );
+
+    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    assert!(
+        !issues.is_empty(),
+        "expected tasks diagnostics to be reported"
+    );
+
+    let some = issues
+        .iter()
+        .any(|i| i.message.contains("ito.tasks-tracking.v1"));
+    assert!(some, "expected tasks issues to cite validator id");
+
+    let with_meta = issues.iter().any(|i| {
+        let Some(meta) = i.metadata.as_ref().and_then(|m| m.as_object()) else {
+            return false;
+        };
+        meta.get("validator_id").and_then(|v| v.as_str()) == Some("ito.tasks-tracking.v1")
+            && meta.get("spec_path").and_then(|v| v.as_str())
+                == Some(".ito/specs/tasks-tracking/spec.md")
+    });
+    assert!(
+        with_meta,
+        "expected tasks issues to include metadata references"
     );
 }

@@ -27,7 +27,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 001-24_schema-validation-format-specs --strict`
 - **Done When**: Proposal passes strict validation.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Draft v1 format specs as delta specs
 
@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 001-24_schema-validation-format-specs --strict`
 - **Done When**: Both delta spec files parse and validate; scenarios use `#### Scenario:` headings.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Capture minimal design decisions
 
@@ -47,7 +47,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 001-24_schema-validation-format-specs --strict`
 - **Done When**: Design doc exists (if needed) and passes validation.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Validator ids are recognized and documentation paths are stable.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Update delta spec validation messaging to cite validator id
 
@@ -73,7 +73,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Failing delta specs produce issues that include the validator id.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Update tasks tracking validation messaging to cite validator id
 
@@ -83,7 +83,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Failing tasks tracking files produce issues that include the validator id.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -99,7 +99,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Tests cover both formats and pass.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Final strict validation of the change
 
@@ -109,5 +109,16 @@ ______________________________________________________________________
 - **Verify**: `ito validate 001-24_schema-validation-format-specs --strict`
 - **Done When**: Change validates cleanly in strict mode.
 - **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
+
+### Task 3.3: Address review feedback for format spec citations
+
+- **Files**: `ito-rs/crates/ito-core/src/validate/issue.rs`, `ito-rs/crates/ito-core/src/validate/mod.rs`, `ito-rs/crates/ito-core/tests/validate.rs`
+- **Dependencies**: None
+- **Action**: Preserve non-object metadata in format-spec enrichment; ensure the "too many deltas" info issue is also enriched; add unit tests for `with_format_spec` edge cases.
+- **Verify**: `make check`
+- **Done When**: Validation issues remain enriched; tests cover metadata preservation and idempotent message suffix.
+- **Updated At**: 2026-02-25
+- **Status**: [x] complete
+
 <!-- ITO:END -->
