@@ -413,9 +413,99 @@ pub struct ApplyYaml {
     pub instruction: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+/// Schema validation configuration (`validation.yaml`).
+pub struct ValidationYaml {
+    /// Validation schema version.
+    pub version: u32,
+    #[serde(default)]
+    /// Default rules applied when per-artifact config is omitted.
+    pub defaults: ValidationDefaultsYaml,
+    #[serde(default)]
+    /// Per-artifact validation rules keyed by artifact id.
+    pub artifacts: BTreeMap<String, ValidationArtifactYaml>,
+    #[serde(default)]
+    /// Optional tracking file validation configuration.
+    pub tracking: Option<ValidationTrackingYaml>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+/// Default validation rules.
+pub struct ValidationDefaultsYaml {
+    #[serde(default)]
+    /// Severity used when a required artifact is missing.
+    pub missing_required_artifact_level: Option<ValidationLevelYaml>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+/// Severity level used by schema-driven validation.
+pub enum ValidationLevelYaml {
+    /// Report as a warning.
+    Warning,
+    /// Report as an error.
+    Error,
+}
+
+impl ValidationLevelYaml {
+    /// Converts the enum to the corresponding validation level string slice.
+    pub fn as_level_str(self) -> crate::validate::ValidationLevel {
+        use crate::validate::{LEVEL_ERROR, LEVEL_WARNING};
+        match self {
+            ValidationLevelYaml::Warning => LEVEL_WARNING,
+            ValidationLevelYaml::Error => LEVEL_ERROR,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Known validator identifiers.
+pub enum ValidatorId {
+    #[serde(rename = "ito.delta-specs.v1")]
+    /// Ito delta spec markdown validation.
+    DeltaSpecsV1,
+    #[serde(rename = "ito.tasks-tracking.v1")]
+    /// Ito task tracking file validation.
+    TasksTrackingV1,
+}
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+/// Validation rules for one schema artifact.
+pub struct ValidationArtifactYaml {
+    #[serde(default)]
+    /// Whether this artifact is required for validity.
+    pub required: bool,
+    #[serde(default)]
+    /// Validator identifier (for example `ito.delta-specs.v1`).
+    pub validate_as: Option<ValidatorId>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+/// Validation rules for a tracking file.
+pub struct ValidationTrackingYaml {
+    /// Tracking file source.
+    pub source: ValidationTrackingSourceYaml,
+    #[serde(default)]
+    /// Whether the tracking file is required for validity.
+    pub required: bool,
+    /// Validator identifier to apply to the tracking file.
+    pub validate_as: ValidatorId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+/// Source used to locate the tracking file.
+pub enum ValidationTrackingSourceYaml {
+    /// Use the selected schema's `apply.tracks` path.
+    ApplyTracks,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::SchemaSource;
+    use super::{SchemaSource, ValidationTrackingSourceYaml, ValidatorId};
 
     #[test]
     fn schema_source_as_str_returns_expected_labels() {
@@ -423,5 +513,34 @@ mod tests {
         assert_eq!(SchemaSource::User.as_str(), "user");
         assert_eq!(SchemaSource::Embedded.as_str(), "embedded");
         assert_eq!(SchemaSource::Package.as_str(), "package");
+    }
+
+    #[test]
+    fn validation_yaml_parses_minimal_config() {
+        let src = r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+"#;
+
+        let parsed: super::ValidationYaml = serde_yaml::from_str(src).expect("parse validation");
+        assert_eq!(parsed.version, 1);
+        assert_eq!(parsed.artifacts.len(), 1);
+        assert!(parsed.artifacts.get("specs").expect("specs").required);
+        assert_eq!(
+            parsed.artifacts.get("specs").and_then(|a| a.validate_as),
+            Some(ValidatorId::DeltaSpecsV1)
+        );
+
+        let tracking = parsed.tracking.expect("tracking");
+        assert_eq!(tracking.source, ValidationTrackingSourceYaml::ApplyTracks);
+        assert!(tracking.required);
+        assert_eq!(tracking.validate_as, ValidatorId::TasksTrackingV1);
     }
 }

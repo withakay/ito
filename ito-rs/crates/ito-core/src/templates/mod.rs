@@ -23,7 +23,8 @@ pub use review::compute_review_context;
 pub use schema_assets::{ExportSchemasResult, export_embedded_schemas};
 use schema_assets::{
     embedded_schema_names, is_safe_relative_path, is_safe_schema_name, load_embedded_schema_yaml,
-    package_schemas_dir, project_schemas_dir, read_schema_template, user_schemas_dir,
+    load_embedded_validation_yaml, package_schemas_dir, project_schemas_dir, read_schema_template,
+    user_schemas_dir,
 };
 use task_parsing::{looks_like_enhanced_tasks, parse_checkbox_tasks, parse_enhanced_tasks};
 pub use types::{
@@ -31,7 +32,9 @@ pub use types::{
     ChangeStatus, DependencyInfo, InstructionsResponse, PeerReviewContext, ProgressInfo,
     ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewTaskSummaryInfo,
     ReviewTestingPolicy, ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic,
-    TaskItem, TemplateInfo, WorkflowError,
+    TaskItem, TemplateInfo, ValidationArtifactYaml, ValidationDefaultsYaml, ValidationLevelYaml,
+    ValidationTrackingSourceYaml, ValidationTrackingYaml, ValidationYaml, ValidatorId,
+    WorkflowError,
 };
 
 use ito_common::fs::StdFs;
@@ -828,6 +831,25 @@ fn load_schema_yaml(schema_dir: &Path) -> Result<SchemaYaml, WorkflowError> {
     Ok(serde_yaml::from_str(&s)?)
 }
 
+fn load_validation_yaml(schema_dir: &Path) -> Result<Option<ValidationYaml>, WorkflowError> {
+    let path = schema_dir.join("validation.yaml");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let s = ito_common::io::read_to_string_std(&path)?;
+    Ok(Some(serde_yaml::from_str(&s)?))
+}
+
+/// Load schema validation configuration when present.
+pub fn load_schema_validation(
+    resolved: &ResolvedSchema,
+) -> Result<Option<ValidationYaml>, WorkflowError> {
+    if resolved.source == SchemaSource::Embedded {
+        return load_embedded_validation_yaml(&resolved.schema.name);
+    }
+    load_validation_yaml(&resolved.schema_dir)
+}
+
 fn compute_done_by_id(change_dir: &Path, schema: &SchemaYaml) -> BTreeMap<String, bool> {
     let mut out = BTreeMap::new();
     for a in &schema.artifacts {
@@ -836,7 +858,11 @@ fn compute_done_by_id(change_dir: &Path, schema: &SchemaYaml) -> BTreeMap<String
     out
 }
 
-fn artifact_done(change_dir: &Path, generates: &str) -> bool {
+/// Returns whether an artifact output is present for the given `generates` pattern.
+///
+/// This is used outside the templates module (for example, schema-aware validation) to
+/// reuse the same minimal glob semantics as schema artifact completion.
+pub(crate) fn artifact_done(change_dir: &Path, generates: &str) -> bool {
     if !generates.contains('*') {
         return change_dir.join(generates).exists();
     }
