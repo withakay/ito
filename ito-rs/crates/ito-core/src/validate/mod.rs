@@ -760,10 +760,14 @@ fn extract_section(markdown: &str, header: &str) -> String {
 }
 
 /// Validate a change's tasks.md file and return any issues found.
-pub fn validate_tasks_file(ito_path: &Path, change_id: &str) -> CoreResult<Vec<ValidationIssue>> {
+pub fn validate_tasks_file(
+    ito_path: &Path,
+    change_id: &str,
+    strict: bool,
+) -> CoreResult<Vec<ValidationIssue>> {
     use ito_domain::tasks::tasks_path;
 
     let path = tasks_path(ito_path, change_id);
     let report_path = format!("changes/{change_id}/tasks.md");
-    Ok(validate_tasks_tracking_path(&path, &report_path, false))
+    Ok(validate_tasks_tracking_path(&path, &report_path, strict))
 }

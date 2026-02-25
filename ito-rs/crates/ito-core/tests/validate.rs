@@ -405,7 +405,12 @@ version: 1
 artifacts: []
 apply:
   tracks: todo.md
-"#,
+        "#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: spec-driven\n",
     );
 
     write(
@@ -532,7 +537,12 @@ version: 1
 artifacts: []
 apply:
   tracks: dir/todo.md
-"#,
+        "#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: spec-driven\n",
     );
     write(
         &ito.join("changes")
@@ -581,7 +591,12 @@ fn empty_tracking_file_is_warning_in_non_strict_and_error_in_strict() {
 name: spec-driven
 version: 1
 artifacts: []
-"#,
+        "#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: spec-driven\n",
     );
 
     write(
@@ -718,7 +733,8 @@ fn validate_tasks_file_returns_empty_for_valid_tasks() {
         valid_tasks,
     );
 
-    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    let issues =
+        validate_tasks_file(&ito, change_id, false).expect("validate_tasks_file should succeed");
     assert!(
         issues.is_empty(),
         "valid tasks file should produce no issues, got: {issues:?}"
@@ -730,7 +746,7 @@ fn validate_tasks_file_returns_error_for_missing_file() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
 
-    let issues = validate_tasks_file(&ito, "nonexistent-change")
+    let issues = validate_tasks_file(&ito, "nonexistent-change", false)
         .expect("validate_tasks_file should return Ok with error issues");
     assert!(
         !issues.is_empty(),
@@ -768,7 +784,8 @@ fn validate_tasks_file_returns_diagnostics_for_malformed_content() {
         malformed_tasks,
     );
 
-    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    let issues =
+        validate_tasks_file(&ito, change_id, false).expect("validate_tasks_file should succeed");
     assert!(
         !issues.is_empty(),
         "malformed tasks file should produce diagnostics, got empty"
@@ -793,7 +810,8 @@ fn validate_tasks_file_issues_cite_tasks_tracking_validator_id() {
         malformed_tasks,
     );
 
-    let issues = validate_tasks_file(&ito, change_id).expect("validate_tasks_file should succeed");
+    let issues =
+        validate_tasks_file(&ito, change_id, false).expect("validate_tasks_file should succeed");
     assert!(
         !issues.is_empty(),
         "expected tasks diagnostics to be reported"

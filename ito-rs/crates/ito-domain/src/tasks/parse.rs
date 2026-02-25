@@ -990,6 +990,9 @@ pub fn is_safe_tracking_filename(tracking_file: &str) -> bool {
     if tracking_file.is_empty() {
         return false;
     }
+    if tracking_file == "." {
+        return false;
+    }
     if tracking_file.len() > 256 {
         return false;
     }

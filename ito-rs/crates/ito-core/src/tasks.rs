@@ -32,7 +32,7 @@ pub use ito_domain::tasks::{
 ///
 /// ```ignore
 /// use std::path::Path;
-/// let p = checked_tasks_path(Path::new("repo"), "1.1").unwrap();
+/// let p = checked_tasks_path(Path::new("repo"), "001-01_demo").unwrap();
 /// assert!(p.file_name().is_some());
 /// ```
 fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
@@ -138,7 +138,7 @@ fn sort_blocked_tasks_by_id(items: &mut [(TaskItem, Vec<String>)]) {
 pub struct ReadyTasksForChange {
     /// Canonical change id.
     pub change_id: String,
-    /// Ready tasks from `tasks.md` after dependency computation.
+    /// Ready tasks from the tracking file after dependency computation.
     pub ready_tasks: Vec<TaskItem>,
 }
 
@@ -193,6 +193,8 @@ pub fn list_ready_tasks_across_changes(
 /// Result of getting task status for a change.
 #[derive(Debug, Clone)]
 pub struct TaskStatusResult {
+    /// Path to the tracking file.
+    pub path: PathBuf,
     /// Detected file format.
     pub format: TasksFormat,
     /// All parsed tasks.
@@ -207,7 +209,7 @@ pub struct TaskStatusResult {
     pub blocked: Vec<(TaskItem, Vec<String>)>,
 }
 
-/// Initialize a tasks.md file for a change.
+/// Initialize a tracking file for a change.
 ///
 /// Returns the path to the created file and whether it already existed.
 pub fn init_tasks(ito_path: &Path, change_id: &str) -> CoreResult<(PathBuf, bool)> {
@@ -233,7 +235,7 @@ pub fn init_tasks(ito_path: &Path, change_id: &str) -> CoreResult<(PathBuf, bool
 
 /// Get task status for a change.
 ///
-/// Reads and parses the tasks.md file, computes ready/blocked tasks.
+/// Reads and parses the tracking file, computes ready/blocked tasks.
 pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatusResult> {
     let path = checked_tasks_path(ito_path, change_id)?;
 
@@ -258,6 +260,7 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
     sort_task_items_by_id(&mut items);
 
     Ok(TaskStatusResult {
+        path,
         format: parsed.format,
         items,
         progress: parsed.progress,
@@ -271,11 +274,14 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
 ///
 /// Returns None if all tasks are complete or if no tasks are ready.
 pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<TaskItem>> {
-    let path = checked_tasks_path(ito_path, change_id)?;
-    let file = tracking_file_label(&path);
     let status = get_task_status(ito_path, change_id)?;
+    get_next_task_from_status(&status)
+}
 
-    // Check for errors
+/// Get the next actionable task using a previously computed status.
+pub fn get_next_task_from_status(status: &TaskStatusResult) -> CoreResult<Option<TaskItem>> {
+    let file = tracking_file_label(&status.path);
+
     if status
         .diagnostics
         .iter()
@@ -284,14 +290,12 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
         return Err(CoreError::validation(format!("{file} contains errors")));
     }
 
-    // All complete?
     if status.progress.remaining == 0 {
         return Ok(None);
     }
 
     match status.format {
         TasksFormat::Checkbox => {
-            // Check for current in-progress task
             if let Some(current) = status
                 .items
                 .iter()
@@ -300,33 +304,29 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
                 return Ok(Some(current.clone()));
             }
 
-            // Find first pending task
             Ok(status
                 .items
                 .iter()
                 .find(|t| t.status == TaskStatus::Pending)
                 .cloned())
         }
-        TasksFormat::Enhanced => {
-            // Return first ready task
-            Ok(status.ready.first().cloned())
-        }
+        TasksFormat::Enhanced => Ok(status.ready.first().cloned()),
     }
 }
 
-/// Mark a task as in-progress in a change's tasks.md.
+/// Mark a task as in-progress in a change's tracking file.
 ///
-/// Validates parsing diagnostics and task preconditions, updates the tasks.md file on disk,
+/// Validates parsing diagnostics and task preconditions, updates the tracking file on disk,
 /// and returns the updated TaskItem with its status set to `InProgress`.
 ///
 /// Parameters:
-/// - `ito_path`: root repository path used to resolve the change's tasks.md.
-/// - `change_id`: canonical change identifier whose tasks.md will be modified.
+/// - `ito_path`: root repository path used to resolve the change's tracking file.
+/// - `change_id`: canonical change identifier whose tracking file will be modified.
 /// - `task_id`: task identifier to start; for checkbox-format files this may be a numeric index
 ///   that will be resolved to the canonical task id.
 ///
 /// Errors:
-/// Returns a `CoreError` when the tasks.md cannot be read/written, when parsing diagnostics
+/// Returns a `CoreError` when the tracking file cannot be read/written, when parsing diagnostics
 /// contain errors, when the task cannot be resolved or located, or when preconditions for
 /// transitioning the task to `InProgress` are not met (including blocked, already in-progress,
 /// completed, or shelved states).
@@ -452,9 +452,9 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
     Ok(result)
 }
 
-/// Mark a task in a change's tasks.md as complete.
+/// Mark a task in a change's tracking file as complete.
 ///
-/// Reads and validates the change's tasks.md, resolves the provided task identifier
+/// Reads and validates the change's tracking file, resolves the provided task identifier
 /// (supports enhanced ids and numeric indexes for checkbox format), updates the file
 /// setting the task's status to `Complete`, and returns the updated task item.
 ///
@@ -464,7 +464,7 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
 ///
 /// # Errors
 ///
-/// Returns a `CoreError::validation` if the tasks.md contains parse errors or the update
+/// Returns a `CoreError::validation` if the tracking file contains parse errors or the update
 /// operation is rejected; `CoreError::not_found` if the specified task cannot be located;
 /// and `CoreError::io` for filesystem read/write failures.
 ///
@@ -530,7 +530,7 @@ pub fn complete_task(
 
 /// Shelve a task (transition to shelved).
 ///
-/// Only supported for enhanced format. Validates preconditions and updates the tasks.md file.
+/// Only supported for enhanced format. Validates preconditions and updates the tracking file.
 pub fn shelve_task(
     ito_path: &Path,
     change_id: &str,
@@ -589,7 +589,7 @@ pub fn shelve_task(
 
 /// Unshelve a task (transition back to pending).
 ///
-/// Only supported for enhanced format. Validates preconditions and updates the tasks.md file.
+/// Only supported for enhanced format. Validates preconditions and updates the tracking file.
 pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<TaskItem> {
     let path = checked_tasks_path(ito_path, change_id)?;
     let file = tracking_file_label(&path);
@@ -641,7 +641,7 @@ pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreRes
     Ok(result)
 }
 
-/// Add a new task to a change's tasks.md.
+/// Add a new task to a change's tracking file.
 ///
 /// Only supported for enhanced format. Computes the next task ID and inserts the task.
 pub fn add_task(
@@ -762,7 +762,7 @@ pub fn show_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult<
         .ok_or_else(|| CoreError::not_found(format!("Task \"{task_id}\" not found")))
 }
 
-/// Read the raw markdown contents of a change's tasks.md file.
+/// Read the raw markdown contents of a change's tracking file.
 pub fn read_tasks_markdown(ito_path: &Path, change_id: &str) -> CoreResult<String> {
     let path = checked_tasks_path(ito_path, change_id)?;
     let file = tracking_file_label(&path);

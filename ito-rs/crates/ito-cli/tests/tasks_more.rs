@@ -12,6 +12,10 @@ fn tasks_add_shelve_unshelve_show_cover_more_paths() {
 
     fixtures::reset_repo(repo.path(), base.path());
     std::fs::create_dir_all(repo.path().join(".ito/changes/test-change")).unwrap();
+    fixtures::write(
+        repo.path().join(".ito/changes/test-change/.ito.yaml"),
+        "schema: spec-driven\n",
+    );
 
     let out = run_rust_candidate(
         rust_path,

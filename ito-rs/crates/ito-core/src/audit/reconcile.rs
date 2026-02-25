@@ -237,6 +237,11 @@ mod tests {
             "todo.md",
             "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
         );
+        std::fs::write(
+            tmp.path().join(".ito/changes/test-change/.ito.yaml"),
+            "schema: spec-driven\n",
+        )
+        .expect("write .ito.yaml");
 
         let state = build_file_state(&ito_path, "test-change");
         assert_eq!(state.len(), 1);

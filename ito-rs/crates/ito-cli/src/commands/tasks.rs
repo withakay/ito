@@ -226,33 +226,33 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "status" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-            let file = path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("tracking file");
-
-            if !path.exists() {
-                if want_json {
-                    return print_json(&serde_json::json!({
-                        "action": "status",
-                        "change_id": change_id,
-                        "path": path.display().to_string(),
-                        "exists": false,
-                        "message": format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
-                    }));
+            let status = match core_tasks::get_task_status(ito_path, &change_id) {
+                Ok(s) => s,
+                Err(_e) => {
+                    let path = core_tasks::tracking_file_path(ito_path, &change_id)
+                        .map_err(to_cli_error)?;
+                    let file = path
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("tracking file");
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "status",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
+                        }));
+                    }
+                    println!(
+                        "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
+                    );
+                    return Ok(());
                 }
-                println!(
-                    "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                );
-                return Ok(());
-            }
+            };
+            let path = &status.path;
 
-            let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
-
-            if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
-            {
+            if let Some(msg) = diagnostics::blocking_task_error_message(path, &status.diagnostics) {
                 return Err(CliError::msg(msg));
             }
 
@@ -261,7 +261,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     .diagnostics
                     .iter()
                     .filter(|d| d.level == DiagnosticLevel::Warning)
-                    .map(|d| json_diagnostic(&path, d))
+                    .map(|d| json_diagnostic(path, d))
                     .collect();
                 let ready_tasks: Vec<serde_json::Value> =
                     status.ready.iter().map(json_task).collect();
@@ -300,7 +300,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             println!();
 
             let warnings = diagnostics::render_task_diagnostics(
-                &path,
+                path,
                 &status.diagnostics,
                 DiagnosticLevel::Warning,
             );
@@ -351,18 +351,14 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "next" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-
             let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+            let path = &status.path;
 
-            if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
-            {
+            if let Some(msg) = diagnostics::blocking_task_error_message(path, &status.diagnostics) {
                 return Err(CliError::msg(msg));
             }
 
-            let next_task =
-                core_tasks::get_next_task(ito_path, &change_id).map_err(to_cli_error)?;
+            let next_task = core_tasks::get_next_task_from_status(&status).map_err(to_cli_error)?;
 
             match status.format {
                 TasksFormat::Checkbox => {
@@ -688,12 +684,10 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "show" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
             let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+            let path = &status.path;
 
-            if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
-            {
+            if let Some(msg) = diagnostics::blocking_task_error_message(path, &status.diagnostics) {
                 return Err(CliError::msg(msg));
             }
 
@@ -720,7 +714,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     .diagnostics
                     .iter()
                     .filter(|d| d.level == DiagnosticLevel::Warning)
-                    .map(|d| json_diagnostic(&path, d))
+                    .map(|d| json_diagnostic(path, d))
                     .collect();
                 return print_json(&serde_json::json!({
                     "action": "show",
@@ -774,11 +768,10 @@ fn handle_tasks_ready(rt: &Runtime, args: &[String]) -> CliResult<()> {
 fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let change_id = resolve_change_id(ito_path, change_id)?;
-    let path = core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-
     let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+    let path = &status.path;
 
-    if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics) {
+    if let Some(msg) = diagnostics::blocking_task_error_message(path, &status.diagnostics) {
         return Err(CliError::msg(msg));
     }
 

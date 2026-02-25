@@ -7,7 +7,7 @@ use ito_config::ConfigContext;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::tasks::{
     TaskRepository as DomainTaskRepository, TasksParseResult, parse_tasks_tracking_file,
-    tracking_path_checked,
+    tasks_path_checked, tracking_path_checked,
 };
 
 use crate::templates::{read_change_schema, resolve_schema};
@@ -34,6 +34,11 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
 
 impl<F: FileSystem> DomainTaskRepository for FsTaskRepository<'_, F> {
     fn load_tasks(&self, change_id: &str) -> DomainResult<TasksParseResult> {
+        // `read_change_schema` uses `change_id` as a path segment; reject traversal.
+        if tasks_path_checked(self.ito_path, change_id).is_none() {
+            return Ok(TasksParseResult::empty());
+        }
+
         let schema_name = read_change_schema(self.ito_path, change_id);
         let mut ctx = ConfigContext::from_process_env();
         ctx.project_dir = self.ito_path.parent().map(|p| p.to_path_buf());
@@ -102,6 +107,7 @@ mod tests {
         let change_id = "001-03_tracks";
         let change_dir = ito_path.join("changes").join(change_id);
         fs::create_dir_all(&change_dir).unwrap();
+        fs::write(change_dir.join(".ito.yaml"), "schema: spec-driven\n").unwrap();
         fs::write(
             change_dir.join("todo.md"),
             "## Tasks\n- [x] one\n- [ ] two\n",
