@@ -290,7 +290,7 @@ Load a skill with Pi's native skill command. Start with:
 /skill:using-ito-skills
 \`\`\`
 
-Skills are discovered from the project's \`.opencode/skills/\` directory (shared with OpenCode).`;
+Skills are in \`.pi/skills/\`, commands in \`.pi/commands/\`.`;
 
       return bootstrap.length > 0 ? bootstrap : fallback;
     } catch {

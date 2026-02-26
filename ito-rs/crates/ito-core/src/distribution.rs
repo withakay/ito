@@ -169,18 +169,28 @@ pub fn codex_manifests(project_root: &Path) -> Vec<FileManifest> {
 
 /// Return manifest entries for Pi coding agent template installation.
 ///
-/// Pi shares skills with OpenCode via its `settings.json` (which references
-/// `.opencode/skills/`), so no skill manifests are emitted. Only the adapter
-/// extension is installed.
+/// Pi gets its own copy of skills and commands under `.pi/` so it is fully
+/// self-contained — users can install Pi without OpenCode. The skills and
+/// commands are read from the same shared embedded assets used by every harness.
 pub fn pi_manifests(project_root: &Path) -> Vec<FileManifest> {
-    vec![FileManifest {
+    let mut out = vec![FileManifest {
         source: "pi/ito-skills.ts".to_string(),
         dest: project_root
             .join(".pi")
             .join("extensions")
             .join("ito-skills.ts"),
         asset_type: AssetType::Adapter,
-    }]
+    }];
+
+    // Skills go under .pi/skills/ (flat structure with ito- prefix)
+    let skills_dir = project_root.join(".pi").join("skills");
+    out.extend(ito_skills_manifests(&skills_dir));
+
+    // Commands go under .pi/commands/
+    let commands_dir = project_root.join(".pi").join("commands");
+    out.extend(ito_commands_manifests(&commands_dir));
+
+    out
 }
 
 /// Return manifest entries for GitHub Copilot template installation.
@@ -312,7 +322,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pi_manifests_includes_adapter_only() {
+    fn pi_manifests_includes_adapter_skills_and_commands() {
         let root = Path::new("/tmp/project");
         let manifests = pi_manifests(root);
 
@@ -329,27 +339,41 @@ mod tests {
             adapter.dest
         );
 
-        // Must NOT contain any skill entries (skills are shared via settings.json).
+        // Must contain skill entries under .pi/skills/.
         let skills: Vec<_> = manifests
             .iter()
             .filter(|m| m.asset_type == AssetType::Skill)
             .collect();
         assert!(
-            skills.is_empty(),
-            "pi_manifests must not include skill entries, found {} entries",
-            skills.len()
+            !skills.is_empty(),
+            "pi_manifests must include skill entries"
         );
+        for skill in &skills {
+            let dest_str = skill.dest.to_string_lossy();
+            assert!(
+                dest_str.contains(".pi/skills/"),
+                "skill dest should be under .pi/skills/, got: {}",
+                dest_str
+            );
+        }
 
-        // Must NOT contain any command entries.
+        // Must contain command entries under .pi/commands/.
         let commands: Vec<_> = manifests
             .iter()
             .filter(|m| m.asset_type == AssetType::Command)
             .collect();
         assert!(
-            commands.is_empty(),
-            "pi_manifests must not include command entries, found {} entries",
-            commands.len()
+            !commands.is_empty(),
+            "pi_manifests must include command entries"
         );
+        for cmd in &commands {
+            let dest_str = cmd.dest.to_string_lossy();
+            assert!(
+                dest_str.contains(".pi/commands/"),
+                "command dest should be under .pi/commands/, got: {}",
+                dest_str
+            );
+        }
     }
 
     #[test]
@@ -373,16 +397,28 @@ mod tests {
     }
 
     #[test]
-    fn pi_manifests_no_skills_directory_entries() {
+    fn pi_manifests_skills_match_opencode_skills() {
+        // Pi and OpenCode should install the same set of skills from the
+        // shared embedded source — only the destination directory differs.
         let root = Path::new("/home/user/myproject");
-        let manifests = pi_manifests(root);
-        for m in &manifests {
-            let dest_str = m.dest.to_string_lossy();
-            assert!(
-                !dest_str.contains(".pi/skills/"),
-                "pi_manifests must not install to .pi/skills/, found: {}",
-                dest_str
-            );
-        }
+        let pi = pi_manifests(root);
+        let oc_dir = root.join(".opencode");
+        let oc = opencode_manifests(&oc_dir);
+
+        let pi_skill_sources: std::collections::BTreeSet<_> = pi
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .map(|m| m.source.clone())
+            .collect();
+        let oc_skill_sources: std::collections::BTreeSet<_> = oc
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .map(|m| m.source.clone())
+            .collect();
+
+        assert_eq!(
+            pi_skill_sources, oc_skill_sources,
+            "Pi and OpenCode should install identical skill sources"
+        );
     }
 }
