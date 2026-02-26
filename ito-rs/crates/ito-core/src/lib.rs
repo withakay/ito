@@ -36,6 +36,9 @@ pub mod git;
 /// Resolve repository and worktree path roots.
 pub mod repo_paths;
 
+/// Infer Ito change/module target context for harness sessions.
+pub mod harness_context;
+
 mod error_bridge;
 
 /// Process execution boundary and default runner.
