@@ -1,21 +1,19 @@
 /**
  * Ito Pi Extension
  *
- * Port of the OpenCode ito-skills.js plugin for the Pi coding agent harness.
+ * Integrates Ito workflows into the Pi coding agent harness.
  *
  * - Injects Ito bootstrap context via system prompt (before_agent_start)
  * - Runs Ito audit checks on tool_call hook with short TTL caching
  * - Warns when mutating tools touch Ito-managed files
  * - Injects Ito continuation context on session compaction
+ * - Registers /ito command for direct CLI access
  *
- * Skills are discovered from .opencode/skills/ via settings.json — no
- * duplication needed.
+ * Skills are installed to .pi/skills/ by `ito init --tools pi`.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execFileSync } from "node:child_process";
-import path from "node:path";
-import fs from "node:fs";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -144,7 +142,7 @@ export default function itoSkills(pi: ExtensionAPI) {
   // Environment-driven configuration (mirrors OpenCode plugin env vars).
   const ttlMs = Number.parseInt(process.env.ITO_PI_AUDIT_TTL_MS || "", 10);
   const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
-  const autoFixDrift = process.env.ITO_PI_AUDIT_FIX !== "0";
+  const autoFixDrift = process.env.ITO_PI_AUDIT_FIX === "1";
   const disableAuditHook = process.env.ITO_PI_AUDIT_DISABLED === "1";
   const disableContext = process.env.ITO_PI_CONTEXT_DISABLED === "1";
   const disableCompactionContext = process.env.ITO_PI_COMPACTION_DISABLED === "1";
@@ -244,9 +242,8 @@ export default function itoSkills(pi: ExtensionAPI) {
       const fixSummary = summarize(fixResult);
       return {
         hardFailure: false,
-        // Silent on success — only warn when auto-fix fails.
         notice: fixResult.ok
-          ? null
+          ? `[Ito Audit] Drift detected and reconciled: ${fixSummary}`
           : `[Ito Audit] Drift detected; auto-fix failed: ${fixSummary}`,
       };
     }
@@ -291,7 +288,7 @@ Load a skill with Pi's native skill command. Start with:
 /skill:using-ito-skills
 \`\`\`
 
-
+Skills are in \`.pi/skills/\`, commands in \`.pi/commands/\`.`;
 
       return bootstrap.length > 0 ? bootstrap : fallback;
     } catch {
