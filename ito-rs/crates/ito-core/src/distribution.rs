@@ -167,6 +167,22 @@ pub fn codex_manifests(project_root: &Path) -> Vec<FileManifest> {
     out
 }
 
+/// Return manifest entries for Pi coding agent template installation.
+///
+/// Pi shares skills with OpenCode via its `settings.json` (which references
+/// `.opencode/skills/`), so no skill manifests are emitted. Only the adapter
+/// extension is installed.
+pub fn pi_manifests(project_root: &Path) -> Vec<FileManifest> {
+    vec![FileManifest {
+        source: "pi/ito-skills.ts".to_string(),
+        dest: project_root
+            .join(".pi")
+            .join("extensions")
+            .join("ito-skills.ts"),
+        asset_type: AssetType::Adapter,
+    }]
+}
+
 /// Return manifest entries for GitHub Copilot template installation.
 pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
     // Skills go directly under .github/skills/ (flat structure with ito- prefix)

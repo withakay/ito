@@ -348,6 +348,9 @@ fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {
     if rel.starts_with(".codex/") {
         return tools.contains(TOOL_CODEX);
     }
+    if rel.starts_with(".pi/") {
+        return tools.contains(TOOL_PI);
+    }
 
     // Unknown/unclassified: only install when tools=all (caller controls via set contents).
     false
@@ -651,6 +654,10 @@ fn install_adapter_files(
                 let manifests = crate::distribution::github_manifests(project_root);
                 crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
+            TOOL_PI => {
+                let manifests = crate::distribution::pi_manifests(project_root);
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+            }
             _ => {}
         }
     }
@@ -676,6 +683,7 @@ fn install_agent_templates(
         (TOOL_CLAUDE, Harness::ClaudeCode),
         (TOOL_CODEX, Harness::Codex),
         (TOOL_GITHUB_COPILOT, Harness::GitHubCopilot),
+        (TOOL_PI, Harness::Pi),
     ];
 
     for (tool_id, harness) in tool_harness_map {
