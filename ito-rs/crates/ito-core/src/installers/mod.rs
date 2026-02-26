@@ -22,12 +22,20 @@ pub const TOOL_CODEX: &str = "codex";
 pub const TOOL_GITHUB_COPILOT: &str = "github-copilot";
 /// Tool id for OpenCode.
 pub const TOOL_OPENCODE: &str = "opencode";
+/// Tool id for Pi.
+pub const TOOL_PI: &str = "pi";
 
 const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 
 /// Return the set of supported tool ids.
 pub fn available_tool_ids() -> &'static [&'static str] {
-    &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
+    &[
+        TOOL_CLAUDE,
+        TOOL_CODEX,
+        TOOL_GITHUB_COPILOT,
+        TOOL_OPENCODE,
+        TOOL_PI,
+    ]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -346,6 +354,9 @@ fn should_install_project_rel(rel: &str, tools: &BTreeSet<String>) -> bool {
     if rel.starts_with(".codex/") {
         return tools.contains(TOOL_CODEX);
     }
+    if rel.starts_with(".pi/") {
+        return tools.contains(TOOL_PI);
+    }
 
     // Unknown/unclassified: only install when tools=all (caller controls via set contents).
     false
@@ -649,6 +660,10 @@ fn install_adapter_files(
                 let manifests = crate::distribution::github_manifests(project_root);
                 crate::distribution::install_manifests(&manifests, worktree_ctx)?;
             }
+            TOOL_PI => {
+                let manifests = crate::distribution::pi_manifests(project_root);
+                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+            }
             _ => {}
         }
     }
@@ -674,6 +689,7 @@ fn install_agent_templates(
         (TOOL_CLAUDE, Harness::ClaudeCode),
         (TOOL_CODEX, Harness::Codex),
         (TOOL_GITHUB_COPILOT, Harness::GitHubCopilot),
+        (TOOL_PI, Harness::Pi),
     ];
 
     for (tool_id, harness) in tool_harness_map {
@@ -949,6 +965,29 @@ mod tests {
             ".github/workflows/x.yml",
             &tools
         ));
+        assert!(!should_install_project_rel(".pi/settings.json", &tools));
+    }
+
+    #[test]
+    fn should_install_project_rel_filters_pi() {
+        let mut tools = BTreeSet::new();
+        tools.insert(TOOL_PI.to_string());
+
+        // Pi-specific files install when Pi is selected
+        assert!(should_install_project_rel(".pi/settings.json", &tools));
+        assert!(should_install_project_rel(
+            ".pi/extensions/ito-skills.ts",
+            &tools
+        ));
+
+        // Common files always install
+        assert!(should_install_project_rel("AGENTS.md", &tools));
+        assert!(should_install_project_rel(".ito/config.json", &tools));
+
+        // Other harness files do not install
+        assert!(!should_install_project_rel(".opencode/config.json", &tools));
+        assert!(!should_install_project_rel(".claude/settings.json", &tools));
+        assert!(!should_install_project_rel(".codex/config.json", &tools));
     }
 
     #[test]

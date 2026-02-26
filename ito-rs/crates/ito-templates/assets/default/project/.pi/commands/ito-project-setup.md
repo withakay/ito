@@ -1,5 +1,6 @@
 Run `ito agent instruction project-setup` and follow the guide to configure this project for Ito.
 
+## Extension
 
 Pi installs the Ito extension at `.pi/extensions/ito-skills.ts`.
 The extension runs `ito audit validate` and `ito audit reconcile` before tool execution,

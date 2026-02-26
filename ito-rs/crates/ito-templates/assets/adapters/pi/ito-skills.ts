@@ -1,21 +1,19 @@
 /**
  * Ito Pi Extension
  *
- * Port of the OpenCode ito-skills.js plugin for the Pi coding agent harness.
+ * Integrates Ito workflows into the Pi coding agent harness.
  *
  * - Injects Ito bootstrap context via system prompt (before_agent_start)
  * - Runs Ito audit checks on tool_call hook with short TTL caching
  * - Warns when mutating tools touch Ito-managed files
  * - Injects Ito continuation context on session compaction
+ * - Registers /ito command for direct CLI access
  *
- * Skills are discovered from .opencode/skills/ via settings.json — no
- * duplication needed.
+ * Skills are installed to .pi/skills/ by `ito init --tools pi`.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execFileSync } from "node:child_process";
-import path from "node:path";
-import fs from "node:fs";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -290,7 +288,7 @@ Load a skill with Pi's native skill command. Start with:
 /skill:using-ito-skills
 \`\`\`
 
-
+Skills are in \`.pi/skills/\`, commands in \`.pi/commands/\`.`;
 
       return bootstrap.length > 0 ? bootstrap : fallback;
     } catch {

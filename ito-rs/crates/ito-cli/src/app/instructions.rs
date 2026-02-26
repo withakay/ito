@@ -76,7 +76,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             return fail("Missing required option --tool for bootstrap artifact");
         }
         let tool = tool.expect("checked above");
-        let valid_tools = ["opencode", "claude", "codex", "github-copilot"];
+        let valid_tools = ["opencode", "claude", "codex", "github-copilot", "pi"];
         if !valid_tools.contains(&tool.as_str()) {
             return fail(format!(
                 "Invalid tool '{}'. Valid tools: {}",
