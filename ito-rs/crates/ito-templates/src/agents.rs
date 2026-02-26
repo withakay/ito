@@ -52,7 +52,7 @@ impl Harness {
             Self::ClaudeCode => ".claude/agents",
             Self::Codex => ".agents/skills",
             Self::GitHubCopilot => ".github/agents",
-            Self::Pi => ".pi/prompts",
+            Self::Pi => ".pi/agents",
         }
     }
 
@@ -175,28 +175,25 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
         },
     );
 
-    // Pi defaults (uses provider/model format like OpenCode)
+    // Pi defaults (bare model names — Pi resolves providers internally)
     configs.insert(
         (Harness::Pi, AgentTier::Quick),
         AgentConfig {
-            model: "anthropic/claude-haiku-4-5".to_string(),
-            temperature: Some(0.3),
+            model: "claude-haiku-4-5".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::Pi, AgentTier::General),
         AgentConfig {
-            model: "anthropic/claude-sonnet-4".to_string(),
-            temperature: Some(0.3),
+            model: "claude-sonnet-4-5".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::Pi, AgentTier::Thinking),
         AgentConfig {
-            model: "anthropic/claude-sonnet-4-thinking".to_string(),
-            temperature: Some(0.5),
+            model: "claude-sonnet-4-5".to_string(),
             ..Default::default()
         },
     );
