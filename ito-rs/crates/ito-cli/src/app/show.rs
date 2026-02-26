@@ -1,5 +1,5 @@
 use crate::cli::{ShowArgs, ShowCommand, ShowItemType};
-use crate::cli_error::{fail, to_cli_error, CliError, CliResult};
+use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::output;
