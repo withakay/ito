@@ -52,7 +52,7 @@ impl Harness {
             Self::ClaudeCode => ".claude/agents",
             Self::Codex => ".agents/skills",
             Self::GitHubCopilot => ".github/agents",
-            Self::Pi => ".pi/agents",
+            Self::Pi => ".pi/prompts",
         }
     }
 

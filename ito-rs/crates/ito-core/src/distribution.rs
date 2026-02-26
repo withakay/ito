@@ -388,11 +388,24 @@ mod tests {
         let text = std::str::from_utf8(bytes).expect("adapter should be valid UTF-8");
         assert!(
             text.contains("ExtensionAPI"),
-            "Pi adapter should reference ExtensionAPI type"
+            "Pi adapter should import the Pi ExtensionAPI type"
         );
         assert!(
-            text.contains("--tool"),
-            "Pi adapter should invoke bootstrap with --tool flag"
+            text.contains(r#""--tool", "pi""#),
+            "Pi adapter must request bootstrap with --tool pi (not opencode or other)"
+        );
+        assert!(
+            !text.contains(r#""--tool", "opencode""#),
+            "Pi adapter must not reference opencode tool type"
+        );
+        // Verify unused imports are not present.
+        assert!(
+            !text.contains("import path from"),
+            "Pi adapter should not have unused path import"
+        );
+        assert!(
+            !text.contains("import fs from"),
+            "Pi adapter should not have unused fs import"
         );
     }
 
@@ -419,6 +432,54 @@ mod tests {
         assert_eq!(
             pi_skill_sources, oc_skill_sources,
             "Pi and OpenCode should install identical skill sources"
+        );
+    }
+
+    #[test]
+    fn pi_agent_templates_discoverable() {
+        use ito_templates::agents::{Harness, get_agent_files};
+        let files = get_agent_files(Harness::Pi);
+        let names: Vec<_> = files.iter().map(|(name, _)| *name).collect();
+        assert!(
+            names.contains(&"ito-quick.md"),
+            "Pi agent templates must include ito-quick.md, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"ito-general.md"),
+            "Pi agent templates must include ito-general.md, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"ito-thinking.md"),
+            "Pi agent templates must include ito-thinking.md, got: {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn pi_manifests_commands_match_opencode_commands() {
+        // Pi and OpenCode should install the same set of commands from the
+        // shared embedded source — only the destination directory differs.
+        let root = Path::new("/home/user/myproject");
+        let pi = pi_manifests(root);
+        let oc_dir = root.join(".opencode");
+        let oc = opencode_manifests(&oc_dir);
+
+        let pi_cmd_sources: std::collections::BTreeSet<_> = pi
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .map(|m| m.source.clone())
+            .collect();
+        let oc_cmd_sources: std::collections::BTreeSet<_> = oc
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .map(|m| m.source.clone())
+            .collect();
+
+        assert_eq!(
+            pi_cmd_sources, oc_cmd_sources,
+            "Pi and OpenCode should install identical command sources"
         );
     }
 }
