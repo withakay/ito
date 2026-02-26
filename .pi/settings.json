@@ -1,4 +1,8 @@
 {
-  "skills": [".opencode/skills"],
-  "extensions": [".pi/extensions/ito-skills.ts"]
+  "skills": [
+    ".opencode/skills"
+  ],
+  "extensions": [
+    ".pi/extensions/ito-skills.ts"
+  ]
 }
