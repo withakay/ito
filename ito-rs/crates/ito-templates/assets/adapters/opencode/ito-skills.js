@@ -9,11 +9,13 @@
 
 import os from 'os';
 import path from 'path';
+import fs from 'fs';
 import { execFileSync } from 'child_process';
 
 const DEFAULT_AUDIT_TTL_MS = 10000;
 const ITO_EXEC_TIMEOUT_MS = 20000;
 const ITO_CONTEXT_TTL_MS = 5000;
+const ITO_TOAST_TIMEOUT_MS = 1500;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
 const ITO_MANAGED_FILE_RULES = [
@@ -57,6 +59,48 @@ export const ItoPlugin = async ({ client, directory }) => {
   const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX === '1';
   const disableAuditHook = process.env.ITO_OPENCODE_AUDIT_DISABLED === '1';
 
+  const debugEnabled = process.env.ITO_OPENCODE_DEBUG === '1';
+  const disableToasts = process.env.ITO_OPENCODE_TOAST_DISABLED === '1';
+  const disableInitToasts = process.env.ITO_OPENCODE_INIT_TOASTS_DISABLED === '1';
+  const disableWorktreeDetection = process.env.ITO_OPENCODE_WORKTREE_DETECT_DISABLED === '1';
+  const disableContext = process.env.ITO_OPENCODE_CONTEXT_DISABLED === '1';
+  const disableCompactionContext = process.env.ITO_OPENCODE_COMPACTION_DISABLED === '1';
+
+  const toastTimeoutMsRaw = Number.parseInt(process.env.ITO_OPENCODE_TOAST_TIMEOUT_MS || '', 10);
+  const toastTimeoutMs = Number.isFinite(toastTimeoutMsRaw) && toastTimeoutMsRaw > 0
+    ? toastTimeoutMsRaw
+    : ITO_TOAST_TIMEOUT_MS;
+
+  const defaultLogDir = process.env.OPENCODE_LOG_DIR?.trim() || path.join(homeDir, '.local/share/opencode/log');
+  const debugLogPath = process.env.ITO_OPENCODE_DEBUG_LOG?.trim() || path.join(defaultLogDir, 'ito-skills.debug.log');
+
+  const debug = (...parts) => {
+    if (!debugEnabled) {
+      return;
+    }
+
+    const line = `[${new Date().toISOString()}] ${parts.map((p) => {
+      if (p == null) {
+        return '';
+      }
+      if (typeof p === 'string') {
+        return p;
+      }
+      try {
+        return JSON.stringify(p);
+      } catch {
+        return String(p);
+      }
+    }).join(' ')}\n`;
+
+    try {
+      fs.mkdirSync(path.dirname(debugLogPath), { recursive: true });
+      fs.appendFileSync(debugLogPath, line, { encoding: 'utf8' });
+    } catch {
+      // Best-effort only.
+    }
+  };
+
   let lastAuditAt = 0;
   let lastAudit = null;
   let pendingAuditNotice = null;
@@ -68,13 +112,19 @@ export const ItoPlugin = async ({ client, directory }) => {
   let lastContextAt = 0;
   let lastContext = null;
 
-  const showToast = async ({ title, message, variant = 'info', duration }) => {
+  const showToast = ({ title, message, variant = 'info', duration }) => {
+    if (disableToasts) {
+      debug('toast:disabled', title);
+      return;
+    }
     if (!client?.tui?.showToast) {
+      debug('toast:unavailable', title);
       return;
     }
 
+    debug('toast:send', { title, message, variant, duration });
     try {
-      await client.tui.showToast({
+      const p = client.tui.showToast({
         body: {
           title,
           message,
@@ -82,8 +132,15 @@ export const ItoPlugin = async ({ client, directory }) => {
           duration
         }
       });
-    } catch {
-      // Best-effort only.
+
+      Promise.race([
+        p,
+        new Promise((resolve) => setTimeout(resolve, toastTimeoutMs))
+      ])
+        .then(() => debug('toast:done', title))
+        .catch((e) => debug('toast:error', title, String(e)));
+    } catch (e) {
+      debug('toast:throw', title, String(e));
     }
   };
 
@@ -165,13 +222,19 @@ export const ItoPlugin = async ({ client, directory }) => {
   };
 
   const loadContext = () => {
+    if (disableContext) {
+      return null;
+    }
+
     const now = Date.now();
     if (lastContext && now - lastContextAt < ITO_CONTEXT_TTL_MS) {
       return lastContext;
     }
 
+    debug('context:load');
     const result = runIto(['agent', 'instruction', 'context', '--json']);
     if (!result.ok || !result.stdout) {
+      debug('context:failed', summarize(result));
       lastContext = null;
       lastContextAt = now;
       return null;
@@ -179,10 +242,12 @@ export const ItoPlugin = async ({ client, directory }) => {
 
     try {
       const parsed = JSON.parse(result.stdout);
+      debug('context:ok', parsed?.target || null);
       lastContext = parsed;
       lastContextAt = now;
       return parsed;
     } catch {
+      debug('context:parse_error');
       lastContext = null;
       lastContextAt = now;
       return null;
@@ -190,6 +255,10 @@ export const ItoPlugin = async ({ client, directory }) => {
   };
 
   const maybeToastWorktree = async () => {
+    if (disableWorktreeDetection) {
+      debug('worktree:disabled');
+      return;
+    }
     if (worktreeToastSent) {
       return;
     }
@@ -201,11 +270,12 @@ export const ItoPlugin = async ({ client, directory }) => {
 
     const gitDir = (gitDirResult.stdout || '').replace(/\\/g, '/');
     if (!gitDir.includes('/worktrees/')) {
+      debug('worktree:none', gitDirResult.stdout);
       return;
     }
 
     worktreeToastSent = true;
-    await showToast({
+    showToast({
       title: 'Git Worktree Detected',
       message: gitDirResult.stdout || 'worktree',
       variant: 'info',
@@ -390,7 +460,11 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
     }
   };
 
-  await maybeToastWorktree();
+  debug('plugin:init', { directory });
+  if (!disableInitToasts) {
+    // Never block plugin load on a toast request.
+    void maybeToastWorktree();
+  }
 
   return {
     event: async ({ event }) => {
@@ -399,13 +473,16 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
       }
 
       if (event.type === 'session.compacted') {
+        if (disableCompactionContext) {
+          return;
+        }
         const ctx = loadContext();
         if (ctx?.nudge) {
           pendingContinuationNotice = `[Ito Continuation] ${ctx.nudge}`;
         }
 
         const target = formatTarget(ctx);
-        await showToast({
+        showToast({
           title: 'Session Compacted',
           message: target ? `Continue: ${target}` : 'Continue',
           variant: 'info',
@@ -415,6 +492,9 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
     },
 
     'experimental.session.compacting': async (_input, output) => {
+      if (disableCompactionContext) {
+        return;
+      }
       const ctx = loadContext();
       if (!ctx?.nudge) {
         return;
@@ -465,14 +545,16 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
 
         if (!bootstrapToastSent) {
           bootstrapToastSent = true;
-          const ctx = loadContext();
-          const target = formatTarget(ctx);
-          await showToast({
-            title: 'Ito Prompt Injected',
-            message: target ? `Target: ${target}` : 'Bootstrap injected',
-            variant: 'success',
-            duration: 3500
-          });
+          if (!disableInitToasts) {
+            const ctx = loadContext();
+            const target = formatTarget(ctx);
+            showToast({
+              title: 'Ito Prompt Injected',
+              message: target ? `Target: ${target}` : 'Bootstrap injected',
+              variant: 'success',
+              duration: 3500
+            });
+          }
         }
       }
 
