@@ -125,12 +125,16 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         if target_path.join(".codex").exists() {
             detected.insert(ito_core::installers::TOOL_CODEX);
         }
+        if target_path.join(".pi").exists() {
+            detected.insert(ito_core::installers::TOOL_PI);
+        }
 
         let tool_items: Vec<(&'static str, &str)> = vec![
             (ito_core::installers::TOOL_CLAUDE, "Claude Code"),
             (ito_core::installers::TOOL_CODEX, "Codex"),
             (ito_core::installers::TOOL_GITHUB_COPILOT, "GitHub Copilot"),
             (ito_core::installers::TOOL_OPENCODE, "OpenCode"),
+            (ito_core::installers::TOOL_PI, "Pi"),
         ];
         let labels: Vec<String> = tool_items
             .iter()
