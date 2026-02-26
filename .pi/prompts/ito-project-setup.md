@@ -1,0 +1,1 @@
+../../.opencode/commands/ito-project-setup.md
