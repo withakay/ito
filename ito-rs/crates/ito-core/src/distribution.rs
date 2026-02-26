@@ -306,3 +306,83 @@ fn skill_line_uses_worktree_template_syntax(line: &str) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pi_manifests_includes_adapter_only() {
+        let root = Path::new("/tmp/project");
+        let manifests = pi_manifests(root);
+
+        // Must contain the adapter extension.
+        let adapter = manifests
+            .iter()
+            .find(|m| m.asset_type == AssetType::Adapter);
+        assert!(adapter.is_some(), "pi_manifests must include the adapter");
+        let adapter = adapter.unwrap();
+        assert_eq!(adapter.source, "pi/ito-skills.ts");
+        assert!(
+            adapter.dest.ends_with(".pi/extensions/ito-skills.ts"),
+            "adapter dest should end with .pi/extensions/ito-skills.ts, got {:?}",
+            adapter.dest
+        );
+
+        // Must NOT contain any skill entries (skills are shared via settings.json).
+        let skills: Vec<_> = manifests
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .collect();
+        assert!(
+            skills.is_empty(),
+            "pi_manifests must not include skill entries, found {} entries",
+            skills.len()
+        );
+
+        // Must NOT contain any command entries.
+        let commands: Vec<_> = manifests
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .collect();
+        assert!(
+            commands.is_empty(),
+            "pi_manifests must not include command entries, found {} entries",
+            commands.len()
+        );
+    }
+
+    #[test]
+    fn pi_adapter_asset_exists_in_embedded_templates() {
+        let contents = ito_templates::get_adapter_file("pi/ito-skills.ts");
+        assert!(
+            contents.is_some(),
+            "pi/ito-skills.ts must be present in embedded adapter assets"
+        );
+        let bytes = contents.unwrap();
+        assert!(!bytes.is_empty());
+        let text = std::str::from_utf8(bytes).expect("adapter should be valid UTF-8");
+        assert!(
+            text.contains("ExtensionAPI"),
+            "Pi adapter should reference ExtensionAPI type"
+        );
+        assert!(
+            text.contains("--tool"),
+            "Pi adapter should invoke bootstrap with --tool flag"
+        );
+    }
+
+    #[test]
+    fn pi_manifests_no_skills_directory_entries() {
+        let root = Path::new("/home/user/myproject");
+        let manifests = pi_manifests(root);
+        for m in &manifests {
+            let dest_str = m.dest.to_string_lossy();
+            assert!(
+                !dest_str.contains(".pi/skills/"),
+                "pi_manifests must not install to .pi/skills/, found: {}",
+                dest_str
+            );
+        }
+    }
+}

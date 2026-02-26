@@ -959,6 +959,29 @@ mod tests {
             ".github/workflows/x.yml",
             &tools
         ));
+        assert!(!should_install_project_rel(".pi/settings.json", &tools));
+    }
+
+    #[test]
+    fn should_install_project_rel_filters_pi() {
+        let mut tools = BTreeSet::new();
+        tools.insert(TOOL_PI.to_string());
+
+        // Pi-specific files install when Pi is selected
+        assert!(should_install_project_rel(".pi/settings.json", &tools));
+        assert!(should_install_project_rel(
+            ".pi/extensions/ito-skills.ts",
+            &tools
+        ));
+
+        // Common files always install
+        assert!(should_install_project_rel("AGENTS.md", &tools));
+        assert!(should_install_project_rel(".ito/config.json", &tools));
+
+        // Other harness files do not install
+        assert!(!should_install_project_rel(".opencode/config.json", &tools));
+        assert!(!should_install_project_rel(".claude/settings.json", &tools));
+        assert!(!should_install_project_rel(".codex/config.json", &tools));
     }
 
     #[test]

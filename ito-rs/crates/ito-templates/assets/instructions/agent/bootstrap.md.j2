@@ -14,6 +14,11 @@ GitHub Copilot discovers instructions from `.github/copilot-instructions.md` and
 
 Copilot CLI (`gh copilot`) has no project-level instruction discovery; it is stateless per invocation.
 
+{% elif tool == "pi" %}
+## Tool Notes
+
+Prefer dedicated tools (Read, Write, Edit, Glob, Grep) over shell commands. Skills are shared from `.opencode/skills/` (configured in `.pi/settings.json`). Load a skill with `/skill:name` (e.g., `/skill:using-ito-skills`). The `/ito` command provided by the Ito extension runs Ito CLI commands directly (e.g., `/ito audit validate`).
+
 {% else %}
 ## Tool Notes
 
