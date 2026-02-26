@@ -29,7 +29,13 @@ const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 
 /// Return the set of supported tool ids.
 pub fn available_tool_ids() -> &'static [&'static str] {
-    &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE, TOOL_PI]
+    &[
+        TOOL_CLAUDE,
+        TOOL_CODEX,
+        TOOL_GITHUB_COPILOT,
+        TOOL_OPENCODE,
+        TOOL_PI,
+    ]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
