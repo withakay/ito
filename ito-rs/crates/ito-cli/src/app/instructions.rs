@@ -6,6 +6,7 @@ use ito_config::types::WorktreeStrategy;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
+use ito_core::harness_context;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
@@ -111,6 +112,36 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             return Ok(());
         }
         print!("{instruction}");
+        return Ok(());
+    }
+
+    if artifact == "context" {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let inferred = harness_context::infer_context_from_cwd(&cwd).map_err(to_cli_error)?;
+
+        if want_json {
+            let rendered = serde_json::to_string_pretty(&inferred).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        if let Some(target) = &inferred.target {
+            let kind = match target.kind {
+                harness_context::InferredItoTargetKind::Change => "change",
+                harness_context::InferredItoTargetKind::Module => "module",
+            };
+            print!(
+                "[Ito Target] {kind} {id}\n[Ito Continuation] {nudge}\n",
+                kind = kind,
+                id = target.id.as_str(),
+                nudge = inferred.nudge.as_str()
+            );
+        } else {
+            print!(
+                "[Ito Target] none\n[Ito Continuation] {nudge}\n",
+                nudge = inferred.nudge.as_str()
+            );
+        }
         return Ok(());
     }
 
