@@ -218,7 +218,7 @@ The following subagents are available to help maintain code quality. Use them pr
 | When | Subagent | What it does |
 |---|---|---|
 | Before claiming work is done | `test-runner` | Runs `make test` / `make check` via the Makefile and returns clean pass/fail evidence |
-| Before committing | `codex-review` | Reviews the diff for quality, correctness, and convention adherence |
+| Before committing | `codex-review` | Reviews the diff for quality, correctness, and convention adherence (pair with `rust-code-reviewer` for a second opinion on non-trivial changes) |
 | Checking documentation quality | `documentation-police` | Verifies doc comments are complete and genuinely useful |
 | Simplifying complex code | `code-simplifier` | Refines Rust code for clarity, consistency, and maintainability |
 
@@ -235,4 +235,4 @@ The following subagents are available to help maintain code quality. Use them pr
 1. **Before writing code**: Load the `rust-style` skill for conventions
 2. **After writing code**: Run `rust-quality-checker` to catch style issues early
 3. **After completing a feature**: Run `test-runner` to verify tests pass, then `rust-code-reviewer` for a quality check
-4. **Before committing**: Run `codex-review` on the diff and `documentation-police` on any new public APIs
+4. **Before committing**: Run `codex-review` on the diff (and `rust-code-reviewer` for a second pass on non-trivial changes), plus `documentation-police` on any new public APIs

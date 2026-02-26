@@ -33,7 +33,6 @@ If the user provided an existing change ID, use it. Otherwise:
 ```bash
 ito agent instruction proposal --change "<change-id>"
 ito agent instruction specs --change "<change-id>"
-ito agent instruction design --change "<change-id>"
 ito agent instruction tasks --change "<change-id>"
 ```
 
