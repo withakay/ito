@@ -167,6 +167,32 @@ pub fn codex_manifests(project_root: &Path) -> Vec<FileManifest> {
     out
 }
 
+/// Return manifest entries for Pi coding agent template installation.
+///
+/// Pi gets its own copy of skills and commands under `.pi/` so it is fully
+/// self-contained — users can install Pi without OpenCode. The skills and
+/// commands are read from the same shared embedded assets used by every harness.
+pub fn pi_manifests(project_root: &Path) -> Vec<FileManifest> {
+    let mut out = vec![FileManifest {
+        source: "pi/ito-skills.ts".to_string(),
+        dest: project_root
+            .join(".pi")
+            .join("extensions")
+            .join("ito-skills.ts"),
+        asset_type: AssetType::Adapter,
+    }];
+
+    // Skills go under .pi/skills/ (flat structure with ito- prefix)
+    let skills_dir = project_root.join(".pi").join("skills");
+    out.extend(ito_skills_manifests(&skills_dir));
+
+    // Commands go under .pi/commands/
+    let commands_dir = project_root.join(".pi").join("commands");
+    out.extend(ito_commands_manifests(&commands_dir));
+
+    out
+}
+
 /// Return manifest entries for GitHub Copilot template installation.
 pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
     // Skills go directly under .github/skills/ (flat structure with ito- prefix)
@@ -289,4 +315,171 @@ fn skill_line_uses_worktree_template_syntax(line: &str) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pi_manifests_includes_adapter_skills_and_commands() {
+        let root = Path::new("/tmp/project");
+        let manifests = pi_manifests(root);
+
+        // Must contain the adapter extension.
+        let adapter = manifests
+            .iter()
+            .find(|m| m.asset_type == AssetType::Adapter);
+        assert!(adapter.is_some(), "pi_manifests must include the adapter");
+        let adapter = adapter.unwrap();
+        assert_eq!(adapter.source, "pi/ito-skills.ts");
+        assert!(
+            adapter.dest.ends_with(".pi/extensions/ito-skills.ts"),
+            "adapter dest should end with .pi/extensions/ito-skills.ts, got {:?}",
+            adapter.dest
+        );
+
+        // Must contain skill entries under .pi/skills/.
+        let skills: Vec<_> = manifests
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .collect();
+        assert!(
+            !skills.is_empty(),
+            "pi_manifests must include skill entries"
+        );
+        for skill in &skills {
+            let dest_str = skill.dest.to_string_lossy();
+            assert!(
+                dest_str.contains(".pi/skills/"),
+                "skill dest should be under .pi/skills/, got: {}",
+                dest_str
+            );
+        }
+
+        // Must contain command entries under .pi/commands/.
+        let commands: Vec<_> = manifests
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .collect();
+        assert!(
+            !commands.is_empty(),
+            "pi_manifests must include command entries"
+        );
+        for cmd in &commands {
+            let dest_str = cmd.dest.to_string_lossy();
+            assert!(
+                dest_str.contains(".pi/commands/"),
+                "command dest should be under .pi/commands/, got: {}",
+                dest_str
+            );
+        }
+    }
+
+    #[test]
+    fn pi_adapter_asset_exists_in_embedded_templates() {
+        let contents = ito_templates::get_adapter_file("pi/ito-skills.ts");
+        assert!(
+            contents.is_some(),
+            "pi/ito-skills.ts must be present in embedded adapter assets"
+        );
+        let bytes = contents.unwrap();
+        assert!(!bytes.is_empty());
+        let text = std::str::from_utf8(bytes).expect("adapter should be valid UTF-8");
+        assert!(
+            text.contains("ExtensionAPI"),
+            "Pi adapter should import the Pi ExtensionAPI type"
+        );
+        assert!(
+            text.contains(r#""--tool", "pi""#),
+            "Pi adapter must request bootstrap with --tool pi (not opencode or other)"
+        );
+        assert!(
+            !text.contains(r#""--tool", "opencode""#),
+            "Pi adapter must not reference opencode tool type"
+        );
+        // Verify unused imports are not present.
+        assert!(
+            !text.contains("import path from"),
+            "Pi adapter should not have unused path import"
+        );
+        assert!(
+            !text.contains("import fs from"),
+            "Pi adapter should not have unused fs import"
+        );
+    }
+
+    #[test]
+    fn pi_manifests_skills_match_opencode_skills() {
+        // Pi and OpenCode should install the same set of skills from the
+        // shared embedded source — only the destination directory differs.
+        let root = Path::new("/home/user/myproject");
+        let pi = pi_manifests(root);
+        let oc_dir = root.join(".opencode");
+        let oc = opencode_manifests(&oc_dir);
+
+        let pi_skill_sources: std::collections::BTreeSet<_> = pi
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .map(|m| m.source.clone())
+            .collect();
+        let oc_skill_sources: std::collections::BTreeSet<_> = oc
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Skill)
+            .map(|m| m.source.clone())
+            .collect();
+
+        assert_eq!(
+            pi_skill_sources, oc_skill_sources,
+            "Pi and OpenCode should install identical skill sources"
+        );
+    }
+
+    #[test]
+    fn pi_agent_templates_discoverable() {
+        use ito_templates::agents::{Harness, get_agent_files};
+        let files = get_agent_files(Harness::Pi);
+        let names: Vec<_> = files.iter().map(|(name, _)| *name).collect();
+        assert!(
+            names.contains(&"ito-quick.md"),
+            "Pi agent templates must include ito-quick.md, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"ito-general.md"),
+            "Pi agent templates must include ito-general.md, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"ito-thinking.md"),
+            "Pi agent templates must include ito-thinking.md, got: {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn pi_manifests_commands_match_opencode_commands() {
+        // Pi and OpenCode should install the same set of commands from the
+        // shared embedded source — only the destination directory differs.
+        let root = Path::new("/home/user/myproject");
+        let pi = pi_manifests(root);
+        let oc_dir = root.join(".opencode");
+        let oc = opencode_manifests(&oc_dir);
+
+        let pi_cmd_sources: std::collections::BTreeSet<_> = pi
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .map(|m| m.source.clone())
+            .collect();
+        let oc_cmd_sources: std::collections::BTreeSet<_> = oc
+            .iter()
+            .filter(|m| m.asset_type == AssetType::Command)
+            .map(|m| m.source.clone())
+            .collect();
+
+        assert_eq!(
+            pi_cmd_sources, oc_cmd_sources,
+            "Pi and OpenCode should install identical command sources"
+        );
+    }
 }
