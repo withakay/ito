@@ -29,6 +29,8 @@ pub enum Harness {
     Codex,
     /// GitHub Copilot harness.
     GitHubCopilot,
+    /// Pi coding agent harness.
+    Pi,
 }
 
 impl Harness {
@@ -39,6 +41,7 @@ impl Harness {
             Self::ClaudeCode => "claude-code",
             Self::Codex => "codex",
             Self::GitHubCopilot => "github-copilot",
+            Self::Pi => "pi",
         }
     }
 
@@ -49,6 +52,7 @@ impl Harness {
             Self::ClaudeCode => ".claude/agents",
             Self::Codex => ".agents/skills",
             Self::GitHubCopilot => ".github/agents",
+            Self::Pi => ".pi/agents",
         }
     }
 
@@ -59,6 +63,7 @@ impl Harness {
             Self::ClaudeCode,
             Self::Codex,
             Self::GitHubCopilot,
+            Self::Pi,
         ]
     }
 }
@@ -166,6 +171,32 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
         AgentConfig {
             model: "openai/gpt-5.2-codex".to_string(),
             reasoning_effort: Some("xhigh".to_string()),
+            ..Default::default()
+        },
+    );
+
+    // Pi defaults (uses provider/model format like OpenCode)
+    configs.insert(
+        (Harness::Pi, AgentTier::Quick),
+        AgentConfig {
+            model: "anthropic/claude-haiku-4-5".to_string(),
+            temperature: Some(0.3),
+            ..Default::default()
+        },
+    );
+    configs.insert(
+        (Harness::Pi, AgentTier::General),
+        AgentConfig {
+            model: "anthropic/claude-sonnet-4".to_string(),
+            temperature: Some(0.3),
+            ..Default::default()
+        },
+    );
+    configs.insert(
+        (Harness::Pi, AgentTier::Thinking),
+        AgentConfig {
+            model: "anthropic/claude-sonnet-4-thinking".to_string(),
+            temperature: Some(0.5),
             ..Default::default()
         },
     );

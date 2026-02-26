@@ -22,12 +22,14 @@ pub const TOOL_CODEX: &str = "codex";
 pub const TOOL_GITHUB_COPILOT: &str = "github-copilot";
 /// Tool id for OpenCode.
 pub const TOOL_OPENCODE: &str = "opencode";
+/// Tool id for Pi.
+pub const TOOL_PI: &str = "pi";
 
 const CONFIG_SCHEMA_RELEASE_TAG_PLACEHOLDER: &str = "__ITO_RELEASE_TAG__";
 
 /// Return the set of supported tool ids.
 pub fn available_tool_ids() -> &'static [&'static str] {
-    &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE]
+    &[TOOL_CLAUDE, TOOL_CODEX, TOOL_GITHUB_COPILOT, TOOL_OPENCODE, TOOL_PI]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
