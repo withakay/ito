@@ -13,6 +13,7 @@ import { execFileSync } from 'child_process';
 
 const DEFAULT_AUDIT_TTL_MS = 10000;
 const ITO_EXEC_TIMEOUT_MS = 20000;
+const ITO_CONTEXT_TTL_MS = 5000;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
 const ITO_MANAGED_FILE_RULES = [
@@ -60,6 +61,61 @@ export const ItoPlugin = async ({ client, directory }) => {
   let lastAudit = null;
   let pendingAuditNotice = null;
 
+  let bootstrapToastSent = false;
+  let worktreeToastSent = false;
+  let pendingContinuationNotice = null;
+
+  let lastContextAt = 0;
+  let lastContext = null;
+
+  const showToast = async ({ title, message, variant = 'info', duration }) => {
+    if (!client?.tui?.showToast) {
+      return;
+    }
+
+    try {
+      await client.tui.showToast({
+        body: {
+          title,
+          message,
+          variant,
+          duration
+        }
+      });
+    } catch {
+      // Best-effort only.
+    }
+  };
+
+  const runGit = (args) => {
+    try {
+      const stdout = execFileSync('git', args, {
+        cwd: directory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: ITO_EXEC_TIMEOUT_MS
+      });
+
+      return {
+        ok: true,
+        code: 0,
+        stdout: (stdout || '').trim(),
+        stderr: ''
+      };
+    } catch (error) {
+      const stdout = typeof error.stdout === 'string' ? error.stdout : '';
+      const stderr = typeof error.stderr === 'string' ? error.stderr : '';
+      const code = typeof error.status === 'number' ? error.status : 1;
+
+      return {
+        ok: false,
+        code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim()
+      };
+    }
+  };
+
   const runIto = (args) => {
     try {
       const stdout = execFileSync('ito', args, {
@@ -97,6 +153,64 @@ export const ItoPlugin = async ({ client, directory }) => {
 
     const firstLine = output.split(/\r?\n/)[0].trim();
     return firstLine.length > 280 ? `${firstLine.slice(0, 277)}...` : firstLine;
+  };
+
+  const formatTarget = (ctx) => {
+    const kind = ctx?.target?.kind;
+    const id = ctx?.target?.id;
+    if (typeof kind === 'string' && typeof id === 'string' && id.trim()) {
+      return `${kind} ${id}`;
+    }
+    return null;
+  };
+
+  const loadContext = () => {
+    const now = Date.now();
+    if (lastContext && now - lastContextAt < ITO_CONTEXT_TTL_MS) {
+      return lastContext;
+    }
+
+    const result = runIto(['agent', 'instruction', 'context', '--json']);
+    if (!result.ok || !result.stdout) {
+      lastContext = null;
+      lastContextAt = now;
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(result.stdout);
+      lastContext = parsed;
+      lastContextAt = now;
+      return parsed;
+    } catch {
+      lastContext = null;
+      lastContextAt = now;
+      return null;
+    }
+  };
+
+  const maybeToastWorktree = async () => {
+    if (worktreeToastSent) {
+      return;
+    }
+
+    const gitDirResult = runGit(['rev-parse', '--git-dir']);
+    if (!gitDirResult.ok) {
+      return;
+    }
+
+    const gitDir = (gitDirResult.stdout || '').replace(/\\/g, '/');
+    if (!gitDir.includes('/worktrees/')) {
+      return;
+    }
+
+    worktreeToastSent = true;
+    await showToast({
+      title: 'Git Worktree Detected',
+      message: gitDirResult.stdout || 'worktree',
+      variant: 'info',
+      duration: 5000
+    });
   };
 
   const detectDrift = (reconcileResult) => {
@@ -276,13 +390,53 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
     }
   };
 
+  await maybeToastWorktree();
+
   return {
+    event: async ({ event }) => {
+      if (!event || typeof event.type !== 'string') {
+        return;
+      }
+
+      if (event.type === 'session.compacted') {
+        const ctx = loadContext();
+        if (ctx?.nudge) {
+          pendingContinuationNotice = `[Ito Continuation] ${ctx.nudge}`;
+        }
+
+        const target = formatTarget(ctx);
+        await showToast({
+          title: 'Session Compacted',
+          message: target ? `Continue: ${target}` : 'Continue',
+          variant: 'info',
+          duration: 4500
+        });
+      }
+    },
+
+    'experimental.session.compacting': async (_input, output) => {
+      const ctx = loadContext();
+      if (!ctx?.nudge) {
+        return;
+      }
+
+      if (!Array.isArray(output.context)) {
+        output.context = [];
+      }
+      output.context.push(`## Ito Continuation\n${ctx.nudge}`);
+    },
+
     'tool.execute.before': async (input, output) => {
       if (disableAuditHook) {
         return;
       }
 
       const toolName = input?.tool?.name || input?.toolName || '';
+
+      if (pendingContinuationNotice) {
+        addSystemNotice(output, pendingContinuationNotice);
+        pendingContinuationNotice = null;
+      }
 
       if (FILE_EDITING_TOOLS.has(toolName) || toolName === 'Bash') {
         maybeWarnForManagedFileWrites(toolName, input, output);
@@ -308,6 +462,18 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
           output.system = [];
         }
         output.system.push(bootstrap);
+
+        if (!bootstrapToastSent) {
+          bootstrapToastSent = true;
+          const ctx = loadContext();
+          const target = formatTarget(ctx);
+          await showToast({
+            title: 'Ito Prompt Injected',
+            message: target ? `Target: ${target}` : 'Bootstrap injected',
+            variant: 'success',
+            duration: 3500
+          });
+        }
       }
 
       if (pendingAuditNotice) {
