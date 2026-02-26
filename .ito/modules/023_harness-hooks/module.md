@@ -13,3 +13,4 @@
 - [x] 023-04_codex-audit-instructions
 - [x] 023-05_init-update-installer-parity
 - [ ] 023-06_harness-audit-hooks
+- [ ] 023-07_harness-context-inference
