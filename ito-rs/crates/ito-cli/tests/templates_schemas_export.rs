@@ -5,7 +5,7 @@ use predicates::str::contains;
 ///
 /// The test runs the CLI to export templates into a temporary `.ito/templates/schemas` target,
 /// asserts the command reports "Exported schemas", and checks that the following files exist:
-/// `spec-driven/schema.yaml`, `spec-driven/validation.yaml`, `spec-driven/templates/proposal.md`, and `tdd/schema.yaml`.
+/// `spec-driven/schema.yaml`, `spec-driven/validation.yaml`, `spec-driven/templates/proposal.md`, `tdd/schema.yaml`, and `tdd/validation.yaml`.
 ///
 /// # Examples
 ///
