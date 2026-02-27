@@ -33,7 +33,7 @@ pub fn sync_audit_mirror(
     ito_path: &Path,
     branch: &str,
 ) -> Result<(), AuditMirrorError> {
-    let runner = SystemProcessRunner::default();
+    let runner = SystemProcessRunner;
     sync_audit_mirror_with_runner(&runner, repo_root, ito_path, branch)
 }
 

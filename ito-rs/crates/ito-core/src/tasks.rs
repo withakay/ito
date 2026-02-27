@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
-use crate::templates::{read_change_schema, resolve_schema};
+use crate::templates::{ValidatorId, load_schema_validation, read_change_schema, resolve_schema};
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 
@@ -49,6 +49,18 @@ fn checked_tasks_path(ito_path: &Path, change_id: &str) -> CoreResult<PathBuf> {
     let resolved = resolve_schema(Some(&schema_name), &ctx).map_err(|e| {
         CoreError::validation(format!("Failed to resolve schema '{schema_name}': {e}"))
     })?;
+
+    // If the schema declares a non-tasks tracking validator, the `ito tasks` command cannot
+    // safely operate on the tracking file.
+    if let Ok(Some(validation)) = load_schema_validation(&resolved)
+        && let Some(tracking) = validation.tracking.as_ref()
+        && tracking.validate_as != ValidatorId::TasksTrackingV1
+    {
+        return Err(CoreError::validation(format!(
+            "Schema tracking validator '{}' is not supported by `ito tasks`",
+            tracking.validate_as.as_str()
+        )));
+    }
 
     let tracking_file = resolved
         .schema
