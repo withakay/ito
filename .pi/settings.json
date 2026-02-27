@@ -4,5 +4,8 @@
   ],
   "extensions": [
     ".pi/extensions/ito-skills.ts"
+  ],
+  "packages": [
+    "npm:pi-subagents"
   ]
 }
