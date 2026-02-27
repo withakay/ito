@@ -782,9 +782,72 @@ pub fn validate_tasks_file(
     change_id: &str,
     strict: bool,
 ) -> CoreResult<Vec<ValidationIssue>> {
-    use ito_domain::tasks::tasks_path;
+    use crate::templates::{load_schema_validation, read_change_schema, resolve_schema};
+    use ito_domain::tasks::tasks_path_checked;
 
-    let path = tasks_path(ito_path, change_id);
-    let report_path = format!("changes/{change_id}/tasks.md");
-    Ok(validate_tasks_tracking_path(&path, &report_path, strict))
+    // `read_change_schema` uses `change_id` as a path segment; reject traversal.
+    if tasks_path_checked(ito_path, change_id).is_none() {
+        return Ok(vec![error(
+            "tracking",
+            format!("invalid change id path segment: \"{change_id}\""),
+        )]);
+    }
+
+    let schema_name = read_change_schema(ito_path, change_id);
+    let mut ctx = ConfigContext::from_process_env();
+    ctx.project_dir = ito_path.parent().map(|p| p.to_path_buf());
+
+    let mut issues: Vec<ValidationIssue> = Vec::new();
+
+    let mut tracking_file = "tasks.md".to_string();
+    let resolved = match resolve_schema(Some(&schema_name), &ctx) {
+        Ok(r) => Some(r),
+        Err(e) => {
+            issues.push(error(
+                "schema",
+                format!("Failed to resolve schema '{schema_name}': {e}"),
+            ));
+            None
+        }
+    };
+
+    if let Some(resolved) = resolved.as_ref() {
+        // If schema validation declares a non-tasks tracking validator, this file is not a
+        // tasks-tracking file that `ito validate` can interpret.
+        if let Ok(Some(validation)) = load_schema_validation(resolved)
+            && let Some(tracking) = validation.tracking.as_ref()
+            && tracking.validate_as != ValidatorId::TasksTrackingV1
+        {
+            issues.push(error(
+                "tracking",
+                format!(
+                    "Schema tracking validator '{}' is not valid for tasks tracking files",
+                    tracking.validate_as.as_str()
+                ),
+            ));
+            return Ok(issues);
+        }
+
+        if let Some(tracks) = resolved
+            .schema
+            .apply
+            .as_ref()
+            .and_then(|a| a.tracks.as_deref())
+        {
+            tracking_file = tracks.to_string();
+        }
+    }
+
+    if !ito_domain::tasks::is_safe_tracking_filename(&tracking_file) {
+        issues.push(error(
+            "tracking",
+            format!("Invalid tracking file path in apply.tracks: '{tracking_file}'"),
+        ));
+        return Ok(issues);
+    }
+
+    let path = paths::change_dir(ito_path, change_id).join(&tracking_file);
+    let report_path = format!("changes/{change_id}/{tracking_file}");
+    issues.extend(validate_tasks_tracking_path(&path, &report_path, strict));
+    Ok(issues)
 }

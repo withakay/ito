@@ -47,6 +47,54 @@ pub struct ItoConfig {
     #[schemars(default, description = "Change coordination configuration")]
     /// Change coordination configuration.
     pub changes: ChangesConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Audit logging and mirroring configuration")]
+    /// Audit logging and mirroring configuration.
+    pub audit: AuditConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Audit configuration")]
+/// Audit configuration.
+pub struct AuditConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Remote mirroring settings")]
+    /// Remote mirroring settings.
+    pub mirror: AuditMirrorConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Audit remote mirroring settings")]
+/// Audit remote mirroring settings.
+pub struct AuditMirrorConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Enable best-effort audit remote mirroring")]
+    /// Enable best-effort audit remote mirroring.
+    pub enabled: bool,
+
+    #[serde(default = "AuditMirrorConfig::default_branch")]
+    #[schemars(
+        default = "AuditMirrorConfig::default_branch",
+        description = "Remote branch name used for audit mirroring"
+    )]
+    /// Remote branch name used for audit mirroring.
+    pub branch: String,
+}
+
+impl AuditMirrorConfig {
+    fn default_branch() -> String {
+        "ito/internal/audit".to_string()
+    }
+}
+
+impl Default for AuditMirrorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            branch: Self::default_branch(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

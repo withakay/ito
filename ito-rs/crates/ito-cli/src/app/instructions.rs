@@ -145,6 +145,26 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
+    if artifact == "schemas" {
+        let ctx = rt.ctx();
+        let response = core_templates::list_schemas_detail(ctx);
+
+        if want_json {
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/schemas.md.j2",
+            &response,
+        )
+        .map_err(|e| to_cli_error(format!("failed to render schemas instruction: {e}")))?;
+
+        print!("{instruction}");
+        return Ok(());
+    }
+
     if artifact == "worktrees" {
         let ctx = rt.ctx();
         let ito_path = rt.ito_path();

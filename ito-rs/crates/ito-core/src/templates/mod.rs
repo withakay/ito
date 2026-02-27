@@ -37,6 +37,28 @@ pub use types::{
     WorkflowError,
 };
 
+/// One entry in the schema listing returned by [`list_schemas_detail`].
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SchemaListEntry {
+    /// Schema name (e.g. `spec-driven`).
+    pub name: String,
+    /// Human-readable description from `schema.yaml`.
+    pub description: String,
+    /// Artifact IDs defined by this schema.
+    pub artifacts: Vec<String>,
+    /// Where the schema was resolved from.
+    pub source: String,
+}
+
+/// Detailed schema listing suitable for agent consumption.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SchemaListResponse {
+    /// All discovered schemas with metadata.
+    pub schemas: Vec<SchemaListEntry>,
+    /// The recommended default schema name.
+    pub recommended_default: String,
+}
+
 use ito_common::fs::StdFs;
 use ito_common::paths;
 use ito_config::ConfigContext;
@@ -166,6 +188,58 @@ pub fn list_available_schemas(ctx: &ConfigContext) -> Vec<String> {
     }
 
     set.into_iter().collect()
+}
+
+/// List all available schemas with full metadata for agent/UI consumption.
+///
+/// Iterates over all discoverable schema names, resolves each one, and returns
+/// a [`SchemaListResponse`] containing per-schema entries (name, description,
+/// artifact IDs, source) plus the recommended default.
+///
+/// Schemas that fail to resolve are silently skipped.
+///
+/// # Examples
+///
+/// ```ignore
+/// let response = list_schemas_detail(&ctx);
+/// assert!(!response.schemas.is_empty());
+/// assert_eq!(response.recommended_default, "spec-driven");
+/// ```
+pub fn list_schemas_detail(ctx: &ConfigContext) -> SchemaListResponse {
+    let names = list_available_schemas(ctx);
+    let mut schemas = Vec::new();
+
+    for name in &names {
+        let Ok(resolved) = resolve_schema(Some(name), ctx) else {
+            continue;
+        };
+        let description = resolved.schema.description.clone().unwrap_or_default();
+        let artifacts: Vec<String> = resolved
+            .schema
+            .artifacts
+            .iter()
+            .map(|a| a.id.clone())
+            .collect();
+        let source = match resolved.source {
+            SchemaSource::Project => "project",
+            SchemaSource::User => "user",
+            SchemaSource::Embedded => "embedded",
+            SchemaSource::Package => "package",
+        }
+        .to_string();
+
+        schemas.push(SchemaListEntry {
+            name: name.clone(),
+            description,
+            artifacts,
+            source,
+        });
+    }
+
+    SchemaListResponse {
+        schemas,
+        recommended_default: default_schema_name().to_string(),
+    }
 }
 
 /// Resolves a schema name into a [`ResolvedSchema`].

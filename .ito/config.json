@@ -21,5 +21,12 @@
         "policy": "avoid"
       }
     }
+  },
+  "ralph": {
+    "validationCommands": [
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo fmt --all -- --check",
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented",
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo test --workspace --exclude ito-web"
+    ]
   }
 }

@@ -1,6 +1,7 @@
 //! Audit log infrastructure: filesystem writer, event reader, reconciliation
 //! engine, worktree discovery, and stream watcher.
 
+pub mod mirror;
 pub mod reader;
 pub mod reconcile;
 pub mod stream;

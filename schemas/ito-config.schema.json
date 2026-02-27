@@ -134,6 +134,40 @@
       ],
       "type": "object"
     },
+    "AuditConfig": {
+      "description": "Audit configuration",
+      "properties": {
+        "mirror": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AuditMirrorConfig"
+            }
+          ],
+          "default": {
+            "branch": "ito/internal/audit",
+            "enabled": false
+          },
+          "description": "Remote mirroring settings"
+        }
+      },
+      "type": "object"
+    },
+    "AuditMirrorConfig": {
+      "description": "Audit remote mirroring settings",
+      "properties": {
+        "branch": {
+          "default": "ito/internal/audit",
+          "description": "Remote branch name used for audit mirroring",
+          "type": "string"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable best-effort audit remote mirroring",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "CacheConfig": {
       "description": "Cache settings",
       "properties": {
@@ -784,6 +818,20 @@
         "string",
         "null"
       ]
+    },
+    "audit": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AuditConfig"
+        }
+      ],
+      "default": {
+        "mirror": {
+          "branch": "ito/internal/audit",
+          "enabled": false
+        }
+      },
+      "description": "Audit logging and mirroring configuration"
     },
     "cache": {
       "allOf": [
