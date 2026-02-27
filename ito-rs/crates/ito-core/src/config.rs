@@ -203,6 +203,20 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        "audit.mirror.branch" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value.",
+                    path,
+                )));
+            };
+            if !is_valid_branch_name(s) {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Provide a valid git branch name.",
+                    s, path,
+                )));
+            }
+        }
         _ => {}
     }
     Ok(())
@@ -462,6 +476,23 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("Invalid value"));
         assert!(msg.contains("changes.coordination_branch.name"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_valid_audit_mirror_branch_name() {
+        let parts = ["audit", "mirror", "branch"];
+        let value = json!("ito/internal/audit");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_audit_mirror_branch_name() {
+        let parts = ["audit", "mirror", "branch"];
+        let value = json!("--ito-audit");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("audit.mirror.branch"));
     }
 
     #[test]

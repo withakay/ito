@@ -269,13 +269,20 @@ pub fn project_config_paths(
     ito_path: &Path,
     ctx: &ConfigContext,
 ) -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = vec![
+    let mut out: Vec<PathBuf> = Vec::new();
+
+    // Global config is the lowest-precedence layer.
+    if let Some(path) = global_config_path(ctx) {
+        out.push(path);
+    }
+
+    out.extend([
         project_root.join(REPO_CONFIG_FILE_NAME),
         project_root.join(REPO_DOT_CONFIG_FILE_NAME),
         ito_path.join(ITO_DIR_CONFIG_FILE_NAME),
         ito_path.join(ITO_DIR_LOCAL_CONFIG_FILE_NAME),
         project_root.join(PROJECT_LOCAL_CONFIG_PATH),
-    ];
+    ]);
     if let Some(p) = &ctx.project_dir {
         out.push(p.join(ITO_DIR_CONFIG_FILE_NAME));
     }
@@ -286,12 +293,13 @@ pub fn project_config_paths(
 /// Load and merge project configuration sources in precedence order.
 ///
 /// Precedence (low -> high):
-/// 1) `<repo-root>/ito.json`
-/// 2) `<repo-root>/.ito.json`
-/// 3) `<itoDir>/config.json` (team/project defaults, typically committed)
-/// 4) `<itoDir>/config.local.json` (per-developer overrides, gitignored)
-/// 5) `<repo-root>/.local/ito/config.json` (optional per-developer overrides, gitignored)
-/// 6) `$PROJECT_DIR/config.json` (when set)
+/// 1) `~/.config/ito/config.json` (global defaults; XDG-aware)
+/// 2) `<repo-root>/ito.json`
+/// 3) `<repo-root>/.ito.json`
+/// 4) `<itoDir>/config.json` (team/project defaults, typically committed)
+/// 5) `<itoDir>/config.local.json` (per-developer overrides, gitignored)
+/// 6) `<repo-root>/.local/ito/config.json` (optional per-developer overrides, gitignored)
+/// 7) `$PROJECT_DIR/config.json` (when set)
 pub fn load_cascading_project_config(
     project_root: &Path,
     ito_path: &Path,
@@ -314,6 +322,19 @@ pub fn resolve_coordination_branch_settings(merged: &Value) -> (bool, String) {
         cfg.changes.coordination_branch.enabled.0,
         cfg.changes.coordination_branch.name,
     )
+}
+
+/// Resolve audit mirror settings from merged config JSON.
+///
+/// Falls back to documented defaults when the merged value cannot be
+/// deserialized into [`types::ItoConfig`].
+pub fn resolve_audit_mirror_settings(merged: &Value) -> (bool, String) {
+    let Ok(cfg) = serde_json::from_value::<types::ItoConfig>(merged.clone()) else {
+        let defaults = types::AuditMirrorConfig::default();
+        return (defaults.enabled, defaults.branch);
+    };
+
+    (cfg.audit.mirror.enabled, cfg.audit.mirror.branch)
 }
 
 /// Like [`load_cascading_project_config`], but uses an injected file-system.
@@ -696,6 +717,46 @@ mod tests {
         assert_eq!(
             coordination.get("name").and_then(|v| v.as_str()),
             Some("team/internal/coord")
+        );
+    }
+
+    #[test]
+    fn audit_mirror_defaults_exist_in_cascading_config() {
+        let repo = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let audit = r.merged.get("audit").expect("audit key should exist");
+        let mirror = audit.get("mirror").expect("audit.mirror key should exist");
+
+        assert_eq!(mirror.get("enabled").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(
+            mirror.get("branch").and_then(|v| v.as_str()),
+            Some("ito/internal/audit")
+        );
+    }
+
+    #[test]
+    fn audit_mirror_defaults_can_be_overridden() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"audit":{"mirror":{"enabled":true,"branch":"team/internal/audit"}}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let audit = r.merged.get("audit").expect("audit key should exist");
+        let mirror = audit.get("mirror").expect("audit.mirror key should exist");
+
+        assert_eq!(mirror.get("enabled").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            mirror.get("branch").and_then(|v| v.as_str()),
+            Some("team/internal/audit")
         );
     }
 
