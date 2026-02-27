@@ -28,8 +28,8 @@ ______________________________________________________________________
   Add support for `audit.mirror.enabled` and `audit.mirror.branch`, including default values and validation for branch names.
 - **Verify**: `cargo test --workspace -p ito-config -p ito-core`
 - **Done When**: Config keys parse, merge, validate, and default correctly
-- **Updated At**: 2026-02-11
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 1.2: Extend config command support for audit mirror keys
 
@@ -39,8 +39,8 @@ ______________________________________________________________________
   Support `ito config set/get` for audit mirror keys and add tests for valid and invalid branch inputs.
 - **Verify**: `cargo test --workspace -p ito-cli config`
 - **Done When**: CLI set/get works and tests cover both success and validation failures
-- **Updated At**: 2026-02-11
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -56,8 +56,8 @@ ______________________________________________________________________
   Implement mirror write/sync path that appends locally first, then attempts branch sync/push to configured audit mirror branch with warning-only behavior on failure.
 - **Verify**: `cargo test --workspace -p ito-core`
 - **Done When**: Mirror path works in success case and degrades safely on conflicts/offline failures
-- **Updated At**: 2026-02-11
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 2.2: Add integration coverage for mirror behavior
 
@@ -67,8 +67,8 @@ ______________________________________________________________________
   Add tests for enabled/disabled mirror behavior, branch override, and non-blocking failure outcomes.
 - **Verify**: `cargo test --workspace -p ito-cli -p ito-core`
 - **Done When**: Integration tests verify best-effort semantics and branch separation from change coordination
-- **Updated At**: 2026-02-11
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -85,5 +85,5 @@ ______________________________________________________________________
   Run strict change validation and ensure wording clearly captures best-effort behavior and separation from coordination branch.
 - **Verify**: `ito validate 000-07_remote-audit-mirror-branch --strict`
 - **Done When**: Validation passes and reviewer approves scope clarity
-- **Updated At**: 2026-02-11
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
