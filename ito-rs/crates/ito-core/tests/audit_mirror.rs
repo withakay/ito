@@ -1,8 +1,7 @@
 use std::path::Path;
 
-use std::ffi::OsString;
-
 use ito_core::audit::{AuditEvent, AuditWriter, EventContext, FsAuditWriter};
+use std::ffi::OsString;
 
 fn run_git(repo: &Path, args: &[&str]) {
     let output = std::process::Command::new("git")
@@ -124,7 +123,6 @@ impl Drop for EnvVarGuard {
         }
     }
 }
-
 #[test]
 fn audit_mirror_disabled_does_not_create_remote_branch() {
     let repo = tempfile::tempdir().expect("repo");
