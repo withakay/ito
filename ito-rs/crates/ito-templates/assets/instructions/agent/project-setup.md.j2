@@ -1,63 +1,193 @@
 # Project Setup Guide
 
-You are helping set up a new Ito-managed project. Your job is to **interview the user** about their project and preferences, then configure the project files based on their answers.
+You are helping set up a new Ito-managed project. Your job is to:
 
-## Approach
+1. Do best-effort stack detection and confirm it with the user.
+2. Interview the user for project context and conventions.
+3. Scaffold **machine-checkable dev commands** (Makefile and, when appropriate, a Windows PowerShell entrypoint).
+4. Mark setup as complete by flipping the setup marker in `.ito/project.md`.
 
-**Interview first, configure second.** Don't assume or guess - ask the user directly. They know their project better than you can infer from code alone.
+## Completion Signal (Required)
 
-## Step 1: Quick Codebase Scan
+This project is considered set up when `.ito/project.md` contains:
 
-Do a brief scan to get context:
-- What languages and frameworks are present?
-- What's the general structure?
-- Are there existing conventions visible in the code?
+- `<!-- ITO:PROJECT_SETUP:COMPLETE -->`
 
-Use this to inform your questions, not to make assumptions.
+If it contains `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->` (or no marker), setup is not complete.
 
-## Step 2: Interview for .ito/project.md
+## Step 1: Quick Scan + Stack Detection
+
+Do a brief scan to detect the primary stack (best effort):
+
+- Rust: `Cargo.toml`
+- Node/TS: `package.json` (optionally `pnpm-lock.yaml` / `yarn.lock`)
+- Python: `pyproject.toml` (or `requirements.txt`)
+- Go: `go.mod`
+
+If multiple stacks are present, ask which one is the primary "dev loop" for this repo (you can still scaffold secondary targets).
+
+## Step 2: Interview for `.ito/project.md`
 
 Ask the user about:
 
-1. **What does this project do?** - Get a one-sentence description
-2. **Who is it for?** - Internal tool, public API, end-user app?
-3. **What's the tech stack?** - Confirm what you detected, ask about key dependencies
-4. **How do you build/test/run it?** - Get the actual commands they use
-5. **What should AI assistants know first?** - The "if you remember one thing" summary
+1. What does this project do? (one sentence)
+2. Who is it for? (internal tool, public API, end-user app, library)
+3. Confirm the tech stack you detected (languages, frameworks, key dependencies)
+4. How do you build/test/lint/run it today? (exact commands)
+5. What should AI assistants know first? (the single most important constraint)
 
-Then read `.ito/project.md` and update it with their answers.
+Then update `.ito/project.md` with their answers.
 
-## Step 3: Interview for .ito/user-guidance.md
+## Step 3: Dev Command Scaffolding (Makefile)
 
-Ask about their preferences and conventions:
+Goal: produce a `Makefile` with at least these targets:
 
-1. **Coding style** - Any strong preferences? (naming, formatting, patterns)
-2. **Testing philosophy** - Unit tests? Integration tests? TDD? Coverage goals?
-3. **What do you NOT want AI to do?** - Anti-patterns, forbidden approaches, pet peeves
-4. **Error handling** - How should errors be handled and reported?
-5. **Anything that's bitten you before?** - Past mistakes to avoid
+- `help`
+- `build`
+- `test`
+- `lint` or `check` (stack-specific)
 
-Then read `.ito/user-guidance.md` and update it based on their answers.
+Do NOT overwrite an existing `Makefile` unless the user explicitly confirms.
 
-## Step 4: Review .ito/config.json
+### If `Makefile` does not exist
+
+Create one with stack-appropriate commands. Use these defaults unless the user provides better ones.
+
+Rust (Cargo workspace):
+
+```make
+.PHONY: help build test check lint
+
+help:
+	@printf "Targets:\n  build\n  test\n  check\n"
+
+build:
+	cargo build
+
+test:
+	cargo test
+
+check:
+	cargo fmt --check
+	cargo clippy --all-targets --all-features -- -D warnings
+```
+
+Node/TypeScript (npm scripts present):
+
+```make
+.PHONY: help build test lint
+
+help:
+	@printf "Targets:\n  build\n  test\n  lint\n"
+
+build:
+	npm run build
+
+test:
+	npm test
+
+lint:
+	npm run lint
+```
+
+Python (pyproject + tooling):
+
+```make
+.PHONY: help build test lint
+
+help:
+	@printf "Targets:\n  build\n  test\n  lint\n"
+
+build:
+	@printf "No build step configured (add one if this project produces a wheel/sdist).\n"
+
+test:
+	python -m pytest
+
+lint:
+	python -m ruff check .
+	python -m ruff format --check .
+```
+
+Go:
+
+```make
+.PHONY: help build test lint
+
+help:
+	@printf "Targets:\n  build\n  test\n  lint\n"
+
+build:
+	go build ./...
+
+test:
+	go test ./...
+
+lint:
+	go vet ./...
+```
+
+### If `Makefile` already exists
+
+Do not replace it. Options (ask the user which they prefer):
+
+- Add missing targets to the existing file.
+- Or add a separate `Makefile.ito` and document `make -f Makefile.ito <target>`.
+
+## Step 4: Windows-Friendly Alternative (PowerShell)
+
+If the project needs Windows-first support (or the user asks), create a minimal PowerShell entrypoint (for example `scripts/dev.ps1`) that mirrors the Makefile targets.
+
+Example:
+
+```powershell
+param(
+  [Parameter(Position=0)]
+  [ValidateSet('build','test','check','lint','help')]
+  [string]$Task = 'help'
+)
+
+switch ($Task) {
+  'help' { Write-Host "Tasks: build, test, check, lint" }
+  'build' { cargo build }
+  'test' { cargo test }
+  'check' { cargo fmt --check; cargo clippy --all-targets --all-features -- -D warnings }
+  'lint' { cargo clippy --all-targets --all-features -- -D warnings }
+}
+```
+
+Adjust the commands for the detected stack.
+
+## Step 5: Interview for `.ito/user-guidance.md`
+
+Ask about preferences and conventions:
+
+- Coding style (naming, formatting, patterns)
+- Testing philosophy (unit vs integration, TDD/BDD, coverage expectations)
+- Anti-patterns (what they do NOT want AI to do)
+- Error handling (logging, retries, user-visible errors)
+- Past failures ("please don't repeat this")
+
+Then update `.ito/user-guidance.md` with what matters.
+
+## Step 6: Review `.ito/config.json` (Optional)
 
 Ask if they want to adjust defaults:
+
 - Coverage targets (default: 100% target, 80% minimum)
 - TDD workflow preferences
-- Any tool-specific settings
 
-Most users can skip this - defaults are sensible.
+Most users can skip this.
 
-## Step 5: Verify and Next Steps
+## Step 7: Mark Setup Complete
 
-After updating the files:
-1. Run `ito list` to verify Ito is working
-2. Ask if they'd like to create their first change proposal
+When the interview + scaffolding is done, update `.ito/project.md`:
 
-## Interview Tips
+- Replace `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->` with `<!-- ITO:PROJECT_SETUP:COMPLETE -->`.
+- If there is no setup marker yet, add `<!-- ITO:PROJECT_SETUP:COMPLETE -->` near the top of the file.
 
-- Ask one topic at a time, don't overwhelm
-- Offer sensible defaults they can accept or modify
-- Keep it conversational, not like a form
-- If they say "I don't know" or "whatever", use good defaults
-- Document what's unique, skip the obvious
+## Step 8: Verify and Next Steps
+
+1. Run `ito list` to verify Ito is working.
+2. Run the new dev commands (`make test` or the stack equivalent) to confirm they work.
+3. Offer to create the first change proposal.
