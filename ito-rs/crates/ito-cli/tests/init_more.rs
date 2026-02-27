@@ -56,6 +56,94 @@ fn init_with_tools_none_installs_ito_skeleton() {
 }
 
 #[test]
+fn init_prints_project_setup_nudge_when_marker_incomplete() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let args = fixtures::init_minimal_args(repo.path());
+    let argv = fixtures::args_to_strs(&args);
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "init failed: {}", out.stderr);
+
+    let project = std::fs::read_to_string(repo.path().join(".ito/project.md")).unwrap();
+    assert!(project.contains("<!-- ITO:PROJECT_SETUP:INCOMPLETE -->"));
+    assert!(out.stdout.contains("Next step: Run /ito-project-setup"));
+}
+
+#[test]
+fn init_does_not_print_project_setup_nudge_when_marker_complete() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let args = fixtures::init_minimal_args(repo.path());
+    let argv = fixtures::args_to_strs(&args);
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "init failed: {}", out.stderr);
+
+    let project_path = repo.path().join(".ito/project.md");
+    let project = std::fs::read_to_string(&project_path).unwrap();
+    let updated = project.replace(
+        "<!-- ITO:PROJECT_SETUP:INCOMPLETE -->",
+        "<!-- ITO:PROJECT_SETUP:COMPLETE -->",
+    );
+    std::fs::write(&project_path, updated).unwrap();
+
+    let repo_path = repo.path().to_string_lossy().to_string();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["init", repo_path.as_str(), "--tools", "none", "--update"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "init --update failed: {}", out.stderr);
+    assert!(!out.stdout.contains("Next step: Run /ito-project-setup"));
+}
+
+#[test]
+fn init_does_not_print_project_setup_nudge_when_marker_absent() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let args = fixtures::init_minimal_args(repo.path());
+    let argv = fixtures::args_to_strs(&args);
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "init failed: {}", out.stderr);
+
+    let project_path = repo.path().join(".ito/project.md");
+    let project = std::fs::read_to_string(&project_path).unwrap();
+    let updated = project
+        .replace("<!-- ITO:PROJECT_SETUP:INCOMPLETE -->\n", "")
+        .replace("<!-- ITO:PROJECT_SETUP:INCOMPLETE -->", "")
+        .replace("<!-- ITO:PROJECT_SETUP:COMPLETE -->\n", "")
+        .replace("<!-- ITO:PROJECT_SETUP:COMPLETE -->", "");
+    std::fs::write(&project_path, updated).unwrap();
+
+    let repo_path = repo.path().to_string_lossy().to_string();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["init", repo_path.as_str(), "--tools", "none", "--update"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "init --update failed: {}", out.stderr);
+    assert!(!out.stdout.contains("Next step: Run /ito-project-setup"));
+}
+
+#[test]
 fn init_writes_config_with_release_tag_schema_reference() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");

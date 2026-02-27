@@ -30,8 +30,8 @@ ______________________________________________________________________
   - Document (briefly) that the marker is flipped by project setup.
 - **Verify**: `make test`
 - **Done When**: freshly initialized projects include the INCOMPLETE marker.
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 1.2: Expand the project-setup instruction to generate dev scaffolding and flip marker
 
@@ -44,8 +44,8 @@ ______________________________________________________________________
   - Add explicit step to change `.ito/project.md` marker from INCOMPLETE -> COMPLETE once setup is done.
 - **Verify**: `make test`
 - **Done When**: `ito agent instruction project-setup` includes the scaffolding + marker flip steps.
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 1.3: Make `ito init` post-init guidance marker-aware
 
@@ -57,8 +57,8 @@ ______________________________________________________________________
   - Keep behavior non-fatal and non-interactive.
 - **Verify**: `make test`
 - **Done When**: tests cover both marker-present and marker-absent behavior.
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -78,8 +78,8 @@ ______________________________________________________________________
   - For Codex bootstrap snippet, include `project-setup` in the list of available artifacts without exceeding the snippet size constraint.
 - **Verify**: `make test`
 - **Done When**: installed docs/snippets reference the setup flow and how to run it.
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -95,5 +95,5 @@ ______________________________________________________________________
 - **Dependencies**: Task 2.1
 - **Action**: Validate that the interview is short, the Makefile targets match expectations, and Windows guidance is reasonable.
 - **Done When**: reviewer approves the template content.
-- **Updated At**: 2026-02-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
