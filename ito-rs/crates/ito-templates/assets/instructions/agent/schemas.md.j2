@@ -1,0 +1,33 @@
+# Available Schemas
+
+Schemas define the workflow for a change: which artifacts are created, their dependencies, and how validation works.
+
+Use `--schema <name>` when creating a change to select a schema:
+
+```bash
+ito create change "<change-name>" --module <module-id> --schema <name>
+```
+
+Default: **{{ recommended_default }}**
+
+## Schemas
+
+{% for schema in schemas %}
+### {{ schema.name }}{% if schema.name == recommended_default %} _(default)_{% endif %}
+
+{{ schema.description }}
+
+- **Artifacts**: {{ schema.artifacts | join(", ") }}
+- **Source**: {{ schema.source }}
+
+{% endfor %}
+## Which Schema Should I Choose?
+
+| Schema | Best for |
+|--------|----------|
+| **spec-driven** | Most changes — structured proposal → specs → design → tasks pipeline |
+| **minimalist** | Small, low-risk changes that need only specs and tasks |
+| **tdd** | Test-first development — write tests before implementation |
+| **event-driven** | Event-sourced or message-driven architectures with AsyncAPI |
+
+When in doubt, use **{{ recommended_default }}**.
