@@ -69,7 +69,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Tests protect schema listing output against regressions.
 - **Updated At**: 2026-02-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -85,5 +85,5 @@ ______________________________________________________________________
 - **Verify**: `make check && make test`
 - **Done When**: Clean checks, clean tests.
 - **Updated At**: 2026-02-27
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 <!-- ITO:END -->
