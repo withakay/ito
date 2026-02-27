@@ -15,7 +15,6 @@ Commands:
   archive      Move a completed change to archive and update main specs [aliases: ar]
   tasks        Manage implementation tasks for a change [aliases: ts]
   plan         Initialize and track project roadmap [aliases: pl]
-  state        Track session state and working context [aliases: sa]
   agent        Generate instructions and context for AI coding agents [aliases: ag]
   ralph        Run an AI agent loop to implement a change [aliases: ra]
   init         Set up Ito in a project [aliases: in]

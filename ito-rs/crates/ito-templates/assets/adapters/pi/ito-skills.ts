@@ -142,7 +142,7 @@ export default function itoSkills(pi: ExtensionAPI) {
   // Environment-driven configuration (mirrors OpenCode plugin env vars).
   const ttlMs = Number.parseInt(process.env.ITO_PI_AUDIT_TTL_MS || "", 10);
   const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
-  const autoFixDrift = process.env.ITO_PI_AUDIT_FIX === "1";
+  const autoFixDrift = process.env.ITO_PI_AUDIT_FIX !== "0";
   const disableAuditHook = process.env.ITO_PI_AUDIT_DISABLED === "1";
   const disableContext = process.env.ITO_PI_CONTEXT_DISABLED === "1";
   const disableCompactionContext = process.env.ITO_PI_COMPACTION_DISABLED === "1";
@@ -242,8 +242,9 @@ export default function itoSkills(pi: ExtensionAPI) {
       const fixSummary = summarize(fixResult);
       return {
         hardFailure: false,
+        // Silent on success — only warn when auto-fix fails.
         notice: fixResult.ok
-          ? `[Ito Audit] Drift detected and reconciled: ${fixSummary}`
+          ? null
           : `[Ito Audit] Drift detected; auto-fix failed: ${fixSummary}`,
       };
     }

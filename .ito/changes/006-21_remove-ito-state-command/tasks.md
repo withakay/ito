@@ -19,8 +19,8 @@ ______________________________________________________________________
 - **Action**: Remove `Commands::State`/`StateArgs` and command dispatch, and stop exporting the state command module.
 - **Verify**: `cargo test -p ito-cli`
 - **Done When**: `ito --help` no longer includes `state` and tests compile.
-- **Updated At**: 2026-02-06
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 1.2: Remove state implementation and telemetry counters
 
@@ -29,8 +29,8 @@ ______________________________________________________________________
 - **Action**: Delete state command implementation and remove built-in `ito.state.*` command ID counters from stats tracking.
 - **Verify**: `cargo test -p ito-cli`
 - **Done When**: Project builds without state command/domain module references.
-- **Updated At**: 2026-02-06
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -45,8 +45,8 @@ ______________________________________________________________________
 - **Action**: Remove/adjust tests and snapshots that assert `ito state` behavior or include `state` in help output.
 - **Verify**: `cargo test -p ito-cli`
 - **Done When**: CLI test suite passes with no `state` coverage expectations remaining.
-- **Updated At**: 2026-02-06
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 2.2: Validate Ito artifacts for removal change
 
@@ -55,5 +55,5 @@ ______________________________________________________________________
 - **Action**: Validate proposal/spec/tasks artifacts for strict schema and requirement formatting compliance.
 - **Verify**: `ito validate 006-21_remove-ito-state-command --strict`
 - **Done When**: Validation passes with no errors.
-- **Updated At**: 2026-02-06
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete

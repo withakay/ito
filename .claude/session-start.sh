@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# SessionStart hook for Claude Code integration.
-# Delegates workflow content to the Ito CLI and injects best-effort continuation context.
+# Minimal SessionStart hook shim for Claude Code integration
+# Points to Ito CLI instruction artifacts instead of embedding workflow content
 
 set -euo pipefail
 
-base_context=$(cat <<'EOF'
+# Output a minimal pointer to the Ito CLI bootstrap artifact
+# This hook does NOT embed workflow content - it delegates to the CLI
+additional_context=$(cat <<'EOF'
 <EXTREMELY_IMPORTANT>
 
 Ito workflows are managed by the Ito CLI.
@@ -15,28 +17,23 @@ To bootstrap Ito workflows in Claude Code, run:
 ito agent instruction bootstrap --tool claude
 ```
 
-If you lose which change/module you're working on, run:
+This command returns the canonical preamble and available workflow artifacts.
 
+For a list of available instruction artifacts, run:
 ```bash
-ito agent instruction context
+ito agent instruction --list
 ```
-
 </EXTREMELY_IMPORTANT>
 EOF
 )
 
-ctx="$(ito agent instruction context 2>/dev/null || true)"
-if [ -n "${ctx//[[:space:]]/}" ]; then
-  base_context="${base_context}\n\n${ctx}"
-fi
-
-escaped=$(python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<<"$base_context")
+escaped_additional_context=$(python3 -c 'import json, sys; print(json.dumps(sys.stdin.read()))' <<<"$additional_context")
 
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": $escaped
+    "additionalContext": ${escaped_additional_context}
   }
 }
 EOF

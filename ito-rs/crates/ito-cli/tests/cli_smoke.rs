@@ -298,15 +298,8 @@ fn create_workflow_plan_state_config_smoke() {
     assert!(out.stderr.contains("Module: 000 (default)"));
     assert!(out.stderr.contains("Next steps:"));
 
-    // plan + state
+    // plan
     let out = run_rust_candidate(rust_path, &["plan", "init"], repo.path(), home.path());
-    assert_eq!(out.code, 0);
-    let out = run_rust_candidate(
-        rust_path,
-        &["state", "note", "hello"],
-        repo.path(),
-        home.path(),
-    );
     assert_eq!(out.code, 0);
 
     // config

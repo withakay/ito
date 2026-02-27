@@ -21,7 +21,6 @@ Commands:
   archive      Move a completed change to archive and update main specs [aliases: ar]
   tasks        Manage implementation tasks for a change [aliases: ts]
   plan         Initialize and track project roadmap [aliases: pl]
-  state        Track session state and working context [aliases: sa]
   agent        Generate instructions and context for AI coding agents [aliases: ag]
   ralph        Run an AI agent loop to implement a change [aliases: ra]
   init         Set up Ito in a project [aliases: in]
@@ -179,36 +178,6 @@ Usage: ito plan <COMMAND>
 Commands:
   init    Initialize planning structure [aliases: in]
   status  Show current milestone progress [aliases: st]
-
-Options:
-  -h, --help
-          Print help (see a summary with '-h')
-
-
---------------------------------------------------------------------------------
-
-ito state
----------
-Track session state and working context
-
-Record decisions, blockers, notes, and current focus in STATE.md.
-Helps maintain context across coding sessions.
-
-Examples:
-  ito state show
-  ito state focus "implementing auth flow"
-  ito state decision "using JWT for tokens"
-  ito state blocker "waiting on API spec"
-
-Usage: ito state <COMMAND>
-
-Commands:
-  show      Show current project state [aliases: sw]
-  decision  Record a decision [aliases: de]
-  blocker   Record a blocker [aliases: bl]
-  note      Add a session note [aliases: no]
-  focus     Set current focus [aliases: fo]
-  question  Add an open question [aliases: qu]
 
 Options:
   -h, --help

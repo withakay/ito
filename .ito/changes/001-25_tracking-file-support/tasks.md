@@ -102,8 +102,8 @@ ______________________________________________________________________
 - **Action**: Update `ito tasks status|next|start|complete` to read and update the resolved tracking file for the change.
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: A change with `apply.tracks: todo.md` is fully operable via `ito tasks`.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ### Task 3.2: Helpful error for non-tasks-tracking tracking format
 
@@ -112,8 +112,8 @@ ______________________________________________________________________
 - **Action**: If the resolved tracking file is not an Ito tasks-tracking file (schema chooses a different format), `ito tasks` exits with a helpful error pointing to the schema's tracking format.
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Tests assert the error message is actionable and mentions the schema-selected tracking format.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -125,5 +125,5 @@ ______________________________________________________________________
 - **Dependencies**: All Wave 1 tasks
 - **Action**: Review the implementation before proceeding
 - **Done When**: User confirms implementation is correct
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-02-27
+- **Status**: [-] shelved

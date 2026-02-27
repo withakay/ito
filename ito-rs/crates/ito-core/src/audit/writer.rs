@@ -6,7 +6,9 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
+use ito_config::{ConfigContext, load_cascading_project_config, resolve_audit_mirror_settings};
 use ito_domain::audit::event::AuditEvent;
 use ito_domain::audit::writer::AuditWriter;
 
@@ -15,18 +17,37 @@ use ito_domain::audit::writer::AuditWriter;
 /// Appends events to `{ito_path}/.state/audit/events.jsonl` in JSONL format.
 pub struct FsAuditWriter {
     log_path: PathBuf,
+    ito_path: PathBuf,
+    mirror_settings: OnceLock<(bool, String)>,
 }
 
 impl FsAuditWriter {
     /// Create a new writer for the given Ito project path.
     pub fn new(ito_path: &Path) -> Self {
         let log_path = audit_log_path(ito_path);
-        Self { log_path }
+        Self {
+            log_path,
+            ito_path: ito_path.to_path_buf(),
+            mirror_settings: OnceLock::new(),
+        }
     }
 
     /// Return the path to the audit log file.
     pub fn log_path(&self) -> &Path {
         &self.log_path
+    }
+
+    fn resolve_mirror_settings(&self) -> (bool, String) {
+        self.mirror_settings
+            .get_or_init(|| {
+                let Some(project_root) = self.ito_path.parent() else {
+                    return (false, String::new());
+                };
+                let ctx = ConfigContext::from_process_env();
+                let resolved = load_cascading_project_config(project_root, &self.ito_path, &ctx);
+                resolve_audit_mirror_settings(&resolved.merged)
+            })
+            .clone()
     }
 }
 
@@ -36,6 +57,20 @@ impl AuditWriter for FsAuditWriter {
         // On any failure, log a warning and return Ok.
         if let Err(e) = append_event_to_file(&self.log_path, event) {
             tracing::warn!("audit log write failed: {e}");
+            return Ok(());
+        }
+
+        let (enabled, branch) = self.resolve_mirror_settings();
+        if enabled {
+            let Some(repo_root) = self.ito_path.parent() else {
+                return Ok(());
+            };
+            if let Err(err) = super::mirror::sync_audit_mirror(repo_root, &self.ito_path, &branch) {
+                eprintln!(
+                    "Warning: audit mirror sync failed (branch '{}'): {err}",
+                    branch
+                );
+            }
         }
         Ok(())
     }
@@ -157,6 +192,8 @@ mod tests {
 
         let writer = FsAuditWriter {
             log_path: file_path.join("subdir").join("events.jsonl"),
+            ito_path: PathBuf::from("/project/.ito"),
+            mirror_settings: OnceLock::new(),
         };
         // Should not panic and should return Ok
         let result = writer.append(&test_event("1.1"));
