@@ -274,9 +274,10 @@ fn create_workflow_plan_state_config_smoke() {
     assert!(out.stderr.contains("README.md"));
     assert!(out.stderr.contains("Module: 000 (from --module)"));
     assert!(out.stderr.contains("Next steps:"));
-    assert!(out
-        .stderr
-        .contains("ito agent instruction proposal --change 000-01_hello"));
+    assert!(
+        out.stderr
+            .contains("ito agent instruction proposal --change 000-01_hello")
+    );
 
     let out = run_rust_candidate(
         rust_path,
