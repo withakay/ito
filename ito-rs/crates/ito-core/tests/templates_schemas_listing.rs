@@ -1,5 +1,5 @@
 use ito_config::ConfigContext;
-use ito_core::templates::{list_schemas_detail, SchemaListResponse};
+use ito_core::templates::{SchemaListResponse, list_schemas_detail};
 
 fn default_ctx() -> ConfigContext {
     ConfigContext {

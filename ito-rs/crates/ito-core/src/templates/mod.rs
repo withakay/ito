@@ -213,12 +213,13 @@ pub fn list_schemas_detail(ctx: &ConfigContext) -> SchemaListResponse {
         let Ok(resolved) = resolve_schema(Some(name), ctx) else {
             continue;
         };
-        let description = resolved
+        let description = resolved.schema.description.clone().unwrap_or_default();
+        let artifacts: Vec<String> = resolved
             .schema
-            .description
-            .clone()
-            .unwrap_or_default();
-        let artifacts: Vec<String> = resolved.schema.artifacts.iter().map(|a| a.id.clone()).collect();
+            .artifacts
+            .iter()
+            .map(|a| a.id.clone())
+            .collect();
         let source = match resolved.source {
             SchemaSource::Project => "project",
             SchemaSource::User => "user",

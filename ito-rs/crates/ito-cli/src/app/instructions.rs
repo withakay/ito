@@ -150,15 +150,16 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let response = core_templates::list_schemas_detail(ctx);
 
         if want_json {
-            let rendered =
-                serde_json::to_string_pretty(&response).expect("json should serialize");
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
             println!("{rendered}");
             return Ok(());
         }
 
-        let instruction =
-            ito_templates::instructions::render_instruction_template("agent/schemas.md.j2", &response)
-                .map_err(|e| to_cli_error(format!("failed to render schemas instruction: {e}")))?;
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/schemas.md.j2",
+            &response,
+        )
+        .map_err(|e| to_cli_error(format!("failed to render schemas instruction: {e}")))?;
 
         print!("{instruction}");
         return Ok(());
