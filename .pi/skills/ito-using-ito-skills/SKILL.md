@@ -1,5 +1,5 @@
 ---
-name: using-ito-skills
+name: ito-using-ito-skills
 description: "Use when discovering, finding, invoking, or loading skills. Ensures skills are invoked BEFORE responding."
 ---
 
