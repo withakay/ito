@@ -16,8 +16,8 @@ use ito_common::paths;
 
 use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
 use crate::templates::{
-    ResolvedSchema, ValidationLevelYaml, ValidationYaml, ValidatorId, artifact_done,
-    load_schema_validation, read_change_schema, resolve_schema,
+    artifact_done, load_schema_validation, read_change_schema, resolve_schema, ResolvedSchema,
+    ValidationLevelYaml, ValidationYaml, ValidatorId,
 };
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
@@ -31,7 +31,7 @@ mod report;
 pub(crate) use issue::with_format_spec;
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
-pub use report::{ReportBuilder, report};
+pub use report::{report, ReportBuilder};
 
 /// Severity level for a [`ValidationIssue`].
 pub type ValidationLevel = &'static str;
@@ -381,28 +381,22 @@ fn validate_change_against_schema_validation(
         }
 
         if !present {
-            if let Some(validator_id) = cfg.validate_as {
-                match validator_id {
-                    ValidatorId::DeltaSpecsV1 => {
-                        // Delta-spec validation is change-scoped. Run it even when the
-                        // schema artifact output isn't present so we can emit a useful
-                        // diagnostic (for example: "Change must have at least one delta").
-                        let ctx = ArtifactValidatorContext {
-                            ito_path,
-                            change_id,
-                            strict,
-                        };
-                        run_validator_for_artifact(
-                            rep,
-                            change_repo,
-                            ctx,
-                            artifact_id,
-                            &schema_artifact.generates,
-                            validator_id,
-                        )?;
-                    }
-                    ValidatorId::TasksTrackingV1 => {}
-                }
+            if let Some(validator_id @ ValidatorId::DeltaSpecsV1) = cfg.validate_as {
+                // Only delta-spec validation runs without a generated artifact because it
+                // validates change-wide state; tasks-tracking validation is file-backed.
+                let ctx = ArtifactValidatorContext {
+                    ito_path,
+                    change_id,
+                    strict,
+                };
+                run_validator_for_artifact(
+                    rep,
+                    change_repo,
+                    ctx,
+                    artifact_id,
+                    &schema_artifact.generates,
+                    validator_id,
+                )?;
             }
             continue;
         }
@@ -542,7 +536,7 @@ fn validate_tasks_tracking_path(
     strict: bool,
 ) -> Vec<ValidationIssue> {
     use format_specs::TASKS_TRACKING_V1;
-    use ito_domain::tasks::{DiagnosticLevel, parse_tasks_tracking_file};
+    use ito_domain::tasks::{parse_tasks_tracking_file, DiagnosticLevel};
 
     let contents = match ito_common::io::read_to_string(path) {
         Ok(c) => c,

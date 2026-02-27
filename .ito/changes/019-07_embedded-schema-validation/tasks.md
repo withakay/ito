@@ -49,7 +49,7 @@ ______________________________________________________________________
 ### Task 2.1: Full verification
 
 - **Files**: N/A
-- **Dependencies**: None
+- **Dependencies**: Wave 1
 - **Action**: Run checks and strict change validation.
 - **Verify**: `ito validate 019-07_embedded-schema-validation --strict && make check && make test`
 - **Done When**: Validation and tests are green.
