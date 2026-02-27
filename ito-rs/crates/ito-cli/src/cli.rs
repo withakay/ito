@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
+use clap::builder::Styles;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod path;
@@ -163,19 +163,6 @@ pub enum Commands {
     ///   ito plan status
     #[command(verbatim_doc_comment, visible_alias = "pl")]
     Plan(PlanArgs),
-
-    /// Track session state and working context
-    ///
-    /// Record decisions, blockers, notes, and current focus in STATE.md.
-    /// Helps maintain context across coding sessions.
-    ///
-    /// Examples:
-    ///   ito state show
-    ///   ito state focus "implementing auth flow"
-    ///   ito state decision "using JWT for tokens"
-    ///   ito state blocker "waiting on API spec"
-    #[command(verbatim_doc_comment, visible_alias = "sa")]
-    State(StateArgs),
 
     /// Generate instructions and context for AI coding agents
     ///
@@ -398,62 +385,6 @@ pub enum PlanAction {
     /// Show current milestone progress
     #[command(visible_alias = "st")]
     Status,
-}
-
-/// View and update planning/STATE.md.
-#[derive(Args, Debug, Clone)]
-#[command(subcommand_required = true, arg_required_else_help = true)]
-#[command(disable_help_subcommand = true)]
-pub struct StateArgs {
-    #[command(subcommand)]
-    pub action: Option<StateAction>,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-pub enum StateAction {
-    /// Show current project state
-    #[command(visible_alias = "sw")]
-    Show,
-
-    /// Record a decision
-    #[command(visible_alias = "de")]
-    Decision {
-        /// Text to record
-        #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
-        text: Vec<String>,
-    },
-
-    /// Record a blocker
-    #[command(visible_alias = "bl")]
-    Blocker {
-        /// Text to record
-        #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
-        text: Vec<String>,
-    },
-
-    /// Add a session note
-    #[command(visible_alias = "no")]
-    Note {
-        /// Text to record
-        #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
-        text: Vec<String>,
-    },
-
-    /// Set current focus
-    #[command(visible_alias = "fo")]
-    Focus {
-        /// Text to record
-        #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
-        text: Vec<String>,
-    },
-
-    /// Add an open question
-    #[command(visible_alias = "qu")]
-    Question {
-        /// Text to record
-        #[arg(value_name = "TEXT", num_args = 0.., trailing_var_arg = true)]
-        text: Vec<String>,
-    },
 }
 
 /// Manage embedded template assets.
