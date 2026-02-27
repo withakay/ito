@@ -53,7 +53,7 @@ export const ItoPlugin = async ({ client, directory }) => {
   const skillsDir = path.join(configDir, 'skills');
   const ttlMs = Number.parseInt(process.env.ITO_OPENCODE_AUDIT_TTL_MS || '', 10);
   const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
-  const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX === '1';
+  const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX !== '0';
   const disableAuditHook = process.env.ITO_OPENCODE_AUDIT_DISABLED === '1';
 
   let lastAuditAt = 0;
@@ -216,8 +216,9 @@ export const ItoPlugin = async ({ client, directory }) => {
       const fixSummary = summarize(fixResult);
       return {
         hardFailure: false,
+        // Silent on success — only warn when auto-fix fails.
         notice: fixResult.ok
-          ? `[Ito Audit] Drift detected and reconciled: ${fixSummary}`
+          ? null
           : `[Ito Audit] Drift detected; auto-fix failed: ${fixSummary}`
       };
     }
