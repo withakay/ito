@@ -85,5 +85,5 @@ ______________________________________________________________________
 - **Verify**: `make check && make test`
 - **Done When**: Clean checks, clean tests.
 - **Updated At**: 2026-02-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
