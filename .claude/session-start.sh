@@ -6,11 +6,34 @@ set -euo pipefail
 
 # Output a minimal pointer to the Ito CLI bootstrap artifact
 # This hook does NOT embed workflow content - it delegates to the CLI
+additional_context=$(cat <<'EOF'
+<EXTREMELY_IMPORTANT>
+
+Ito workflows are managed by the Ito CLI.
+
+To bootstrap Ito workflows in Claude Code, run:
+
+```bash
+ito agent instruction bootstrap --tool claude
+```
+
+This command returns the canonical preamble and available workflow artifacts.
+
+For a list of available instruction artifacts, run:
+```bash
+ito agent instruction --list
+```
+</EXTREMELY_IMPORTANT>
+EOF
+)
+
+escaped_additional_context=$(python3 -c 'import json, sys; print(json.dumps(sys.stdin.read()))' <<<"$additional_context")
+
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\\n\\nIto workflows are managed by the Ito CLI.\\n\\nTo bootstrap Ito workflows in Claude Code, run:\\n\\n\\`\\`\\`bash\\nito agent instruction bootstrap --tool claude\\n\\`\\`\\`\\n\\nThis command returns the canonical preamble and available workflow artifacts.\\n\\nFor a list of available instruction artifacts, run:\\n\\`\\`\\`bash\\nito agent instruction --list\\n\\`\\`\\`\\n</EXTREMELY_IMPORTANT>"
+    "additionalContext": ${escaped_additional_context}
   }
 }
 EOF
