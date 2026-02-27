@@ -43,7 +43,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Skill guidance consistently prompts for schema selection and applies it.
 - **Updated At**: 2026-02-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -59,7 +59,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Bootstrap rendered for supported tools includes schema discoverability.
 - **Updated At**: 2026-02-27
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add tests for schema listing output
 
