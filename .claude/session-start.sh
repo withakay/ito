@@ -4,10 +4,6 @@
 
 set -euo pipefail
 
-# Determine plugin root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-
 # Output a minimal pointer to the Ito CLI bootstrap artifact
 # This hook does NOT embed workflow content - it delegates to the CLI
 cat <<EOF
