@@ -1,0 +1,11 @@
+version: 1
+defaults:
+  missing_required_artifact_level: error
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
