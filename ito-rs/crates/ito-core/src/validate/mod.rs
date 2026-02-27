@@ -381,6 +381,23 @@ fn validate_change_against_schema_validation(
         }
 
         if !present {
+            if let Some(validator_id @ ValidatorId::DeltaSpecsV1) = cfg.validate_as {
+                // Only delta-spec validation runs without a generated artifact because it
+                // validates change-wide state; tasks-tracking validation is file-backed.
+                let ctx = ArtifactValidatorContext {
+                    ito_path,
+                    change_id,
+                    strict,
+                };
+                run_validator_for_artifact(
+                    rep,
+                    change_repo,
+                    ctx,
+                    artifact_id,
+                    &schema_artifact.generates,
+                    validator_id,
+                )?;
+            }
             continue;
         }
 

@@ -1,0 +1,6 @@
+version: 1
+defaults:
+  missing_required_artifact_level: warning
+artifacts:
+  spec:
+    required: true
