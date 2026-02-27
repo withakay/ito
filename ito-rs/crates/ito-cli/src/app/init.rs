@@ -232,7 +232,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    print_post_init_guidance(target_path);
+    print_post_init_guidance(target_path, ctx);
 
     Ok(())
 }
@@ -247,32 +247,52 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// ```
 /// use std::path::Path;
 /// // Print guidance for the current directory
-/// print_post_init_guidance(Path::new("."));
+/// # use ito_config::ConfigContext;
+/// print_post_init_guidance(Path::new("."), &ConfigContext::default());
 /// ```
-fn print_post_init_guidance(target_path: &std::path::Path) {
+fn print_post_init_guidance(target_path: &std::path::Path, ctx: &ConfigContext) {
     let abs_target = ito_config::ito_dir::absolutize_and_normalize(target_path)
         .unwrap_or_else(|_| target_path.to_path_buf());
 
-    let ito_dir = abs_target.join(".ito");
+    let ito_dir = ito_dir::get_ito_path(target_path, ctx);
+
+    let needs_project_setup = project_setup_is_incomplete(&ito_dir);
+
+    println!("\nIto initialized in {}\n", abs_target.display());
+
+    if needs_project_setup {
+        println!(
+            "Next step: Run /ito-project-setup in your AI assistant to configure the project.\n"
+        );
+    }
 
     println!(
-        r#"
-Ito initialized in {}
-
-Next step: Run /ito-project-setup in your AI assistant to configure the project.
-
-Or manually edit:
+        r#"Or manually edit:
   {}/project.md        Project overview, tech stack, architecture
   {}/user-prompts/     Shared + artifact-specific instruction guidance
   {}/config.json       Tool settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
 "#,
-        abs_target.display(),
         ito_dir.display(),
         ito_dir.display(),
         ito_dir.display(),
     );
+}
+
+fn project_setup_is_incomplete(ito_dir: &std::path::Path) -> bool {
+    const COMPLETE: &str = "<!-- ITO:PROJECT_SETUP:COMPLETE -->";
+    const INCOMPLETE: &str = "<!-- ITO:PROJECT_SETUP:INCOMPLETE -->";
+
+    let Ok(contents) = std::fs::read_to_string(ito_dir.join("project.md")) else {
+        return false;
+    };
+
+    if contents.contains(COMPLETE) {
+        return false;
+    }
+
+    contents.contains(INCOMPLETE)
 }
 
 /// Convert parsed `InitArgs` into CLI-style argv, optionally override `HOME`, and run the init flow.
