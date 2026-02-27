@@ -11,6 +11,32 @@ fn enhanced_tasks_fixture(change_id: &str) -> String {
     )
 }
 
+fn write_schema_with_tracks(project_root: &std::path::Path, schema_name: &str, tracks: &str) {
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join(schema_name)
+            .join("schema.yaml"),
+        &format!("name: {schema_name}\nversion: 1\nartifacts: []\napply:\n  tracks: {tracks}\n"),
+    );
+}
+
+fn write_tracking_validation(project_root: &std::path::Path, schema_name: &str, validator: &str) {
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join(schema_name)
+            .join("validation.yaml"),
+        &format!(
+            "version: 1\ntracking:\n  source: apply_tracks\n  required: true\n  validate_as: {validator}\n"
+        ),
+    );
+}
+
 #[test]
 fn init_tasks_creates_file_when_missing() {
     let td = tempfile::tempdir().expect("tempdir should succeed");
@@ -24,6 +50,66 @@ fn init_tasks_creates_file_when_missing() {
     let contents = std::fs::read_to_string(path).expect("read tasks.md");
     assert!(contents.contains(change_id));
     assert!(contents.contains("# Tasks for:"));
+}
+
+#[test]
+fn tasks_api_operates_on_schema_apply_tracks_file() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write_schema_with_tracks(project_root, "tracks", "todo.md");
+    write_tracking_validation(project_root, "tracks", "ito.tasks-tracking.v1");
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracks\n",
+    );
+
+    let todo_path = ito.join("changes").join(change_id).join("todo.md");
+    write(&todo_path, &enhanced_tasks_fixture(change_id));
+
+    let started = start_task(&ito, change_id, "1.1").expect("start 1.1");
+    assert_eq!(started.status, TaskStatus::InProgress);
+    let updated = std::fs::read_to_string(&todo_path).expect("read todo.md");
+    assert!(updated.contains("- **Status**: [>] in-progress"));
+    assert!(
+        !ito.join("changes")
+            .join(change_id)
+            .join("tasks.md")
+            .exists()
+    );
+
+    let completed = complete_task(&ito, change_id, "1.1", None).expect("complete 1.1");
+    assert_eq!(completed.status, TaskStatus::Complete);
+    let updated = std::fs::read_to_string(&todo_path).expect("read todo.md");
+    assert!(updated.contains("- **Status**: [x] complete"));
+}
+
+#[test]
+fn tasks_api_rejects_non_tasks_tracking_validator_for_schema_tracking() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write_schema_with_tracks(project_root, "weird", "progress.md");
+    write_tracking_validation(project_root, "weird", "ito.delta-specs.v1");
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: weird\n",
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join("progress.md"),
+        "- [ ] 1: Not actually supported\n",
+    );
+
+    let err = start_task(&ito, change_id, "1").expect_err("should reject non tasks-tracking");
+    assert!(err.to_string().contains("ito.delta-specs.v1"));
+    assert!(err.to_string().contains("not supported"));
 }
 
 #[test]

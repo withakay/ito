@@ -23,6 +23,9 @@ fn init_git_repo(repo: &Path) {
     run_git(repo, &["init"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test"]);
+    // Tests must be hermetic; disable GPG signing so user/global configs (e.g. 1Password)
+    // cannot break `git commit`.
+    run_git(repo, &["config", "commit.gpgSign", "false"]);
 }
 
 fn make_event() -> AuditEvent {
