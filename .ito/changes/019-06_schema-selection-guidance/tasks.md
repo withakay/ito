@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: CLI outputs deterministic text and JSON and includes all embedded schemas.
 - **Updated At**: 2026-02-27
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Update `ito-write-change-proposal` to ask for schema selection
 
