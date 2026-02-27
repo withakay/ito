@@ -38,7 +38,7 @@ pub use types::{
 };
 
 /// One entry in the schema listing returned by [`list_schemas_detail`].
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SchemaListEntry {
     /// Schema name (e.g. `spec-driven`).
     pub name: String,
@@ -51,7 +51,7 @@ pub struct SchemaListEntry {
 }
 
 /// Detailed schema listing suitable for agent consumption.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SchemaListResponse {
     /// All discovered schemas with metadata.
     pub schemas: Vec<SchemaListEntry>,
