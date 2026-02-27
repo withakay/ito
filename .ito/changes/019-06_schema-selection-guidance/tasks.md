@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: CLI outputs deterministic text and JSON and includes all embedded schemas.
 - **Updated At**: 2026-02-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Update `ito-write-change-proposal` to ask for schema selection
 
@@ -43,7 +43,7 @@ ______________________________________________________________________
 - **Verify**: `make test`
 - **Done When**: Skill guidance consistently prompts for schema selection and applies it.
 - **Updated At**: 2026-02-27
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
