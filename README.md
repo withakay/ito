@@ -27,7 +27,7 @@ Ito centers work around a small set of versioned artifacts under `.ito/`.
 - Modules: optional grouping of related changes with validation of scope and naming.
 - Validation: checks that changes/modules/specs follow conventions and are internally consistent.
 - Agent-facing instructions: generated instruction artifacts (`ito agent instruction ...`) and tool adapters installed by `ito init` / `ito update`.
-- Optional project planning: templates and commands for `.ito/planning/{PROJECT,ROADMAP,STATE}.md` (`ito plan ...`, `ito state ...`).
+- Optional project planning: templates for `.ito/planning/{PROJECT,ROADMAP,STATE}.md` (`ito plan ...`; edit `STATE.md` directly).
 - Optional local docs server: browse `.ito/` artifacts over HTTP (`ito serve ...`, requires `caddy`).
 
 ## Core Workflow
