@@ -1,9 +1,9 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{CliResult, fail};
+use crate::cli_error::{fail, CliResult};
 use crate::runtime::Runtime;
 use crate::{commands, util};
-use clap::Parser;
 use clap::error::ErrorKind;
+use clap::Parser;
 
 /// Parse CLI arguments, initialize runtime and logging context, and dispatch the selected subcommand.
 ///
@@ -139,15 +139,6 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &project_root,
                 &ito_path_for_logging,
                 || commands::handle_plan_clap(&rt, args),
-            );
-        }
-        Some(Commands::State(args)) => {
-            return util::with_logging(
-                &rt,
-                &command_id,
-                &project_root,
-                &ito_path_for_logging,
-                || commands::handle_state_clap(&rt, args),
             );
         }
         Some(Commands::Tasks(args)) => {

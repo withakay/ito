@@ -8,7 +8,6 @@ pub(crate) mod plan;
 pub(crate) mod ralph;
 #[cfg(feature = "web")]
 pub(crate) mod serve;
-pub(crate) mod state;
 pub(crate) mod stats;
 pub(crate) mod tasks;
 pub(crate) mod templates;
@@ -26,7 +25,6 @@ pub(crate) use ralph::handle_loop_clap;
 pub(crate) use ralph::handle_ralph_clap;
 #[cfg(feature = "web")]
 pub(crate) use serve::handle_serve_clap;
-pub(crate) use state::handle_state_clap;
 pub(crate) use stats::handle_stats_clap;
 pub(crate) use tasks::handle_tasks_clap;
 pub(crate) use templates::handle_templates_clap;
