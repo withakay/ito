@@ -470,6 +470,16 @@ pub enum ValidatorId {
     /// Ito task tracking file validation.
     TasksTrackingV1,
 }
+
+impl ValidatorId {
+    /// Returns the canonical string identifier for this validator.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DeltaSpecsV1 => "ito.delta-specs.v1",
+            Self::TasksTrackingV1 => "ito.tasks-tracking.v1",
+        }
+    }
+}
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 /// Validation rules for one schema artifact.

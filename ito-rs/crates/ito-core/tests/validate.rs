@@ -835,3 +835,53 @@ fn validate_tasks_file_issues_cite_tasks_tracking_validator_id() {
         "expected tasks issues to include metadata references"
     );
 }
+
+#[test]
+fn validate_tasks_file_uses_apply_tracks_when_set() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracks")
+            .join("schema.yaml"),
+        r#"
+name: tracks
+version: 1
+artifacts: []
+apply:
+  tracks: todo.md
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracks\n",
+    );
+
+    // Duplicate ids should produce tasks-tracking diagnostics.
+    write(
+        &ito.join("changes").join(change_id).join("todo.md"),
+        "## Wave 1\n\n### Task 1.1: First\n- **Status**: [x] complete\n- **Updated At**: 2026-02-25\n\n### Task 1.1: Duplicate\n- **Status**: [ ] pending\n- **Updated At**: 2026-02-25\n",
+    );
+
+    let issues =
+        validate_tasks_file(&ito, change_id, false).expect("validate_tasks_file should succeed");
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.path == "changes/001-01_demo/todo.md"),
+        "expected issues to reference todo.md, got: {issues:?}"
+    );
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i.message.contains("tasks.md") || i.path.contains("tasks.md")),
+        "apply.tracks should override tasks.md validation, got: {issues:?}"
+    );
+}
