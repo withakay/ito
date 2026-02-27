@@ -1,15 +1,5 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash .claude/session-start.sh",
-            "type": "command"
-          }
-        ]
-      }
-    ],
     "PreCompact": [
       {
         "hooks": [
@@ -29,6 +19,16 @@
           }
         ],
         "matcher": "Bash|Edit|Write"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash .claude/session-start.sh",
+            "type": "command"
+          }
+        ]
       }
     ]
   }
