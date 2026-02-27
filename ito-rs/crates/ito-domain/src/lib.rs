@@ -24,9 +24,6 @@ pub mod modules;
 /// Planning primitives and execution plan construction.
 pub mod planning;
 
-/// Persisted state for workflows and runs.
-pub mod state;
-
 /// Task models and task list parsing.
 pub mod tasks;
 

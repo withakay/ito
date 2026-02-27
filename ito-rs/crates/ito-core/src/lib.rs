@@ -77,9 +77,6 @@ pub mod show;
 /// Statistics collection and computation for command usage.
 pub mod stats;
 
-/// State management operations for `planning/STATE.md`.
-pub mod state;
-
 /// Validation utilities for on-disk state.
 pub mod validate;
 
@@ -102,8 +99,6 @@ pub mod schemas {
 pub mod domain {
     /// Planning domain module
     pub use ito_domain::planning;
-    /// State domain module
-    pub use ito_domain::state;
 }
 
 // Re-export utility functions for CLI convenience
