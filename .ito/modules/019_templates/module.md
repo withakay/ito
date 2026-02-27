@@ -15,3 +15,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - [x] 019-03_upgrade-marker-managed-prompt-refresh
 - [x] 019-04_schema-driven-validation
 - [ ] 019-05_embed-openspec-schemas
+- [ ] 019-07_embedded-schema-validation
