@@ -244,8 +244,9 @@ export default function itoSkills(pi: ExtensionAPI) {
       const fixSummary = summarize(fixResult);
       return {
         hardFailure: false,
+        // Silent on success — only warn when auto-fix fails.
         notice: fixResult.ok
-          ? `[Ito Audit] Drift detected and reconciled: ${fixSummary}`
+          ? null
           : `[Ito Audit] Drift detected; auto-fix failed: ${fixSummary}`,
       };
     }
