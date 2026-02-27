@@ -292,11 +292,27 @@ impl ProcessRunner for SystemProcessRunner {
 
 fn build_command(request: &ProcessRequest) -> Command {
     let mut command = Command::new(&request.program);
+    if is_git_program(&request.program) {
+        command.env_remove("GIT_DIR");
+        command.env_remove("GIT_WORK_TREE");
+    }
     command.args(&request.args);
     if let Some(dir) = &request.current_dir {
         command.current_dir(dir);
     }
     command
+}
+
+fn is_git_program(program: &str) -> bool {
+    if program == "git" {
+        return true;
+    }
+    matches!(
+        Path::new(program)
+            .file_name()
+            .and_then(|name| name.to_str()),
+        Some("git") | Some("git.exe")
+    )
 }
 
 fn validate_request(request: &ProcessRequest) -> Result<(), ProcessExecutionError> {

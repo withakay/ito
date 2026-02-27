@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use std::ffi::OsString;
+
 use ito_core::audit::{AuditEvent, AuditWriter, EventContext, FsAuditWriter};
 
 fn run_git(repo: &Path, args: &[&str]) {
@@ -88,6 +90,41 @@ fn branch_exists(bare_repo: &Path, git_ref: &str) -> bool {
     output.status.success()
 }
 
+struct EnvVarGuard {
+    key: &'static str,
+    old: Option<OsString>,
+}
+
+impl EnvVarGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let old = std::env::var_os(key);
+        // Safety: test-only env mutation; restored on drop.
+        unsafe {
+            std::env::set_var(key, value);
+        }
+        Self { key, old }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => {
+                // Safety: test-only env restoration.
+                unsafe {
+                    std::env::set_var(self.key, value);
+                }
+            }
+            None => {
+                // Safety: test-only env restoration.
+                unsafe {
+                    std::env::remove_var(self.key);
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn audit_mirror_disabled_does_not_create_remote_branch() {
     let repo = tempfile::tempdir().expect("repo");
@@ -117,11 +154,8 @@ fn audit_mirror_disabled_does_not_create_remote_branch() {
     .unwrap();
 
     let ctx_home = tempfile::tempdir().expect("home");
-    // Safety: tests run single-threaded with respect to env changes here.
-    unsafe {
-        std::env::set_var("HOME", ctx_home.path());
-        std::env::set_var("XDG_CONFIG_HOME", ctx_home.path());
-    }
+    let _home_guard = EnvVarGuard::set("HOME", &ctx_home.path().to_string_lossy());
+    let _xdg_guard = EnvVarGuard::set("XDG_CONFIG_HOME", &ctx_home.path().to_string_lossy());
 
     let writer = FsAuditWriter::new(&ito_path);
     writer.append(&make_event()).expect("append");
@@ -158,11 +192,8 @@ fn audit_mirror_enabled_pushes_to_configured_branch() {
     .unwrap();
 
     let ctx_home = tempfile::tempdir().expect("home");
-    // Safety: tests run single-threaded with respect to env changes here.
-    unsafe {
-        std::env::set_var("HOME", ctx_home.path());
-        std::env::set_var("XDG_CONFIG_HOME", ctx_home.path());
-    }
+    let _home_guard = EnvVarGuard::set("HOME", &ctx_home.path().to_string_lossy());
+    let _xdg_guard = EnvVarGuard::set("XDG_CONFIG_HOME", &ctx_home.path().to_string_lossy());
 
     let writer = FsAuditWriter::new(&ito_path);
     writer.append(&make_event()).expect("append");
@@ -174,6 +205,51 @@ fn audit_mirror_enabled_pushes_to_configured_branch() {
         ".ito/.state/audit/events.jsonl",
     );
     assert!(contents.contains("\"entity_id\":\"1.1\""));
+}
+
+#[test]
+fn audit_mirror_enabled_ignores_git_hook_env_vars() {
+    let repo = tempfile::tempdir().expect("repo");
+    let bare = tempfile::tempdir().expect("bare");
+    let unrelated_repo = tempfile::tempdir().expect("unrelated");
+
+    init_git_repo(repo.path());
+    init_git_repo(unrelated_repo.path());
+    run_git(bare.path(), &["init", "--bare"]);
+    run_git(
+        repo.path(),
+        &[
+            "remote",
+            "add",
+            "origin",
+            bare.path().to_string_lossy().as_ref(),
+        ],
+    );
+    std::fs::write(repo.path().join("README.md"), "hi\n").unwrap();
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "init"]);
+
+    let ito_path = repo.path().join(".ito");
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::write(
+        ito_path.join("config.json"),
+        r#"{"audit":{"mirror":{"enabled":true,"branch":"ito/internal/audit"}}}"#,
+    )
+    .unwrap();
+
+    let unrelated_git_dir = unrelated_repo.path().join(".git");
+    let _git_dir_guard = EnvVarGuard::set("GIT_DIR", &unrelated_git_dir.to_string_lossy());
+    let _git_work_tree_guard =
+        EnvVarGuard::set("GIT_WORK_TREE", &unrelated_repo.path().to_string_lossy());
+
+    let ctx_home = tempfile::tempdir().expect("home");
+    let _home_guard = EnvVarGuard::set("HOME", &ctx_home.path().to_string_lossy());
+    let _xdg_guard = EnvVarGuard::set("XDG_CONFIG_HOME", &ctx_home.path().to_string_lossy());
+
+    let writer = FsAuditWriter::new(&ito_path);
+    writer.append(&make_event()).expect("append");
+
+    assert!(branch_exists(bare.path(), "refs/heads/ito/internal/audit"));
 }
 
 #[test]
@@ -197,11 +273,8 @@ fn audit_mirror_failures_do_not_break_local_append() {
     .unwrap();
 
     let ctx_home = tempfile::tempdir().expect("home");
-    // Safety: tests run single-threaded with respect to env changes here.
-    unsafe {
-        std::env::set_var("HOME", ctx_home.path());
-        std::env::set_var("XDG_CONFIG_HOME", ctx_home.path());
-    }
+    let _home_guard = EnvVarGuard::set("HOME", &ctx_home.path().to_string_lossy());
+    let _xdg_guard = EnvVarGuard::set("XDG_CONFIG_HOME", &ctx_home.path().to_string_lossy());
 
     let writer = FsAuditWriter::new(&ito_path);
     // Append MUST succeed even if mirror fails.
