@@ -381,6 +381,29 @@ fn validate_change_against_schema_validation(
         }
 
         if !present {
+            if let Some(validator_id) = cfg.validate_as {
+                match validator_id {
+                    ValidatorId::DeltaSpecsV1 => {
+                        // Delta-spec validation is change-scoped. Run it even when the
+                        // schema artifact output isn't present so we can emit a useful
+                        // diagnostic (for example: "Change must have at least one delta").
+                        let ctx = ArtifactValidatorContext {
+                            ito_path,
+                            change_id,
+                            strict,
+                        };
+                        run_validator_for_artifact(
+                            rep,
+                            change_repo,
+                            ctx,
+                            artifact_id,
+                            &schema_artifact.generates,
+                            validator_id,
+                        )?;
+                    }
+                    ValidatorId::TasksTrackingV1 => {}
+                }
+            }
             continue;
         }
 

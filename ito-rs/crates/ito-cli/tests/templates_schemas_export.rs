@@ -5,7 +5,7 @@ use predicates::str::contains;
 ///
 /// The test runs the CLI to export templates into a temporary `.ito/templates/schemas` target,
 /// asserts the command reports "Exported schemas", and checks that the following files exist:
-/// `spec-driven/schema.yaml`, `spec-driven/templates/proposal.md`, and `tdd/schema.yaml`.
+/// `spec-driven/schema.yaml`, `spec-driven/validation.yaml`, `spec-driven/templates/proposal.md`, and `tdd/schema.yaml`.
 ///
 /// # Examples
 ///
@@ -30,8 +30,10 @@ fn templates_schemas_export_writes_embedded_files() {
         .stdout(contains("Exported schemas"));
 
     assert!(target.join("spec-driven/schema.yaml").exists());
+    assert!(target.join("spec-driven/validation.yaml").exists());
     assert!(target.join("spec-driven/templates/proposal.md").exists());
     assert!(target.join("tdd/schema.yaml").exists());
+    assert!(target.join("tdd/validation.yaml").exists());
 }
 
 /// Ensures exporting embedded template schemas does not overwrite existing files unless `--force` is used, and that using `--force` restores embedded defaults.
