@@ -2,7 +2,7 @@
 name: ito-general
 description: Balanced subagent for typical development tasks, code review, and implementation work
 tools: read, grep, find, ls, bash, edit, write, glob
-model: "claude-sonnet-4-5"
+model: claude-sonnet-4-5
 ---
 
 You are a capable coding assistant for general development work. You operate in an isolated context window to handle delegated tasks.
