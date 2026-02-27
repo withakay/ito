@@ -1,9 +1,9 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{CliResult, fail};
+use crate::cli_error::{fail, CliResult};
 use crate::runtime::Runtime;
 use crate::{commands, util};
-use clap::Parser;
 use clap::error::ErrorKind;
+use clap::Parser;
 
 /// Parse CLI arguments, initialize runtime and logging context, and dispatch the selected subcommand.
 ///
