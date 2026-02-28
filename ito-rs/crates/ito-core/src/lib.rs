@@ -21,6 +21,9 @@ pub mod backend_change_repository;
 /// Backend-backed task repository adapter.
 pub mod backend_task_repository;
 
+/// Backend coordination use-cases (claim, release, allocate, sync).
+pub mod backend_coordination;
+
 /// Artifact synchronization (pull/push) for backend mode.
 pub mod backend_sync;
 

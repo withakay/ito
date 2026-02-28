@@ -23,7 +23,7 @@ const SPECS_DIR: &str = "specs";
 ///
 /// Creates a timestamped backup snapshot under `backup_dir` before writing.
 /// Returns the pulled artifact bundle.
-pub fn pull_artifacts<S: BackendSyncClient>(
+pub fn pull_artifacts<S: BackendSyncClient + ?Sized>(
     sync_client: &S,
     ito_path: &Path,
     change_id: &str,
@@ -46,7 +46,7 @@ pub fn pull_artifacts<S: BackendSyncClient>(
 ///
 /// Creates a timestamped backup snapshot before attempting the push.
 /// Returns the push result on success or a conflict error.
-pub fn push_artifacts<S: BackendSyncClient>(
+pub fn push_artifacts<S: BackendSyncClient + ?Sized>(
     sync_client: &S,
     ito_path: &Path,
     change_id: &str,
