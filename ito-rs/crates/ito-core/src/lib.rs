@@ -15,6 +15,15 @@ pub mod archive;
 /// Backend API client factory, runtime, and coordination services.
 pub mod backend_client;
 
+/// Backend-backed change repository adapter.
+pub mod backend_change_repository;
+
+/// Backend-backed task repository adapter.
+pub mod backend_task_repository;
+
+/// Artifact synchronization (pull/push) for backend mode.
+pub mod backend_sync;
+
 /// Audit log infrastructure: writer, reader, reconciliation, worktree discovery.
 pub mod audit;
 
