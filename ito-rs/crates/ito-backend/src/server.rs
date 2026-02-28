@@ -71,12 +71,11 @@ pub async fn serve(config: BackendConfig) -> miette::Result<()> {
         Some(origins) => {
             let mut layer = CorsLayer::new();
             for origin in origins {
-            for origin in origins {
-                let Ok(parsed_origin) = origin.parse() else {
-                    eprintln!("warning: Invalid CORS origin skipped: {}", origin);
+                let Ok(origin): Result<axum::http::HeaderValue, _> = origin.parse() else {
+                    eprintln!("warning: invalid CORS origin skipped: {origin}");
                     continue;
                 };
-                layer = layer.allow_origin(parsed_origin);
+                layer = layer.allow_origin(origin);
             }
             layer
         }

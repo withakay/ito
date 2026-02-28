@@ -34,13 +34,6 @@ pub fn generate_token(project_root: &Path) -> String {
             eprintln!(
                 "warning: could not canonicalize project root '{}': {e}. Token will be based on non-canonical path.",
                 project_root.display()
-    let root = project_root
-        .canonicalize()
-        .unwrap_or_else(|e| {
-            eprintln!(
-                "warning: could not canonicalize project root '{}': {}. Token will be based on non-canonical path.",
-                project_root.display(),
-                e
             );
             project_root.to_path_buf()
         })
@@ -53,7 +46,7 @@ pub fn generate_token(project_root: &Path) -> String {
     hasher.update(root.as_bytes());
     let result = hasher.finalize();
 
-    // Use first 16 bytes (32 hex chars) for a shorter but still secure token
+    // Use first 16 bytes (32 hex chars) for a shorter but still secure token.
     hex::encode(&result[..16])
 }
 
@@ -71,6 +64,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
+
     let mut diff: u8 = 0;
     for (x, y) in a.iter().zip(b.iter()) {
         diff |= x ^ y;
@@ -90,7 +84,7 @@ pub async fn auth_middleware(
     let path = request.uri().path();
     let normalized_path = path.trim_end_matches('/');
 
-    // Exempt health and readiness endpoints
+    // Exempt health and readiness endpoints (trailing-slash-insensitive)
     for exempt in EXEMPT_PATHS {
         if normalized_path == exempt.trim_end_matches('/') {
             return next.run(request).await;
