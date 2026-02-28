@@ -1,34 +1,17 @@
-# Spec: cli-init
+## ADDED Requirements
 
-## Purpose
+### Requirement: Init hints about project setup when incomplete
 
-Define the `cli-init` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Init supports opt-in coordination branch provisioning).
+`ito init` SHALL print a hint to run project setup when `.ito/project.md` indicates project setup is incomplete.
 
-## Requirements
+#### Scenario: Init prints hint when marker is present
 
-### Requirement: Init supports opt-in coordination branch provisioning
+- **WHEN** `ito init` completes
+- **AND** `.ito/project.md` contains `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->`
+- **THEN** the CLI prints a hint describing how to run project setup (e.g. `/ito-project-setup` or `ito agent instruction project-setup`)
 
-`ito init` SHALL support an opt-in `--setup-coordination-branch` flag that prepares the configured coordination branch on `origin`.
+#### Scenario: Init does not print hint when marker is absent
 
-#### Scenario: Existing coordination branch is already ready
-
-- **GIVEN** `changes.coordination_branch.name` resolves to `<branch>`
-- **WHEN** the user runs `ito init --setup-coordination-branch`
-- **AND** `origin/<branch>` already exists and is reachable
-- **THEN** init completes successfully
-- **AND** the CLI reports that the coordination branch is ready
-
-#### Scenario: Missing coordination branch is created during init
-
-- **GIVEN** `changes.coordination_branch.name` resolves to `<branch>`
-- **WHEN** the user runs `ito init --setup-coordination-branch`
-- **AND** `origin/<branch>` does not exist
-- **THEN** Ito creates the branch on `origin`
-- **AND** init completes successfully with a created/ready message
-
-#### Scenario: Remote setup failure reports recovery guidance
-
-- **WHEN** the user runs `ito init --setup-coordination-branch`
-- **AND** `origin` is missing or push is rejected
-- **THEN** init fails with a deterministic error
-- **AND** the message explains the remote/authentication step needed before retrying
+- **WHEN** `ito init` completes
+- **AND** `.ito/project.md` does not contain the incomplete marker
+- **THEN** the CLI does not print the project setup hint
