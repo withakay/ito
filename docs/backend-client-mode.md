@@ -151,7 +151,7 @@ Non-retriable failures (4xx client errors other than 429) fail immediately with 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `backend.enabled` | bool | `false` | Enable backend API integration |
-| `backend.url` | string | `http://localhost:3000` | Base URL for the backend API |
+| `backend.url` | string | `http://127.0.0.1:9010` | Base URL for the backend API |
 | `backend.token` | string | (none) | Explicit bearer token |
 | `backend.token_env_var` | string | `ITO_BACKEND_TOKEN` | Env var holding the bearer token |
 | `backend.backup_dir` | string | `~/.ito/backups` | Directory for backup snapshots |

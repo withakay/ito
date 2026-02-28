@@ -403,16 +403,36 @@ pub async fn ingest_events(
         ));
     }
 
-    // Check idempotency: if we've already seen this key, report duplicates
+    // Check idempotency (atomic): create a key file using create_new.
+    // This prevents concurrent requests with the same key from double-appending.
     let idem_dir = state.ito_path.join(".state").join("ingest-keys");
-    let idem_file = idem_dir.join(&payload.idempotency_key);
-
-    if idem_file.is_file() {
-        return Ok(Json(IngestEventsResponse {
-            accepted: 0,
-            duplicates: payload.events.len(),
-        }));
+    if let Err(e) = std::fs::create_dir_all(&idem_dir) {
+        tracing::error!("failed to create ingest-keys dir: {e}");
+        return Err(ApiErrorResponse::internal(
+            "Failed to process idempotency key",
+        ));
     }
+
+    let idem_file = idem_dir.join(&payload.idempotency_key);
+    let mut idem_handle = match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&idem_file)
+    {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Ok(Json(IngestEventsResponse {
+                accepted: 0,
+                duplicates: payload.events.len(),
+            }));
+        }
+        Err(e) => {
+            tracing::error!("failed to open idempotency key file: {e}");
+            return Err(ApiErrorResponse::internal(
+                "Failed to process idempotency key",
+            ));
+        }
+    };
 
     // Write events to the audit log
     let writer = ito_core::audit::FsAuditWriter::new(&state.ito_path);
@@ -425,14 +445,10 @@ pub async fn ingest_events(
         accepted += 1;
     }
 
-    // Record idempotency key so retries return duplicates
-    if let Err(e) = std::fs::create_dir_all(&idem_dir) {
-        tracing::warn!("failed to create ingest-keys dir: {e}");
-    } else {
-        let count_str = accepted.to_string();
-        if let Err(e) = std::fs::write(&idem_file, count_str.as_bytes()) {
-            tracing::warn!("failed to write idempotency key file: {e}");
-        }
+    // Best-effort: record accepted count in the idempotency file
+    use std::io::Write;
+    if let Err(e) = idem_handle.write_all(accepted.to_string().as_bytes()) {
+        tracing::warn!("failed to write idempotency key file: {e}");
     }
 
     Ok(Json(IngestEventsResponse {

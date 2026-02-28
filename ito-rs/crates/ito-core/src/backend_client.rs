@@ -54,15 +54,16 @@ pub fn resolve_backend_runtime(config: &BackendApiConfig) -> CoreResult<Option<B
 
 /// Resolve the bearer token from explicit config or environment variable.
 fn resolve_token(config: &BackendApiConfig) -> CoreResult<String> {
-    if let Some(token) = &config.token
-        && !token.as_str().is_empty()
-    {
-        return Ok(token.clone());
+    if let Some(token) = &config.token {
+        let token = token.trim();
+        if !token.is_empty() {
+            return Ok(token.to_string());
+        }
     }
 
     let env_var = &config.token_env_var;
     match std::env::var(env_var) {
-        Ok(val) if !val.is_empty() => Ok(val),
+        Ok(val) if !val.trim().is_empty() => Ok(val.trim().to_string()),
         Ok(_) => Err(CoreError::validation(format!(
             "Backend mode is enabled but environment variable '{env_var}' is empty. \
              Set the token via '{env_var}' or 'backend.token' in config."

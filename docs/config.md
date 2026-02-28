@@ -160,7 +160,7 @@ Cache settings live under `cache`:
 Backend mode enables multi-agent coordination through a shared backend API. Settings live under `backend`:
 
 - `backend.enabled` — Enable backend API integration (default: `false`)
-- `backend.url` — Base URL for the backend API (default: `http://localhost:3000`)
+- `backend.url` — Base URL for the backend API (default: `http://127.0.0.1:9010`)
 - `backend.token` — Explicit authentication token (optional; overrides env var)
 - `backend.token_env_var` — Environment variable holding the bearer token (default: `ITO_BACKEND_TOKEN`)
 - `backend.backup_dir` — Directory for artifact backup snapshots during sync (default: `~/.ito/backups`)

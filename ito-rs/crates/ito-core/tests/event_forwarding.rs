@@ -274,6 +274,6 @@ fn forward_result_reports_diagnostics() {
     assert!(result.failed_batches > 0, "should report failed batches");
     assert!(
         result.total_local > result.new_offset,
-        "gap means unfowarded events"
+        "gap means unforwarded events"
     );
 }
