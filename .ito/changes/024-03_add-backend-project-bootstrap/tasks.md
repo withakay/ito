@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-web`
 - **Done When**: Health endpoint returns success and includes API version identifier.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Add token introspection endpoint
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-web`
 - **Done When**: Valid token returns correct project identity; invalid token returns 401.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -52,4 +52,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: OpenAPI and tests cover health/version and whoami behaviors.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete

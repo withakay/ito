@@ -30,6 +30,17 @@ use crate::state::AppState;
 pub struct HealthResponse {
     /// Always `"ok"`.
     pub status: String,
+    /// API version identifier (crate version).
+    pub version: String,
+}
+
+/// Token introspection response for bootstrap.
+#[derive(Debug, Serialize)]
+pub struct WhoamiResponse {
+    /// The project ID (directory name) bound to the token.
+    pub project_id: String,
+    /// The canonical project root path on the server.
+    pub project_root: String,
 }
 
 /// Readiness check response.
@@ -173,10 +184,32 @@ fn map_domain_err<T>(result: Result<T, ito_core::DomainError>) -> Result<T, ApiE
 
 // ── Handlers ────────────────────────────────────────────────────────
 
-/// `GET /api/v1/health` — always returns `{"status": "ok"}`.
+/// `GET /api/v1/health` — returns `{"status": "ok", "version": "..."}`.
+///
+/// The version is the crate version, which corresponds to the API version.
+/// This endpoint is unauthenticated so clients can verify connectivity.
 pub async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    })
+}
+
+/// `GET /api/v1/auth/whoami` — returns the project identity bound to the token.
+///
+/// Requires valid bearer token authentication. Returns the project ID and
+/// canonical project root so the client can discover its effective scope
+/// without knowing the project ID upfront.
+pub async fn whoami(State(state): State<Arc<AppState>>) -> Json<WhoamiResponse> {
+    let project_id = state
+        .project_root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Json(WhoamiResponse {
+        project_id,
+        project_root: state.project_root.display().to_string(),
     })
 }
 
@@ -333,6 +366,7 @@ pub fn v1_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route("/auth/whoami", get(whoami))
         .route("/changes", get(list_changes))
         .route("/changes/{change_id}", get(get_change))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
