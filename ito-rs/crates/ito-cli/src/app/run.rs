@@ -207,6 +207,17 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             );
         }
 
+        #[cfg(feature = "backend")]
+        Some(Commands::ServeApi(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || commands::handle_serve_api_clap(&rt, args),
+            );
+        }
+
         Some(Commands::Agent(args)) => {
             return util::with_logging(
                 &rt,

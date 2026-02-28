@@ -248,6 +248,19 @@ pub enum Commands {
     #[cfg(feature = "web")]
     Serve(ServeArgs),
 
+    /// Start the backend state API server
+    ///
+    /// Exposes Ito project state (changes, tasks, modules) via a RESTful
+    /// HTTP API for multi-agent coordination.
+    ///
+    /// Examples:
+    ///   ito serve-api
+    ///   ito serve-api --port 8080 --bind 0.0.0.0
+    ///   ito serve-api --token my-secret
+    #[command(verbatim_doc_comment)]
+    #[cfg(feature = "backend")]
+    ServeApi(ServeApiArgs),
+
     // ─── Audit ────────────────────────────────────────────────────────────────────
     /// Query, validate, and manage the audit event log
     ///
@@ -327,6 +340,23 @@ pub struct ServeArgs {
 pub enum ServeAction {
     /// Start the server (default if no subcommand)
     Start,
+}
+
+/// Backend state API server for multi-agent coordination.
+#[derive(Args, Debug, Clone)]
+#[cfg(feature = "backend")]
+pub struct ServeApiArgs {
+    /// Port to listen on (default: 9010)
+    #[arg(short, long)]
+    pub port: Option<u16>,
+
+    /// Address to bind to (default: 127.0.0.1)
+    #[arg(short, long)]
+    pub bind: Option<String>,
+
+    /// Authentication token (default: auto-generated from hostname + project root)
+    #[arg(short, long)]
+    pub token: Option<String>,
 }
 
 /// Deprecated alias for `create change`.
