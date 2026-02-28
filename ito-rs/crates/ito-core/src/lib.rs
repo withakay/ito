@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Backend API client factory, runtime, and coordination services.
+pub mod backend_client;
+
 /// Audit log infrastructure: writer, reader, reconciliation, worktree discovery.
 pub mod audit;
 
@@ -84,6 +87,11 @@ pub mod validate;
 pub mod templates;
 
 // Re-export domain types for CLI and adapter convenience
+pub use ito_domain::backend::{
+    AllocateResult, ArtifactBundle, BackendChangeReader, BackendError, BackendLeaseClient,
+    BackendSyncClient, BackendTaskReader, ClaimResult, LeaseConflict, PushResult, ReleaseResult,
+    RevisionConflict,
+};
 pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};

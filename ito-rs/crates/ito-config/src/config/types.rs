@@ -124,11 +124,56 @@ pub struct BackendApiConfig {
     /// Authentication token for backend API access.
     /// When `None`, a deterministic token is generated from hostname + project root.
     pub token: Option<String>,
+
+    #[serde(default = "BackendApiConfig::default_token_env_var")]
+    #[schemars(
+        default = "BackendApiConfig::default_token_env_var",
+        description = "Environment variable name that holds the bearer token"
+    )]
+    /// Name of the environment variable that holds the bearer token.
+    ///
+    /// When backend mode is enabled, the token is read from this variable
+    /// at runtime unless `token` is explicitly set.
+    pub token_env_var: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Per-user backup directory for artifact snapshots")]
+    /// Per-user directory for backup snapshots of change artifacts during
+    /// sync operations. Defaults to `$HOME/.ito/backups` when not set.
+    pub backup_dir: Option<String>,
+
+    #[serde(default = "BackendApiConfig::default_timeout_ms")]
+    #[schemars(
+        default = "BackendApiConfig::default_timeout_ms",
+        description = "Request timeout in milliseconds"
+    )]
+    /// Request timeout in milliseconds for backend API calls.
+    pub timeout_ms: u64,
+
+    #[serde(default = "BackendApiConfig::default_max_retries")]
+    #[schemars(
+        default = "BackendApiConfig::default_max_retries",
+        description = "Maximum retry attempts for transient failures"
+    )]
+    /// Maximum retry attempts for transient failures.
+    pub max_retries: u32,
 }
 
 impl BackendApiConfig {
     fn default_url() -> String {
         "http://127.0.0.1:9010".to_string()
+    }
+
+    fn default_token_env_var() -> String {
+        "ITO_BACKEND_TOKEN".to_string()
+    }
+
+    fn default_timeout_ms() -> u64 {
+        30_000
+    }
+
+    fn default_max_retries() -> u32 {
+        3
     }
 }
 
@@ -138,6 +183,10 @@ impl Default for BackendApiConfig {
             enabled: false,
             url: Self::default_url(),
             token: None,
+            token_env_var: Self::default_token_env_var(),
+            backup_dir: None,
+            timeout_ms: Self::default_timeout_ms(),
+            max_retries: Self::default_max_retries(),
         }
     }
 }
