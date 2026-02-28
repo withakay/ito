@@ -40,7 +40,7 @@ Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute pa
 **Strategy:** `bare_control_siblings`
 **Directory name:** `ito-worktrees`
 **Default branch:** `main`
-**Integration mode:** `merge_parent`
+**Integration mode:** `commit_pr`
 
 
 This project uses a bare/control repo layout with worktrees as siblings:

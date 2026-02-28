@@ -1,5 +1,5 @@
 ---
-name: loop
+name: ito-loop
 description: Run an Ito Ralph loop for a change.
 category: Ito
 tags: [ito, ralph, loop]
