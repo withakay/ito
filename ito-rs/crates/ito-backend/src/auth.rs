@@ -67,6 +67,17 @@ pub struct AuthState {
 /// Paths that bypass authentication.
 const EXEMPT_PATHS: &[&str] = &["/api/v1/health", "/api/v1/ready"];
 
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 /// Axum middleware that enforces bearer token authentication.
 ///
 /// Extracts the token from `Authorization: Bearer <token>` and compares it
@@ -77,21 +88,24 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Response {
     let path = request.uri().path();
+    let normalized_path = path.trim_end_matches('/');
 
     // Exempt health and readiness endpoints
     for exempt in EXEMPT_PATHS {
-        if path == *exempt {
+        if normalized_path == exempt.trim_end_matches('/') {
             return next.run(request).await;
         }
     }
 
     // Extract bearer token from Authorization header
-    let authorized = request
+    let bearer_token = request
         .headers()
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .is_some_and(|token| token == auth.token);
+        .and_then(|v| v.strip_prefix("Bearer "));
+
+    let authorized =
+        bearer_token.is_some_and(|token| constant_time_eq(token.as_bytes(), auth.token.as_bytes()));
 
     if authorized {
         return next.run(request).await;
