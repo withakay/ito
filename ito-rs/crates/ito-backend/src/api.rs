@@ -11,8 +11,8 @@ use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::get;
-use serde::Serialize;
+use axum::routing::{get, post};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use ito_core::DomainTaskRepository as _;
@@ -361,6 +361,86 @@ pub async fn get_module(
     }))
 }
 
+// ── Event ingest types ──────────────────────────────────────────────
+
+/// Request body for the event ingest endpoint.
+#[derive(Debug, Deserialize)]
+pub struct IngestEventsRequest {
+    /// Batch of audit events to ingest.
+    pub events: Vec<ito_core::audit::AuditEvent>,
+    /// Client-provided idempotency key for safe retries.
+    pub idempotency_key: String,
+}
+
+/// Response for a successful event ingest.
+#[derive(Debug, Serialize)]
+pub struct IngestEventsResponse {
+    /// Number of events accepted (new).
+    pub accepted: usize,
+    /// Number of duplicate events (already seen via this idempotency key).
+    pub duplicates: usize,
+}
+
+/// `POST /api/v1/events` — ingest a batch of audit events from a client.
+///
+/// Accepts a JSON body with an array of events and an idempotency key.
+/// The server writes new events to the project's audit log and deduplicates
+/// by idempotency key.
+pub async fn ingest_events(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<IngestEventsRequest>,
+) -> Result<Json<IngestEventsResponse>, ApiErrorResponse> {
+    if payload.events.is_empty() {
+        return Ok(Json(IngestEventsResponse {
+            accepted: 0,
+            duplicates: 0,
+        }));
+    }
+
+    if payload.idempotency_key.is_empty() {
+        return Err(ApiErrorResponse::bad_request(
+            "idempotency_key must not be empty",
+        ));
+    }
+
+    // Check idempotency: if we've already seen this key, report duplicates
+    let idem_dir = state.ito_path.join(".state").join("ingest-keys");
+    let idem_file = idem_dir.join(&payload.idempotency_key);
+
+    if idem_file.is_file() {
+        return Ok(Json(IngestEventsResponse {
+            accepted: 0,
+            duplicates: payload.events.len(),
+        }));
+    }
+
+    // Write events to the audit log
+    let writer = ito_core::audit::FsAuditWriter::new(&state.ito_path);
+    let mut accepted = 0usize;
+    for event in &payload.events {
+        if let Err(e) = ito_core::audit::AuditWriter::append(&writer, event) {
+            tracing::warn!("event ingest write failed: {e}");
+            continue;
+        }
+        accepted += 1;
+    }
+
+    // Record idempotency key so retries return duplicates
+    if let Err(e) = std::fs::create_dir_all(&idem_dir) {
+        tracing::warn!("failed to create ingest-keys dir: {e}");
+    } else {
+        let count_str = accepted.to_string();
+        if let Err(e) = std::fs::write(&idem_file, count_str.as_bytes()) {
+            tracing::warn!("failed to write idempotency key file: {e}");
+        }
+    }
+
+    Ok(Json(IngestEventsResponse {
+        accepted,
+        duplicates: 0,
+    }))
+}
+
 /// Build the v1 API router with all endpoints.
 pub fn v1_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -372,4 +452,5 @@ pub fn v1_router() -> Router<Arc<AppState>> {
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
         .route("/modules", get(list_modules))
         .route("/modules/{module_id}", get(get_module))
+        .route("/events", post(ingest_events))
 }

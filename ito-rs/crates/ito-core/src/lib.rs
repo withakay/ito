@@ -45,6 +45,9 @@ pub mod distribution;
 /// Core-layer error types and result alias.
 pub mod errors;
 
+/// Client-side forwarding of local audit events to the backend.
+pub mod event_forwarder;
+
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
 
@@ -100,9 +103,9 @@ pub mod templates;
 
 // Re-export domain types for CLI and adapter convenience
 pub use ito_domain::backend::{
-    AllocateResult, ArtifactBundle, BackendChangeReader, BackendError, BackendLeaseClient,
-    BackendSyncClient, BackendTaskReader, ClaimResult, LeaseConflict, PushResult, ReleaseResult,
-    RevisionConflict,
+    AllocateResult, ArtifactBundle, BackendChangeReader, BackendError, BackendEventIngestClient,
+    BackendLeaseClient, BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch,
+    EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
 pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
 pub use ito_domain::errors::DomainError;

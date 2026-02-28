@@ -182,6 +182,38 @@ pub trait BackendTaskReader {
     fn load_tasks_content(&self, change_id: &str) -> DomainResult<Option<String>>;
 }
 
+// ── Event ingest DTOs ──────────────────────────────────────────────
+
+/// A batch of audit events to send to the backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventBatch {
+    /// Events in this batch, serialized as JSON objects.
+    pub events: Vec<crate::audit::event::AuditEvent>,
+    /// Client-generated idempotency key for safe retries.
+    pub idempotency_key: String,
+}
+
+/// Result of a successful event ingest operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventIngestResult {
+    /// Number of events accepted by the backend.
+    pub accepted: usize,
+    /// Number of events that were duplicates (already ingested).
+    pub duplicates: usize,
+}
+
+/// Port for backend event ingestion.
+///
+/// Implementations handle HTTP communication to submit local audit events
+/// to the backend for centralized observability.
+pub trait BackendEventIngestClient {
+    /// Submit a batch of audit events to the backend.
+    ///
+    /// The batch includes an idempotency key so retries do not produce
+    /// duplicate events on the server.
+    fn ingest(&self, batch: &EventBatch) -> Result<EventIngestResult, BackendError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,6 +266,50 @@ mod tests {
     fn backend_error_display_other() {
         let err = BackendError::Other("unexpected".to_string());
         assert!(err.to_string().contains("unexpected"));
+    }
+
+    #[test]
+    fn event_batch_roundtrip() {
+        let event = crate::audit::event::AuditEvent {
+            v: 1,
+            ts: "2026-02-28T10:00:00.000Z".to_string(),
+            entity: "task".to_string(),
+            entity_id: "1.1".to_string(),
+            scope: Some("test-change".to_string()),
+            op: "create".to_string(),
+            from: None,
+            to: Some("pending".to_string()),
+            actor: "cli".to_string(),
+            by: "@test".to_string(),
+            meta: None,
+            ctx: crate::audit::event::EventContext {
+                session_id: "sid".to_string(),
+                harness_session_id: None,
+                branch: None,
+                worktree: None,
+                commit: None,
+            },
+        };
+        let batch = EventBatch {
+            events: vec![event],
+            idempotency_key: "key-123".to_string(),
+        };
+        let json = serde_json::to_string(&batch).unwrap();
+        let restored: EventBatch = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.events.len(), 1);
+        assert_eq!(restored.idempotency_key, "key-123");
+    }
+
+    #[test]
+    fn event_ingest_result_roundtrip() {
+        let result = EventIngestResult {
+            accepted: 5,
+            duplicates: 2,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let restored: EventIngestResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.accepted, 5);
+        assert_eq!(restored.duplicates, 2);
     }
 
     #[test]
