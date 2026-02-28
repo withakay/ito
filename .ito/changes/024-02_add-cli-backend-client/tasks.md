@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-config && cargo test -p ito-core`
 - **Done When**: Backend runtime config resolves predictably and client factory can be constructed in tests.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Define backend client interfaces in domain/core boundaries
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-domain && cargo test -p ito-core`
 - **Done When**: Layer boundaries remain clean and backend operations are mockable in unit tests.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
