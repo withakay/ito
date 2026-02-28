@@ -21,20 +21,28 @@ pub(crate) fn handle_serve_api_clap(rt: &Runtime, args: &ServeApiArgs) -> CliRes
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| std::path::PathBuf::from("."));
 
+    // Prefer token sources that don't leak into shell history.
+    let token = args.token.clone().or_else(|| {
+        std::env::var("ITO_BACKEND_TOKEN").ok().and_then(|v| {
+            let v = v.trim().to_string();
+            if v.is_empty() { None } else { Some(v) }
+        })
+    });
+
     let config = ito_backend::BackendConfig {
         project_root,
         ito_path: Some(ito_path.to_path_buf()),
         bind: args.bind.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
         port: args.port.unwrap_or(9010),
-        token: args.token.clone(),
+        token,
         cors_origins: None,
     };
 
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+    let tokio_rt = tokio::runtime::Runtime::new().map_err(|e| {
         crate::cli_error::CliError::msg(format!("Failed to create tokio runtime: {e}"))
     })?;
 
-    runtime.block_on(async {
+    tokio_rt.block_on(async {
         ito_backend::serve(config)
             .await
             .map_err(|e| crate::cli_error::CliError::msg(format!("Server error: {e}")))

@@ -30,7 +30,13 @@ pub fn generate_token(project_root: &Path) -> String {
     let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let root = project_root
         .canonicalize()
-        .unwrap_or_else(|_| project_root.to_path_buf())
+        .unwrap_or_else(|e| {
+            eprintln!(
+                "warning: could not canonicalize project root '{}': {e}. Token will be based on non-canonical path.",
+                project_root.display()
+            );
+            project_root.to_path_buf()
+        })
         .to_string_lossy()
         .to_string();
 

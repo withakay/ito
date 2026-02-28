@@ -71,6 +71,7 @@ impl ApiErrorResponse {
     }
 
     /// Build a 503 Service Unavailable error.
+    #[allow(dead_code)]
     pub fn service_unavailable(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
@@ -84,7 +85,8 @@ impl ApiErrorResponse {
 
 impl IntoResponse for ApiErrorResponse {
     fn into_response(self) -> Response {
-        let body = serde_json::to_string(&self.body).unwrap_or_else(|_| {
+        let body = serde_json::to_string(&self.body).unwrap_or_else(|e| {
+            eprintln!("error: failed to serialize API error response: {e}");
             r#"{"error":"serialization failure","code":"internal_error"}"#.to_string()
         });
 

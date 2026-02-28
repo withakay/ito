@@ -21,10 +21,8 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - config
 
 ## Changes
-- [ ] 024-01_add-shared-state-api
+- [x] 024-01_add-shared-state-api
 - [ ] 024-02_add-cli-backend-client
 - [ ] 024-03_add-backend-project-bootstrap
 - [ ] 024-04_add-backend-event-forwarding
 - [ ] 024-05_add-backend-archive-sync
-- [ ] 024-08_add-backend-archive-sync
-- [ ] 024-09_add-shared-state-api
