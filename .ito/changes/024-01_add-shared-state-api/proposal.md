@@ -6,10 +6,10 @@ Multiple AI harness instances working on the same project currently rely on git-
 
 ## What Changes
 
-- Introduce a new `ito-backend` crate (Layer 3 adapter, like `ito-web`) that hosts an HTTP API for reading and writing Ito project state (changes, tasks, modules, specs)
-- Define a `backend-state-api` capability covering RESTful endpoints for CRUD operations on changes, tasks, and modules
+- Introduce a new `ito-backend` crate (Layer 3 adapter, like `ito-web`) that hosts an HTTP API for reading Ito project state (changes, tasks, modules)
+- Define a `backend-state-api` capability covering RESTful read endpoints (GET) for changes, tasks, and modules
 - Add token-based authentication for backend API access (reusing patterns from `ito-web`)
-- Expose change and task state via JSON over HTTP, backed by the existing `ChangeRepository`, `TaskRepository`, and `ModuleRepository` domain ports
+- Expose change, task, and module state via JSON over HTTP, backed by the existing `ChangeRepository`, `TaskRepository`, and `ModuleRepository` domain ports
 - Add a `backend` configuration section to `ItoConfig` for backend URL, auth token, and connection settings
 - Wire the backend into `ito-cli` via a new `ito serve-api` subcommand that starts the backend service
 
@@ -17,7 +17,7 @@ Multiple AI harness instances working on the same project currently rely on git-
 
 ### New Capabilities
 
-- `backend-state-api`: RESTful HTTP API for reading and writing Ito project state (changes, tasks, modules). Provides JSON endpoints backed by domain repository ports. Runs as a standalone service or embedded in the CLI.
+- `backend-state-api`: RESTful HTTP API for reading Ito project state (changes, tasks, modules). Provides JSON GET endpoints backed by domain repository ports. Runs as a standalone service or embedded in the CLI.
 
 ### Modified Capabilities
 

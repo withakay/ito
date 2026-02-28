@@ -9,6 +9,7 @@
 
 use axum::Router;
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::get;
 use serde::Serialize;
@@ -180,20 +181,26 @@ pub async fn health() -> Json<HealthResponse> {
 }
 
 /// `GET /api/v1/ready` — checks whether the `.ito/` directory exists.
-pub async fn ready(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<ReadyResponse>, ApiErrorResponse> {
+pub async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<ReadyResponse>) {
     if state.ito_path.is_dir() {
-        Ok(Json(ReadyResponse {
-            status: "ready".to_string(),
-            reason: None,
-        }))
+        (
+            StatusCode::OK,
+            Json(ReadyResponse {
+                status: "ready".to_string(),
+                reason: None,
+            }),
+        )
     } else {
-        let msg = format!(
-            "not_ready: .ito directory not found at {}",
-            state.project_root.display()
-        );
-        Err(ApiErrorResponse::service_unavailable(msg))
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ReadyResponse {
+                status: "not_ready".to_string(),
+                reason: Some(format!(
+                    ".ito directory not found at {}",
+                    state.project_root.display()
+                )),
+            }),
+        )
     }
 }
 
