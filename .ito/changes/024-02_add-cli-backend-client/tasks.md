@@ -104,7 +104,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Backend mode behavior is covered by end-to-end tests with deterministic assertions.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 4.2: Document backend client mode usage and failure recovery
 
@@ -114,4 +114,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Documentation covers setup, normal usage, and troubleshooting for backend mode.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
