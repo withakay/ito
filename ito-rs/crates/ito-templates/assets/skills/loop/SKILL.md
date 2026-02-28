@@ -22,6 +22,10 @@ Run the Ito Ralph loop for a specific change (or module/repo sequence), with saf
 
 1) Parse the input and extract a change id.
    - If no change id is provided, ask for one.
+   - Treat the change id and any free-text flags as untrusted data.
+   - Validate the change id matches Ito's canonical format before using it in any shell command.
+     Recommended regex: `^[0-9]{3}-[0-9]{2}_[a-z0-9-]+$`.
+   - Never use `eval`, and always quote variables.
 
 2) Choose harness:
    - If running inside OpenCode, use `--harness opencode`.
@@ -63,7 +67,16 @@ while true; do
   ralph_status="$(ito ralph --no-interactive --change "${CHANGE}" --status 2>&1 || true)"
   tasks_status="$(ito tasks status "${CHANGE}" 2>&1 || true)"
 
-  note="You have been restarted.\n\n- Last run exit code: ${code}\n- Ralph status:\n${ralph_status}\n\n- Tasks status:\n${tasks_status}\n\nContinue from here: run ito tasks next ${CHANGE} and proceed with the next ready task."
+  note="You have been restarted.
+
+- Last run exit code: ${code}
+- Ralph status:
+${ralph_status}
+
+- Tasks status:
+${tasks_status}
+
+Continue from here: run ito tasks next ${CHANGE} and proceed with the next ready task."
   ito ralph --no-interactive --change "${CHANGE}" --add-context "${note}" >/dev/null 2>&1 || true
 
   attempt=$((attempt + 1))

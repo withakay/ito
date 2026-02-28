@@ -7,12 +7,12 @@ We want a simple OpenCode slash command that starts a Ralph loop for a change wi
 
 ## What Changes
 
-- Add an OpenCode slash command `/loop` that starts an Ito Ralph run for a change id.
+- Add an OpenCode slash command `/loop <change-id>` that starts an Ito Ralph run for a change.
 - Provide a thin, centralized workflow wrapper (skill + command) that:
   - Uses the OpenCode harness defaults (`ito ralph --harness opencode`).
   - Supports non-interactive runs (OpenCode `Bash` tool is non-interactive).
   - Restarts Ralph when it exits early (non-zero / unexpected termination), appending a restart note into the Ralph context.
-  - Optionally passes a model id; when not provided, it relies on OpenCode defaults.
+  - Optionally passes a `<model-id>`; when not provided, it relies on OpenCode defaults.
 
 Notes:
 
@@ -31,7 +31,7 @@ Notes:
 
 ## Impact
 
-- **Templates**: add a new OpenCode command definition (`loop.md`) installed by `ito init`.
+- **Templates**: add a new OpenCode command definition (`loop.md`) installed by `ito init` for `/loop <change-id>`.
 - **Skills**: add a new `ito-loop` skill that standardizes the wrapper behavior and works in any harness.
 - **CLI**: no new flags required; wrapper composes `ito ralph` with existing flags (`--timeout`, `--add-context`, `--status`, `--model`, `--max-iterations`).
 <!-- ITO:END -->
