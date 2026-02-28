@@ -1,8 +1,12 @@
 use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+use ito_config::load_cascading_project_config;
+use ito_config::types::ItoConfig;
 use ito_core::DomainTaskRepository;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
+use ito_core::backend_coordination;
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::module_repository::FsModuleRepository;
 use ito_core::paths as core_paths;
@@ -94,6 +98,13 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
         }
     }
+
+    // Check for backend mode — if enabled, use backend-aware archive flow
+    if let Some(runtime) = try_backend_runtime(rt)? {
+        return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
+    }
+
+    // ── Filesystem-only archive flow ───────────────────────────────
 
     // Generate archive name
     let archive_name = archive::generate_archive_name(&change_name);
@@ -268,6 +279,153 @@ fn build_single_archive_argv(change_id: Option<&str>, args: &ArchiveArgs) -> Vec
         argv.push("--no-validate".to_string());
     }
     argv
+}
+
+// ── Backend-mode helpers ────────────────────────────────────────────
+
+/// Try to resolve backend runtime from config.
+///
+/// Returns `Ok(None)` if backend mode is disabled (no error). Returns
+/// `Err` only if backend is enabled but misconfigured.
+fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+
+    if !config.backend.enabled {
+        return Ok(None);
+    }
+
+    resolve_backend_runtime(&config.backend).map_err(to_cli_error)
+}
+
+/// Stub backend sync client for archive pull.
+struct StubSyncClient;
+
+impl ito_core::BackendSyncClient for StubSyncClient {
+    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Sync endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+
+    fn push(
+        &self,
+        change_id: &str,
+        _bundle: &ito_core::ArtifactBundle,
+    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Sync endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+}
+
+/// Stub backend archive client.
+struct StubArchiveClient;
+
+impl ito_core::BackendArchiveClient for StubArchiveClient {
+    fn mark_archived(
+        &self,
+        change_id: &str,
+    ) -> Result<ito_core::ArchiveResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Archive endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+}
+
+/// Backend-mode archive: pull from backend, archive locally, mark archived on backend.
+fn handle_backend_archive(
+    rt: &Runtime,
+    ito_path: &std::path::Path,
+    change_name: &str,
+    skip_specs: bool,
+    runtime: &BackendRuntime,
+) -> CliResult<()> {
+    eprintln!("Backend mode enabled — syncing from backend before archiving...");
+
+    let sync_client = StubSyncClient;
+    let archive_client = StubArchiveClient;
+    let module_repo = FsModuleRepository::new(ito_path);
+
+    // Audit pre-check
+    {
+        let audit_report = ito_core::audit::run_reconcile(ito_path, Some(change_name), false);
+        if !audit_report.drifts.is_empty() {
+            eprintln!(
+                "Warning: {} audit drift items detected for '{}'. Run 'ito audit reconcile --change {} --fix' to resolve.",
+                audit_report.drifts.len(),
+                change_name,
+                change_name
+            );
+        }
+    }
+
+    // Run the backend-mode archive orchestration
+    let outcome = backend_coordination::archive_with_backend(
+        &sync_client,
+        &archive_client,
+        &module_repo,
+        ito_path,
+        change_name,
+        &runtime.backup_dir,
+        skip_specs,
+    )
+    .map_err(to_cli_error)?;
+
+    // Emit audit events
+    if let Some(event) = AuditEventBuilder::new()
+        .entity(EntityType::Change)
+        .entity_id(change_name)
+        .op(ops::CHANGE_ARCHIVE)
+        .actor(Actor::Cli)
+        .by(rt.user_identity())
+        .meta(serde_json::json!({
+            "archive_name": outcome.archive_name,
+            "backend_archived_at": outcome.backend_result.archived_at,
+        }))
+        .ctx(rt.event_context().clone())
+        .build()
+    {
+        rt.emit_audit_event(&event);
+    }
+
+    if let Some(module_id) = change_name.split('-').next()
+        && let Some(event) = AuditEventBuilder::new()
+            .entity(EntityType::Module)
+            .entity_id(module_id)
+            .op(ops::MODULE_CHANGE_COMPLETED)
+            .actor(Actor::Cli)
+            .by(rt.user_identity())
+            .meta(serde_json::json!({
+                "change_id": change_name,
+            }))
+            .ctx(rt.event_context().clone())
+            .build()
+    {
+        rt.emit_audit_event(&event);
+    }
+
+    // Report success
+    eprintln!(
+        "✔ Archived '{}' as '{}' (backend archived at {})",
+        change_name, outcome.archive_name, outcome.backend_result.archived_at
+    );
+    if !outcome.specs_updated.is_empty() {
+        eprintln!("  Updated specs: {}", outcome.specs_updated.join(", "));
+    }
+
+    // Post-archive commit reminder
+    eprintln!();
+    eprintln!("Next steps:");
+    eprintln!(
+        "  git add .ito/changes/archive/{} .ito/specs/",
+        outcome.archive_name
+    );
+    eprintln!("  git commit -m \"chore: archive {}\"", change_name);
+
+    Ok(())
 }
 
 /// Archive all changes with `ChangeStatus::Complete`.

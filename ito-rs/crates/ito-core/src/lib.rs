@@ -103,9 +103,10 @@ pub mod templates;
 
 // Re-export domain types for CLI and adapter convenience
 pub use ito_domain::backend::{
-    AllocateResult, ArtifactBundle, BackendChangeReader, BackendError, BackendEventIngestClient,
-    BackendLeaseClient, BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch,
-    EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
+    AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
+    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendSyncClient,
+    BackendTaskReader, ClaimResult, EventBatch, EventIngestResult, LeaseConflict, PushResult,
+    ReleaseResult, RevisionConflict,
 };
 pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
 pub use ito_domain::errors::DomainError;

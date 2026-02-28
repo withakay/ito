@@ -214,6 +214,29 @@ pub trait BackendEventIngestClient {
     fn ingest(&self, batch: &EventBatch) -> Result<EventIngestResult, BackendError>;
 }
 
+// ── Archive DTOs ───────────────────────────────────────────────────
+
+/// Result of marking a change as archived on the backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchiveResult {
+    /// The change that was archived.
+    pub change_id: String,
+    /// Timestamp when the backend recorded the archive (ISO-8601).
+    pub archived_at: String,
+}
+
+/// Port for backend archive lifecycle operations.
+///
+/// Marks a change as archived on the backend, making it immutable
+/// for subsequent backend operations (no further writes or leases).
+pub trait BackendArchiveClient {
+    /// Mark a change as archived on the backend.
+    ///
+    /// After this call succeeds, the backend SHALL reject further
+    /// write or lease operations for the change.
+    fn mark_archived(&self, change_id: &str) -> Result<ArchiveResult, BackendError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,6 +333,18 @@ mod tests {
         let restored: EventIngestResult = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.accepted, 5);
         assert_eq!(restored.duplicates, 2);
+    }
+
+    #[test]
+    fn archive_result_roundtrip() {
+        let result = ArchiveResult {
+            change_id: "024-05".to_string(),
+            archived_at: "2026-02-28T12:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let restored: ArchiveResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.change_id, "024-05");
+        assert_eq!(restored.archived_at, "2026-02-28T12:00:00Z");
     }
 
     #[test]
