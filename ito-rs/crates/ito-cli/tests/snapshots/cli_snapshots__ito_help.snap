@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 103
 expression: "snapshot(&[\"--help\"])"
 ---
 AI-native system for spec-driven development
@@ -26,6 +27,7 @@ Commands:
   completions  Output shell completion scripts [aliases: cp]
   stats        Display command execution counts and history [aliases: ss]
   help         Show help for ito commands [aliases: he]
+  util         Low-level utility commands for scripting and automation [aliases: ut]
 
 Options:
       --no-color  Disable color output

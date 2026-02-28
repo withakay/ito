@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 113
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -32,6 +33,7 @@ Commands:
   completions  Output shell completion scripts [aliases: cp]
   stats        Display command execution counts and history [aliases: ss]
   help         Show help for ito commands [aliases: he]
+  util         Low-level utility commands for scripting and automation [aliases: ut]
 
 Options:
       --no-color
@@ -544,9 +546,26 @@ Run an AI agent loop to implement a change
 Iteratively runs an AI coding agent (OpenCode, Claude, etc.) to implement
 a change proposal. Monitors progress and commits incrementally.
 
+Target a single change, all ready changes in a module, or all ready
+changes across the entire repo.
+
 Examples:
+  # Work on a specific change
   ito ralph --change 005-01_add-auth
-  ito ralph --change 005-01_add-auth --harness claude --max-iterations 5
+  ito ralph -c 005-01_add-auth --harness claude --max-iterations 5
+
+  # Work through all ready changes in module 005
+  ito ralph --module 005
+  ito ralph -m 012 --timeout 30m
+
+  # Work through all ready changes across the repo
+  ito ralph --continue-ready
+  ito ralph --continue-ready --max-iterations 10 --model claude-sonnet-4-20250514
+
+  # Non-interactive mode (for use by agent skills / automation)
+  ito ralph --no-interactive --change 005-01_add-auth --timeout 15m
+  ito ralph --no-interactive --module 012 --max-iterations 5
+  ito ralph --no-interactive --continue-ready
 
 Usage: ito ralph [OPTIONS] [PROMPT]...
 

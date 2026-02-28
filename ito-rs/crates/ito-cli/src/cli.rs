@@ -181,9 +181,26 @@ pub enum Commands {
     /// Iteratively runs an AI coding agent (OpenCode, Claude, etc.) to implement
     /// a change proposal. Monitors progress and commits incrementally.
     ///
+    /// Target a single change, all ready changes in a module, or all ready
+    /// changes across the entire repo.
+    ///
     /// Examples:
+    ///   # Work on a specific change
     ///   ito ralph --change 005-01_add-auth
-    ///   ito ralph --change 005-01_add-auth --harness claude --max-iterations 5
+    ///   ito ralph -c 005-01_add-auth --harness claude --max-iterations 5
+    ///
+    ///   # Work through all ready changes in module 005
+    ///   ito ralph --module 005
+    ///   ito ralph -m 012 --timeout 30m
+    ///
+    ///   # Work through all ready changes across the repo
+    ///   ito ralph --continue-ready
+    ///   ito ralph --continue-ready --max-iterations 10 --model claude-sonnet-4-20250514
+    ///
+    ///   # Non-interactive mode (for use by agent skills / automation)
+    ///   ito ralph --no-interactive --change 005-01_add-auth --timeout 15m
+    ///   ito ralph --no-interactive --module 012 --max-iterations 5
+    ///   ito ralph --no-interactive --continue-ready
     #[command(verbatim_doc_comment, visible_alias = "ra")]
     Ralph(RalphArgs),
 
@@ -298,10 +315,54 @@ pub enum Commands {
     #[command(verbatim_doc_comment, visible_alias = "he")]
     Help(HelpArgs),
 
+    // ─── Utilities (plumbing) ──────────────────────────────────────────────────
+    /// Low-level utility commands for scripting and automation
+    ///
+    /// Plumbing commands used by agent skills, shell scripts, and CI pipelines.
+    /// Not typically invoked directly by users.
+    ///
+    /// Examples:
+    ///   ito util parse-id 012
+    ///   ito util parse-id 005-01_add-auth 012 next
+    #[command(verbatim_doc_comment, visible_alias = "ut")]
+    Util(UtilArgs),
+
     // ─── Hidden / Deprecated ────────────────────────────────────────────────────
     /// Deprecated alias for `create change`
     #[command(hide = true)]
     New(NewArgs),
+}
+
+/// Low-level utility commands for scripting and automation.
+#[derive(Args, Debug, Clone)]
+#[command(subcommand_required = true, arg_required_else_help = true)]
+pub struct UtilArgs {
+    #[command(subcommand)]
+    pub action: UtilCommand,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum UtilCommand {
+    /// Parse one or more strings and identify change IDs, module IDs, or keywords
+    ///
+    /// Attempts to parse each input as a change ID (NNN-NN_name), module ID (NNN),
+    /// or recognizes continue-ready keywords (next, continue, ready). Returns JSON.
+    ///
+    /// Examples:
+    ///   ito util parse-id 005-01_add-auth
+    ///   ito util parse-id 012
+    ///   ito util parse-id next
+    ///   ito util parse-id 005-01_add-auth 012 "pick next ready"
+    #[command(verbatim_doc_comment)]
+    ParseId(ParseIdArgs),
+}
+
+/// Arguments for the `parse-id` subcommand.
+#[derive(Args, Debug, Clone)]
+pub struct ParseIdArgs {
+    /// One or more strings to parse as Ito identifiers
+    #[arg(required = true, num_args = 1..)]
+    pub inputs: Vec<String>,
 }
 
 /// Local docs server with file browser and editor.

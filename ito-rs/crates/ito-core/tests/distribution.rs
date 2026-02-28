@@ -52,9 +52,7 @@ fn opencode_manifests_includes_plugin_and_skills() {
     let has_loop = manifests.iter().any(|m| {
         m.asset_type == AssetType::Command
             && m.source == "ito-loop.md"
-            && m.dest
-                .to_string_lossy()
-                .ends_with("/commands/ito-loop.md")
+            && m.dest.to_string_lossy().ends_with("/commands/ito-loop.md")
     });
     assert!(has_loop, "should include ito-loop command");
 }
