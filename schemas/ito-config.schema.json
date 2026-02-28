@@ -168,6 +168,29 @@
       },
       "type": "object"
     },
+    "BackendApiConfig": {
+      "description": "Backend state API configuration",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Enable backend API integration",
+          "type": "boolean"
+        },
+        "token": {
+          "description": "Authentication token for backend API access",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "default": "http://127.0.0.1:9010",
+          "description": "Base URL for the backend API",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "CacheConfig": {
       "description": "Cache settings",
       "properties": {
@@ -832,6 +855,18 @@
         }
       },
       "description": "Audit logging and mirroring configuration"
+    },
+    "backend": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BackendApiConfig"
+        }
+      ],
+      "default": {
+        "enabled": false,
+        "url": "http://127.0.0.1:9010"
+      },
+      "description": "Backend state API configuration"
     },
     "cache": {
       "allOf": [
