@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core archive`
 - **Done When**: Core exposes a tested backend-mode archive orchestration API.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Wire backend-mode archive into CLI command
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli archive`
 - **Done When**: CLI archive behavior matches spec for backend mode and filesystem mode remains unchanged.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -52,4 +52,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Tests cover backend-mode archive end-to-end.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
