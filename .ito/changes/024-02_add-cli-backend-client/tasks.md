@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli claim && cargo test -p ito-cli allocate`
 - **Done When**: Commands call backend services, print deterministic output, and surface lease conflicts clearly.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Integrate backend sync into task mutation command path
 
@@ -88,7 +88,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli tasks`
 - **Done When**: Task mutations in backend mode persist through backend sync and conflict conditions fail with actionable guidance.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
