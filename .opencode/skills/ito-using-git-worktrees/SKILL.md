@@ -15,7 +15,7 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 **Configured strategy:** `bare_control_siblings`
 **Directory name:** `ito-worktrees`
 **Default branch:** `main`
-**Integration mode:** `commit_pr`
+**Integration mode:** `merge_parent`
 
 ## Worktree Location
 
