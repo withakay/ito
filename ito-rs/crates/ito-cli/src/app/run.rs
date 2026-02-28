@@ -270,6 +270,9 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_audit_clap(&rt, args),
             );
         }
+        Some(Commands::Util(args)) => {
+            return commands::handle_util_clap(args);
+        }
         Some(Commands::Dashboard(_)) => {
             return fail("dashboard is not implemented in ito-cli yet");
         }
