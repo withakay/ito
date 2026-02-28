@@ -83,9 +83,14 @@ pub mod validate;
 /// Schema templates execution and planning.
 pub mod templates;
 
-// Re-export domain types for CLI convenience
-pub use ito_domain::changes::{ChangeRepository, ChangeTargetResolution};
-pub use ito_domain::tasks::TaskRepository as DomainTaskRepository;
+// Re-export domain types for CLI and adapter convenience
+pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
+pub use ito_domain::errors::DomainError;
+pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
+pub use ito_domain::tasks::{
+    ProgressInfo, TaskItem, TaskRepository as DomainTaskRepository, TaskStatus, TasksFormat,
+    TasksParseResult,
+};
 
 /// Harness integrations for running AI-assisted workflows.
 pub mod harness;

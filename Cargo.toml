@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "ito-rs/crates/ito-backend",
   "ito-rs/crates/ito-cli",
   "ito-rs/crates/ito-common",
   "ito-rs/crates/ito-config",
@@ -21,6 +22,7 @@ homepage = "https://github.com/withakay/ito"
 
 [workspace.dependencies]
 # Internal crates
+ito-backend = { path = "ito-rs/crates/ito-backend", version = "0.1.11" }
 ito-common = { path = "ito-rs/crates/ito-common", version = "0.1.11" }
 ito-config = { path = "ito-rs/crates/ito-config", version = "0.1.11" }
 ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.11" }
