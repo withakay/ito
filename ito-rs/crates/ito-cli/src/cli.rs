@@ -356,8 +356,8 @@ pub struct ServeApiArgs {
 
     /// Authentication token (default: auto-generated from hostname + project root).
     ///
-    /// Prefer setting `ITO_BACKEND_TOKEN` in the environment to avoid leaking secrets via argv.
-    /// `--token` remains available as an override.
+    /// Prefer setting `ITO_TOKEN` (or writing the token to `~/.ito/token`) to avoid leaking secrets via argv.
+    /// `--token` remains available for compatibility.
     #[arg(short, long)]
     pub token: Option<String>,
 }
