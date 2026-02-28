@@ -88,7 +88,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli tasks`
 - **Done When**: Task mutations in backend mode persist through backend sync and conflict conditions fail with actionable guidance.
 - **Updated At**: 2026-02-28
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
