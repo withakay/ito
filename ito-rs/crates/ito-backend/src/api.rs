@@ -210,17 +210,19 @@ pub async fn list_changes(
 ) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
     let repo = FsChangeRepository::new(&state.ito_path);
     let changes = map_domain_err(repo.list())?;
-    let summaries = changes
-        .into_iter()
-        .map(|c| ApiChangeSummary {
+
+    let mut summaries: Vec<ApiChangeSummary> = Vec::with_capacity(changes.len());
+    for c in changes {
+        summaries.push(ApiChangeSummary {
             id: c.id.clone(),
             module_id: c.module_id.clone(),
             completed_tasks: c.completed_tasks,
             total_tasks: c.total_tasks,
             work_status: c.work_status().to_string(),
             last_modified: c.last_modified.to_rfc3339(),
-        })
-        .collect();
+        });
+    }
+
     Ok(Json(summaries))
 }
 
@@ -268,16 +270,15 @@ pub async fn get_change_tasks(
         ito_core::TasksFormat::Enhanced => "enhanced",
         ito_core::TasksFormat::Checkbox => "checkbox",
     };
-    let tasks = result
-        .tasks
-        .into_iter()
-        .map(|t| ApiTaskItem {
+    let mut tasks: Vec<ApiTaskItem> = Vec::with_capacity(result.tasks.len());
+    for t in result.tasks {
+        tasks.push(ApiTaskItem {
             id: t.id,
             name: t.name,
             wave: t.wave,
             status: t.status.as_enhanced_label().to_string(),
-        })
-        .collect();
+        });
+    }
     let progress = ApiProgress {
         total: result.progress.total,
         complete: result.progress.complete,
@@ -300,14 +301,16 @@ pub async fn list_modules(
 ) -> Result<Json<Vec<ApiModuleSummary>>, ApiErrorResponse> {
     let repo = FsModuleRepository::new(&state.ito_path);
     let modules = map_domain_err(repo.list())?;
-    let summaries = modules
-        .into_iter()
-        .map(|m| ApiModuleSummary {
+
+    let mut summaries: Vec<ApiModuleSummary> = Vec::with_capacity(modules.len());
+    for m in modules {
+        summaries.push(ApiModuleSummary {
             id: m.id,
             name: m.name,
             change_count: m.change_count,
-        })
-        .collect();
+        });
+    }
+
     Ok(Json(summaries))
 }
 
