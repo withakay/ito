@@ -545,6 +545,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 rt.emit_audit_event(&event);
             }
 
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
+
             if want_json {
                 let status =
                     core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
@@ -582,6 +585,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 let status =
@@ -621,6 +627,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 rt.emit_audit_event(&event);
             }
 
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
+
             if want_json {
                 return print_json(&serde_json::json!({
                     "action": "shelve",
@@ -656,6 +665,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -696,6 +708,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -883,11 +898,55 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     Ok(())
 }
 
-// ── Backend coordination handlers ──────────────────────────────────
+// ── Backend sync after task mutation ────────────────────────────────
 
 use ito_config::types::ItoConfig;
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
 use ito_core::backend_coordination;
+
+/// Try to resolve backend runtime from config. Returns `None` if backend
+/// mode is disabled (no error). Returns `Err` only if backend is enabled
+/// but misconfigured.
+fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+
+    if !config.backend.enabled {
+        return Ok(None);
+    }
+
+    resolve_backend_runtime(&config.backend).map_err(to_cli_error)
+}
+
+/// Best-effort push of task artifacts to the backend after a mutation.
+///
+/// If backend mode is not enabled, this is a no-op. If the push fails,
+/// the error is reported as a warning but does not fail the command
+/// (the local mutation already succeeded).
+fn sync_after_mutation(rt: &Runtime, change_id: &str) {
+    let runtime = match try_backend_runtime(rt) {
+        Ok(Some(runtime)) => runtime,
+        Ok(None) => return, // Backend not enabled
+        Err(_) => return,   // Config error, skip silently
+    };
+
+    let client = StubSyncClient;
+    let ito_path = rt.ito_path();
+
+    if let Err(err) =
+        backend_coordination::sync_push(&client, ito_path, change_id, &runtime.backup_dir)
+    {
+        eprintln!(
+            "Warning: backend sync after task mutation failed: {}. \
+             Run 'ito tasks sync push {change_id}' manually.",
+            err
+        );
+    }
+}
+
+// ── Backend coordination handlers ──────────────────────────────────
 
 /// Resolve backend runtime config, failing if backend mode is not enabled.
 fn require_backend_runtime(rt: &Runtime) -> CliResult<BackendRuntime> {
