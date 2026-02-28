@@ -23,4 +23,4 @@
 - [x] 002-14_ralph-harnesses-claude-codex-copilot
 - [x] 002-15_retriable-harness-crashes
 - [x] 002-16_ralph-worktree-awareness
-- [ ] 002-17_opencode-loop-command
+- [x] 002-17_opencode-loop-command

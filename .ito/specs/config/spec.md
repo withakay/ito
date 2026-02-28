@@ -1,53 +1,25 @@
-# Config Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Configure audit remote mirroring
 
-Define Ito's configuration schema and merge behavior for global, project, and `.ito` config sources.
+The configuration system SHALL support nested keys for audit remote mirroring behavior.
 
-## Requirements
+Supported keys SHALL include:
 
-### Requirement: Configuration schema
+- `audit.mirror.enabled`
+- `audit.mirror.branch`
 
-The CLI SHALL support a well-defined configuration schema that allows for tool-specific, agent-specific, and harness-specific settings.
+#### Scenario: Audit mirror is enabled by configuration
 
-Notes:
+- **WHEN** the user sets `audit.mirror.enabled=true`
+- **THEN** the system attempts audit mirroring after local audit event writes
 
-- This extends the existing config system to add harness and agent model configuration.
-- Existing cascading config behavior (ito.json → .ito.json → .ito/config.json → $PROJECT_DIR/config.json) is preserved.
-- Global config at `~/.config/ito/config.json` is also supported.
+#### Scenario: Audit mirror branch can be overridden
 
-#### Scenario: Configuration schema supports harnesses
+- **WHEN** the user sets `audit.mirror.branch` to a valid branch name
+- **THEN** the system mirrors audit events to the configured branch
 
-- **WHEN** reading or writing configuration
-- **THEN** support the following harness configuration structure:
-  - `harnesses.<harness-id>`: Harness-specific settings
-    - `provider`: Provider constraint (null for any, or specific provider name)
-    - `agents`: Object mapping agent tier to model configuration
-- **AND** support harness IDs: `opencode`, `claude-code`, `codex`, `github-copilot`
+#### Scenario: Invalid audit mirror branch is rejected
 
-#### Scenario: Configuration schema supports agent tiers
-
-- **WHEN** reading or writing configuration
-- **THEN** support agent tier keys: `ito-quick`, `ito-general`, `ito-thinking`
-- **AND** each tier value can be:
-  - A string (model ID shorthand)
-  - An object with `model` and extended options
-
-#### Scenario: Configuration schema supports cache
-
-- **WHEN** reading or writing configuration
-- **THEN** support the following cache settings:
-  - `cache.ttl_hours`: Number of hours before model cache expires
-
-#### Scenario: Configuration merges with defaults
-
-- **WHEN** loading configuration
-- **THEN** merge user config with centralized defaults
-- **AND** user values override defaults at the leaf level
-- **AND** unspecified values use defaults
-
-#### Scenario: Global and project config merge
-
-- **WHEN** both global (`~/.config/ito/config.json`) and project config exist
-- **THEN** merge configs with project values winning on conflict
-- **AND** harness and agent configurations merge at the agent tier level
+- **WHEN** the user sets `audit.mirror.branch` to an invalid branch name
+- **THEN** configuration validation fails with a clear error
