@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core repository`
 - **Done When**: Change and task repository calls resolve from backend in backend mode and filesystem mode remains intact.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Add pull/push artifact sync service with revision conflict handling
 
@@ -62,7 +62,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core sync`
 - **Done When**: Pull writes local artifacts with revision metadata and push fails safely on stale revisions.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
