@@ -16,6 +16,8 @@ Use `@/.ito/AGENTS.md` to learn:
 - Spec format and conventions
 - Project structure and guidelines
 
+Project setup: run `/ito-project-setup` (or `ito agent instruction project-setup`) until `.ito/project.md` is marked `<!-- ITO:PROJECT_SETUP:COMPLETE -->`.
+
 Note: Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are installed/updated by Ito (`ito init`, `ito update`) and may be overwritten.
 Add project-specific guidance in `.ito/user-prompts/guidance.md` (shared), `.ito/user-prompts/<artifact>.md` (artifact-specific), and/or below this managed block.
 
@@ -38,7 +40,7 @@ Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute pa
 **Strategy:** `bare_control_siblings`
 **Directory name:** `ito-worktrees`
 **Default branch:** `main`
-**Integration mode:** `commit_pr`
+**Integration mode:** `merge_parent`
 
 
 This project uses a bare/control repo layout with worktrees as siblings:

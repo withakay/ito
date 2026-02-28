@@ -1,4 +1,4 @@
-Run `ito agent instruction project-setup` and follow the guide to configure this project for Ito.
+Run `ito agent instruction project-setup` and follow the guide to configure this project for Ito (stack detection, dev command scaffolding, and marking `.ito/project.md` setup as complete).
 
 OpenCode installs the Ito audit hook plugin at `.opencode/plugins/ito-skills.js`.
 The plugin runs `ito audit validate` and `ito audit reconcile` before tool execution.
