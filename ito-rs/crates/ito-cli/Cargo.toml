@@ -34,7 +34,6 @@ ito-templates = { workspace = true }
 ito-backend = { workspace = true, optional = true }
 ito-web = { workspace = true, optional = true }
 chrono = { workspace = true }
-tracing = { workspace = true }
 ureq = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
