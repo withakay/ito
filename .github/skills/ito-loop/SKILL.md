@@ -1,3 +1,8 @@
+---
+name: ito-loop
+description: Run an ito ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
+---
+
 # Skill: ito-loop
 
 Run the Ito Ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
@@ -5,6 +10,8 @@ Run the Ito Ralph loop for a specific change (or module/repo sequence), with saf
 ## Inputs
 
 - A change id, e.g. `005-01_add-auth`
+- A module id e.g. `005`
+- An instruction to pick the next ready change, e.g. `pick next ready in `
 - Optional flags as free text (best-effort):
   - `--model <model-id>`
   - `--max-iterations <n>`
@@ -29,12 +36,22 @@ Run the Ito Ralph loop for a specific change (or module/repo sequence), with saf
 
 2) Choose harness:
    - If running inside OpenCode, use `--harness opencode`.
-   - Otherwise pick the active harness (`claude`, `codex`, or `copilot`).
+   - Otherwise pick the active harness (`claude`, `codex`, `copilot` or `pi`).
 
 3) Run Ralph in non-interactive mode (safe for tool-based shells):
 
+
+
+A typical command might look like:
+
 ```bash
 ito ralph --no-interactive --harness <harness> --change <change-id> --max-iterations 5 --timeout 15m
+```
+
+But check ralph command reference for more flags you can pass through that might be relevant to your use case and the arguments provided by the user    .
+
+```bash
+ito ralph --help
 ```
 
 4) If the Ralph command exits non-zero, restart up to 2 times.
