@@ -12,8 +12,9 @@ name = "ito"
 path = "src/main.rs"
 
 [features]
-default = ["web"]
+default = ["web", "backend"]
 web = ["dep:ito-web"]
+backend = ["dep:ito-backend"]
 
 [dependencies]
 clap = { workspace = true }
@@ -29,6 +30,7 @@ ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-logging = { workspace = true }
 ito-templates = { workspace = true }
+ito-backend = { workspace = true, optional = true }
 ito-web = { workspace = true, optional = true }
 chrono = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread"] }

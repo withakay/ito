@@ -1,0 +1,29 @@
+[package]
+name = "ito-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Backend state API for Ito — RESTful HTTP API for reading project state"
+
+[dependencies]
+axum = { version = "0.8", features = [] }
+axum-extra = { version = "0.10", features = [] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.6", features = ["cors"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+miette = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
+gethostname = "0.5"
+ito-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+
+[package.metadata.dist]
+dist = false

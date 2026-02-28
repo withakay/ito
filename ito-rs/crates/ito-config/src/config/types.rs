@@ -52,6 +52,11 @@ pub struct ItoConfig {
     #[schemars(default, description = "Audit logging and mirroring configuration")]
     /// Audit logging and mirroring configuration.
     pub audit: AuditConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Backend state API configuration")]
+    /// Backend state API configuration.
+    pub backend: BackendApiConfig,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -93,6 +98,46 @@ impl Default for AuditMirrorConfig {
         Self {
             enabled: false,
             branch: Self::default_branch(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Backend state API configuration")]
+/// Backend state API configuration for multi-agent coordination.
+pub struct BackendApiConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Enable backend API integration")]
+    /// Whether backend API integration is enabled.
+    pub enabled: bool,
+
+    #[serde(default = "BackendApiConfig::default_url")]
+    #[schemars(
+        default = "BackendApiConfig::default_url",
+        description = "Base URL for the backend API"
+    )]
+    /// Base URL for the backend API.
+    pub url: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Authentication token for backend API access")]
+    /// Authentication token for backend API access.
+    /// When `None`, a deterministic token is generated from hostname + project root.
+    pub token: Option<String>,
+}
+
+impl BackendApiConfig {
+    fn default_url() -> String {
+        "http://127.0.0.1:9010".to_string()
+    }
+}
+
+impl Default for BackendApiConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: Self::default_url(),
+            token: None,
         }
     }
 }
