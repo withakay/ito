@@ -17,6 +17,23 @@ const REVISION_FILE: &str = ".backend-revision";
 /// Directory under a change for spec delta files.
 const SPECS_DIR: &str = "specs";
 
+/// Validate that a string is safe to use as a path component.
+///
+/// Rejects strings containing path traversal sequences (`..`), path
+/// separators (`/`, `\`), or null bytes. This prevents untrusted values
+/// from the backend from escaping the intended directory.
+fn validate_path_component(name: &str, label: &str) -> CoreResult<()> {
+    if name.is_empty() {
+        return Err(CoreError::Validation(format!("{label} must not be empty")));
+    }
+    if name.contains("..") || name.contains('/') || name.contains('\\') || name.contains('\0') {
+        return Err(CoreError::Validation(format!(
+            "{label} contains unsafe path characters: {name:?}"
+        )));
+    }
+    Ok(())
+}
+
 // ── Pull ────────────────────────────────────────────────────────────
 
 /// Pull artifacts from the backend for a change and write them locally.
@@ -29,6 +46,8 @@ pub fn pull_artifacts<S: BackendSyncClient + ?Sized>(
     change_id: &str,
     backup_dir: &Path,
 ) -> CoreResult<ArtifactBundle> {
+    validate_path_component(change_id, "change_id")?;
+
     let bundle = sync_client
         .pull(change_id)
         .map_err(|e| backend_error_to_core(e, "pull"))?;
@@ -52,6 +71,8 @@ pub fn push_artifacts<S: BackendSyncClient + ?Sized>(
     change_id: &str,
     backup_dir: &Path,
 ) -> CoreResult<PushResult> {
+    validate_path_component(change_id, "change_id")?;
+
     // Create backup snapshot before push
     create_backup_snapshot(ito_path, change_id, backup_dir, "push")?;
 
@@ -100,6 +121,7 @@ fn write_bundle_to_local(
     // Write spec delta files
     let specs_dir = change_dir.join(SPECS_DIR);
     for (capability, content) in &bundle.specs {
+        validate_path_component(capability, "capability")?;
         let cap_dir = specs_dir.join(capability);
         std::fs::create_dir_all(&cap_dir)
             .map_err(|e| CoreError::io("creating spec directory", e))?;
@@ -472,6 +494,46 @@ mod tests {
         assert_eq!(bundle.specs.len(), 2);
         assert_eq!(bundle.specs[0].0, "a-spec");
         assert_eq!(bundle.specs[1].0, "z-spec");
+    }
+
+    #[test]
+    fn path_traversal_in_change_id_rejected() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = tmp.path().join(".ito");
+        let backup_dir = tmp.path().join("backups");
+        std::fs::create_dir_all(&ito_path).unwrap();
+
+        let client = FakeSyncClient::success_push("rev-1");
+
+        let err = push_artifacts(&client, &ito_path, "../escape", &backup_dir).unwrap_err();
+        assert!(matches!(err, CoreError::Validation(_)));
+
+        let err = push_artifacts(&client, &ito_path, "foo/bar", &backup_dir).unwrap_err();
+        assert!(matches!(err, CoreError::Validation(_)));
+
+        let err = push_artifacts(&client, &ito_path, "", &backup_dir).unwrap_err();
+        assert!(matches!(err, CoreError::Validation(_)));
+    }
+
+    #[test]
+    fn path_traversal_in_capability_rejected() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = tmp.path().join(".ito");
+        let backup_dir = tmp.path().join("backups");
+        std::fs::create_dir_all(&ito_path).unwrap();
+
+        let bundle = ArtifactBundle {
+            change_id: "safe-change".to_string(),
+            proposal: None,
+            design: None,
+            tasks: None,
+            specs: vec![("../escape".to_string(), "content".to_string())],
+            revision: "rev-1".to_string(),
+        };
+        let client = FakeSyncClient::success_pull(bundle);
+
+        let err = pull_artifacts(&client, &ito_path, "safe-change", &backup_dir).unwrap_err();
+        assert!(matches!(err, CoreError::Validation(_)));
     }
 
     #[test]

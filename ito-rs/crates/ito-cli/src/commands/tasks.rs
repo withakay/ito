@@ -114,7 +114,18 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
         TasksAction::Sync(sync_action) => {
             return handle_backend_sync(rt, sync_action, args.json);
         }
-        _ => {}
+        // All other actions fall through to the legacy forwarding handler below
+        TasksAction::Init { .. }
+        | TasksAction::Status { .. }
+        | TasksAction::Next { .. }
+        | TasksAction::Ready { .. }
+        | TasksAction::Start { .. }
+        | TasksAction::Complete { .. }
+        | TasksAction::Shelve { .. }
+        | TasksAction::Unshelve { .. }
+        | TasksAction::Add { .. }
+        | TasksAction::Show { .. }
+        | TasksAction::External(_) => {}
     }
 
     let mut forwarded: Vec<String> = match action {
@@ -1076,15 +1087,13 @@ fn handle_backend_allocate(rt: &Runtime, want_json: bool) -> CliResult<()> {
             "✔ Allocated change \"{}\" to \"{}\"",
             claim.change_id, claim.holder
         );
+    } else if want_json {
+        return print_json(&serde_json::json!({
+            "action": "allocate",
+            "allocated": false,
+            "message": "No allocatable work is currently available",
+        }));
     } else {
-        if want_json {
-            return print_json(&serde_json::json!({
-                "action": "allocate",
-                "allocated": false,
-                "message": "No allocatable work is currently available",
-            }));
-        }
-
         println!("No allocatable work is currently available.");
     }
 

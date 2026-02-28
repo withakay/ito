@@ -130,6 +130,8 @@ impl std::fmt::Display for BackendError {
     }
 }
 
+impl std::error::Error for BackendError {}
+
 // ── Port traits ─────────────────────────────────────────────────────
 
 /// Port for backend lease operations (claim, release, allocate).
