@@ -38,6 +38,23 @@ fn opencode_manifests_includes_plugin_and_skills() {
             dest_str
         );
     }
+
+    let has_ito_loop = manifests.iter().any(|m| {
+        m.asset_type == AssetType::Skill
+            && m.source == "loop/SKILL.md"
+            && m.dest
+                .to_string_lossy()
+                .ends_with("/skills/ito-loop/SKILL.md")
+    });
+    assert!(has_ito_loop, "should include ito-loop skill");
+
+    // Should include the loop command
+    let has_loop = manifests.iter().any(|m| {
+        m.asset_type == AssetType::Command
+            && m.source == "loop.md"
+            && m.dest.to_string_lossy().ends_with("/commands/loop.md")
+    });
+    assert!(has_loop, "should include loop command");
 }
 
 #[test]
