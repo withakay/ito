@@ -34,6 +34,13 @@ pub fn generate_token(project_root: &Path) -> String {
             eprintln!(
                 "warning: could not canonicalize project root '{}': {e}. Token will be based on non-canonical path.",
                 project_root.display()
+    let root = project_root
+        .canonicalize()
+        .unwrap_or_else(|e| {
+            eprintln!(
+                "warning: could not canonicalize project root '{}': {}. Token will be based on non-canonical path.",
+                project_root.display(),
+                e
             );
             project_root.to_path_buf()
         })
