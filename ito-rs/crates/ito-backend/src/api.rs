@@ -11,8 +11,8 @@ use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::get;
-use serde::Serialize;
+use axum::routing::{get, post};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use ito_core::DomainTaskRepository as _;
@@ -30,6 +30,17 @@ use crate::state::AppState;
 pub struct HealthResponse {
     /// Always `"ok"`.
     pub status: String,
+    /// API version identifier (crate version).
+    pub version: String,
+}
+
+/// Token introspection response for bootstrap.
+#[derive(Debug, Serialize)]
+pub struct WhoamiResponse {
+    /// The project ID (directory name) bound to the token.
+    pub project_id: String,
+    /// The canonical project root path on the server.
+    pub project_root: String,
 }
 
 /// Readiness check response.
@@ -173,10 +184,32 @@ fn map_domain_err<T>(result: Result<T, ito_core::DomainError>) -> Result<T, ApiE
 
 // ── Handlers ────────────────────────────────────────────────────────
 
-/// `GET /api/v1/health` — always returns `{"status": "ok"}`.
+/// `GET /api/v1/health` — returns `{"status": "ok", "version": "..."}`.
+///
+/// The version is the crate version, which corresponds to the API version.
+/// This endpoint is unauthenticated so clients can verify connectivity.
 pub async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    })
+}
+
+/// `GET /api/v1/auth/whoami` — returns the project identity bound to the token.
+///
+/// Requires valid bearer token authentication. Returns the project ID and
+/// canonical project root so the client can discover its effective scope
+/// without knowing the project ID upfront.
+pub async fn whoami(State(state): State<Arc<AppState>>) -> Json<WhoamiResponse> {
+    let project_id = state
+        .project_root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Json(WhoamiResponse {
+        project_id,
+        project_root: state.project_root.display().to_string(),
     })
 }
 
@@ -328,14 +361,163 @@ pub async fn get_module(
     }))
 }
 
+// ── Event ingest types ──────────────────────────────────────────────
+
+/// Request body for the event ingest endpoint.
+#[derive(Debug, Deserialize)]
+pub struct IngestEventsRequest {
+    /// Batch of audit events to ingest.
+    pub events: Vec<ito_core::audit::AuditEvent>,
+    /// Client-provided idempotency key for safe retries.
+    pub idempotency_key: String,
+}
+
+/// Response for a successful event ingest.
+#[derive(Debug, Serialize)]
+pub struct IngestEventsResponse {
+    /// Number of events accepted (new).
+    pub accepted: usize,
+    /// Number of duplicate events (already seen via this idempotency key).
+    pub duplicates: usize,
+}
+
+/// `POST /api/v1/events` — ingest a batch of audit events from a client.
+///
+/// Accepts a JSON body with an array of events and an idempotency key.
+/// The server writes new events to the project's audit log and deduplicates
+/// by idempotency key.
+pub async fn ingest_events(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<IngestEventsRequest>,
+) -> Result<Json<IngestEventsResponse>, ApiErrorResponse> {
+    if payload.events.is_empty() {
+        return Ok(Json(IngestEventsResponse {
+            accepted: 0,
+            duplicates: 0,
+        }));
+    }
+
+    if payload.idempotency_key.is_empty() {
+        return Err(ApiErrorResponse::bad_request(
+            "idempotency_key must not be empty",
+        ));
+    }
+
+    // Check idempotency (atomic): create a key file using create_new.
+    // This prevents concurrent requests with the same key from double-appending.
+    let idem_dir = state.ito_path.join(".state").join("ingest-keys");
+    if let Err(e) = std::fs::create_dir_all(&idem_dir) {
+        tracing::error!("failed to create ingest-keys dir: {e}");
+        return Err(ApiErrorResponse::internal(
+            "Failed to process idempotency key",
+        ));
+    }
+
+    let idem_file = idem_dir.join(&payload.idempotency_key);
+
+    // Idempotency file format: a single integer (UTF-8) representing how many
+    // events from this request have been successfully appended so far.
+    //
+    // This allows safe retries even if we fail mid-batch: the next attempt can
+    // skip the already-written prefix and only append the remaining events.
+    let mut idem_handle = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&idem_file)
+    {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&idem_file)
+            .map_err(|e| {
+                tracing::error!("failed to open idempotency key file: {e}");
+                ApiErrorResponse::internal("Failed to process idempotency key")
+            })?,
+        Err(e) => {
+            tracing::error!("failed to open idempotency key file: {e}");
+            return Err(ApiErrorResponse::internal(
+                "Failed to process idempotency key",
+            ));
+        }
+    };
+
+    use std::io::{Read, Seek, SeekFrom, Write};
+
+    fn read_idem_count(file: &mut std::fs::File) -> usize {
+        let mut buf = String::new();
+        if file.seek(SeekFrom::Start(0)).is_err() {
+            return 0;
+        }
+        if file.read_to_string(&mut buf).is_err() {
+            return 0;
+        }
+        buf.trim().parse::<usize>().unwrap_or(0)
+    }
+
+    fn write_idem_count(file: &mut std::fs::File, count: usize) -> std::io::Result<()> {
+        file.set_len(0)?;
+        file.seek(SeekFrom::Start(0))?;
+        file.write_all(count.to_string().as_bytes())?;
+        file.flush()
+    }
+
+    let total = payload.events.len();
+    let already_accepted = read_idem_count(&mut idem_handle).min(total);
+    let duplicates = already_accepted;
+
+    if duplicates >= total {
+        return Ok(Json(IngestEventsResponse {
+            accepted: 0,
+            duplicates: total,
+        }));
+    }
+
+    // Write the remaining events to the audit log.
+    //
+    // We fail fast on the first write error so `duplicates` always refers to a
+    // contiguous prefix of successfully appended events.
+    let writer = ito_core::audit::FsAuditWriter::new(&state.ito_path);
+    let mut accepted = 0usize;
+    let mut progress = duplicates;
+
+    for event in payload.events.iter().skip(duplicates) {
+        if let Err(e) = ito_core::audit::AuditWriter::append(&writer, event) {
+            tracing::warn!("event ingest write failed: {e}");
+
+            // Best-effort: persist progress so retries can skip the already written prefix.
+            let _ = write_idem_count(&mut idem_handle, progress);
+
+            return Err(ApiErrorResponse::internal(
+                "Failed to ingest events (write error)",
+            ));
+        }
+
+        accepted += 1;
+        progress += 1;
+
+        // Best-effort: persist progress after each successful append, so crashes
+        // don't force re-appending already written events.
+        let _ = write_idem_count(&mut idem_handle, progress);
+    }
+
+    Ok(Json(IngestEventsResponse {
+        accepted,
+        duplicates,
+    }))
+}
+
 /// Build the v1 API router with all endpoints.
 pub fn v1_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route("/auth/whoami", get(whoami))
         .route("/changes", get(list_changes))
         .route("/changes/{change_id}", get(get_change))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
         .route("/modules", get(list_modules))
         .route("/modules/{module_id}", get(get_module))
+        .route("/events", post(ingest_events))
 }

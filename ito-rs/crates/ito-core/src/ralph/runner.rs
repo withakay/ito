@@ -637,7 +637,14 @@ pub fn run_ralph(
         retriable_retry_count = 0;
 
         if !opts.no_commit {
-            commit_iteration(&process_runner, iteration, &resolved_cwd.path)?;
+            if file_changes_count > 0 {
+                commit_iteration(&process_runner, iteration, &resolved_cwd.path)?;
+            } else {
+                println!(
+                    "No git changes detected after iteration {iter}; skipping commit.",
+                    iter = iteration
+                );
+            }
         }
 
         let timestamp = now_ms()?;

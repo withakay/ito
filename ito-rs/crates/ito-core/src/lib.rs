@@ -12,6 +12,21 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Backend API client factory, runtime, and coordination services.
+pub mod backend_client;
+
+/// Backend-backed change repository adapter.
+pub mod backend_change_repository;
+
+/// Backend-backed task repository adapter.
+pub mod backend_task_repository;
+
+/// Backend coordination use-cases (claim, release, allocate, sync).
+pub mod backend_coordination;
+
+/// Artifact synchronization (pull/push) for backend mode.
+pub mod backend_sync;
+
 /// Audit log infrastructure: writer, reader, reconciliation, worktree discovery.
 pub mod audit;
 
@@ -29,6 +44,9 @@ pub mod distribution;
 
 /// Core-layer error types and result alias.
 pub mod errors;
+
+/// Client-side forwarding of local audit events to the backend.
+pub mod event_forwarder;
 
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
@@ -84,6 +102,12 @@ pub mod validate;
 pub mod templates;
 
 // Re-export domain types for CLI and adapter convenience
+pub use ito_domain::backend::{
+    AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
+    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendSyncClient,
+    BackendTaskReader, ClaimResult, EventBatch, EventIngestResult, LeaseConflict, PushResult,
+    ReleaseResult, RevisionConflict,
+};
 pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};

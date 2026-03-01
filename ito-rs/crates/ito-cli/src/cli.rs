@@ -920,9 +920,46 @@ pub enum TasksAction {
         change_id: String,
     },
 
+    /// Claim a change lease (backend mode)
+    #[command(visible_alias = "cl")]
+    Claim {
+        /// Change id to claim
+        change_id: String,
+    },
+
+    /// Release a change lease (backend mode)
+    #[command(visible_alias = "rl")]
+    Release {
+        /// Change id to release
+        change_id: String,
+    },
+
+    /// Allocate the next available change (backend mode)
+    #[command(visible_alias = "al")]
+    Allocate,
+
+    /// Sync artifacts with the backend
+    #[command(subcommand, visible_alias = "sy")]
+    Sync(SyncAction),
+
     /// Forward unknown subcommands to legacy handler
     #[command(external_subcommand)]
     External(Vec<String>),
+}
+
+/// Backend artifact sync subcommands.
+#[derive(Subcommand, Debug, Clone)]
+pub enum SyncAction {
+    /// Pull artifacts from the backend
+    Pull {
+        /// Change id to pull
+        change_id: String,
+    },
+    /// Push local artifacts to the backend
+    Push {
+        /// Change id to push
+        change_id: String,
+    },
 }
 
 #[derive(Args, Debug, Clone)]
