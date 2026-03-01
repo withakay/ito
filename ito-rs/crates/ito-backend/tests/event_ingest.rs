@@ -1,15 +1,15 @@
-//! Integration tests for the event ingest endpoint.
+//! Integration tests for the multi-tenant event ingest endpoint.
 //!
 //! Tests cover:
-//! - Successful batch ingestion
+//! - Successful batch ingestion via project-scoped route
 //! - Idempotent retry (same idempotency key returns duplicates)
 //! - Empty batch accepted
 //! - Missing idempotency key rejected
 //! - Authentication required
 
-use std::path::PathBuf;
-
+use ito_config::types::{BackendAllowlistConfig, BackendAuthConfig, BackendRepoPolicy};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 // ── Test-facing types ──────────────────────────────────────────────
 
@@ -34,20 +34,50 @@ struct ErrorResponse {
 
 // ── Test helper ────────────────────────────────────────────────────
 
-async fn spawn_backend(project_dir: PathBuf) -> (String, String) {
-    let token = "ingest-test-token".to_string();
+const TEST_ORG: &str = "test-org";
+const TEST_REPO: &str = "test-repo";
+
+async fn spawn_backend() -> (String, String, tempfile::TempDir) {
+    let data_dir = tempfile::tempdir().unwrap();
+    let admin_token = "ingest-admin-token".to_string();
+    let token_seed = "ingest-seed".to_string();
+
+    // Create allowlisted project directory
+    let project_ito = data_dir
+        .path()
+        .join("projects")
+        .join(TEST_ORG)
+        .join(TEST_REPO)
+        .join(".ito");
+    std::fs::create_dir_all(&project_ito).unwrap();
+
+    let mut repos = BTreeMap::new();
+    repos.insert(
+        TEST_ORG.to_string(),
+        BackendRepoPolicy::All("*".to_string()),
+    );
+    let allowlist = BackendAllowlistConfig {
+        orgs: vec![TEST_ORG.to_string()],
+        repos,
+    };
+
+    let auth = BackendAuthConfig {
+        admin_tokens: vec![admin_token.clone()],
+        token_seed: Some(token_seed),
+    };
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let base_url = format!("http://{addr}");
 
-    let config = ito_backend::BackendConfig {
-        project_root: project_dir,
-        ito_path: None,
+    let config = ito_backend::BackendServerConfig {
+        enabled: true,
         bind: "127.0.0.1".to_string(),
         port: addr.port(),
-        token: Some(token.clone()),
-        cors_origins: None,
+        data_dir: Some(data_dir.path().to_string_lossy().to_string()),
+        allowed: allowlist,
+        auth,
+        ..Default::default()
     };
 
     drop(listener);
@@ -58,7 +88,11 @@ async fn spawn_backend(project_dir: PathBuf) -> (String, String) {
 
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-    (base_url, token)
+    (base_url, admin_token, data_dir)
+}
+
+fn events_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/projects/{TEST_ORG}/{TEST_REPO}/events")
 }
 
 fn make_event(entity_id: &str) -> serde_json::Value {
@@ -82,14 +116,11 @@ fn make_event(entity_id: &str) -> serde_json::Value {
 
 #[tokio::test]
 async fn ingest_accepts_event_batch() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, token, dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .header("Authorization", format!("Bearer {token}"))
         .json(&IngestRequest {
             events: vec![make_event("1.1"), make_event("1.2")],
@@ -108,6 +139,9 @@ async fn ingest_accepts_event_batch() {
     // Verify events were written to the audit log
     let log_path = dir
         .path()
+        .join("projects")
+        .join(TEST_ORG)
+        .join(TEST_REPO)
         .join(".ito")
         .join(".state")
         .join("audit")
@@ -120,10 +154,7 @@ async fn ingest_accepts_event_batch() {
 
 #[tokio::test]
 async fn ingest_idempotent_retry_returns_duplicates() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, token, dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let request_body = IngestRequest {
@@ -133,7 +164,7 @@ async fn ingest_idempotent_retry_returns_duplicates() {
 
     // First request: accepted
     let resp1 = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .header("Authorization", format!("Bearer {token}"))
         .json(&request_body)
         .send()
@@ -147,7 +178,7 @@ async fn ingest_idempotent_retry_returns_duplicates() {
 
     // Second request with same idempotency key: duplicates
     let resp2 = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .header("Authorization", format!("Bearer {token}"))
         .json(&request_body)
         .send()
@@ -162,6 +193,9 @@ async fn ingest_idempotent_retry_returns_duplicates() {
     // Verify only one event was written (not duplicated)
     let log_path = dir
         .path()
+        .join("projects")
+        .join(TEST_ORG)
+        .join(TEST_REPO)
         .join(".ito")
         .join(".state")
         .join("audit")
@@ -177,14 +211,11 @@ async fn ingest_idempotent_retry_returns_duplicates() {
 
 #[tokio::test]
 async fn ingest_empty_batch_accepted() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .header("Authorization", format!("Bearer {token}"))
         .json(&IngestRequest {
             events: vec![],
@@ -203,14 +234,11 @@ async fn ingest_empty_batch_accepted() {
 
 #[tokio::test]
 async fn ingest_missing_idempotency_key_rejected() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .header("Authorization", format!("Bearer {token}"))
         .json(&IngestRequest {
             events: vec![make_event("3.1")],
@@ -229,14 +257,11 @@ async fn ingest_missing_idempotency_key_rejected() {
 
 #[tokio::test]
 async fn ingest_requires_authentication() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, _token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, _token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{base_url}/api/v1/events"))
+        .post(events_url(&base_url))
         .json(&IngestRequest {
             events: vec![make_event("4.1")],
             idempotency_key: "key-noauth-001".to_string(),

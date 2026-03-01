@@ -342,7 +342,7 @@ pub enum ServeAction {
     Start,
 }
 
-/// Backend state API server for multi-agent coordination.
+/// Multi-tenant backend state API server for multi-agent coordination.
 #[derive(Args, Debug, Clone)]
 #[cfg(feature = "backend")]
 pub struct ServeApiArgs {
@@ -354,12 +354,33 @@ pub struct ServeApiArgs {
     #[arg(short, long)]
     pub bind: Option<String>,
 
-    /// Authentication token (default: auto-generated from hostname + project root).
+    /// Root directory for backend-managed project data.
     ///
-    /// Prefer setting `ITO_TOKEN` (or writing the token to `~/.ito/token`) to avoid leaking secrets via argv.
-    /// `--token` remains available for compatibility.
-    #[arg(short, long)]
-    pub token: Option<String>,
+    /// Defaults to `$XDG_DATA_HOME/ito/backend` or `$HOME/.local/share/ito/backend`.
+    #[arg(long)]
+    pub data_dir: Option<String>,
+
+    /// Admin bearer token with full access to all projects.
+    ///
+    /// Can be specified multiple times. Also set via `ITO_BACKEND_ADMIN_TOKEN`.
+    #[arg(long)]
+    pub admin_token: Vec<String>,
+
+    /// Secret seed for deriving per-project tokens via HMAC-SHA256.
+    ///
+    /// Also set via `ITO_BACKEND_TOKEN_SEED`.
+    #[arg(long)]
+    pub token_seed: Option<String>,
+
+    /// Allow an organization (can be specified multiple times).
+    #[arg(long)]
+    pub allow_org: Vec<String>,
+
+    /// Path to a TOML/JSON config file for full backend server configuration.
+    ///
+    /// When provided, CLI flags override corresponding config file values.
+    #[arg(long)]
+    pub config: Option<String>,
 }
 
 /// Deprecated alias for `create change`.

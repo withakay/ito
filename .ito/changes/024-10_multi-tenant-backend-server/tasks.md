@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Done When**:
   - Old single-project routes are removed
   - New routes cover: changes list/get/tasks, modules list/get, events ingest
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [>] in-progress
 
 ### Task 2.2: Implement admin + derived project token authentication
 

@@ -1,12 +1,14 @@
-//! Integration tests for the project bootstrap endpoints.
+//! Integration tests for the multi-tenant bootstrap endpoints.
 //!
 //! Tests cover:
 //! - Health/version endpoint (unauthenticated)
-//! - Token introspection (`/api/v1/auth/whoami`) with valid and invalid tokens
+//! - Ready endpoint (unauthenticated)
+//! - Auth enforcement on project-scoped routes
+//! - Admin token and derived project token access
 
-use std::path::PathBuf;
-
+use ito_config::types::{BackendAllowlistConfig, BackendAuthConfig, BackendRepoPolicy};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 
 // ── Test-facing response types ─────────────────────────────────────
 
@@ -17,9 +19,10 @@ struct HealthResponse {
 }
 
 #[derive(Debug, Deserialize)]
-struct WhoamiResponse {
-    project_id: String,
-    project_root: String,
+struct ReadyResponse {
+    status: String,
+    #[allow(dead_code)]
+    reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,29 +34,56 @@ struct ErrorResponse {
 
 // ── Test helper ────────────────────────────────────────────────────
 
-/// Spin up a real backend server on a random port.
+/// Spin up a real multi-tenant backend server on a random port.
 ///
-/// Returns `(base_url, token)`. The server runs in a background task and
-/// is dropped when the test's tokio runtime shuts down.
-async fn spawn_backend(project_dir: PathBuf) -> (String, String) {
-    let token = "integration-test-token".to_string();
+/// Creates a data directory with a project `test-org/test-repo`.
+/// Returns `(base_url, admin_token, data_dir)`.
+async fn spawn_backend() -> (String, String, tempfile::TempDir) {
+    let data_dir = tempfile::tempdir().unwrap();
+    let admin_token = "test-admin-token".to_string();
+    let token_seed = "test-seed".to_string();
+
+    // Create allowlisted project directory structure
+    let project_ito = data_dir
+        .path()
+        .join("projects")
+        .join("test-org")
+        .join("test-repo")
+        .join(".ito");
+    std::fs::create_dir_all(&project_ito).unwrap();
+
+    // Build allowlist
+    let mut repos = BTreeMap::new();
+    repos.insert(
+        "test-org".to_string(),
+        BackendRepoPolicy::All("*".to_string()),
+    );
+    let allowlist = BackendAllowlistConfig {
+        orgs: vec!["test-org".to_string()],
+        repos,
+    };
+
+    let auth = BackendAuthConfig {
+        admin_tokens: vec![admin_token.clone()],
+        token_seed: Some(token_seed),
+    };
 
     // Bind to port 0 to get a random available port
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let base_url = format!("http://{addr}");
 
-    let config = ito_backend::BackendConfig {
-        project_root: project_dir,
-        ito_path: None,
+    let config = ito_backend::BackendServerConfig {
+        enabled: true,
         bind: "127.0.0.1".to_string(),
         port: addr.port(),
-        token: Some(token.clone()),
-        cors_origins: None,
+        data_dir: Some(data_dir.path().to_string_lossy().to_string()),
+        allowed: allowlist,
+        auth,
+        ..Default::default()
     };
 
-    // `serve` binds its own listener, so we use the same port we reserved.
-    // Drop the pre-bound listener first so `serve` can bind to it.
+    // Drop the pre-bound listener so `serve` can bind to the same port.
     drop(listener);
 
     tokio::spawn(async move {
@@ -63,17 +93,14 @@ async fn spawn_backend(project_dir: PathBuf) -> (String, String) {
     // Give the server a moment to bind
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-    (base_url, token)
+    (base_url, admin_token, data_dir)
 }
 
 // ── Health endpoint tests ──────────────────────────────────────────
 
 #[tokio::test]
 async fn health_endpoint_returns_status_and_version() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, _token) = spawn_backend(dir.path().to_path_buf()).await;
+    let (base_url, _token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
@@ -87,7 +114,6 @@ async fn health_endpoint_returns_status_and_version() {
     let body: HealthResponse = resp.json().await.unwrap();
     assert_eq!(body.status, "ok");
     assert!(!body.version.is_empty(), "version must be non-empty");
-    // Version should be a valid semver-ish string (e.g. "0.1.11")
     assert!(
         body.version.contains('.'),
         "version should contain a dot: {}",
@@ -97,12 +123,8 @@ async fn health_endpoint_returns_status_and_version() {
 
 #[tokio::test]
 async fn health_endpoint_does_not_require_auth() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
+    let (base_url, _token, _dir) = spawn_backend().await;
 
-    let (base_url, _token) = spawn_backend(dir.path().to_path_buf()).await;
-
-    // Request without any Authorization header should still succeed
     let client = reqwest::Client::new();
     let resp = client
         .get(format!("{base_url}/api/v1/health"))
@@ -113,49 +135,50 @@ async fn health_endpoint_does_not_require_auth() {
     assert_eq!(resp.status(), 200);
 }
 
-// ── Whoami endpoint tests ──────────────────────────────────────────
+// ── Ready endpoint tests ───────────────────────────────────────────
 
 #[tokio::test]
-async fn whoami_returns_project_identity_with_valid_token() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, token) = spawn_backend(dir.path().to_path_buf()).await;
+async fn ready_endpoint_returns_ready_when_data_dir_exists() {
+    let (base_url, _token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .get(format!("{base_url}/api/v1/auth/whoami"))
-        .header("Authorization", format!("Bearer {token}"))
+        .get(format!("{base_url}/api/v1/ready"))
         .send()
         .await
         .unwrap();
 
     assert_eq!(resp.status(), 200);
 
-    let body: WhoamiResponse = resp.json().await.unwrap();
-    // The project_id should be the directory name of the canonicalized path
-    let expected_dir_name = dir
-        .path()
-        .canonicalize()
-        .unwrap()
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
-    assert_eq!(body.project_id, expected_dir_name);
-    assert!(!body.project_root.is_empty());
+    let body: ReadyResponse = resp.json().await.unwrap();
+    assert_eq!(body.status, "ready");
 }
 
 #[tokio::test]
-async fn whoami_rejects_missing_token() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, _token) = spawn_backend(dir.path().to_path_buf()).await;
+async fn ready_endpoint_does_not_require_auth() {
+    let (base_url, _token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .get(format!("{base_url}/api/v1/auth/whoami"))
+        .get(format!("{base_url}/api/v1/ready"))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+}
+
+// ── Auth enforcement tests ─────────────────────────────────────────
+
+#[tokio::test]
+async fn project_route_rejects_missing_token() {
+    let (base_url, _token, _dir) = spawn_backend().await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!(
+            "{base_url}/api/v1/projects/test-org/test-repo/changes"
+        ))
         .send()
         .await
         .unwrap();
@@ -167,15 +190,14 @@ async fn whoami_rejects_missing_token() {
 }
 
 #[tokio::test]
-async fn whoami_rejects_invalid_token() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join(".ito")).unwrap();
-
-    let (base_url, _token) = spawn_backend(dir.path().to_path_buf()).await;
+async fn project_route_rejects_invalid_token() {
+    let (base_url, _token, _dir) = spawn_backend().await;
 
     let client = reqwest::Client::new();
     let resp = client
-        .get(format!("{base_url}/api/v1/auth/whoami"))
+        .get(format!(
+            "{base_url}/api/v1/projects/test-org/test-repo/changes"
+        ))
         .header("Authorization", "Bearer wrong-token-value")
         .send()
         .await
@@ -185,4 +207,61 @@ async fn whoami_rejects_invalid_token() {
 
     let body: ErrorResponse = resp.json().await.unwrap();
     assert_eq!(body.code, "unauthorized");
+}
+
+#[tokio::test]
+async fn project_route_accepts_admin_token() {
+    let (base_url, admin_token, _dir) = spawn_backend().await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!(
+            "{base_url}/api/v1/projects/test-org/test-repo/changes"
+        ))
+        .header("Authorization", format!("Bearer {admin_token}"))
+        .send()
+        .await
+        .unwrap();
+
+    // Should succeed (200) — empty changes list since no changes exist
+    assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
+async fn project_route_accepts_derived_project_token() {
+    let (base_url, _admin_token, _dir) = spawn_backend().await;
+
+    let project_token = ito_backend::derive_project_token("test-seed", "test-org", "test-repo");
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!(
+            "{base_url}/api/v1/projects/test-org/test-repo/changes"
+        ))
+        .header("Authorization", format!("Bearer {project_token}"))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
+async fn project_route_rejects_non_allowlisted_org() {
+    let (base_url, admin_token, _dir) = spawn_backend().await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!(
+            "{base_url}/api/v1/projects/forbidden-org/some-repo/changes"
+        ))
+        .header("Authorization", format!("Bearer {admin_token}"))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 403);
+
+    let body: ErrorResponse = resp.json().await.unwrap();
+    assert_eq!(body.code, "forbidden");
 }
