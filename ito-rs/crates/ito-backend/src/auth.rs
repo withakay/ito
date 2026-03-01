@@ -1,12 +1,12 @@
-//! Bearer token authentication for the backend API.
+//! Multi-tenant bearer token authentication for the backend API.
 //!
-//! All endpoints except `/api/v1/health` and `/api/v1/ready` require a valid
-//! bearer token in the `Authorization` header.
+//! Two token tiers are supported:
 //!
-//! The default token is a deterministic SHA-256 hash of
-//! `hostname + project_root + salt`, providing stable tokens across restarts
-//! that are scoped to a specific host and project. An explicit token override
-//! is also supported via configuration or CLI flag.
+//! - **Admin tokens**: authorize access to any project namespace.
+//! - **Derived project tokens**: authorize exactly one `{org}/{repo}`,
+//!   computed as `HMAC-SHA256(token_seed, "{org}/{repo}")`.
+//!
+//! Health and readiness endpoints bypass authentication.
 
 use axum::{
     extract::{Request, State},
@@ -14,57 +14,35 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use sha2::{Digest, Sha256};
-use std::path::Path;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use std::sync::Arc;
 
 use crate::error::ApiErrorResponse;
+use crate::state::AppState;
 
-const SALT: &str = "ito-backend-auth-v1";
+type HmacSha256 = Hmac<Sha256>;
 
-/// Derive a deterministic authentication token for a project root.
-///
-/// The token is a 32-hex-char truncation of
-/// `SHA-256(salt || hostname || canonical_root)`.
-pub fn generate_token(project_root: &Path) -> String {
-    let hostname = gethostname::gethostname().to_string_lossy().to_string();
-    let root = project_root
-        .canonicalize()
-        .unwrap_or_else(|e| {
-            eprintln!(
-                "warning: could not canonicalize project root '{}': {e}. Token will be based on non-canonical path.",
-                project_root.display()
-            );
-            project_root.to_path_buf()
-        })
-        .to_string_lossy()
-        .to_string();
-
-    let mut hasher = Sha256::new();
-    hasher.update(SALT.as_bytes());
-    hasher.update(hostname.as_bytes());
-    hasher.update(root.as_bytes());
-    let result = hasher.finalize();
-
-    // Use first 16 bytes (32 hex chars) for a shorter but still secure token.
-    hex::encode(&result[..16])
-}
-
-/// Shared state for the authentication middleware.
-#[derive(Debug, Clone)]
-pub struct AuthState {
-    /// Expected bearer token.
-    pub token: String,
-}
-
-/// Paths that bypass authentication.
+/// Paths that bypass authentication entirely.
 const EXEMPT_PATHS: &[&str] = &["/api/v1/health", "/api/v1/ready"];
 
+/// Derive a per-project token from a seed and a project key.
+///
+/// The project key is `"{org}/{repo}"`. The token is the lowercase hex
+/// representation of `HMAC-SHA256(seed, project_key)`.
+pub fn derive_project_token(seed: &str, org: &str, repo: &str) -> String {
+    let project_key = format!("{org}/{repo}");
+    let mut mac = HmacSha256::new_from_slice(seed.as_bytes()).expect("HMAC accepts any key length");
+    mac.update(project_key.as_bytes());
+    let result = mac.finalize();
+    hex::encode(result.into_bytes())
+}
+
+/// Constant-time byte comparison.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-
     let mut diff: u8 = 0;
     for (x, y) in a.iter().zip(b.iter()) {
         diff |= x ^ y;
@@ -72,68 +50,239 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
-/// Axum middleware that enforces bearer token authentication.
+/// Token validation result indicating which tier matched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenScope {
+    /// Admin token — authorized for any project.
+    Admin,
+    /// Per-project token — authorized for a specific `{org}/{repo}`.
+    Project {
+        /// Organization.
+        org: String,
+        /// Repository.
+        repo: String,
+    },
+}
+
+/// Validate a bearer token against the backend auth configuration.
 ///
-/// Extracts the token from `Authorization: Bearer <token>` and compares it
-/// to the expected value. Health and readiness endpoints are exempt.
+/// Returns the matched [`TokenScope`] or `None` if the token is invalid.
+pub fn validate_token(state: &AppState, token: &str, org: &str, repo: &str) -> Option<TokenScope> {
+    // Check admin tokens first
+    for admin_token in &state.auth.admin_tokens {
+        if constant_time_eq(token.as_bytes(), admin_token.as_bytes()) {
+            return Some(TokenScope::Admin);
+        }
+    }
+
+    // Check derived project token
+    let Some(seed) = &state.auth.token_seed else {
+        return None;
+    };
+
+    let expected = derive_project_token(seed, org, repo);
+    if constant_time_eq(token.as_bytes(), expected.as_bytes()) {
+        return Some(TokenScope::Project {
+            org: org.to_string(),
+            repo: repo.to_string(),
+        });
+    }
+
+    None
+}
+
+/// Extract `{org}` and `{repo}` from the request path.
+///
+/// Expected prefix: `/api/v1/projects/{org}/{repo}/...`
+fn extract_org_repo(path: &str) -> Option<(&str, &str)> {
+    let rest = path.strip_prefix("/api/v1/projects/")?;
+    let (org, rest) = rest.split_once('/')?;
+    // repo is the next segment (until next `/` or end)
+    let repo = rest.split('/').next()?;
+    if org.is_empty() || repo.is_empty() {
+        return None;
+    }
+    Some((org, repo))
+}
+
+/// Axum middleware that enforces multi-tenant bearer token authentication.
+///
+/// Health and readiness endpoints are exempt. All project-scoped routes
+/// must include a valid `Authorization: Bearer <token>` header.
+///
+/// Allowlist checks run before token validation.
 pub async fn auth_middleware(
-    State(auth): State<Arc<AuthState>>,
+    State(state): State<Arc<AppState>>,
     request: Request,
     next: Next,
 ) -> Response {
     let path = request.uri().path();
     let normalized_path = path.trim_end_matches('/');
 
-    // Exempt health and readiness endpoints (trailing-slash-insensitive)
+    // Exempt health and readiness endpoints
     for exempt in EXEMPT_PATHS {
         if normalized_path == exempt.trim_end_matches('/') {
             return next.run(request).await;
         }
     }
 
-    // Extract bearer token from Authorization header
+    // Extract org/repo from the path
+    let Some((org, repo)) = extract_org_repo(path) else {
+        // Non-project routes that aren't exempt are also passed through
+        // (e.g., unknown paths will 404 via the router)
+        return next.run(request).await;
+    };
+
+    // Enforce allowlist before token check
+    if !state.allowlist.is_allowed(org, repo) {
+        return ApiErrorResponse::forbidden(format!(
+            "Organization/repository '{org}/{repo}' is not allowed"
+        ))
+        .into_response();
+    }
+
+    // Extract bearer token
     let bearer_token = request
         .headers()
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "));
 
-    let authorized =
-        bearer_token.is_some_and(|token| constant_time_eq(token.as_bytes(), auth.token.as_bytes()));
+    let Some(token) = bearer_token else {
+        return ApiErrorResponse::unauthorized("Missing bearer token").into_response();
+    };
 
-    if authorized {
-        return next.run(request).await;
+    let Some(scope) = validate_token(&state, token, org, repo) else {
+        return ApiErrorResponse::unauthorized("Invalid bearer token").into_response();
+    };
+
+    // For project tokens, verify they match the requested project
+    if let TokenScope::Project {
+        org: token_org,
+        repo: token_repo,
+    } = &scope
+        && (token_org != org || token_repo != repo)
+    {
+        return ApiErrorResponse::forbidden("Token does not authorize this project")
+            .into_response();
     }
 
-    ApiErrorResponse::unauthorized("Missing or invalid bearer token").into_response()
+    next.run(request).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
-    fn generate_token_is_deterministic() {
-        let root = PathBuf::from("/tmp/test-project");
-        let t1 = generate_token(&root);
-        let t2 = generate_token(&root);
+    fn derive_project_token_is_deterministic() {
+        let t1 = derive_project_token("secret", "acme", "repo1");
+        let t2 = derive_project_token("secret", "acme", "repo1");
         assert_eq!(t1, t2);
     }
 
     #[test]
-    fn generate_token_is_32_hex_chars() {
-        let root = PathBuf::from("/tmp/test-project");
-        let token = generate_token(&root);
-        assert_eq!(token.len(), 32);
+    fn derive_project_token_differs_by_project() {
+        let t1 = derive_project_token("secret", "acme", "repo1");
+        let t2 = derive_project_token("secret", "acme", "repo2");
+        assert_ne!(t1, t2);
+    }
+
+    #[test]
+    fn derive_project_token_differs_by_seed() {
+        let t1 = derive_project_token("seed1", "acme", "repo1");
+        let t2 = derive_project_token("seed2", "acme", "repo1");
+        assert_ne!(t1, t2);
+    }
+
+    #[test]
+    fn derive_project_token_is_64_hex_chars() {
+        let token = derive_project_token("secret", "org", "repo");
+        assert_eq!(token.len(), 64);
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
-    fn different_roots_produce_different_tokens() {
-        let t1 = generate_token(&PathBuf::from("/tmp/project-a"));
-        let t2 = generate_token(&PathBuf::from("/tmp/project-b"));
-        assert_ne!(t1, t2);
+    fn extract_org_repo_valid_path() {
+        let result = extract_org_repo("/api/v1/projects/acme/infra/changes");
+        assert_eq!(result, Some(("acme", "infra")));
+    }
+
+    #[test]
+    fn extract_org_repo_no_trailing() {
+        let result = extract_org_repo("/api/v1/projects/acme/infra");
+        assert_eq!(result, Some(("acme", "infra")));
+    }
+
+    #[test]
+    fn extract_org_repo_non_project_path() {
+        let result = extract_org_repo("/api/v1/health");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn validate_token_admin_matches() {
+        let state = AppState::new(
+            std::path::PathBuf::from("/data"),
+            ito_config::types::BackendAllowlistConfig::default(),
+            ito_config::types::BackendAuthConfig {
+                admin_tokens: vec!["admin-secret".to_string()],
+                token_seed: None,
+            },
+        );
+        let result = validate_token(&state, "admin-secret", "any", "project");
+        assert_eq!(result, Some(TokenScope::Admin));
+    }
+
+    #[test]
+    fn validate_token_project_matches() {
+        let state = AppState::new(
+            std::path::PathBuf::from("/data"),
+            ito_config::types::BackendAllowlistConfig::default(),
+            ito_config::types::BackendAuthConfig {
+                admin_tokens: vec![],
+                token_seed: Some("my-seed".to_string()),
+            },
+        );
+        let expected_token = derive_project_token("my-seed", "acme", "repo1");
+        let result = validate_token(&state, &expected_token, "acme", "repo1");
+        assert_eq!(
+            result,
+            Some(TokenScope::Project {
+                org: "acme".to_string(),
+                repo: "repo1".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn validate_token_wrong_project_fails() {
+        let state = AppState::new(
+            std::path::PathBuf::from("/data"),
+            ito_config::types::BackendAllowlistConfig::default(),
+            ito_config::types::BackendAuthConfig {
+                admin_tokens: vec![],
+                token_seed: Some("my-seed".to_string()),
+            },
+        );
+        let token = derive_project_token("my-seed", "acme", "repo1");
+        // Try to use token for a different project
+        let result = validate_token(&state, &token, "acme", "repo2");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn validate_token_invalid_fails() {
+        let state = AppState::new(
+            std::path::PathBuf::from("/data"),
+            ito_config::types::BackendAllowlistConfig::default(),
+            ito_config::types::BackendAuthConfig {
+                admin_tokens: vec!["admin".to_string()],
+                token_seed: Some("seed".to_string()),
+            },
+        );
+        let result = validate_token(&state, "bogus-token", "acme", "repo1");
+        assert!(result.is_none());
     }
 
     #[test]

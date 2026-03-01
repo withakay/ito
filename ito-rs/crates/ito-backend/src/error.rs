@@ -48,6 +48,17 @@ impl ApiErrorResponse {
         }
     }
 
+    /// Build a 403 Forbidden error.
+    pub fn forbidden(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            body: ApiError {
+                error: message.into(),
+                code: "forbidden".to_string(),
+            },
+        }
+    }
+
     /// Build a 404 Not Found error.
     pub fn not_found(message: impl Into<String>) -> Self {
         Self {
@@ -151,6 +162,13 @@ mod tests {
         let resp = ApiErrorResponse::unauthorized("invalid token");
         assert_eq!(resp.status, StatusCode::UNAUTHORIZED);
         assert_eq!(resp.body.code, "unauthorized");
+    }
+
+    #[test]
+    fn forbidden_response_has_403_status() {
+        let resp = ApiErrorResponse::forbidden("not allowed");
+        assert_eq!(resp.status, StatusCode::FORBIDDEN);
+        assert_eq!(resp.body.code, "forbidden");
     }
 
     #[test]
