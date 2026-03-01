@@ -18,11 +18,14 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - change-repository
 - task-repository
 - cli-tasks
+- cli-grep
 - config
 
 ## Changes
 - [x] 024-01_add-shared-state-api
-- [ ] 024-02_add-cli-backend-client
-- [ ] 024-03_add-backend-project-bootstrap
-- [ ] 024-04_add-backend-event-forwarding
-- [ ] 024-05_add-backend-archive-sync
+- [x] 024-02_add-cli-backend-client
+- [x] 024-03_add-backend-project-bootstrap
+- [x] 024-04_add-backend-event-forwarding
+- [x] 024-05_add-backend-archive-sync
+- [ ] 024-10_multi-tenant-backend-server
+- [ ] 024-11_add-grep-command
