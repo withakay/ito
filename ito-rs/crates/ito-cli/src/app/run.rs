@@ -141,6 +141,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_plan_clap(&rt, args),
             );
         }
+        Some(Commands::Grep(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || super::grep::handle_grep_clap(&rt, args),
+            );
+        }
         Some(Commands::Tasks(args)) => {
             return util::with_logging(
                 &rt,

@@ -1,6 +1,7 @@
 mod archive;
 pub(crate) mod common;
 mod entrypoint;
+mod grep;
 mod init;
 mod instructions;
 mod list;

@@ -23,6 +23,9 @@ ito-config = { workspace = true }
 ito-domain = { workspace = true }
 ito-templates = { workspace = true }
 miette = { workspace = true }
+grep-matcher = { workspace = true }
+grep-regex = { workspace = true }
+grep-searcher = { workspace = true }
 
 [dev-dependencies]
 filetime = { workspace = true }
