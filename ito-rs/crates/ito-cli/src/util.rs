@@ -208,7 +208,13 @@ fn forward_events_if_backend(rt: &Runtime) {
     };
 
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::warn!("Skipping backend event forwarding due to invalid config: {e}");
+            return;
+        }
+    };
 
     if !config.backend.enabled {
         return;
@@ -266,6 +272,9 @@ impl ito_core::BackendEventIngestClient for HttpEventIngestClient {
         // Use a blocking HTTP client (ureq) since CLI commands are sync.
         let config = ureq::Agent::config_builder()
             .timeout_global(Some(self.timeout))
+            // ureq 3.x treats 4xx/5xx as errors by default; disable so we can
+            // map status codes into BackendError variants.
+            .http_status_as_error(false)
             .build();
         let agent: ureq::Agent = config.into();
 

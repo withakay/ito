@@ -99,9 +99,24 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    // Check for backend mode — if enabled, use backend-aware archive flow
+    // Check for backend mode — if enabled, attempt backend-aware archive flow.
+    // If backend endpoints are not implemented yet, fall back to local archive
+    // so backend-enabled configs don't block archiving.
     if let Some(runtime) = try_backend_runtime(rt)? {
-        return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
+        match handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                let msg = err.to_string();
+                if msg.contains("not yet available on backend") {
+                    eprintln!(
+                        "Warning: backend archive endpoints are not available yet ({}). Falling back to local archive flow.",
+                        msg
+                    );
+                } else {
+                    return Err(err);
+                }
+            }
+        }
     }
 
     // ── Filesystem-only archive flow ───────────────────────────────
@@ -291,7 +306,13 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::warn!("Skipping backend integration due to invalid config: {e}");
+            return Ok(None);
+        }
+    };
 
     if !config.backend.enabled {
         return Ok(None);

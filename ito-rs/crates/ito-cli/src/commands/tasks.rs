@@ -922,7 +922,13 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::warn!("Skipping backend integration due to invalid config: {e}");
+            return Ok(None);
+        }
+    };
 
     if !config.backend.enabled {
         return Ok(None);
@@ -949,6 +955,12 @@ fn sync_after_mutation(rt: &Runtime, change_id: &str) {
     if let Err(err) =
         backend_coordination::sync_push(&client, ito_path, change_id, &runtime.backup_dir)
     {
+        let msg = err.to_string();
+        if msg.contains("not yet available on backend") {
+            // Backend endpoints are not available yet; don't spam warnings on every mutation.
+            return;
+        }
+
         eprintln!(
             "Warning: backend sync after task mutation failed: {}. \
              Run 'ito tasks sync push {change_id}' manually.",
@@ -964,7 +976,8 @@ fn require_backend_runtime(rt: &Runtime) -> CliResult<BackendRuntime> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged).unwrap_or_default();
+    let config: ItoConfig = serde_json::from_value(merged)
+        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))?;
 
     if !config.backend.enabled {
         return Err(CliError::msg(
