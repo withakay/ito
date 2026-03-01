@@ -173,6 +173,17 @@ pub async fn auth_middleware(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ito_core::fs_project_store::FsBackendProjectStore;
+
+    fn test_app_state(auth: ito_config::types::BackendAuthConfig) -> AppState {
+        let store = Arc::new(FsBackendProjectStore::new("/data"));
+        AppState::new(
+            std::path::PathBuf::from("/data"),
+            store,
+            ito_config::types::BackendAllowlistConfig::default(),
+            auth,
+        )
+    }
 
     #[test]
     fn derive_project_token_is_deterministic() {
@@ -222,28 +233,20 @@ mod tests {
 
     #[test]
     fn validate_token_admin_matches() {
-        let state = AppState::new(
-            std::path::PathBuf::from("/data"),
-            ito_config::types::BackendAllowlistConfig::default(),
-            ito_config::types::BackendAuthConfig {
-                admin_tokens: vec!["admin-secret".to_string()],
-                token_seed: None,
-            },
-        );
+        let state = test_app_state(ito_config::types::BackendAuthConfig {
+            admin_tokens: vec!["admin-secret".to_string()],
+            token_seed: None,
+        });
         let result = validate_token(&state, "admin-secret", "any", "project");
         assert_eq!(result, Some(TokenScope::Admin));
     }
 
     #[test]
     fn validate_token_project_matches() {
-        let state = AppState::new(
-            std::path::PathBuf::from("/data"),
-            ito_config::types::BackendAllowlistConfig::default(),
-            ito_config::types::BackendAuthConfig {
-                admin_tokens: vec![],
-                token_seed: Some("my-seed".to_string()),
-            },
-        );
+        let state = test_app_state(ito_config::types::BackendAuthConfig {
+            admin_tokens: vec![],
+            token_seed: Some("my-seed".to_string()),
+        });
         let expected_token = derive_project_token("my-seed", "acme", "repo1");
         let result = validate_token(&state, &expected_token, "acme", "repo1");
         assert_eq!(
@@ -257,14 +260,10 @@ mod tests {
 
     #[test]
     fn validate_token_wrong_project_fails() {
-        let state = AppState::new(
-            std::path::PathBuf::from("/data"),
-            ito_config::types::BackendAllowlistConfig::default(),
-            ito_config::types::BackendAuthConfig {
-                admin_tokens: vec![],
-                token_seed: Some("my-seed".to_string()),
-            },
-        );
+        let state = test_app_state(ito_config::types::BackendAuthConfig {
+            admin_tokens: vec![],
+            token_seed: Some("my-seed".to_string()),
+        });
         let token = derive_project_token("my-seed", "acme", "repo1");
         // Try to use token for a different project
         let result = validate_token(&state, &token, "acme", "repo2");
@@ -273,14 +272,10 @@ mod tests {
 
     #[test]
     fn validate_token_invalid_fails() {
-        let state = AppState::new(
-            std::path::PathBuf::from("/data"),
-            ito_config::types::BackendAllowlistConfig::default(),
-            ito_config::types::BackendAuthConfig {
-                admin_tokens: vec!["admin".to_string()],
-                token_seed: Some("seed".to_string()),
-            },
-        );
+        let state = test_app_state(ito_config::types::BackendAuthConfig {
+            admin_tokens: vec!["admin".to_string()],
+            token_seed: Some("seed".to_string()),
+        });
         let result = validate_token(&state, "bogus-token", "acme", "repo1");
         assert!(result.is_none());
     }

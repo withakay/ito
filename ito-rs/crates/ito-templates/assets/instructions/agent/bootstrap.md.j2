@@ -85,6 +85,12 @@ ito agent instruction project-setup
 ```
 Guides initial project setup: stack detection, dev commands (Makefile), and tooling preferences. No `--change` required.
 
+### Backend Configuration
+```bash
+ito agent instruction backend
+```
+Shows multi-tenant backend server and client configuration guide: org/repo routing, auth model, API endpoints, and event forwarding. No `--change` required.
+
 ## Audit Trail
 
 Use `ito tasks` CLI commands for all task state changes (emits audit events automatically). Avoid editing `tasks.md` directly, but if you do, run `ito audit reconcile --fix` immediately after.

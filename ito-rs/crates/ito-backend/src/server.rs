@@ -10,7 +10,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
-use ito_config::types::BackendServerConfig;
+use ito_config::types::{BackendServerConfig, BackendStorageKind};
+use ito_core::BackendProjectStore;
+use ito_core::fs_project_store::FsBackendProjectStore;
+use ito_core::sqlite_project_store::SqliteBackendProjectStore;
 
 use crate::api;
 use crate::auth;
@@ -44,6 +47,31 @@ fn resolve_data_dir(config: &BackendServerConfig) -> miette::Result<PathBuf> {
         .join("backend"))
 }
 
+/// Build the project store based on configuration.
+///
+/// Selects between filesystem and SQLite backends.
+fn build_project_store(
+    config: &BackendServerConfig,
+    data_dir: &PathBuf,
+) -> miette::Result<Arc<dyn BackendProjectStore>> {
+    match config.storage.kind {
+        BackendStorageKind::Filesystem => {
+            let store = FsBackendProjectStore::new(data_dir);
+            Ok(Arc::new(store))
+        }
+        BackendStorageKind::Sqlite => {
+            let db_path = match &config.storage.sqlite.db_path {
+                Some(path) => PathBuf::from(path),
+                None => data_dir.join("sqlite").join("ito-backend.db"),
+            };
+            let store = SqliteBackendProjectStore::open(&db_path).map_err(|e| {
+                miette::miette!("Failed to open SQLite store at {}: {e}", db_path.display())
+            })?;
+            Ok(Arc::new(store))
+        }
+    }
+}
+
 /// Start the multi-tenant backend API server and block until it shuts down.
 ///
 /// Assembles routes, auth middleware, and CORS, then binds to the configured
@@ -61,8 +89,11 @@ pub async fn serve(config: BackendServerConfig) -> miette::Result<()> {
 
     let data_dir = data_dir.canonicalize().unwrap_or(data_dir);
 
+    let store = build_project_store(&config, &data_dir)?;
+
     let app_state = Arc::new(AppState::new(
         data_dir.clone(),
+        store,
         config.allowed.clone(),
         config.auth.clone(),
     ));
@@ -103,9 +134,14 @@ pub async fn serve(config: BackendServerConfig) -> miette::Result<()> {
     let admin_count = config.auth.admin_tokens.len();
     let has_seed = config.auth.token_seed.is_some();
     let allowed_orgs = config.allowed.orgs.len();
+    let storage_kind = match config.storage.kind {
+        BackendStorageKind::Filesystem => "filesystem",
+        BackendStorageKind::Sqlite => "sqlite",
+    };
 
     eprintln!("ito-backend (multi-tenant) listening at http://{addr}/");
     eprintln!("  data_dir: {}", data_dir.display());
+    eprintln!("  storage: {storage_kind}");
     eprintln!("  admin_tokens: {admin_count}, token_seed: {has_seed}");
     eprintln!("  allowed orgs: {allowed_orgs}");
 

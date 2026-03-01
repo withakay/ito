@@ -3,7 +3,7 @@
 //! Tests cover: claim success/conflict, allocate no-work, pull/push success,
 //! stale revision conflict, backend repository adapters, and config resolution.
 
-use ito_config::types::BackendApiConfig;
+use ito_config::types::{BackendApiConfig, BackendProjectConfig};
 use ito_core::backend_change_repository::BackendChangeRepository;
 use ito_core::backend_client::{is_retriable_status, resolve_backend_runtime};
 use ito_core::backend_coordination;
@@ -343,12 +343,18 @@ fn config_enabled_with_token_resolves() {
         enabled: true,
         url: "http://localhost:9999".to_string(),
         token: Some("my-token".to_string()),
+        project: BackendProjectConfig {
+            org: Some("test-org".to_string()),
+            repo: Some("test-repo".to_string()),
+        },
         ..BackendApiConfig::default()
     };
 
     let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
     assert_eq!(runtime.base_url, "http://localhost:9999");
     assert_eq!(runtime.token, "my-token");
+    assert_eq!(runtime.org, "test-org");
+    assert_eq!(runtime.repo, "test-repo");
 }
 
 #[test]

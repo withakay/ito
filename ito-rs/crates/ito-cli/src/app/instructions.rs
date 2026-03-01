@@ -115,6 +115,21 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
+    if artifact == "backend" {
+        let instruction = generate_backend_instruction();
+        if want_json {
+            let response = core_templates::AgentInstructionResponse {
+                artifact_id: "backend".to_string(),
+                instruction,
+            };
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+        print!("{instruction}");
+        return Ok(());
+    }
+
     if artifact == "context" {
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let inferred = harness_context::infer_context_from_cwd(&cwd).map_err(to_cli_error)?;
@@ -486,6 +501,14 @@ fn generate_project_setup_instruction() -> String {
 
     ito_templates::instructions::render_instruction_template("agent/project-setup.md.j2", &Ctx {})
         .expect("project-setup instruction template should render")
+}
+
+fn generate_backend_instruction() -> String {
+    #[derive(serde::Serialize)]
+    struct Ctx {}
+
+    ito_templates::instructions::render_instruction_template("agent/backend.md.j2", &Ctx {})
+        .expect("backend instruction template should render")
 }
 
 fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {

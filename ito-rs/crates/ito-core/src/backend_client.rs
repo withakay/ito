@@ -28,6 +28,20 @@ pub struct BackendRuntime {
     pub max_retries: u32,
     /// Directory for artifact backup snapshots.
     pub backup_dir: PathBuf,
+    /// Organization namespace for project-scoped routes.
+    pub org: String,
+    /// Repository namespace for project-scoped routes.
+    pub repo: String,
+}
+
+impl BackendRuntime {
+    /// Returns the project-scoped API path prefix: `/api/v1/projects/{org}/{repo}`.
+    pub fn project_api_prefix(&self) -> String {
+        format!(
+            "{}/api/v1/projects/{}/{}",
+            self.base_url, self.org, self.repo
+        )
+    }
 }
 
 /// Resolve backend runtime settings from config.
@@ -42,6 +56,7 @@ pub fn resolve_backend_runtime(config: &BackendApiConfig) -> CoreResult<Option<B
     let token = resolve_token(config)?;
     let backup_dir = resolve_backup_dir(config);
     let timeout = Duration::from_millis(config.timeout_ms);
+    let (org, repo) = resolve_project_namespace(config)?;
 
     Ok(Some(BackendRuntime {
         base_url: config.url.clone(),
@@ -49,6 +64,8 @@ pub fn resolve_backend_runtime(config: &BackendApiConfig) -> CoreResult<Option<B
         timeout,
         max_retries: config.max_retries,
         backup_dir,
+        org,
+        repo,
     }))
 }
 
@@ -88,6 +105,71 @@ fn resolve_backup_dir(config: &BackendApiConfig) -> PathBuf {
     PathBuf::from(home).join(".ito").join("backups")
 }
 
+/// Environment variable name for overriding the project organization namespace.
+const ENV_PROJECT_ORG: &str = "ITO_BACKEND_PROJECT_ORG";
+/// Environment variable name for overriding the project repository namespace.
+const ENV_PROJECT_REPO: &str = "ITO_BACKEND_PROJECT_REPO";
+
+/// Resolve the project namespace (org, repo) from config with env var fallbacks.
+///
+/// Resolution order for each field:
+/// 1. Explicit config value (`backend.project.org` / `backend.project.repo`)
+/// 2. Environment variable (`ITO_BACKEND_PROJECT_ORG` / `ITO_BACKEND_PROJECT_REPO`)
+///
+/// Returns `Err` if either value is missing after fallback resolution.
+fn resolve_project_namespace(config: &BackendApiConfig) -> CoreResult<(String, String)> {
+    resolve_project_namespace_with_env(config, ENV_PROJECT_ORG, ENV_PROJECT_REPO)
+}
+
+/// Inner implementation that accepts env var names for testability.
+fn resolve_project_namespace_with_env(
+    config: &BackendApiConfig,
+    org_env_var: &str,
+    repo_env_var: &str,
+) -> CoreResult<(String, String)> {
+    let org = config
+        .project
+        .org
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .or_else(|| {
+            std::env::var(org_env_var)
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.trim().to_string())
+        });
+
+    let repo = config
+        .project
+        .repo
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .or_else(|| {
+            std::env::var(repo_env_var)
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.trim().to_string())
+        });
+
+    let Some(org) = org else {
+        return Err(CoreError::validation(format!(
+            "Backend mode is enabled but 'backend.project.org' is not set. \
+             Set it in config or via the {org_env_var} environment variable."
+        )));
+    };
+
+    let Some(repo) = repo else {
+        return Err(CoreError::validation(format!(
+            "Backend mode is enabled but 'backend.project.repo' is not set. \
+             Set it in config or via the {repo_env_var} environment variable."
+        )));
+    };
+
+    Ok((org, repo))
+}
+
 /// Determines whether a backend error status code is retriable.
 ///
 /// Returns `true` for server errors (5xx) and rate limiting (429).
@@ -111,6 +193,20 @@ pub fn idempotency_key(operation: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ito_config::types::BackendProjectConfig;
+
+    /// Create an enabled config with token, org, and repo pre-populated.
+    fn enabled_config() -> BackendApiConfig {
+        BackendApiConfig {
+            enabled: true,
+            token: Some("test-token-123".to_string()),
+            project: BackendProjectConfig {
+                org: Some("acme".to_string()),
+                repo: Some("widgets".to_string()),
+            },
+            ..BackendApiConfig::default()
+        }
+    }
 
     #[test]
     fn disabled_backend_returns_none() {
@@ -123,17 +219,15 @@ mod tests {
 
     #[test]
     fn enabled_backend_with_explicit_token_resolves() {
-        let config = BackendApiConfig {
-            enabled: true,
-            token: Some("test-token-123".to_string()),
-            ..BackendApiConfig::default()
-        };
+        let config = enabled_config();
 
         let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
         assert_eq!(runtime.token, "test-token-123");
         assert_eq!(runtime.base_url, "http://127.0.0.1:9010");
         assert_eq!(runtime.max_retries, 3);
         assert_eq!(runtime.timeout, Duration::from_millis(30_000));
+        assert_eq!(runtime.org, "acme");
+        assert_eq!(runtime.repo, "widgets");
     }
 
     #[test]
@@ -143,10 +237,9 @@ mod tests {
         unsafe { std::env::set_var(env_var, "env-token-456") };
 
         let config = BackendApiConfig {
-            enabled: true,
             token: None,
             token_env_var: env_var.to_string(),
-            ..BackendApiConfig::default()
+            ..enabled_config()
         };
 
         let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
@@ -163,10 +256,9 @@ mod tests {
         unsafe { std::env::remove_var(env_var) };
 
         let config = BackendApiConfig {
-            enabled: true,
             token: None,
             token_env_var: env_var.to_string(),
-            ..BackendApiConfig::default()
+            ..enabled_config()
         };
 
         let err = resolve_backend_runtime(&config).unwrap_err();
@@ -185,10 +277,9 @@ mod tests {
         unsafe { std::env::set_var(env_var, "") };
 
         let config = BackendApiConfig {
-            enabled: true,
             token: None,
             token_env_var: env_var.to_string(),
-            ..BackendApiConfig::default()
+            ..enabled_config()
         };
 
         let err = resolve_backend_runtime(&config).unwrap_err();
@@ -202,10 +293,8 @@ mod tests {
     #[test]
     fn custom_backup_dir_is_used() {
         let config = BackendApiConfig {
-            enabled: true,
-            token: Some("t".to_string()),
             backup_dir: Some("/custom/backups".to_string()),
-            ..BackendApiConfig::default()
+            ..enabled_config()
         };
 
         let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
@@ -215,10 +304,8 @@ mod tests {
     #[test]
     fn default_backup_dir_uses_home() {
         let config = BackendApiConfig {
-            enabled: true,
-            token: Some("t".to_string()),
             backup_dir: None,
-            ..BackendApiConfig::default()
+            ..enabled_config()
         };
 
         let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
@@ -227,6 +314,162 @@ mod tests {
         assert!(
             path_str.ends_with(".ito/backups"),
             "unexpected backup dir: {path_str}"
+        );
+    }
+
+    // ── Project namespace resolution tests ──────────────────────────
+    //
+    // These tests use `resolve_project_namespace_with_env` with unique
+    // env var names per test to avoid parallel-test races on global
+    // process environment.
+
+    #[test]
+    fn project_namespace_from_config() {
+        let config = enabled_config();
+        let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
+        assert_eq!(runtime.org, "acme");
+        assert_eq!(runtime.repo, "widgets");
+    }
+
+    #[test]
+    fn project_namespace_from_env_vars() {
+        let org_var = "ITO_TEST_NS_FROM_ENV_ORG";
+        let repo_var = "ITO_TEST_NS_FROM_ENV_REPO";
+        // SAFETY: test-only, single-threaded access to unique env vars.
+        unsafe {
+            std::env::set_var(org_var, "env-org");
+            std::env::set_var(repo_var, "env-repo");
+        }
+
+        let config = BackendApiConfig {
+            project: BackendProjectConfig {
+                org: None,
+                repo: None,
+            },
+            ..enabled_config()
+        };
+
+        let (org, repo) = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap();
+        assert_eq!(org, "env-org");
+        assert_eq!(repo, "env-repo");
+
+        // SAFETY: test-only cleanup.
+        unsafe {
+            std::env::remove_var(org_var);
+            std::env::remove_var(repo_var);
+        }
+    }
+
+    #[test]
+    fn project_namespace_config_takes_precedence_over_env() {
+        let org_var = "ITO_TEST_NS_PREC_ORG";
+        let repo_var = "ITO_TEST_NS_PREC_REPO";
+        // SAFETY: test-only, single-threaded access to unique env vars.
+        unsafe {
+            std::env::set_var(org_var, "env-org");
+            std::env::set_var(repo_var, "env-repo");
+        }
+
+        let config = enabled_config(); // has org=acme, repo=widgets
+        let (org, repo) = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap();
+        assert_eq!(org, "acme");
+        assert_eq!(repo, "widgets");
+
+        // SAFETY: test-only cleanup.
+        unsafe {
+            std::env::remove_var(org_var);
+            std::env::remove_var(repo_var);
+        }
+    }
+
+    #[test]
+    fn project_namespace_missing_org_fails() {
+        let org_var = "ITO_TEST_NS_MISS_ORG";
+        let repo_var = "ITO_TEST_NS_MISS_ORG_REPO";
+        // SAFETY: test-only cleanup.
+        unsafe {
+            std::env::remove_var(org_var);
+            std::env::remove_var(repo_var);
+        }
+
+        let config = BackendApiConfig {
+            project: BackendProjectConfig {
+                org: None,
+                repo: Some("widgets".to_string()),
+            },
+            ..enabled_config()
+        };
+
+        let err = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("project.org"),
+            "error should mention project.org: {msg}"
+        );
+    }
+
+    #[test]
+    fn project_namespace_missing_repo_fails() {
+        let org_var = "ITO_TEST_NS_MISS_REPO_ORG";
+        let repo_var = "ITO_TEST_NS_MISS_REPO";
+        // SAFETY: test-only cleanup.
+        unsafe {
+            std::env::remove_var(org_var);
+            std::env::remove_var(repo_var);
+        }
+
+        let config = BackendApiConfig {
+            project: BackendProjectConfig {
+                org: Some("acme".to_string()),
+                repo: None,
+            },
+            ..enabled_config()
+        };
+
+        let err = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("project.repo"),
+            "error should mention project.repo: {msg}"
+        );
+    }
+
+    #[test]
+    fn project_namespace_empty_string_falls_through_to_env() {
+        let org_var = "ITO_TEST_NS_EMPTY_ORG";
+        let repo_var = "ITO_TEST_NS_EMPTY_REPO";
+        // SAFETY: test-only, single-threaded access to unique env vars.
+        unsafe {
+            std::env::set_var(org_var, "env-org");
+            std::env::set_var(repo_var, "env-repo");
+        }
+
+        let config = BackendApiConfig {
+            project: BackendProjectConfig {
+                org: Some("".to_string()),
+                repo: Some("".to_string()),
+            },
+            ..enabled_config()
+        };
+
+        let (org, repo) = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap();
+        assert_eq!(org, "env-org");
+        assert_eq!(repo, "env-repo");
+
+        // SAFETY: test-only cleanup.
+        unsafe {
+            std::env::remove_var(org_var);
+            std::env::remove_var(repo_var);
+        }
+    }
+
+    #[test]
+    fn project_api_prefix_formats_correctly() {
+        let config = enabled_config();
+        let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
+        assert_eq!(
+            runtime.project_api_prefix(),
+            "http://127.0.0.1:9010/api/v1/projects/acme/widgets"
         );
     }
 

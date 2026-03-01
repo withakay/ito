@@ -524,6 +524,7 @@ Options:
 Artifacts:
   bootstrap      Generate a tool bootstrap preamble
   project-setup  Guide for setting up a new project
+  backend        Backend server and client configuration guide
   worktrees      Guide for git worktree workflow (config-driven)
   proposal       Show the change proposal
   specs          Show the specification deltas
@@ -535,6 +536,7 @@ Artifacts:
 Examples:
   ito agent instruction bootstrap --tool opencode
   ito agent instruction project-setup
+  ito agent instruction backend
   ito agent instruction worktrees
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
