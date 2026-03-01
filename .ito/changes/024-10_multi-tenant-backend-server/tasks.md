@@ -31,8 +31,8 @@ ______________________________________________________________________
 - **Done When**:
   - Unit tests cover: no front matter, valid front matter, invalid front matter, roundtrip
   - No behavior change for artifacts without front matter
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 1.2: Apply front matter support to module and change filesystem repositories
 

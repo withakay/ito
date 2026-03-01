@@ -23,6 +23,8 @@ ito-config = { workspace = true }
 ito-domain = { workspace = true }
 ito-templates = { workspace = true }
 miette = { workspace = true }
+sha2 = { workspace = true }
+hex = "0.4"
 
 [dev-dependencies]
 filetime = { workspace = true }
