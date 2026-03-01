@@ -1,4 +1,4 @@
-use crate::cli::{TasksAction, TasksArgs};
+use crate::cli::{SyncAction, TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
@@ -100,6 +100,34 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
         return fail("Missing required argument <change-id>");
     };
 
+    // Handle backend coordination commands directly (they don't use the legacy handler)
+    match action {
+        TasksAction::Claim { change_id } => {
+            return handle_backend_claim(rt, change_id, args.json);
+        }
+        TasksAction::Release { change_id } => {
+            return handle_backend_release(rt, change_id, args.json);
+        }
+        TasksAction::Allocate => {
+            return handle_backend_allocate(rt, args.json);
+        }
+        TasksAction::Sync(sync_action) => {
+            return handle_backend_sync(rt, sync_action, args.json);
+        }
+        // All other actions fall through to the legacy forwarding handler below
+        TasksAction::Init { .. }
+        | TasksAction::Status { .. }
+        | TasksAction::Next { .. }
+        | TasksAction::Ready { .. }
+        | TasksAction::Start { .. }
+        | TasksAction::Complete { .. }
+        | TasksAction::Shelve { .. }
+        | TasksAction::Unshelve { .. }
+        | TasksAction::Add { .. }
+        | TasksAction::Show { .. }
+        | TasksAction::External(_) => {}
+    }
+
     let mut forwarded: Vec<String> = match action {
         TasksAction::Init { change_id } => vec!["init".to_string(), change_id.clone()],
         TasksAction::Status { change_id, wave } => {
@@ -143,6 +171,11 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
         ],
         TasksAction::Show { change_id } => vec!["show".to_string(), change_id.clone()],
         TasksAction::External(rest) => rest.clone(),
+        // Backend commands handled above
+        TasksAction::Claim { .. }
+        | TasksAction::Release { .. }
+        | TasksAction::Allocate
+        | TasksAction::Sync(_) => unreachable!(),
     };
 
     if args.json {
@@ -523,6 +556,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 rt.emit_audit_event(&event);
             }
 
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
+
             if want_json {
                 let status =
                     core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
@@ -560,6 +596,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 let status =
@@ -599,6 +638,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 rt.emit_audit_event(&event);
             }
 
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
+
             if want_json {
                 return print_json(&serde_json::json!({
                     "action": "shelve",
@@ -634,6 +676,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -674,6 +719,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             {
                 rt.emit_audit_event(&event);
             }
+
+            // Best-effort backend sync after mutation
+            sync_after_mutation(rt, &change_id);
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -859,4 +907,263 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     }
 
     Ok(())
+}
+
+// ── Backend sync after task mutation ────────────────────────────────
+
+use ito_config::types::ItoConfig;
+use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
+use ito_core::backend_coordination;
+
+/// Try to resolve backend runtime from config. Returns `None` if backend
+/// mode is disabled (no error). Returns `Err` only if backend is enabled
+/// but misconfigured.
+fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::warn!("Skipping backend integration due to invalid config: {e}");
+            return Ok(None);
+        }
+    };
+
+    if !config.backend.enabled {
+        return Ok(None);
+    }
+
+    resolve_backend_runtime(&config.backend).map_err(to_cli_error)
+}
+
+/// Best-effort push of task artifacts to the backend after a mutation.
+///
+/// If backend mode is not enabled, this is a no-op. If the push fails,
+/// the error is reported as a warning but does not fail the command
+/// (the local mutation already succeeded).
+fn sync_after_mutation(rt: &Runtime, change_id: &str) {
+    let runtime = match try_backend_runtime(rt) {
+        Ok(Some(runtime)) => runtime,
+        Ok(None) => return, // Backend not enabled
+        Err(_) => return,   // Config error, skip silently
+    };
+
+    let client = StubSyncClient;
+    let ito_path = rt.ito_path();
+
+    if let Err(err) =
+        backend_coordination::sync_push(&client, ito_path, change_id, &runtime.backup_dir)
+    {
+        let msg = err.to_string();
+        if msg.contains("not yet available on backend") {
+            // Backend endpoints are not available yet; don't spam warnings on every mutation.
+            return;
+        }
+
+        eprintln!(
+            "Warning: backend sync after task mutation failed: {}. \
+             Run 'ito tasks sync push {change_id}' manually.",
+            err
+        );
+    }
+}
+
+// ── Backend coordination handlers ──────────────────────────────────
+
+/// Resolve backend runtime config, failing if backend mode is not enabled.
+fn require_backend_runtime(rt: &Runtime) -> CliResult<BackendRuntime> {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = serde_json::from_value(merged)
+        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))?;
+
+    if !config.backend.enabled {
+        return Err(CliError::msg(
+            "Backend mode is not enabled. Set 'backend.enabled=true' in your Ito config.",
+        ));
+    }
+
+    resolve_backend_runtime(&config.backend)
+        .map_err(to_cli_error)?
+        .ok_or_else(|| CliError::msg("Backend mode is enabled but runtime could not be resolved."))
+}
+
+/// Stub backend lease client that returns not-implemented errors.
+///
+/// The actual HTTP client will be implemented when the backend adds
+/// lease/allocation endpoints. For now the CLI surface is wired up
+/// and will report a clear error.
+struct StubLeaseClient;
+
+impl ito_core::BackendLeaseClient for StubLeaseClient {
+    fn claim(&self, change_id: &str) -> Result<ito_core::ClaimResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Lease endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+
+    fn release(&self, change_id: &str) -> Result<ito_core::ReleaseResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Lease endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+
+    fn allocate(&self) -> Result<ito_core::AllocateResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(
+            "Allocation endpoints not yet available on backend".to_string(),
+        ))
+    }
+}
+
+/// Stub backend sync client.
+struct StubSyncClient;
+
+impl ito_core::BackendSyncClient for StubSyncClient {
+    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Sync endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+
+    fn push(
+        &self,
+        change_id: &str,
+        _bundle: &ito_core::ArtifactBundle,
+    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
+        Err(ito_core::BackendError::Other(format!(
+            "Sync endpoints not yet available on backend for change '{change_id}'"
+        )))
+    }
+}
+
+fn handle_backend_claim(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
+    let _runtime = require_backend_runtime(rt)?;
+    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
+    let client = StubLeaseClient;
+
+    let result = backend_coordination::claim_change(&client, &change_id).map_err(to_cli_error)?;
+
+    if want_json {
+        return print_json(&serde_json::json!({
+            "action": "claim",
+            "change_id": result.change_id,
+            "holder": result.holder,
+            "expires_at": result.expires_at,
+        }));
+    }
+
+    eprintln!(
+        "✔ Change \"{}\" claimed by \"{}\"",
+        result.change_id, result.holder
+    );
+    Ok(())
+}
+
+fn handle_backend_release(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
+    let _runtime = require_backend_runtime(rt)?;
+    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
+    let client = StubLeaseClient;
+
+    let result = backend_coordination::release_change(&client, &change_id).map_err(to_cli_error)?;
+
+    if want_json {
+        return print_json(&serde_json::json!({
+            "action": "release",
+            "change_id": result.change_id,
+        }));
+    }
+
+    eprintln!("✔ Change \"{}\" released", result.change_id);
+    Ok(())
+}
+
+fn handle_backend_allocate(rt: &Runtime, want_json: bool) -> CliResult<()> {
+    let _runtime = require_backend_runtime(rt)?;
+    let client = StubLeaseClient;
+
+    let result = backend_coordination::allocate_change(&client).map_err(to_cli_error)?;
+
+    if let Some(claim) = &result.claim {
+        if want_json {
+            return print_json(&serde_json::json!({
+                "action": "allocate",
+                "allocated": true,
+                "change_id": claim.change_id,
+                "holder": claim.holder,
+                "expires_at": claim.expires_at,
+            }));
+        }
+
+        eprintln!(
+            "✔ Allocated change \"{}\" to \"{}\"",
+            claim.change_id, claim.holder
+        );
+    } else if want_json {
+        return print_json(&serde_json::json!({
+            "action": "allocate",
+            "allocated": false,
+            "message": "No allocatable work is currently available",
+        }));
+    } else {
+        println!("No allocatable work is currently available.");
+    }
+
+    Ok(())
+}
+
+fn handle_backend_sync(rt: &Runtime, action: &SyncAction, want_json: bool) -> CliResult<()> {
+    let runtime = require_backend_runtime(rt)?;
+    let ito_path = rt.ito_path();
+    let client = StubSyncClient;
+
+    match action {
+        SyncAction::Pull { change_id } => {
+            let change_id = resolve_change_id(ito_path, change_id)?;
+            let bundle =
+                backend_coordination::sync_pull(&client, ito_path, &change_id, &runtime.backup_dir)
+                    .map_err(to_cli_error)?;
+
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "sync_pull",
+                    "change_id": bundle.change_id,
+                    "revision": bundle.revision,
+                    "artifacts": {
+                        "proposal": bundle.proposal.is_some(),
+                        "design": bundle.design.is_some(),
+                        "tasks": bundle.tasks.is_some(),
+                        "specs": bundle.specs.len(),
+                    },
+                }));
+            }
+
+            eprintln!(
+                "✔ Pulled artifacts for \"{}\" (revision: {})",
+                bundle.change_id, bundle.revision
+            );
+            Ok(())
+        }
+        SyncAction::Push { change_id } => {
+            let change_id = resolve_change_id(ito_path, change_id)?;
+            let result =
+                backend_coordination::sync_push(&client, ito_path, &change_id, &runtime.backup_dir)
+                    .map_err(to_cli_error)?;
+
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "sync_push",
+                    "change_id": result.change_id,
+                    "new_revision": result.new_revision,
+                }));
+            }
+
+            eprintln!(
+                "✔ Pushed artifacts for \"{}\" (new revision: {})",
+                result.change_id, result.new_revision
+            );
+            Ok(())
+        }
+    }
 }

@@ -9,6 +9,9 @@
 
 #![warn(missing_docs)]
 
+/// Backend coordination ports (lease, sync, read) for the backend API.
+pub mod backend;
+
 /// Change definitions and computed status.
 pub mod changes;
 

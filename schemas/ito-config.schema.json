@@ -171,10 +171,31 @@
     "BackendApiConfig": {
       "description": "Backend state API configuration",
       "properties": {
+        "backup_dir": {
+          "description": "Per-user backup directory for artifact snapshots",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "enabled": {
           "default": false,
           "description": "Enable backend API integration",
           "type": "boolean"
+        },
+        "max_retries": {
+          "default": 3,
+          "description": "Maximum retry attempts for transient failures",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "timeout_ms": {
+          "default": 30000,
+          "description": "Request timeout in milliseconds",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
         },
         "token": {
           "description": "Authentication token for backend API access",
@@ -182,6 +203,11 @@
             "string",
             "null"
           ]
+        },
+        "token_env_var": {
+          "default": "ITO_BACKEND_TOKEN",
+          "description": "Environment variable name that holds the bearer token",
+          "type": "string"
         },
         "url": {
           "default": "http://127.0.0.1:9010",
@@ -864,6 +890,9 @@
       ],
       "default": {
         "enabled": false,
+        "max_retries": 3,
+        "timeout_ms": 30000,
+        "token_env_var": "ITO_BACKEND_TOKEN",
         "url": "http://127.0.0.1:9010"
       },
       "description": "Backend state API configuration"

@@ -1,6 +1,10 @@
 use crate::cli_error::CliResult;
 use crate::runtime::Runtime;
 use ito_config::ito_dir::get_ito_path;
+use ito_config::load_cascading_project_config;
+use ito_config::types::ItoConfig;
+use ito_core::backend_client::resolve_backend_runtime;
+use ito_core::event_forwarder::{ForwarderConfig, forward_events};
 use ito_logging::{Logger as ExecLogger, Outcome as LogOutcome};
 use std::path::{Path, PathBuf};
 
@@ -56,6 +60,11 @@ where
     if let Some(l) = logger {
         l.write_end(outcome, started.elapsed());
     }
+
+    // Best-effort: forward locally produced audit events to the backend
+    // when backend mode is enabled. Failures are logged as warnings but
+    // never change the command outcome.
+    forward_events_if_backend(rt);
 
     result
 }
@@ -184,6 +193,129 @@ pub(crate) fn parse_string_flag(args: &[String], key: &str) -> Option<String> {
 
 pub(crate) fn split_csv(raw: &str) -> Vec<String> {
     raw.split(',').map(|s| s.trim().to_string()).collect()
+}
+
+// ── Event forwarding ───────────────────────────────────────────────
+
+/// Best-effort forwarding of local audit events to the backend.
+///
+/// Called after every command completes. Returns silently when backend
+/// mode is not enabled or if any step fails. Never affects command outcome.
+fn forward_events_if_backend(rt: &Runtime) {
+    let ito_path = rt.ito_path();
+    let Some(project_root) = ito_path.parent() else {
+        return;
+    };
+
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::warn!("Skipping backend event forwarding due to invalid config: {e}");
+            return;
+        }
+    };
+
+    if !config.backend.enabled {
+        return;
+    }
+
+    let Ok(Some(runtime)) = resolve_backend_runtime(&config.backend) else {
+        return;
+    };
+
+    let client = HttpEventIngestClient {
+        base_url: runtime.base_url,
+        token: runtime.token,
+        timeout: runtime.timeout,
+    };
+    let forwarder_config = ForwarderConfig {
+        max_retries: runtime.max_retries,
+        ..ForwarderConfig::default()
+    };
+
+    match forward_events(&client, ito_path, &forwarder_config) {
+        Ok(result) => {
+            if result.failed_batches > 0 {
+                eprintln!(
+                    "Warning: {}/{} event forwarding batches failed. \
+                     Events will be retried on the next command.",
+                    result.failed_batches,
+                    result.failed_batches
+                        + (result.forwarded + result.duplicates + forwarder_config.batch_size - 1)
+                            / forwarder_config.batch_size.max(1)
+                );
+            }
+        }
+        Err(e) => {
+            tracing::warn!("event forwarding failed: {e}");
+        }
+    }
+}
+
+/// HTTP-based event ingest client that submits event batches to the backend.
+struct HttpEventIngestClient {
+    base_url: String,
+    token: String,
+    timeout: std::time::Duration,
+}
+
+impl ito_core::BackendEventIngestClient for HttpEventIngestClient {
+    fn ingest(
+        &self,
+        batch: &ito_core::EventBatch,
+    ) -> Result<ito_core::EventIngestResult, ito_core::BackendError> {
+        let url = format!("{}/api/v1/events", self.base_url);
+        let body = serde_json::to_string(batch)
+            .map_err(|e| ito_core::BackendError::Other(format!("serialize batch: {e}")))?;
+
+        // Use a blocking HTTP client (ureq) since CLI commands are sync.
+        let config = ureq::Agent::config_builder()
+            .timeout_global(Some(self.timeout))
+            // ureq 3.x treats 4xx/5xx as errors by default; disable so we can
+            // map status codes into BackendError variants.
+            .http_status_as_error(false)
+            .build();
+        let agent: ureq::Agent = config.into();
+
+        let result = agent
+            .post(&url)
+            .header("Authorization", &format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .send(&body);
+
+        match result {
+            Ok(mut resp) => {
+                let status = resp.status().as_u16();
+                let text = resp
+                    .body_mut()
+                    .read_to_string()
+                    .unwrap_or_else(|_| String::new());
+                if status == 200 {
+                    let ingest_result: ito_core::EventIngestResult = serde_json::from_str(&text)
+                        .map_err(|e| {
+                            ito_core::BackendError::Other(format!("parse response: {e}"))
+                        })?;
+                    Ok(ingest_result)
+                } else if status == 401 {
+                    Err(ito_core::BackendError::Unauthorized(
+                        "invalid or expired token".to_string(),
+                    ))
+                } else if status == 400 {
+                    Err(ito_core::BackendError::Other(format!(
+                        "validation error: {text}"
+                    )))
+                } else {
+                    Err(ito_core::BackendError::Unavailable(format!(
+                        "HTTP {status}"
+                    )))
+                }
+            }
+            Err(e) => Err(ito_core::BackendError::Unavailable(format!(
+                "connection error: {e}"
+            ))),
+        }
+    }
 }
 
 #[cfg(test)]

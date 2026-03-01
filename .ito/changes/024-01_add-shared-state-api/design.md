@@ -21,7 +21,7 @@ The existing `ito-web` crate provides a file-browser/editor/terminal UI but no d
 ### Non-Goals
 
 - Real-time push notifications (WebSocket/SSE) -- deferred to 024-04
-- Write/mutation endpoints beyond task status updates -- deferred to 024-02
+- Write/mutation endpoints (including task status updates) -- deferred to 024-02
 - Backend-backed CLI client (the CLI still uses local filesystem) -- deferred to 024-02
 - Multi-project support (one backend instance serves one project)
 - Database storage (this change uses the filesystem repositories directly)
@@ -89,5 +89,5 @@ No migration needed. This is purely additive:
 
 ## Open Questions
 
-- Should the backend serve both read and write operations in this first change, or start read-only? **Decision: Start with read + basic task status mutation; full write operations follow in 024-02.**
+- Should the backend serve both read and write operations in this first change, or start read-only? **Decision: Start read-only; write operations follow in 024-02.**
 - Should the backend support CORS for browser-based clients? **Decision: Yes, with configurable allowed origins, defaulting to same-origin.**
