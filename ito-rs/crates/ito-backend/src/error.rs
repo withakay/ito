@@ -105,8 +105,8 @@ impl IntoResponse for ApiErrorResponse {
 /// Convert a [`CoreError`](ito_core::errors::CoreError) into an [`ApiErrorResponse`].
 impl From<ito_core::errors::CoreError> for ApiErrorResponse {
     fn from(err: ito_core::errors::CoreError) -> Self {
+        use ito_core::DomainError;
         use ito_core::errors::CoreError;
-        use ito_domain::errors::DomainError;
         match &err {
             CoreError::Domain(domain_err) => match domain_err {
                 DomainError::NotFound { .. } => Self::not_found(err.to_string()),
