@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 103
 expression: "snapshot(&[\"--help\"])"
 ---
 AI-native system for spec-driven development
@@ -14,6 +13,7 @@ Commands:
   status       Check completion status of change artifacts [aliases: st]
   validate     Check changes, specs, and modules for errors and warnings [aliases: va]
   archive      Move a completed change to archive and update main specs [aliases: ar]
+  grep         Search Ito change artifacts using a regular expression [aliases: gr]
   tasks        Manage implementation tasks for a change [aliases: ts]
   plan         Initialize and track project roadmap [aliases: pl]
   agent        Generate instructions and context for AI coding agents [aliases: ag]
