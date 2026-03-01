@@ -42,7 +42,7 @@ pub enum ValidationStep {
 ///
 /// Missing tasks file is treated as success.
 pub fn check_task_completion(
-    task_repo: &impl DomainTaskRepository,
+    task_repo: &(impl DomainTaskRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<ValidationResult> {
     let repo = task_repo;
