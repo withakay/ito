@@ -103,30 +103,71 @@ fn write_bundle_to_local(
     std::fs::create_dir_all(&change_dir)
         .map_err(|e| CoreError::io("creating change directory", e))?;
 
+    fn remove_file_if_exists(path: &Path, label: &'static str) -> CoreResult<()> {
+        if path.is_file() {
+            std::fs::remove_file(path).map_err(|e| CoreError::io(label, e))?;
+        }
+        Ok(())
+    }
+
+    let proposal_path = change_dir.join("proposal.md");
     if let Some(proposal) = &bundle.proposal {
-        let path = change_dir.join("proposal.md");
-        std::fs::write(&path, proposal).map_err(|e| CoreError::io("writing proposal.md", e))?;
+        std::fs::write(&proposal_path, proposal)
+            .map_err(|e| CoreError::io("writing proposal.md", e))?;
+    } else {
+        remove_file_if_exists(&proposal_path, "removing proposal.md")?;
     }
 
+    let design_path = change_dir.join("design.md");
     if let Some(design) = &bundle.design {
-        let path = change_dir.join("design.md");
-        std::fs::write(&path, design).map_err(|e| CoreError::io("writing design.md", e))?;
+        std::fs::write(&design_path, design).map_err(|e| CoreError::io("writing design.md", e))?;
+    } else {
+        remove_file_if_exists(&design_path, "removing design.md")?;
     }
 
+    let tasks_path = change_dir.join("tasks.md");
     if let Some(tasks) = &bundle.tasks {
-        let path = change_dir.join("tasks.md");
-        std::fs::write(&path, tasks).map_err(|e| CoreError::io("writing tasks.md", e))?;
+        std::fs::write(&tasks_path, tasks).map_err(|e| CoreError::io("writing tasks.md", e))?;
+    } else {
+        remove_file_if_exists(&tasks_path, "removing tasks.md")?;
     }
 
-    // Write spec delta files
+    // Write spec delta files.
+    //
+    // Note: if the backend omits specs that exist locally, we remove those stale
+    // capability subdirectories to keep local state consistent with the bundle.
     let specs_dir = change_dir.join(SPECS_DIR);
+    let mut expected_caps: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     for (capability, content) in &bundle.specs {
         validate_path_component(capability, "capability")?;
+        expected_caps.insert(capability.to_string());
+
         let cap_dir = specs_dir.join(capability);
         std::fs::create_dir_all(&cap_dir)
             .map_err(|e| CoreError::io("creating spec directory", e))?;
         std::fs::write(cap_dir.join("spec.md"), content)
             .map_err(|e| CoreError::io("writing spec delta", e))?;
+    }
+
+    if specs_dir.is_dir() {
+        let entries =
+            std::fs::read_dir(&specs_dir).map_err(|e| CoreError::io("reading specs dir", e))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| CoreError::io("reading spec entry", e))?;
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+
+            let cap_name = entry.file_name().to_string_lossy().to_string();
+            validate_path_component(&cap_name, "capability")?;
+
+            if !expected_caps.contains(&cap_name) {
+                std::fs::remove_dir_all(&path)
+                    .map_err(|e| CoreError::io("removing stale spec directory", e))?;
+            }
+        }
     }
 
     // Store revision metadata

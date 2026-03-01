@@ -73,7 +73,11 @@ pub fn forward_events(
 ) -> CoreResult<ForwardResult> {
     let all_events = read_all_events(ito_path);
     let total_local = all_events.len();
-    let current_offset = read_checkpoint(ito_path);
+
+    let mut current_offset = read_checkpoint(ito_path);
+    if current_offset > total_local {
+        current_offset = total_local;
+    }
 
     if current_offset >= total_local {
         return Ok(ForwardResult {
@@ -85,13 +89,14 @@ pub fn forward_events(
         });
     }
 
+    let batch_size = config.batch_size.max(1);
     let new_events = &all_events[current_offset..];
     let mut forwarded = 0usize;
     let mut duplicates = 0usize;
     let mut failed_batches = 0usize;
     let mut offset = current_offset;
 
-    for chunk in new_events.chunks(config.batch_size) {
+    for chunk in new_events.chunks(batch_size) {
         let batch = EventBatch {
             events: chunk.to_vec(),
             idempotency_key: idempotency_key("event-forward"),

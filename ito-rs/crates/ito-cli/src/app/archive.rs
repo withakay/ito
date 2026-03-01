@@ -306,13 +306,7 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = match serde_json::from_value(merged) {
-        Ok(config) => config,
-        Err(e) => {
-            tracing::warn!("Skipping backend integration due to invalid config: {e}");
-            return Ok(None);
-        }
-    };
+    let config: ItoConfig = serde_json::from_value(merged).map_err(to_cli_error)?;
 
     if !config.backend.enabled {
         return Ok(None);

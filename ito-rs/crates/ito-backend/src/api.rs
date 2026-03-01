@@ -414,18 +414,27 @@ pub async fn ingest_events(
     }
 
     let idem_file = idem_dir.join(&payload.idempotency_key);
+
+    // Idempotency file format: a single integer (UTF-8) representing how many
+    // events from this request have been successfully appended so far.
+    //
+    // This allows safe retries even if we fail mid-batch: the next attempt can
+    // skip the already-written prefix and only append the remaining events.
     let mut idem_handle = match std::fs::OpenOptions::new()
+        .read(true)
         .write(true)
         .create_new(true)
         .open(&idem_file)
     {
         Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            return Ok(Json(IngestEventsResponse {
-                accepted: 0,
-                duplicates: payload.events.len(),
-            }));
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&idem_file)
+            .map_err(|e| {
+                tracing::error!("failed to open idempotency key file: {e}");
+                ApiErrorResponse::internal("Failed to process idempotency key")
+            })?,
         Err(e) => {
             tracing::error!("failed to open idempotency key file: {e}");
             return Err(ApiErrorResponse::internal(
@@ -434,26 +443,68 @@ pub async fn ingest_events(
         }
     };
 
-    // Write events to the audit log
-    let writer = ito_core::audit::FsAuditWriter::new(&state.ito_path);
-    let mut accepted = 0usize;
-    for event in &payload.events {
-        if let Err(e) = ito_core::audit::AuditWriter::append(&writer, event) {
-            tracing::warn!("event ingest write failed: {e}");
-            continue;
+    use std::io::{Read, Seek, SeekFrom, Write};
+
+    fn read_idem_count(file: &mut std::fs::File) -> usize {
+        let mut buf = String::new();
+        if file.seek(SeekFrom::Start(0)).is_err() {
+            return 0;
         }
-        accepted += 1;
+        if file.read_to_string(&mut buf).is_err() {
+            return 0;
+        }
+        buf.trim().parse::<usize>().unwrap_or(0)
     }
 
-    // Best-effort: record accepted count in the idempotency file
-    use std::io::Write;
-    if let Err(e) = idem_handle.write_all(accepted.to_string().as_bytes()) {
-        tracing::warn!("failed to write idempotency key file: {e}");
+    fn write_idem_count(file: &mut std::fs::File, count: usize) -> std::io::Result<()> {
+        file.set_len(0)?;
+        file.seek(SeekFrom::Start(0))?;
+        file.write_all(count.to_string().as_bytes())?;
+        file.flush()
+    }
+
+    let total = payload.events.len();
+    let already_accepted = read_idem_count(&mut idem_handle).min(total);
+    let duplicates = already_accepted;
+
+    if duplicates >= total {
+        return Ok(Json(IngestEventsResponse {
+            accepted: 0,
+            duplicates: total,
+        }));
+    }
+
+    // Write the remaining events to the audit log.
+    //
+    // We fail fast on the first write error so `duplicates` always refers to a
+    // contiguous prefix of successfully appended events.
+    let writer = ito_core::audit::FsAuditWriter::new(&state.ito_path);
+    let mut accepted = 0usize;
+    let mut progress = duplicates;
+
+    for event in payload.events.iter().skip(duplicates) {
+        if let Err(e) = ito_core::audit::AuditWriter::append(&writer, event) {
+            tracing::warn!("event ingest write failed: {e}");
+
+            // Best-effort: persist progress so retries can skip the already written prefix.
+            let _ = write_idem_count(&mut idem_handle, progress);
+
+            return Err(ApiErrorResponse::internal(
+                "Failed to ingest events (write error)",
+            ));
+        }
+
+        accepted += 1;
+        progress += 1;
+
+        // Best-effort: persist progress after each successful append, so crashes
+        // don't force re-appending already written events.
+        let _ = write_idem_count(&mut idem_handle, progress);
     }
 
     Ok(Json(IngestEventsResponse {
         accepted,
-        duplicates: 0,
+        duplicates,
     }))
 }
 
