@@ -175,7 +175,7 @@ pub struct ApiModule {
 ///
 /// Domain repositories return `DomainResult`; we convert `DomainError` to
 /// `CoreError` first (via `From`) to reuse the centralized error mapping.
-fn map_domain_err<T>(result: Result<T, ito_core::DomainError>) -> Result<T, ApiErrorResponse> {
+fn map_domain_err<T>(result: Result<T, ito_domain::errors::DomainError>) -> Result<T, ApiErrorResponse> {
     result.map_err(|e| {
         let core_err: ito_core::errors::CoreError = e.into();
         ApiErrorResponse::from(core_err)
@@ -300,8 +300,8 @@ pub async fn get_change_tasks(
     let repo = FsTaskRepository::new(&state.ito_path);
     let result = map_domain_err(repo.load_tasks(&change_id))?;
     let format_label = match result.format {
-        ito_core::TasksFormat::Enhanced => "enhanced",
-        ito_core::TasksFormat::Checkbox => "checkbox",
+        ito_domain::tasks::TasksFormat::Enhanced => "enhanced",
+        ito_domain::tasks::TasksFormat::Checkbox => "checkbox",
     };
     let mut tasks: Vec<ApiTaskItem> = Vec::with_capacity(result.tasks.len());
     for t in result.tasks {
