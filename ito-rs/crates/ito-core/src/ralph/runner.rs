@@ -10,12 +10,14 @@ use crate::ralph::state::{
     save_state,
 };
 use crate::ralph::validation;
+use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::{
     ChangeRepository as DomainChangeRepository, ChangeSummary, ChangeTargetResolution,
     ChangeWorkStatus,
 };
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 use ito_domain::tasks::TaskRepository as DomainTaskRepository;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -297,31 +299,51 @@ pub fn run_ralph(
             ));
         }
 
+        let mut processed: BTreeSet<String> = BTreeSet::new();
+
         loop {
             let current_changes = module_changes(change_repo, &module_id)?;
-            let ready_changes = module_ready_change_ids(&current_changes);
-            print_ready_changes(&module_id, &ready_changes);
+            let ready_all = module_ready_change_ids(&current_changes);
+            print_ready_changes(&module_id, &ready_all);
+
+            // Filter out changes already processed in this `--continue-module` session.
+            let ready_changes: Vec<String> = ready_all
+                .iter()
+                .filter(|id| !processed.contains(*id))
+                .cloned()
+                .collect();
 
             if ready_changes.is_empty() {
-                let incomplete = module_incomplete_change_ids(&current_changes);
+                // If there were no ready changes at all, preserve existing behavior.
+                if ready_all.is_empty() {
+                    let incomplete = module_incomplete_change_ids(&current_changes);
 
-                if incomplete.is_empty() {
-                    println!("\nModule {module} is complete.", module = module_id);
-                    return Ok(());
+                    if incomplete.is_empty() {
+                        println!("\nModule {module} is complete.", module = module_id);
+                        return Ok(());
+                    }
+
+                    return Err(CoreError::Validation(format!(
+                        "Module {module} has no ready changes. Remaining non-complete changes: {}",
+                        incomplete.join(", "),
+                        module = module_id
+                    )));
                 }
 
-                return Err(CoreError::Validation(format!(
-                    "Module {module} has no ready changes. Remaining non-complete changes: {}",
-                    incomplete.join(", "),
+                // All ready changes were already processed in this run. Exit cleanly so callers
+                // can re-run the loop after merging/refreshing state.
+                println!(
+                    "\nModule {module} has no additional ready changes (all ready changes were already processed in this run).",
                     module = module_id
-                )));
+                );
+                return Ok(());
             }
 
             let mut next_change = ready_changes[0].clone();
 
             let preflight_changes = module_changes(change_repo, &module_id)?;
-            let preflight_ready = module_ready_change_ids(&preflight_changes);
-            if preflight_ready.is_empty() {
+            let preflight_ready_all = module_ready_change_ids(&preflight_changes);
+            if preflight_ready_all.is_empty() {
                 let incomplete = module_incomplete_change_ids(&preflight_changes);
                 if incomplete.is_empty() {
                     println!("\nModule {module} is complete.", module = module_id);
@@ -333,6 +355,21 @@ pub fn run_ralph(
                     module = module_id
                 )));
             }
+
+            let preflight_ready: Vec<String> = preflight_ready_all
+                .iter()
+                .filter(|id| !processed.contains(*id))
+                .cloned()
+                .collect();
+
+            if preflight_ready.is_empty() {
+                println!(
+                    "\nModule {module} has no additional ready changes (all ready changes were already processed in this run).",
+                    module = module_id
+                );
+                return Ok(());
+            }
+
             let preflight_first = preflight_ready[0].clone();
             if preflight_first != next_change {
                 println!(
@@ -351,7 +388,7 @@ pub fn run_ralph(
             let mut single_opts = opts.clone();
             single_opts.continue_module = false;
             single_opts.continue_ready = false;
-            single_opts.change_id = Some(next_change);
+            single_opts.change_id = Some(next_change.clone());
 
             run_ralph(
                 ito_path,
@@ -361,6 +398,9 @@ pub fn run_ralph(
                 single_opts,
                 harness,
             )?;
+
+            // Avoid re-processing the same ready change repeatedly within the same `--continue-module` run.
+            processed.insert(next_change);
 
             let post_changes = module_changes(change_repo, &module_id)?;
             let post_ready = module_ready_change_ids(&post_changes);
@@ -668,14 +708,37 @@ pub fn run_ralph(
                 return Ok(());
             }
 
+            let change_id_opt = if unscoped_target {
+                None
+            } else {
+                Some(change_id.as_str())
+            };
+
+            // If we're running inside a resolved worktree and it contains the change tasks file,
+            // validate tasks against that worktree-local `.ito/` state. This prevents the loop
+            // from validating against the caller's `.ito/` when the change work is happening in
+            // a separate worktree.
+            let fs_task_repo;
+            let task_repo_for_validation: &dyn DomainTaskRepository =
+                if let Some(change_id) = change_id_opt {
+                    let tasks_path = effective_ito_path
+                        .join("changes")
+                        .join(change_id)
+                        .join("tasks.md");
+                    if tasks_path.is_file() {
+                        fs_task_repo = FsTaskRepository::new(effective_ito_path);
+                        &fs_task_repo
+                    } else {
+                        task_repo
+                    }
+                } else {
+                    task_repo
+                };
+
             let report = validate_completion(
                 effective_ito_path,
-                task_repo,
-                if unscoped_target {
-                    None
-                } else {
-                    Some(change_id.as_str())
-                },
+                task_repo_for_validation,
+                change_id_opt,
                 opts.validation_command.as_deref(),
             )?;
             if report.passed {
@@ -797,7 +860,7 @@ struct CompletionValidationReport {
 
 fn validate_completion(
     ito_path: &Path,
-    task_repo: &impl DomainTaskRepository,
+    task_repo: &dyn DomainTaskRepository,
     change_id: Option<&str>,
     extra_command: Option<&str>,
 ) -> CoreResult<CompletionValidationReport> {
@@ -1022,6 +1085,13 @@ fn count_git_changes(runner: &dyn ProcessRunner, cwd: &Path) -> CoreResult<usize
 }
 
 fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> CoreResult<()> {
+    // Fast path: avoid `git commit` failing with "nothing to commit" by checking staged changes.
+    // We check both before and after `git add -A` to handle cases where porcelain output reports
+    // changes but nothing ends up staged (for example due to filters or hooks).
+    if count_git_changes(runner, cwd)? == 0 {
+        return Ok(());
+    }
+
     let add_request = ProcessRequest::new("git")
         .args(["add", "-A"])
         .current_dir(cwd.to_path_buf());
@@ -1043,6 +1113,10 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
         return Err(CoreError::Process(msg));
     }
 
+    if count_git_changes(runner, cwd)? == 0 {
+        return Ok(());
+    }
+
     let msg = format!("Ralph loop iteration {iteration}");
     let commit_request = ProcessRequest::new("git")
         .args(["commit", "-m", &msg])
@@ -1053,6 +1127,13 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
     if !commit.success {
         let stdout = commit.stdout.trim().to_string();
         let stderr = commit.stderr.trim().to_string();
+
+        // Treat "nothing to commit" as a successful no-op.
+        let combined = format!("{stdout}\n{stderr}").to_ascii_lowercase();
+        if combined.contains("nothing to commit") || combined.contains("working tree clean") {
+            return Ok(());
+        }
+
         let mut msg = format!("git commit failed for iteration {iteration}");
         if !stdout.is_empty() {
             msg.push_str("\nstdout:\n");
