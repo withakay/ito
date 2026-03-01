@@ -48,6 +48,9 @@ pub mod errors;
 /// Client-side forwarding of local audit events to the backend.
 pub mod event_forwarder;
 
+/// YAML front matter parsing, writing, and metadata utilities for artifacts.
+pub mod front_matter;
+
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
 
