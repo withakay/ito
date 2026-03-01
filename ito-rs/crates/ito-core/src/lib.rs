@@ -48,6 +48,12 @@ pub mod errors;
 /// Client-side forwarding of local audit events to the backend.
 pub mod event_forwarder;
 
+/// Filesystem-backed backend project store implementation.
+pub mod fs_project_store;
+
+/// SQLite-backed backend project store proof-of-concept.
+pub mod sqlite_project_store;
+
 /// YAML front matter parsing, writing, and metadata utilities for artifacts.
 pub mod front_matter;
 
@@ -107,9 +113,9 @@ pub mod templates;
 // Re-export domain types for CLI and adapter convenience
 pub use ito_domain::backend::{
     AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
-    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendSyncClient,
-    BackendTaskReader, ClaimResult, EventBatch, EventIngestResult, LeaseConflict, PushResult,
-    ReleaseResult, RevisionConflict,
+    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendProjectStore,
+    BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch, EventIngestResult,
+    LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
 pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
 pub use ito_domain::errors::DomainError;

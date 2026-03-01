@@ -67,7 +67,7 @@ ______________________________________________________________________
   - Old single-project routes are removed
   - New routes cover: changes list/get/tasks, modules list/get, events ingest
 - **Updated At**: 2026-03-01
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Implement admin + derived project token authentication
 
@@ -80,8 +80,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-backend auth`
 - **Done When**:
   - Tests cover: admin token, project token match, mismatch forbidden
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 2.3: Implement org/repo allowlist enforcement
 
@@ -92,8 +92,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-backend allowlist`
 - **Done When**:
   - Disallowed org/repo requests are rejected
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -111,8 +111,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-domain`
 - **Done When**:
   - `ito-backend` can be wired without directly depending on filesystem paths
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 3.2: Implement filesystem project store (default)
 
@@ -124,8 +124,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-core fs_project_store`
 - **Done When**:
   - Backend can serve multiple projects from one instance using filesystem store
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 3.3: Implement SQLite project store proof-of-concept
 
@@ -137,8 +137,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-core sqlite_project_store`
 - **Done When**:
   - Basic parity tests pass for read/write scenarios
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 3.4: Wire backend server config to select store implementation
 
@@ -152,8 +152,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-config -p ito-cli -p ito-backend`
 - **Done When**:
   - `ito serve-api` starts a multi-tenant server using configured store
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -172,8 +172,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-cli`
 - **Done When**:
   - Backend event forwarding works with the new multi-tenant backend routing
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 4.2: Add end-to-end tests for multi-tenant routing + auth
 
@@ -186,8 +186,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-backend`
 - **Done When**:
   - Tests demonstrate serving 2+ projects without git checkouts
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 4.3: Update agent instructions + embedded skills/commands for backend mode
 
@@ -206,5 +206,5 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-cli -p ito-templates`
 - **Done When**:
   - Agents can discover backend configuration/usage guidance via `ito agent instruction backend`
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete

@@ -156,9 +156,9 @@ impl<'a> ModuleRepository<'a> {
 ## Migration Strategy
 
 ### Phase 1: Core Implementation
-1. Create domain models in `ito-workflow/src/changes/mod.rs`
-2. Create `ChangeRepository` in `ito-workflow/src/changes/repository.rs`
-3. Create `ModuleRepository` in `ito-workflow/src/modules/repository.rs`
+1. Create domain models in `ito-domain/src/changes/mod.rs`
+2. Create `ChangeRepository` in `ito-domain/src/changes/repository.rs`
+3. Create `ModuleRepository` in `ito-domain/src/modules/repository.rs`
 4. Add comprehensive unit tests
 
 ### Phase 2: CLI Migration

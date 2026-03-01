@@ -132,6 +132,48 @@ impl std::fmt::Display for BackendError {
 
 impl std::error::Error for BackendError {}
 
+// ── Project store port ──────────────────────────────────────────────
+
+/// Port for resolving `{org}/{repo}` to project-level repositories.
+///
+/// The backend server uses this trait to obtain domain repository instances
+/// for a given project namespace. Implementations live in `ito-core` and
+/// may be backed by the filesystem or a database.
+///
+/// This trait is `Send + Sync` so it can be shared across async request
+/// handlers via `Arc`.
+pub trait BackendProjectStore: Send + Sync {
+    /// Obtain a change repository for the given project.
+    fn change_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::changes::ChangeRepository + Send>>;
+
+    /// Obtain a module repository for the given project.
+    fn module_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::modules::ModuleRepository + Send>>;
+
+    /// Obtain a task repository for the given project.
+    fn task_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::tasks::TaskRepository + Send>>;
+
+    /// Ensure the project directory/storage structure exists.
+    ///
+    /// Called before first write to a project. Implementations should
+    /// create whatever backing store structure is needed.
+    fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()>;
+
+    /// Check whether the project exists in the store.
+    fn project_exists(&self, org: &str, repo: &str) -> bool;
+}
+
 // ── Port traits ─────────────────────────────────────────────────────
 
 /// Port for backend lease operations (claim, release, allocate).
