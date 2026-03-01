@@ -22,8 +22,8 @@ This duplication leads to inconsistencies, bugs, and makes it hard to add new fe
 
 ## What Changes
 
-- Create `ChangeRepository` in `ito-workflow` for loading and querying changes
-- Create `ModuleRepository` in `ito-workflow` for loading and querying modules
+- Create `ChangeRepository` in `ito-domain` for loading and querying changes
+- Create `ModuleRepository` in `ito-domain` for loading and querying modules
 - Define domain models: `Change`, `ChangeSummary`, `Module`, `ModuleSummary`
 - Migrate CLI commands to use repositories instead of direct path access
 - Integrate `TaskRepository` into `ChangeRepository` for unified access

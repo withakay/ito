@@ -16,11 +16,6 @@ use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use ito_core::DomainTaskRepository as _;
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
-use ito_core::task_repository::FsTaskRepository;
-
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
 
@@ -220,9 +215,8 @@ pub async fn list_changes(
     State(state): State<Arc<AppState>>,
     Path((org, repo)): Path<(String, String)>,
 ) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
-    let ito_path = state.ito_path_for(&org, &repo);
-    let repo = FsChangeRepository::new(&ito_path);
-    let changes = map_domain_err(repo.list())?;
+    let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
+    let changes = map_domain_err(change_repo.list())?;
 
     let mut summaries: Vec<ApiChangeSummary> = Vec::with_capacity(changes.len());
     for c in changes {
@@ -244,8 +238,7 @@ pub async fn get_change(
     State(state): State<Arc<AppState>>,
     Path((org, repo, change_id)): Path<(String, String, String)>,
 ) -> Result<Json<ApiChange>, ApiErrorResponse> {
-    let ito_path = state.ito_path_for(&org, &repo);
-    let change_repo = FsChangeRepository::new(&ito_path);
+    let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
     let change = map_domain_err(change_repo.get(&change_id))?;
     let api_change = ApiChange {
         id: change.id,
@@ -278,8 +271,7 @@ pub async fn get_change_tasks(
     State(state): State<Arc<AppState>>,
     Path((org, repo, change_id)): Path<(String, String, String)>,
 ) -> Result<Json<ApiTaskList>, ApiErrorResponse> {
-    let ito_path = state.ito_path_for(&org, &repo);
-    let task_repo = FsTaskRepository::new(&ito_path);
+    let task_repo = map_domain_err(state.store.task_repository(&org, &repo))?;
     let result = map_domain_err(task_repo.load_tasks(&change_id))?;
     let format_label = match result.format {
         ito_core::TasksFormat::Enhanced => "enhanced",
@@ -315,8 +307,7 @@ pub async fn list_modules(
     State(state): State<Arc<AppState>>,
     Path((org, repo)): Path<(String, String)>,
 ) -> Result<Json<Vec<ApiModuleSummary>>, ApiErrorResponse> {
-    let ito_path = state.ito_path_for(&org, &repo);
-    let module_repo = FsModuleRepository::new(&ito_path);
+    let module_repo = map_domain_err(state.store.module_repository(&org, &repo))?;
     let modules = map_domain_err(module_repo.list())?;
 
     let mut summaries: Vec<ApiModuleSummary> = Vec::with_capacity(modules.len());
@@ -336,8 +327,7 @@ pub async fn get_module(
     State(state): State<Arc<AppState>>,
     Path((org, repo, module_id)): Path<(String, String, String)>,
 ) -> Result<Json<ApiModule>, ApiErrorResponse> {
-    let ito_path = state.ito_path_for(&org, &repo);
-    let module_repo = FsModuleRepository::new(&ito_path);
+    let module_repo = map_domain_err(state.store.module_repository(&org, &repo))?;
     let module = map_domain_err(module_repo.get(&module_id))?;
     Ok(Json(ApiModule {
         id: module.id,

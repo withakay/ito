@@ -33,6 +33,9 @@ ito agent instruction archive --change "<change-id>"
 
 # Worktrees / multi-branch workflow (per-developer)
 ito agent instruction worktrees
+
+# Backend server configuration and usage
+ito agent instruction backend
 ```
 
 ### Task Management

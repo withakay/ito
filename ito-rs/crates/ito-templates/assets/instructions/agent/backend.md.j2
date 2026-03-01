@@ -1,0 +1,146 @@
+# Ito Backend Configuration Guide
+
+This guide covers the multi-tenant backend server and client configuration for Ito.
+
+## Architecture Overview
+
+The Ito backend is a multi-tenant HTTP API that serves project data for
+`{org}/{repo}` namespaces. All project-scoped routes are nested under:
+
+```
+/api/v1/projects/{org}/{repo}/...
+```
+
+A single server instance can serve many projects without requiring individual
+git checkouts.
+
+## Client Configuration (`backend` section in `ito.json`)
+
+Enable backend mode in your project config:
+
+```json
+{
+  "backend": {
+    "enabled": true,
+    "url": "http://127.0.0.1:9010",
+    "token": null,
+    "tokenEnvVar": "ITO_BACKEND_TOKEN",
+    "project": {
+      "org": "my-org",
+      "repo": "my-repo"
+    },
+    "timeoutMs": 30000,
+    "maxRetries": 3
+  }
+}
+```
+
+### Key Fields
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `enabled` | Enable backend API integration | `false` |
+| `url` | Base URL for the backend server | `http://127.0.0.1:9010` |
+| `token` | Explicit bearer token (overrides env var) | `null` |
+| `tokenEnvVar` | Env var name holding the bearer token | `ITO_BACKEND_TOKEN` |
+| `project.org` | Organization namespace for routing | _(required when enabled)_ |
+| `project.repo` | Repository namespace for routing | _(required when enabled)_ |
+| `timeoutMs` | Request timeout in milliseconds | `30000` |
+| `maxRetries` | Retry attempts for transient failures | `3` |
+
+### Environment Variable Overrides
+
+Project namespace can be overridden via environment variables:
+
+- `ITO_BACKEND_PROJECT_ORG` — overrides `project.org`
+- `ITO_BACKEND_PROJECT_REPO` — overrides `project.repo`
+
+Config values take precedence over environment variables.
+
+## Server Configuration (`server` section)
+
+The server config is used when running `ito serve`:
+
+```json
+{
+  "server": {
+    "enabled": true,
+    "bind": "127.0.0.1",
+    "port": 9010,
+    "dataDir": "/path/to/data",
+    "storage": {
+      "kind": "filesystem"
+    },
+    "auth": {
+      "adminTokens": ["<admin-token>"],
+      "tokenSeed": "<secret-seed>"
+    },
+    "allowed": {
+      "orgs": ["my-org"],
+      "repos": {
+        "my-org": "*"
+      }
+    }
+  }
+}
+```
+
+### Storage Backends
+
+- **`filesystem`** (default): Stores project data as markdown files under `{dataDir}/projects/{org}/{repo}/.ito/`
+- **`sqlite`**: Proof-of-concept SQLite-backed storage (single database, keyed by org/repo)
+
+### Authentication Model
+
+The backend uses a two-tier token model:
+
+1. **Admin tokens** — Full access to any project. Listed in `auth.adminTokens`.
+2. **Derived project tokens** — Scoped to a single `{org}/{repo}`. Computed as `HMAC-SHA256(tokenSeed, "{org}/{repo}")`.
+
+Clients typically use derived tokens. Admin tokens are for operators and CI.
+
+### Allowlist Enforcement
+
+Requests to non-allowlisted org/repo pairs are rejected with HTTP 403,
+even with a valid admin token. Configure via:
+
+- `allowed.orgs` — list of permitted organizations
+- `allowed.repos` — per-org policies: `"*"` (all repos) or a list of specific repos
+
+## API Endpoints
+
+All project-scoped endpoints require authentication.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/health` | Health check (unauthenticated) |
+| GET | `/api/v1/ready` | Readiness check (unauthenticated) |
+| GET | `/api/v1/projects/{org}/{repo}/changes` | List changes |
+| GET | `/api/v1/projects/{org}/{repo}/changes/{id}` | Get change details |
+| GET | `/api/v1/projects/{org}/{repo}/changes/{id}/tasks` | Get change tasks |
+| GET | `/api/v1/projects/{org}/{repo}/modules` | List modules |
+| GET | `/api/v1/projects/{org}/{repo}/modules/{id}` | Get module details |
+| POST | `/api/v1/projects/{org}/{repo}/events` | Ingest audit events |
+
+## Event Forwarding
+
+When backend mode is enabled, the CLI automatically forwards local audit
+events to the backend after each command. Events are sent to:
+
+```
+POST {url}/api/v1/projects/{org}/{repo}/events
+```
+
+Forwarding is best-effort and never affects command outcome.
+
+## Running the Server
+
+```bash
+ito serve --data-dir /path/to/data --admin-token <token> --token-seed <seed> --allow-org my-org
+```
+
+Or with a config file that has the `server` section configured:
+
+```bash
+ito serve
+```

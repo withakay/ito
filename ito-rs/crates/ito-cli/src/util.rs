@@ -228,6 +228,8 @@ fn forward_events_if_backend(rt: &Runtime) {
         base_url: runtime.base_url,
         token: runtime.token,
         timeout: runtime.timeout,
+        org: runtime.org,
+        repo: runtime.repo,
     };
     let forwarder_config = ForwarderConfig {
         max_retries: runtime.max_retries,
@@ -258,6 +260,8 @@ struct HttpEventIngestClient {
     base_url: String,
     token: String,
     timeout: std::time::Duration,
+    org: String,
+    repo: String,
 }
 
 impl ito_core::BackendEventIngestClient for HttpEventIngestClient {
@@ -265,7 +269,10 @@ impl ito_core::BackendEventIngestClient for HttpEventIngestClient {
         &self,
         batch: &ito_core::EventBatch,
     ) -> Result<ito_core::EventIngestResult, ito_core::BackendError> {
-        let url = format!("{}/api/v1/events", self.base_url);
+        let url = format!(
+            "{}/api/v1/projects/{}/{}/events",
+            self.base_url, self.org, self.repo
+        );
         let body = serde_json::to_string(batch)
             .map_err(|e| ito_core::BackendError::Other(format!("serialize batch: {e}")))?;
 
