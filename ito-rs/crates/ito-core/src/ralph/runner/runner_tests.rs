@@ -309,21 +309,60 @@ fn count_git_changes_returns_zero_on_git_failure() {
 }
 
 #[test]
+fn commit_iteration_noops_when_no_changes() {
+    let cwd = Path::new("/tmp");
+    commit_iteration(&MockRunner::new(vec![ok("", 0)]), 1, cwd).unwrap();
+}
+
+#[test]
 fn commit_iteration_succeeds_when_git_add_and_commit_succeed() {
     let cwd = Path::new("/tmp");
-    commit_iteration(&MockRunner::new(vec![ok("", 0), ok("", 0)]), 1, cwd).unwrap();
+    // count_git_changes -> git add -> count_git_changes -> git commit
+    commit_iteration(
+        &MockRunner::new(vec![ok(" M a\n", 0), ok("", 0), ok(" M a\n", 0), ok("", 0)]),
+        1,
+        cwd,
+    )
+    .unwrap();
+}
+
+#[test]
+fn commit_iteration_treats_nothing_to_commit_as_success() {
+    let cwd = Path::new("/tmp");
+    let nothing_to_commit = Ok(ProcessOutput {
+        exit_code: 1,
+        success: false,
+        stdout: String::new(),
+        stderr: "nothing to commit, working tree clean".into(),
+        timed_out: false,
+    });
+
+    commit_iteration(
+        &MockRunner::new(vec![
+            ok(" M a\n", 0),
+            ok("", 0),
+            ok(" M a\n", 0),
+            nothing_to_commit,
+        ]),
+        1,
+        cwd,
+    )
+    .unwrap();
 }
 
 #[test]
 fn commit_iteration_errors_on_git_add_failure() {
     let cwd = Path::new("/tmp");
-    let bad = MockRunner::new(vec![Ok(ProcessOutput {
+    let bad_add = Ok(ProcessOutput {
         exit_code: 1,
         success: false,
         stdout: String::new(),
         stderr: "e".into(),
         timed_out: false,
-    })]);
+    });
+
+    // count_git_changes -> git add (fail)
+    let bad = MockRunner::new(vec![ok(" M a\n", 0), bad_add]);
     assert!(commit_iteration(&bad, 1, cwd).is_err());
 }
 
