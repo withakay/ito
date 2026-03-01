@@ -23,6 +23,7 @@ Commands:
   config       Read and write global Ito settings [aliases: co]
   path         Print resolved project and worktree paths
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
+  serve-api    Start the backend state API server
   audit        Query, validate, and manage the audit event log [aliases: au]
   completions  Output shell completion scripts [aliases: cp]
   stats        Display command execution counts and history [aliases: ss]

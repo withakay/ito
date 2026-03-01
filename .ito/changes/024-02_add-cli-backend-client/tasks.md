@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-config && cargo test -p ito-core`
 - **Done When**: Backend runtime config resolves predictably and client factory can be constructed in tests.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Define backend client interfaces in domain/core boundaries
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-domain && cargo test -p ito-core`
 - **Done When**: Layer boundaries remain clean and backend operations are mockable in unit tests.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core repository`
 - **Done When**: Change and task repository calls resolve from backend in backend mode and filesystem mode remains intact.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Add pull/push artifact sync service with revision conflict handling
 
@@ -62,7 +62,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core sync`
 - **Done When**: Pull writes local artifacts with revision metadata and push fails safely on stale revisions.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli claim && cargo test -p ito-cli allocate`
 - **Done When**: Commands call backend services, print deterministic output, and surface lease conflicts clearly.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Integrate backend sync into task mutation command path
 
@@ -88,7 +88,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli tasks`
 - **Done When**: Task mutations in backend mode persist through backend sync and conflict conditions fail with actionable guidance.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -104,7 +104,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Backend mode behavior is covered by end-to-end tests with deterministic assertions.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 4.2: Document backend client mode usage and failure recovery
 
@@ -114,4 +114,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Documentation covers setup, normal usage, and troubleshooting for backend mode.
 - **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Status**: [x] complete

@@ -155,6 +155,34 @@ Cache settings live under `cache`:
 
 - `cache.ttl_hours`
 
+### Backend API
+
+Backend mode enables multi-agent coordination through a shared backend API. Settings live under `backend`:
+
+- `backend.enabled` — Enable backend API integration (default: `false`)
+- `backend.url` — Base URL for the backend API (default: `http://127.0.0.1:9010`)
+- `backend.token` — Explicit authentication token (optional; overrides env var)
+- `backend.token_env_var` — Environment variable holding the bearer token (default: `ITO_BACKEND_TOKEN`)
+- `backend.backup_dir` — Directory for artifact backup snapshots during sync (default: `~/.ito/backups`)
+- `backend.timeout_ms` — Request timeout in milliseconds (default: `30000`)
+- `backend.max_retries` — Maximum retry attempts for transient failures (default: `3`)
+
+Example:
+
+```json
+{
+  "backend": {
+    "enabled": true,
+    "url": "https://ito-backend.example.com",
+    "token_env_var": "ITO_BACKEND_TOKEN",
+    "timeout_ms": 15000,
+    "max_retries": 2
+  }
+}
+```
+
+See [Backend Client Mode](backend-client-mode.md) for usage and troubleshooting.
+
 ### Change coordination
 
 Change coordination settings live under `changes.coordination_branch`:

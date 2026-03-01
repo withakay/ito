@@ -1,143 +1,80 @@
-# Tasks for: 024-01_add-shared-state-api
+## 1. Scaffold ito-backend crate
 
-## Execution Notes
+- [x] 1.1 Create `ito-rs/crates/ito-backend/` directory structure with `src/lib.rs` and `Cargo.toml`
+- [x] 1.2 Add `ito-backend` to workspace `Cargo.toml` members and `workspace.dependencies`
+- [x] 1.3 Configure dependencies: `axum`, `tokio`, `tower-http`, `serde_json`, `ito-core`, `ito-domain`, `ito-config`
+- [x] 1.4 Add `#![warn(missing_docs)]` and module documentation
+- [x] 1.5 Verify `make build` succeeds with the new crate
 
-- **Tracking**: Use `ito tasks` CLI for status updates.
-- **Status legend**: `[ ] pending` · `[>] in-progress` · `[x] complete` · `[-] shelved`
+## 2. Implement shared application state
 
-```bash
-ito tasks status 024-01_add-shared-state-api
-ito tasks next 024-01_add-shared-state-api
-ito tasks start 024-01_add-shared-state-api 1.1
-ito tasks complete 024-01_add-shared-state-api 1.1
-```
+- [x] 2.1 Define `AppState` struct holding repository instances, project root, and ito path
+- [x] 2.2 Implement `AppState::new()` constructor that builds repositories from a project root path
+- [x] 2.3 Write unit tests for `AppState` construction
 
-______________________________________________________________________
+## 3. Implement health and readiness endpoints
 
-## Wave 1
+- [x] 3.1 Create `GET /api/v1/health` endpoint returning `{"status": "ok"}`
+- [x] 3.2 Create `GET /api/v1/ready` endpoint that checks `.ito/` directory existence
+- [x] 3.3 Write integration tests for health and readiness endpoints
 
-- **Depends On**: None
+## 4. Implement authentication middleware
 
-### Task 1.1: Finalize OpenAPI contract and endpoint shapes
+- [x] 4.1 Create bearer token authentication middleware (extract from `Authorization` header)
+- [x] 4.2 Support deterministic token generation (SHA-256 of hostname + project root + salt) as default
+- [x] 4.3 Support explicit token override via configuration
+- [x] 4.4 Exempt `/api/v1/health` and `/api/v1/ready` from authentication
+- [x] 4.5 Return 401 Unauthorized with structured error for invalid/missing tokens
+- [x] 4.6 Write tests for auth middleware (valid token, invalid token, missing token, exempt paths)
 
-- **Files**: `ito-rs/crates/ito-web/`, `docs/`, `.ito/changes/024-01_add-shared-state-api/specs/`
-- **Dependencies**: None
-- **Action**: Define the `v1` OpenAPI resources for projects, changes, leases, allocation, artifacts, and event ingest, including request/response schemas and error envelopes.
-- **Verify**: `make check`
-- **Done When**: OpenAPI contract is versioned, complete for v1 scope, and aligned with spec deltas.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+## 5. Implement change API endpoints
 
-### Task 1.2: Define backend persistence model for v1 entities
+- [x] 5.1 Create `GET /api/v1/changes` endpoint returning list of `ChangeSummary`
+- [x] 5.2 Create `GET /api/v1/changes/{change_id}` endpoint returning full `Change`
+- [x] 5.3 Implement 404 error handling for non-existent changes
+- [x] 5.4 Create `GET /api/v1/changes/{change_id}/tasks` endpoint returning task list with progress
+- [x] 5.5 Write integration tests for all change endpoints (happy path and error cases)
 
-- **Files**: `ito-rs/crates/ito-core/`, `ito-rs/crates/ito-domain/`, backend migration files
-- **Dependencies**: Task 1.1
-- **Action**: Define storage schema and repository interfaces for projects, change leases, artifact revisions, allocation metadata, and ingested events.
-- **Verify**: `make check`
-- **Done When**: Domain and core persistence contracts exist for all v1 entities with migration plan documented.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+## 6. Implement module API endpoints
 
-______________________________________________________________________
+- [x] 6.1 Create `GET /api/v1/modules` endpoint returning list of `ModuleSummary`
+- [x] 6.2 Create `GET /api/v1/modules/{module_id}` endpoint returning full `Module`
+- [x] 6.3 Implement 404 error handling for non-existent modules
+- [x] 6.4 Write integration tests for module endpoints
 
-## Wave 2
+## 7. Implement structured error responses
 
-- **Depends On**: Wave 1
+- [x] 7.1 Define `ApiError` type with `error` message and `code` fields
+- [x] 7.2 Implement `IntoResponse` for `ApiError` to produce JSON error bodies
+- [x] 7.3 Map `CoreError` and `DomainError` variants to appropriate HTTP status codes
+- [x] 7.4 Write tests for error response format
 
-### Task 2.1: Implement auth and project-scoping middleware
+## 8. Implement server bootstrap and router assembly
 
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-config/`, `ito-rs/crates/ito-core/`
-- **Dependencies**: None
-- **Action**: Implement bearer token validation, project-scope authorization checks, and config/env token resolution (`ITO_BACKEND_TOKEN` by default).
-- **Verify**: `cargo test -p ito-web`
-- **Done When**: Protected endpoints reject missing/invalid/mismatched tokens and accept valid project-scoped tokens.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- [x] 8.1 Create `BackendConfig` struct (bind address, port, token, project root)
+- [x] 8.2 Implement `serve()` async function that assembles routes, middleware, and starts the server
+- [x] 8.3 Add CORS middleware with configurable allowed origins
+- [x] 8.4 Write integration test that starts server and makes a full request cycle
 
-### Task 2.2: Implement change lease lifecycle endpoints
+## 9. Add backend configuration to ItoConfig
 
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`, `ito-rs/crates/ito-domain/`
-- **Dependencies**: Task 2.1
-- **Action**: Implement acquire, heartbeat, and release endpoints with TTL-based expiration handling and conflict responses.
-- **Verify**: `cargo test -p ito-web lease`
-- **Done When**: Only one active lease exists per change, heartbeats renew owner leases, and expired leases are reclaimed.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- [x] 9.1 Add `BackendConfig` section to config types (`url`, `token`, `enabled`)
+- [x] 9.2 Add serde/schemars annotations for JSON schema generation
+- [x] 9.3 Set defaults (`enabled: false`, `url: http://127.0.0.1:9010`)
+- [x] 9.4 Write tests for config loading with backend settings
 
-______________________________________________________________________
+## 10. Add CLI serve-api subcommand
 
-## Wave 3
+- [x] 10.1 Add `serve-api` subcommand to `ito-cli` (feature-gated behind `backend` feature)
+- [x] 10.2 Support `--bind`, `--port`, and `--token` CLI arguments
+- [x] 10.3 Resolve project root and construct `BackendConfig`
+- [x] 10.4 Output listening address and token to stderr on startup
+- [x] 10.5 Write CLI integration test for `serve-api` subcommand
 
-- **Depends On**: Wave 2
+## 11. Architecture and quality verification
 
-### Task 3.1: Implement atomic change allocation endpoint
-
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`
-- **Dependencies**: None
-- **Action**: Implement "claim next available change" with atomic lease creation and idempotency-key retry behavior.
-- **Verify**: `cargo test -p ito-web allocation`
-- **Done When**: Allocation either returns one leased change or a no-work response, and idempotent retries do not duplicate leases.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
-
-### Task 3.2: Implement markdown artifact bundle read/write endpoints
-
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`, persistence adapters
-- **Dependencies**: Task 3.1
-- **Action**: Add artifact bundle read endpoint and revision-checked artifact write endpoint with conflict payloads.
-- **Verify**: `cargo test -p ito-web artifacts`
-- **Done When**: Clients can pull all authored artifacts for a change and push updates with optimistic concurrency conflict handling.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
-
-______________________________________________________________________
-
-## Wave 4
-
-- **Depends On**: Wave 3
-
-### Task 4.1: Implement event ingest endpoint with idempotency
-
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`, `ito-rs/crates/ito-domain/`
-- **Dependencies**: None
-- **Action**: Implement authenticated batch event ingest with schema validation, append-only persistence, and idempotency-key deduplication.
-- **Verify**: `cargo test -p ito-web events`
-- **Done When**: Valid event batches persist once, retries with same idempotency key do not duplicate, and invalid payloads fail cleanly.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
-
-### Task 4.2: Add end-to-end tests and rollout docs
-
-- **Files**: `ito-rs/crates/ito-web/tests/`, `docs/`, `.ito/specs/` (as needed)
-- **Dependencies**: Task 4.1
-- **Action**: Add integration tests for auth, leasing, allocation, artifact sync, and event ingest flows; document operational setup and failure modes.
-- **Verify**: `make check`
-- **Done When**: Test suite covers happy path and conflict/error paths, and docs describe v1 backend setup and migration toggles.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
-
-______________________________________________________________________
-
-## Wave 5
-
-- **Depends On**: Wave 4
-
-### Task 5.1: Implement backend archive endpoint and archived status field
-
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`
-- **Dependencies**: None
-- **Action**: Implement change archive operation and ensure change reads include archived status.
-- **Verify**: `cargo test -p ito-web archive`
-- **Done When**: Backend can mark a change archived, and subsequent reads return archived status.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
-
-### Task 5.2: Enforce immutability rules for archived changes
-
-- **Files**: `ito-rs/crates/ito-web/`, `ito-rs/crates/ito-core/`
-- **Dependencies**: Task 5.1
-- **Action**: Reject artifact writes, lease operations, and allocations for archived changes.
-- **Verify**: `cargo test -p ito-web archive-immutability`
-- **Done When**: Archived changes are read-only and excluded from work allocation.
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- [x] 11.1 Run `make arch-guardrails` and verify no violations
+- [x] 11.2 Run `make check` (fmt + clippy)
+- [x] 11.3 Run `make test` and verify all tests pass
+- [x] 11.4 Run `make docs` and verify documentation builds cleanly
+- [x] 11.5 Validate change: `ito validate 024-01 --strict`
