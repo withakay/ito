@@ -9,6 +9,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+// Re-export backend server types from the dedicated submodule.
+pub use super::backend_types::*;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Top-level Ito configuration")]
 /// Top-level Ito configuration object.
@@ -57,6 +60,11 @@ pub struct ItoConfig {
     #[schemars(default, description = "Backend state API configuration")]
     /// Backend state API configuration.
     pub backend: BackendApiConfig,
+
+    #[serde(default, rename = "backendServer")]
+    #[schemars(default, description = "Backend server configuration (multi-tenant)")]
+    /// Backend server configuration for hosting the multi-tenant API.
+    pub backend_server: BackendServerConfig,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -157,6 +165,11 @@ pub struct BackendApiConfig {
     )]
     /// Maximum retry attempts for transient failures.
     pub max_retries: u32,
+
+    #[serde(default)]
+    #[schemars(default, description = "Project namespace for backend routing")]
+    /// Project namespace used for multi-tenant backend routing.
+    pub project: BackendProjectConfig,
 }
 
 impl BackendApiConfig {
@@ -187,6 +200,7 @@ impl Default for BackendApiConfig {
             backup_dir: None,
             timeout_ms: Self::default_timeout_ms(),
             max_retries: Self::default_max_retries(),
+            project: BackendProjectConfig::default(),
         }
     }
 }
