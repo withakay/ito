@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-show
+
+## Purpose
+
+Define the `cli-show` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Deterministic ID ordering for selection lists).
+
+## Requirements
 
 ### Requirement: `ito show specs` renders a bundled truth-spec prompt
 

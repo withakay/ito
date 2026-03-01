@@ -1,41 +1,56 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Configuration supports backend connectivity
+### Requirement: Configuration schema
 
-The configuration schema SHALL support backend connectivity settings for shared-state API mode.
+The CLI SHALL support a well-defined configuration schema that allows for tool-specific, agent-specific, harness-specific, and backend-specific settings.
 
-Supported keys SHALL include:
+Notes:
 
-- `backend.enabled` (boolean)
-- `backend.base_url` (string URL)
-- `backend.project_id` (string)
-- `backend.token_env_var` (string, default `ITO_BACKEND_TOKEN`)
-- `backend.request_timeout_ms` (integer)
-- `backend.data_dir` (string path, per-user backend data directory for local backend deployments)
-- `backend.backup_dir` (string path, per-user backup/snapshot directory outside the repo)
+- This extends the existing config system to add harness, agent model, and backend configuration.
+- Existing cascading config behavior (ito.json -> .ito.json -> .ito/config.json -> $PROJECT_DIR/config.json) is preserved.
+- Global config at `~/.config/ito/config.json` is also supported.
 
-Defaults SHOULD be XDG-compatible on Unix-like systems (for example under `~/.local/share/ito/`) and SHOULD be overridable.
+#### Scenario: Configuration schema supports harnesses
 
-#### Scenario: Backend config keys load from project config
+- **WHEN** reading or writing configuration
+- **THEN** support the following harness configuration structure:
+  - `harnesses.<harness-id>`: Harness-specific settings
+    - `provider`: Provider constraint (null for any, or specific provider name)
+    - `agents`: Object mapping agent tier to model configuration
+- **AND** support harness IDs: `opencode`, `claude-code`, `codex`, `github-copilot`
 
-- **WHEN** a project defines backend keys in `.ito/config.json`
-- **THEN** Ito loads those keys into resolved configuration
-- **AND** missing backend keys use defaults
+#### Scenario: Configuration schema supports agent tiers
 
-#### Scenario: Token resolves from configured environment variable
+- **WHEN** reading or writing configuration
+- **THEN** support agent tier keys: `ito-quick`, `ito-general`, `ito-thinking`
+- **AND** each tier value can be:
+  - A string (model ID shorthand)
+  - An object with `model` and extended options
 
-- **GIVEN** `backend.token_env_var` is set to `ITO_BACKEND_TOKEN`
-- **WHEN** Ito resolves backend authentication credentials
-- **THEN** Ito reads the token from the `ITO_BACKEND_TOKEN` environment variable
+#### Scenario: Configuration schema supports cache
 
-#### Scenario: Backend mode disabled bypasses backend client
+- **WHEN** reading or writing configuration
+- **THEN** support the following cache settings:
+  - `cache.ttl_hours`: Number of hours before model cache expires
 
-- **WHEN** `backend.enabled` is false
-- **THEN** Ito uses existing filesystem-based behavior
-- **AND** backend connectivity settings are not required
+#### Scenario: Configuration merges with defaults
 
-#### Scenario: Backend base URL is not constrained to loopback
+- **WHEN** loading configuration
+- **THEN** merge user config with centralized defaults
+- **AND** user values override defaults at the leaf level
+- **AND** unspecified values use defaults
 
-- **WHEN** backend mode is enabled
-- **THEN** `backend.base_url` MAY point to a remote host
-- **AND** Ito does not assume `127.0.0.1` or local-only addressing
+#### Scenario: Global and project config merge
+
+- **WHEN** both global (`~/.config/ito/config.json`) and project config exist
+- **THEN** merge configs with project values winning on conflict
+- **AND** harness and agent configurations merge at the agent tier level
+
+#### Scenario: Configuration schema supports backend settings
+
+- **WHEN** reading or writing configuration
+- **THEN** support the following backend configuration structure:
+  - `backend.url`: Base URL for the backend API (e.g., `http://127.0.0.1:9010`)
+  - `backend.token`: Authentication token for backend API access
+  - `backend.enabled`: Boolean to enable/disable backend integration (default: false)
+- **AND** backend settings participate in the normal cascading merge (project overrides global)

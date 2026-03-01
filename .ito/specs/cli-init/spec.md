@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: cli-init
+
+## Purpose
+
+Define the `cli-init` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Init supports opt-in coordination branch provisioning).
+
+## Requirements
 
 ### Requirement: Init hints about project setup when incomplete
 

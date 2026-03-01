@@ -17,6 +17,7 @@ rusqlite = { workspace = true }
 walkdir = { workspace = true }
 regex = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
 ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-domain = { workspace = true }

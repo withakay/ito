@@ -38,15 +38,17 @@ WORKSPACE_MANIFEST = REPO_ROOT / "Cargo.toml"
 # cargo metadata (the lightest Cargo-native data source).
 
 FORBIDDEN_CRATE_EDGES: dict[str, set[str]] = {
-    "ito-domain": {"ito-cli", "ito-web", "ito-core"},
-    "ito-core": {"ito-cli", "ito-web"},
+    "ito-domain": {"ito-cli", "ito-web", "ito-backend", "ito-core"},
+    "ito-core": {"ito-cli", "ito-web", "ito-backend"},
     "ito-cli": {"ito-domain"},  # must route through ito-core
+    "ito-backend": {"ito-domain"},  # must route through ito-core
 }
 
 REQUIRED_CRATE_EDGES: dict[str, set[str]] = {
     "ito-core": {"ito-domain", "ito-config"},
     "ito-cli": {"ito-core"},
     "ito-web": {"ito-core"},
+    "ito-backend": {"ito-core"},
 }
 
 

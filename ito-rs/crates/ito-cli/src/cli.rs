@@ -265,6 +265,19 @@ pub enum Commands {
     #[cfg(feature = "web")]
     Serve(ServeArgs),
 
+    /// Start the backend state API server
+    ///
+    /// Exposes Ito project state (changes, tasks, modules) via a RESTful
+    /// HTTP API for multi-agent coordination.
+    ///
+    /// Examples:
+    ///   ito serve-api
+    ///   ito serve-api --port 8080 --bind 0.0.0.0
+    ///   ito serve-api --token my-secret
+    #[command(verbatim_doc_comment)]
+    #[cfg(feature = "backend")]
+    ServeApi(ServeApiArgs),
+
     // ─── Audit ────────────────────────────────────────────────────────────────────
     /// Query, validate, and manage the audit event log
     ///
@@ -388,6 +401,26 @@ pub struct ServeArgs {
 pub enum ServeAction {
     /// Start the server (default if no subcommand)
     Start,
+}
+
+/// Backend state API server for multi-agent coordination.
+#[derive(Args, Debug, Clone)]
+#[cfg(feature = "backend")]
+pub struct ServeApiArgs {
+    /// Port to listen on (default: 9010)
+    #[arg(short, long)]
+    pub port: Option<u16>,
+
+    /// Address to bind to (default: 127.0.0.1)
+    #[arg(short, long)]
+    pub bind: Option<String>,
+
+    /// Authentication token (default: auto-generated from hostname + project root).
+    ///
+    /// Prefer setting `ITO_TOKEN` (or writing the token to `~/.ito/token`) to avoid leaking secrets via argv.
+    /// `--token` remains available for compatibility.
+    #[arg(short, long)]
+    pub token: Option<String>,
 }
 
 /// Deprecated alias for `create change`.
@@ -948,9 +981,46 @@ pub enum TasksAction {
         change_id: String,
     },
 
+    /// Claim a change lease (backend mode)
+    #[command(visible_alias = "cl")]
+    Claim {
+        /// Change id to claim
+        change_id: String,
+    },
+
+    /// Release a change lease (backend mode)
+    #[command(visible_alias = "rl")]
+    Release {
+        /// Change id to release
+        change_id: String,
+    },
+
+    /// Allocate the next available change (backend mode)
+    #[command(visible_alias = "al")]
+    Allocate,
+
+    /// Sync artifacts with the backend
+    #[command(subcommand, visible_alias = "sy")]
+    Sync(SyncAction),
+
     /// Forward unknown subcommands to legacy handler
     #[command(external_subcommand)]
     External(Vec<String>),
+}
+
+/// Backend artifact sync subcommands.
+#[derive(Subcommand, Debug, Clone)]
+pub enum SyncAction {
+    /// Pull artifacts from the backend
+    Pull {
+        /// Change id to pull
+        change_id: String,
+    },
+    /// Push local artifacts to the backend
+    Push {
+        /// Change id to push
+        change_id: String,
+    },
 }
 
 #[derive(Args, Debug, Clone)]
