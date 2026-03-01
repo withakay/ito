@@ -45,6 +45,9 @@ pub mod distribution;
 /// Core-layer error types and result alias.
 pub mod errors;
 
+/// Grep-style search over Ito change artifacts using ripgrep crates.
+pub mod grep;
+
 /// Client-side forwarding of local audit events to the backend.
 pub mod event_forwarder;
 

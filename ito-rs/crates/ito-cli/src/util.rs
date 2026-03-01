@@ -133,7 +133,7 @@ pub(crate) fn command_id_from_args(args: &[String]) -> String {
             }
         }
         "templates" | "instructions" | "x-instructions" | "list" | "init" | "update" | "status"
-        | "stats" | "ralph" | "loop" | "path" => {}
+        | "stats" | "ralph" | "loop" | "path" | "grep" => {}
         _ => {}
     }
 

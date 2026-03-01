@@ -25,6 +25,9 @@ ito-templates = { workspace = true }
 miette = { workspace = true }
 sha2 = { workspace = true }
 hex = "0.4"
+grep-matcher = { workspace = true }
+grep-regex = { workspace = true }
+grep-searcher = { workspace = true }
 
 [dev-dependencies]
 filetime = { workspace = true }
