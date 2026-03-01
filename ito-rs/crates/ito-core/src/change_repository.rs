@@ -16,6 +16,7 @@ use regex::Regex;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::front_matter;
 use crate::task_repository::FsTaskRepository;
 
 /// Filesystem-backed change repository.
@@ -239,6 +240,48 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
                     .any(|name| self.fs.is_file(&specs_dir.join(name).join("spec.md")))
             })
             .unwrap_or(false)
+    }
+
+    /// Validate front matter identifiers in a change artifact, if present.
+    ///
+    /// Parses front matter from the content and checks that any declared
+    /// `change_id` matches the expected change directory name. Integrity
+    /// checksums are also validated when present. If the content has no
+    /// front matter, this is a no-op.
+    fn validate_artifact_front_matter(
+        &self,
+        content: &str,
+        expected_change_id: &str,
+    ) -> DomainResult<()> {
+        let parsed = front_matter::parse(content).map_err(|e| {
+            DomainError::io(
+                "parsing front matter",
+                std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+            )
+        })?;
+
+        let Some(fm) = &parsed.front_matter else {
+            return Ok(());
+        };
+
+        // Validate change_id if declared in front matter
+        front_matter::validate_id("change_id", fm.change_id.as_deref(), expected_change_id)
+            .map_err(|e| {
+                DomainError::io(
+                    "front matter validation",
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+                )
+            })?;
+
+        // Validate body integrity checksum if present
+        front_matter::validate_integrity(fm, &parsed.body).map_err(|e| {
+            DomainError::io(
+                "front matter integrity",
+                std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+            )
+        })?;
+
+        Ok(())
     }
 
     fn get_last_modified(&self, change_path: &Path) -> DomainResult<DateTime<Utc>> {
@@ -474,6 +517,16 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
 
         let proposal = self.read_optional_file(&path.join("proposal.md"))?;
         let design = self.read_optional_file(&path.join("design.md"))?;
+
+        // Validate front matter identifiers in artifacts (non-blocking for
+        // files without front matter).
+        if let Some(content) = &proposal {
+            self.validate_artifact_front_matter(content, &actual_id)?;
+        }
+        if let Some(content) = &design {
+            self.validate_artifact_front_matter(content, &actual_id)?;
+        }
+
         let specs = self.load_specs(&path)?;
         let tasks = self.task_repo.load_tasks(&actual_id)?;
         let last_modified = self.get_last_modified(&path)?;
