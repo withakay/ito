@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.13] - 2026-03-01
+
+### 🚀 Features
+
+- *(023-08)* Add Pi as a first-class harness ([#110](https://github.com/withakay/ito/pull/110))
+- *(019-07)* Ship embedded schema validation.yaml ([#113](https://github.com/withakay/ito/pull/113))
+- Dev integration — schema guidance, audit silence, Pi harness, specs bundle ([#114](https://github.com/withakay/ito/pull/114))
+- *(002-17)* Add /loop wrapper for ralph ([#115](https://github.com/withakay/ito/pull/115))
+- *(024-01)* Add ito-backend crate with REST API for shared project state
+- *(024)* Backend shared-state API + CLI backend client ([#118](https://github.com/withakay/ito/pull/118))
 ## [0.1.11] - 2026-02-26
 
 ### 🚀 Features
