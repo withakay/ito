@@ -168,6 +168,28 @@
       },
       "type": "object"
     },
+    "BackendAllowlistConfig": {
+      "description": "Organization and repository allowlist",
+      "properties": {
+        "orgs": {
+          "default": [],
+          "description": "Allowed organizations",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repos": {
+          "additionalProperties": {
+            "$ref": "#/definitions/BackendRepoPolicy"
+          },
+          "default": {},
+          "description": "Per-org repo policies: org -> '*' or list of repos",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "BackendApiConfig": {
       "description": "Backend state API configuration",
       "properties": {
@@ -189,6 +211,15 @@
           "format": "uint32",
           "minimum": 0.0,
           "type": "integer"
+        },
+        "project": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendProjectConfig"
+            }
+          ],
+          "default": {},
+          "description": "Project namespace for backend routing"
         },
         "timeout_ms": {
           "default": 30000,
@@ -216,6 +247,233 @@
         }
       },
       "type": "object"
+    },
+    "BackendAuthConfig": {
+      "description": "Backend authentication configuration",
+      "properties": {
+        "adminTokens": {
+          "default": [],
+          "description": "Admin bearer tokens with full access",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tokenSeed": {
+          "description": "Secret seed for deriving per-project tokens via HMAC-SHA256",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "BackendCorsConfig": {
+      "description": "CORS configuration",
+      "properties": {
+        "origins": {
+          "description": "Allowed CORS origins (None = permissive)",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "BackendHttpConfig": {
+      "description": "HTTP transport configuration",
+      "properties": {
+        "maxBodyBytes": {
+          "default": 10485760,
+          "description": "Maximum HTTP request body size in bytes",
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "BackendProjectConfig": {
+      "description": "Project namespace for backend API routing",
+      "properties": {
+        "org": {
+          "description": "Organization namespace for backend routes",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repo": {
+          "description": "Repository namespace for backend routes",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "BackendRepoPolicy": {
+      "anyOf": [
+        {
+          "description": "Allow all repositories for this organization.",
+          "type": "string"
+        },
+        {
+          "description": "Allow only the listed repositories.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "Repo policy: '*' for all or list of repo names"
+    },
+    "BackendServerConfig": {
+      "description": "Backend server configuration for multi-tenant API hosting",
+      "properties": {
+        "allowed": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendAllowlistConfig"
+            }
+          ],
+          "default": {
+            "orgs": [],
+            "repos": {}
+          },
+          "description": "Allowlist for organizations and repositories"
+        },
+        "auth": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendAuthConfig"
+            }
+          ],
+          "default": {
+            "adminTokens": []
+          },
+          "description": "Authentication configuration"
+        },
+        "bind": {
+          "default": "127.0.0.1",
+          "description": "Bind address for the server",
+          "type": "string"
+        },
+        "cors": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendCorsConfig"
+            }
+          ],
+          "default": {},
+          "description": "CORS configuration"
+        },
+        "dataDir": {
+          "description": "Storage root directory for backend-managed project data",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable backend server features",
+          "type": "boolean"
+        },
+        "http": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendHttpConfig"
+            }
+          ],
+          "default": {
+            "maxBodyBytes": 10485760
+          },
+          "description": "HTTP transport settings"
+        },
+        "port": {
+          "default": 9010,
+          "description": "Port for the server",
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "storage": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendStorageConfig"
+            }
+          ],
+          "default": {
+            "kind": "filesystem",
+            "sqlite": {}
+          },
+          "description": "Storage backend configuration"
+        }
+      },
+      "type": "object"
+    },
+    "BackendSqliteConfig": {
+      "description": "SQLite backend configuration",
+      "properties": {
+        "dbPath": {
+          "description": "Path to the SQLite database file",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "BackendStorageConfig": {
+      "description": "Storage backend configuration",
+      "properties": {
+        "kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendStorageKind"
+            }
+          ],
+          "default": "filesystem",
+          "description": "Storage backend kind: filesystem or sqlite"
+        },
+        "sqlite": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BackendSqliteConfig"
+            }
+          ],
+          "default": {},
+          "description": "SQLite-specific configuration"
+        }
+      },
+      "type": "object"
+    },
+    "BackendStorageKind": {
+      "description": "Storage backend kind",
+      "oneOf": [
+        {
+          "description": "Filesystem-backed markdown storage (default).",
+          "enum": [
+            "filesystem"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "SQLite-backed storage (proof-of-concept).",
+          "enum": [
+            "sqlite"
+          ],
+          "type": "string"
+        }
+      ]
     },
     "CacheConfig": {
       "description": "Cache settings",
@@ -891,11 +1149,40 @@
       "default": {
         "enabled": false,
         "max_retries": 3,
+        "project": {},
         "timeout_ms": 30000,
         "token_env_var": "ITO_BACKEND_TOKEN",
         "url": "http://127.0.0.1:9010"
       },
       "description": "Backend state API configuration"
+    },
+    "backendServer": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BackendServerConfig"
+        }
+      ],
+      "default": {
+        "allowed": {
+          "orgs": [],
+          "repos": {}
+        },
+        "auth": {
+          "adminTokens": []
+        },
+        "bind": "127.0.0.1",
+        "cors": {},
+        "enabled": false,
+        "http": {
+          "maxBodyBytes": 10485760
+        },
+        "port": 9010,
+        "storage": {
+          "kind": "filesystem",
+          "sqlite": {}
+        }
+      },
+      "description": "Backend server configuration (multi-tenant)"
     },
     "cache": {
       "allOf": [
