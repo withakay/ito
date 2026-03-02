@@ -1,19 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: Backend stores Markdown artifacts with revision metadata
+### Requirement: Backend stores markdown artifacts with revision metadata
 
-The backend SHALL persist change artifacts as Markdown blobs with revision metadata for optimistic concurrency.
+The backend SHALL persist change artifacts as markdown blobs with revision metadata for optimistic concurrency.
 
-#### Scenario: Artifact read returns Markdown and revision
+#### Scenario: Artifact read returns markdown and revision
 
 - **WHEN** a client reads an artifact for a change
-- **THEN** the backend returns Markdown content
+- **THEN** the backend returns markdown content
 - **AND** the response includes the current artifact revision identifier
 
 #### Scenario: Artifact write succeeds with current revision
 
 - **GIVEN** a client provides the current artifact revision
-- **WHEN** the client writes updated Markdown
+- **WHEN** the client writes updated markdown
 - **THEN** the backend stores the updated content
 - **AND** increments or replaces the artifact revision identifier
 
@@ -30,7 +30,7 @@ The backend MUST reject artifact updates when the client revision is stale.
 
 ### Requirement: Backend provides change artifact bundle retrieval
 
-The backend SHALL provide a single operation to retrieve all Markdown artifacts for a change.
+The backend SHALL provide a single operation to retrieve all markdown artifacts for a change.
 
 #### Scenario: Bundle retrieval returns authored artifacts
 

@@ -18,22 +18,30 @@ Do NOT jump straight into creating files. Interview the user to build a shared u
 
 Only proceed to Step 1 once you and the user agree on what the change is and why it matters.
 
-**Step 1: Create the change**
+**Step 1: Choose a schema**
+
+Before creating the change, help the user pick the right workflow schema.
+
+- Run `ito agent instruction schemas` to see available schemas and their descriptions.
+- Present the options to the user with a brief explanation of each.
+- If the user doesn't have a preference, recommend **spec-driven** (the default).
+- Remember the chosen schema for the next step.
+
+**Step 2: Create the change**
 
 If the user provided an existing change ID, use it. Otherwise:
 
 - Pick a module (default to `000` if unsure). Run `ito list --modules` to check.
 - Run:
   ```bash
-  ito create change "<change-name>" --module <module-id>
+  ito create change "<change-name>" --module <module-id> --schema <chosen-schema>
   ```
 
-**Step 2: Generate artifacts**
+**Step 3: Generate artifacts**
 
 ```bash
 ito agent instruction proposal --change "<change-id>"
 ito agent instruction specs --change "<change-id>"
-ito agent instruction design --change "<change-id>"
 ito agent instruction tasks --change "<change-id>"
 ```
 
