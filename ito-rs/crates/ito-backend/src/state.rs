@@ -30,6 +30,17 @@ pub struct AppState {
     pub auth: BackendAuthConfig,
 }
 
+/// Check that a path segment is safe for use in filesystem paths.
+///
+/// Rejects empty strings, `.`, `..`, and values containing `/` or `\`.
+fn is_safe_path_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains('/')
+        && !value.contains('\\')
+}
+
 impl AppState {
     /// Construct application state for a multi-tenant backend.
     pub fn new(
@@ -52,12 +63,21 @@ impl AppState {
     ///
     /// This path is used for operations that always target the filesystem
     /// (e.g., audit log writes for event ingest).
-    pub fn ito_path_for(&self, org: &str, repo: &str) -> PathBuf {
-        self.data_dir
+    ///
+    /// Returns an error if `org` or `repo` contain path traversal characters.
+    pub fn ito_path_for(&self, org: &str, repo: &str) -> std::io::Result<PathBuf> {
+        if !is_safe_path_segment(org) || !is_safe_path_segment(repo) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("invalid path segment: org={org:?}, repo={repo:?}"),
+            ));
+        }
+        Ok(self
+            .data_dir
             .join("projects")
             .join(org)
             .join(repo)
-            .join(".ito")
+            .join(".ito"))
     }
 
     /// Ensure the project directory structure exists on the filesystem.
@@ -66,7 +86,7 @@ impl AppState {
     /// Used for audit log writes which always go to the filesystem.
     #[allow(dead_code)]
     pub fn ensure_project_dir(&self, org: &str, repo: &str) -> std::io::Result<()> {
-        let ito_path = self.ito_path_for(org, repo);
+        let ito_path = self.ito_path_for(org, repo)?;
         std::fs::create_dir_all(&ito_path)
     }
 }
@@ -77,7 +97,7 @@ impl std::fmt::Debug for AppState {
             .field("data_dir", &self.data_dir)
             .field("store", &"<dyn BackendProjectStore>")
             .field("allowlist", &self.allowlist)
-            .field("auth", &self.auth)
+            .field("auth", &"<redacted>")
             .finish()
     }
 }
@@ -96,8 +116,25 @@ mod tests {
             BackendAllowlistConfig::default(),
             BackendAuthConfig::default(),
         );
-        let path = state.ito_path_for("withakay", "ito");
+        let path = state.ito_path_for("withakay", "ito").unwrap();
         assert_eq!(path, PathBuf::from("/data/projects/withakay/ito/.ito"));
+    }
+
+    #[test]
+    fn ito_path_for_rejects_path_traversal() {
+        let store = Arc::new(FsBackendProjectStore::new("/data"));
+        let state = AppState::new(
+            PathBuf::from("/data"),
+            store,
+            BackendAllowlistConfig::default(),
+            BackendAuthConfig::default(),
+        );
+        assert!(state.ito_path_for("..", "ito").is_err());
+        assert!(state.ito_path_for("org", "..").is_err());
+        assert!(state.ito_path_for(".", "repo").is_err());
+        assert!(state.ito_path_for("org/evil", "repo").is_err());
+        assert!(state.ito_path_for("org", "repo\\evil").is_err());
+        assert!(state.ito_path_for("", "repo").is_err());
     }
 
     #[test]
@@ -111,6 +148,6 @@ mod tests {
             BackendAuthConfig::default(),
         );
         state.ensure_project_dir("acme", "repo1").unwrap();
-        assert!(state.ito_path_for("acme", "repo1").is_dir());
+        assert!(state.ito_path_for("acme", "repo1").unwrap().is_dir());
     }
 }
