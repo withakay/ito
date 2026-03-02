@@ -379,7 +379,20 @@ pub async fn ingest_events(
         ));
     }
 
-    let ito_path = state.ito_path_for(&org, &repo);
+    if payload.idempotency_key.len() > 128
+        || !payload
+            .idempotency_key
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(ApiErrorResponse::bad_request(
+            "idempotency_key contains invalid characters",
+        ));
+    }
+
+    let ito_path = state
+        .ito_path_for(&org, &repo)
+        .map_err(|e| ApiErrorResponse::bad_request(e.to_string()))?;
 
     // Check idempotency (atomic): create a key file using create_new.
     // This prevents concurrent requests with the same key from double-appending.

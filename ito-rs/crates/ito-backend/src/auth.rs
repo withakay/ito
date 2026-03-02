@@ -152,20 +152,9 @@ pub async fn auth_middleware(
         return ApiErrorResponse::unauthorized("Missing bearer token").into_response();
     };
 
-    let Some(scope) = validate_token(&state, token, org, repo) else {
+    let Some(_scope) = validate_token(&state, token, org, repo) else {
         return ApiErrorResponse::unauthorized("Invalid bearer token").into_response();
     };
-
-    // For project tokens, verify they match the requested project
-    if let TokenScope::Project {
-        org: token_org,
-        repo: token_repo,
-    } = &scope
-        && (token_org != org || token_repo != repo)
-    {
-        return ApiErrorResponse::forbidden("Token does not authorize this project")
-            .into_response();
-    }
 
     next.run(request).await
 }
