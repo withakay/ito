@@ -15,7 +15,6 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - backend-client-runtime
 - backend-change-claim
 - backend-change-sync
-- backend-project-store
 - change-repository
 - task-repository
 - cli-tasks
