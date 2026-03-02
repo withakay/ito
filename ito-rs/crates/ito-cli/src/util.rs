@@ -101,10 +101,10 @@ pub(crate) fn command_id_from_args(args: &[String]) -> String {
         return "ito".to_string();
     };
 
-    let cmd = if cmd == "x-templates" {
-        "templates"
-    } else {
-        cmd
+    let cmd = match cmd {
+        "x-templates" => "templates",
+        "gr" => "grep",
+        other => other,
     };
 
     let mut parts: Vec<&str> = Vec::new();
@@ -133,7 +133,7 @@ pub(crate) fn command_id_from_args(args: &[String]) -> String {
             }
         }
         "templates" | "instructions" | "x-instructions" | "list" | "init" | "update" | "status"
-        | "stats" | "ralph" | "loop" | "path" => {}
+        | "stats" | "ralph" | "loop" | "path" | "grep" => {}
         _ => {}
     }
 
@@ -351,5 +351,11 @@ mod tests {
     fn command_id_maps_x_templates_to_templates() {
         let args = vec!["x-templates".to_string(), "--json".to_string()];
         assert_eq!(command_id_from_args(&args), "ito.templates");
+    }
+
+    #[test]
+    fn command_id_maps_gr_to_grep() {
+        let args = vec!["gr".to_string(), "--all".to_string(), "pattern".to_string()];
+        assert_eq!(command_id_from_args(&args), "ito.grep");
     }
 }
