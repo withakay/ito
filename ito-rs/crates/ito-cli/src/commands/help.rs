@@ -50,6 +50,8 @@ fn help_all_parts() -> Vec<Vec<String>> {
         &["status"],
         &["completions"],
         &["stats"],
+        &["util"],
+        &["util", "parse-id"],
         &["agent-config"],
     ];
 
