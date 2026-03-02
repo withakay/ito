@@ -307,11 +307,7 @@ pub fn run_ralph(
             print_ready_changes(&module_id, &ready_all);
 
             // Filter out changes already processed in this `--continue-module` session.
-            let ready_changes: Vec<String> = ready_all
-                .iter()
-                .filter(|id| !processed.contains(*id))
-                .cloned()
-                .collect();
+            let ready_changes = unprocessed_change_ids(&ready_all, &processed);
 
             if ready_changes.is_empty() {
                 // If there were no ready changes at all, preserve existing behavior.
@@ -356,11 +352,7 @@ pub fn run_ralph(
                 )));
             }
 
-            let preflight_ready: Vec<String> = preflight_ready_all
-                .iter()
-                .filter(|id| !processed.contains(*id))
-                .cloned()
-                .collect();
+            let preflight_ready = unprocessed_change_ids(&preflight_ready_all, &processed);
 
             if preflight_ready.is_empty() {
                 println!(
@@ -714,23 +706,17 @@ pub fn run_ralph(
                 Some(change_id.as_str())
             };
 
-            // If we're running inside a resolved worktree and it contains the change tasks file,
-            // validate tasks against that worktree-local `.ito/` state. This prevents the loop
-            // from validating against the caller's `.ito/` when the change work is happening in
-            // a separate worktree.
+            // If we're running inside a resolved worktree for a specific change,
+            // always validate tasks against that worktree-local `.ito/` state.
             let fs_task_repo;
             let task_repo_for_validation: &dyn DomainTaskRepository =
-                if let Some(change_id) = change_id_opt {
-                    let tasks_path = effective_ito_path
-                        .join("changes")
-                        .join(change_id)
-                        .join("tasks.md");
-                    if tasks_path.is_file() {
-                        fs_task_repo = FsTaskRepository::new(effective_ito_path);
-                        &fs_task_repo
-                    } else {
-                        task_repo
-                    }
+                if should_validate_tasks_from_effective_worktree(
+                    change_id_opt,
+                    ito_path,
+                    effective_ito_path,
+                ) {
+                    fs_task_repo = FsTaskRepository::new(effective_ito_path);
+                    &fs_task_repo
                 } else {
                     task_repo
                 };
@@ -781,6 +767,16 @@ fn module_ready_change_ids(changes: &[ChangeSummary]) -> Vec<String> {
         }
     }
     ready_change_ids
+}
+
+fn unprocessed_change_ids(change_ids: &[String], processed: &BTreeSet<String>) -> Vec<String> {
+    let mut filtered = Vec::new();
+    for change_id in change_ids {
+        if !processed.contains(change_id) {
+            filtered.push(change_id.clone());
+        }
+    }
+    filtered
 }
 
 fn repo_changes(change_repo: &impl DomainChangeRepository) -> CoreResult<Vec<ChangeSummary>> {
@@ -915,6 +911,14 @@ fn validate_completion(
         passed,
         context_markdown: sections.join("\n\n"),
     })
+}
+
+fn should_validate_tasks_from_effective_worktree(
+    change_id: Option<&str>,
+    ito_path: &Path,
+    effective_ito_path: &Path,
+) -> bool {
+    change_id.is_some() && effective_ito_path != ito_path
 }
 
 fn render_validation_result(title: &str, r: &validation::ValidationResult) -> String {
@@ -1085,10 +1089,8 @@ fn count_git_changes(runner: &dyn ProcessRunner, cwd: &Path) -> CoreResult<usize
 }
 
 fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> CoreResult<()> {
-    // Fast path: avoid `git commit` failing with "nothing to commit" by checking staged changes.
-    // We check both before and after `git add -A` to handle cases where porcelain output reports
-    // changes but nothing ends up staged (for example due to filters or hooks).
-    if count_git_changes(runner, cwd)? == 0 {
+    let state_before_add = git_status_state(runner, cwd)?;
+    if !state_before_add.has_working_tree_changes {
         return Ok(());
     }
 
@@ -1113,7 +1115,8 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
         return Err(CoreError::Process(msg));
     }
 
-    if count_git_changes(runner, cwd)? == 0 {
+    let state_after_add = git_status_state(runner, cwd)?;
+    if !state_after_add.has_staged_changes {
         return Ok(());
     }
 
@@ -1128,9 +1131,8 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
         let stdout = commit.stdout.trim().to_string();
         let stderr = commit.stderr.trim().to_string();
 
-        // Treat "nothing to commit" as a successful no-op.
-        let combined = format!("{stdout}\n{stderr}").to_ascii_lowercase();
-        if combined.contains("nothing to commit") || combined.contains("working tree clean") {
+        let state_after_failed_commit = git_status_state(runner, cwd)?;
+        if !state_after_failed_commit.has_staged_changes {
             return Ok(());
         }
 
@@ -1146,6 +1148,52 @@ fn commit_iteration(runner: &dyn ProcessRunner, iteration: u32, cwd: &Path) -> C
         return Err(CoreError::Process(msg));
     }
     Ok(())
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct GitStatusState {
+    has_staged_changes: bool,
+    has_working_tree_changes: bool,
+}
+
+fn git_status_state(runner: &dyn ProcessRunner, cwd: &Path) -> CoreResult<GitStatusState> {
+    let request = ProcessRequest::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(cwd.to_path_buf());
+    let out = runner
+        .run(&request)
+        .map_err(|e| CoreError::Process(format!("Failed to run git status: {e}")))?;
+    if !out.success {
+        let stdout = out.stdout.trim().to_string();
+        let stderr = out.stderr.trim().to_string();
+        let mut msg = String::from("git status failed");
+        if !stdout.is_empty() {
+            msg.push_str("\nstdout:\n");
+            msg.push_str(&stdout);
+        }
+        if !stderr.is_empty() {
+            msg.push_str("\nstderr:\n");
+            msg.push_str(&stderr);
+        }
+        return Err(CoreError::Process(msg));
+    }
+
+    let mut state = GitStatusState::default();
+    for line in out.stdout.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        state.has_working_tree_changes = true;
+
+        let mut chars = line.chars();
+        let index_status = chars.next().unwrap_or(' ');
+        if index_status != ' ' && index_status != '?' {
+            state.has_staged_changes = true;
+        }
+    }
+
+    Ok(state)
 }
 
 #[cfg(test)]
