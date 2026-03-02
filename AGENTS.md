@@ -229,13 +229,22 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 
 ### Gotcha
 
+<!-- lore:019caf3f-be0c-7797-bac1-e8a8a7b3af71 -->
+* **Stale worktree index.lock blocks git add**: In this bare-repo worktree layout, \`git add\` can fail with an existing \`.bare/worktrees/\<name>/index.lock\` after interrupted git operations. Verify no active git process, then remove the stale lock file and retry staging. Treat this as a local lock cleanup, not a repository reset.
 <!-- lore:019caf3c-0454-79ff-a5fb-9cd9683056b9 -->
-* **Archive may overwrite specs with delta blocks**: In merge-snafu cleanup, archiving completed changes can leave \`.ito/specs/\*/spec.md\` in delta-only form (\`## ADDED/MODIFIED Requirements\`) and strip canonical sections like Purpose/Requirements, which then fails \`ito validate --specs\`. After any bulk archive, immediately validate specs and inspect changed spec files. If this happens, restore canonical spec structure from prior history before finalizing cleanup.
+* **Archive may overwrite specs with delta blocks**: Bulk \`ito archive\` runs can overwrite canonical spec files with delta-only blocks (\`## ADDED/MODIFIED Requirements\`), dropping \`# Spec\`, \`## Purpose\`, and \`## Requirements\`. After archiving, immediately validate and inspect touched specs; if canonical structure was replaced, restore the full spec shape from prior history, then reapply intended requirement changes. This prevents cascading \`ito validate --specs\` failures.
 <!-- lore:019cad59-2b4d-7362-aebd-ec32c59b4025 -->
 * **rtk gh wrapper ignores --jq and other gh flags**: \`rtk\` wrappers can break normal CLI expectations. \`rtk gh\` may ignore raw JSON filtering flags, and \`rtk git\` may reject options like \`-C\` or \`-c\`; when you need those behaviors, use native \`gh\`/\`git\` binaries directly. In automation, prefer setting the tool/workdir context instead of relying on \`git -C\`.
 
 ### Pattern
 
+<!-- lore:019caf4e-2d50-755f-8fcc-cb5ea06e216c -->
+* **Agentic workflows are markdown-first**: In this repo, GitHub Agentic Workflows are authored as \`.github/workflows/\*.md\` with frontmatter and prompt body, then checked with \`gh aw validate \<workflow>\`. Treat the \`.md\` file as source of truth; lock YAML is generated only when explicitly compiled (\`gh aw compile\`), not required for every change. For workflow updates, validate with \`gh aw\` plus \`ito validate \<change-id> --strict\` before marking tasks complete.
 <!-- lore:019cad88-b1ce-71b9-9304-642d211a9a1f -->
 * **Rust style prefers explicit for-loops**: In \`ito-rs/\*\*/\*.rs\`, prefer explicit \`for\` loops over iterator chains like \`.iter().filter().map().collect()\`. Even when bot feedback suggests iterator-style refactors, keep loop-based implementations to match project conventions and avoid churn in review.
+
+### Preference
+
+<!-- lore:019caf3f-be0c-7797-bac1-e8a70ff56b27 -->
+* **Include AGENTS.md in commit batches**: When creating commits in this repo, check for unstaged changes in \`AGENTS.md\` and include them in the same commit batch. This file carries lore-managed shared project knowledge and is expected to stay version-controlled with related workflow/spec updates.
 <!-- End lore-managed section -->
