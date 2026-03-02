@@ -4,8 +4,53 @@ Backend client mode enables multiple agents to coordinate through a shared backe
 
 ## Prerequisites
 
-- A running Ito backend server (see `ito-backend` crate)
+- A running Ito backend server (see below for local Docker Compose setup)
 - A valid bearer token (set via environment variable or config)
+
+### Running the Backend Locally (Docker Compose)
+
+For local development and testing, you can run the backend using Docker Compose:
+
+```bash
+# Copy the example environment file
+cp .env.backend.example .env.backend
+
+# Edit the token values (required for auth)
+# At minimum, set ITO_BACKEND_ADMIN_TOKEN to a secure random value
+$EDITOR .env.backend
+
+# Start the backend
+docker compose -f docker-compose.backend.yml up -d
+
+# Verify the backend is healthy
+curl http://127.0.0.1:9010/api/v1/health
+# Expected: {"status":"ok"}
+
+# Or use the helper script
+./scripts/backend-health.sh
+```
+
+To stop the backend:
+
+```bash
+docker compose -f docker-compose.backend.yml down
+```
+
+The Docker Compose setup:
+- Builds the `ito` binary from source with the `backend` feature
+- Exposes the API on `http://127.0.0.1:9010` (configurable via `ITO_BACKEND_PORT`)
+- Persists data in a Docker volume (`ito-backend-data`)
+- Includes a container healthcheck for orchestration
+
+**Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ITO_BACKEND_PORT` | `9010` | Port exposed on the host |
+| `ITO_BACKEND_ADMIN_TOKEN` | `dev-admin-token` | Admin bearer token (full access) |
+| `ITO_BACKEND_TOKEN_SEED` | `dev-token-seed` | Seed for deriving per-project tokens |
+
+**Scope note:** This Docker Compose runtime is intended for local testing and development only. For production or long-running self-hosted deployments, see the Homebrew and systemd service options (change `024-13`).
 
 ## Enabling Backend Mode
 
