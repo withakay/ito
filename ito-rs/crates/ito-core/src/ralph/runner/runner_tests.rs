@@ -239,6 +239,37 @@ fn filter_module_incomplete() {
     assert_eq!(module_incomplete_change_ids(&c), vec!["b"]);
 }
 
+#[test]
+fn filter_unprocessed_changes() {
+    let ready = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let mut processed = BTreeSet::new();
+    processed.insert("b".to_string());
+
+    assert_eq!(unprocessed_change_ids(&ready, &processed), vec!["a", "c"]);
+}
+
+#[test]
+fn worktree_task_validation_repo_selection() {
+    let ito_path = Path::new("/project/.ito");
+    let effective_ito_path = Path::new("/project/ito-worktrees/001-change/.ito");
+
+    assert!(should_validate_tasks_from_effective_worktree(
+        Some("001-01_change"),
+        ito_path,
+        effective_ito_path,
+    ));
+    assert!(!should_validate_tasks_from_effective_worktree(
+        None,
+        ito_path,
+        effective_ito_path,
+    ));
+    assert!(!should_validate_tasks_from_effective_worktree(
+        Some("001-01_change"),
+        ito_path,
+        ito_path,
+    ));
+}
+
 // -- print helpers (coverage only) -----------------------------------
 
 #[test]
@@ -317,9 +348,9 @@ fn commit_iteration_noops_when_no_changes() {
 #[test]
 fn commit_iteration_succeeds_when_git_add_and_commit_succeed() {
     let cwd = Path::new("/tmp");
-    // count_git_changes -> git add -> count_git_changes -> git commit
+    // git status -> git add -> git status -> git commit
     commit_iteration(
-        &MockRunner::new(vec![ok(" M a\n", 0), ok("", 0), ok(" M a\n", 0), ok("", 0)]),
+        &MockRunner::new(vec![ok(" M a\n", 0), ok("", 0), ok("M  a\n", 0), ok("", 0)]),
         1,
         cwd,
     )
@@ -327,13 +358,13 @@ fn commit_iteration_succeeds_when_git_add_and_commit_succeed() {
 }
 
 #[test]
-fn commit_iteration_treats_nothing_to_commit_as_success() {
+fn commit_iteration_treats_no_staged_changes_after_failed_commit_as_success() {
     let cwd = Path::new("/tmp");
     let nothing_to_commit = Ok(ProcessOutput {
         exit_code: 1,
         success: false,
-        stdout: String::new(),
-        stderr: "nothing to commit, working tree clean".into(),
+        stdout: "hook changed files".into(),
+        stderr: "commit aborted".into(),
         timed_out: false,
     });
 
@@ -341,13 +372,39 @@ fn commit_iteration_treats_nothing_to_commit_as_success() {
         &MockRunner::new(vec![
             ok(" M a\n", 0),
             ok("", 0),
-            ok(" M a\n", 0),
+            ok("M  a\n", 0),
             nothing_to_commit,
+            ok(" M a\n", 0),
         ]),
         1,
         cwd,
     )
     .unwrap();
+}
+
+#[test]
+fn commit_iteration_errors_when_failed_commit_still_has_staged_changes() {
+    let cwd = Path::new("/tmp");
+    let failed_commit = Ok(ProcessOutput {
+        exit_code: 1,
+        success: false,
+        stdout: "hook failed".into(),
+        stderr: "validation error".into(),
+        timed_out: false,
+    });
+
+    let result = commit_iteration(
+        &MockRunner::new(vec![
+            ok(" M a\n", 0),
+            ok("", 0),
+            ok("M  a\n", 0),
+            failed_commit,
+            ok("M  a\n", 0),
+        ]),
+        1,
+        cwd,
+    );
+    assert!(result.is_err());
 }
 
 #[test]
