@@ -1,8 +1,8 @@
 use crate::cli::GrepArgs;
-use crate::cli_error::{fail, to_cli_error, CliResult};
+use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::grep::{grep, GrepInput, GrepScope};
+use ito_core::grep::{GrepInput, GrepScope, grep};
 use ito_core::module_repository::FsModuleRepository;
 
 /// Handle the `ito grep` CLI command.
