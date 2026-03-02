@@ -18,6 +18,6 @@ Run the CLI-generated apply instructions for a specific change.
    ito agent instruction apply --change "<change-id>"
    ```
 
-3. Follow the printed instructions from step 2 **exactly**.
+3. Follow the printed instructions exactly.
 
 4. Use `ito tasks ready <change-id>` to see actionable tasks at any point.

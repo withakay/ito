@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core`
 - **Done When**: Forwarder submits once per batch and does not duplicate on retry.
 - **Updated At**: 2026-02-28
-- **Status**: [x] complete
+- **Status**: [ ] pending
 
 ### Task 1.2: Wire forwarder into backend-mode CLI lifecycle
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli`
 - **Done When**: Backend-mode commands attempt forwarding without breaking primary command success.
 - **Updated At**: 2026-02-28
-- **Status**: [x] complete
+- **Status**: [ ] pending
 
 ______________________________________________________________________
 
@@ -52,4 +52,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Tests cover forwarding behavior and docs describe troubleshooting.
 - **Updated At**: 2026-02-28
-- **Status**: [x] complete
+- **Status**: [ ] pending

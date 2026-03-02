@@ -142,15 +142,6 @@ jobs:
         if: steps.loop_check.outputs.skip != 'true'
         run: cargo fmt --all
 
-      # --- Generated artifacts ---
-
-      - name: Update config schema artifact
-        if: steps.loop_check.outputs.skip != 'true'
-        run: |
-          # Keep schemas/ito-config.schema.json in sync with the code.
-          # If this changes the working tree, the commit step below will push it.
-          make config-schema
-
       # --- Commit and push if anything changed ---
 
       - name: Commit and push fixes
@@ -169,15 +160,14 @@ jobs:
           fi
 
           git add -A
-          git commit -m "ci: autofix lint, formatting, and generated artifacts
+          git commit -m "ci: autofix lint and formatting issues
 
           Automated fixes applied by CI:
           - Line endings (CRLF -> LF)
           - Trailing whitespace
           - Final newlines
           - JSON formatting
-          - Rust formatting (cargo fmt)
-          - Regenerated config schema (schemas/ito-config.schema.json)"
+          - Rust formatting (cargo fmt)"
 
           git push
           echo "pushed=true" >> "$GITHUB_OUTPUT"

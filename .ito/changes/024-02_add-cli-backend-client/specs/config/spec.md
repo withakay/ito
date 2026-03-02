@@ -31,9 +31,3 @@ When backend mode is enabled, Ito SHALL support configuring a per-user backup di
 
 - **WHEN** the project config sets `backend.backup_dir`
 - **THEN** Ito uses that directory for artifact backup snapshots
-
-#### Scenario: Backup directory inside project root is rejected
-
-- **GIVEN** `backend.backup_dir` resolves under the project root
-- **WHEN** Ito initializes backend client runtime
-- **THEN** Ito fails fast with an actionable configuration error requiring a path outside the repo
