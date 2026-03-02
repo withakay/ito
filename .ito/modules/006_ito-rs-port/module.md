@@ -28,4 +28,4 @@ parity test harness early and then port commands incrementally.
 - [ ] 006-17_remove-js-ts
 - [ ] 006-18_dedupe-harness-prompts
 - [ ] 006-19_llm-user-guidance
-- [ ] 006-21_remove-ito-state-command
+- [x] 006-21_remove-ito-state-command

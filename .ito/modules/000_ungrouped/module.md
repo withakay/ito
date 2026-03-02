@@ -13,5 +13,5 @@ Ungrouped changes and ad-hoc work that do not fit a module.
 - [x] 000-04_ready-work-commands
 - [x] 000-05_crate-architecture-refactor
 - [x] 000-06_internal-change-sync-branch
-- [ ] 000-07_remote-audit-mirror-branch
+- [x] 000-07_remote-audit-mirror-branch
 - [ ] 000-10_cli-type-safe-args → moved to 016_cli as 016-10_cli-type-safe-args

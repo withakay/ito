@@ -1,18 +1,10 @@
-# Docs Agent Instructions Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Docs mention project setup workflow
 
-Define requirements for generating stable, useful agent-facing instruction artifacts.
+AI-facing documentation installed by Ito SHALL mention how to run the project setup workflow.
 
-## Requirements
+#### Scenario: Docs include command to run project setup
 
-### Requirement: TDD and coverage guidance is explicit and configurable
-
-AI-facing instructions SHALL explicitly encourage a RED/GREEN/REFACTOR workflow and reference a default coverage target, while describing how projects can override defaults.
-
-#### Scenario: AGENTS guidance includes RED/GREEN and coverage target
-
-- **WHEN** an agent reads `.ito/AGENTS.md`
-- **THEN** it includes a concise section describing RED/GREEN/REFACTOR
-- **AND** it references a default coverage target of 80%
-- **AND** it describes where to configure overrides
+- **WHEN** a user reads installed agent docs
+- **THEN** they can find `/ito-project-setup` or `ito agent instruction project-setup`

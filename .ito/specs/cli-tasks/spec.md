@@ -1,29 +1,41 @@
-# Spec: cli-tasks
+## ADDED Requirements
 
-## Purpose
+### Requirement: Backend coordination commands live under `ito tasks`
 
-Define the `cli-tasks` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: ID-ordered task and change lists).
+When backend mode is enabled, Ito SHALL expose backend coordination commands as `tasks` subcommands instead of new top-level commands.
 
-## Requirements
+#### Scenario: Claim and release commands are available under tasks
 
-### Requirement: ID-ordered task and change lists
+- **GIVEN** backend mode is enabled
+- **WHEN** the user runs `ito tasks claim <change-id>` or `ito tasks release <change-id>`
+- **THEN** Ito executes backend lease claim or release behavior for that change
 
-The CLI SHALL emit deterministic ascending ID order for ID-bearing task list outputs.
+#### Scenario: Allocation command is available under tasks
 
-#### Scenario: Status ready and blocked lists are ordered by task ID
+- **GIVEN** backend mode is enabled
+- **WHEN** the user runs `ito tasks allocate`
+- **THEN** Ito executes backend allocation behavior for next available change
 
-- **WHEN** executing `ito tasks status <change-id>`
-- **THEN** ready tasks are output in ascending canonical task ID order
-- **AND** blocked tasks are output in ascending canonical task ID order
+#### Scenario: Sync commands are available under tasks sync
 
-#### Scenario: Ready command across changes is ID ordered
+- **GIVEN** backend mode is enabled
+- **WHEN** the user runs `ito tasks sync pull <change-id>` or `ito tasks sync push <change-id>`
+- **THEN** Ito executes backend artifact synchronization behavior for that change
 
-- **WHEN** executing `ito tasks ready` without a specific change ID
-- **THEN** changes are output in ascending canonical change ID order
-- **AND** each change's `ready_tasks` list is output in ascending canonical task ID order
+### Requirement: Task mutations sync through backend in backend mode
 
-#### Scenario: Show JSON task list is task-ID ordered
+When backend mode is enabled, task mutation operations SHALL synchronize task artifact updates through backend APIs before reporting success.
 
-- **WHEN** executing `ito tasks show <change-id> --json`
-- **THEN** `tasks` are output in ascending canonical task ID order
-- **AND** `waves` are output in ascending wave number order
+#### Scenario: Complete task updates backend artifact
+
+- **GIVEN** backend mode is enabled
+- **WHEN** the user runs `ito tasks complete <change-id> <task-id>`
+- **THEN** Ito applies the mutation to task content
+- **AND** pushes the updated tasks artifact through backend synchronization
+
+#### Scenario: Backend revision conflict prevents silent overwrite
+
+- **GIVEN** backend mode is enabled and local tasks content is stale
+- **WHEN** the user runs a task mutation command
+- **THEN** Ito reports a synchronization conflict
+- **AND** Ito does not silently overwrite newer backend task content
