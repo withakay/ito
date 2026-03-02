@@ -110,6 +110,17 @@ ito agent instruction archive --change <change-id>
 ito archive <change-id> -y
 ```
 
+## Backend API
+
+Ito includes an optional multi-tenant backend API for coordinating multiple agents on shared projects. For local testing, run it via Docker Compose:
+
+```bash
+docker compose -f docker-compose.backend.yml up -d
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+See `docs/backend-client-mode.md` for full documentation on backend client configuration and workflows.
+
 ## On-Disk Layout
 
 ```text
