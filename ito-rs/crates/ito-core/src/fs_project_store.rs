@@ -28,6 +28,17 @@ pub struct FsBackendProjectStore {
     data_dir: PathBuf,
 }
 
+/// Check that a path segment is safe for use in filesystem paths.
+///
+/// Rejects empty strings, `.`, `..`, and values containing `/` or `\`.
+fn is_safe_path_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains('/')
+        && !value.contains('\\')
+}
+
 impl FsBackendProjectStore {
     /// Create a new filesystem project store rooted at the given data directory.
     pub fn new(data_dir: impl Into<PathBuf>) -> Self {
@@ -37,12 +48,24 @@ impl FsBackendProjectStore {
     }
 
     /// Compute the `.ito/` path for a project.
-    pub fn ito_path_for(&self, org: &str, repo: &str) -> PathBuf {
-        self.data_dir
+    ///
+    /// Returns an error if `org` or `repo` contain path traversal characters.
+    pub fn ito_path_for(&self, org: &str, repo: &str) -> DomainResult<PathBuf> {
+        if !is_safe_path_segment(org) || !is_safe_path_segment(repo) {
+            return Err(DomainError::io(
+                "invalid path segment in org/repo",
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("invalid path segment: org={org:?}, repo={repo:?}"),
+                ),
+            ));
+        }
+        Ok(self
+            .data_dir
             .join("projects")
             .join(org)
             .join(repo)
-            .join(".ito")
+            .join(".ito"))
     }
 }
 
@@ -52,7 +75,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn ChangeRepository + Send>> {
-        let ito_path = self.ito_path_for(org, repo);
+        let ito_path = self.ito_path_for(org, repo)?;
         Ok(Box::new(OwnedFsChangeRepository::new(ito_path)))
     }
 
@@ -61,7 +84,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn ModuleRepository + Send>> {
-        let ito_path = self.ito_path_for(org, repo);
+        let ito_path = self.ito_path_for(org, repo)?;
         Ok(Box::new(OwnedFsModuleRepository::new(ito_path)))
     }
 
@@ -70,18 +93,20 @@ impl BackendProjectStore for FsBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn TaskRepository + Send>> {
-        let ito_path = self.ito_path_for(org, repo);
+        let ito_path = self.ito_path_for(org, repo)?;
         Ok(Box::new(OwnedFsTaskRepository::new(ito_path)))
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
-        let ito_path = self.ito_path_for(org, repo);
+        let ito_path = self.ito_path_for(org, repo)?;
         std::fs::create_dir_all(&ito_path)
             .map_err(|e| DomainError::io("creating project directory", e))
     }
 
     fn project_exists(&self, org: &str, repo: &str) -> bool {
-        self.ito_path_for(org, repo).is_dir()
+        self.ito_path_for(org, repo)
+            .map(|p| p.is_dir())
+            .unwrap_or(false)
     }
 }
 
@@ -206,8 +231,19 @@ mod tests {
     #[test]
     fn ito_path_resolves_correctly() {
         let store = FsBackendProjectStore::new("/data");
-        let path = store.ito_path_for("withakay", "ito");
+        let path = store.ito_path_for("withakay", "ito").unwrap();
         assert_eq!(path, PathBuf::from("/data/projects/withakay/ito/.ito"));
+    }
+
+    #[test]
+    fn ito_path_rejects_path_traversal() {
+        let store = FsBackendProjectStore::new("/data");
+        assert!(store.ito_path_for("..", "ito").is_err());
+        assert!(store.ito_path_for("org", "..").is_err());
+        assert!(store.ito_path_for(".", "repo").is_err());
+        assert!(store.ito_path_for("org/evil", "repo").is_err());
+        assert!(store.ito_path_for("org", "repo\\evil").is_err());
+        assert!(store.ito_path_for("", "repo").is_err());
     }
 
     #[test]
@@ -223,7 +259,7 @@ mod tests {
         let store = FsBackendProjectStore::new(tmp.path());
         store.ensure_project("acme", "widgets").unwrap();
         assert!(store.project_exists("acme", "widgets"));
-        assert!(store.ito_path_for("acme", "widgets").is_dir());
+        assert!(store.ito_path_for("acme", "widgets").unwrap().is_dir());
     }
 
     #[test]
