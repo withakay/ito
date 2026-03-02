@@ -1,3 +1,4 @@
+<!-- ITO:START -->
 ---
 name: ito-loop
 description: Run an ito ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
@@ -136,3 +137,4 @@ Command:      ito ralph --no-interactive --harness opencode --change 003-02_fix-
 4) After Ralph exits:
    - **Exit 0**: Work is done (or Ralph ran out of iterations). Report the result to the user.
    - **Non-zero exit**: Report the failure. The user can re-invoke `/ito-loop` to resume.
+<!-- ITO:END -->
