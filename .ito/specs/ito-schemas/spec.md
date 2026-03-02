@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define the `ito-schemas` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Schemas may define validation.yaml).
+Define the `ito-schemas` capability and its current-truth behavior for workflow schema metadata and schema-driven validation.
 
 ## Requirements
 
@@ -34,3 +34,14 @@ The `validation.yaml` format MUST use `snake_case` keys.
 
 - **WHEN** parsing `validation.yaml`
 - **THEN** Ito MUST accept `snake_case` field names as the canonical format
+
+### Requirement: Embedded schemas ship validation.yaml
+
+Ito SHALL ship a `validation.yaml` file alongside each embedded workflow schema's `schema.yaml` when that schema is intended to be validated automatically by `ito validate`.
+
+#### Scenario: Embedded schema directory includes validation.yaml
+
+- **GIVEN** a schema is embedded in the Ito binary
+- **WHEN** the embedded schema includes `schema.yaml`
+- **THEN** the embedded schema directory SHALL also include `validation.yaml`
+- **AND** `ito validate <change-id>` SHALL report that it is using schema validation
