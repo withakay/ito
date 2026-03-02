@@ -213,3 +213,29 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 - Format: `<type>(<change-id>): <short summary>`
 - Example: `feat(001-23): My cool change`
 - If no change ID applies, use normal conventional commit style without a change-id scope.
+
+<!-- This section is maintained by the coding agent via lore (https://github.com/BYK/opencode-lore) -->
+## Long-term Knowledge
+
+### Architecture
+
+<!-- lore:019cad59-2b4d-7362-aebd-ec31b5a76c21 -->
+* **Bare repo worktree layout for feature development**: This repo uses a bare-repo-with-worktrees layout. The \`main\` worktree is locked at \`main/\`. Feature worktrees go under \`ito-worktrees/\<branch-name>\`. When a branch is already checked out in a worktree, you cannot check it out elsewhere — work from the existing worktree path instead. All git commands must run from inside a worktree, not the bare repo root. The current working directory \`/Users/jack/Code/withakay/ito/dev\` appears to be the bare/control repo root.
+
+### Decision
+
+<!-- lore:019cad72-298b-70bf-8907-4f802d612520 -->
+* **Feature branches must be created from main, not dev**: Branch from \`main\` only; do not base feature work on intermediate integration branches. Earlier \`dev\`-based flow caused PRs to include many phantom commits after squash merges (same content, different SHAs). If this ever recurs, recover by rebasing only unique work onto \`origin/main\` using first-parent ancestry (\`git log --first-parent\` + \`git rebase --onto\`) instead of rebasing full history.
+
+### Gotcha
+
+<!-- lore:019caf3c-0454-79ff-a5fb-9cd9683056b9 -->
+* **Archive may overwrite specs with delta blocks**: In merge-snafu cleanup, archiving completed changes can leave \`.ito/specs/\*/spec.md\` in delta-only form (\`## ADDED/MODIFIED Requirements\`) and strip canonical sections like Purpose/Requirements, which then fails \`ito validate --specs\`. After any bulk archive, immediately validate specs and inspect changed spec files. If this happens, restore canonical spec structure from prior history before finalizing cleanup.
+<!-- lore:019cad59-2b4d-7362-aebd-ec32c59b4025 -->
+* **rtk gh wrapper ignores --jq and other gh flags**: \`rtk\` wrappers can break normal CLI expectations. \`rtk gh\` may ignore raw JSON filtering flags, and \`rtk git\` may reject options like \`-C\` or \`-c\`; when you need those behaviors, use native \`gh\`/\`git\` binaries directly. In automation, prefer setting the tool/workdir context instead of relying on \`git -C\`.
+
+### Pattern
+
+<!-- lore:019cad88-b1ce-71b9-9304-642d211a9a1f -->
+* **Rust style prefers explicit for-loops**: In \`ito-rs/\*\*/\*.rs\`, prefer explicit \`for\` loops over iterator chains like \`.iter().filter().map().collect()\`. Even when bot feedback suggests iterator-style refactors, keep loop-based implementations to match project conventions and avoid churn in review.
+<!-- End lore-managed section -->
