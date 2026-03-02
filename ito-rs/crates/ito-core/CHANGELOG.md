@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.14] - 2026-03-02
+
+### 🚀 Features
+
+- *(024-10)* Add YAML front matter parsing/writing utilities
+- *(024-10)* Integrate front matter validation into change repository
+- *(024-11)* Add grep command ([#122](https://github.com/withakay/ito/pull/122))
+
+### 🐛 Bug Fixes
+
+- Address PR review feedback - path traversal, auth redaction, and docs consistency
+- *(ralph)* Continue-module skips processed and validates worktree tasks
+- *(ralph)* Harden continue-module filtering and commit checks
 ## [0.1.13] - 2026-03-01
 
 ### 🚀 Features

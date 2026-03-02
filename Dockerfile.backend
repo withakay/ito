@@ -1,0 +1,39 @@
+# Dockerfile for the Ito backend API server (local testing).
+#
+# Multi-stage build:
+#   1. Build the `ito` binary with the `backend` feature (default).
+#   2. Copy the binary into a minimal runtime image.
+#
+# Usage:
+#   docker compose -f docker-compose.backend.yml up --build
+#
+# The entrypoint runs `ito serve-api` with bind 0.0.0.0 so the port is
+# accessible from the Docker host.
+
+# ---------- build stage ----------
+FROM rust:1.86-bookworm AS builder
+
+WORKDIR /src
+
+# Copy workspace manifests first for layer caching.
+COPY Cargo.toml Cargo.lock ./
+COPY ito-rs/crates/ ito-rs/crates/
+
+RUN cargo build --release --bin ito
+
+# ---------- runtime stage ----------
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /src/target/release/ito /usr/local/bin/ito
+
+# Default data directory inside the container.
+ENV ITO_BACKEND_DATA_DIR=/data
+
+EXPOSE 9010
+
+ENTRYPOINT ["ito", "serve-api", "--bind", "0.0.0.0"]

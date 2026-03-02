@@ -144,7 +144,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now ito-backend
 ```
 
-See `docs/backend-client-mode.md` for full documentation.
+See `docs/backend-client-mode.md` for full documentation on backend client configuration and workflows.
 
 ## On-Disk Layout
 
