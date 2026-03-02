@@ -140,6 +140,7 @@ launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
 ```bash
 cp services/ito-backend.service ~/.config/systemd/user/
 # Edit to set ITO_BACKEND_ADMIN_TOKEN
+systemctl --user daemon-reload
 systemctl --user enable --now ito-backend
 ```
 
