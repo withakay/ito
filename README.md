@@ -110,6 +110,41 @@ ito agent instruction archive --change <change-id>
 ito archive <change-id> -y
 ```
 
+## Backend API
+
+Ito includes an optional multi-tenant backend API for coordinating multiple agents on shared projects. Several runtime options are available:
+
+| Runtime | Platform | Use Case |
+|---------|----------|----------|
+| Docker Compose | macOS, Linux | Containerized testing, CI |
+| Homebrew service | macOS | Long-running development |
+| systemd service | Linux | Long-running development, self-hosted |
+
+**Quick start (Docker Compose):**
+
+```bash
+docker compose -f docker-compose.backend.yml up -d
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+**Homebrew (macOS):**
+
+```bash
+cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
+# Edit to set ITO_BACKEND_ADMIN_TOKEN
+launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+```
+
+**systemd (Linux):**
+
+```bash
+cp services/ito-backend.service ~/.config/systemd/user/
+# Edit to set ITO_BACKEND_ADMIN_TOKEN
+systemctl --user enable --now ito-backend
+```
+
+See `docs/backend-client-mode.md` for full documentation.
+
 ## On-Disk Layout
 
 ```text

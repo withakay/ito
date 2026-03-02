@@ -4,8 +4,111 @@ Backend client mode enables multiple agents to coordinate through a shared backe
 
 ## Prerequisites
 
-- A running Ito backend server (see `ito-backend` crate)
+- A running Ito backend server (see below for local runtime options)
 - A valid bearer token (set via environment variable or config)
+
+### Running the Backend Locally
+
+Ito provides several options for running the backend locally:
+
+| Runtime | Platform | Best For |
+|---------|----------|----------|
+| Docker Compose | macOS, Linux | Containerized testing, CI |
+| Homebrew service | macOS | Long-running development |
+| systemd service | Linux | Long-running development, self-hosted |
+
+#### Docker Compose (All Platforms)
+
+```bash
+# Start the backend
+docker compose -f docker-compose.backend.yml up -d
+
+# Verify health
+curl http://127.0.0.1:9010/api/v1/health
+
+# Stop the backend
+docker compose -f docker-compose.backend.yml down
+```
+
+See `docker-compose.backend.yml` and `.env.backend.example` for configuration.
+
+#### Homebrew Service (macOS)
+
+For long-running development on macOS, you can run the backend as a Homebrew-managed service:
+
+```bash
+# Install the plist
+mkdir -p ~/Library/LaunchAgents
+cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
+
+# Edit the plist to set your admin token
+# Replace the empty string after <key>ITO_BACKEND_ADMIN_TOKEN</key> with your token
+$EDITOR ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# Load and start the service
+launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# Verify the backend is running
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+Service management commands:
+
+```bash
+# Check service status
+launchctl list | grep ito.backend
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# View logs
+tail -f /tmp/ito-backend.log
+```
+
+#### systemd Service (Linux)
+
+For Linux systems with systemd, you can run the backend as a user or system service:
+
+**User service (recommended for development):**
+
+```bash
+# Install the unit file
+mkdir -p ~/.config/systemd/user/
+cp services/ito-backend.service ~/.config/systemd/user/
+
+# Edit to set your admin token
+$EDITOR ~/.config/systemd/user/ito-backend.service
+
+# Enable and start
+systemctl --user daemon-reload
+systemctl --user enable --now ito-backend
+
+# Verify health
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+**System service (for shared/self-hosted deployments):**
+
+```bash
+# Install as root
+sudo cp services/ito-backend.service /etc/systemd/system/
+sudo $EDITOR /etc/systemd/system/ito-backend.service  # Set tokens
+sudo systemctl daemon-reload
+sudo systemctl enable --now ito-backend
+```
+
+Service management commands:
+
+```bash
+# Check status
+systemctl --user status ito-backend
+
+# View logs
+journalctl --user -u ito-backend -f
+
+# Stop the service
+systemctl --user stop ito-backend
+```
 
 ## Enabling Backend Mode
 
