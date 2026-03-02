@@ -1,0 +1,234 @@
+name: PR Respond Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  respond:
+    if: >-
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/respond')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process /respond command
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const assoc = context.payload.comment.author_association;
+            if (!trustedAssociations.has(assoc)) {
+              core.setFailed(`Untrusted commenter association: ${assoc}`);
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.issue.number;
+            const commandBody = context.payload.comment.body;
+            const commandSuffix = commandBody.split('/respond').slice(1).join('/respond').trim();
+
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number });
+
+            const reviewComments = await github.paginate(github.rest.pulls.listReviewComments, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+
+            const prComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pull_number,
+              per_page: 100,
+            });
+
+            const reviewThreads = [];
+            let cursor = null;
+            while (true) {
+              const result = await github.graphql(
+                `query($owner:String!, $repo:String!, $number:Int!, $cursor:String) {
+                  repository(owner:$owner, name:$repo) {
+                    pullRequest(number:$number) {
+                      reviewThreads(first: 50, after: $cursor) {
+                        nodes {
+                          id
+                          isResolved
+                          comments(last: 20) {
+                            nodes {
+                              databaseId
+                              body
+                              url
+                              createdAt
+                              author {
+                                login
+                              }
+                            }
+                          }
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { owner, repo, number: pull_number, cursor },
+              );
+
+              const chunk = result.repository.pullRequest.reviewThreads.nodes;
+              reviewThreads.push(...chunk);
+
+              const pageInfo = result.repository.pullRequest.reviewThreads.pageInfo;
+              if (!pageInfo.hasNextPage) {
+                break;
+              }
+              cursor = pageInfo.endCursor;
+            }
+
+            const suggestionPattern = /(should|must|please|consider|nit|bug|fix|issue|suggest|change|avoid|required|missing)/i;
+            // Heuristic thresholds: substantive feedback should usually be >= 40 chars
+            // and include at least 2 quality indicators before automation acts on it.
+            const MIN_SUBSTANTIVE_LENGTH = 40;
+            const MIN_QUALITY_SCORE = 2;
+            const isHumanUser = (login) => login && !login.endsWith('[bot]') && login !== 'github-actions';
+
+            const highQualityThreads = reviewThreads.filter((thread) => {
+              if (thread.isResolved) {
+                return false;
+              }
+
+              const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
+              if (!latest || !isHumanUser(latest.author?.login)) {
+                return false;
+              }
+
+              const body = (latest.body || '').trim();
+              let score = 0;
+              if (body.length >= MIN_SUBSTANTIVE_LENGTH) score += 1;
+              if (suggestionPattern.test(body)) score += 1;
+              if (body.includes('`')) score += 1;
+              if (!body.endsWith('?')) score += 1;
+
+              return score >= MIN_QUALITY_SCORE;
+            });
+
+            const allReviewSummary = reviewComments.map((comment, index) => {
+              return `${index + 1}. [${comment.user?.login ?? 'unknown'}] ${comment.path ?? 'general'}:${comment.line != null ? comment.line : '-'}\n${comment.body}`;
+            }).join('\n\n');
+            const allDiscussionSummary = prComments
+              .filter((comment) => comment.id !== context.payload.comment.id)
+              .map((comment, index) => `${index + 1}. [${comment.user?.login ?? 'unknown'}] ${comment.html_url}\n${comment.body}`)
+              .join('\n\n');
+
+            const highQualitySummary = highQualityThreads.map((thread, index) => {
+              const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
+              return `${index + 1}. [${latest.author?.login}] ${latest.url}\n${latest.body}`;
+            }).join('\n\n');
+
+            let trackingIssue = null;
+            if (highQualityThreads.length > 0) {
+              const issueBody = [
+                `Automated /respond request for PR #${pull_number}: ${pr.data.title}`,
+                `PR URL: ${pr.data.html_url}`,
+                '',
+                commandSuffix ? `Additional requester instructions:\n${commandSuffix}` : 'Additional requester instructions: none',
+                '',
+                'High-quality review comments to address:',
+                highQualitySummary || '(none)',
+                '',
+                'All review comments (full context):',
+                allReviewSummary || '(none)',
+                '',
+                'All PR discussion comments (full context):',
+                allDiscussionSummary || '(none)',
+                '',
+                'Task:',
+                '- Assess the comments, implement valid suggestions on a new branch, and open a new PR.',
+                '- Reply in review threads for suggestions you address.',
+                '- If a suggestion is not appropriate, explain why in-thread.',
+              ].join('\n');
+
+              trackingIssue = await github.rest.issues.create({
+                owner,
+                repo,
+                title: `Respond to PR #${pull_number} review feedback`,
+                body: issueBody,
+              });
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: trackingIssue.data.number,
+                body: '@copilot Please address the selected review suggestions and open a PR with the changes.',
+              });
+            }
+
+            const threadFailures = [];
+            if (trackingIssue) {
+              for (const thread of highQualityThreads) {
+                const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
+                if (!latest?.databaseId) {
+                  continue;
+                }
+
+                try {
+                  await github.rest.pulls.createReplyForReviewComment({
+                    owner,
+                    repo,
+                    pull_number,
+                    comment_id: latest.databaseId,
+                    body: `Thanks for the suggestion. I started an automated follow-up at #${trackingIssue.data.number}. The suggested changes will be addressed there. Resolving this thread as tracked.`,
+                  });
+
+                  await github.graphql(
+                    `mutation($threadId: ID!) {
+                      resolveReviewThread(input: { threadId: $threadId }) {
+                        thread {
+                          id
+                          isResolved
+                        }
+                      }
+                    }`,
+                    { threadId: thread.id },
+                  );
+                } catch (error) {
+                  threadFailures.push({ url: latest.url, error: error.message });
+                }
+              }
+            }
+
+            const summaryLines = [
+              `Processed \`/respond\` for PR #${pull_number}.`,
+              `- Total review comments: ${reviewComments.length}`,
+              `- Total PR discussion comments: ${prComments.length}`,
+              `- Review threads: ${reviewThreads.length}`,
+              `- High-quality unresolved suggestions selected: ${highQualityThreads.length}`,
+            ];
+
+            if (trackingIssue) {
+              summaryLines.push(`- Follow-up issue created: #${trackingIssue.data.number}`);
+            } else {
+              summaryLines.push('- No high-quality unresolved suggestions were found; no follow-up issue created.');
+            }
+
+            if (threadFailures.length > 0) {
+              summaryLines.push(`- Thread reply/resolve failures: ${threadFailures.length}`);
+              for (const failure of threadFailures.slice(0, 5)) {
+                summaryLines.push(`  - ${failure.url}: ${failure.error}`);
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body: summaryLines.join('\n'),
+            });
