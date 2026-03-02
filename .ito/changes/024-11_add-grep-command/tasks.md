@@ -30,8 +30,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-core grep`
 - **Done When**:
   - Core exposes a tested API that searches a list of file paths and returns matches
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 1.2: Add CLI command parsing and output formatting for ito grep
 
@@ -48,8 +48,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-cli`
 - **Done When**:
   - CLI produces stable, line-oriented output suitable for piping to bash tools
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -68,8 +68,8 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test -p ito-cli`
 - **Done When**:
   - Re-running `ito grep` does not re-download unchanged artifacts
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete
 
 ### Task 2.2: Add tests for grep across change/module/all
 
@@ -81,5 +81,5 @@ ______________________________________________________________________
 - **Verify**: `cd ito-rs && cargo test`
 - **Done When**:
   - Tests cover change, module, and all-project scopes
-- **Updated At**: 2026-02-28
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-01
+- **Status**: [x] complete

@@ -4,11 +4,13 @@ use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+mod grep;
 mod path;
 mod ralph;
 mod split;
 mod validate;
 
+pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
@@ -136,6 +138,20 @@ pub enum Commands {
     /// Split a large change into smaller changes [not implemented]
     #[command(hide = true)]
     Split(SplitArgs),
+
+    /// Search Ito change artifacts using a regular expression
+    ///
+    /// Searches proposal, design, tasks, and spec files within changes.
+    /// By default searches a single change. Use --module or --all to widen
+    /// the scope.
+    ///
+    /// Examples:
+    ///   ito grep 005-01_add-auth "Requirement:"
+    ///   ito grep --module 024 "Backend"
+    ///   ito grep --all "Scenario:"
+    ///   ito grep 005-01 "TODO" --limit 20
+    #[command(verbatim_doc_comment, visible_alias = "gr")]
+    Grep(GrepArgs),
 
     /// Manage implementation tasks for a change
     ///

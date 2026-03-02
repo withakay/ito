@@ -147,5 +147,6 @@ pub fn known_command_ids() -> &'static [&'static str] {
         "ito.validate",
         "ito.ralph",
         "ito.loop",
+        "ito.grep",
     ]
 }
