@@ -93,39 +93,43 @@ jobs:
               cursor = pageInfo.endCursor;
             }
 
-            const qualitySignals = /(should|must|please|consider|nit|bug|fix|issue|suggest|change|avoid|required|missing)/i;
-            const isHuman = (login) => login && !login.endsWith('[bot]') && login !== 'github-actions';
+            const suggestionPattern = /(should|must|please|consider|nit|bug|fix|issue|suggest|change|avoid|required|missing)/i;
+            // Heuristic thresholds: substantive feedback should usually be >= 40 chars
+            // and include at least 2 quality indicators before automation acts on it.
+            const MIN_SUBSTANTIVE_LENGTH = 40;
+            const MIN_QUALITY_SCORE = 2;
+            const isHumanUser = (login) => login && !login.endsWith('[bot]') && login !== 'github-actions';
 
             const highQualityThreads = reviewThreads.filter((thread) => {
               if (thread.isResolved) {
                 return false;
               }
 
-              const latest = thread.comments.nodes.at(-1);
-              if (!latest || !isHuman(latest.author?.login)) {
+              const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
+              if (!latest || !isHumanUser(latest.author?.login)) {
                 return false;
               }
 
               const body = (latest.body || '').trim();
               let score = 0;
-              if (body.length >= 40) score += 1;
-              if (qualitySignals.test(body)) score += 1;
+              if (body.length >= MIN_SUBSTANTIVE_LENGTH) score += 1;
+              if (suggestionPattern.test(body)) score += 1;
               if (body.includes('`')) score += 1;
               if (!body.endsWith('?')) score += 1;
 
-              return score >= 2;
+              return score >= MIN_QUALITY_SCORE;
             });
 
             const allReviewSummary = reviewComments.map((comment, index) => {
-              return `${index + 1}. [${comment.user.login}] ${comment.path ?? 'general'}:${comment.line ?? '-'}\n${comment.body}`;
+              return `${index + 1}. [${comment.user?.login ?? 'unknown'}] ${comment.path ?? 'general'}:${comment.line != null ? comment.line : '-'}\n${comment.body}`;
             }).join('\n\n');
             const allDiscussionSummary = prComments
               .filter((comment) => comment.id !== context.payload.comment.id)
-              .map((comment, index) => `${index + 1}. [${comment.user.login}] ${comment.html_url}\n${comment.body}`)
+              .map((comment, index) => `${index + 1}. [${comment.user?.login ?? 'unknown'}] ${comment.html_url}\n${comment.body}`)
               .join('\n\n');
 
             const highQualitySummary = highQualityThreads.map((thread, index) => {
-              const latest = thread.comments.nodes.at(-1);
+              const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
               return `${index + 1}. [${latest.author?.login}] ${latest.url}\n${latest.body}`;
             }).join('\n\n');
 
@@ -159,22 +163,18 @@ jobs:
                 body: issueBody,
               });
 
-              try {
-                await github.rest.issues.addAssignees({
-                  owner,
-                  repo,
-                  issue_number: trackingIssue.data.number,
-                  assignees: ['copilot'],
-                });
-              } catch (error) {
-                core.warning(`Failed to assign @copilot: ${error.message}`);
-              }
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: trackingIssue.data.number,
+                body: '@copilot Please address the selected review suggestions and open a PR with the changes.',
+              });
             }
 
             const threadFailures = [];
             if (trackingIssue) {
               for (const thread of highQualityThreads) {
-                const latest = thread.comments.nodes.at(-1);
+                const latest = thread.comments.nodes[thread.comments.nodes.length - 1];
                 if (!latest?.databaseId) {
                   continue;
                 }
@@ -185,7 +185,7 @@ jobs:
                     repo,
                     pull_number,
                     comment_id: latest.databaseId,
-                    body: `Thanks for the suggestion — I started an automated follow-up at #${trackingIssue.data.number}. Resolving this thread as tracked.`,
+                    body: `Thanks for the suggestion. I started an automated follow-up at #${trackingIssue.data.number}. The suggested changes will be addressed there. Resolving this thread as tracked.`,
                   });
 
                   await github.graphql(
