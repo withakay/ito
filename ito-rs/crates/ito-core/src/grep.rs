@@ -93,7 +93,9 @@ pub fn search_files(files: &[PathBuf], pattern: &str, limit: usize) -> CoreResul
                 matches.push(GrepMatch {
                     path: file_path.clone(),
                     line_number,
-                    line: line_text.trim_end_matches('\n').to_string(),
+                    line: line_text
+                        .trim_end_matches(&['\r', '\n'][..])
+                        .to_string(),
                 });
 
                 if limit > 0 && matches.len() >= limit {
