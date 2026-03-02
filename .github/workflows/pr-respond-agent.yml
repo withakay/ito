@@ -133,11 +133,14 @@ jobs:
               return `${index + 1}. [${latest.author?.login}] ${latest.url}\n${latest.body}`;
             }).join('\n\n');
 
+            const prHeadBranch = pr.data.head.ref;
+
             let trackingIssue = null;
             if (highQualityThreads.length > 0) {
               const issueBody = [
                 `Automated /respond request for PR #${pull_number}: ${pr.data.title}`,
                 `PR URL: ${pr.data.html_url}`,
+                `Base branch for your work: \`${prHeadBranch}\``,
                 '',
                 commandSuffix ? `Additional requester instructions:\n${commandSuffix}` : 'Additional requester instructions: none',
                 '',
@@ -151,7 +154,8 @@ jobs:
                 allDiscussionSummary || '(none)',
                 '',
                 'Task:',
-                '- Assess the comments, implement valid suggestions on a new branch, and open a new PR.',
+                `- IMPORTANT: Create a new branch from \`${prHeadBranch}\` (NOT from \`main\` or any other branch).`,
+                `- Assess the comments, implement valid suggestions on that new branch, and open a PR targeting \`${prHeadBranch}\` so the changes can be merged back into PR #${pull_number}.`,
                 '- Reply in review threads for suggestions you address.',
                 '- If a suggestion is not appropriate, explain why in-thread.',
               ].join('\n');
@@ -167,7 +171,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: trackingIssue.data.number,
-                body: '@copilot Please address the selected review suggestions and open a PR with the changes.',
+                body: `@copilot Please address the selected review suggestions. IMPORTANT: create a new branch from \`${prHeadBranch}\` and open a PR targeting \`${prHeadBranch}\` (NOT \`main\`), so your changes can be merged back into PR #${pull_number}.`,
               });
             }
 
