@@ -16,6 +16,10 @@ use clap::Args;
 /// ```
 #[derive(Args, Debug, Clone)]
 pub struct GrepArgs {
+    /// Output matches as JSON for machine-readable tooling.
+    #[arg(long)]
+    pub json: bool,
+
     /// Search all changes in a module (by module ID)
     #[arg(short = 'm', long, conflicts_with = "all")]
     pub module: Option<String>,

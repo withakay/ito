@@ -1,8 +1,8 @@
 use crate::cli::GrepArgs;
-use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::cli_error::{fail, to_cli_error, CliResult};
 use crate::runtime::Runtime;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::grep::{GrepInput, GrepScope, grep};
+use ito_core::grep::{grep, GrepInput, GrepScope};
 use ito_core::module_repository::FsModuleRepository;
 
 /// Handle the `ito grep` CLI command.
@@ -29,15 +29,42 @@ pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
 
     let output = grep(ito_path, &input, &change_repo, &module_repo).map_err(to_cli_error)?;
 
-    for m in &output.matches {
-        println!("{}:{}:{}", m.path.display(), m.line_number, m.line);
-    }
+    // Compute the project root once for relative-path display.
+    let project_root = ito_path.parent().unwrap_or(ito_path);
 
-    if output.truncated {
-        eprintln!(
-            "[ito grep] output limited to {} matches (use --limit 0 for unlimited)",
-            args.limit
+    if args.json {
+        let json_matches: Vec<serde_json::Value> = output
+            .matches
+            .iter()
+            .map(|m| {
+                let rel = m.path.strip_prefix(project_root).unwrap_or(&m.path);
+                serde_json::json!({
+                    "path": rel.display().to_string(),
+                    "line_number": m.line_number,
+                    "line": m.line,
+                })
+            })
+            .collect();
+        let envelope = serde_json::json!({
+            "matches": json_matches,
+            "truncated": output.truncated,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&envelope).map_err(to_cli_error)?
         );
+    } else {
+        for m in &output.matches {
+            let rel = m.path.strip_prefix(project_root).unwrap_or(&m.path);
+            println!("{}:{}:{}", rel.display(), m.line_number, m.line);
+        }
+
+        if output.truncated {
+            eprintln!(
+                "[ito grep] output limited to {} matches (use --limit 0 for unlimited)",
+                args.limit
+            );
+        }
     }
 
     Ok(())
@@ -137,19 +164,21 @@ fn materialize_backend_cache(
                 Ok(m) => m,
                 Err(_) => return Ok(()),
             };
-            change_repo
-                .list_by_module(&module.id)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|c| c.id)
-                .collect()
+            match change_repo.list_by_module(&module.id) {
+                Ok(changes) => changes.into_iter().map(|c| c.id).collect(),
+                Err(e) => {
+                    tracing::warn!("failed to list changes for module {}: {e}", module.id);
+                    vec![]
+                }
+            }
         }
-        GrepScope::All => change_repo
-            .list()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|c| c.id)
-            .collect(),
+        GrepScope::All => match change_repo.list() {
+            Ok(changes) => changes.into_iter().map(|c| c.id).collect(),
+            Err(e) => {
+                tracing::warn!("failed to list all changes: {e}");
+                vec![]
+            }
+        },
     };
 
     for change_id in &change_ids {

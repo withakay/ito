@@ -65,7 +65,8 @@ pub struct GrepOutput {
 /// # Errors
 ///
 /// Returns `CoreError::Validation` if the pattern is not a valid regex.
-/// Returns `CoreError::Io` if a file cannot be read.
+/// Files that cannot be read are skipped (logged at debug level) so one
+/// unreadable file does not fail the entire search.
 pub fn search_files(files: &[PathBuf], pattern: &str, limit: usize) -> CoreResult<GrepOutput> {
     let matcher = RegexMatcher::new(pattern)
         .map_err(|e| CoreError::validation(format!("invalid grep pattern: {e}")))?;
@@ -80,12 +81,6 @@ pub fn search_files(files: &[PathBuf], pattern: &str, limit: usize) -> CoreResul
             break;
         }
 
-        let remaining = if limit > 0 {
-            limit - matches.len()
-        } else {
-            usize::MAX
-        };
-
         let search_result = searcher.search_path(
             &matcher,
             file_path,
@@ -95,7 +90,6 @@ pub fn search_files(files: &[PathBuf], pattern: &str, limit: usize) -> CoreResul
                     return Ok(false);
                 }
 
-                let _ = remaining; // used for the limit check above
                 matches.push(GrepMatch {
                     path: file_path.clone(),
                     line_number,
