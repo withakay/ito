@@ -272,6 +272,9 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || commands::handle_loop_clap(&rt, ralph_args, args),
             );
         }
+        Some(Commands::Util(args)) => {
+            return commands::handle_util_clap(args);
+        }
         Some(Commands::Archive(args)) => {
             return util::with_logging(
                 &rt,

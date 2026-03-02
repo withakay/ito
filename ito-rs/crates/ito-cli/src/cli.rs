@@ -8,12 +8,14 @@ mod grep;
 mod path;
 mod ralph;
 mod split;
+mod util;
 mod validate;
 
 pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
+pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
 
 /// Creates a Styles builder preconfigured for CLI output.
@@ -292,6 +294,18 @@ pub enum Commands {
     Audit(crate::commands::audit::AuditArgs),
 
     // ─── Utilities ──────────────────────────────────────────────────────────────
+    /// Low-level utility commands for scripting and agent tooling.
+    ///
+    /// These commands provide machine-readable helpers for use in scripts,
+    /// skills, and agent workflows.
+    ///
+    /// Examples:
+    ///   ito util parse-id 005-01_add-auth
+    ///   ito util parse-id 012
+    ///   ito util parse-id next
+    #[command(verbatim_doc_comment, visible_alias = "u")]
+    Util(UtilArgs),
+
     /// Display an interactive dashboard [not implemented]
     #[command(hide = true)]
     Dashboard(DashboardArgs),
