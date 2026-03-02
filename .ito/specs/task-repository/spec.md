@@ -1,26 +1,23 @@
-# Spec: task-repository
+## ADDED Requirements
 
-## Purpose
+### Requirement: TaskRepository supports backend-backed task access
 
-Define the `task-repository` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: TaskRepository provides centralized task access).
+`TaskRepository` SHALL support backend-backed task access when backend mode is enabled.
 
-## Requirements
+#### Scenario: Task counts resolve from backend tasks artifact in backend mode
 
-### Requirement: TaskRepository provides centralized task access
-
-A `TaskRepository` interface SHALL exist in `ito-domain` that provides methods for loading and querying task data without exposing markdown parsing details.
-
-`ito-core` SHALL provide a filesystem-backed implementation of this interface for production use.
-
-#### Scenario: Get task counts for a change
-
-- **GIVEN** a change with tasks in either checkbox or enhanced format
+- **GIVEN** backend mode is enabled and backend provides tasks markdown for a change
 - **WHEN** calling `task_repo.get_task_counts(change_id)`
-- **THEN** it returns a `(completed, total)` tuple with accurate counts
-- **AND** both formats are correctly parsed
+- **THEN** Ito computes counts from backend-sourced task content
 
-#### Scenario: Get task counts for missing tasks file
+#### Scenario: Missing backend tasks artifact returns zero counts
 
-- **GIVEN** a change with no tasks.md file
+- **GIVEN** backend mode is enabled and no tasks artifact exists for a change
 - **WHEN** calling `task_repo.get_task_counts(change_id)`
 - **THEN** it returns `(0, 0)`
+
+#### Scenario: Filesystem path is used when backend mode is disabled
+
+- **GIVEN** backend mode is disabled
+- **WHEN** calling `task_repo.get_task_counts(change_id)`
+- **THEN** Ito uses existing filesystem-backed behavior

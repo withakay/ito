@@ -12,4 +12,4 @@
 - [x] 023-03_github-copilot-audit-hooks
 - [x] 023-04_codex-audit-instructions
 - [x] 023-05_init-update-installer-parity
-- [ ] 023-07_harness-context-inference
+- [x] 023-07_harness-context-inference

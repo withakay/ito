@@ -27,5 +27,5 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - [x] 024-03_add-backend-project-bootstrap
 - [x] 024-04_add-backend-event-forwarding
 - [x] 024-05_add-backend-archive-sync
-- [ ] 024-10_multi-tenant-backend-server
-- [ ] 024-11_add-grep-command
+- [x] 024-10_multi-tenant-backend-server
+- [x] 024-11_add-grep-command
