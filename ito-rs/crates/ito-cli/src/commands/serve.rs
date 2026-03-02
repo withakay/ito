@@ -10,7 +10,14 @@ fn detect_tailscale_ip() -> CliResult<String> {
 }
 
 fn detect_tailscale_ip_with(cmd: &Path) -> CliResult<String> {
-    let output = Command::new(cmd).args(["ip", "-4"]).output().map_err(|e| {
+    detect_tailscale_ip_cmd(|| Command::new(cmd).args(["ip", "-4"]).output())
+}
+
+fn detect_tailscale_ip_cmd<F>(run: F) -> CliResult<String>
+where
+    F: FnOnce() -> std::io::Result<std::process::Output>,
+{
+    let output = run().map_err(|e| {
         crate::cli_error::CliError::msg(format!(
             "Failed to run 'tailscale ip -4': {e}. Is Tailscale installed and on PATH?"
         ))
