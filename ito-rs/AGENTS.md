@@ -11,13 +11,16 @@ For architectural guidelines (layering, crate structure, design patterns), see [
 Use the Makefile (at the repo root) for common tasks:
 
 ```bash
+make init             # Check toolchain and install hooks
 make build            # Build the project
 make test             # Run tests
+make test-timed       # Run tests with per-crate timing
 make test-watch       # Run tests in watch mode
 make test-coverage    # Run tests with coverage
-make check            # Run linter checks (fmt + clippy)
+make check            # Run full pre-push quality gate via prek
 make docs             # Build documentation (fails on warnings)
 make arch-guardrails  # Check architectural dependency rules
+make cargo-deny       # Run license/advisory checks
 make clean            # Clean build artifacts
 make help             # Show all available targets
 ```
@@ -30,6 +33,7 @@ make help             # Show all available targets
 └── ito-rs/
     ├── tools/                    # Guardrail scripts (arch_guardrails.py, check_max_lines.py)
     └── crates/
+        ├── ito-backend/          # Layer 3 (Adapter): HTTP backend API
         ├── ito-common/           # Layer 0: Shared utilities (leaf crate)
         ├── ito-config/           # Layer 0: Configuration loading
         ├── ito-domain/           # Layer 1: Domain models & repository ports
@@ -60,20 +64,23 @@ You can also load the `rust-style` skill for the full guide with examples.
 
 ## Quality Gates
 
-All of these run in CI and as pre-commit/pre-push hooks via `prek`:
+The primary local gate is `make check` (which runs `prek` at `pre-push` stage on all files).
+CI enforces the same Rust checks plus docs-site and PowerShell parse checks.
 
+- File hygiene + markdown/yaml/json checks from `.pre-commit-config.yaml`
 - `cargo fmt --check`
 - `cargo clippy` with `-D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented`
 - `#![warn(missing_docs)]` on all library crates
 - `RUSTDOCFLAGS="-D warnings" cargo doc` — docs must build cleanly
-- `RUSTFLAGS="-D warnings"` for all test and lint targets
-- Architecture guardrails via `make arch-guardrails` (enforces layering, API bans in `ito-domain`)
-- Max 1000 lines per `.rs` file (enforced by `check_max_lines.py`)
+- `make test-affected` and `make test-coverage` (coverage hard floor 80%, target 90%)
+- Architecture guardrails via `make arch-guardrails` (enforces layering and domain API baselines)
+- `make check-max-lines` (`check_max_lines.py`: soft 1000-line warning, hard 1200-line failure)
+- `make cargo-deny` for license/advisory checks
 
 ## Testing
 
 - **TDD by default**: Red/Green/Refactor
-- **Coverage target**: 100% aspirational, 80% hard floor
+- **Coverage policy**: `make test-coverage` enforces an 80% hard floor and reports a 90% target
 - **Mocking policy**: "Mocking should give you the ick." Prefer real implementations, in-memory fakes, or `ito-test-support` mock repositories. Extensive mocking indicates tight coupling.
 - **Integration tests** alongside unit tests — use `ito-test-support` for PTY helpers, snapshot normalization, and mock repos.
 
@@ -112,17 +119,17 @@ See [`.ito/architecture.md`](../.ito/architecture.md#repository-pattern) for the
 
 These are enforced by `arch_guardrails.py`:
 
-- `ito-domain` must NOT depend on `ito-cli`, `ito-web`, or `ito-core`
-- `ito-core` must NOT depend on `ito-cli` or `ito-web`
-- `ito-cli` must NOT depend on `ito-domain` directly (route through `ito-core`)
+- `ito-domain` must NOT depend on `ito-cli`, `ito-web`, `ito-backend`, or `ito-core`
+- `ito-core` must NOT depend on `ito-cli`, `ito-web`, or `ito-backend`
+- `ito-cli` and `ito-backend` must NOT depend on `ito-domain` directly (route through `ito-core`)
 
 ## Domain Purity (`ito-domain`)
 
-Strict API bans enforced via baseline counts:
+`arch_guardrails.py` enforces baseline-count rules for domain purity:
 
-- **No `miette::`** — error reporting belongs in adapters
-- **No `std::fs`** in production code — use the `FileSystem` trait
-- **No `std::process::Command`** — domain must not spawn processes
+- **`miette::`**: zero tolerance in `ito-domain`
+- **`std::fs`**: baseline-constrained (no net-new usage beyond approved files/counts)
+- **`std::process::Command`**: baseline-constrained (no net-new usage beyond approved files/counts)
 
 ## Error Handling
 
@@ -156,41 +163,34 @@ When writing tests or code that references OpenCode paths, always use the plural
 This project uses **[prek](https://github.com/j178/prek)** (NOT `pre-commit`):
 
 ```bash
-prek install                    # Install pre-commit hook
-prek install -t pre-push        # Install pre-push hook
-prek run                        # Run on staged files
-prek run --all-files            # Run on all files
+prek install -t commit-msg              # Conventional commit message check
+prek install -t pre-push                # Full quality gate
+prek run --all-files --stage pre-push   # Run full gate locally
 ```
 
-**Hook stages**: pre-commit (fmt, clippy, test-affected), pre-push (test-coverage).
+**Hook stages**:
 
-### Agent Commit Workflow (Stash-Safe)
+- `commit-msg`: conventional commit message validation
+- `pre-push`: full quality gate (format, lint, docs, tests, coverage, guardrails, etc.)
+- `pre-commit`: intentionally no-op via `ito-rs/tools/hooks/pre-commit`
 
-prek stashes unstaged changes before running hooks during `git commit`. This creates a race condition when other processes (agents, watchers, editors) modify the working tree concurrently. **Agents MUST use the check-then-commit pattern:**
+### Agent Commit Workflow
+
+Use a check-then-commit flow:
 
 ```bash
-# 1. Run checks without stashing (operates on all files)
+# 1. Run full checks up front
 make check
 
-# 2. Stage and commit, skipping the hook (checks already passed)
+# 2. Stage and commit normally (keep commit-msg hook active)
 git add <files>
-git commit --no-verify -m "type(scope): description"
+git commit -m "type(scope): description"
+
+# 3. Push (pre-push hook runs)
+git push
 ```
 
-**Do NOT use `--no-verify` without running `make check` first.**
-
-### Advisory Pre-commit Lock
-
-The pre-commit hook acquires an advisory lock at `<gitdir>/precommit.lock` while running. Agents should check for this lock before modifying the working tree:
-
-```bash
-# Check if hook is running
-if ito-rs/tools/precommit-lock.sh check 2>/dev/null; then
-    ito-rs/tools/precommit-lock.sh wait --timeout 120
-fi
-```
-
-The lock includes PID-based stale detection (auto-removed if the owning process is dead, or after 10 minutes).
+If hooks auto-fix files and a push aborts, immediately run `git status`, stage hook-generated changes, create a follow-up commit, then push again.
 
 ## Guiding Principles
 
