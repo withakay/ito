@@ -218,21 +218,21 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 ### Architecture
 
 <!-- lore:019cad70-3bb8-7d8d-9148-eb9c826a3a11 -->
-* **CLI layer stays thin; core owns behavior**: Project convention is layered: \`ito-cli\` should parse flags, call \`ito-core\`, and format output only. If a command handler starts doing orchestration/repository business logic, treat that as a refactor target into \`ito-core\` use-cases.
+- **CLI layer stays thin; core owns behavior**: Project convention is layered: \`ito-cli\` should parse flags, call \`ito-core\`, and format output only. If a command handler starts doing orchestration/repository business logic, treat that as a refactor target into \`ito-core\` use-cases.
 
 ### Gotcha
 
 <!-- lore:019cad70-3bb9-7343-8fd3-1d870a4fe4f6 -->
-* **Worktree conflicts on PR checkout**: \`gh pr checkout\` can fail when the PR branch is already attached to another worktree. In this repo, switch to the existing sibling worktree under \`ito-worktrees/\<branch>\` instead of forcing another checkout.
+- **Worktree conflicts on PR checkout**: \`gh pr checkout\` can fail when the PR branch is already attached to another worktree. In this repo, switch to the existing sibling worktree under \`ito-worktrees/\<branch>\` instead of forcing another checkout.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d887e310eba -->
-* **Git wrapper rejects -C**: This environment routes git through an \`rtk git\` wrapper that may reject \`git -C ...\`. Run git commands from the target directory via the tool \`workdir\` (or enter that worktree) rather than relying on \`-C\`.
+- **Git wrapper rejects -C**: This environment routes git through an \`rtk git\` wrapper that may reject \`git -C ...\`. Run git commands from the target directory via the tool \`workdir\` (or enter that worktree) rather than relying on \`-C\`.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d8a011aa03e -->
-* **Post-commit hooks can leave new unstaged edits**: After committing, immediately run \`git status\` before pushing. In this repo, hooks/formatting can rewrite files (for example import ordering), leaving the branch dirty and requiring a follow-up commit rather than assuming the push includes everything.
+- **Post-commit hooks can leave new unstaged edits**: After committing, immediately run \`git status\` before pushing. In this repo, hooks/formatting can rewrite files (for example import ordering), leaving the branch dirty and requiring a follow-up commit rather than assuming the push includes everything.
 
 ### Pattern
 
 <!-- lore:019cad70-3bb8-7d8d-9148-eb9dde2d5ff8 -->
-* **Listing-style commands require JSON mode**: For commands that list/show data, expose \`--json\` and implement structured output in the handler. Follow existing clap/app patterns (\`json\` bool arg + output branching) to stay consistent with repo conventions and bot review expectations.
+- **Listing-style commands require JSON mode**: For commands that list/show data, expose \`--json\` and implement structured output in the handler. Follow existing clap/app patterns (\`json\` bool arg + output branching) to stay consistent with repo conventions and bot review expectations.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d894dfb8799 -->
-* **PR triage must parse review-body nitpicks**: When handling PR feedback, collect all channels: review threads, review bodies, and issue comments. CodeRabbit nitpicks can exist only in review-body sections, so run nitpick extraction and triage those with inline comments; otherwise actionable items are missed.
+- **PR triage must parse review-body nitpicks**: When handling PR feedback, collect all channels: review threads, review bodies, and issue comments. CodeRabbit nitpicks can exist only in review-body sections, so run nitpick extraction and triage those with inline comments; otherwise actionable items are missed.
 <!-- End lore-managed section -->
