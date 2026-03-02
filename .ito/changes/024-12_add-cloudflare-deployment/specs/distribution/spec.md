@@ -6,7 +6,6 @@ Ito MUST provide deployment configuration and documentation for deploying the ba
 
 The deployment configuration SHALL include:
 - `wrangler.toml` configuration file for Cloudflare Workers
-- D1 database binding configuration
 - R2 bucket binding configuration
 - Environment variable configuration for backend settings
 - Example deployment scripts
@@ -16,7 +15,7 @@ The deployment configuration SHALL include:
 - **GIVEN** the provided `wrangler.toml` configuration
 - **WHEN** a developer runs `wrangler deploy`
 - **THEN** the backend successfully deploys to Cloudflare Workers
-- **AND** D1 and R2 bindings are correctly configured
+- **AND** R2 bindings are correctly configured
 
 #### Scenario: Documentation guides Cloudflare deployment
 
@@ -24,7 +23,7 @@ The deployment configuration SHALL include:
 - **WHEN** a developer follows the documentation
 - **THEN** they can successfully:
   - Set up a Cloudflare Workers project
-  - Configure D1 database and R2 bucket
+  - Configure R2 bucket
   - Deploy the Ito backend
   - Verify the deployment is functional
 
@@ -35,7 +34,6 @@ The Cloudflare Workers deployment MUST support backend configuration through env
 Configuration options SHALL include:
 - Allowed organizations and repositories
 - Authentication settings
-- D1 database name and connection settings
 - R2 bucket name and configuration
 - Logging and telemetry settings
 
@@ -45,4 +43,4 @@ Configuration options SHALL include:
 - **WHEN** the backend starts in Cloudflare Workers
 - **THEN** the backend reads and applies the configuration
 - **AND** enforces the configured org/repo allowlist
-- **AND** uses the configured D1 and R2 bindings
+- **AND** uses the configured R2 bindings
