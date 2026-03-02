@@ -217,24 +217,27 @@ where
 
             // List all changes in the module
             let changes = change_repo.list_by_module(&module.id)?;
-            let mut files = Vec::new();
-            for change in &changes {
-                let change_dir = ito_common::paths::change_dir(ito_path, &change.id);
-                files.extend(collect_change_artifact_files(&change_dir));
-            }
-            Ok(files)
+            Ok(collect_files_for_changes(ito_path, &changes))
         }
 
         GrepScope::All => {
             let changes = change_repo.list()?;
-            let mut files = Vec::new();
-            for change in &changes {
-                let change_dir = ito_common::paths::change_dir(ito_path, &change.id);
-                files.extend(collect_change_artifact_files(&change_dir));
-            }
-            Ok(files)
+            Ok(collect_files_for_changes(ito_path, &changes))
         }
     }
+}
+
+/// Collect all artifact files for a list of changes.
+fn collect_files_for_changes(
+    ito_path: &Path,
+    changes: &[ito_domain::changes::ChangeSummary],
+) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for change in changes {
+        let change_dir = ito_common::paths::change_dir(ito_path, &change.id);
+        files.extend(collect_change_artifact_files(&change_dir));
+    }
+    files
 }
 
 #[cfg(test)]

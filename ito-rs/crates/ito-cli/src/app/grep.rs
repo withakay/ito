@@ -19,7 +19,7 @@ pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
     let (scope, pattern) = parse_scope_and_pattern(args)?;
 
     // In backend mode, materialise artifacts before searching.
-    materialize_backend_cache(rt, &scope, &change_repo)?;
+    materialize_backend_cache(rt, &scope, &change_repo, &module_repo)?;
 
     let input = GrepInput {
         pattern,
@@ -117,6 +117,7 @@ fn materialize_backend_cache(
     rt: &Runtime,
     scope: &GrepScope,
     change_repo: &FsChangeRepository<'_>,
+    module_repo: &FsModuleRepository<'_>,
 ) -> CliResult<()> {
     use ito_config::load_cascading_project_config;
     use ito_config::types::ItoConfig;
@@ -156,7 +157,6 @@ fn materialize_backend_cache(
             }
         }
         GrepScope::Module(module_id) => {
-            let module_repo = FsModuleRepository::new(ito_path);
             let module = match module_repo.get(module_id) {
                 Ok(m) => m,
                 Err(_) => return Ok(()),
