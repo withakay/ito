@@ -166,6 +166,15 @@ fn discover_project_validation_commands(
     project_root: &Path,
     ito_path: &Path,
 ) -> CoreResult<Vec<String>> {
+    const VALIDATION_COMMAND_ALLOWLIST: &[&str] = &[
+        "make check",
+        "make test",
+        "make lint",
+        "cargo fmt --all -- --check",
+        "cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented",
+        "cargo test --workspace --exclude ito-web",
+    ];
+
     let candidates: Vec<(ProjectSource, PathBuf)> = vec![
         (ProjectSource::RepoJson, project_root.join("ito.json")),
         (ProjectSource::ItoConfigJson, ito_path.join("config.json")),
@@ -187,8 +196,9 @@ fn discover_project_validation_commands(
                 extract_commands_from_markdown(&contents)
             }
         };
-        if !commands.is_empty() {
-            return Ok(commands);
+        let allowlisted = allowlist_validation_commands(commands, VALIDATION_COMMAND_ALLOWLIST);
+        if !allowlisted.is_empty() {
+            return Ok(allowlisted);
         }
     }
 
@@ -277,6 +287,26 @@ fn extract_commands_from_markdown(contents: &str) -> Vec<String> {
     }
     out.dedup();
     out
+}
+
+fn allowlist_validation_commands(commands: Vec<String>, allowlist: &[&str]) -> Vec<String> {
+    let mut allowed: Vec<String> = Vec::new();
+    for cmd in commands {
+        let trimmed = cmd.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let base = trimmed
+            .strip_prefix("DEVELOPER_DIR=/Library/Developer/CommandLineTools ")
+            .unwrap_or(trimmed);
+        for allowed_cmd in allowlist {
+            if base == *allowed_cmd {
+                allowed.push(trimmed.to_string());
+                break;
+            }
+        }
+    }
+    allowed
 }
 
 #[derive(Debug)]
@@ -411,10 +441,13 @@ mod tests {
         fs::create_dir_all(&ito).unwrap();
         write(
             &project_root.join("ito.json"),
-            r#"{ "ralph": { "validationCommands": ["true"] } }"#,
+            r#"{ "ralph": { "validationCommands": ["DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo fmt --all -- --check"] } }"#,
         );
         let cmds = discover_project_validation_commands(project_root, &ito).unwrap();
-        assert_eq!(cmds, vec!["true".to_string()]);
+        assert_eq!(
+            cmds,
+            vec!["DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo fmt --all -- --check"]
+        );
     }
 
     #[test]
@@ -546,12 +579,12 @@ mod tests {
 
         write(
             &project_root.join("ito.json"),
-            r#"{"ralph":{"validationCommands":["make ito-check"]}}"#,
+            r#"{"ralph":{"validationCommands":["rm -rf /"]}}"#,
         );
         write(&project_root.join("AGENTS.md"), "make check");
 
         let commands = discover_project_validation_commands(project_root, &ito_path).unwrap();
-        assert_eq!(commands, vec!["make ito-check"]);
+        assert_eq!(commands, vec!["make check"]);
     }
 
     #[test]
@@ -594,6 +627,22 @@ mod tests {
 
         let commands = discover_project_validation_commands(project_root, &ito_path).unwrap();
         assert_eq!(commands, vec!["make lint"]);
+    }
+
+    #[test]
+    fn discover_commands_ignores_disallowed_json_commands() {
+        let td = tempfile::tempdir().unwrap();
+        let project_root = td.path();
+        let ito_path = project_root.join(".ito");
+        fs::create_dir_all(&ito_path).unwrap();
+
+        write(
+            &project_root.join("ito.json"),
+            r#"{ "validationCommands": ["echo hacked"] }"#,
+        );
+
+        let commands = discover_project_validation_commands(project_root, &ito_path).unwrap();
+        assert!(commands.is_empty());
     }
 
     #[test]
