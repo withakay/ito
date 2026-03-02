@@ -273,15 +273,15 @@ mod tests {
         let files = collect_change_artifact_files(&change_dir);
         assert_eq!(files.len(), 3); // proposal, tasks, specs/auth/spec.md (no design.md)
 
-        let names: Vec<String> = files
-            .iter()
-            .map(|p| {
+        let mut names: Vec<String> = Vec::new();
+        for p in &files {
+            names.push(
                 p.strip_prefix(&change_dir)
                     .unwrap()
                     .to_string_lossy()
-                    .to_string()
-            })
-            .collect();
+                    .to_string(),
+            );
+        }
         assert!(names.contains(&"proposal.md".to_string()));
         assert!(names.contains(&"tasks.md".to_string()));
         assert!(names.contains(&"specs/auth/spec.md".to_string()));

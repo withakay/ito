@@ -99,11 +99,10 @@ fn grep_scope_module_searches_all_changes_in_module() {
     )
     .unwrap();
 
-    let paths: Vec<String> = out
-        .matches
-        .iter()
-        .map(|m| m.path.to_string_lossy().to_string())
-        .collect();
+    let mut paths: Vec<String> = Vec::new();
+    for m in &out.matches {
+        paths.push(m.path.to_string_lossy().to_string());
+    }
 
     assert!(paths.iter().any(|p| p.contains("024-01_first-change")));
     assert!(paths.iter().any(|p| p.contains("024-02_second-change")));
@@ -131,11 +130,10 @@ fn grep_scope_all_searches_all_changes() {
     )
     .unwrap();
 
-    let paths: Vec<String> = out
-        .matches
-        .iter()
-        .map(|m| m.path.to_string_lossy().to_string())
-        .collect();
+    let mut paths: Vec<String> = Vec::new();
+    for m in &out.matches {
+        paths.push(m.path.to_string_lossy().to_string());
+    }
 
     assert!(paths.iter().any(|p| p.contains("024-01_first-change")));
     assert!(paths.iter().any(|p| p.contains("024-02_second-change")));

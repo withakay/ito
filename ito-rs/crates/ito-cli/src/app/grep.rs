@@ -33,18 +33,15 @@ pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
     let project_root = ito_path.parent().unwrap_or(ito_path);
 
     if args.json {
-        let json_matches: Vec<serde_json::Value> = output
-            .matches
-            .iter()
-            .map(|m| {
-                let rel = m.path.strip_prefix(project_root).unwrap_or(&m.path);
-                serde_json::json!({
-                    "path": rel.display().to_string(),
-                    "line_number": m.line_number,
-                    "line": m.line,
-                })
-            })
-            .collect();
+        let mut json_matches: Vec<serde_json::Value> = Vec::new();
+        for m in &output.matches {
+            let rel = m.path.strip_prefix(project_root).unwrap_or(&m.path);
+            json_matches.push(serde_json::json!({
+                "path": rel.display().to_string(),
+                "line_number": m.line_number,
+                "line": m.line,
+            }));
+        }
         let envelope = serde_json::json!({
             "matches": json_matches,
             "truncated": output.truncated,
