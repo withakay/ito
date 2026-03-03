@@ -4,53 +4,111 @@ Backend client mode enables multiple agents to coordinate through a shared backe
 
 ## Prerequisites
 
-- A running Ito backend server (see below for local Docker Compose setup)
+- A running Ito backend server (see below for local runtime options)
 - A valid bearer token (set via environment variable or config)
 
-### Running the Backend Locally (Docker Compose)
+### Running the Backend Locally
 
-For local development and testing, you can run the backend using Docker Compose:
+Ito provides several options for running the backend locally:
+
+| Runtime | Platform | Best For |
+|---------|----------|----------|
+| Docker Compose | macOS, Linux | Containerized testing, CI |
+| Homebrew service | macOS | Long-running development |
+| systemd service | Linux | Long-running development, self-hosted |
+
+#### Docker Compose (All Platforms)
 
 ```bash
-# Copy the example environment file
-cp .env.backend.example .env.backend
-
-# Edit the token values (required for auth)
-# At minimum, set ITO_BACKEND_ADMIN_TOKEN to a secure random value
-$EDITOR .env.backend
-
 # Start the backend
 docker compose -f docker-compose.backend.yml up -d
 
-# Verify the backend is healthy
+# Verify health
 curl http://127.0.0.1:9010/api/v1/health
-# Expected: {"status":"ok"}
 
-# Or use the helper script
-./scripts/backend-health.sh
-```
-
-To stop the backend:
-
-```bash
+# Stop the backend
 docker compose -f docker-compose.backend.yml down
 ```
 
-The Docker Compose setup:
-- Builds the `ito` binary from source with the `backend` feature
-- Exposes the API on `http://127.0.0.1:9010` (configurable via `ITO_BACKEND_PORT`)
-- Persists data in a Docker volume (`ito-backend-data`)
-- Includes a container healthcheck for orchestration
+See `docker-compose.backend.yml` and `.env.backend.example` for configuration.
 
-**Configuration:**
+#### Homebrew Service (macOS)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ITO_BACKEND_PORT` | `9010` | Port exposed on the host |
-| `ITO_BACKEND_ADMIN_TOKEN` | `dev-admin-token` | Admin bearer token (full access) |
-| `ITO_BACKEND_TOKEN_SEED` | `dev-token-seed` | Seed for deriving per-project tokens |
+For long-running development on macOS, you can run the backend as a Homebrew-managed service:
 
-**Scope note:** This Docker Compose runtime is intended for local testing and development only. For production or long-running self-hosted deployments, see the Homebrew and systemd service options (change `024-13`).
+```bash
+# Install the plist
+mkdir -p ~/Library/LaunchAgents
+cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
+
+# Edit the plist to set your admin token
+# Replace the empty string after <key>ITO_BACKEND_ADMIN_TOKEN</key> with your token
+$EDITOR ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# Load and start the service
+launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# Verify the backend is running
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+Service management commands:
+
+```bash
+# Check service status
+launchctl list | grep ito.backend
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+
+# View logs
+tail -f /tmp/ito-backend.log
+```
+
+#### systemd Service (Linux)
+
+For Linux systems with systemd, you can run the backend as a user or system service:
+
+**User service (recommended for development):**
+
+```bash
+# Install the unit file
+mkdir -p ~/.config/systemd/user/
+cp services/ito-backend.service ~/.config/systemd/user/
+
+# Edit to set your admin token
+$EDITOR ~/.config/systemd/user/ito-backend.service
+
+# Enable and start
+systemctl --user daemon-reload
+systemctl --user enable --now ito-backend
+
+# Verify health
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+**System service (for shared/self-hosted deployments):**
+
+```bash
+# Install as root
+sudo cp services/ito-backend.service /etc/systemd/system/
+sudo $EDITOR /etc/systemd/system/ito-backend.service  # Set tokens
+sudo systemctl daemon-reload
+sudo systemctl enable --now ito-backend
+```
+
+Service management commands:
+
+```bash
+# Check status
+systemctl --user status ito-backend
+
+# View logs
+journalctl --user -u ito-backend -f
+
+# Stop the service
+systemctl --user stop ito-backend
+```
 
 ## Enabling Backend Mode
 
