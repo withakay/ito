@@ -1,0 +1,47 @@
+# systemd unit file for Ito backend API server.
+#
+# Installation (user service):
+#   mkdir -p ~/.config/systemd/user/
+#   cp ito-backend.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now ito-backend
+#
+# Installation (system service):
+#   sudo cp ito-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ito-backend
+#
+# Configuration:
+#   Edit the Environment directives below to set your admin token and seed.
+#   Or create an override file: systemctl edit ito-backend
+
+[Unit]
+Description=Ito Backend API Server
+Documentation=https://github.com/withakay/ito
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ito serve-api --bind 127.0.0.1 --port 9010
+Restart=on-failure
+RestartSec=5
+
+# Environment configuration
+# Set these values or use an EnvironmentFile
+Environment=ITO_BACKEND_ADMIN_TOKEN=
+Environment=ITO_BACKEND_TOKEN_SEED=
+
+# Optional: use an environment file
+# EnvironmentFile=/etc/ito/backend.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ito-backend
+
+# Security hardening (optional, adjust as needed)
+# NoNewPrivileges=yes
+# PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

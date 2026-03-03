@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.withakay.ito.backend</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/ito</string>
+        <string>serve-api</string>
+        <string>--bind</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>9010</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ITO_BACKEND_ADMIN_TOKEN</key>
+        <string></string>
+        <key>ITO_BACKEND_TOKEN_SEED</key>
+        <string></string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/ito-backend.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ito-backend.log</string>
+</dict>
+</plist>
