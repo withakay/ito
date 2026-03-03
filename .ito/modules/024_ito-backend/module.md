@@ -20,6 +20,7 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - cli-tasks
 - cli-grep
 - config
+- distribution
 
 ## Changes
 - [x] 024-01_add-shared-state-api
@@ -29,3 +30,4 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - [x] 024-05_add-backend-archive-sync
 - [x] 024-10_multi-tenant-backend-server
 - [x] 024-11_add-grep-command
+- [ ] 024-12_add-cloudflare-deployment

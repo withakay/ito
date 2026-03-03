@@ -31,6 +31,7 @@ Commands:
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   serve-api    Start the backend state API server
   audit        Query, validate, and manage the audit event log [aliases: au]
+  util         Low-level utility commands for scripting and agent tooling. [aliases: u]
   completions  Output shell completion scripts [aliases: cp]
   stats        Display command execution counts and history [aliases: ss]
   help         Show help for ito commands [aliases: he]
@@ -710,6 +711,63 @@ Display command execution counts and history
 Shows statistics about ito command usage in this project. Useful for understanding workflow patterns.
 
 Usage: ito stats
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito util
+--------
+Low-level utility commands for scripting and agent tooling.
+
+These commands provide machine-readable helpers for use in scripts,
+skills, and agent workflows.
+
+Examples:
+  ito util parse-id 005-01_add-auth
+  ito util parse-id 012
+  ito util parse-id next
+
+Usage: ito util <COMMAND>
+
+Commands:
+  parse-id  Parse an Ito ID argument and emit structured JSON output.
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito util parse-id
+-----------------
+Parse an Ito ID argument and emit structured JSON output.
+
+Classifies the input as a change ID, module ID, or continue-ready intent
+and prints a JSON object with `"mode"` and (for change/module) `"id"`.
+
+Output modes:
+  {"mode":"change","id":"005-01_add-auth"}
+  {"mode":"module","id":"012"}
+  {"mode":"continue-ready"}
+
+Examples:
+  ito util parse-id 005-01_add-auth
+  ito util parse-id 012
+  ito util parse-id next
+  ito util parse-id
+
+Usage: ito util parse-id [INPUT]...
+
+Arguments:
+  [INPUT]...
+          The input to classify (change ID, module ID, or intent keyword).
+
+          If omitted, defaults to continue-ready mode.
 
 Options:
   -h, --help
