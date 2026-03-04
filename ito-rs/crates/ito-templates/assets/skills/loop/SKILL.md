@@ -1,3 +1,8 @@
+---
+name: ito-loop
+description: Run the Ito Ralph loop for a specific change with safe defaults and automatic restart context on early exits.
+---
+
 # Skill: ito-loop
 
 Run the Ito Ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
