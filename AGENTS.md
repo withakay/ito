@@ -238,13 +238,13 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 
 ### Pattern
 
-<!-- lore:019caf4e-2d50-755f-8fcc-cb5ea06e216c -->
-* **Agentic workflows are markdown-first**: In this repo, GitHub Agentic Workflows are authored as \`.github/workflows/\*.md\` with frontmatter and prompt body, then checked with \`gh aw validate \<workflow>\`. Treat the \`.md\` file as source of truth; lock YAML is generated only when explicitly compiled (\`gh aw compile\`), not required for every change. For workflow updates, validate with \`gh aw\` plus \`ito validate \<change-id> --strict\` before marking tasks complete.
 <!-- lore:019cad88-b1ce-71b9-9304-642d211a9a1f -->
 * **Rust style prefers explicit for-loops**: In \`ito-rs/\*\*/\*.rs\`, prefer explicit \`for\` loops over iterator chains like \`.iter().filter().map().collect()\`. Even when bot feedback suggests iterator-style refactors, keep loop-based implementations to match project conventions and avoid churn in review.
+<!-- lore:019caf4e-2d50-755f-8fcc-cb5ea06e216c -->
+* **Agentic workflows are markdown-first**: In this repo, GitHub Agentic Workflows are markdown-first: edit \`.github/workflows/\*.md\` and validate with \`gh aw validate \<workflow>\`. Only compile when needed; \`gh aw compile \<workflow>\` generates the lock artifacts (\`.github/workflows/\<name>.lock.yml\`) and updates \`.github/aw/actions-lock.json\`, which should be committed together. For workflow changes, run both \`gh aw\` validation and \`ito validate \<change-id> --strict\` before marking tasks complete.
 
 ### Preference
 
 <!-- lore:019caf3f-be0c-7797-bac1-e8a70ff56b27 -->
-* **Include AGENTS.md in commit batches**: When creating commits in this repo, check for unstaged changes in \`AGENTS.md\` and include them in the same commit batch. This file carries lore-managed shared project knowledge and is expected to stay version-controlled with related workflow/spec updates.
+* **Include AGENTS.md in commit batches**: \`AGENTS.md\` is lore-managed and high-churn; always include its unstaged changes in related commit batches. When cherry-picking onto a clean branch, \`AGENTS.md\` conflicts are common; prefer keeping the target branch’s canonical lore state and reapply only intentional updates. This avoids carrying conflict markers or stale lore blocks into feature branches.
 <!-- End lore-managed section -->
