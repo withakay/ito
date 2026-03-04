@@ -220,31 +220,31 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 ### Architecture
 
 <!-- lore:019cad59-2b4d-7362-aebd-ec31b5a76c21 -->
-* **Bare repo worktree layout for feature development**: This repo uses a bare-repo-with-worktrees layout. The \`main\` worktree is locked at \`main/\`. Feature worktrees go under \`ito-worktrees/\<branch-name>\`. When a branch is already checked out in a worktree, you cannot check it out elsewhere — work from the existing worktree path instead. All git commands must run from inside a worktree, not the bare repo root. The current working directory \`/Users/jack/Code/withakay/ito/dev\` appears to be the bare/control repo root.
+- **Bare repo worktree layout for feature development**: This repo uses a bare-repo-with-worktrees layout. The \`main\` worktree is locked at \`main/\`. Feature worktrees go under \`ito-worktrees/\<branch-name>\`. When a branch is already checked out in a worktree, you cannot check it out elsewhere — work from the existing worktree path instead. All git commands must run from inside a worktree, not the bare repo root. The current working directory \`/Users/jack/Code/withakay/ito/dev\` appears to be the bare/control repo root.
 
 ### Decision
 
 <!-- lore:019cad72-298b-70bf-8907-4f802d612520 -->
-* **Feature branches must be created from main, not dev**: Branch from \`main\` only; do not base feature work on intermediate integration branches. Earlier \`dev\`-based flow caused PRs to include many phantom commits after squash merges (same content, different SHAs). If this ever recurs, recover by rebasing only unique work onto \`origin/main\` using first-parent ancestry (\`git log --first-parent\` + \`git rebase --onto\`) instead of rebasing full history.
+- **Feature branches must be created from main, not dev**: Branch from \`main\` only; do not base feature work on intermediate integration branches. Earlier \`dev\`-based flow caused PRs to include many phantom commits after squash merges (same content, different SHAs). If this ever recurs, recover by rebasing only unique work onto \`origin/main\` using first-parent ancestry (\`git log --first-parent\` + \`git rebase --onto\`) instead of rebasing full history.
 
 ### Gotcha
 
 <!-- lore:019caf3f-be0c-7797-bac1-e8a8a7b3af71 -->
-* **Stale worktree index.lock blocks git add**: In this bare-repo worktree layout, \`git add\` can fail with an existing \`.bare/worktrees/\<name>/index.lock\` after interrupted git operations. Verify no active git process, then remove the stale lock file and retry staging. Treat this as a local lock cleanup, not a repository reset.
+- **Stale worktree index.lock blocks git add**: In this bare-repo worktree layout, \`git add\` can fail with an existing \`.bare/worktrees/\<name>/index.lock\` after interrupted git operations. Verify no active git process, then remove the stale lock file and retry staging. Treat this as a local lock cleanup, not a repository reset.
 <!-- lore:019caf3c-0454-79ff-a5fb-9cd9683056b9 -->
-* **Archive may overwrite specs with delta blocks**: Bulk \`ito archive\` runs can overwrite canonical spec files with delta-only blocks (\`## ADDED/MODIFIED Requirements\`), dropping \`# Spec\`, \`## Purpose\`, and \`## Requirements\`. After archiving, immediately validate and inspect touched specs; if canonical structure was replaced, restore the full spec shape from prior history, then reapply intended requirement changes. This prevents cascading \`ito validate --specs\` failures.
+- **Archive may overwrite specs with delta blocks**: Bulk \`ito archive\` runs can overwrite canonical spec files with delta-only blocks (\`## ADDED/MODIFIED Requirements\`), dropping \`# Spec\`, \`## Purpose\`, and \`## Requirements\`. After archiving, immediately validate and inspect touched specs; if canonical structure was replaced, restore the full spec shape from prior history, then reapply intended requirement changes. This prevents cascading \`ito validate --specs\` failures.
 <!-- lore:019cad59-2b4d-7362-aebd-ec32c59b4025 -->
-* **rtk gh wrapper ignores --jq and other gh flags**: \`rtk\` wrappers can break normal CLI expectations. \`rtk gh\` may ignore raw JSON filtering flags, and \`rtk git\` may reject options like \`-C\` or \`-c\`; when you need those behaviors, use native \`gh\`/\`git\` binaries directly. In automation, prefer setting the tool/workdir context instead of relying on \`git -C\`.
+- **rtk gh wrapper ignores --jq and other gh flags**: \`rtk\` wrappers can break normal CLI expectations. \`rtk gh\` may ignore raw JSON filtering flags, and \`rtk git\` may reject options like \`-C\` or \`-c\`; when you need those behaviors, use native \`gh\`/\`git\` binaries directly. In automation, prefer setting the tool/workdir context instead of relying on \`git -C\`.
 
 ### Pattern
 
 <!-- lore:019cad88-b1ce-71b9-9304-642d211a9a1f -->
-* **Rust style prefers explicit for-loops**: In \`ito-rs/\*\*/\*.rs\`, prefer explicit \`for\` loops over iterator chains like \`.iter().filter().map().collect()\`. Even when bot feedback suggests iterator-style refactors, keep loop-based implementations to match project conventions and avoid churn in review.
+- **Rust style prefers explicit for-loops**: In \`ito-rs/\*\*/\*.rs\`, prefer explicit \`for\` loops over iterator chains like \`.iter().filter().map().collect()\`. Even when bot feedback suggests iterator-style refactors, keep loop-based implementations to match project conventions and avoid churn in review.
 <!-- lore:019caf4e-2d50-755f-8fcc-cb5ea06e216c -->
-* **Agentic workflows are markdown-first**: In this repo, GitHub Agentic Workflows are markdown-first: edit \`.github/workflows/\*.md\` and validate with \`gh aw validate \<workflow>\`. Only compile when needed; \`gh aw compile \<workflow>\` generates the lock artifacts (\`.github/workflows/\<name>.lock.yml\`) and updates \`.github/aw/actions-lock.json\`, which should be committed together. For workflow changes, run both \`gh aw\` validation and \`ito validate \<change-id> --strict\` before marking tasks complete.
+- **Agentic workflows are markdown-first**: In this repo, GitHub Agentic Workflows are markdown-first: edit \`.github/workflows/\*.md\` and validate with \`gh aw validate \<workflow>\`. Only compile when needed; \`gh aw compile \<workflow>\` generates the lock artifacts (\`.github/workflows/\<name>.lock.yml\`) and updates \`.github/aw/actions-lock.json\`, which should be committed together. For workflow changes, run both \`gh aw\` validation and \`ito validate \<change-id> --strict\` before marking tasks complete.
 
 ### Preference
 
 <!-- lore:019caf3f-be0c-7797-bac1-e8a70ff56b27 -->
-* **Include AGENTS.md in commit batches**: \`AGENTS.md\` is lore-managed and high-churn; always include its unstaged changes in related commit batches. When cherry-picking onto a clean branch, \`AGENTS.md\` conflicts are common; prefer keeping the target branch’s canonical lore state and reapply only intentional updates. This avoids carrying conflict markers or stale lore blocks into feature branches.
+- **Include AGENTS.md in commit batches**: \`AGENTS.md\` is lore-managed and high-churn; always include its unstaged changes in related commit batches. When cherry-picking onto a clean branch, \`AGENTS.md\` conflicts are common; prefer keeping the target branch’s canonical lore state and reapply only intentional updates. This avoids carrying conflict markers or stale lore blocks into feature branches.
 <!-- End lore-managed section -->
