@@ -444,7 +444,11 @@ mod tests {
         let file = get_skill_file("loop/SKILL.md").expect("loop skill should exist");
         let text = std::str::from_utf8(file).expect("skill should be utf8");
         assert!(text.starts_with(
-            "---\nname: ito-loop\ndescription: Run the Ito Ralph loop for a specific change with safe defaults and automatic restart context on early exits.\n---\n"
+            r#"---
+name: ito-loop
+description: Run the Ito Ralph loop for a specific change with safe defaults and automatic restart context on early exits.
+---
+"#
         ));
     }
 
