@@ -229,6 +229,10 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 
 ### Gotcha
 
+<!-- lore:019cbad7-45c8-747f-8c96-470e6099c0a7 -->
+- **Edit tool may silently fail to persist file changes**: The Edit tool can report success while not actually writing changes to disk. This was observed with \`AGENTS.md\` — multiple Edit calls returned success but \`grep\` and \`git diff\` confirmed the file was unchanged. When edits are critical, verify with \`grep\` or \`sha256sum\` after editing, and fall back to \`sed\` via Bash if the Edit tool's changes don't persist. This may be related to file size or the bare-repo worktree layout.
+<!-- lore:019cbad7-45c7-7818-8b30-facf89a98eda -->
+- **Lore writes asterisk lists that fail MD004 lint**: The lore system (opencode-lore) writes \`AGENTS.md\` list items using \`\*\` (asterisk) markers, but the project's markdownlint config enforces MD004 (dash-style lists). This causes pre-push hook failures on any commit that includes lore-managed sections. Fix with \`sed -i '' 's/^\\\* /- /' AGENTS.md\` after lore updates. The Edit tool may silently fail to persist changes to this file — verify with \`grep '^\ \* ' AGENTS.md\` and use \`sed\` via Bash if edits don't stick.
 <!-- lore:019caf3f-be0c-7797-bac1-e8a8a7b3af71 -->
 - **Stale worktree index.lock blocks git add**: In this bare-repo worktree layout, \`git add\` can fail with an existing \`.bare/worktrees/\<name>/index.lock\` after interrupted git operations. Verify no active git process, then remove the stale lock file and retry staging. Treat this as a local lock cleanup, not a repository reset.
 <!-- lore:019caf3c-0454-79ff-a5fb-9cd9683056b9 -->
@@ -246,5 +250,5 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 ### Preference
 
 <!-- lore:019caf3f-be0c-7797-bac1-e8a70ff56b27 -->
-- **Include AGENTS.md in commit batches**: \`AGENTS.md\` is lore-managed and high-churn; always include its unstaged changes in related commit batches. When cherry-picking onto a clean branch, \`AGENTS.md\` conflicts are common; prefer keeping the target branch’s canonical lore state and reapply only intentional updates. This avoids carrying conflict markers or stale lore blocks into feature branches.
+- **Include AGENTS.md in commit batches**: \`AGENTS.md\` is lore-managed and high-churn; always include its unstaged changes in related commit batches. Lore writes asterisk (\`\*\`) list markers that violate MD004 — run \`sed -i '' 's/^\\\* /- /' AGENTS.md\` after lore updates before committing. When cherry-picking onto a clean branch, \`AGENTS.md\` conflicts are common; prefer keeping the target branch's canonical lore state and reapply only intentional updates.
 <!-- End lore-managed section -->
