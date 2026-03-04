@@ -166,8 +166,8 @@ Backend mode enables multi-agent coordination through a shared backend API. Sett
 - `backend.backup_dir` — Directory for artifact backup snapshots during sync (default: `~/.ito/backups`)
 - `backend.timeout_ms` — Request timeout in milliseconds (default: `30000`)
 - `backend.max_retries` — Maximum retry attempts for transient failures (default: `3`)
-- `backend.project.org` — Organization namespace for backend routes (or `ITO_BACKEND_PROJECT_ORG`)
-- `backend.project.repo` — Repository namespace for backend routes (or `ITO_BACKEND_PROJECT_REPO`)
+- `backend.project.org` — Organization namespace for backend routes (required when `backend.enabled` is true; or via `ITO_BACKEND_PROJECT_ORG`)
+- `backend.project.repo` — Repository namespace for backend routes (required when `backend.enabled` is true; or via `ITO_BACKEND_PROJECT_REPO`)
 
 Example:
 
