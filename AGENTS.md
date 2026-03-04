@@ -222,6 +222,8 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 
 ### Gotcha
 
+<!-- lore:019cbad7-45c8-747f-8c96-470e6099c0a7 -->
+* **Edit tool may silently fail to persist file changes**: The Edit tool can report success while not actually writing changes to disk. This was observed with \`AGENTS.md\` — multiple Edit calls returned success but \`grep\` and \`git diff\` confirmed the file was unchanged. When edits are critical, verify with \`grep\` or \`sha256sum\` after editing, and fall back to \`sed\` via Bash if the Edit tool's changes don't persist. This may be related to file size or the bare-repo worktree layout.
 <!-- lore:019caf8b-337a-77d2-9d77-10a1d8630e88 -->
 * **Dotenv wildcard ignores custom env examples**: Repo \`.gitignore\` ignores \`.env.\*\` and only unignores specific exceptions. New example files like \`.env.backend.example\` will be skipped unless explicitly whitelisted (or renamed). If adding env templates, verify they are tracked before committing.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d870a4fe4f6 -->
