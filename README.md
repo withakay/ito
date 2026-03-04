@@ -120,6 +120,14 @@ Ito includes an optional multi-tenant backend API for coordinating multiple agen
 | Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
+**Quick start (`ito serve-api`):**
+
+```bash
+export ITO_BACKEND_ADMIN_TOKEN="dev-admin-token"
+ito serve-api --bind 127.0.0.1 --port 9010
+curl http://127.0.0.1:9010/api/v1/health
+```
+
 **Quick start (Docker Compose):**
 
 ```bash

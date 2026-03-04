@@ -13,9 +13,37 @@ Ito provides several options for running the backend locally:
 
 | Runtime | Platform | Best For |
 |---------|----------|----------|
+| Ito CLI (`ito serve-api`) | macOS, Linux | Local development, ad-hoc testing |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
 | Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
+
+#### Ito CLI (`ito serve-api`)
+
+Run the backend directly with the installed Ito binary. This is the quickest way to start a local server when you already have Ito installed.
+
+```bash
+# Required for authentication (full admin access)
+export ITO_BACKEND_ADMIN_TOKEN="dev-admin-token"
+
+# Optional: seed used to derive per-project tokens
+export ITO_BACKEND_TOKEN_SEED="dev-token-seed"
+
+# Start the backend
+ito serve-api --bind 127.0.0.1 --port 9010
+
+# Verify health
+curl http://127.0.0.1:9010/api/v1/health
+```
+
+You can also pass values directly:
+
+```bash
+ito serve-api \
+  --admin-token "dev-admin-token" \
+  --token-seed "dev-token-seed" \
+  --data-dir "/path/to/backend/data"
+```
 
 #### Docker Compose (All Platforms)
 
@@ -118,15 +146,32 @@ Add the following to your project or global config:
 {
   "backend": {
     "enabled": true,
-    "url": "https://your-backend.example.com"
+    "url": "https://your-backend.example.com",
+    "project": {
+      "org": "your-org",
+      "repo": "your-repo"
+    }
   }
 }
+```
+
+The project namespace can also be provided via environment variables:
+
+```bash
+export ITO_BACKEND_PROJECT_ORG="your-org"
+export ITO_BACKEND_PROJECT_REPO="your-repo"
 ```
 
 Set your token via environment variable (default: `ITO_BACKEND_TOKEN`):
 
 ```bash
 export ITO_BACKEND_TOKEN="your-token-here"
+```
+
+For local development, you can reuse the admin token:
+
+```bash
+export ITO_BACKEND_TOKEN="$ITO_BACKEND_ADMIN_TOKEN"
 ```
 
 Or set it directly in config (less recommended for security):
@@ -255,6 +300,8 @@ Non-retriable failures (4xx client errors other than 429) fail immediately with 
 |-----|------|---------|-------------|
 | `backend.enabled` | bool | `false` | Enable backend API integration |
 | `backend.url` | string | `http://127.0.0.1:9010` | Base URL for the backend API |
+| `backend.project.org` | string | (none) | Organization namespace for backend routes (or `ITO_BACKEND_PROJECT_ORG`) |
+| `backend.project.repo` | string | (none) | Repository namespace for backend routes (or `ITO_BACKEND_PROJECT_REPO`) |
 | `backend.token` | string | (none) | Explicit bearer token |
 | `backend.token_env_var` | string | `ITO_BACKEND_TOKEN` | Env var holding the bearer token |
 | `backend.backup_dir` | string | `~/.ito/backups` | Directory for backup snapshots |
