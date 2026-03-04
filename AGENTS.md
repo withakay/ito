@@ -218,21 +218,29 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 ### Architecture
 
 <!-- lore:019cad70-3bb8-7d8d-9148-eb9c826a3a11 -->
-- **CLI layer stays thin; core owns behavior**: Project convention is layered: \`ito-cli\` should parse flags, call \`ito-core\`, and format output only. If a command handler starts doing orchestration/repository business logic, treat that as a refactor target into \`ito-core\` use-cases.
+* **CLI layer stays thin; core owns behavior**: Project convention is layered: \`ito-cli\` should parse flags, call \`ito-core\`, and format output only. If a command handler starts doing orchestration/repository business logic, treat that as a refactor target into \`ito-core\` use-cases.
 
 ### Gotcha
 
+<!-- lore:019caf8b-337a-77d2-9d77-10a1d8630e88 -->
+* **Dotenv wildcard ignores custom env examples**: Repo \`.gitignore\` ignores \`.env.\*\` and only unignores specific exceptions. New example files like \`.env.backend.example\` will be skipped unless explicitly whitelisted (or renamed). If adding env templates, verify they are tracked before committing.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d870a4fe4f6 -->
-- **Worktree conflicts on PR checkout**: \`gh pr checkout\` can fail when the PR branch is already attached to another worktree. In this repo, switch to the existing sibling worktree under \`ito-worktrees/\<branch>\` instead of forcing another checkout.
-<!-- lore:019cad70-3bb9-7343-8fd3-1d887e310eba -->
-- **Git wrapper rejects -C**: This environment routes git through an \`rtk git\` wrapper that may reject \`git -C ...\`. Run git commands from the target directory via the tool \`workdir\` (or enter that worktree) rather than relying on \`-C\`.
+* **Worktree conflicts on PR checkout**: \`gh pr checkout\` can fail when the PR branch is already attached to another worktree. In this repo, switch to the existing sibling worktree under \`ito-worktrees/\<branch>\` instead of forcing another checkout.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d8a011aa03e -->
-- **Post-commit hooks can leave new unstaged edits**: After committing, immediately run \`git status\` before pushing. In this repo, hooks/formatting can rewrite files (for example import ordering), leaving the branch dirty and requiring a follow-up commit rather than assuming the push includes everything.
+* **Post-commit hooks can leave new unstaged edits**: Pre-push hooks in this repo can rewrite files (including generated workflow lockfiles and \`.gitattributes\`) during \`git push\`, causing the push to fail even after a successful commit. Treat this as normal: run \`git status\`, stage hook-modified files, create a follow-up commit, and push again; repeat until hooks stop mutating files. Do not assume one retry is enough.
+<!-- lore:019caf7e-4735-72a8-a66f-cfaa8e935b13 -->
+* **Backend server is CLI-hosted and loopback by default**: The backend is launched by the main \`ito\` binary via \`ito serve-api\`, not a standalone daemon. Defaults are \`127.0.0.1:9010\`; for container or service-manager deployments, bind to \`0.0.0.0\` so external clients can connect. Use \`/api/v1/health\` as the standard readiness probe across Compose/Homebrew/systemd setups.
+<!-- lore:019cad70-3bb9-7343-8fd3-1d887e310eba -->
+* **Git wrapper rejects -C**: This environment uses \`rtk\` wrappers, which may reject common native flags (\`git -C\`, some \`git commit\` options, GNU-style grep flags). Run commands from the target directory via tool \`workdir\` and prefer dedicated search tools over shell \`grep\`. If amend-like behavior is blocked, create a follow-up commit instead.
 
 ### Pattern
 
+<!-- lore:019caf7e-4735-72a8-a66f-cfa90d793e50 -->
+* **Use ito tasks CLI as source of truth**: For enhanced \`.ito/changes/\*/tasks.md\`, update task state via \`ito tasks\` commands (\`next\`, \`start\`, \`complete\`, \`status\`) instead of editing status text manually. If tasks are edited directly, immediately run \`ito audit reconcile --change \<change-id> --fix\` to repair audit drift before continuing.
+<!-- lore:019caf41-72f4-7548-a579-356a796d031f -->
+* **Run audit validate before stateful Ito actions**: In this repo’s Ito workflow, run \`ito audit validate\` before any stateful command (for example \`ito create change\`). This is treated as an execution guardrail to catch audit drift early; if validation fails, reconcile before proceeding so generated proposal artifacts and task history stay consistent.
 <!-- lore:019cad70-3bb8-7d8d-9148-eb9dde2d5ff8 -->
-- **Listing-style commands require JSON mode**: For commands that list/show data, expose \`--json\` and implement structured output in the handler. Follow existing clap/app patterns (\`json\` bool arg + output branching) to stay consistent with repo conventions and bot review expectations.
+* **Listing-style commands require JSON mode**: For commands that list/show data, expose \`--json\` and implement structured output in the handler. Follow existing clap/app patterns (\`json\` bool arg + output branching) to stay consistent with repo conventions and bot review expectations.
 <!-- lore:019cad70-3bb9-7343-8fd3-1d894dfb8799 -->
-- **PR triage must parse review-body nitpicks**: When handling PR feedback, collect all channels: review threads, review bodies, and issue comments. CodeRabbit nitpicks can exist only in review-body sections, so run nitpick extraction and triage those with inline comments; otherwise actionable items are missed.
+* **PR triage must parse review-body nitpicks**: For PR triage, always parse all feedback channels, not just inline threads. In this repo, bot-actionable items can live in review bodies and outside-diff sections, so use \`scripts/gh\_pr\_feedback.py\` plus \`scripts/gh\_pr\_nitpicks.py\` to capture everything. During follow-up polling, fetch incrementally (\`--since-pr-head\`/\`--since-sha\`) and dedupe by thread/comment intent so re-raised bot comments don’t trigger duplicate fixes.
 <!-- End lore-managed section -->
