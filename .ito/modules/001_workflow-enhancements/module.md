@@ -20,7 +20,7 @@
 - [x] 001-22_sunset-legacy-workflow-command
 - [ ] 001-24_schema-validation-format-specs
 - [ ] 001-25_tracking-file-support
-- [ ] 001-26_add-pr-fix-workflow
+- [x] 001-26_add-pr-fix-workflow
 - [ ] \[
 - [ ] \[
 - [ ] \[
