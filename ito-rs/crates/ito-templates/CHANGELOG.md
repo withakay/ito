@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.15] - 2026-03-06
+
+### 🐛 Bug Fixes
+
+- Add yaml frontmatter to loop skill template
+
+### 🚜 Refactor
+
+- Rename ito-apply-change-proposal to ito-apply and ito-write-change-proposal to ito-proposal in command metadata
+- Update embedded skill assets
+- Update instructions.rs and test support code for skill consolidation
+- Add renamed ito template assets
+
+### 🧪 Testing
+
+- Make frontmatter assertion clearer
+- Move instruction renderer tests into separate module
+- Fix init update recreation regression
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove legacy planning files from project template
+- Remove legacy skill assets from templates
 ## [0.1.14] - 2026-03-02
 
 ### 🚀 Features
