@@ -11,7 +11,7 @@ $ARGUMENTS
 
 <!-- ITO:START -->
 
-Load and follow the `ito-apply-change-proposal` skill. Pass the <UserRequest> block as input.
+Load and follow the `ito-apply` skill. Pass the <UserRequest> block as input.
 
 **Audit guardrail**
 
