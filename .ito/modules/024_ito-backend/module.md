@@ -24,7 +24,6 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 
 ## Changes
 - [x] 024-01_add-shared-state-api
-<<<<<<< HEAD
 - [x] 024-02_add-cli-backend-client
 - [x] 024-03_add-backend-project-bootstrap
 - [x] 024-04_add-backend-event-forwarding
@@ -34,11 +33,5 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - [x] 024-12_add-docker-compose-backend-runtime
 - [x] 024-13_add-homebrew-systemd-backend-services
 - [ ] 024-12_add-cloudflare-deployment
-=======
-- [ ] 024-02_add-cli-backend-client
-- [ ] 024-03_add-backend-project-bootstrap
-- [ ] 024-04_add-backend-event-forwarding
-- [ ] 024-05_add-backend-archive-sync
 - [ ] 024-10_import-existing-and-archived-changes
 - [ ] 024-11_export-changes-zip-archive
->>>>>>> 845e58fa (change proposals)
