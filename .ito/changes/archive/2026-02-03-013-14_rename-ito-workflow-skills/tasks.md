@@ -15,21 +15,21 @@ ______________________________________________________________________
 
 ## Wave 1: Rename skill directories
 
-### Task 1.1: Rename ito-proposal to ito-write-change-proposal
+### Task 1.1: Rename ito-proposal to ito-proposal
 
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/`
 - **Action**:
-  - `mv ito-proposal ito-write-change-proposal`
+  - `mv ito-proposal ito-proposal`
 - **Verify**: Directory exists at new path, not at old path
 - **Done When**: Skill directory renamed
 - **Updated At**: 2026-02-01
 - **Status**: [x] complete
 
-### Task 1.2: Rename ito-apply to ito-apply-change-proposal
+### Task 1.2: Rename ito-apply to ito-apply
 
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/`
 - **Action**:
-  - `mv ito-apply ito-apply-change-proposal`
+  - `mv ito-apply ito-apply`
 - **Verify**: Directory exists at new path, not at old path
 - **Done When**: Skill directory renamed
 - **Updated At**: 2026-02-01
@@ -39,21 +39,21 @@ ______________________________________________________________________
 
 ## Wave 2: Update skill frontmatter
 
-### Task 2.1: Update ito-write-change-proposal SKILL.md
+### Task 2.1: Update ito-proposal SKILL.md
 
-- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-write-change-proposal/SKILL.md`
+- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-proposal/SKILL.md`
 - **Action**:
-  - Update `name` field to `ito-write-change-proposal`
+  - Update `name` field to `ito-proposal`
   - Update `description` to: "Use when creating, designing, planning, proposing, specifying a feature, change, requirement, enhancement, fix, modification, or spec. Use when writing tasks, proposals, or specifications for new work."
 - **Done When**: Frontmatter updated with new name and keyword-rich description
 - **Updated At**: 2026-02-01
 - **Status**: [x] complete
 
-### Task 2.2: Update ito-apply-change-proposal SKILL.md
+### Task 2.2: Update ito-apply SKILL.md
 
-- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-apply-change-proposal/SKILL.md`
+- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-apply/SKILL.md`
 - **Action**:
-  - Update `name` field to `ito-apply-change-proposal`
+  - Update `name` field to `ito-apply`
   - Update `description` to: "Use when implementing, executing, applying, building, coding, or developing a feature, change, requirement, enhancement, fix, or modification. Use when running tasks from a spec or proposal."
 - **Done When**: Frontmatter updated with new name and keyword-rich description
 - **Updated At**: 2026-02-01
@@ -67,8 +67,8 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito/SKILL.md`
 - **Action**:
-  - Update routing to target `ito-write-change-proposal` and `ito-apply-change-proposal`
-  - Keep short aliases working: `proposal` → `ito-write-change-proposal`, `apply` → `ito-apply-change-proposal`
+  - Update routing to target `ito-proposal` and `ito-apply`
+  - Keep short aliases working: `proposal` → `ito-proposal`, `apply` → `ito-apply`
 - **Done When**: Router uses new skill names
 - **Updated At**: 2026-02-01
 - **Status**: [x] complete
@@ -81,8 +81,8 @@ ______________________________________________________________________
 
 - **Files**: All files in `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-*/SKILL.md`
 - **Action**:
-  - Replace `ito-proposal` with `ito-write-change-proposal`
-  - Replace `ito-apply` with `ito-apply-change-proposal`
+  - Replace `ito-proposal` with `ito-proposal`
+  - Replace `ito-apply` with `ito-apply`
 - **Verify**: `grep -r "ito-proposal\|ito-apply" ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/` returns no results (except router aliases)
 - **Done When**: All references updated
 - **Updated At**: 2026-02-01
