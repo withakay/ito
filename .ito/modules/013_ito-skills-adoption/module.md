@@ -24,7 +24,7 @@ Adopt and adapt the vendored `ito-skills/` (fork of Superpowers skills) into Ito
 - [ ] 013-10_add-ito-integration-to-branch-finishing
 - [ ] 013-11_enhance-review-skills-with-ito-cli
 - [x] 013-12_integrate-plan-skills-with-ito-workflow
-- [x] 013-13_merge-writing-plans-into-ito-write-change-proposal
+- [x] 013-13_merge-writing-plans-into-ito-proposal
 - [x] 013-14_rename-ito-workflow-skills
 - [x] 013-15_update-subagent-driven-development
 - [x] 013-16_fix-using-ito-skills-naming
