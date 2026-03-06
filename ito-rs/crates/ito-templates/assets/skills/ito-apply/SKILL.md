@@ -1,7 +1,7 @@
 ---
 name: ito-apply
 description: |
-    Apply a Change Proposal. 
+    Apply a Change Proposal.
     Triggered by the user saying "Apply change <change-id>" or "Implement change <change-id>".
     Use when implementing, executing, applying, building, coding, or developing a feature, change, requirement, enhancement, fix, or modification. Use when running tasks from a spec, proposal, or plan.
 ---

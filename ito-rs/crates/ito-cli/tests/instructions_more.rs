@@ -46,10 +46,12 @@ fn agent_instruction_proposal_without_change_supports_json_output() {
     assert_eq!(out.code, 0);
     let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid json");
     assert_eq!(v["artifactId"], "new-proposal");
-    assert!(v["instruction"]
-        .as_str()
-        .unwrap_or_default()
-        .contains("Create a New Proposal"));
+    assert!(
+        v["instruction"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Create a New Proposal")
+    );
 }
 
 #[test]

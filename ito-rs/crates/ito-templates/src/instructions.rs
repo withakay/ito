@@ -1,6 +1,6 @@
 //! Embedded instruction template loading and rendering.
 
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use minijinja::{Environment, UndefinedBehavior};
 use serde::Serialize;
 
