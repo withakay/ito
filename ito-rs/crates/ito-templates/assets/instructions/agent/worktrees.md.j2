@@ -131,8 +131,8 @@ Commit on the worktree branch, then merge into `{{ worktree.default_branch }}`.
 #### Cleanup
 
 ```bash
-git worktree remove "<worktree-path>" 2>/dev/null || true
-git branch -d "<change-name>" 2>/dev/null || true
-git worktree prune
+ito agent instruction finish --change "<change-name>"
 ```
+
+If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks.
 {% endif %}

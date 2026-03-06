@@ -29,6 +29,7 @@ Artifacts:
   apply          Show implementation instructions
   review         Show review instructions
   archive        Show archive instructions
+  finish         Cleanup worktrees and branches after merge
 
 Examples:
   ito agent instruction bootstrap --tool opencode
@@ -37,3 +38,4 @@ Examples:
   ito agent instruction worktrees
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
+  ito agent instruction finish --change 005-08_migrate-cli-to-clap

@@ -11,7 +11,9 @@ $ARGUMENTS
 
 <!-- ITO:START -->
 
-Load and follow the `ito-write-change-proposal` skill. Pass the <UserRequest> block as input.
+Load and follow the `ito-proposal` skill. Pass the <UserRequest> block as input.
+
+If `ito-proposal` is missing, fall back to `ito-write-change-proposal`.
 
 **Audit guardrail**
 

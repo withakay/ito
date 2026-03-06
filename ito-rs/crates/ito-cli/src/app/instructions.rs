@@ -228,6 +228,42 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return Ok(());
     }
 
+    if artifact == "finish" {
+        let ctx = rt.ctx();
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+        let change = parse_string_flag(args, "--change")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            worktree: WorktreeConfig,
+            change: Option<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/finish.md.j2",
+            &Ctx { worktree, change },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
+
+        if want_json {
+            let response = core_templates::AgentInstructionResponse {
+                artifact_id: artifact.to_string(),
+                instruction,
+            };
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        print!("{instruction}");
+        return Ok(());
+    }
+
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
         // Special case: proposal without --change outputs creation guide

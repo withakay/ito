@@ -63,7 +63,8 @@ fn bootstrap_opencode_success() {
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
-        .stdout(contains("ito agent instruction archive"));
+        .stdout(contains("ito agent instruction archive"))
+        .stdout(contains("ito agent instruction finish"));
 }
 
 /// Verifies that `ito agent instruction bootstrap --tool claude` succeeds and emits Claude-specific bootstrap instructions.
@@ -99,7 +100,8 @@ fn bootstrap_claude_success() {
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
-        .stdout(contains("ito agent instruction archive"));
+        .stdout(contains("ito agent instruction archive"))
+        .stdout(contains("ito agent instruction finish"));
 }
 
 #[test]
@@ -118,7 +120,8 @@ fn bootstrap_codex_success() {
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
-        .stdout(contains("ito agent instruction archive"));
+        .stdout(contains("ito agent instruction archive"))
+        .stdout(contains("ito agent instruction finish"));
 }
 
 /// Verifies that `ito agent instruction bootstrap --tool github-copilot` succeeds and emits GitHub Copilot-specific bootstrap instructions.
@@ -163,7 +166,8 @@ fn bootstrap_github_copilot_success() {
         .stdout(contains("ito agent instruction proposal"))
         .stdout(contains("ito agent instruction apply"))
         .stdout(contains("ito agent instruction review"))
-        .stdout(contains("ito agent instruction archive"));
+        .stdout(contains("ito agent instruction archive"))
+        .stdout(contains("ito agent instruction finish"));
 }
 
 #[test]
@@ -218,5 +222,6 @@ fn bootstrap_contains_artifact_pointers() {
         .stdout(contains("tasks"))
         .stdout(contains("apply"))
         .stdout(contains("review"))
-        .stdout(contains("archive"));
+        .stdout(contains("archive"))
+        .stdout(contains("finish"));
 }

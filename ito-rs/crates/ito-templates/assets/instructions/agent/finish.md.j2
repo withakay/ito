@@ -1,0 +1,83 @@
+## Finish: Merge/PR Cleanup
+
+Use this after a change branch has been integrated (PR merged or local merge) and you want to clean up the worktree and branch.
+
+### Rules
+
+- If a worktree is **locked**, assume the user locked it intentionally: do NOT unlock it and do NOT remove it.
+- Do not delete a branch unless it is merged into `{{ worktree.default_branch }}`.
+- Do not delete a remote branch unless the user explicitly asks.
+
+### Resolved Configuration
+
+- `worktrees.enabled`: `{{ worktree.enabled }}`
+- `worktrees.strategy`: `{{ worktree.strategy }}`
+- `worktrees.layout.dir_name`: `{{ worktree.layout_dir_name }}`
+- `worktrees.default_branch`: `{{ worktree.default_branch }}`
+
+### Cleanup Steps
+
+{% if change and change|trim != "" %}
+Target change/branch: `{{ change }}`
+{% else %}
+Target change/branch: `<change-name>`
+{% endif %}
+
+{% if not worktree.enabled %}
+Worktrees are not enabled. Clean up by deleting the branch after it is merged.
+
+```bash
+CHANGE_NAME={% if change and change|trim != "" %}'{{ change | replace("'", "'\"'\"'") }}'{% else %}'<change-name>'{% endif %}
+DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
+
+git switch "$DEFAULT_BRANCH" 2>/dev/null || git switch main 2>/dev/null || git switch master
+git merge-base --is-ancestor "$CHANGE_NAME" "$DEFAULT_BRANCH" || {
+  echo "Branch is not merged into $DEFAULT_BRANCH; keeping it."
+  exit 1
+}
+
+git branch -d "$CHANGE_NAME"
+```
+{% else %}
+When using worktrees, prefer running cleanup commands from the repo root (works for both bare/control and normal layouts):
+
+```bash
+CHANGE_NAME={% if change and change|trim != "" %}'{{ change | replace("'", "'\"'\"'") }}'{% else %}'<change-name>'{% endif %}
+DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
+PROJECT_ROOT="$(ito path project-root)"
+CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
+```
+
+Verify the branch is merged (do not delete unmerged branches):
+
+```bash
+git -C "$PROJECT_ROOT" merge-base --is-ancestor "$CHANGE_NAME" "$DEFAULT_BRANCH" || {
+  echo "Branch is not merged into $DEFAULT_BRANCH; keeping worktree and branch."
+  exit 1
+}
+```
+
+Check for a locked worktree (locked means intentional; do not remove):
+
+```bash
+git -C "$PROJECT_ROOT" worktree list
+```
+
+If the entry for `$CHANGE_DIR` is marked `locked`, stop here and keep it.
+
+Remove the worktree and delete the branch:
+
+```bash
+if git -C "$PROJECT_ROOT" worktree list | grep -F "$CHANGE_DIR" | grep -q "locked"; then
+  echo "Worktree is locked; leaving it in place."
+  exit 0
+fi
+
+git -C "$PROJECT_ROOT" worktree remove "$CHANGE_DIR"
+git -C "$PROJECT_ROOT" worktree prune
+
+git -C "$PROJECT_ROOT" branch -d "$CHANGE_NAME"
+
+# git -C "$PROJECT_ROOT" push origin --delete "$CHANGE_NAME"
+```
+{% endif %}
