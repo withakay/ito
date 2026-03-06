@@ -15,9 +15,9 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 - Have an implementation plan (ito change with tasks.md)
 - Tasks are mostly independent
-- Want to stay in this session (vs. parallel session with `ito-apply-change-proposal`)
+- Want to stay in this session (vs. parallel session with `ito-apply`)
 
-**vs. ito-apply-change-proposal:**
+**vs. ito-apply:**
 - Same session (no context switch)
 - Fresh subagent per task (no context pollution)
 - Two-stage review after each task
@@ -35,7 +35,7 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
    - Dispatch code quality reviewer subagent
    - If issues: implementer fixes, re-review
    - Mark task complete: `ito tasks complete <change-id> <task-id>`
-3. **Completion**: Dispatch final code reviewer, then use `ito-finishing-a-development-branch`
+3. **Completion**: Dispatch final code reviewer, then use `ito-finish`
 
 ## Setup
 
@@ -114,7 +114,7 @@ ito tasks complete <change-id> <task-id>
 ### 6. Next Task or Finish
 
 If more tasks: repeat from step 1
-If done: dispatch final reviewer, then use `ito-finishing-a-development-branch`
+If done: dispatch final reviewer, then use `ito-finish`
 
 ## Prompt Templates
 
@@ -148,14 +148,14 @@ If done: dispatch final reviewer, then use `ito-finishing-a-development-branch`
 
 **Required workflow skills:**
 - `ito-using-git-worktrees` - Set up isolated workspace before starting
-- `ito-write-change-proposal` - Creates the plan this skill executes
+- `ito-proposal` - Creates the plan this skill executes
 - `ito-requesting-code-review` - Code review template for reviewer subagents
-- `ito-finishing-a-development-branch` - Complete development after all tasks
+- `ito-finish` - Complete development after all tasks
 
 **Subagents should use:**
 - `ito-test-driven-development` - Subagents follow TDD for each task
 
 **Alternative workflow:**
-- `ito-apply-change-proposal` - Use for human-in-loop execution with batch checkpoints
+- `ito-apply` - Use for human-in-loop execution with batch checkpoints
 
 <!-- ITO:END -->
