@@ -430,11 +430,10 @@ fn init_with_tools_csv_installs_selected_adapters() {
     assert!(repo.path().join(".claude/session-start.sh").exists());
     assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
     assert!(repo.path().join(".claude/settings.json").exists());
-    assert!(
-        repo.path()
-            .join(".codex/instructions/ito-skills-bootstrap.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".codex/instructions/ito-skills-bootstrap.md")
+        .exists());
     assert!(!repo.path().join(".opencode").exists());
 }
 
@@ -587,10 +586,9 @@ fn init_refuses_to_overwrite_existing_file_without_markers_when_not_forced() {
     let argv = fixtures::args_to_strs(&args);
     let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
     assert_ne!(out.code, 0);
-    assert!(
-        out.stderr
-            .contains("Refusing to overwrite existing file without markers")
-    );
+    assert!(out
+        .stderr
+        .contains("Refusing to overwrite existing file without markers"));
 }
 
 // PTY-based interactive tests are skipped on Windows and in CI due to platform
@@ -635,11 +633,10 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
     assert!(repo.path().join(".claude/hooks/ito-audit.sh").exists());
     assert!(repo.path().join(".claude/settings.json").exists());
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
-    assert!(
-        repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
-            .exists()
-    );
+    assert!(repo
+        .path()
+        .join(".opencode/skills/ito-brainstorming/SKILL.md")
+        .exists());
 
     // Worktree config should be persisted to the per-dev overlay `.ito/config.local.json`.
     let config_path = repo.path().join(".ito/config.local.json");
@@ -727,7 +724,7 @@ fn init_update_preserves_user_files_and_creates_missing() {
     fixtures::write(repo.path().join("AGENTS.md"), &updated_agents);
 
     // Delete a managed file to verify it gets recreated.
-    std::fs::remove_file(repo.path().join(".ito/planning/STATE.md")).unwrap();
+    std::fs::remove_file(repo.path().join(".ito/user-prompts/proposal.md")).unwrap();
 
     // Run init --update — should succeed without --force.
     let out = run_rust_candidate(
@@ -775,8 +772,8 @@ fn init_update_preserves_user_files_and_creates_missing() {
 
     // Deleted file should be recreated.
     assert!(
-        repo.path().join(".ito/planning/STATE.md").exists(),
-        "STATE.md should be recreated"
+        repo.path().join(".ito/user-prompts/proposal.md").exists(),
+        "proposal.md should be recreated"
     );
 }
 
