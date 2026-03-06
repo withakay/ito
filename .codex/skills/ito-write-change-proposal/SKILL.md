@@ -1,5 +1,5 @@
 ---
-name: ito-write-change-proposal
+name: ito-proposal
 description: Use when creating, designing, planning, proposing, or specifying a feature, change, requirement, enhancement, fix, modification, or spec. Use when writing tasks, proposals, specifications, or requirements for new work.
 ---
 

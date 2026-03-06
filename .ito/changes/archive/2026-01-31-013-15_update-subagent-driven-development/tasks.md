@@ -29,7 +29,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-skills/skills/subagent-driven-development/SKILL.md`
 - **Action**:
-  - Replace `executing-plans` with `ito-apply-change-proposal`
+  - Replace `executing-plans` with `ito-apply`
 - **Verify**: `grep executing-plans ito-skills/skills/subagent-driven-development/SKILL.md` returns no results
 - **Done When**: No executing-plans references remain
 - **Status**: [x] completed
@@ -38,7 +38,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-skills/skills/subagent-driven-development/SKILL.md`
 - **Action**:
-  - Replace `writing-plans` with `ito-write-change-proposal`
+  - Replace `writing-plans` with `ito-proposal`
 - **Verify**: `grep writing-plans ito-skills/skills/subagent-driven-development/SKILL.md` returns no results
 - **Done When**: No writing-plans references remain
 - **Status**: [x] completed

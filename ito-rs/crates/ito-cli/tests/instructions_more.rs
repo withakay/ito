@@ -46,12 +46,10 @@ fn agent_instruction_proposal_without_change_supports_json_output() {
     assert_eq!(out.code, 0);
     let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid json");
     assert_eq!(v["artifactId"], "new-proposal");
-    assert!(
-        v["instruction"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Create a New Proposal")
-    );
+    assert!(v["instruction"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Create a New Proposal"));
 }
 
 #[test]
@@ -245,4 +243,33 @@ fn agent_instruction_review_renders_review_template() {
     assert!(out.stdout.contains("## Testing Policy"));
     assert!(out.stdout.contains("## Output Format"));
     assert!(out.stdout.contains("Verdict: needs-discussion"));
+}
+
+#[test]
+fn agent_instruction_apply_text_is_compact_and_has_trailing_newline() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "apply",
+            "--change",
+            "000-01_test-change",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("## Apply: 000-01_test-change"));
+    assert!(out.stdout.contains("### Testing Policy"));
+    assert!(!out.stdout.contains("\n\n\n"), "stdout={}", out.stdout);
+    assert!(out.stdout.ends_with('\n'), "stdout={}", out.stdout);
 }

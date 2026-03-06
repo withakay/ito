@@ -13,8 +13,6 @@ $ARGUMENTS
 
 Load and follow the `ito-proposal` skill. Pass the <UserRequest> block as input.
 
-If `ito-proposal` is missing, fall back to `ito-write-change-proposal`.
-
 **Audit guardrail**
 
 - Before stateful Ito actions: run `ito audit validate`.
