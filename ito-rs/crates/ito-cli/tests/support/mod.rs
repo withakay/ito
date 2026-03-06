@@ -154,7 +154,7 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
     // Must match ito-core `distribution.rs` ITO_SKILLS list.
     let skills = [
         "ito-brainstorming",
-        "ito-finishing-a-development-branch",
+        "ito-finish",
         "ito-research",
         "ito-subagent-driven-development",
         "ito-using-git-worktrees",
