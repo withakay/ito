@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.15] - 2026-03-06
+
+### 🚀 Features
+
+- Add finish instruction and consolidate proposal guidance
+- Add finish instruction and consolidate proposal guidance
+
+### 🧪 Testing
+
+- Fix init update recreation regression
+- Update template rename expectations
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ito-cli)* Trim doc examples to satisfy size gate
+- *(ito-cli)* Apply rustfmt after rebase
+## [0.1.14] - 2026-03-02
+
+### 🚀 Features
+
+- *(024-10)* Wire multi-tenant backend server config
+- *(024-11)* Add grep command ([#122](https://github.com/withakay/ito/pull/122))
+- Add `ito util parse-id` command and update ito-loop skill to use it ([#125](https://github.com/withakay/ito/pull/125))
+
+### 🐛 Bug Fixes
+
+- *(serve)* Eliminate ETXTBSY flakiness in tailscale detection tests ([#132](https://github.com/withakay/ito/pull/132))
 ## [0.1.13] - 2026-03-01
 
 ### 🚀 Features

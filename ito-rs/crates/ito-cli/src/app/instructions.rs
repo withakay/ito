@@ -43,16 +43,6 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// Generate and print instructions for a requested agent artifact.
 ///
 /// Parses the provided CLI arguments to determine the artifact and options, loads configuration and testing policy as needed, validates required flags (for example, `--tool` for `bootstrap` where allowed values are `opencode`, `claude`, `codex`, or `github-copilot`, and `--change` for change-scoped artifacts), and emits either plain instruction text or a JSON-wrapped response when `--json` is present. Prints the long help text when no arguments or a help flag is supplied and surfaces user-facing error messages for common failure cases.
-///
-/// # Examples
-///
-/// ```
-/// # use ito_cli::app::instructions::handle_agent_instruction;
-/// # use ito_core::Runtime; // placeholder: construct a real Runtime in the hosting application
-/// let rt = /* construct Runtime here */ unimplemented!();
-/// let args: Vec<String> = vec![];
-/// let _ = handle_agent_instruction(&rt, &args);
-/// ```
 pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.is_empty() || args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
@@ -213,6 +203,42 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             },
         )
         .map_err(|e| to_cli_error(format!("failed to render worktrees instruction: {e}")))?;
+
+        if want_json {
+            let response = core_templates::AgentInstructionResponse {
+                artifact_id: artifact.to_string(),
+                instruction,
+            };
+            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            println!("{rendered}");
+            return Ok(());
+        }
+
+        print!("{instruction}");
+        return Ok(());
+    }
+
+    if artifact == "finish" {
+        let ctx = rt.ctx();
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+        let change = parse_string_flag(args, "--change")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            worktree: WorktreeConfig,
+            change: Option<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/finish.md.j2",
+            &Ctx { worktree, change },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
 
         if want_json {
             let response = core_templates::AgentInstructionResponse {
@@ -675,34 +701,6 @@ fn resolve_bare_repo_root(project_root: &Path) -> Option<PathBuf> {
 /// `BareControlSiblings` strategy the root is resolved to the bare repository root
 /// (parent of the Git common-dir), otherwise the provided `project_root` is used
 /// as-is.
-///
-/// # Examples
-///
-/// ```
-/// use serde_json::json;
-/// use std::path::Path;
-///
-/// let merged = json!({
-///     "worktrees": {
-///         "enabled": true,
-///         "strategy": "checkout_subdir",
-///         "layout": { "dir_name": "wt-dir" },
-///         "apply": {
-///             "enabled": false,
-///             "integration_mode": "commit_pr",
-///             "copy_from_main": [".env"],
-///             "setup_commands": ["echo hi"]
-///         },
-///         "default_branch": "develop"
-///     }
-/// });
-///
-/// let cfg = worktree_config_from_merged(&merged, Some(Path::new("/repo")));
-/// assert!(cfg.enabled);
-/// assert_eq!(cfg.layout_dir_name, "wt-dir");
-/// assert_eq!(cfg.apply_enabled, false);
-/// assert_eq!(cfg.default_branch, "develop");
-/// ```
 fn worktree_config_from_merged(
     merged: &serde_json::Value,
     project_root: Option<&Path>,
@@ -820,16 +818,6 @@ fn worktree_config_from_merged_with_paths(
 ///
 /// The returned WorktreeConfig is populated from the merged cascading configuration for `project_root` and `ito_path`.
 /// Its `worktree_root` and `ito_root` fields are set to the provided `project_root` and `ito_path` (converted to strings).
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::path::Path;
-/// // `ctx` is a `ito_config::ConfigContext` previously constructed
-/// let cfg = load_worktree_config(Path::new("/path/to/project"), Path::new("/path/to/project/.ito"), &ctx);
-/// assert_eq!(cfg.worktree_root.as_deref(), Some("/path/to/project"));
-/// assert_eq!(cfg.ito_root.as_deref(), Some("/path/to/project/.ito"));
-/// ```
 fn load_worktree_config(
     project_root: &Path,
     ito_path: &Path,
@@ -845,14 +833,6 @@ fn load_worktree_config(
 /// `instructions`, `testing_policy`, optional `user_guidance`, and `worktree_config`, then writes
 /// the rendered text to standard output. The provided `user_guidance` is trimmed and ignored if
 /// empty.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Prepare or obtain `instructions`, `testing_policy`, and `worktree_config` from application logic
-/// // then call:
-/// print_apply_instructions_text(&instructions, &testing_policy, Some("Extra notes"), &worktree_config);
-/// ```
 fn print_apply_instructions_text(
     instructions: &core_templates::ApplyInstructionsResponse,
     testing_policy: &TestingPolicy,

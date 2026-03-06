@@ -13,23 +13,23 @@ The skill SHALL NOT reference deprecated `superpowers:*` skill syntax.
 - **WHEN** the skill references other skills
 - **THEN** it uses `ito-*` prefixed names without `superpowers:` prefix
 
-### Requirement: References ito-apply-change-proposal for execution
+### Requirement: References ito-apply for execution
 
-The skill SHALL reference `ito-apply-change-proposal` for task execution instead of `executing-plans`.
+The skill SHALL reference `ito-apply` for task execution instead of `executing-plans`.
 
 #### Scenario: Execution handoff
 
 - **WHEN** the skill describes how subagents execute tasks
-- **THEN** it references `ito-apply-change-proposal`
+- **THEN** it references `ito-apply`
 
-### Requirement: References ito-write-change-proposal for planning
+### Requirement: References ito-proposal for planning
 
-The skill SHALL reference `ito-write-change-proposal` for task creation instead of `writing-plans`.
+The skill SHALL reference `ito-proposal` for task creation instead of `writing-plans`.
 
 #### Scenario: Planning reference
 
 - **WHEN** the skill describes plan creation
-- **THEN** it references `ito-write-change-proposal`
+- **THEN** it references `ito-proposal`
 
 ### Requirement: Uses ito tasks CLI for tracking
 

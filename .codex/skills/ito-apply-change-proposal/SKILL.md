@@ -1,5 +1,5 @@
 ---
-name: ito-apply-change-proposal
+name: ito-apply
 description: Use when implementing, executing, applying, building, coding, or developing a feature, change, requirement, enhancement, fix, or modification. Use when running tasks from a spec, proposal, or plan.
 ---
 

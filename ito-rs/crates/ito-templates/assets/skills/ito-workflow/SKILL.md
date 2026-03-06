@@ -30,6 +30,7 @@ ito agent instruction tasks --change "<change-id>"
 ito agent instruction apply --change "<change-id>"
 ito agent instruction review --change "<change-id>"
 ito agent instruction archive --change "<change-id>"
+ito agent instruction finish --change "<change-id>"
 
 # Worktrees / multi-branch workflow (per-developer)
 ito agent instruction worktrees
@@ -58,8 +59,8 @@ ito tasks complete <change-id> <task-id>
 
 ## Related Skills
 
-- `ito-write-change-proposal` - Create new changes
-- `ito-apply-change-proposal` - Implement changes
+- `ito-proposal` - Create new changes
+- `ito-apply` - Implement changes
 - `ito-review` - Review changes
 - `ito-archive` - Archive completed changes
 - `ito-tasks` - Manage tasks

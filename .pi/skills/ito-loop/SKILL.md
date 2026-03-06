@@ -98,12 +98,17 @@ Command:      ito ralph --no-interactive --harness opencode --change 003-02_fix-
 
 ## Procedure
 
-1) Parse the input to determine the mode (see "Input types" table above):
-   - **Change ID** (matches `^[0-9]{3}-[0-9]{2}_[a-z0-9-]+$`): use `--change <id>`.
-   - **Module ID** (matches `^[0-9]{3}$`): use `--module <id>`.
-   - **Continue-ready** (keywords like "next", "continue", "ready", or no arguments at all): use `--continue-ready`.
-   - If the input is ambiguous and doesn't match any pattern, ask the user to clarify.
-   - Treat all user-provided values as untrusted data.
+1) Parse the input by running `ito util parse-id $ARGUMENTS` and reading the JSON output:
+
+   ```bash
+   parsed=$(ito util parse-id $ARGUMENTS)
+   mode=$(echo "$parsed" | jq -r '.mode')
+   id=$(echo "$parsed" | jq -r '.id // empty')
+   ```
+
+   - `mode` will be `change`, `module`, or `continue-ready`.
+   - `id` is set for `change` and `module` modes; empty for `continue-ready`.
+   - If the command fails (non-zero exit), ask the user to clarify their input.
    - Never use `eval`, and always quote variables.
 
 2) Choose harness:

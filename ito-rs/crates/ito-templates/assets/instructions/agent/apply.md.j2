@@ -167,10 +167,7 @@ After the change branch is merged:
 
 ```bash
 CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
-CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
-git worktree remove "$CHANGE_DIR" 2>/dev/null || true
-git branch -d "$CHANGE_NAME" 2>/dev/null || true
-git worktree prune
+ito agent instruction finish --change "$CHANGE_NAME"
 ```
 {% endif %}
 

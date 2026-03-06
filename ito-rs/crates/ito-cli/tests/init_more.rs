@@ -727,7 +727,7 @@ fn init_update_preserves_user_files_and_creates_missing() {
     fixtures::write(repo.path().join("AGENTS.md"), &updated_agents);
 
     // Delete a managed file to verify it gets recreated.
-    std::fs::remove_file(repo.path().join(".ito/planning/STATE.md")).unwrap();
+    std::fs::remove_file(repo.path().join(".ito/user-prompts/proposal.md")).unwrap();
 
     // Run init --update — should succeed without --force.
     let out = run_rust_candidate(
@@ -775,8 +775,8 @@ fn init_update_preserves_user_files_and_creates_missing() {
 
     // Deleted file should be recreated.
     assert!(
-        repo.path().join(".ito/planning/STATE.md").exists(),
-        "STATE.md should be recreated"
+        repo.path().join(".ito/user-prompts/proposal.md").exists(),
+        "proposal.md should be recreated"
     );
 }
 

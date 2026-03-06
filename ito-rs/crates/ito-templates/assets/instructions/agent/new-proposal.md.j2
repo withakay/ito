@@ -13,7 +13,18 @@ Do NOT jump straight into creating files. First, make sure you understand what t
 
 If the user's request is already precise and well-scoped, a quick confirmation is enough — don't over-interview.
 
-## Step 1: Choose a Module
+## Step 1: Choose a Schema
+
+Before creating the change, pick the workflow schema.
+
+```bash
+ito agent instruction schemas
+```
+
+- If the user does not have a preference, recommend **spec-driven** (default).
+- Remember the chosen schema for the create step.
+
+## Step 2: Choose a Module
 
 Changes belong to a module (a grouping of related work).
 
@@ -33,10 +44,10 @@ No modules exist yet. You can:
 - Create a new module with `ito create module <name>`
 {%- endif %}
 
-## Step 2: Create the Change
+## Step 3: Create the Change
 
 ```bash
-ito create change "<change-name>" --module <module-id>
+ito create change "<change-name>" --module <module-id> --schema <schema>
 ```
 
 **Naming conventions:**
@@ -50,58 +61,17 @@ ito create change "add-two-factor-auth" --module 001
 # Creates: .ito/changes/001-05_add-two-factor-auth/
 ```
 
-## Step 3: Get Proposal Instructions
+## Step 4: Generate Proposal Artifacts
 
-After creating the change, get detailed instructions:
+After creating the change, get the canonical, change-scoped instructions:
 
 ```bash
 ito agent instruction proposal --change <change-id>
+ito agent instruction specs --change <change-id>
+ito agent instruction tasks --change <change-id>
 ```
 
-This will provide:
-- Template for `proposal.md`
-- Guidelines for spec deltas
-- Validation requirements
-
-## Step 4: Write the Proposal
-
-Your change directory will contain:
-```
-.ito/changes/<change-id>/
-├── proposal.md     # Why and what (create this)
-├── tasks.md        # Implementation steps (create this)
-├── design.md       # Technical decisions (optional)
-└── specs/          # Delta changes to specifications
-    └── <capability>/
-        └── spec.md # ADDED/MODIFIED/REMOVED requirements
-```
-
-### proposal.md Template
-
-```markdown
-## Why
-
-<!-- 1-2 sentences on the problem or opportunity -->
-
-## What Changes
-
-<!-- Bullet list of changes. Mark breaking changes with **BREAKING** -->
-
-## Capabilities
-
-### New Capabilities
-
-<!-- Each creates specs/<name>/spec.md -->
-- `<name>`: <brief description>
-
-### Modified Capabilities
-
-<!-- Existing capabilities whose requirements are changing -->
-
-## Impact
-
-<!-- Affected code, APIs, dependencies -->
-```
+Follow the printed instructions exactly.
 
 ## Step 5: Validate
 
@@ -118,8 +88,9 @@ Fix any errors before proceeding.
 | `ito list --modules` | List all modules |
 | `ito list` | List active changes |
 | `ito list --specs` | List existing specifications |
+| `ito agent instruction schemas` | List workflow schemas |
 | `ito create module <name>` | Create a new module |
-| `ito create change <name> --module <id>` | Create a new change |
+| `ito create change <name> --module <id> --schema <schema>` | Create a new change |
 | `ito validate <change-id> --strict` | Validate a change |
 
 ## Documentation

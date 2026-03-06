@@ -86,10 +86,10 @@ If you need absolute paths (for logs, scripts, or agent instructions), use:
 After the branch is merged:
 
 ```bash
-git worktree remove "<worktree-path>" 2>/dev/null || true
-git branch -d "<branch-name>" 2>/dev/null || true
-git worktree prune
+ito agent instruction finish --change "<branch-name>"
 ```
+
+If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks.
 
 {% else %}
 Worktrees are not configured for this project.
