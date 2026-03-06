@@ -236,9 +236,9 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 * **Git wrapper rejects -C**: This environment uses \`rtk\` wrappers, which may reject common native flags (\`git -C\`, some \`git commit\` options, GNU-style grep flags). Run commands from the target directory via tool \`workdir\` and prefer dedicated search tools over shell \`grep\`. If amend-like behavior is blocked, create a follow-up commit instead.
 
 <!-- lore:019cad74-99bb-77ef-9aad-cf8be145704b -->
-* **Merged-worktree cleanup must skip locked trees**: In this repo’s bare/worktree setup, cleanup should only remove worktrees whose branches are merged into \`origin/main\`; locked worktrees (notably \`main\`, plus other explicitly locked trees) must never be removed. When pruning, compare each worktree branch against merged status first, then delete only non-locked merged ones and leave active/non-merged worktrees intact.
+- **Merged-worktree cleanup must skip locked trees**: In this repo’s bare/worktree setup, cleanup should only remove worktrees whose branches are merged into \`origin/main\`; locked worktrees (notably \`main\`, plus other explicitly locked trees) must never be removed. When pruning, compare each worktree branch against merged status first, then delete only non-locked merged ones and leave active/non-merged worktrees intact.
 <!-- lore:019caf3c-f08e-72d3-9808-864c20bc63b0 -->
-* **Enhanced tasks forbid cross-wave task dependencies**: In enhanced \`tasks.md\`, cross-wave dependencies are invalid for all items, including checkpoints. If Wave 2 or a checkpoint depends on \`Task 1.x\`, \`ito validate \<change-id> --strict\` fails (e.g., cross-wave or missing dependency errors). Keep task-level dependencies intra-wave only, and express cross-wave ordering at the wave/checkpoint level with \`- \*\*Depends On\*\*: Wave 1\`.
+- **Enhanced tasks forbid cross-wave task dependencies**: In enhanced \`tasks.md\`, cross-wave dependencies are invalid for all items, including checkpoints. If Wave 2 or a checkpoint depends on \`Task 1.x\`, \`ito validate \<change-id> --strict\` fails (e.g., cross-wave or missing dependency errors). Keep task-level dependencies intra-wave only, and express cross-wave ordering at the wave/checkpoint level with \`- \*\*Depends On\*\*: Wave 1\`.
 
 ### Pattern
 
@@ -251,10 +251,10 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 <!-- lore:019cad70-3bb9-7343-8fd3-1d894dfb8799 -->
 * **PR triage must parse review-body nitpicks**: For PR triage, always parse all feedback channels, not just inline threads. In this repo, bot-actionable items can live in review bodies and outside-diff sections, so use \`scripts/gh\_pr\_feedback.py\` plus \`scripts/gh\_pr\_nitpicks.py\` to capture everything. During follow-up polling, fetch incrementally (\`--since-pr-head\`/\`--since-sha\`) and dedupe by thread/comment intent so re-raised bot comments don’t trigger duplicate fixes.
 <!-- lore:019caf9c-ae69-707b-adca-1f0a052bd33a -->
-* **Canonical backend export zip format**: Change export is defined as a canonical zip produced by \`ito backend export\`, containing both active and archived changes. The archive layout is fixed (\`changes/active/\`, \`changes/archived/\`) and includes a \`manifest.json\` with per-file checksums. Require deterministic ordering and backend-mode gating so exports are reproducible and integrity-verifiable.
+- **Canonical backend export zip format**: Change export is defined as a canonical zip produced by \`ito backend export\`, containing both active and archived changes. The archive layout is fixed (\`changes/active/\`, \`changes/archived/\`) and includes a \`manifest.json\` with per-file checksums. Require deterministic ordering and backend-mode gating so exports are reproducible and integrity-verifiable.
 
 ### Preference
 
 <!-- lore:019caf77-e931-7bfc-b014-f5f211855e45 -->
-* **Backend migration commands use \`ito backend\` namespace**: Backend-facing workflows are standardized under \`ito backend ...\` with capability ownership in \`backend-change-sync\` (not \`ito tasks ...\`/\`cli-tasks\`). This includes migration (\`ito backend import\`) and export (\`ito backend export\`) surfaces. Keep \`ito init\` as the backend/local mode gate with strict import-policy handling when local changes exist.
+- **Backend migration commands use \`ito backend\` namespace**: Backend-facing workflows are standardized under \`ito backend ...\` with capability ownership in \`backend-change-sync\` (not \`ito tasks ...\`/\`cli-tasks\`). This includes migration (\`ito backend import\`) and export (\`ito backend export\`) surfaces. Keep \`ito init\` as the backend/local mode gate with strict import-policy handling when local changes exist.
 <!-- End lore-managed section -->

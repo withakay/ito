@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
+use clap::builder::Styles;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod grep;
@@ -577,7 +577,7 @@ pub enum AgentCommand {
 
 #[derive(Args, Debug, Clone)]
 #[command(
-    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  backend        Backend server and client configuration guide\n  worktrees      Guide for git worktree workflow (config-driven)\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap"
+    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  backend        Backend server and client configuration guide\n  worktrees      Guide for git worktree workflow (config-driven)\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n  finish         Cleanup worktrees and branches after merge\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n  ito agent instruction finish --change 005-08_migrate-cli-to-clap"
 )]
 pub struct AgentInstructionArgs {
     /// Artifact id (e.g. bootstrap, apply, proposal)

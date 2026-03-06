@@ -30,6 +30,7 @@ ito agent instruction tasks --change "<change-id>"
 ito agent instruction apply --change "<change-id>"
 ito agent instruction review --change "<change-id>"
 ito agent instruction archive --change "<change-id>"
+ito agent instruction finish --change "<change-id>"
 
 # Worktrees / multi-branch workflow (per-developer)
 ito agent instruction worktrees

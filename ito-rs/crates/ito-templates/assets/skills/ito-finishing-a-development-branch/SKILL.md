@@ -53,7 +53,6 @@ Keep options concise. Don't add explanation.
 # From the main worktree:
 git merge <feature-branch>
 <test command>          # verify on merged result
-git branch -d <feature-branch>
 ```
 
 Then: Cleanup (Step 6).
@@ -102,12 +101,13 @@ Follow printed instructions. Then: Cleanup (Step 6).
 
 ## Step 6: Cleanup Worktree
 
-For Options 1, 4, 5 — remove the worktree if one exists:
+For Options 1 and 5 — use the CLI-generated cleanup instructions (source of truth):
 
 ```bash
-git worktree remove <worktree-path> 2>/dev/null || true
-git worktree prune
+ito agent instruction finish --change <feature-branch>
 ```
+
+If the worktree is locked, assume the user locked it intentionally and keep it.
 
 For Options 2 and 3 — keep the worktree.
 
@@ -127,5 +127,6 @@ For Options 2 and 3 — keep the worktree.
 - Never merge without verifying tests on the result
 - Never delete work without typed confirmation
 - Never force-push without explicit request
+- If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks
 - Always detect Ito changes and include the archive option
 - Always present structured options, not open-ended questions
