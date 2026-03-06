@@ -32,9 +32,9 @@ ______________________________________________________________________
 - **Updated At**: 2026-02-27
 - **Status**: [x] complete
 
-### Task 1.2: Update `ito-write-change-proposal` to ask for schema selection
+### Task 1.2: Update `ito-proposal` to ask for schema selection
 
-- **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-write-change-proposal/SKILL.md`
+- **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-proposal/SKILL.md`
 - **Dependencies**: Task 1.1
 - **Action**:
   - Add a step that runs `ito agent instruction schemas` and asks the user to pick.

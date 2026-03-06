@@ -6,7 +6,7 @@ The `finishing-a-development-branch` skill has two issues:
 
 ## What Changes
 
-- Replace `executing-plans` reference with `ito-apply-change-proposal`
+- Replace `executing-plans` reference with `ito-apply`
 - Add option 5: "Archive ito change" that invokes `ito-archive`
 - Add detection: if working on a ito change, present archive option
 
@@ -19,5 +19,5 @@ The `finishing-a-development-branch` skill has two issues:
 ## Impact
 
 - **ito-skills/skills/finishing-a-development-branch/SKILL.md**: Minor updates
-- **Embedded templates**: Update `ito-finishing-a-development-branch`
+- **Embedded templates**: Update `ito-finish`
 - Non-breaking: new option is additive

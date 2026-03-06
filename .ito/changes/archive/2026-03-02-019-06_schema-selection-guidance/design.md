@@ -21,7 +21,7 @@ Schema selection is currently discoverable only by already knowing about `--sche
   - Text output: human-friendly list + short “which should I choose?” guide.
   - JSON output: stable schema records (name, description, artifacts, source).
 
-- Decision: The `ito-write-change-proposal` skill asks the user to choose a schema.
+- Decision: The `ito-proposal` skill asks the user to choose a schema.
   - Default recommendation: `spec-driven`.
   - The chosen schema is applied by passing `--schema <name>` to `ito create change`.
 

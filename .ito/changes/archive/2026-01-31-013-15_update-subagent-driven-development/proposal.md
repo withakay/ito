@@ -12,8 +12,8 @@ The skill needs a major update to work with the ito workflow.
 ## What Changes
 
 - Replace all `superpowers:*` references with modern `ito-*` prefixed skill names
-- Replace `executing-plans` references with `ito-apply-change-proposal`
-- Replace `writing-plans` references with `ito-write-change-proposal`
+- Replace `executing-plans` references with `ito-apply`
+- Replace `writing-plans` references with `ito-proposal`
 - Replace `docs/plans/` with `.ito/changes/<id>/tasks.md`
 - Replace `TodoWrite` with `ito tasks` CLI
 - Update subagent context to use `ito agent instruction apply`

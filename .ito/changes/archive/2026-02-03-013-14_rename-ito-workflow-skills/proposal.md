@@ -4,18 +4,18 @@ The current ito workflow skill names (`ito-proposal`, `ito-apply`) are too terse
 
 ## What Changes
 
-- **Rename `ito-proposal` to `ito-write-change-proposal`**
-- **Rename `ito-apply` to `ito-apply-change-proposal`**
+- **Rename `ito-proposal` to `ito-proposal`**
+- **Rename `ito-apply` to `ito-apply`**
 - **Keyword-stuff descriptions** for discoverability:
-  - `ito-write-change-proposal`: "Use when creating, designing, planning, proposing, specifying a feature, change, requirement, enhancement, fix, modification, spec, or writing tasks"
-  - `ito-apply-change-proposal`: "Use when implementing, executing, applying, building, coding, developing a feature, change, requirement, enhancement, fix, modification, spec, or running tasks"
+  - `ito-proposal`: "Use when creating, designing, planning, proposing, specifying a feature, change, requirement, enhancement, fix, modification, spec, or writing tasks"
+  - `ito-apply`: "Use when implementing, executing, applying, building, coding, developing a feature, change, requirement, enhancement, fix, modification, spec, or running tasks"
 
 ## Capabilities
 
 ### Modified Capabilities
 
-- `ito-proposal` → `ito-write-change-proposal`: Renamed with keyword-rich description
-- `ito-apply` → `ito-apply-change-proposal`: Renamed with keyword-rich description
+- `ito-proposal` → `ito-proposal`: Renamed with keyword-rich description
+- `ito-apply` → `ito-apply`: Renamed with keyword-rich description
 
 ## Impact
 

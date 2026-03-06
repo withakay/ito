@@ -25,7 +25,7 @@ However, the skill has extensive references to deprecated patterns that no longe
 
 **Decision**: Keep the "fresh subagent per task" approach.
 
-**Rationale**: Valuable for isolation and parallel execution. Aligns with ito-apply-change-proposal multi-agent patterns.
+**Rationale**: Valuable for isolation and parallel execution. Aligns with ito-apply multi-agent patterns.
 
 ### 2. Preserve two-stage review
 
@@ -46,8 +46,8 @@ However, the skill has extensive references to deprecated patterns that no longe
 ## Migration Plan
 
 1. Replace all `superpowers:*` with `ito-*` names
-2. Replace `executing-plans` with `ito-apply-change-proposal`
-3. Replace `writing-plans` with `ito-write-change-proposal`
+2. Replace `executing-plans` with `ito-apply`
+3. Replace `writing-plans` with `ito-proposal`
 4. Replace `docs/plans/` with `.ito/changes/<id>/tasks.md`
 5. Replace `TodoWrite` with `ito tasks` CLI
 6. Update subagent context to use ito CLI
