@@ -1,6 +1,6 @@
 use ito_core::distribution::{
-    AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
-    opencode_manifests,
+    claude_manifests, codex_manifests, github_manifests, install_manifests, opencode_manifests,
+    AssetType,
 };
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::path::Path;
@@ -48,13 +48,13 @@ fn opencode_manifests_includes_plugin_and_skills() {
     });
     assert!(has_ito_loop, "should include ito-loop skill");
 
-    // Should include the loop command
+    // Should include the renamed ito-loop command.
     let has_loop = manifests.iter().any(|m| {
         m.asset_type == AssetType::Command
-            && m.source == "loop.md"
-            && m.dest.to_string_lossy().ends_with("/commands/loop.md")
+            && m.source == "ito-loop.md"
+            && m.dest.to_string_lossy().ends_with("/commands/ito-loop.md")
     });
-    assert!(has_loop, "should include loop command");
+    assert!(has_loop, "should include ito-loop command");
 }
 
 #[test]
@@ -119,11 +119,9 @@ fn codex_manifests_includes_bootstrap_and_skills() {
     }
     let adapter = adapter.expect("should include codex bootstrap");
     assert_eq!(adapter.asset_type, AssetType::Adapter);
-    assert!(
-        adapter
-            .dest
-            .ends_with(".codex/instructions/ito-skills-bootstrap.md")
-    );
+    assert!(adapter
+        .dest
+        .ends_with(".codex/instructions/ito-skills-bootstrap.md"));
 
     // Should include skills
     let skills: Vec<_> = manifests
