@@ -11,7 +11,7 @@ It references `executing-plans` which is being removed, and doesn't include ito-
 ## Goals / Non-Goals
 
 **Goals:**
-- Update reference from `executing-plans` to `ito-apply-change-proposal`
+- Update reference from `executing-plans` to `ito-apply`
 - Add option 5: Archive ito change
 - Detect ito changes and highlight archive option when relevant
 
@@ -35,7 +35,7 @@ It references `executing-plans` which is being removed, and doesn't include ito-
 
 ## Migration Plan
 
-1. Replace `executing-plans` with `ito-apply-change-proposal`
+1. Replace `executing-plans` with `ito-apply`
 2. Add option 5 for ito-archive
 3. Add ito change detection logic
 4. Update embedded template

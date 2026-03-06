@@ -4,14 +4,14 @@ Update `finishing-a-development-branch` skill to reference correct skills and ad
 
 ## MODIFIED Requirements
 
-### Requirement: References ito-apply-change-proposal
+### Requirement: References ito-apply
 
-The skill SHALL reference `ito-apply-change-proposal` instead of `executing-plans`.
+The skill SHALL reference `ito-apply` instead of `executing-plans`.
 
 #### Scenario: Execution reference
 
 - **WHEN** the skill references task execution
-- **THEN** it references `ito-apply-change-proposal`
+- **THEN** it references `ito-apply`
 
 ### Requirement: Includes ito-archive option
 
