@@ -41,7 +41,7 @@ fn opencode_manifests_includes_plugin_and_skills() {
 
     let has_ito_loop = manifests.iter().any(|m| {
         m.asset_type == AssetType::Skill
-            && m.source == "loop/SKILL.md"
+            && m.source == "ito-loop/SKILL.md"
             && m.dest
                 .to_string_lossy()
                 .ends_with("/skills/ito-loop/SKILL.md")
