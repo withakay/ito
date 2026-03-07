@@ -118,7 +118,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend` passes
 - **Done When**: All spec scenarios for `ito backend status` have corresponding test coverage
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.2: Write tests for generate-token and auth verify
 
@@ -128,7 +128,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend && cargo test -p ito-backend`
 - **Done When**: Token generation and auth verify have comprehensive test coverage
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.3: Write tests for silent fallback fixes
 
@@ -138,4 +138,4 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend`
 - **Done When**: Silent fallback regression tests exist for all fixed callsites
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
