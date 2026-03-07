@@ -448,12 +448,17 @@ start_server() {
   (
     export ITO_BACKEND_ADMIN_TOKEN="$ADMIN_TOKEN"
     export ITO_BACKEND_TOKEN_SEED="$TOKEN_SEED"
+    # Build --allow-org flags dynamically so adding orgs to ALLOW_ORGS works
+    # without touching this invocation.
+    local org_args=()
+    for org in "${ALLOW_ORGS[@]}"; do
+      org_args+=(--allow-org "$org")
+    done
     exec "$ITO_BIN" serve-api \
       --bind "$HOST" \
       --port "$PORT" \
       --data-dir "$DATA_DIR" \
-      --allow-org "${ALLOW_ORGS[0]}" \
-      --allow-org "${ALLOW_ORGS[1]}"
+      "${org_args[@]}"
   ) >"$SERVER_LOG" 2>&1 &
 
   local pid=$!
