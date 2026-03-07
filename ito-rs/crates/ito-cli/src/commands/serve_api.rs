@@ -25,11 +25,15 @@ pub(crate) fn handle_serve_api_clap(
     args: &ServeApiArgs,
 ) -> CliResult<()> {
     let ctx = ConfigContext::from_process_env();
+    let bootstrap_result = if args.init || args.service {
+        Some(backend_auth::init_backend_auth(&ctx).map_err(|e| CliError::msg(e.to_string()))?)
+    } else {
+        None
+    };
 
-    // Handle --init before anything else
+    // Handle auth bootstrap before anything else.
     if args.init {
-        let result =
-            backend_auth::init_backend_auth(&ctx).map_err(|e| CliError::msg(e.to_string()))?;
+        let result = bootstrap_result.expect("bootstrap result must exist for --init");
 
         match result {
             InitAuthResult::AlreadyConfigured { config_path } => {
@@ -112,6 +116,7 @@ mod serve_api_tests {
     fn builds_config_with_defaults() {
         let args = ServeApiArgs {
             init: false,
+            service: false,
             port: None,
             bind: None,
             data_dir: None,

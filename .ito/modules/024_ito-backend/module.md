@@ -28,10 +28,12 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - [x] 024-03_add-backend-project-bootstrap
 - [x] 024-04_add-backend-event-forwarding
 - [x] 024-05_add-backend-archive-sync
+- [x] 024-10_import-existing-and-archived-changes
 - [x] 024-10_multi-tenant-backend-server
 - [x] 024-11_add-grep-command
+- [x] 024-11_export-changes-zip-archive
+- [x] 024-12_add-cloudflare-deployment
 - [x] 024-12_add-docker-compose-backend-runtime
 - [x] 024-13_add-homebrew-systemd-backend-services
-- [x] 024-12_add-cloudflare-deployment
-- [x] 024-10_import-existing-and-archived-changes
-- [x] 024-11_export-changes-zip-archive
+- [ ] 024-15_docker-and-helm
+- [ ] 024-16_homebrew-service-bootstrap

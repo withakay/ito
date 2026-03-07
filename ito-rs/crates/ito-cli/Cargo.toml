@@ -47,3 +47,6 @@ insta = { workspace = true }
 predicates = { workspace = true }
 tempfile = { workspace = true }
 ito-test-support = { path = "../ito-test-support" }
+
+[package.metadata.dist]
+formula = "ito"

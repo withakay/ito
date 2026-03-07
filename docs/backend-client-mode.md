@@ -68,15 +68,23 @@ See `docker-compose.backend.yml` and `.env.backend.example` for configuration.
 For long-running development on macOS, you can run the backend as a Homebrew-managed service:
 
 ```bash
-# One-time: generate and persist auth tokens to ~/.config/ito/config.json
-ito serve-api --init
+# Install the tap and formula
+brew tap withakay/ito
+brew install ito
 
 # Start the service
 brew services start ito
 
+# First service start bootstraps backend auth in ~/.config/ito/config.json if needed
+
 # Verify the backend is running
 curl http://127.0.0.1:9010/api/v1/health
 ```
+
+The Homebrew formula's service block runs `ito serve-api --service`.
+
+If you want to generate tokens ahead of time or inspect the config path, you can still run
+`ito serve-api --init` manually before starting the service.
 
 Service management commands:
 
@@ -98,6 +106,9 @@ mkdir -p ~/Library/LaunchAgents
 cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
 ```
+
+If your Homebrew prefix is not `/opt/homebrew` (for example Intel macOS uses `/usr/local`),
+edit the plist's `ProgramArguments` path before loading it.
 
 #### systemd Service (Linux)
 

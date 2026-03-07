@@ -50,10 +50,8 @@ At each step, the existing specs are the baseline. Changes are expressed as delt
 
 ```bash
 brew tap withakay/ito
-brew install ito-cli
+brew install ito
 ```
-
-Note: the Homebrew formula name is `ito-cli` (it installs the `ito` binary).
 
 
 **Prebuilt binaries (macOS/Linux):**
@@ -138,9 +136,13 @@ curl http://127.0.0.1:9010/api/v1/health
 **Homebrew (macOS):**
 
 ```bash
-ito serve-api --init       # one-time: generate auth tokens
-brew services start ito-cli  # start the backend service
+brew tap withakay/ito
+brew install ito
+brew services start ito
 ```
+
+The Homebrew service runs `ito serve-api --service`, which creates backend auth in
+`~/.config/ito/config.json` on first start if it is missing.
 
 **systemd (Linux):**
 
