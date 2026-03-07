@@ -1,5 +1,7 @@
 # Default values for ito-backend.
 
+# Note: SQLite persistence requires exactly 1 replica.
+# Scaling beyond 1 is not supported with the default storage backend.
 replicaCount: 1
 
 image:
