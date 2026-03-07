@@ -1273,7 +1273,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-backend"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1294,7 +1294,7 @@ dependencies = [
 
 [[package]]
 name = "ito-cli"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1326,14 +1326,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1344,7 +1344,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "base64",
  "chrono",
@@ -1374,7 +1374,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1390,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "chrono",
  "hex",
@@ -1404,7 +1404,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1413,7 +1413,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1424,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "axum",
  "axum-extra",
@@ -2343,12 +2343,12 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "socket2"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
+checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
