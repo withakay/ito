@@ -62,7 +62,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; manual test against running backend and with no backend
 - **Done When**: `ito backend status` reports correct state for all scenarios (disabled, incomplete config, unreachable, healthy, auth failed, auth verified)
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Implement `backend generate-token` command handler
 
@@ -72,7 +72,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; generate token and verify it matches manual HMAC computation
 - **Done When**: Token generation works with all input combinations (config, flags, env, interactive)
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Fix silent backend fallback in tasks.rs sync_after_mutation
 
@@ -82,7 +82,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; test with broken config shows warning
 - **Done When**: Backend sync failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.4: Fix silent backend fallback in util.rs forward_events_if_backend
 
@@ -92,7 +92,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; test with broken config shows warning
 - **Done When**: Event forwarding failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.5: Fix silent backend fallback in grep.rs materialize_backend_artifacts
 
@@ -102,7 +102,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`
 - **Done When**: Backend artifact materialization failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

@@ -212,6 +212,7 @@ fn forward_events_if_backend(rt: &Runtime) {
         Ok(config) => config,
         Err(e) => {
             tracing::warn!("Skipping backend event forwarding due to invalid config: {e}");
+            eprintln!("Warning: backend event forwarding skipped due to invalid config: {e}");
             return;
         }
     };
@@ -220,8 +221,13 @@ fn forward_events_if_backend(rt: &Runtime) {
         return;
     }
 
-    let Ok(Some(runtime)) = resolve_backend_runtime(&config.backend) else {
-        return;
+    let runtime = match resolve_backend_runtime(&config.backend) {
+        Ok(Some(rt)) => rt,
+        Ok(None) => return, // backend disabled, expected
+        Err(e) => {
+            eprintln!("Warning: backend event forwarding skipped: {e}");
+            return;
+        }
     };
 
     let client = HttpEventIngestClient {
