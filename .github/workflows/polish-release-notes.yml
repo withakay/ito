@@ -31,7 +31,7 @@ jobs:
           {
             printf '%s\n' '## Install'
             printf '\n'
-            printf '%s\n' '- **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito-cli`'
+            printf '%s\n' '- **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito`'
             printf '%s\n' "- **macOS/Linux (script)**: \`ITO_VERSION=${TAG} curl -fsSL https://raw.githubusercontent.com/withakay/ito/${TAG}/scripts/install.sh | sh\`"
             printf '%s\n' "- **Windows (PowerShell script)**: download \`https://raw.githubusercontent.com/withakay/ito/${TAG}/scripts/install.ps1\` and run \`./install.ps1 -Version ${TAG} -AddToPath\`"
             printf '\n'
@@ -107,7 +107,7 @@ jobs:
 
             ## Install
 
-            - **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito-cli`
+            - **macOS (Homebrew)**: `brew tap withakay/ito && brew install ito`
             - **macOS/Linux (script)**: `ITO_VERSION=${{ github.event.release.tag_name }} curl -fsSL https://raw.githubusercontent.com/withakay/ito/${{ github.event.release.tag_name }}/scripts/install.sh | sh`
             - **Windows (PowerShell script)**: download `https://raw.githubusercontent.com/withakay/ito/${{ github.event.release.tag_name }}/scripts/install.ps1` and run `./install.ps1 -Version ${{ github.event.release.tag_name }} -AddToPath`
             ```
