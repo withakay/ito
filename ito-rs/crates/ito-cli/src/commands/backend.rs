@@ -184,7 +184,7 @@ return Err(CliError::silent());
     if is_healthy {
         Ok(())
     } else {
-        std::process::exit(1);
+return Err(CliError::silent());
     }
 }
 
