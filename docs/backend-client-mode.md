@@ -72,7 +72,7 @@ For long-running development on macOS, you can run the backend as a Homebrew-man
 ito serve-api --init
 
 # Start the service
-brew services start ito
+brew services start ito-cli
 
 # Verify the backend is running
 curl http://127.0.0.1:9010/api/v1/health
@@ -85,7 +85,7 @@ Service management commands:
 brew services list
 
 # Stop the service
-brew services stop ito
+brew services stop ito-cli
 
 # View logs
 tail -f $(brew --prefix)/var/log/ito-backend.log
@@ -143,6 +143,33 @@ journalctl --user -u ito-backend -f
 # Stop the service
 systemctl --user stop ito-backend
 ```
+
+#### Docker Image
+
+Run the backend as a standalone container using the image from GHCR:
+
+```bash
+docker run -d --name ito-backend \
+  -p 9010:9010 \
+  -e ITO_BACKEND_ADMIN_TOKEN="your-admin-token" \
+  -e ITO_BACKEND_TOKEN_SEED="your-token-seed" \
+  -v ito-data:/data \
+  ghcr.io/withakay/ito-backend:latest
+```
+
+The container binds to `0.0.0.0:9010` by default. Data is stored at `/data` inside the container.
+
+#### Kubernetes (Helm)
+
+Deploy to Kubernetes using the bundled Helm chart:
+
+```bash
+helm install ito-backend ./infra/helm/ito-backend/ \
+  --set auth.adminToken="your-admin-token" \
+  --set auth.tokenSeed="your-token-seed"
+```
+
+The chart creates a Deployment, Service, PVC, and Secret. See `infra/helm/ito-backend/README.md` for the full values reference, including ingress, persistence, and Tailscale integration.
 
 ## Enabling Backend Mode
 
