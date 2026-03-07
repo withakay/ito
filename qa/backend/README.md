@@ -1,6 +1,8 @@
 # Backend QA Walkthrough
 
-This is a hands-on, human-friendly walkthrough for the file-backed backend API.
+This directory contains the backend shared-state QA walkthrough.
+
+It is a hands-on, human-friendly walkthrough for the file-backed backend API.
 
 It is meant to answer these questions clearly:
 
@@ -10,7 +12,7 @@ It is meant to answer these questions clearly:
 - When I post audit events, do I get real files on disk?
 - If I retry the same event batch, does idempotency work?
 
-The walkthrough uses `scripts/backend-qa-walkthrough.sh` to keep the setup boring and repeatable, but every meaningful step is still just `ito serve-api` plus `curl`.
+The walkthrough uses `qa/backend/test-backend-walkthrough.sh` to keep the setup boring and repeatable, but every meaningful step is still just `ito serve-api` plus `curl`.
 
 For automation, the same script also exposes a `verify` command that runs a compact non-interactive self-check and exits non-zero if anything unexpected happens.
 
@@ -42,7 +44,7 @@ That lets you verify shared-state routing and tenant isolation without any extra
 From the repo root in the worktree:
 
 ```bash
-scripts/backend-qa-walkthrough.sh walk
+qa/backend/test-backend-walkthrough.sh walk
 ```
 
 That command:
@@ -57,7 +59,7 @@ That command:
 If you want it to run straight through without pausing:
 
 ```bash
-BACKEND_QA_NO_PAUSE=1 scripts/backend-qa-walkthrough.sh walk
+BACKEND_QA_NO_PAUSE=1 qa/backend/test-backend-walkthrough.sh walk
 ```
 
 ## Automation-Friendly Check
@@ -65,7 +67,7 @@ BACKEND_QA_NO_PAUSE=1 scripts/backend-qa-walkthrough.sh walk
 If you want one command that behaves like a real integration test, use:
 
 ```bash
-scripts/backend-qa-walkthrough.sh verify
+qa/backend/test-backend-walkthrough.sh verify
 ```
 
 That command resets the sample data, starts the backend, exercises the important endpoints, verifies event-ingest idempotency, checks the written files on disk, and then stops the backend.
@@ -75,7 +77,7 @@ That command resets the sample data, starts the backend, exercises the important
 ### 1. Reset the sample data
 
 ```bash
-scripts/backend-qa-walkthrough.sh reset
+qa/backend/test-backend-walkthrough.sh reset
 ```
 
 This rebuilds `.local/backend-qa/` from scratch.
@@ -83,7 +85,7 @@ This rebuilds `.local/backend-qa/` from scratch.
 ### 2. Start the backend
 
 ```bash
-scripts/backend-qa-walkthrough.sh start
+qa/backend/test-backend-walkthrough.sh start
 ```
 
 Under the hood, the helper runs the CLI directly against the sample data dir:
@@ -104,8 +106,8 @@ If `./target/debug/ito` is missing, the helper builds it first.
 ### 3. Check health and readiness
 
 ```bash
-scripts/backend-qa-walkthrough.sh health
-scripts/backend-qa-walkthrough.sh ready
+qa/backend/test-backend-walkthrough.sh health
+qa/backend/test-backend-walkthrough.sh ready
 ```
 
 Raw `curl` equivalents:
@@ -123,11 +125,11 @@ Expected behavior:
 ### 4. Verify project A shared state
 
 ```bash
-scripts/backend-qa-walkthrough.sh changes-a
-scripts/backend-qa-walkthrough.sh change-a
-scripts/backend-qa-walkthrough.sh tasks-a
-scripts/backend-qa-walkthrough.sh modules-a
-scripts/backend-qa-walkthrough.sh module-a
+qa/backend/test-backend-walkthrough.sh changes-a
+qa/backend/test-backend-walkthrough.sh change-a
+qa/backend/test-backend-walkthrough.sh tasks-a
+qa/backend/test-backend-walkthrough.sh modules-a
+qa/backend/test-backend-walkthrough.sh module-a
 ```
 
 Raw `curl` equivalents:
@@ -162,7 +164,7 @@ Expected behavior:
 ### 5. Verify project isolation with project B
 
 ```bash
-scripts/backend-qa-walkthrough.sh changes-b
+qa/backend/test-backend-walkthrough.sh changes-b
 ```
 
 Raw `curl` equivalent:
@@ -180,7 +182,7 @@ Expected behavior:
 ### 6. Post one event batch
 
 ```bash
-scripts/backend-qa-walkthrough.sh ingest
+qa/backend/test-backend-walkthrough.sh ingest
 ```
 
 The request body lives here so you can inspect it before or after sending it:
@@ -207,9 +209,9 @@ Expected behavior:
 ### 7. Inspect the files the backend wrote
 
 ```bash
-scripts/backend-qa-walkthrough.sh inspect-files
-scripts/backend-qa-walkthrough.sh inspect-audit
-scripts/backend-qa-walkthrough.sh inspect-key
+qa/backend/test-backend-walkthrough.sh inspect-files
+qa/backend/test-backend-walkthrough.sh inspect-audit
+qa/backend/test-backend-walkthrough.sh inspect-key
 ```
 
 You can also inspect them directly:
@@ -227,7 +229,7 @@ Expected behavior:
 ### 8. Retry the exact same request
 
 ```bash
-scripts/backend-qa-walkthrough.sh retry-ingest
+qa/backend/test-backend-walkthrough.sh retry-ingest
 ```
 
 Expected behavior:
@@ -240,13 +242,13 @@ Expected behavior:
 ### 9. Stop the backend when you are done
 
 ```bash
-scripts/backend-qa-walkthrough.sh stop
+qa/backend/test-backend-walkthrough.sh stop
 ```
 
 If you want to remove all generated QA files too:
 
 ```bash
-scripts/backend-qa-walkthrough.sh clean
+qa/backend/test-backend-walkthrough.sh clean
 ```
 
 ## What This Walkthrough Proves

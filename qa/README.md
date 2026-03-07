@@ -17,6 +17,9 @@ qa/
 ├── README.md                    # This file
 ├── archive/                     # Archive command tests
 │   └── test-archive.sh          # Integration tests for ito archive
+├── backend/                     # Backend shared-state QA walkthrough
+│   ├── README.md                # Backend walkthrough guide
+│   └── test-backend-walkthrough.sh
 └── ralph/                       # Ralph loop tests
     └── test-ralph-loop.sh       # Full integration test for Ito Ralph
 ```

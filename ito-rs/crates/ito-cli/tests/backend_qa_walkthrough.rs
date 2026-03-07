@@ -16,7 +16,7 @@ fn pick_free_port() -> u16 {
 #[test]
 fn backend_qa_script_verify_runs_end_to_end() {
     let repo_root = repo_root();
-    let script_path = repo_root.join("scripts/backend-qa-walkthrough.sh");
+    let script_path = repo_root.join("qa/backend/test-backend-walkthrough.sh");
     let qa_root = tempfile::tempdir().expect("qa root");
     let port = pick_free_port();
     let ito_bin = assert_cmd::cargo::cargo_bin!("ito");
