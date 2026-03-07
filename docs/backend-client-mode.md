@@ -23,18 +23,21 @@ Ito provides several options for running the backend locally:
 Run the backend directly with the installed Ito binary. This is the quickest way to start a local server when you already have Ito installed.
 
 ```bash
-# Required for authentication (full admin access)
-export ITO_BACKEND_ADMIN_TOKEN="dev-admin-token"
+# One-time: generate and persist auth tokens to ~/.config/ito/config.json
+ito serve-api --init
 
-# Optional: seed used to derive per-project tokens
-export ITO_BACKEND_TOKEN_SEED="dev-token-seed"
-
-# Start the backend
-ito serve-api --bind 127.0.0.1 --port 9010
+# Start the backend (reads tokens from config file automatically)
+ito serve-api
 
 # Verify health
 curl http://127.0.0.1:9010/api/v1/health
 ```
+
+Auth configuration is resolved in this order (highest priority first):
+
+1. CLI flags (`--admin-token`, `--token-seed`)
+2. Environment variables (`ITO_BACKEND_ADMIN_TOKEN`, `ITO_BACKEND_TOKEN_SEED`)
+3. Global config file (`~/.config/ito/config.json` under `backendServer.auth`)
 
 You can also pass values directly:
 
@@ -65,16 +68,11 @@ See `docker-compose.backend.yml` and `.env.backend.example` for configuration.
 For long-running development on macOS, you can run the backend as a Homebrew-managed service:
 
 ```bash
-# Install the plist
-mkdir -p ~/Library/LaunchAgents
-cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
+# One-time: generate and persist auth tokens to ~/.config/ito/config.json
+ito serve-api --init
 
-# Edit the plist to set your admin token
-# Replace the empty string after <key>ITO_BACKEND_ADMIN_TOKEN</key> with your token
-$EDITOR ~/Library/LaunchAgents/com.withakay.ito.backend.plist
-
-# Load and start the service
-launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+# Start the service
+brew services start ito
 
 # Verify the backend is running
 curl http://127.0.0.1:9010/api/v1/health
@@ -84,13 +82,21 @@ Service management commands:
 
 ```bash
 # Check service status
-launchctl list | grep ito.backend
+brew services list
 
 # Stop the service
-launchctl unload ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+brew services stop ito
 
 # View logs
-tail -f /tmp/ito-backend.log
+tail -f $(brew --prefix)/var/log/ito-backend.log
+```
+
+**Manual plist alternative** (if not using `brew services`):
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
 ```
 
 #### systemd Service (Linux)
@@ -100,12 +106,12 @@ For Linux systems with systemd, you can run the backend as a user or system serv
 **User service (recommended for development):**
 
 ```bash
+# One-time: generate and persist auth tokens to ~/.config/ito/config.json
+ito serve-api --init
+
 # Install the unit file
 mkdir -p ~/.config/systemd/user/
 cp services/ito-backend.service ~/.config/systemd/user/
-
-# Edit to set your admin token
-$EDITOR ~/.config/systemd/user/ito-backend.service
 
 # Enable and start
 systemctl --user daemon-reload

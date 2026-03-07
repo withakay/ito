@@ -376,6 +376,14 @@ pub enum ServeAction {
 #[derive(Args, Debug, Clone)]
 #[cfg(feature = "backend")]
 pub struct ServeApiArgs {
+    /// Generate auth tokens and write them to the global config file, then exit.
+    ///
+    /// On first run, generates a cryptographically random admin token and token
+    /// seed, writes them to `~/.config/ito/config.json`, and exits without
+    /// starting the server. If tokens already exist, prints them and exits.
+    #[arg(long)]
+    pub init: bool,
+
     /// Port to listen on (default: 9010)
     #[arg(short, long)]
     pub port: Option<u16>,

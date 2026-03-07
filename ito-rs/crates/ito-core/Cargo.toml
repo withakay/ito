@@ -24,6 +24,7 @@ ito-domain = { workspace = true }
 ito-templates = { workspace = true }
 miette = { workspace = true }
 sha2 = { workspace = true }
+rand = { workspace = true }
 hex = "0.4"
 grep-matcher = { workspace = true }
 grep-regex = { workspace = true }

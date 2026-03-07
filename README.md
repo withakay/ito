@@ -123,8 +123,8 @@ Ito includes an optional multi-tenant backend API for coordinating multiple agen
 **Quick start (`ito serve-api`):**
 
 ```bash
-export ITO_BACKEND_ADMIN_TOKEN="dev-admin-token"
-ito serve-api --bind 127.0.0.1 --port 9010
+ito serve-api --init   # one-time: generate and save auth tokens
+ito serve-api          # start the server (reads tokens from config)
 curl http://127.0.0.1:9010/api/v1/health
 ```
 
@@ -138,16 +138,15 @@ curl http://127.0.0.1:9010/api/v1/health
 **Homebrew (macOS):**
 
 ```bash
-cp services/com.withakay.ito.backend.plist ~/Library/LaunchAgents/
-# Edit to set ITO_BACKEND_ADMIN_TOKEN
-launchctl load ~/Library/LaunchAgents/com.withakay.ito.backend.plist
+ito serve-api --init       # one-time: generate auth tokens
+brew services start ito    # start the backend service
 ```
 
 **systemd (Linux):**
 
 ```bash
+ito serve-api --init  # one-time: generate auth tokens
 cp services/ito-backend.service ~/.config/systemd/user/
-# Edit to set ITO_BACKEND_ADMIN_TOKEN
 systemctl --user daemon-reload
 systemctl --user enable --now ito-backend
 ```
