@@ -38,9 +38,16 @@ impl TestContext {
 
 fn assert_silent_invalid_address(out: &ito_test_support::CmdOutput) {
     assert_ne!(out.code, 0);
-    assert!(out.stderr.contains("Invalid address"), "stderr={}", out.stderr);
+    assert!(
+        out.stderr.contains("Invalid address"),
+        "stderr={}",
+        out.stderr
+    );
     assert!(!out.stdout.contains("Generated backend server auth tokens."));
-    assert!(!out.stdout.contains("Backend server auth is already configured."));
+    assert!(
+        !out.stdout
+            .contains("Backend server auth is already configured.")
+    );
 }
 
 #[test]
