@@ -1,23 +1,23 @@
 ## ADDED Requirements
 
-### Requirement: ChangeRepository supports backend-backed reads
+### Requirement: Repository export source includes complete lifecycle coverage
 
-`ChangeRepository` SHALL support a backend-backed adapter when backend mode is enabled.
+For backend export operations, `ChangeRepository` SHALL provide access to all changes needed for a full-history archive, including active and archived lifecycle states.
 
-#### Scenario: List changes reads from backend in backend mode
+#### Scenario: Export enumerates active changes from backend
 
-- **GIVEN** backend mode is enabled and backend connectivity is healthy
-- **WHEN** calling `change_repo.list()`
-- **THEN** Ito resolves change summaries from backend state for the configured project
+- **GIVEN** backend mode is enabled
+- **WHEN** export orchestration requests active changes
+- **THEN** `ChangeRepository` returns active change summaries and artifacts from backend state
 
-#### Scenario: Get change reads from backend in backend mode
+#### Scenario: Export enumerates archived changes from backend
 
-- **GIVEN** backend mode is enabled and a change exists on the backend
-- **WHEN** calling `change_repo.get(<change-id>)`
-- **THEN** Ito resolves the change from backend state
+- **GIVEN** backend mode is enabled
+- **WHEN** export orchestration requests archived changes
+- **THEN** `ChangeRepository` returns archived change summaries and artifacts from backend state
 
-#### Scenario: Filesystem path is used when backend mode is disabled
+#### Scenario: Export enumeration is stable for deterministic packaging
 
-- **GIVEN** backend mode is disabled
-- **WHEN** calling `change_repo.list()` or `change_repo.get(<change-id>)`
-- **THEN** Ito uses existing filesystem-backed repository behavior
+- **WHEN** export orchestration requests all changes for packaging
+- **THEN** `ChangeRepository` returns changes in deterministic ID order
+- **AND** repeated exports over unchanged state produce the same file set in the archive
