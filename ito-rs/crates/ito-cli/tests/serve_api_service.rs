@@ -7,32 +7,51 @@ fn backend_config_path(home: &std::path::Path) -> std::path::PathBuf {
     home.join(".config/ito/config.json")
 }
 
+struct TestContext {
+    repo: tempfile::TempDir,
+    home: tempfile::TempDir,
+    rust_path: &'static std::path::Path,
+}
+
+impl TestContext {
+    fn new() -> Self {
+        Self {
+            repo: fixtures::make_empty_repo(),
+            home: tempfile::tempdir().expect("home"),
+            rust_path: assert_cmd::cargo::cargo_bin!("ito"),
+        }
+    }
+
+    fn config_path(&self) -> std::path::PathBuf {
+        backend_config_path(self.home.path())
+    }
+
+    fn run_service_mode(&self) -> ito_test_support::CmdOutput {
+        run_rust_candidate(
+            self.rust_path,
+            &["serve-api", "--service", "--bind", "not-an-address"],
+            self.repo.path(),
+            self.home.path(),
+        )
+    }
+}
+
+fn assert_silent_invalid_address(out: &ito_test_support::CmdOutput) {
+    assert_ne!(out.code, 0);
+    assert!(out.stderr.contains("Invalid address"), "stderr={}", out.stderr);
+    assert!(!out.stdout.contains("Generated backend server auth tokens."));
+    assert!(!out.stdout.contains("Backend server auth is already configured."));
+}
+
 #[test]
 fn service_mode_bootstraps_missing_auth_silently() {
-    let repo = fixtures::make_empty_repo();
-    let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let cx = TestContext::new();
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["serve-api", "--service", "--bind", "not-an-address"],
-        repo.path(),
-        home.path(),
-    );
+    let out = cx.run_service_mode();
 
-    assert_ne!(out.code, 0);
-    assert!(
-        out.stderr.contains("Invalid address"),
-        "stderr={}",
-        out.stderr
-    );
-    assert!(!out.stdout.contains("Generated backend server auth tokens."));
-    assert!(
-        !out.stdout
-            .contains("Backend server auth is already configured.")
-    );
+    assert_silent_invalid_address(&out);
 
-    let config_path = backend_config_path(home.path());
+    let config_path = cx.config_path();
     assert!(config_path.exists(), "stderr={}", out.stderr);
 
     let contents = std::fs::read_to_string(config_path).unwrap();
@@ -51,11 +70,9 @@ fn service_mode_bootstraps_missing_auth_silently() {
 
 #[test]
 fn service_mode_reuses_existing_auth_without_printing_init_output() {
-    let repo = fixtures::make_empty_repo();
-    let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let cx = TestContext::new();
 
-    let config_path = backend_config_path(home.path());
+    let config_path = cx.config_path();
     fixtures::write(
         &config_path,
         concat!(
@@ -72,24 +89,9 @@ fn service_mode_reuses_existing_auth_without_printing_init_output() {
 
     let before = std::fs::read_to_string(&config_path).unwrap();
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["serve-api", "--service", "--bind", "not-an-address"],
-        repo.path(),
-        home.path(),
-    );
+    let out = cx.run_service_mode();
 
-    assert_ne!(out.code, 0);
-    assert!(
-        out.stderr.contains("Invalid address"),
-        "stderr={}",
-        out.stderr
-    );
-    assert!(!out.stdout.contains("Generated backend server auth tokens."));
-    assert!(
-        !out.stdout
-            .contains("Backend server auth is already configured.")
-    );
+    assert_silent_invalid_address(&out);
 
     let after = std::fs::read_to_string(&config_path).unwrap();
     assert_eq!(after, before);
@@ -97,19 +99,12 @@ fn service_mode_reuses_existing_auth_without_printing_init_output() {
 
 #[test]
 fn service_mode_reports_malformed_backend_config() {
-    let repo = fixtures::make_empty_repo();
-    let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let cx = TestContext::new();
 
-    let config_path = backend_config_path(home.path());
+    let config_path = cx.config_path();
     fixtures::write(&config_path, r#"{"backendServer":"bad"}"#);
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["serve-api", "--service", "--bind", "not-an-address"],
-        repo.path(),
-        home.path(),
-    );
+    let out = cx.run_service_mode();
 
     assert_ne!(out.code, 0);
     assert!(

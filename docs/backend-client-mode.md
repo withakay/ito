@@ -93,7 +93,7 @@ Service management commands:
 brew services list
 
 # Stop the service
-brew services stop ito-cli
+brew services stop ito
 
 # View logs
 tail -f $(brew --prefix)/var/log/ito-backend.log
