@@ -83,6 +83,7 @@ CI enforces the same Rust checks plus docs-site and PowerShell parse checks.
 - **Coverage policy**: `make test-coverage` enforces an 80% hard floor and reports a 90% target
 - **Mocking policy**: "Mocking should give you the ick." Prefer real implementations, in-memory fakes, or `ito-test-support` mock repositories. Extensive mocking indicates tight coupling.
 - **Integration tests** alongside unit tests — use `ito-test-support` for PTY helpers, snapshot normalization, and mock repos.
+- **Test file separation**: If a source file exceeds 300 lines, put tests in a separate file (e.g., `tests/backend_auth.rs` for `ito-core`, or a sibling `*_tests.rs` module). Do not inline `#[cfg(test)] mod tests` in files over 300 lines.
 
 ### Expected Test Execution Times
 
