@@ -45,3 +45,12 @@ Change idea: 016-13_optimize-agent-instructions
 - Goal: speed up `ito agent instruction apply` by removing default blocking `git fetch` and caching cascading config per invocation.
 - Specs: agent-instructions, change-coordination-branch, cascading-config.
 - Measured: apply ~1.35s vs others ~15ms; fetch is main cost.
+
+
+---
+
+---
+## DAW config schema idea
+## 2026-03-07 06:24:06 UTC
+
+Let's think about adding a new schema for a DAW type, like a super minimal schema for fixes related to configuration of the repository and CI/CD that aren't strictly features of the application.
