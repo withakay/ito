@@ -1,3 +1,4 @@
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -8,54 +9,95 @@ fn repo_root() -> PathBuf {
         .expect("repo root should resolve")
 }
 
-fn pick_free_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind test port");
-    listener.local_addr().expect("local addr").port()
+/// Bind to an ephemeral port and return both the port and the listener.
+///
+/// The caller must keep the `TcpListener` alive until the child server process
+/// has started listening.  Because the bash script launches a separate process
+/// we cannot hold the reservation across process boundaries, so we instead
+/// retry the entire `verify` invocation on collision.
+fn bind_free_port() -> (u16, TcpListener) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind test port");
+    let port = listener.local_addr().expect("local addr").port();
+    (port, listener)
 }
 
 #[test]
 fn backend_qa_script_verify_runs_end_to_end() {
     let repo_root = repo_root();
     let script_path = repo_root.join("qa/backend/test-backend-walkthrough.sh");
-    let qa_root = tempfile::tempdir().expect("qa root");
-    let port = pick_free_port();
     let ito_bin = assert_cmd::cargo::cargo_bin!("ito");
 
-    let output = Command::new("bash")
-        .arg(script_path)
-        .arg("verify")
-        .current_dir(&repo_root)
-        .env("BACKEND_QA_NO_PAUSE", "1")
-        .env("ITO_BACKEND_QA_ROOT", qa_root.path())
-        .env("ITO_BACKEND_PORT", port.to_string())
-        .env("ITO_BIN", ito_bin)
-        .output()
-        .expect("verify command should run");
+    // Retry up to 3 times in case another process grabs the port after we
+    // release the reservation but before the child server binds to it.
+    const MAX_RETRIES: u32 = 3;
+    let mut last_output = None;
 
-    assert!(
-        output.status.success(),
-        "verify failed\nstdout:\n{}\nstderr:\n{}",
+    for attempt in 0..MAX_RETRIES {
+        let qa_root = tempfile::tempdir().expect("qa root");
+        let (port, listener) = bind_free_port();
+
+        // Release the reservation immediately before the child binds.
+        // We cannot pass an open socket across process boundaries here, so we
+        // accept the small TOCTOU window and retry on collision instead.
+        drop(listener);
+
+        let output = Command::new("bash")
+            .arg(&script_path)
+            .arg("verify")
+            .current_dir(&repo_root)
+            .env("BACKEND_QA_NO_PAUSE", "1")
+            .env("ITO_BACKEND_QA_ROOT", qa_root.path())
+            .env("ITO_BACKEND_PORT", port.to_string())
+            .env("ITO_BIN", &ito_bin)
+            .output()
+            .expect("verify command should run");
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(stdout.contains("Verification passed"));
+
+            let audit_log = qa_root
+                .path()
+                .join("data/projects/acme/widgets/.ito/.state/audit/events.jsonl");
+            let audit_content =
+                std::fs::read_to_string(&audit_log).expect("audit log should exist");
+            assert_eq!(
+                audit_content.lines().count(),
+                1,
+                "audit log should dedupe retry"
+            );
+            assert!(audit_content.contains("backend-qa-walkthrough"));
+
+            let ingest_key = qa_root
+                .path()
+                .join("data/projects/acme/widgets/.ito/.state/ingest-keys/qa-key-001");
+            let ingest_count =
+                std::fs::read_to_string(&ingest_key).expect("idempotency key should exist");
+            assert_eq!(ingest_count.trim(), "1");
+            return;
+        }
+
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        // Only retry on address-in-use collisions; fail fast for other errors.
+        if !stderr.contains("address already in use") && !stderr.contains("already in use") {
+            last_output = Some(output);
+            break;
+        }
+
+        eprintln!(
+            "attempt {}/{}: port {} was grabbed by another process, retrying",
+            attempt + 1,
+            MAX_RETRIES,
+            port
+        );
+        last_output = Some(output);
+    }
+
+    let output = last_output.expect("at least one attempt");
+    panic!(
+        "verify failed after {} attempts\nstdout:\n{}\nstderr:\n{}",
+        MAX_RETRIES,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Verification passed"));
-
-    let audit_log = qa_root
-        .path()
-        .join("data/projects/acme/widgets/.ito/.state/audit/events.jsonl");
-    let audit_content = std::fs::read_to_string(&audit_log).expect("audit log should exist");
-    assert_eq!(
-        audit_content.lines().count(),
-        1,
-        "audit log should dedupe retry"
-    );
-    assert!(audit_content.contains("backend-qa-walkthrough"));
-
-    let ingest_key = qa_root
-        .path()
-        .join("data/projects/acme/widgets/.ito/.state/ingest-keys/qa-key-001");
-    let ingest_count = std::fs::read_to_string(&ingest_key).expect("idempotency key should exist");
-    assert_eq!(ingest_count.trim(), "1");
 }

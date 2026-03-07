@@ -16,6 +16,8 @@ PORT="${ITO_BACKEND_PORT:-9010}"
 BASE_URL="http://$HOST:$PORT"
 ADMIN_TOKEN="${ITO_BACKEND_ADMIN_TOKEN:-dev-admin-token}"
 TOKEN_SEED="${ITO_BACKEND_TOKEN_SEED:-dev-token-seed}"
+# Track whether the caller explicitly set ITO_BIN before we apply the default.
+ITO_BIN_EXPLICIT="${ITO_BIN+yes}"
 ITO_BIN="${ITO_BIN:-$REPO_ROOT/target/debug/ito}"
 ALLOW_ORGS=(acme globex)
 
@@ -117,12 +119,30 @@ server_running() {
 
   local pid
   pid="$(<"$SERVER_PID_FILE")"
-  kill -0 "$pid" 2>/dev/null
+
+  # Verify the PID is still alive and belongs to our ito process.
+  if ! kill -0 "$pid" 2>/dev/null; then
+    return 1
+  fi
+
+  # Check the process name to avoid matching a recycled PID.
+  if ! ps -p "$pid" -o comm= 2>/dev/null | grep -q "ito"; then
+    return 1
+  fi
+
+  return 0
 }
 
 ensure_built_binary() {
   if [[ -x "$ITO_BIN" ]]; then
     return
+  fi
+
+  # If ITO_BIN was explicitly set to a custom path but the file is missing or
+  # not executable, do not silently build the default binary — that would make
+  # the custom override a no-op.  Fail loudly instead.
+  if [[ "${ITO_BIN_EXPLICIT:-}" == "yes" ]]; then
+    fail "ITO_BIN is set to '$ITO_BIN' but the binary does not exist or is not executable"
   fi
 
   note "Building ito binary for the walkthrough"
@@ -213,7 +233,9 @@ import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
-print(len(path.read_text().splitlines()))
+# Count lines without loading the whole file into memory.
+count = sum(1 for _ in path.open())
+print(count)
 PY
 )"
 
@@ -229,7 +251,7 @@ assert_file_contents() {
 
   actual="$(<"$path")"
   if [[ "$actual" != "$expected" ]]; then
-    fail "expected $path to contain '$expected' but found '$actual'"
+    fail "expected $path to equal '$expected' but found '$actual'"
   fi
 }
 
@@ -311,9 +333,41 @@ write_ingest_request() {
 EOF
 }
 
+validate_qa_root() {
+  # Guard against accidentally deleting unrelated directories.  QA_ROOT must
+  # point somewhere inside the repo's .local/ tree or an explicit temp dir
+  # that contains a sentinel file we wrote, OR the sentinel must not exist yet
+  # (first run).  The minimum safeguard is that the path must not be empty,
+  # must not be '/', $HOME, $REPO_ROOT, or any common system directory.
+  local root="$1"
+  if [[ -z "$root" ]]; then
+    fail "QA_ROOT is empty — refusing to delete"
+  fi
+  case "$root" in
+    / | /tmp | /var | /usr | /etc | /home | /root | "$HOME" | "$REPO_ROOT")
+      fail "QA_ROOT='$root' looks like a system path — refusing to delete"
+      ;;
+  esac
+  # Require the path to contain at least one of our sentinel markers OR be
+  # a subdirectory of $REPO_ROOT/.local/ or /tmp so we know it is ours.
+  local is_safe=0
+  if [[ "$root" == "$REPO_ROOT/.local/"* ]]; then
+    is_safe=1
+  elif [[ "$root" == /tmp/* ]]; then
+    is_safe=1
+  elif [[ -f "$root/runtime/README.txt" ]]; then
+    # A README we wrote is present — the directory was created by this script.
+    is_safe=1
+  fi
+  if (( is_safe == 0 )); then
+    fail "QA_ROOT='$root' is not under .local/ or /tmp/ and has no script sentinel — refusing to delete"
+  fi
+}
+
 reset_data() {
   note "Resetting backend QA data"
   stop_server >/dev/null 2>&1 || true
+  validate_qa_root "$QA_ROOT"
   rm -rf "$QA_ROOT"
   ensure_runtime_dirs
 
@@ -355,6 +409,17 @@ wait_for_server() {
   done
 
   printf 'Server did not become healthy. See %s\n' "$SERVER_LOG" >&2
+
+  # Kill and reap the child process, then clean up the pid file so a later
+  # invocation of start/status/stop does not mistake a recycled PID for ours.
+  if [[ -f "$SERVER_PID_FILE" ]]; then
+    local pid
+    pid="$(<"$SERVER_PID_FILE")"
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    rm -f "$SERVER_PID_FILE"
+  fi
+
   return 1
 }
 
@@ -414,7 +479,7 @@ status() {
   printf 'QA root: %s\n' "$QA_ROOT"
   printf 'Data dir: %s\n' "$DATA_DIR"
   printf 'Base URL: %s\n' "$BASE_URL"
-  printf 'Admin token: %s\n' "$ADMIN_TOKEN"
+  printf 'Admin token: <redacted>\n'
   printf 'Request body: %s\n' "$REQUEST_JSON"
   if server_running; then
     printf 'Server: running (pid %s)\n' "$(<"$SERVER_PID_FILE")"
@@ -525,9 +590,15 @@ import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
-for index, line in enumerate(path.read_text().splitlines(), start=1):
-    print(f"Line {index}:")
-    print(json.dumps(json.loads(line), indent=2, sort_keys=True))
+# Iterate line-by-line to avoid loading the entire file into memory at once,
+# which can be costly for large audit logs.
+with path.open() as fh:
+    for index, line in enumerate(fh, start=1):
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        print(f"Line {index}:")
+        print(json.dumps(json.loads(line), indent=2, sort_keys=True))
 PY
 }
 
@@ -547,6 +618,7 @@ inspect_key() {
 clean() {
   note "Cleaning backend QA files"
   stop_server >/dev/null 2>&1 || true
+  validate_qa_root "$QA_ROOT"
   rm -rf "$QA_ROOT"
   printf 'Removed %s\n' "$QA_ROOT"
 }
