@@ -15,6 +15,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use hmac::{Hmac, Mac};
+use serde::Serialize;
 use sha2::Sha256;
 use std::sync::Arc;
 
@@ -51,7 +52,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 /// Token validation result indicating which tier matched.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "scope", rename_all = "lowercase")]
 pub enum TokenScope {
     /// Admin token — authorized for any project.
     Admin,
@@ -113,7 +115,7 @@ fn extract_org_repo(path: &str) -> Option<(&str, &str)> {
 /// Allowlist checks run before token validation.
 pub async fn auth_middleware(
     State(state): State<Arc<AppState>>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Response {
     let path = request.uri().path();
@@ -152,9 +154,12 @@ pub async fn auth_middleware(
         return ApiErrorResponse::unauthorized("Missing bearer token").into_response();
     };
 
-    let Some(_scope) = validate_token(&state, token, org, repo) else {
+    let Some(scope) = validate_token(&state, token, org, repo) else {
         return ApiErrorResponse::unauthorized("Invalid bearer token").into_response();
     };
+
+    // Store the token scope in request extensions for downstream handlers
+    request.extensions_mut().insert(scope);
 
     next.run(request).await
 }
@@ -273,5 +278,24 @@ mod tests {
     fn exempt_paths_are_health_and_ready() {
         assert!(EXEMPT_PATHS.contains(&"/api/v1/health"));
         assert!(EXEMPT_PATHS.contains(&"/api/v1/ready"));
+    }
+
+    #[test]
+    fn token_scope_serializes_admin() {
+        let scope = TokenScope::Admin;
+        let json = serde_json::to_value(&scope).unwrap();
+        assert_eq!(json["scope"], "admin");
+    }
+
+    #[test]
+    fn token_scope_serializes_project() {
+        let scope = TokenScope::Project {
+            org: "acme".to_string(),
+            repo: "infra".to_string(),
+        };
+        let json = serde_json::to_value(&scope).unwrap();
+        assert_eq!(json["scope"], "project");
+        assert_eq!(json["org"], "acme");
+        assert_eq!(json["repo"], "infra");
     }
 }

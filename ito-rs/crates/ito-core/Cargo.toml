@@ -30,6 +30,7 @@ hex = "0.4"
 grep-matcher = { workspace = true }
 grep-regex = { workspace = true }
 grep-searcher = { workspace = true }
+ureq = { workspace = true }
 
 [dev-dependencies]
 filetime = { workspace = true }

@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-backend` passes; manual curl test with valid/invalid tokens
 - **Done When**: Auth verify endpoint returns correct scope info for admin tokens, project tokens, and rejects invalid tokens with 401
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Add BackendHealthStatus struct and health-check function in ito-core
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core` passes; unit tests cover healthy, unhealthy, unreachable, and auth-failed scenarios
 - **Done When**: Health-check function returns correct status for all scenarios including auth verification
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Add `ito backend` subcommand group and actions to CLI
 
@@ -46,7 +46,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend` compiles; `ito backend --help` shows both subcommands with security guidance
 - **Done When**: `ito backend status`, `ito backend status --json`, and `ito backend generate-token` are recognized as valid CLI commands with descriptive help
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -62,7 +62,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; manual test against running backend and with no backend
 - **Done When**: `ito backend status` reports correct state for all scenarios (disabled, incomplete config, unreachable, healthy, auth failed, auth verified)
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Implement `backend generate-token` command handler
 
@@ -72,7 +72,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; generate token and verify it matches manual HMAC computation
 - **Done When**: Token generation works with all input combinations (config, flags, env, interactive)
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Fix silent backend fallback in tasks.rs sync_after_mutation
 
@@ -82,7 +82,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; test with broken config shows warning
 - **Done When**: Backend sync failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.4: Fix silent backend fallback in util.rs forward_events_if_backend
 
@@ -92,7 +92,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`; test with broken config shows warning
 - **Done When**: Event forwarding failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.5: Fix silent backend fallback in grep.rs materialize_backend_artifacts
 
@@ -102,7 +102,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend`
 - **Done When**: Backend artifact materialization failures produce visible warnings on stderr
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -118,7 +118,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend` passes
 - **Done When**: All spec scenarios for `ito backend status` have corresponding test coverage
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Write tests for generate-token and auth verify
 
@@ -128,7 +128,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend && cargo test -p ito-backend`
 - **Done When**: Token generation and auth verify have comprehensive test coverage
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.3: Write tests for silent fallback fixes
 
@@ -138,4 +138,4 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --features backend`
 - **Done When**: Silent fallback regression tests exist for all fixed callsites
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
