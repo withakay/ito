@@ -3,8 +3,8 @@
 
 use ito_config::ConfigContext;
 use ito_core::backend_auth::{
-    init_backend_auth, resolve_admin_tokens, resolve_token_seed, write_auth_to_global_config,
-    InitAuthResult,
+    InitAuthResult, init_backend_auth, resolve_admin_tokens, resolve_token_seed,
+    write_auth_to_global_config,
 };
 
 #[test]
@@ -179,9 +179,11 @@ fn init_generates_tokens_when_none_exist() {
 
     assert_eq!(admin_token.len(), 43);
     assert_eq!(seed.len(), 43);
-    assert!(admin_token
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+    assert!(
+        admin_token
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    );
 }
 
 #[test]

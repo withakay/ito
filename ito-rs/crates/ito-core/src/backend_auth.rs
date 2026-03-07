@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use ito_config::{global_config_path, load_global_ito_config, ConfigContext};
+use ito_config::{ConfigContext, global_config_path, load_global_ito_config};
 
 use crate::errors::{CoreError, CoreResult};
 
