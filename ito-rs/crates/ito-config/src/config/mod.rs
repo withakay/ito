@@ -427,6 +427,37 @@ pub fn load_global_config_fs<F: FileSystem>(fs: &F, ctx: &ConfigContext) -> Glob
     }
 }
 
+/// Load the full [`types::ItoConfig`] from the global config file.
+///
+/// This reads `~/.config/ito/config.json` (or its XDG equivalent) and
+/// deserializes it into the full configuration struct. Fields not present
+/// in the file receive their defaults.
+pub fn load_global_ito_config(ctx: &ConfigContext) -> types::ItoConfig {
+    load_global_ito_config_fs(&StdFs, ctx)
+}
+
+/// Like [`load_global_ito_config`], but uses an injected file-system.
+pub fn load_global_ito_config_fs<F: FileSystem>(fs: &F, ctx: &ConfigContext) -> types::ItoConfig {
+    let Some(path) = global_config_path(ctx) else {
+        return types::ItoConfig::default();
+    };
+
+    let Some(contents) = read_to_string_optional_fs(fs, &path) else {
+        return types::ItoConfig::default();
+    };
+
+    match serde_json::from_str(&contents) {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!(
+                "Warning: Invalid JSON in {}, using defaults",
+                path.display()
+            );
+            types::ItoConfig::default()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -761,6 +792,55 @@ mod tests {
             mirror.get("branch").and_then(|v| v.as_str()),
             Some("team/internal/audit")
         );
+    }
+
+    #[test]
+    fn load_global_ito_config_reads_backend_server_auth() {
+        let home = tempfile::tempdir().unwrap();
+        let config_dir = home.path().join(".config/ito");
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::fs::write(
+            config_dir.join("config.json"),
+            r#"{
+                "backendServer": {
+                    "auth": {
+                        "adminTokens": ["test-admin-token"],
+                        "tokenSeed": "test-seed"
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext {
+            home_dir: Some(home.path().to_path_buf()),
+            xdg_config_home: None,
+            project_dir: None,
+        };
+
+        let config = load_global_ito_config(&ctx);
+        assert_eq!(
+            config.backend_server.auth.admin_tokens,
+            vec!["test-admin-token"]
+        );
+        assert_eq!(
+            config.backend_server.auth.token_seed,
+            Some("test-seed".to_string())
+        );
+    }
+
+    #[test]
+    fn load_global_ito_config_returns_defaults_when_no_file() {
+        let home = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext {
+            home_dir: Some(home.path().to_path_buf()),
+            xdg_config_home: None,
+            project_dir: None,
+        };
+
+        let config = load_global_ito_config(&ctx);
+        assert!(config.backend_server.auth.admin_tokens.is_empty());
+        assert!(config.backend_server.auth.token_seed.is_none());
     }
 
     // ito_dir tests live in crate::ito_dir.

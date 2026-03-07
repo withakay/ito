@@ -1,7 +1,14 @@
 //! Handler for the `serve-api` subcommand.
 //!
 //! Starts a multi-tenant backend API server. Configuration is assembled from
-//! CLI flags, environment variables, and an optional config file.
+//! CLI flags, environment variables, and the global config file
+//! (`~/.config/ito/config.json`).
+//!
+//! Precedence (highest to lowest): CLI flags > env vars > global config file.
+//!
+//! Business logic (token resolution, init orchestration, config persistence)
+//! lives in [`ito_core::backend_auth`]; this module handles only argument
+//! parsing and output formatting.
 
 use crate::cli::ServeApiArgs;
 use crate::cli_error::{CliError, CliResult};
@@ -9,27 +16,52 @@ use crate::cli_error::{CliError, CliResult};
 use ito_config::types::{
     BackendAllowlistConfig, BackendAuthConfig, BackendRepoPolicy, BackendServerConfig,
 };
+use ito_config::{ConfigContext, load_global_ito_config};
+use ito_core::backend_auth::{self, InitAuthResult};
 use std::collections::BTreeMap;
 
 pub(crate) fn handle_serve_api_clap(
     _rt: &crate::runtime::Runtime,
     args: &ServeApiArgs,
 ) -> CliResult<()> {
-    // Build auth config from CLI args + env vars
-    let mut admin_tokens = args.admin_token.clone();
-    if let Ok(env_token) = std::env::var("ITO_BACKEND_ADMIN_TOKEN") {
-        let trimmed = env_token.trim().to_string();
-        if !trimmed.is_empty() && !admin_tokens.contains(&trimmed) {
-            admin_tokens.push(trimmed);
+    let ctx = ConfigContext::from_process_env();
+
+    // Handle --init before anything else
+    if args.init {
+        let result =
+            backend_auth::init_backend_auth(&ctx).map_err(|e| CliError::msg(e.to_string()))?;
+
+        match result {
+            InitAuthResult::AlreadyConfigured { config_path } => {
+                println!("Backend server auth is already configured.");
+                println!();
+                println!("  Config file: {config_path}");
+                println!();
+                println!("To view your tokens, open the config file directly.");
+            }
+            InitAuthResult::Generated { config_path } => {
+                println!("Generated backend server auth tokens.");
+                println!();
+                println!("  Config file: {config_path}");
+                println!();
+                println!("Tokens are stored in the config file (not printed for security).");
+                println!();
+                println!("Start the server with:");
+                println!("  ito serve-api");
+            }
         }
+
+        return Ok(());
     }
 
-    let token_seed = args.token_seed.clone().or_else(|| {
-        std::env::var("ITO_BACKEND_TOKEN_SEED")
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-    });
+    // Load global config for fallback values
+    let global_config = load_global_ito_config(&ctx);
+    let config_auth = &global_config.backend_server.auth;
+
+    // Build auth config: CLI flags > env vars > global config file
+    let admin_tokens =
+        backend_auth::resolve_admin_tokens(&args.admin_token, &config_auth.admin_tokens);
+    let token_seed = backend_auth::resolve_token_seed(&args.token_seed, &config_auth.token_seed);
 
     let auth = BackendAuthConfig {
         admin_tokens,
@@ -79,6 +111,7 @@ mod serve_api_tests {
     #[test]
     fn builds_config_with_defaults() {
         let args = ServeApiArgs {
+            init: false,
             port: None,
             bind: None,
             data_dir: None,
@@ -87,7 +120,6 @@ mod serve_api_tests {
             allow_org: vec![],
             config: None,
         };
-        // Just verify we can create the args without panic
         assert!(args.port.is_none());
         assert!(args.bind.is_none());
     }

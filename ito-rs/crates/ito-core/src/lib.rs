@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Backend server authentication setup and token resolution.
+pub mod backend_auth;
+
 /// Backend API client factory, runtime, and coordination services.
 pub mod backend_client;
 
@@ -91,6 +94,9 @@ pub mod task_repository;
 
 /// Clock helpers (`now_time`, `now_date`).
 pub mod time;
+
+/// Cryptographic token generation for backend server authentication.
+pub mod token;
 
 /// Task-focused orchestration use-cases.
 pub mod tasks;
