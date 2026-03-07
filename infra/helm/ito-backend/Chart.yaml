@@ -1,0 +1,16 @@
+apiVersion: v2
+name: ito-backend
+description: Ito Backend API Server
+type: application
+version: 0.1.0
+appVersion: "0.1.16"
+home: https://github.com/withakay/ito
+sources:
+  - https://github.com/withakay/ito
+maintainers:
+  - name: withakay
+    url: https://github.com/withakay
+keywords:
+  - ito
+  - backend
+  - api

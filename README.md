@@ -116,6 +116,7 @@ Ito includes an optional multi-tenant backend API for coordinating multiple agen
 
 | Runtime | Platform | Use Case |
 |---------|----------|----------|
+| Docker image | Any | Production, Kubernetes, homelab |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
 | Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
@@ -151,7 +152,21 @@ systemctl --user daemon-reload
 systemctl --user enable --now ito-backend
 ```
 
-See `docs/backend-client-mode.md` for full documentation.
+**Docker / Kubernetes:**
+
+```bash
+# Docker
+docker run -p 9010:9010 \
+  -e ITO_BACKEND_ADMIN_TOKEN=<token> \
+  -e ITO_BACKEND_TOKEN_SEED=<seed> \
+  ghcr.io/withakay/ito-backend:latest
+
+# Helm
+helm install ito-backend ./infra/helm/ito-backend/ \
+  --set auth.adminToken=<token> --set auth.tokenSeed=<seed>
+```
+
+See `docs/backend-client-mode.md` for full documentation and `infra/helm/ito-backend/README.md` for the Helm chart reference.
 
 ## On-Disk Layout
 
