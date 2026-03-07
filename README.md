@@ -139,7 +139,7 @@ curl http://127.0.0.1:9010/api/v1/health
 
 ```bash
 ito serve-api --init       # one-time: generate auth tokens
-brew services start ito    # start the backend service
+brew services start ito-cli  # start the backend service
 ```
 
 **systemd (Linux):**

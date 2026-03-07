@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Backend server authentication setup and token resolution.
+pub mod backend_auth;
+
 /// Backend API client factory, runtime, and coordination services.
 pub mod backend_client;
 

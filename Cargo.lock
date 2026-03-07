@@ -1346,6 +1346,7 @@ dependencies = [
 name = "ito-core"
 version = "0.1.15"
 dependencies = [
+ "base64",
  "chrono",
  "filetime",
  "grep-matcher",
