@@ -54,3 +54,12 @@ Change idea: 016-13_optimize-agent-instructions
 ## 2026-03-07 06:24:06 UTC
 
 Let's think about adding a new schema for a DAW type, like a super minimal schema for fixes related to configuration of the repository and CI/CD that aren't strictly features of the application.
+
+
+---
+
+---
+## Coding convention test file separation
+## 2026-03-07 12:57:50 UTC
+
+If a code file is more than 300 lines long, ALWAYS put the tests in a separate file (e.g., `foo_tests.rs` or `tests/foo.rs`). Do not inline `#[cfg(test)] mod tests` in files exceeding 300 lines.
