@@ -327,30 +327,30 @@ jobs:
             fi
 
             python3 - "$filename" <<'PY'
-            from pathlib import Path
-            import sys
+          from pathlib import Path
+          import sys
 
-            path = Path("Formula") / sys.argv[1]
-            text = path.read_text()
+          path = Path("Formula") / sys.argv[1]
+          text = path.read_text()
 
-            if "service do\n" in text:
-                raise SystemExit(f"{path} already contains a Homebrew service block")
+          if "service do\n" in text:
+              raise SystemExit(f"{path} already contains a Homebrew service block")
 
-            marker = "\n  test do\n"
-            if marker not in text:
-                raise SystemExit(f"Could not find test block in {path}")
+          marker = "\n  test do\n"
+          if marker not in text:
+              raise SystemExit(f"Could not find test block in {path}")
 
-            service_block = """
-              service do
-                run [opt_bin/\"ito\", \"serve-api\", \"--service\"]
-                keep_alive true
-                log_path var/\"log/ito-backend.log\"
-                error_log_path var/\"log/ito-backend.log\"
-              end
-            """
+          service_block = """
+            service do
+              run [opt_bin/"ito", "serve-api", "--service"]
+              keep_alive true
+              log_path var/"log/ito-backend.log"
+              error_log_path var/"log/ito-backend.log"
+            end
+          """
 
-            path.write_text(text.replace(marker, f"{service_block}{marker}", 1))
-            PY
+          path.write_text(text.replace(marker, f"{service_block}{marker}", 1))
+          PY
 
             export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
             brew update
