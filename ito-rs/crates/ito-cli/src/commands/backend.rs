@@ -79,7 +79,7 @@ fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
                 println!();
                 eprintln!("Configuration error: {error_msg}");
             }
-            std::process::exit(1);
+return Err(CliError::silent());
         }
     };
 
