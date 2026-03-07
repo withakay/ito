@@ -48,7 +48,7 @@ fn backend_qa_script_verify_runs_end_to_end() {
             .env("BACKEND_QA_NO_PAUSE", "1")
             .env("ITO_BACKEND_QA_ROOT", qa_root.path())
             .env("ITO_BACKEND_PORT", port.to_string())
-            .env("ITO_BIN", &ito_bin)
+            .env("ITO_BIN", ito_bin)
             .output()
             .expect("verify command should run");
 

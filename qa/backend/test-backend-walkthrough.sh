@@ -335,10 +335,10 @@ EOF
 
 validate_qa_root() {
   # Guard against accidentally deleting unrelated directories.  QA_ROOT must
-  # point somewhere inside the repo's .local/ tree or an explicit temp dir
-  # that contains a sentinel file we wrote, OR the sentinel must not exist yet
-  # (first run).  The minimum safeguard is that the path must not be empty,
-  # must not be '/', $HOME, $REPO_ROOT, or any common system directory.
+  # point somewhere inside the repo's .local/ tree, a system temp directory,
+  # or contain a sentinel file we wrote.  The minimum safeguard is that the
+  # path must not be empty, must not be '/', $HOME, $REPO_ROOT, or any common
+  # system directory.
   local root="$1"
   if [[ -z "$root" ]]; then
     fail "QA_ROOT is empty — refusing to delete"
@@ -348,10 +348,19 @@ validate_qa_root() {
       fail "QA_ROOT='$root' looks like a system path — refusing to delete"
       ;;
   esac
-  # Require the path to contain at least one of our sentinel markers OR be
-  # a subdirectory of $REPO_ROOT/.local/ or /tmp so we know it is ours.
+
+  # Resolve the system temp directory (handles macOS $TMPDIR=/var/folders/...).
+  local sys_tmp
+  sys_tmp="${TMPDIR:-/tmp}"
+  # Strip trailing slash for consistent prefix matching.
+  sys_tmp="${sys_tmp%/}"
+
+  # Require the path to be a subdirectory of a known-safe location OR contain
+  # a sentinel file written by this script.
   local is_safe=0
   if [[ "$root" == "$REPO_ROOT/.local/"* ]]; then
+    is_safe=1
+  elif [[ -n "$sys_tmp" && "$root" == "$sys_tmp/"* ]]; then
     is_safe=1
   elif [[ "$root" == /tmp/* ]]; then
     is_safe=1
@@ -360,7 +369,7 @@ validate_qa_root() {
     is_safe=1
   fi
   if (( is_safe == 0 )); then
-    fail "QA_ROOT='$root' is not under .local/ or /tmp/ and has no script sentinel — refusing to delete"
+    fail "QA_ROOT='$root' is not under .local/, a temp dir, and has no script sentinel — refusing to delete"
   fi
 }
 
