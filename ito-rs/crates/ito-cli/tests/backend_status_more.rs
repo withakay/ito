@@ -508,21 +508,15 @@ fn silent_fallback_event_forwarding_warns_on_bad_config() {
     // Malformed backend config
     cx.write_project_config(r#"{"backend": {"enabled": "not-a-bool"}}"#);
 
-    // Run any command that triggers with_logging (most commands do)
-    let out = cx.run_backend_cmd(&["--version"]);
+    let out = cx.run_backend_cmd(&["path", "project-root"]);
 
-    // The command should succeed but may warn about event forwarding
-    // Note: This test may be fragile if --version doesn't trigger event forwarding
-    // We're checking for the warning, but it's okay if it doesn't appear for --version
-    if out.stderr.contains("Warning") {
-        assert!(
-            out.stderr.contains("backend event forwarding skipped")
-                || out.stderr.contains("backend")
-                || out.stderr.contains("skipped"),
-            "if warning present, should mention backend\nstderr={}",
-            out.stderr
-        );
-    }
+    assert_eq!(out.code, 0, "stdout={}\nstderr={}", out.stdout, out.stderr);
+    assert!(
+        out.stderr
+            .contains("Warning: backend event forwarding skipped due to invalid config"),
+        "stderr should contain event-forwarding warning\nstderr={}",
+        out.stderr
+    );
 }
 
 #[test]

@@ -71,6 +71,18 @@ pub fn resolve_backend_runtime(config: &BackendApiConfig) -> CoreResult<Option<B
 
 /// Resolve the bearer token from explicit config or environment variable.
 fn resolve_token(config: &BackendApiConfig) -> CoreResult<String> {
+    let env_var = &config.token_env_var;
+    match std::env::var(env_var) {
+        Ok(val) if !val.trim().is_empty() => return Ok(val.trim().to_string()),
+        Ok(_) => {
+            return Err(CoreError::validation(format!(
+                "Backend mode is enabled but environment variable '{env_var}' is empty. \
+                 Set the token via '{env_var}' or 'backend.token' in config."
+            )));
+        }
+        Err(_) => {}
+    }
+
     if let Some(token) = &config.token {
         let token = token.trim();
         if !token.is_empty() {
@@ -78,18 +90,10 @@ fn resolve_token(config: &BackendApiConfig) -> CoreResult<String> {
         }
     }
 
-    let env_var = &config.token_env_var;
-    match std::env::var(env_var) {
-        Ok(val) if !val.trim().is_empty() => Ok(val.trim().to_string()),
-        Ok(_) => Err(CoreError::validation(format!(
-            "Backend mode is enabled but environment variable '{env_var}' is empty. \
-             Set the token via '{env_var}' or 'backend.token' in config."
-        ))),
-        Err(_) => Err(CoreError::validation(format!(
-            "Backend mode is enabled but environment variable '{env_var}' is not set. \
-             Set the token via '{env_var}' or 'backend.token' in config."
-        ))),
-    }
+    Err(CoreError::validation(format!(
+        "Backend mode is enabled but environment variable '{env_var}' is not set. \
+         Set the token via '{env_var}' or 'backend.token' in config."
+    )))
 }
 
 /// Resolve the backup directory, falling back to `$HOME/.ito/backups`.
@@ -110,11 +114,11 @@ const ENV_PROJECT_ORG: &str = "ITO_BACKEND_PROJECT_ORG";
 /// Environment variable name for overriding the project repository namespace.
 const ENV_PROJECT_REPO: &str = "ITO_BACKEND_PROJECT_REPO";
 
-/// Resolve the project namespace (org, repo) from config with env var fallbacks.
+/// Resolve the project namespace (org, repo) from env vars with config fallbacks.
 ///
 /// Resolution order for each field:
-/// 1. Explicit config value (`backend.project.org` / `backend.project.repo`)
-/// 2. Environment variable (`ITO_BACKEND_PROJECT_ORG` / `ITO_BACKEND_PROJECT_REPO`)
+/// 1. Environment variable (`ITO_BACKEND_PROJECT_ORG` / `ITO_BACKEND_PROJECT_REPO`)
+/// 2. Explicit config value (`backend.project.org` / `backend.project.repo`)
 ///
 /// Returns `Err` if either value is missing after fallback resolution.
 fn resolve_project_namespace(config: &BackendApiConfig) -> CoreResult<(String, String)> {
@@ -127,30 +131,30 @@ fn resolve_project_namespace_with_env(
     org_env_var: &str,
     repo_env_var: &str,
 ) -> CoreResult<(String, String)> {
-    let org = config
-        .project
-        .org
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(String::from)
+    let org = std::env::var(org_env_var)
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
         .or_else(|| {
-            std::env::var(org_env_var)
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| s.trim().to_string())
+            config
+                .project
+                .org
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(String::from)
         });
 
-    let repo = config
-        .project
-        .repo
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .map(String::from)
+    let repo = std::env::var(repo_env_var)
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
         .or_else(|| {
-            std::env::var(repo_env_var)
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| s.trim().to_string())
+            config
+                .project
+                .repo
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(String::from)
         });
 
     let Some(org) = org else {
@@ -244,6 +248,25 @@ mod tests {
 
         let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
         assert_eq!(runtime.token, "env-token-456");
+
+        // SAFETY: test-only cleanup.
+        unsafe { std::env::remove_var(env_var) };
+    }
+
+    #[test]
+    fn env_var_token_takes_precedence_over_config_token() {
+        let env_var = "ITO_TEST_BACKEND_TOKEN_PREC";
+        // SAFETY: test-only, single-threaded access to this unique env var.
+        unsafe { std::env::set_var(env_var, "env-token-override") };
+
+        let config = BackendApiConfig {
+            token: Some("config-token".to_string()),
+            token_env_var: env_var.to_string(),
+            ..enabled_config()
+        };
+
+        let runtime = resolve_backend_runtime(&config).unwrap().unwrap();
+        assert_eq!(runtime.token, "env-token-override");
 
         // SAFETY: test-only cleanup.
         unsafe { std::env::remove_var(env_var) };
@@ -361,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn project_namespace_config_takes_precedence_over_env() {
+    fn project_namespace_env_takes_precedence_over_config() {
         let org_var = "ITO_TEST_NS_PREC_ORG";
         let repo_var = "ITO_TEST_NS_PREC_REPO";
         // SAFETY: test-only, single-threaded access to unique env vars.
@@ -372,8 +395,8 @@ mod tests {
 
         let config = enabled_config(); // has org=acme, repo=widgets
         let (org, repo) = resolve_project_namespace_with_env(&config, org_var, repo_var).unwrap();
-        assert_eq!(org, "acme");
-        assert_eq!(repo, "widgets");
+        assert_eq!(org, "env-org");
+        assert_eq!(repo, "env-repo");
 
         // SAFETY: test-only cleanup.
         unsafe {
