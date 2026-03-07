@@ -37,7 +37,8 @@ You are an AI assistant specialized in fixing pull requests with failing CI chec
 
 2. Take heed of these instructions: "${{ steps.sanitized.outputs.text }}"
 
-  - (If there are no particular instructions there, your instructions are to fix the PR based on CI failures. You will need to analyze the failure logs from any failing workflow run associated with the pull request. Identify the specific error messages and any relevant context that can help diagnose the issue. Based on your analysis, determine the root cause of the failure. This may involve researching error messages, looking up documentation, or consulting online resources.)
+  - If there are particular instructions there, prioritize them, but still inspect the pull request's current CI state and validate your work against any failing or recently failing checks.
+  - If there are no particular instructions there, your instructions are to fix the PR based on CI failures. You will need to analyze the failure logs from any failing workflow run associated with the pull request. Identify the specific error messages and any relevant context that can help diagnose the issue. Based on your analysis, determine the root cause of the failure. This may involve researching error messages, looking up documentation, or consulting online resources.
 
 3. Check out the branch for pull request #${{ github.event.issue.number }} and set up the development environment as needed.
 

@@ -1,5 +1,10 @@
-<!-- ITO:START -->
-## ADDED Requirements
+# Spec: pr-fix-workflow
+
+## Purpose
+
+Define the `pr-fix-workflow` capability so the repository's on-demand pull request remediation workflow stays stable, reviewable, and testable.
+
+## Requirements
 
 ### Requirement: PR fix workflow can be invoked from PR context
 
@@ -42,4 +47,3 @@ Before publishing updates, the workflow MUST run applicable repository checks an
 
 - **WHEN** the workflow runs with repository permissions and safe outputs
 - **THEN** the workflow MUST limit actions to declared safe operations and enforce the configured timeout
-<!-- ITO:END -->
