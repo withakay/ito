@@ -11,12 +11,18 @@ mod split;
 mod util;
 mod validate;
 
+#[cfg(feature = "backend")]
+mod backend;
+
 pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
 pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
+
+#[cfg(feature = "backend")]
+pub use backend::{BackendAction, BackendArgs};
 
 /// Creates a Styles builder preconfigured for CLI output.
 ///
@@ -279,6 +285,28 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     #[cfg(feature = "backend")]
     ServeApi(ServeApiArgs),
+
+    /// Manage backend client configuration and connectivity
+    ///
+    /// Commands for validating backend configuration, checking server
+    /// connectivity, and generating authentication tokens.
+    ///
+    /// Token resolution order (highest priority first):
+    ///   1. Environment variable (ITO_BACKEND_TOKEN)
+    ///   2. CLI flag (where applicable)
+    ///   3. Config file (backend.token in .ito/config.json)
+    ///
+    /// Security: Store tokens in environment variables or .ito/config.local.json
+    /// (gitignored), not in .ito/config.json which may be committed to git.
+    ///
+    /// Examples:
+    ///   ito backend status
+    ///   ito backend status --json
+    ///   ito backend generate-token
+    ///   ito backend generate-token --seed my-seed --org acme --repo widgets
+    #[command(verbatim_doc_comment, visible_alias = "be")]
+    #[cfg(feature = "backend")]
+    Backend(BackendArgs),
 
     // ─── Audit ────────────────────────────────────────────────────────────────────
     /// Query, validate, and manage the audit event log

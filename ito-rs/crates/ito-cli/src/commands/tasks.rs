@@ -926,6 +926,7 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
         Ok(config) => config,
         Err(e) => {
             tracing::warn!("Skipping backend integration due to invalid config: {e}");
+            eprintln!("Warning: backend integration skipped due to invalid config: {e}");
             return Ok(None);
         }
     };
@@ -946,7 +947,10 @@ fn sync_after_mutation(rt: &Runtime, change_id: &str) {
     let runtime = match try_backend_runtime(rt) {
         Ok(Some(runtime)) => runtime,
         Ok(None) => return, // Backend not enabled
-        Err(_) => return,   // Config error, skip silently
+        Err(e) => {
+            eprintln!("Warning: backend sync skipped: {e}");
+            return;
+        }
     };
 
     let client = StubSyncClient;

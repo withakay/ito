@@ -131,6 +131,7 @@ fn materialize_backend_cache(
         Ok(c) => c,
         Err(e) => {
             tracing::debug!("skipping backend cache materialization: invalid config: {e}");
+            eprintln!("Warning: backend cache materialization skipped due to invalid config: {e}");
             return Ok(());
         }
     };
@@ -139,9 +140,13 @@ fn materialize_backend_cache(
         return Ok(());
     }
 
-    let Ok(Some(runtime)) = resolve_backend_runtime(&config.backend) else {
-        // Backend enabled but misconfigured — use local files.
-        return Ok(());
+    let runtime = match resolve_backend_runtime(&config.backend) {
+        Ok(Some(rt)) => rt,
+        Ok(None) => return Ok(()), // backend disabled, expected
+        Err(e) => {
+            eprintln!("Warning: backend cache materialization skipped: {e}");
+            return Ok(());
+        }
     };
 
     // Use the stub sync client (matches the tasks command pattern).
