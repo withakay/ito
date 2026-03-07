@@ -1,3 +1,6 @@
+{{- if and .Values.persistence.enabled (gt (.Values.replicaCount | int) 1) }}
+  {{- fail "replicaCount must be 1 when persistence is enabled (SQLite requires ReadWriteOnce)" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
