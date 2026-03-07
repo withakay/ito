@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-backend` passes; manual curl test with valid/invalid tokens
 - **Done When**: Auth verify endpoint returns correct scope info for admin tokens, project tokens, and rejects invalid tokens with 401
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Add BackendHealthStatus struct and health-check function in ito-core
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core` passes; unit tests cover healthy, unhealthy, unreachable, and auth-failed scenarios
 - **Done When**: Health-check function returns correct status for all scenarios including auth verification
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.3: Add `ito backend` subcommand group and actions to CLI
 
@@ -46,7 +46,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli --features backend` compiles; `ito backend --help` shows both subcommands with security guidance
 - **Done When**: `ito backend status`, `ito backend status --json`, and `ito backend generate-token` are recognized as valid CLI commands with descriptive help
 - **Updated At**: 2026-03-07
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

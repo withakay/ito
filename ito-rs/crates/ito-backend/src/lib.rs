@@ -27,3 +27,6 @@ pub use ito_config::types::BackendServerConfig;
 
 /// Re-export auth utilities for token derivation.
 pub use auth::derive_project_token;
+
+/// Re-export token scope type for external consumers.
+pub use auth::TokenScope;

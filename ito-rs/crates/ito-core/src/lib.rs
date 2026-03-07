@@ -27,6 +27,9 @@ pub mod backend_task_repository;
 /// Backend coordination use-cases (claim, release, allocate, sync).
 pub mod backend_coordination;
 
+/// Backend health-check client for connectivity and auth validation.
+pub mod backend_health;
+
 /// Artifact synchronization (pull/push) for backend mode.
 pub mod backend_sync;
 

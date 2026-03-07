@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 108
 expression: "snapshot(&[\"--help-all\"])"
 ---
 ================================================================================
@@ -30,6 +31,7 @@ Commands:
   path         Print resolved project and worktree paths
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   serve-api    Start the backend state API server
+  backend      Manage backend client configuration and connectivity [aliases: be]
   audit        Query, validate, and manage the audit event log [aliases: au]
   util         Low-level utility commands for scripting and agent tooling. [aliases: u]
   completions  Output shell completion scripts [aliases: cp]

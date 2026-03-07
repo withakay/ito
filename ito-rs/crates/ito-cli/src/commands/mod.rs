@@ -1,4 +1,6 @@
 pub(crate) mod audit;
+#[cfg(feature = "backend")]
+pub(crate) mod backend;
 pub(crate) mod completions;
 pub(crate) mod config;
 pub(crate) mod create;
@@ -16,6 +18,8 @@ pub(crate) mod templates;
 pub(crate) mod util;
 
 pub(crate) use audit::handle_audit_clap;
+#[cfg(feature = "backend")]
+pub(crate) use backend::handle_backend_clap;
 pub(crate) use completions::handle_completions;
 pub(crate) use config::handle_config_clap;
 pub(crate) use create::handle_create_clap;

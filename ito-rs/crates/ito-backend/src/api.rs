@@ -9,13 +9,14 @@
 //! Health and readiness endpoints remain at `/api/v1/health` and `/api/v1/ready`.
 
 use axum::Router;
-use axum::extract::{Path, State};
+use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::auth::TokenScope;
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
 
@@ -38,6 +39,21 @@ pub struct ReadyResponse {
     /// Present only when not ready, describing the reason.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+}
+
+/// Auth verification response.
+#[derive(Debug, Serialize)]
+pub struct AuthVerifyResponse {
+    /// Whether the token is valid (always true if this handler is reached).
+    pub valid: bool,
+    /// Token scope: `"admin"` or `"project"`.
+    pub scope: String,
+    /// Organization (present only for project-scoped tokens).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub org: Option<String>,
+    /// Repository (present only for project-scoped tokens).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
 }
 
 /// Lightweight change summary returned by list endpoint.
@@ -209,6 +225,27 @@ pub async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<Read
 }
 
 // ── Project-scoped handlers ─────────────────────────────────────────
+
+/// `GET /api/v1/projects/{org}/{repo}/auth/verify` — verify token and return scope.
+///
+/// The auth middleware has already validated the token before this handler runs.
+/// This endpoint returns information about the authenticated token's scope.
+pub async fn auth_verify(Extension(scope): Extension<TokenScope>) -> Json<AuthVerifyResponse> {
+    match scope {
+        TokenScope::Admin => Json(AuthVerifyResponse {
+            valid: true,
+            scope: "admin".to_string(),
+            org: None,
+            repo: None,
+        }),
+        TokenScope::Project { org, repo } => Json(AuthVerifyResponse {
+            valid: true,
+            scope: "project".to_string(),
+            org: Some(org),
+            repo: Some(repo),
+        }),
+    }
+}
 
 /// `GET /api/v1/projects/{org}/{repo}/changes` — list all changes as summaries.
 pub async fn list_changes(
@@ -499,6 +536,7 @@ pub async fn ingest_events(
 /// These routes require authentication (enforced by middleware in server.rs).
 fn project_router() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/auth/verify", get(auth_verify))
         .route("/changes", get(list_changes))
         .route("/changes/{change_id}", get(get_change))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
