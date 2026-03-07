@@ -1,50 +1,52 @@
 ## ADDED Requirements
 
-### Requirement: CLI can pull backend artifact bundles into local change files
+### Requirement: CLI exports backend changes as a zip archive
 
-Ito SHALL provide a synchronization operation that pulls a change artifact bundle from backend state into local markdown files.
+When backend mode is enabled, Ito SHALL provide a command that exports backend change artifacts to a zip archive.
 
-The pull command SHALL be `ito tasks sync pull <change-id>`.
+The command SHALL be `ito backend export`.
 
-#### Scenario: Pull writes artifact files locally
-
-- **GIVEN** backend mode is enabled and change artifacts exist on the backend
-- **WHEN** the user runs `ito tasks sync pull <change-id>`
-- **THEN** Ito writes proposal, tasks, design (if present), and spec delta files into the local change directory
-- **AND** Ito stores backend revision metadata needed for the next push
-
-### Requirement: Sync operations write local backups outside the repo
-
-When performing backend pull or push operations, Ito SHALL write a timestamped local backup snapshot of the affected change artifacts to a per-user directory outside the repo.
-
-#### Scenario: Pull creates a backup snapshot
+#### Scenario: Export writes a zip bundle with active and archived changes
 
 - **GIVEN** backend mode is enabled
-- **WHEN** the user runs `ito tasks sync pull <change-id>`
-- **THEN** Ito writes a backup snapshot of the pulled artifacts under `backend.backup_dir`
+- **AND** backend contains active and archived changes
+- **WHEN** the user runs `ito backend export`
+- **THEN** Ito writes a zip archive to the filesystem
+- **AND** the archive includes both active and archived change artifacts
 
-#### Scenario: Push creates a backup snapshot before attempting upload
+#### Scenario: Export in local mode is rejected
 
-- **GIVEN** backend mode is enabled
-- **WHEN** the user runs `ito tasks sync push <change-id>`
-- **THEN** Ito writes a backup snapshot of the local artifacts under `backend.backup_dir` before uploading
+- **GIVEN** backend mode is disabled
+- **WHEN** the user runs `ito backend export`
+- **THEN** Ito exits with an actionable error indicating backend mode is required
 
-### Requirement: CLI can push local artifact updates with revision checks
+### Requirement: Export uses a canonical archive layout and manifest
 
-Ito SHALL push local artifact updates to the backend using optimistic concurrency.
+Exported zip archives MUST use a stable layout and include a machine-readable manifest.
 
-The push command SHALL be `ito tasks sync push <change-id>`.
+#### Scenario: Archive includes canonical directories
 
-#### Scenario: Push succeeds with current revisions
+- **WHEN** Ito creates a backend export archive
+- **THEN** the zip contains `changes/active/` and `changes/archived/` roots
+- **AND** each exported change appears under exactly one root based on lifecycle state
 
-- **GIVEN** local artifacts are based on current backend revisions
-- **WHEN** the user runs `ito tasks sync push <change-id>`
-- **THEN** Ito sends artifact updates to the backend
-- **AND** backend revisions are advanced
+#### Scenario: Archive includes manifest metadata
 
-#### Scenario: Push reports conflict on stale revision
+- **WHEN** Ito creates a backend export archive
+- **THEN** the zip contains `manifest.json`
+- **AND** the manifest includes archive format version, export timestamp, and exported change counts
 
-- **GIVEN** local artifacts are based on stale backend revisions
-- **WHEN** the user runs `ito tasks sync push <change-id>`
-- **THEN** Ito reports a revision conflict
-- **AND** the output instructs the user to pull latest artifacts before retrying push
+### Requirement: Export includes integrity metadata
+
+Exported archives MUST include integrity metadata for all artifact files.
+
+#### Scenario: Manifest includes per-file checksums
+
+- **WHEN** Ito creates a backend export archive
+- **THEN** `manifest.json` includes checksums for each exported artifact file
+
+#### Scenario: Export reports integrity summary
+
+- **WHEN** export completes
+- **THEN** Ito prints the archive path and exported counts
+- **AND** indicates manifest/integrity generation succeeded

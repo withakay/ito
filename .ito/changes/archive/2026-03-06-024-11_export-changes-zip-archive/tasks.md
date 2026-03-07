@@ -25,8 +25,8 @@ ______________________________________________________________________
 - **Action**: Add core export flow that collects active and archived changes from backend-backed repositories and prepares deterministic export items.
 - **Verify**: `cargo test -p ito-core export`
 - **Done When**: Core exposes a tested export API returning deterministic active/archived artifact sets.
-- **Updated At**: 2026-03-02
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-06
+- **Status**: [x] complete
 
 ### Task 1.2: Add canonical zip and manifest generation
 
@@ -35,8 +35,8 @@ ______________________________________________________________________
 - **Action**: Implement zip writer with canonical layout, manifest versioning, and per-file checksums.
 - **Verify**: `cargo test -p ito-core export_manifest`
 - **Done When**: Export archives contain `changes/active/`, `changes/archived/`, and `manifest.json` with integrity metadata.
-- **Updated At**: 2026-03-02
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-06
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -51,8 +51,8 @@ ______________________________________________________________________
 - **Action**: Add CLI command surface for backend export, backend-mode gating, optional output-path argument, and summary output.
 - **Verify**: `cargo test -p ito-cli backend_export`
 - **Done When**: CLI writes archive at requested/default path and reports exported counts and integrity summary.
-- **Updated At**: 2026-03-02
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-06
+- **Status**: [x] complete
 
 ### Task 2.2: Add deterministic packaging and mode-gating tests
 
@@ -61,8 +61,8 @@ ______________________________________________________________________
 - **Action**: Add tests for deterministic ordering, mixed active/archived exports, and rejection when backend mode is disabled.
 - **Verify**: `cargo test -p ito-cli backend_export && cargo test -p ito-core export`
 - **Done When**: Test coverage proves canonical layout, stable ordering, and correct backend-only behavior.
-- **Updated At**: 2026-03-02
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-06
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -77,5 +77,5 @@ ______________________________________________________________________
 - **Action**: Add user-facing documentation for `ito backend export`, archive structure, and when to run export before migrations/cleanup.
 - **Verify**: `make check`
 - **Done When**: Docs describe command usage, output format, and validation expectations for operators.
-- **Updated At**: 2026-03-02
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-06
+- **Status**: [x] complete

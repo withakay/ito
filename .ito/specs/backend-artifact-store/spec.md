@@ -1,105 +1,81 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Backend stores Markdown artifacts with revision metadata
+### Requirement: Backend provides Cloudflare R2 blob storage implementation
 
-The backend SHALL persist change artifacts as Markdown blobs with revision metadata for optimistic concurrency.
+The backend MUST provide a Cloudflare R2 blob storage implementation as an artifact store option for serverless edge deployments.
 
-The backend MUST persist additional integrity metadata for each change:
+The R2 implementation SHALL:
+- Conform to the same repository abstraction as filesystem and SQLite artifact stores
+- Store artifact content as blobs in R2 buckets
+- Store revision metadata alongside artifacts using R2 custom metadata
+- Maintain equivalent read/write semantics as other storage backends
+- Support optimistic concurrency control via R2 metadata
+- Handle R2-specific connection and object operations
 
-- `created_at` (RFC3339 UTC)
-- `updated_at` (RFC3339 UTC)
-- revision identifier (string)
+#### Scenario: R2 store provides equivalent read behavior to other backends
 
-#### Scenario: Artifact read returns Markdown, revision, and timestamps
+- **GIVEN** artifact bundles exist in R2 storage
+- **WHEN** a client reads artifacts through the backend
+- **THEN** the backend returns Markdown with inlined YAML front matter
+- **AND** the response is semantically equivalent to filesystem or SQLite backends
 
-- **WHEN** a client reads an artifact bundle for a change
-- **THEN** the backend returns Markdown content for each artifact
-- **AND** the response includes the current revision identifier
-- **AND** the response includes `created_at` and `updated_at` metadata
+#### Scenario: R2 store persists artifacts with revision metadata
 
-#### Scenario: Artifact write succeeds with current revision
+- **GIVEN** the backend is configured to use R2 storage
+- **WHEN** a client writes an artifact via the backend API
+- **THEN** the artifact content is stored as a blob in R2
+- **AND** revision metadata is stored in R2 custom metadata
+- **AND** subsequent reads include the correct revision identifier
 
-- **GIVEN** a client provides the current artifact revision
-- **WHEN** the client writes updated Markdown
-- **THEN** the backend stores the updated content
-- **AND** updates `updated_at`
-- **AND** increments or replaces the artifact revision identifier
+#### Scenario: R2 store rejects stale artifact writes
 
-### Requirement: Backend serves artifact content as Markdown with inlined YAML front matter
-
-When the backend returns Markdown artifact content, it MUST inline artifact metadata as YAML front matter at the beginning of the Markdown document, regardless of how the backend stores metadata internally.
-
-At minimum, the inlined front matter MUST include:
-
-- `created_at`
-- `updated_at`
-- `revision`
-- `integrity.body_sha256`
-
-#### Scenario: Artifact read returns Markdown with front matter metadata
-
-- **WHEN** a client reads an artifact from the backend
-- **THEN** the artifact content begins with a YAML front matter block (`---` ... `---`)
-- **AND** the front matter includes `created_at`, `updated_at`, `revision`, and `integrity.body_sha256`
-- **AND** the remainder of the document is the Markdown artifact body
-
-#### Scenario: Storage backend does not affect returned Markdown format
-
-- **GIVEN** the backend is configured to use filesystem storage
-- **WHEN** a client reads an artifact
-- **THEN** the artifact is returned as Markdown with YAML front matter
-- **AND** **WHEN** the backend is configured to use sqlite storage
-- **THEN** the artifact is returned in the same Markdown-with-front-matter format
-
-### Requirement: Backend provides artifact bundles for sync
-
-The backend SHALL provide a JSON bundle representation of a change’s artifacts for sync workflows.
-
-The bundle MUST include:
-
-- proposal, tasks, and spec delta documents
-- design when present
-- per-artifact metadata sufficient for change detection and conflict handling (at minimum `revision`, `updated_at`, and `integrity.body_sha256`)
-
-#### Scenario: Bundle read returns all artifacts
-
-- **WHEN** a client reads a change bundle
-- **THEN** the backend returns a JSON document containing all artifacts for the change
-- **AND** the bundle includes spec delta documents keyed by capability
-
-### Requirement: Backend rejects stale artifact writes
-
-The backend MUST reject artifact updates when the client revision is stale.
-
-#### Scenario: Stale revision write is rejected
-
-- **GIVEN** artifact revision `r2` is current on the backend
+- **GIVEN** artifact revision `r2` exists in R2
 - **WHEN** a client attempts to write using stale revision `r1`
-- **THEN** the backend returns a conflict response
-- **AND** includes current revision metadata in the response
+- **THEN** the backend detects the revision mismatch via R2 metadata
+- **AND** returns a conflict response with current revision metadata
 
-### Requirement: Backend artifact storage is implemented via swappable repositories
+#### Scenario: R2 store enforces immutability for archived changes
 
-The backend’s artifact persistence MUST be implemented through a repository abstraction so it can be backed by multiple storage implementations.
-
-The backend MUST provide:
-
-- filesystem-backed storage as the default
-- sqlite-backed storage as a proof of concept
-
-#### Scenario: Swapping storage backend does not change API semantics
-
-- **GIVEN** backend is configured to use filesystem storage
-- **WHEN** a client reads and writes artifact bundles
-- **THEN** the API behaves as specified
-- **AND** switching backend configuration to sqlite storage preserves the same API-level behavior
-
-### Requirement: Archived changes are immutable on the backend
-
-Once a change is archived, the backend MUST treat the change and its artifacts as immutable.
-
-#### Scenario: Artifact write is rejected for archived change
-
-- **GIVEN** a change is archived
+- **GIVEN** a change is marked as archived in R2 metadata
 - **WHEN** a client attempts to update any artifact for that change
 - **THEN** the backend rejects the request
+- **AND** the R2 artifact remains unchanged
+
+### Requirement: Backend configuration supports Cloudflare R2 selection
+
+The backend configuration schema MUST support selecting Cloudflare R2 as the artifact store backend.
+
+Configuration MUST include:
+- R2 bucket binding name or connection details
+- R2-specific options (bucket name, region, custom metadata handling)
+- Fallback behavior if R2 is unavailable
+
+#### Scenario: Backend initializes with R2 configuration
+
+- **GIVEN** backend configuration specifies R2 as the artifact store
+- **WHEN** the backend server starts
+- **THEN** the backend initializes the R2 repository adapter
+- **AND** all artifact store operations use R2
+
+#### Scenario: Invalid R2 configuration is rejected at startup
+
+- **GIVEN** backend configuration specifies R2 but provides invalid bucket details
+- **WHEN** the backend server attempts to start
+- **THEN** the backend fails to start with a clear error message indicating the R2 configuration issue
+
+### Requirement: R2 artifact storage maintains front matter format
+
+When serving artifacts from R2, the backend MUST return Markdown with inlined YAML front matter identical to other storage backends.
+
+The R2 implementation SHALL:
+- Store raw Markdown content as blobs
+- Store metadata (created_at, updated_at, revision, integrity hash) in R2 custom metadata
+- Inline metadata as YAML front matter when serving artifacts
+- Ensure the returned format is identical regardless of whether artifacts are stored in R2, filesystem, or SQLite
+
+#### Scenario: R2 artifacts include front matter on read
+
+- **GIVEN** an artifact is stored in R2
+- **WHEN** a client reads the artifact
+- **THEN** the response includes YAML front matter with created_at, updated_at, revision, and integrity.body_sha256
+- **AND** the format matches artifacts from filesystem or SQLite stores

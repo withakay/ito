@@ -1,64 +1,46 @@
-# Spec: distribution
+## ADDED Requirements
 
-## Purpose
+### Requirement: Ito provides Cloudflare Workers deployment configuration
 
-Define the `distribution` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: CI/CD workflows use self-hosted runner group).
+Ito MUST provide deployment configuration and documentation for deploying the backend to Cloudflare Workers.
 
-## Requirements
+The deployment configuration SHALL include:
+- `wrangler.toml` configuration file for Cloudflare Workers
+- R2 bucket binding configuration
+- Environment variable configuration for backend settings
+- Example deployment scripts
 
-### Requirement: CI/CD workflows use self-hosted runner group
+#### Scenario: Cloudflare Workers deployment configuration is valid
 
-All GitHub Actions workflows in the project SHALL use the `withakay-selfhost` runner group for jobs that do not require a specific operating system runner.
+- **GIVEN** the provided `wrangler.toml` configuration
+- **WHEN** a developer runs `wrangler deploy`
+- **THEN** the backend successfully deploys to Cloudflare Workers
+- **AND** R2 bindings are correctly configured
 
-#### Scenario: CI workflow uses self-hosted runners
+#### Scenario: Documentation guides Cloudflare deployment
 
-- **GIVEN** the `ci.yml` workflow
-- **WHEN** jobs that currently use `ubuntu-latest` execute
-- **THEN** they SHALL use `runs-on: group: withakay-selfhost` instead
+- **GIVEN** deployment documentation for Cloudflare
+- **WHEN** a developer follows the documentation
+- **THEN** they can successfully:
+  - Set up a Cloudflare Workers project
+  - Configure R2 bucket
+  - Deploy the Ito backend
+  - Verify the deployment is functional
 
-#### Scenario: Release-plz workflow uses self-hosted runners
+### Requirement: Cloudflare deployment supports backend configuration
 
-- **GIVEN** the `release-plz.yml` workflow
-- **WHEN** the release and PR jobs execute
-- **THEN** they SHALL use `runs-on: group: withakay-selfhost`
+The Cloudflare Workers deployment MUST support backend configuration through environment variables or Cloudflare Workers secrets.
 
-#### Scenario: Homebrew update workflow uses self-hosted runners
+Configuration options SHALL include:
+- Allowed organizations and repositories
+- Authentication settings
+- R2 bucket name and configuration
+- Logging and telemetry settings
 
-- **GIVEN** the `update-homebrew.yml` workflow
-- **WHEN** the update-formula job executes
-- **THEN** it SHALL use `runs-on: group: withakay-selfhost`
+#### Scenario: Backend configuration via environment variables works in Cloudflare Workers
 
-#### Scenario: Polish release notes workflow uses self-hosted runners
-
-- **GIVEN** the `polish-release-notes.yml` workflow
-- **WHEN** the polish job executes
-- **THEN** it SHALL use `runs-on: group: withakay-selfhost`
-
-#### Scenario: Claude code review workflow uses self-hosted runners
-
-- **GIVEN** the `claude-code-review.yml` workflow
-- **WHEN** the review job executes
-- **THEN** it SHALL use `runs-on: group: withakay-selfhost`
-
-#### Scenario: OS-specific matrix jobs retain appropriate runners
-
-- **GIVEN** workflow jobs that require specific OS runners (e.g., macOS builds, Windows builds)
-- **WHEN** those jobs execute
-- **THEN** they SHALL continue using the appropriate OS-specific runner (e.g., `macos-14`, `windows-latest`)
-- **AND** Linux matrix entries MAY use the self-hosted runner group if the runners support the required environment
-
-### Requirement: Vestigial Release Please references are removed
-
-All references to the non-existent "Release Please" workflow SHALL be removed from CI configuration and build tooling.
-
-#### Scenario: release.yml workflow_run trigger is updated
-
-- **GIVEN** the `release.yml` workflow
-- **WHEN** examining its triggers
-- **THEN** it SHALL NOT contain a `workflow_run` trigger referencing "Release Please"
-
-#### Scenario: Makefile release target is updated
-
-- **GIVEN** the `Makefile`
-- **WHEN** examining the `release` target
-- **THEN** it SHALL NOT reference `release-please.yml`
+- **GIVEN** backend configuration is set via Cloudflare Workers environment variables
+- **WHEN** the backend starts in Cloudflare Workers
+- **THEN** the backend reads and applies the configuration
+- **AND** enforces the configured org/repo allowlist
+- **AND** uses the configured R2 bindings
