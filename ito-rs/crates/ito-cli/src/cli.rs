@@ -273,8 +273,9 @@ pub enum Commands {
     ///
     /// Examples:
     ///   ito serve-api
+    ///   ito serve-api --service
     ///   ito serve-api --port 8080 --bind 0.0.0.0
-    ///   ito serve-api --token my-secret
+    ///   ito serve-api --admin-token my-secret
     #[command(verbatim_doc_comment)]
     #[cfg(feature = "backend")]
     ServeApi(ServeApiArgs),
@@ -380,9 +381,16 @@ pub struct ServeApiArgs {
     ///
     /// On first run, generates a cryptographically random admin token and token
     /// seed, writes them to `~/.config/ito/config.json`, and exits without
-    /// starting the server. If tokens already exist, prints them and exits.
-    #[arg(long)]
+    /// starting the server. If tokens already exist, reports the config path and exits.
+    #[arg(long, conflicts_with = "service")]
     pub init: bool,
+
+    /// Ensure backend auth exists for unattended service startup, then run.
+    ///
+    /// If backend auth is missing, silently generates and persists tokens to
+    /// `~/.config/ito/config.json` before continuing startup.
+    #[arg(long, conflicts_with = "init")]
+    pub service: bool,
 
     /// Port to listen on (default: 9010)
     #[arg(short, long)]
