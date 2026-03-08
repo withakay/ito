@@ -101,6 +101,9 @@ pub mod planning_init;
 /// Filesystem-backed task repository implementation.
 pub mod task_repository;
 
+/// Task mutation services for filesystem and backend persistence.
+pub mod task_mutations;
+
 /// Remote task repository backed by the backend API.
 pub mod remote_task_repository;
 

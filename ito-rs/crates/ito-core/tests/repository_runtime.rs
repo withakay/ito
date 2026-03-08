@@ -6,12 +6,14 @@ use tempfile::TempDir;
 
 use ito_core::backend_client::BackendRuntime;
 use ito_core::errors::CoreResult;
+use ito_core::errors::CoreResult;
 use ito_core::list::{
     list_changes, list_modules, ChangeProgressFilter, ChangeSortOrder, ListChangesInput,
 };
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,
 };
+use ito_core::task_mutations::{TaskInitResult, TaskMutationResult, TaskMutationService};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec,
 };
@@ -250,6 +252,61 @@ impl TaskRepository for FakeTaskRepo {
     }
 }
 
+struct FakeTaskMutations;
+
+impl FakeTaskMutations {
+    fn unsupported<T>() -> CoreResult<T> {
+        Err(ito_core::errors::CoreError::process(
+            "task mutations not configured",
+        ))
+    }
+}
+
+impl TaskMutationService for FakeTaskMutations {
+    fn load_tasks_markdown(&self, _change_id: &str) -> CoreResult<Option<String>> {
+        Ok(None)
+    }
+
+    fn init_tasks(&self, _change_id: &str) -> CoreResult<TaskInitResult> {
+        Self::unsupported()
+    }
+
+    fn start_task(&self, _change_id: &str, _task_id: &str) -> CoreResult<TaskMutationResult> {
+        Self::unsupported()
+    }
+
+    fn complete_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+        _note: Option<String>,
+    ) -> CoreResult<TaskMutationResult> {
+        Self::unsupported()
+    }
+
+    fn shelve_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+        _reason: Option<String>,
+    ) -> CoreResult<TaskMutationResult> {
+        Self::unsupported()
+    }
+
+    fn unshelve_task(&self, _change_id: &str, _task_id: &str) -> CoreResult<TaskMutationResult> {
+        Self::unsupported()
+    }
+
+    fn add_task(
+        &self,
+        _change_id: &str,
+        _title: &str,
+        _wave: Option<u32>,
+    ) -> CoreResult<TaskMutationResult> {
+        Self::unsupported()
+    }
+}
+
 struct FakeRemoteFactory {
     repos: RepositorySet,
 }
@@ -308,6 +365,7 @@ fn remote_runtime_uses_remote_factory() {
         changes: Arc::new(FakeChangeRepo::new(summary, change)),
         modules: Arc::new(FakeModuleRepo::new(module_summary, module)),
         tasks: Arc::new(FakeTaskRepo),
+        task_mutations: Arc::new(FakeTaskMutations),
     };
     let backend_runtime = BackendRuntime {
         base_url: "http://127.0.0.1:9010".to_string(),

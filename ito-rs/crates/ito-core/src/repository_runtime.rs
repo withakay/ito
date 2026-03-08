@@ -18,6 +18,9 @@ use crate::change_repository::FsChangeRepository;
 use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
+use crate::task_mutations::{
+    stub_backend_sync_client, FsTaskMutationService, RemoteTaskMutationService, TaskMutationService,
+};
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
@@ -41,6 +44,8 @@ pub struct RepositorySet {
     pub modules: Arc<dyn ModuleRepository + Send + Sync>,
     /// Task repository implementation.
     pub tasks: Arc<dyn TaskRepository + Send + Sync>,
+    /// Task mutation service implementation.
+    pub task_mutations: Arc<dyn TaskMutationService + Send + Sync>,
 }
 
 /// Resolved repository runtime for the current configuration.
@@ -89,6 +94,7 @@ impl RemoteRepositoryFactory for HttpRemoteRepositoryFactory {
             changes: Arc::new(BackendChangeRepository::new(client.clone())),
             modules: Arc::new(BackendModuleRepository::new(client.clone())),
             tasks: Arc::new(RemoteTaskRepository::new(client)),
+            task_mutations: Arc::new(RemoteTaskMutationService::new(stub_backend_sync_client())),
         })
     }
 }
@@ -204,7 +210,8 @@ fn filesystem_repository_set(ito_path: &Path) -> RepositorySet {
     RepositorySet {
         changes: Arc::new(OwnedFsChangeRepository::new(ito_path.clone())),
         modules: Arc::new(OwnedFsModuleRepository::new(ito_path.clone())),
-        tasks: Arc::new(OwnedFsTaskRepository::new(ito_path)),
+        tasks: Arc::new(OwnedFsTaskRepository::new(ito_path.clone())),
+        task_mutations: Arc::new(FsTaskMutationService::new(ito_path)),
     }
 }
 
