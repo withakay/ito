@@ -9,12 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 
-use crate::backend_client::{BackendRuntime, is_retriable_status};
+use crate::backend_client::{is_retriable_status, BackendRuntime};
 use ito_domain::backend::{BackendChangeReader, BackendModuleReader};
-use ito_domain::changes::{Change, ChangeSummary, Spec};
+use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary};
 use ito_domain::tasks::{
@@ -116,8 +116,12 @@ impl BackendHttpClient {
 }
 
 impl BackendChangeReader for BackendHttpClient {
-    fn list_changes(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let url = format!("{}/changes", self.inner.runtime.project_api_prefix());
+    fn list_changes(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        let url = format!(
+            "{}/changes?lifecycle={}",
+            self.inner.runtime.project_api_prefix(),
+            filter.as_str()
+        );
         let summaries: Vec<ApiChangeSummary> = self.get_json(&url, "change", None)?;
         let mut out = Vec::with_capacity(summaries.len());
         for summary in summaries {
@@ -140,13 +144,23 @@ impl BackendChangeReader for BackendHttpClient {
         Ok(out)
     }
 
-    fn get_change(&self, change_id: &str) -> DomainResult<Change> {
+    fn get_change(&self, change_id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
         let url = format!(
-            "{}/changes/{change_id}",
-            self.inner.runtime.project_api_prefix()
+            "{}/changes/{change_id}?lifecycle={}",
+            self.inner.runtime.project_api_prefix(),
+            filter.as_str()
         );
         let change: ApiChange = self.get_json(&url, "change", Some(change_id))?;
-        let tasks = self.load_tasks_parse_result(change_id)?;
+        let tasks = match self.load_tasks_parse_result(change_id) {
+            Ok(tasks) => tasks,
+            Err(err) => {
+                if filter.includes_archived() {
+                    tasks_from_progress(&change.progress)
+                } else {
+                    return Err(err);
+                }
+            }
+        };
         let last_modified = parse_timestamp(&change.last_modified)?;
         Ok(Change {
             id: change.id,
@@ -321,6 +335,23 @@ fn task_list_to_parse_result(list: ApiTaskList) -> TasksParseResult {
         waves,
         diagnostics,
         progress,
+    }
+}
+
+fn tasks_from_progress(progress: &ApiProgress) -> TasksParseResult {
+    TasksParseResult {
+        format: TasksFormat::Checkbox,
+        tasks: Vec::new(),
+        waves: Vec::new(),
+        diagnostics: Vec::new(),
+        progress: ProgressInfo {
+            total: progress.total,
+            complete: progress.complete,
+            shelved: progress.shelved,
+            in_progress: progress.in_progress,
+            pending: progress.pending,
+            remaining: progress.remaining,
+        },
     }
 }
 

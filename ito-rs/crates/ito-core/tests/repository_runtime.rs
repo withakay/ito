@@ -7,7 +7,7 @@ use tempfile::TempDir;
 use ito_core::backend_client::BackendRuntime;
 use ito_core::errors::CoreResult;
 use ito_core::list::{
-    ChangeProgressFilter, ChangeSortOrder, ListChangesInput, list_changes, list_modules,
+    list_changes, list_modules, ChangeProgressFilter, ChangeSortOrder, ListChangesInput,
 };
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,
@@ -112,7 +112,25 @@ impl ChangeRepository for FakeChangeRepo {
         self.summaries.iter().any(|s| s.id == id)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
+    fn exists_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> bool {
+        if !filter.includes_active() {
+            return false;
+        }
+        self.summaries.iter().any(|s| s.id == id)
+    }
+
+    fn get_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Change> {
+        if !filter.includes_active() {
+            return Err(DomainError::not_found("change", id));
+        }
         self.full
             .iter()
             .find(|c| c.id == id)
@@ -120,11 +138,24 @@ impl ChangeRepository for FakeChangeRepo {
             .ok_or_else(|| DomainError::not_found("change", id))
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self.summaries.clone())
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -133,7 +164,13 @@ impl ChangeRepository for FakeChangeRepo {
             .collect())
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -142,7 +179,13 @@ impl ChangeRepository for FakeChangeRepo {
             .collect())
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_complete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -151,7 +194,14 @@ impl ChangeRepository for FakeChangeRepo {
             .collect())
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        if !filter.includes_active() {
+            return Err(DomainError::not_found("change", id));
+        }
         self.summaries
             .iter()
             .find(|s| s.id == id)

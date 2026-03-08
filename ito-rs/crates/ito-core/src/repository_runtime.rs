@@ -8,10 +8,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ito_config::types::ItoConfig;
-use ito_config::{ConfigContext, load_cascading_project_config};
+use ito_config::{load_cascading_project_config, ConfigContext};
 
 use crate::backend_change_repository::BackendChangeRepository;
-use crate::backend_client::{BackendRuntime, resolve_backend_runtime};
+use crate::backend_client::{resolve_backend_runtime, BackendRuntime};
 use crate::backend_http::BackendHttpClient;
 use crate::backend_module_repository::BackendModuleRepository;
 use crate::change_repository::FsChangeRepository;
@@ -254,38 +254,57 @@ impl ChangeRepository for OwnedFsChangeRepository {
         self.inner().exists(id)
     }
 
-    fn get(&self, id: &str) -> ito_domain::errors::DomainResult<ito_domain::changes::Change> {
-        self.inner().get(id)
-    }
-
-    fn list(&self) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
-        self.inner().list()
-    }
-
-    fn list_by_module(
-        &self,
-        module_id: &str,
-    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
-        self.inner().list_by_module(module_id)
-    }
-
-    fn list_incomplete(
-        &self,
-    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
-        self.inner().list_incomplete()
-    }
-
-    fn list_complete(
-        &self,
-    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
-        self.inner().list_complete()
-    }
-
-    fn get_summary(
+    fn exists_with_filter(
         &self,
         id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> bool {
+        self.inner().exists_with_filter(id, filter)
+    }
+
+    fn get_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> ito_domain::errors::DomainResult<ito_domain::changes::Change> {
+        self.inner().get_with_filter(id, filter)
+    }
+
+    fn list_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
+        self.inner().list_with_filter(filter)
+    }
+
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
+        self.inner().list_by_module_with_filter(module_id, filter)
+    }
+
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
+        self.inner().list_incomplete_with_filter(filter)
+    }
+
+    fn list_complete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::changes::ChangeSummary>> {
+        self.inner().list_complete_with_filter(filter)
+    }
+
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
     ) -> ito_domain::errors::DomainResult<ito_domain::changes::ChangeSummary> {
-        self.inner().get_summary(id)
+        self.inner().get_summary_with_filter(id, filter)
     }
 }
 

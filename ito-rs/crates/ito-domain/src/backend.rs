@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::changes::ChangeLifecycleFilter;
 use crate::errors::DomainResult;
 
 // ── Lease DTOs ──────────────────────────────────────────────────────
@@ -209,10 +210,17 @@ pub trait BackendSyncClient {
 /// instead of the filesystem when backend mode is enabled.
 pub trait BackendChangeReader {
     /// List all change summaries from the backend.
-    fn list_changes(&self) -> DomainResult<Vec<crate::changes::ChangeSummary>>;
+    fn list_changes(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<crate::changes::ChangeSummary>>;
 
     /// Get a full change from the backend.
-    fn get_change(&self, change_id: &str) -> DomainResult<crate::changes::Change>;
+    fn get_change(
+        &self,
+        change_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<crate::changes::Change>;
 }
 
 /// Port for backend-backed module listing.

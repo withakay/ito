@@ -6,11 +6,11 @@ use ito_common::fs::{FileSystem, StdFs};
 use ito_config::ConfigContext;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::tasks::{
-    TaskRepository as DomainTaskRepository, TasksParseResult, parse_tasks_tracking_file,
-    tasks_path_checked, tracking_path_checked,
+    TaskRepository as DomainTaskRepository, TasksParseResult, is_safe_tracking_filename,
+    parse_tasks_tracking_file, tasks_path_checked, tracking_path_checked,
 };
 
-use crate::templates::{read_change_schema, resolve_schema};
+use crate::templates::{default_schema_name, read_change_schema, resolve_schema};
 
 /// Filesystem-backed implementation of the domain `TaskRepository` port.
 pub struct FsTaskRepository<'a, F: FileSystem = StdFs> {
@@ -30,6 +30,56 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
     pub fn with_fs(ito_path: &'a Path, fs: F) -> Self {
         Self { ito_path, fs }
     }
+
+    /// Load tasks from an explicit change directory.
+    pub(crate) fn load_tasks_from_dir(&self, change_dir: &Path) -> DomainResult<TasksParseResult> {
+        let schema_name = read_schema_from_dir(&self.fs, change_dir);
+        let mut ctx = ConfigContext::from_process_env();
+        ctx.project_dir = self.ito_path.parent().map(|p| p.to_path_buf());
+
+        let mut tracking_file = "tasks.md".to_string();
+        if let Ok(resolved) = resolve_schema(Some(&schema_name), &ctx)
+            && let Some(apply) = resolved.schema.apply.as_ref()
+            && let Some(tracks) = apply.tracks.as_deref()
+            && is_safe_tracking_filename(tracks)
+        {
+            tracking_file = tracks.to_string();
+        }
+
+        if !is_safe_tracking_filename(&tracking_file) {
+            return Ok(TasksParseResult::empty());
+        }
+
+        let path = change_dir.join(&tracking_file);
+        if !self.fs.is_file(&path) {
+            return Ok(TasksParseResult::empty());
+        }
+
+        let contents = self
+            .fs
+            .read_to_string(&path)
+            .map_err(|source| DomainError::io("reading tasks file", source))?;
+        Ok(parse_tasks_tracking_file(&contents))
+    }
+}
+
+fn read_schema_from_dir<F: FileSystem>(fs: &F, change_dir: &Path) -> String {
+    let meta = change_dir.join(".ito.yaml");
+    if fs.is_file(&meta) {
+        if let Ok(contents) = fs.read_to_string(&meta) {
+            for line in contents.lines() {
+                let l = line.trim();
+                if let Some(rest) = l.strip_prefix("schema:") {
+                    let v = rest.trim();
+                    if !v.is_empty() {
+                        return v.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    default_schema_name().to_string()
 }
 
 impl<F: FileSystem> DomainTaskRepository for FsTaskRepository<'_, F> {

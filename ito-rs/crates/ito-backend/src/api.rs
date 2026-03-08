@@ -9,7 +9,7 @@
 //! Health and readiness endpoints remain at `/api/v1/health` and `/api/v1/ready`.
 
 use axum::Router;
-use axum::extract::{Extension, Path, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{get, post};
@@ -19,6 +19,7 @@ use std::sync::Arc;
 use crate::auth::TokenScope;
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
+use ito_core::ChangeLifecycleFilter;
 
 // ── Response types ──────────────────────────────────────────────────
 
@@ -86,6 +87,13 @@ pub struct ApiChangeSummary {
     pub work_status: String,
     /// ISO-8601 timestamp of last modification.
     pub last_modified: String,
+}
+
+/// Query parameters for change list/get requests.
+#[derive(Debug, Deserialize)]
+pub struct ChangeQuery {
+    /// Lifecycle filter: active, archived, or all.
+    pub lifecycle: Option<String>,
 }
 
 /// Full change detail returned by get endpoint.
@@ -261,13 +269,25 @@ pub async fn auth_verify(Extension(scope): Extension<TokenScope>) -> Json<AuthVe
     }
 }
 
-/// `GET /api/v1/projects/{org}/{repo}/changes` — list all changes as summaries.
+/// `GET /api/v1/projects/{org}/{repo}/changes` — list changes as summaries.
+///
+/// Optional query parameter: `lifecycle=active|archived|all`.
 pub async fn list_changes(
     State(state): State<Arc<AppState>>,
     Path((org, repo)): Path<(String, String)>,
 ) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
+    list_changes_with_query(State(state), Path((org, repo)), Query(ChangeQuery { lifecycle: None }))
+        .await
+}
+
+pub async fn list_changes_with_query(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo)): Path<(String, String)>,
+    Query(query): Query<ChangeQuery>,
+) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
+    let filter = parse_lifecycle_filter(query.lifecycle)?;
     let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
-    let changes = map_domain_err(change_repo.list())?;
+    let changes = map_domain_err(change_repo.list_with_filter(filter))?;
 
     let mut summaries: Vec<ApiChangeSummary> = Vec::with_capacity(changes.len());
     for c in changes {
@@ -292,12 +312,28 @@ pub async fn list_changes(
 }
 
 /// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}` — get a full change by ID.
+///
+/// Optional query parameter: `lifecycle=active|archived|all`.
 pub async fn get_change(
     State(state): State<Arc<AppState>>,
     Path((org, repo, change_id)): Path<(String, String, String)>,
 ) -> Result<Json<ApiChange>, ApiErrorResponse> {
+    get_change_with_query(
+        State(state),
+        Path((org, repo, change_id)),
+        Query(ChangeQuery { lifecycle: None }),
+    )
+    .await
+}
+
+pub async fn get_change_with_query(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+    Query(query): Query<ChangeQuery>,
+) -> Result<Json<ApiChange>, ApiErrorResponse> {
+    let filter = parse_lifecycle_filter(query.lifecycle)?;
     let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
-    let change = map_domain_err(change_repo.get(&change_id))?;
+    let change = map_domain_err(change_repo.get_with_filter(&change_id, filter))?;
     let api_change = ApiChange {
         id: change.id,
         module_id: change.module_id,
@@ -558,12 +594,24 @@ pub async fn ingest_events(
 fn project_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/auth/verify", get(auth_verify))
-        .route("/changes", get(list_changes))
-        .route("/changes/{change_id}", get(get_change))
+        .route("/changes", get(list_changes_with_query))
+        .route("/changes/{change_id}", get(get_change_with_query))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
         .route("/modules", get(list_modules))
         .route("/modules/{module_id}", get(get_module))
         .route("/events", post(ingest_events))
+}
+
+fn parse_lifecycle_filter(value: Option<String>) -> Result<ChangeLifecycleFilter, ApiErrorResponse> {
+    let Some(raw) = value else {
+        return Ok(ChangeLifecycleFilter::Active);
+    };
+    ChangeLifecycleFilter::parse(&raw).ok_or_else(|| {
+        ApiErrorResponse::bad_request(format!(
+            "Invalid lifecycle '{}'. Expected active, archived, or all.",
+            raw
+        ))
+    })
 }
 
 /// Build the v1 API router with all endpoints.

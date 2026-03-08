@@ -16,11 +16,12 @@ use rusqlite::Connection;
 
 use ito_domain::backend::BackendProjectStore;
 use ito_domain::changes::{
-    Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec,
+    Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
+    ResolveTargetOptions, Spec,
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{TaskRepository, TasksParseResult, parse_tasks_tracking_file};
+use ito_domain::tasks::{parse_tasks_tracking_file, TaskRepository, TasksParseResult};
 
 use crate::errors::CoreError;
 
@@ -404,8 +405,11 @@ impl ChangeRepository for SqliteChangeRepository {
     fn resolve_target_with_options(
         &self,
         input: &str,
-        _options: ResolveTargetOptions,
+        options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
+        if !options.lifecycle.includes_active() {
+            return ChangeTargetResolution::NotFound;
+        }
         let mut matches = Vec::new();
         for c in &self.changes {
             if c.change_id == input || c.change_id.contains(input) {
@@ -429,10 +433,20 @@ impl ChangeRepository for SqliteChangeRepository {
     }
 
     fn exists(&self, id: &str) -> bool {
+        self.exists_with_filter(id, ChangeLifecycleFilter::Active)
+    }
+
+    fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
+        if !filter.includes_active() {
+            return false;
+        }
         self.changes.iter().any(|c| c.change_id == id)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
+    fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        if !filter.includes_active() {
+            return Err(DomainError::not_found("change", id));
+        }
         let Some(row) = self.changes.iter().find(|c| c.change_id == id) else {
             return Err(DomainError::not_found("change", id));
         };
@@ -466,7 +480,10 @@ impl ChangeRepository for SqliteChangeRepository {
         })
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         let mut summaries = Vec::with_capacity(self.changes.len());
         for row in &self.changes {
             let tasks = row
@@ -497,32 +514,46 @@ impl ChangeRepository for SqliteChangeRepository {
         Ok(summaries)
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.list()?;
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.module_id.as_deref() == Some(module_id))
             .collect())
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.list()?;
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.total_tasks > 0 && c.completed_tasks < c.total_tasks)
             .collect())
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.list()?;
+    fn list_complete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.total_tasks > 0 && c.completed_tasks >= c.total_tasks)
             .collect())
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        let all = self.list()?;
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        let all = self.list_with_filter(filter)?;
         all.into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| DomainError::not_found("change", id))

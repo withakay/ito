@@ -7,6 +7,7 @@ use crate::util::parse_string_flag;
 use ito_core::audit;
 use ito_core::nearest_matches;
 use ito_core::templates;
+use std::collections::BTreeSet;
 use ito_core::validate as core_validate;
 use std::path::Path;
 
@@ -66,6 +67,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     if bulk {
         let repo_index = rt.repo_index();
+        let is_filesystem = runtime.mode() == ito_core::repository_runtime::PersistenceMode::Filesystem;
 
         let want_all = args.iter().any(|a| a == "--all");
         let want_changes = want_all || args.iter().any(|a| a == "--changes");
@@ -86,14 +88,21 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         let mut items: Vec<Item> = Vec::new();
 
         if want_changes {
-            let module_ids = repo_index.module_ids.clone();
+            let module_ids: BTreeSet<String> = module_repo
+                .list()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|m| m.id)
+                .collect();
+            let change_summaries = change_repo.list().unwrap_or_default();
+            let repo_integrity = if is_filesystem {
+                core_validate::validate_change_dirs_repo_integrity(ito_path).unwrap_or_default()
+            } else {
+                Default::default()
+            };
 
-            let change_dirs = repo_index.change_dir_names.clone();
-
-            let repo_integrity =
-                core_validate::validate_change_dirs_repo_integrity(ito_path).unwrap_or_default();
-
-            for dir_name in change_dirs {
+            for summary in change_summaries {
+                let dir_name = summary.id;
                 let mut issues: Vec<core_validate::ValidationIssue> = Vec::new();
 
                 // Repo integrity checks (naming/module/duplicate numeric ids)
@@ -140,14 +149,16 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 };
 
                 // tasks.md validation (enhanced + checkbox)
-                if let Ok(task_issues) =
-                    core_validate::validate_tasks_file(ito_path, &dir_name, strict)
-                {
-                    issues.extend(task_issues);
+                if is_filesystem {
+                    if let Ok(task_issues) =
+                        core_validate::validate_tasks_file(ito_path, &dir_name, strict)
+                    {
+                        issues.extend(task_issues);
+                    }
                 }
 
                 // Audit consistency check (warnings only)
-                if !skip_audit {
+                if is_filesystem && !skip_audit {
                     issues.extend(validate_audit_consistency(ito_path, &dir_name));
                 }
 

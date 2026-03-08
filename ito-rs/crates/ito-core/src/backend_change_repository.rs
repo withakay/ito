@@ -6,8 +6,8 @@
 
 use ito_domain::backend::BackendChangeReader;
 use ito_domain::changes::{
-    Change, ChangeRepository as DomainChangeRepository, ChangeSummary, ChangeTargetResolution,
-    ResolveTargetOptions,
+    Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeSummary,
+    ChangeTargetResolution, ResolveTargetOptions,
 };
 use ito_domain::errors::DomainResult;
 
@@ -31,9 +31,9 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
     fn resolve_target_with_options(
         &self,
         input: &str,
-        _options: ResolveTargetOptions,
+        options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
-        let Ok(summaries) = self.reader.list_changes() else {
+        let Ok(summaries) = self.reader.list_changes(options.lifecycle) else {
             return ChangeTargetResolution::NotFound;
         };
 
@@ -65,7 +65,7 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
-        let Ok(summaries) = self.reader.list_changes() else {
+        let Ok(summaries) = self.reader.list_changes(ChangeLifecycleFilter::Active) else {
             return Vec::new();
         };
 
@@ -74,19 +74,27 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
     }
 
     fn exists(&self, id: &str) -> bool {
-        self.reader.get_change(id).is_ok()
+        self.exists_with_filter(id, ChangeLifecycleFilter::Active)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        self.reader.get_change(id)
+    fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
+        self.reader.get_change(id, filter).is_ok()
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.reader.list_changes()
+    fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        self.reader.get_change(id, filter)
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        self.reader.list_changes(filter)
+    }
+
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.reader.list_changes(filter)?;
         let filtered = all
             .into_iter()
             .filter(|s| s.module_id.as_deref() == Some(module_id))
@@ -94,8 +102,11 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         Ok(filtered)
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.reader.list_changes(filter)?;
         let filtered = all
             .into_iter()
             .filter(|s| s.completed_tasks < s.total_tasks || s.total_tasks == 0)
@@ -103,8 +114,11 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         Ok(filtered)
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
+    fn list_complete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.reader.list_changes(filter)?;
         let filtered = all
             .into_iter()
             .filter(|s| s.total_tasks > 0 && s.completed_tasks == s.total_tasks)
@@ -112,8 +126,12 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         Ok(filtered)
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        let all = self.reader.list_changes()?;
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        let all = self.reader.list_changes(filter)?;
         for summary in all {
             if summary.id == id {
                 return Ok(summary);
@@ -142,11 +160,18 @@ mod tests {
     }
 
     impl BackendChangeReader for FakeReader {
-        fn list_changes(&self) -> DomainResult<Vec<ChangeSummary>> {
+        fn list_changes(
+            &self,
+            _filter: ito_domain::changes::ChangeLifecycleFilter,
+        ) -> DomainResult<Vec<ChangeSummary>> {
             Ok(self.changes.clone())
         }
 
-        fn get_change(&self, change_id: &str) -> DomainResult<Change> {
+        fn get_change(
+            &self,
+            change_id: &str,
+            _filter: ito_domain::changes::ChangeLifecycleFilter,
+        ) -> DomainResult<Change> {
             for c in &self.full {
                 if c.id == change_id {
                     return Ok(c.clone());
