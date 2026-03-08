@@ -8,10 +8,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ito_config::types::ItoConfig;
-use ito_config::{load_cascading_project_config, ConfigContext};
+use ito_config::{ConfigContext, load_cascading_project_config};
 
 use crate::backend_change_repository::BackendChangeRepository;
-use crate::backend_client::{resolve_backend_runtime, BackendRuntime};
+use crate::backend_client::{BackendRuntime, resolve_backend_runtime};
 use crate::backend_http::BackendHttpClient;
 use crate::backend_module_repository::BackendModuleRepository;
 use crate::change_repository::FsChangeRepository;
@@ -19,7 +19,7 @@ use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
 use crate::task_mutations::{
-    stub_backend_sync_client, FsTaskMutationService, RemoteTaskMutationService, TaskMutationService,
+    FsTaskMutationService, RemoteTaskMutationService, TaskMutationService, stub_backend_sync_client,
 };
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;

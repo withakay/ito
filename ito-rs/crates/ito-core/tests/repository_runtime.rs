@@ -6,9 +6,8 @@ use tempfile::TempDir;
 
 use ito_core::backend_client::BackendRuntime;
 use ito_core::errors::CoreResult;
-use ito_core::errors::CoreResult;
 use ito_core::list::{
-    list_changes, list_modules, ChangeProgressFilter, ChangeSortOrder, ListChangesInput,
+    ChangeProgressFilter, ChangeSortOrder, ListChangesInput, list_changes, list_modules,
 };
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,

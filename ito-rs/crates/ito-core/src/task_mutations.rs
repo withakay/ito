@@ -6,8 +6,8 @@ use std::sync::Arc;
 use crate::backend_sync::map_backend_error;
 use crate::errors::{CoreError, CoreResult};
 use crate::tasks::{
-    apply_add_task, apply_complete_task, apply_shelve_task, apply_start_task, apply_unshelve_task,
-    enhanced_tasks_template, tracking_file_path, TaskItem,
+    TaskItem, apply_add_task, apply_complete_task, apply_shelve_task, apply_start_task,
+    apply_unshelve_task, enhanced_tasks_template, tracking_file_path,
 };
 use ito_domain::backend::{ArtifactBundle, BackendError, BackendSyncClient, PushResult};
 
@@ -168,7 +168,7 @@ impl TaskMutationService for FsTaskMutationService {
 }
 
 /// Backend-backed task mutation service using artifact sync.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RemoteTaskMutationService {
     sync_client: Arc<dyn BackendSyncClient + Send + Sync>,
 }

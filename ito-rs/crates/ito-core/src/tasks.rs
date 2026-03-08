@@ -605,20 +605,10 @@ pub(crate) fn apply_shelve_task(
     task_id: &str,
     file_label: &str,
 ) -> CoreResult<TaskMutationOutcome> {
-    let parsed = parse_tasks_tracking_file(contents);
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
     if parsed.format == TasksFormat::Checkbox {
         return Err(CoreError::validation(format!(
             "Checkbox-only {file_label} does not support shelving"
-        )));
-    }
-
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!(
-            "{file_label} contains errors"
         )));
     }
 
@@ -634,12 +624,8 @@ pub(crate) fn apply_shelve_task(
         )));
     }
 
-    let updated = update_enhanced_task_status(
-        contents,
-        task_id,
-        TaskStatus::Shelved,
-        chrono::Local::now(),
-    );
+    let updated =
+        update_enhanced_task_status(contents, task_id, TaskStatus::Shelved, chrono::Local::now());
 
     let mut result = task.clone();
     result.status = TaskStatus::Shelved;
@@ -654,20 +640,10 @@ pub(crate) fn apply_unshelve_task(
     task_id: &str,
     file_label: &str,
 ) -> CoreResult<TaskMutationOutcome> {
-    let parsed = parse_tasks_tracking_file(contents);
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
     if parsed.format == TasksFormat::Checkbox {
         return Err(CoreError::validation(format!(
             "Checkbox-only {file_label} does not support shelving"
-        )));
-    }
-
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!(
-            "{file_label} contains errors"
         )));
     }
 
@@ -683,12 +659,8 @@ pub(crate) fn apply_unshelve_task(
         )));
     }
 
-    let updated = update_enhanced_task_status(
-        contents,
-        task_id,
-        TaskStatus::Pending,
-        chrono::Local::now(),
-    );
+    let updated =
+        update_enhanced_task_status(contents, task_id, TaskStatus::Pending, chrono::Local::now());
 
     let mut result = task.clone();
     result.status = TaskStatus::Pending;
@@ -753,7 +725,9 @@ pub(crate) fn apply_add_task(
         let pos2 = out.find("## Checkpoints").unwrap_or(out.len());
         out.insert_str(pos2, &block);
     } else {
-        out.push_str(&format!("\n---\n\n## Wave {wave}\n- **Depends On**: None\n"));
+        out.push_str(&format!(
+            "\n---\n\n## Wave {wave}\n- **Depends On**: None\n"
+        ));
         out.push_str(&block);
     }
 
