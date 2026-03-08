@@ -4,10 +4,8 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::types::WorktreeStrategy;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::harness_context;
-use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -264,8 +262,8 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             return fail("review instruction requires --change <id>");
         }
 
-        let change_repo = FsChangeRepository::new(rt.ito_path());
-        let changes = change_repo.list().unwrap_or_default();
+        let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+        let changes = runtime.repositories().changes.list().unwrap_or_default();
         let mut msg = "Missing required option --change".to_string();
         if !changes.is_empty() {
             msg.push_str("\n\nAvailable changes:\n");
@@ -277,9 +275,10 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     }
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
     let change = change.expect("checked above");
-    let change = match super::common::resolve_change_target(&change_repo, &change) {
+    let change = match super::common::resolve_change_target(change_repo, &change) {
         Ok(resolved) => resolved,
         Err(msg) => return fail(msg),
     };
@@ -353,21 +352,26 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     }
 
     if artifact == "review" {
-        let review =
-            match core_templates::compute_review_context(ito_path, &change, schema.as_deref(), ctx)
-            {
-                Ok(r) => r,
-                Err(core_templates::TemplatesError::InvalidChangeName) => {
-                    return fail("Invalid change name");
-                }
-                Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
-                    return fail(format!("Change '{name}' not found"));
-                }
-                Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
-                    return fail(super::common::schema_not_found_message(ctx, &name));
-                }
-                Err(e) => return Err(to_cli_error(e)),
-            };
+        let review = match core_templates::compute_review_context(
+            change_repo,
+            runtime.repositories().modules.as_ref(),
+            ito_path,
+            &change,
+            schema.as_deref(),
+            ctx,
+        ) {
+            Ok(r) => r,
+            Err(core_templates::TemplatesError::InvalidChangeName) => {
+                return fail("Invalid change name");
+            }
+            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
+                return fail(format!("Change '{name}' not found"));
+            }
+            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
+                return fail(super::common::schema_not_found_message(ctx, &name));
+            }
+            Err(e) => return Err(to_cli_error(e)),
+        };
 
         let instruction =
             ito_templates::instructions::render_instruction_template("agent/review.md.j2", &review)
@@ -549,8 +553,8 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
         modules: Vec<ModuleEntry>,
     }
 
-    let module_repo = FsModuleRepository::new(rt.ito_path());
-    let modules = module_repo.list().unwrap_or_default();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let modules = runtime.repositories().modules.list().unwrap_or_default();
     let modules: Vec<ModuleEntry> = modules
         .into_iter()
         .map(|m| ModuleEntry {

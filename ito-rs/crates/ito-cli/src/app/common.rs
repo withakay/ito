@@ -51,7 +51,7 @@ pub(crate) fn unknown_with_suggestions(kind: &str, item: &str, suggestions: &[St
 }
 
 pub(crate) fn detect_item_type(
-    change_repo: &impl ChangeRepository,
+    change_repo: &(impl ChangeRepository + ?Sized),
     ito_path: &Path,
     idx: &ito_core::repo_index::RepoIndex,
     item: &str,
@@ -76,7 +76,7 @@ pub(crate) fn list_spec_ids(rt: &Runtime) -> Vec<String> {
     list_spec_ids_from_index(rt.ito_path(), rt.repo_index())
 }
 
-pub(crate) fn list_change_ids(change_repo: &impl ChangeRepository) -> Vec<String> {
+pub(crate) fn list_change_ids(change_repo: &(impl ChangeRepository + ?Sized)) -> Vec<String> {
     change_repo
         .list()
         .map(|changes| changes.into_iter().map(|c| c.id).collect())
@@ -84,7 +84,7 @@ pub(crate) fn list_change_ids(change_repo: &impl ChangeRepository) -> Vec<String
 }
 
 pub(crate) fn resolve_change_target(
-    change_repo: &impl ChangeRepository,
+    change_repo: &(impl ChangeRepository + ?Sized),
     input: &str,
 ) -> Result<String, String> {
     match change_repo.resolve_target(input) {
@@ -123,7 +123,7 @@ pub(crate) fn resolve_change_target(
 }
 
 pub(crate) fn list_candidate_items(
-    change_repo: &impl ChangeRepository,
+    change_repo: &(impl ChangeRepository + ?Sized),
     rt: &Runtime,
 ) -> Vec<String> {
     let mut items = list_spec_ids(rt);

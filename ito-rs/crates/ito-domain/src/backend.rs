@@ -215,6 +215,18 @@ pub trait BackendChangeReader {
     fn get_change(&self, change_id: &str) -> DomainResult<crate::changes::Change>;
 }
 
+/// Port for backend-backed module listing.
+///
+/// Used by repository adapters to resolve module data from the backend when
+/// backend mode is enabled.
+pub trait BackendModuleReader {
+    /// List all module summaries from the backend.
+    fn list_modules(&self) -> DomainResult<Vec<crate::modules::ModuleSummary>>;
+
+    /// Get a full module from the backend.
+    fn get_module(&self, module_id: &str) -> DomainResult<crate::modules::Module>;
+}
+
 /// Port for backend-backed task reading.
 ///
 /// Used by repository adapters to resolve task data from the backend

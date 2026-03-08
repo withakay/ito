@@ -194,14 +194,13 @@ fn resolve_effective_cwd_with(
 /// ```
 pub fn run_ralph(
     ito_path: &Path,
-    change_repo: &impl DomainChangeRepository,
-    task_repo: &impl DomainTaskRepository,
-    module_repo: &impl DomainModuleRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    task_repo: &dyn DomainTaskRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     opts: RalphOptions,
     harness: &mut dyn Harness,
 ) -> CoreResult<()> {
     let process_runner = SystemProcessRunner;
-
     if opts.continue_ready {
         if opts.continue_module {
             return Err(CoreError::Validation(
@@ -734,7 +733,6 @@ pub fn run_ralph(
                 );
                 return Ok(());
             }
-
             last_validation_failure = Some(report.context_markdown);
             println!(
                 "\n=== Completion promise detected, but validation failed. Continuing... ===\n"
@@ -746,7 +744,7 @@ pub fn run_ralph(
 }
 
 fn module_changes(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     module_id: &str,
 ) -> CoreResult<Vec<ChangeSummary>> {
     let changes = change_repo.list_by_module(module_id).into_core()?;
@@ -779,7 +777,9 @@ fn unprocessed_change_ids(change_ids: &[String], processed: &BTreeSet<String>) -
     filtered
 }
 
-fn repo_changes(change_repo: &impl DomainChangeRepository) -> CoreResult<Vec<ChangeSummary>> {
+fn repo_changes(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+) -> CoreResult<Vec<ChangeSummary>> {
     change_repo.list().into_core()
 }
 
@@ -984,7 +984,7 @@ fn completion_promise_found(stdout: &str, token: &str) -> bool {
 }
 
 fn resolve_target(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: Option<String>,
     module_id: Option<String>,
     interactive: bool,

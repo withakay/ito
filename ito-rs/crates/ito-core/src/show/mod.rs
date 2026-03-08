@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use ito_domain::modules::ModuleRepository;
 use serde::Serialize;
 
 use ito_common::paths;
@@ -128,7 +129,7 @@ pub fn read_spec_markdown(ito_path: &Path, id: &str) -> CoreResult<String> {
 
 /// Read the proposal markdown for a change id.
 pub fn read_change_proposal_markdown(
-    repo: &impl ChangeRepository,
+    repo: &(impl ChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<Option<String>> {
     let change = repo.get(change_id).into_core()?;
@@ -136,15 +137,35 @@ pub fn read_change_proposal_markdown(
 }
 
 /// Read the raw markdown for a module's `module.md` file.
-pub fn read_module_markdown(ito_path: &Path, module_id: &str) -> CoreResult<String> {
-    use crate::error_bridge::IntoCoreResult;
-    use crate::module_repository::FsModuleRepository;
-
-    let module_repo = FsModuleRepository::new(ito_path);
+pub fn read_module_markdown(
+    module_repo: &(impl ModuleRepository + ?Sized),
+    module_id: &str,
+) -> CoreResult<String> {
     let module = module_repo.get(module_id).into_core()?;
     let module_md_path = module.path.join("module.md");
-    let md = ito_common::io::read_to_string_or_default(&module_md_path);
-    Ok(md)
+    if module_md_path.is_file() {
+        let md = ito_common::io::read_to_string_or_default(&module_md_path);
+        return Ok(md);
+    }
+
+    if module.path.as_os_str().is_empty() {
+        return Ok(render_module_markdown_fallback(&module));
+    }
+
+    Ok(String::new())
+}
+
+fn render_module_markdown_fallback(module: &ito_domain::modules::Module) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {}\n", module.name));
+    if let Some(description) = module.description.as_deref()
+        && !description.trim().is_empty()
+    {
+        out.push_str("\n## Purpose\n");
+        out.push_str(description.trim());
+        out.push('\n');
+    }
+    out
 }
 
 /// Parse spec markdown into a serializable structure.
@@ -218,7 +239,7 @@ pub fn bundle_main_specs_markdown(ito_path: &Path) -> CoreResult<String> {
 
 /// Return all delta spec files for a change from the repository.
 pub fn read_change_delta_spec_files(
-    repo: &impl ChangeRepository,
+    repo: &(impl ChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<Vec<DeltaSpecFile>> {
     let change = repo.get(change_id).into_core()?;

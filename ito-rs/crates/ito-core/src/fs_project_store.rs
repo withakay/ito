@@ -8,16 +8,14 @@
 use std::path::PathBuf;
 
 use ito_domain::backend::BackendProjectStore;
-use ito_domain::changes::{
-    Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
-};
+use ito_domain::changes::ChangeRepository;
 use ito_domain::errors::{DomainError, DomainResult};
-use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{TaskRepository, TasksParseResult};
+use ito_domain::modules::ModuleRepository;
+use ito_domain::tasks::TaskRepository;
 
-use crate::change_repository::FsChangeRepository;
-use crate::module_repository::FsModuleRepository;
-use crate::task_repository::FsTaskRepository;
+use crate::repository_runtime::{
+    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_task_repository,
+};
 
 /// Filesystem-backed project store rooted at a configurable data directory.
 ///
@@ -76,7 +74,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn ChangeRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsChangeRepository::new(ito_path)))
+        Ok(boxed_fs_change_repository(ito_path))
     }
 
     fn module_repository(
@@ -85,7 +83,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn ModuleRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsModuleRepository::new(ito_path)))
+        Ok(boxed_fs_module_repository(ito_path))
     }
 
     fn task_repository(
@@ -94,7 +92,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn TaskRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsTaskRepository::new(ito_path)))
+        Ok(boxed_fs_task_repository(ito_path))
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
@@ -107,120 +105,6 @@ impl BackendProjectStore for FsBackendProjectStore {
         self.ito_path_for(org, repo)
             .map(|p| p.is_dir())
             .unwrap_or(false)
-    }
-}
-
-// ── Owned-path repository wrappers ─────────────────────────────────
-//
-// The standard `Fs*Repository` types borrow their path (`&'a Path`).
-// The `BackendProjectStore` trait returns `Box<dyn ... + Send>` which
-// requires `'static`. These wrappers own the `PathBuf` and delegate
-// to the borrowed-path implementations by creating them on the fly.
-
-/// Change repository that owns its `.ito/` path.
-struct OwnedFsChangeRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsChangeRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsChangeRepository<'_> {
-        FsChangeRepository::new(&self.ito_path)
-    }
-}
-
-impl ChangeRepository for OwnedFsChangeRepository {
-    fn resolve_target_with_options(
-        &self,
-        input: &str,
-        options: ResolveTargetOptions,
-    ) -> ChangeTargetResolution {
-        self.inner().resolve_target_with_options(input, options)
-    }
-
-    fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
-        self.inner().suggest_targets(input, max)
-    }
-
-    fn exists(&self, id: &str) -> bool {
-        self.inner().exists(id)
-    }
-
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        self.inner().get(id)
-    }
-
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list()
-    }
-
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_by_module(module_id)
-    }
-
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_incomplete()
-    }
-
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_complete()
-    }
-
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        self.inner().get_summary(id)
-    }
-}
-
-/// Module repository that owns its `.ito/` path.
-struct OwnedFsModuleRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsModuleRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsModuleRepository<'_> {
-        FsModuleRepository::new(&self.ito_path)
-    }
-}
-
-impl ModuleRepository for OwnedFsModuleRepository {
-    fn exists(&self, id: &str) -> bool {
-        self.inner().exists(id)
-    }
-
-    fn get(&self, id_or_name: &str) -> DomainResult<Module> {
-        self.inner().get(id_or_name)
-    }
-
-    fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
-        self.inner().list()
-    }
-}
-
-/// Task repository that owns its `.ito/` path.
-struct OwnedFsTaskRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsTaskRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsTaskRepository<'_> {
-        FsTaskRepository::new(&self.ito_path)
-    }
-}
-
-impl TaskRepository for OwnedFsTaskRepository {
-    fn load_tasks(&self, change_id: &str) -> DomainResult<TasksParseResult> {
-        self.inner().load_tasks(change_id)
     }
 }
 

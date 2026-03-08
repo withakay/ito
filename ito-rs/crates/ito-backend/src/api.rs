@@ -66,8 +66,22 @@ pub struct ApiChangeSummary {
     pub module_id: Option<String>,
     /// Number of completed tasks.
     pub completed_tasks: u32,
+    /// Number of shelved tasks.
+    pub shelved_tasks: u32,
+    /// Number of in-progress tasks.
+    pub in_progress_tasks: u32,
+    /// Number of pending tasks.
+    pub pending_tasks: u32,
     /// Total number of tasks.
     pub total_tasks: u32,
+    /// Whether proposal.md exists.
+    pub has_proposal: bool,
+    /// Whether design.md exists.
+    pub has_design: bool,
+    /// Whether specs are present.
+    pub has_specs: bool,
+    /// Whether tasks.md exists and contains tasks.
+    pub has_tasks: bool,
     /// Derived work status label.
     pub work_status: String,
     /// ISO-8601 timestamp of last modification.
@@ -261,7 +275,14 @@ pub async fn list_changes(
             id: c.id.clone(),
             module_id: c.module_id.clone(),
             completed_tasks: c.completed_tasks,
+            shelved_tasks: c.shelved_tasks,
+            in_progress_tasks: c.in_progress_tasks,
+            pending_tasks: c.pending_tasks,
             total_tasks: c.total_tasks,
+            has_proposal: c.has_proposal,
+            has_design: c.has_design,
+            has_specs: c.has_specs,
+            has_tasks: c.has_tasks,
             work_status: c.work_status().to_string(),
             last_modified: c.last_modified.to_rfc3339(),
         });

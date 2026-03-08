@@ -3,8 +3,8 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
+use ito_core::ChangeRepository;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
@@ -16,8 +16,7 @@ fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     resolve_coordination_branch_settings(&merged)
 }
 
-fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
-    let change_repo = FsChangeRepository::new(ito_path);
+fn resolve_change_id(change_repo: &dyn ChangeRepository, input: &str) -> CliResult<String> {
     match change_repo.resolve_target(input) {
         ChangeTargetResolution::Unique(id) => Ok(id),
         ChangeTargetResolution::Ambiguous(matches) => {
@@ -93,7 +92,6 @@ fn print_json(value: &serde_json::Value) -> CliResult<()> {
     println!("{rendered}");
     Ok(())
 }
-
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
         // Preserve legacy behavior: `ito tasks` errors.
@@ -181,7 +179,6 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
     if args.json {
         forwarded.push("--json".to_string());
     }
-
     handle_tasks(rt, &forwarded)
 }
 
@@ -210,18 +207,19 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let sub = args.first().map(|s| s.as_str()).unwrap_or("");
     let want_json = args.iter().any(|a| a == "--json");
     let ito_path = rt.ito_path();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
 
     // Handle "ready" specially since change_id is optional
     if sub == "ready" {
         return handle_tasks_ready(rt, args);
     }
-
     let input_change_id = args.get(1).map(|s| s.as_str()).unwrap_or("");
     if input_change_id.is_empty() || input_change_id.starts_with('-') {
         return fail("Missing required argument <change-id>");
     }
 
-    let change_id = resolve_change_id(ito_path, input_change_id)?;
+    let change_id = resolve_change_id(change_repo, input_change_id)?;
 
     match sub {
         "init" => {
@@ -821,7 +819,13 @@ fn handle_tasks_ready(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// Show ready tasks for a single change
 fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let change_id = resolve_change_id(ito_path, change_id)?;
+    let change_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .changes
+        .as_ref();
+    let change_id = resolve_change_id(change_repo, change_id)?;
     let path = core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
 
     let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
@@ -869,9 +873,14 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
 /// Show ready tasks across all changes
 fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let ready_changes = core_tasks::list_ready_tasks_across_changes(&change_repo, ito_path)
-        .map_err(to_cli_error)?;
+    let change_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .changes
+        .as_ref();
+    let ready_changes =
+        core_tasks::list_ready_tasks_across_changes(change_repo, ito_path).map_err(to_cli_error)?;
 
     if ready_changes.is_empty() {
         if want_json {
@@ -1044,7 +1053,13 @@ impl ito_core::BackendSyncClient for StubSyncClient {
 
 fn handle_backend_claim(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let _runtime = require_backend_runtime(rt)?;
-    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
+    let change_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .changes
+        .as_ref();
+    let change_id = resolve_change_id(change_repo, change_id)?;
     let client = StubLeaseClient;
 
     let result = backend_coordination::claim_change(&client, &change_id).map_err(to_cli_error)?;
@@ -1067,7 +1082,13 @@ fn handle_backend_claim(rt: &Runtime, change_id: &str, want_json: bool) -> CliRe
 
 fn handle_backend_release(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let _runtime = require_backend_runtime(rt)?;
-    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
+    let change_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .changes
+        .as_ref();
+    let change_id = resolve_change_id(change_repo, change_id)?;
     let client = StubLeaseClient;
 
     let result = backend_coordination::release_change(&client, &change_id).map_err(to_cli_error)?;
@@ -1121,10 +1142,16 @@ fn handle_backend_sync(rt: &Runtime, action: &SyncAction, want_json: bool) -> Cl
     let runtime = require_backend_runtime(rt)?;
     let ito_path = rt.ito_path();
     let client = StubSyncClient;
+    let change_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .changes
+        .as_ref();
 
     match action {
         SyncAction::Pull { change_id } => {
-            let change_id = resolve_change_id(ito_path, change_id)?;
+            let change_id = resolve_change_id(change_repo, change_id)?;
             let bundle =
                 backend_coordination::sync_pull(&client, ito_path, &change_id, &runtime.backup_dir)
                     .map_err(to_cli_error)?;
@@ -1150,7 +1177,7 @@ fn handle_backend_sync(rt: &Runtime, action: &SyncAction, want_json: bool) -> Cl
             Ok(())
         }
         SyncAction::Push { change_id } => {
-            let change_id = resolve_change_id(ito_path, change_id)?;
+            let change_id = resolve_change_id(change_repo, change_id)?;
             let result =
                 backend_coordination::sync_push(&client, ito_path, &change_id, &runtime.backup_dir)
                     .map_err(to_cli_error)?;

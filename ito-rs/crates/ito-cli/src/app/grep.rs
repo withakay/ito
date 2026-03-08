@@ -1,9 +1,8 @@
 use crate::cli::GrepArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::grep::{GrepInput, GrepScope, grep};
-use ito_core::module_repository::FsModuleRepository;
+use ito_core::{ChangeRepository, ModuleRepository};
 
 /// Handle the `ito grep` CLI command.
 ///
@@ -13,13 +12,14 @@ use ito_core::module_repository::FsModuleRepository;
 /// `<path>:<line>:<text>` format suitable for piping.
 pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let module_repo = FsModuleRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
+    let module_repo = runtime.repositories().modules.as_ref();
 
     let (scope, pattern) = parse_scope_and_pattern(args)?;
 
     // In backend mode, materialise artifacts before searching.
-    materialize_backend_cache(rt, &scope, &change_repo, &module_repo)?;
+    materialize_backend_cache(rt, &scope, change_repo, module_repo)?;
 
     let input = GrepInput {
         pattern,
@@ -27,7 +27,7 @@ pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
         limit: args.limit,
     };
 
-    let output = grep(ito_path, &input, &change_repo, &module_repo).map_err(to_cli_error)?;
+    let output = grep(ito_path, &input, change_repo, module_repo).map_err(to_cli_error)?;
 
     // Compute the project root once for relative-path display.
     let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -116,8 +116,8 @@ fn single_pattern(positional: &[String], flag: &str) -> CliResult<String> {
 fn materialize_backend_cache(
     rt: &Runtime,
     scope: &GrepScope,
-    change_repo: &FsChangeRepository<'_>,
-    module_repo: &FsModuleRepository<'_>,
+    change_repo: &dyn ChangeRepository,
+    module_repo: &dyn ModuleRepository,
 ) -> CliResult<()> {
     use ito_config::load_cascading_project_config;
     use ito_config::types::ItoConfig;

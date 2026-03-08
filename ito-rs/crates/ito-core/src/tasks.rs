@@ -159,7 +159,7 @@ pub struct ReadyTasksForChange {
 /// This use-case keeps repository traversal and task orchestration in core,
 /// while adapters remain focused on argument parsing and presentation.
 pub fn list_ready_tasks_across_changes(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
 ) -> CoreResult<Vec<ReadyTasksForChange>> {
     let summaries = change_repo.list().into_core()?;

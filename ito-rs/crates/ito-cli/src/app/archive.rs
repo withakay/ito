@@ -3,14 +3,10 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
-use ito_core::DomainTaskRepository;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
 use ito_core::backend_coordination;
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
 use ito_core::paths as core_paths;
-use ito_core::task_repository::TaskRepository;
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
@@ -42,9 +38,10 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         .map(|s| s.as_str());
 
     // If no change specified, list available changes and prompt for selection
-    let change_repo = FsChangeRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
     let change_name = if let Some(name) = change_name {
-        match super::common::resolve_change_target(&change_repo, name) {
+        match super::common::resolve_change_target(change_repo, name) {
             Ok(resolved) => resolved,
             Err(msg) => return fail(msg),
         }
@@ -72,7 +69,7 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     // Check task completion unless skipping validation
     if !skip_validation {
-        let task_repo = TaskRepository::new(ito_path);
+        let task_repo = runtime.repositories().tasks.as_ref();
         let (completed, total) = task_repo.get_task_counts(&change_name).unwrap_or((0, 0));
         if total > 0 {
             if completed < total {
@@ -240,8 +237,8 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     // Move to archive
-    let module_repo = FsModuleRepository::new(ito_path);
-    archive::move_to_archive(&module_repo, ito_path, &change_name, &archive_name)
+    let module_repo = runtime.repositories().modules.as_ref();
+    archive::move_to_archive(module_repo, ito_path, &change_name, &archive_name)
         .map_err(to_cli_error)?;
 
     eprintln!("✔ Archived '{}' as '{}'", change_name, archive_name);
@@ -362,7 +359,12 @@ fn handle_backend_archive(
 
     let sync_client = StubSyncClient;
     let archive_client = StubArchiveClient;
-    let module_repo = FsModuleRepository::new(ito_path);
+    let module_repo = rt
+        .repository_runtime()
+        .map_err(to_cli_error)?
+        .repositories()
+        .modules
+        .as_ref();
 
     // Audit pre-check
     {
@@ -381,7 +383,7 @@ fn handle_backend_archive(
     let outcome = backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
+        module_repo,
         ito_path,
         change_name,
         &runtime.backup_dir,
@@ -445,7 +447,7 @@ fn handle_backend_archive(
 
 /// Archive all changes with `ChangeStatus::Complete`.
 ///
-/// Discovers completed changes via `FsChangeRepository::list_complete()`, then
+/// Discovers completed changes via the repository runtime, then
 /// archives each one sequentially using the existing single-change flow.
 /// Reports per-change progress and a summary on completion.
 fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
@@ -456,8 +458,12 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
-    let change_repo = FsChangeRepository::new(ito_path);
-    let completed = change_repo.list_complete().map_err(to_cli_error)?;
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let completed = runtime
+        .repositories()
+        .changes
+        .list_complete()
+        .map_err(to_cli_error)?;
 
     if completed.is_empty() {
         eprintln!("No completed changes to archive.");

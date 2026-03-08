@@ -88,7 +88,7 @@ pub struct BackendArchiveOutcome {
 pub fn archive_with_backend(
     sync_client: &dyn BackendSyncClient,
     archive_client: &dyn BackendArchiveClient,
-    module_repo: &impl DomainModuleRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
     change_id: &str,
     backup_dir: &Path,

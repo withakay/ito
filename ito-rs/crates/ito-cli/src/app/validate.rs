@@ -5,8 +5,6 @@ use crate::cli_error::{CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_core::audit;
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
 use ito_core::nearest_matches;
 use ito_core::templates;
 use ito_core::validate as core_validate;
@@ -62,8 +60,9 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let module_repo = FsModuleRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
+    let module_repo = runtime.repositories().modules.as_ref();
 
     if bulk {
         let repo_index = rt.repo_index();
@@ -118,7 +117,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 // Delta validation only applies to the spec-driven workflow.
                 let schema = templates::read_change_schema(ito_path, &dir_name);
                 let report = if schema == "spec-driven" {
-                    core_validate::validate_change(&change_repo, ito_path, &dir_name, strict)
+                    core_validate::validate_change(change_repo, ito_path, &dir_name, strict)
                         .unwrap_or_else(|e| {
                             core_validate::ValidationReport::new(
                                 vec![core_validate::error(
@@ -200,7 +199,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         if want_modules {
             for m in repo_index.module_dir_names.clone() {
                 let (_full_name, report) =
-                    core_validate::validate_module(&module_repo, ito_path, &m, strict)
+                    core_validate::validate_module(module_repo, ito_path, &m, strict)
                         .unwrap_or_else(|e| {
                             (
                                 m.clone(),
@@ -322,7 +321,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(_) => {
             return fail("Invalid type. Expected 'change', 'spec', or 'module'.");
         }
-        None => super::common::detect_item_type(&change_repo, ito_path, rt.repo_index(), &item),
+        None => super::common::detect_item_type(change_repo, ito_path, rt.repo_index(), &item),
     };
 
     // Special-case: TS `--type module <id>` behaves like validating a spec by id.
@@ -360,7 +359,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let actual = match super::common::resolve_change_target(&change_repo, &item) {
+            let actual = match super::common::resolve_change_target(change_repo, &item) {
                 Ok(id) => id,
                 Err(msg) => return fail(msg),
             };
@@ -374,7 +373,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             let schema = templates::read_change_schema(ito_path, &actual);
             let report = if schema == "spec-driven" {
-                core_validate::validate_change(&change_repo, ito_path, &actual, strict)
+                core_validate::validate_change(change_repo, ito_path, &actual, strict)
                     .map_err(to_cli_error)?
             } else {
                 core_validate::ValidationReport::new(
@@ -404,7 +403,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
         _ => {
             // unknown
-            let candidates = super::common::list_candidate_items(&change_repo, rt);
+            let candidates = super::common::list_candidate_items(change_repo, rt);
             let suggestions = nearest_matches(&item, &candidates, 5);
             fail(super::common::unknown_with_suggestions(
                 "item",
@@ -500,10 +499,11 @@ fn handle_validate_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let module_id = module_id.expect("checked");
 
     let ito_path = rt.ito_path();
-    let module_repo = FsModuleRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let module_repo = runtime.repositories().modules.as_ref();
 
     let (full_name, report) =
-        core_validate::validate_module(&module_repo, ito_path, &module_id, false)
+        core_validate::validate_module(module_repo, ito_path, &module_id, false)
             .map_err(to_cli_error)?;
     if report.valid {
         println!("Module '{full_name}' is valid");

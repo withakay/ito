@@ -198,7 +198,7 @@ pub fn copy_specs_to_main(
 }
 
 fn mark_change_complete_in_module(
-    module_repo: &impl DomainModuleRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
     change_name: &str,
 ) {
@@ -230,7 +230,7 @@ fn mark_change_complete_in_module(
 
 /// Move a change directory to the archive location.
 pub fn move_to_archive(
-    module_repo: &impl DomainModuleRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
     change_name: &str,
     archive_name: &str,
