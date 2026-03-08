@@ -5,6 +5,7 @@
 //! is disabled.
 
 use ito_domain::backend::BackendModuleReader;
+use ito_domain::changes::parse_module_id;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository as DomainModuleRepository, ModuleSummary};
 
@@ -25,7 +26,8 @@ impl<R: BackendModuleReader> BackendModuleRepository<R> {
 
 impl<R: BackendModuleReader> DomainModuleRepository for BackendModuleRepository<R> {
     fn exists(&self, id: &str) -> bool {
-        match self.reader.get_module(id) {
+        let module_id = parse_module_id(id);
+        match self.reader.get_module(&module_id) {
             Ok(_) => true,
             Err(DomainError::NotFound { .. }) => false,
             Err(err) => {
@@ -36,7 +38,12 @@ impl<R: BackendModuleReader> DomainModuleRepository for BackendModuleRepository<
     }
 
     fn get(&self, id_or_name: &str) -> DomainResult<Module> {
-        self.reader.get_module(id_or_name)
+        let module_id = parse_module_id(id_or_name);
+        match self.reader.get_module(&module_id) {
+            Ok(module) => Ok(module),
+            Err(DomainError::NotFound { .. }) => Err(DomainError::not_found("module", id_or_name)),
+            Err(err) => Err(err),
+        }
     }
 
     fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
