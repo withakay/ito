@@ -2,8 +2,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::Utc;
+use serde_json::json;
 use tempfile::TempDir;
 
+use ito_config::ConfigContext;
+use ito_core::BackendProjectStore;
 use ito_core::backend_client::BackendRuntime;
 use ito_core::errors::CoreResult;
 use ito_core::list::{
@@ -11,7 +14,9 @@ use ito_core::list::{
 };
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,
+    SqliteRuntime, resolve_repository_runtime,
 };
+use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec,
 };
@@ -79,6 +84,87 @@ fn filesystem_runtime_builds_repository_set() {
     let modules = list_modules(repos.modules.as_ref()).expect("list modules");
     assert_eq!(modules.len(), 1);
     assert_eq!(modules[0].id, "001");
+}
+
+#[test]
+fn sqlite_runtime_builds_repository_set() {
+    let repo = TempDir::new().expect("temp repo");
+    let ito_path = repo.path().join(".ito");
+    let db_path = repo.path().join("ito.db");
+
+    let repo_name = repo
+        .path()
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("project");
+
+    let store = SqliteBackendProjectStore::open(&db_path).expect("sqlite store");
+    store
+        .ensure_project("local", repo_name)
+        .expect("ensure project");
+    store
+        .upsert_change(&UpsertChangeParams {
+            org: "local",
+            repo: repo_name,
+            change_id: "025-07_demo",
+            module_id: Some("025"),
+            proposal: Some("# Proposal"),
+            design: None,
+            tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
+            specs: &[("repository-runtime-selection", "## ADDED")],
+        })
+        .expect("upsert change");
+    store
+        .upsert_module(
+            "local",
+            repo_name,
+            "025",
+            "repository-backends",
+            Some("demo"),
+        )
+        .expect("upsert module");
+
+    let config = json!({
+        "repository": {
+            "mode": "sqlite",
+            "sqlite": { "dbPath": db_path.to_string_lossy() }
+        }
+    });
+    write(ito_path.join("config.json"), &config.to_string());
+
+    let runtime =
+        resolve_repository_runtime(&ito_path, &ConfigContext::default()).expect("sqlite runtime");
+    assert_eq!(runtime.mode(), PersistenceMode::Sqlite);
+
+    let repos = runtime.repositories();
+    let changes = list_changes(
+        repos.changes.as_ref(),
+        ListChangesInput {
+            progress_filter: ChangeProgressFilter::All,
+            sort: ChangeSortOrder::Name,
+        },
+    )
+    .expect("list changes");
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].name, "025-07_demo");
+
+    let modules = list_modules(repos.modules.as_ref()).expect("list modules");
+    assert_eq!(modules.len(), 1);
+    assert_eq!(modules[0].id, "025");
+}
+
+#[test]
+fn sqlite_mode_requires_db_path() {
+    let repo = TempDir::new().expect("temp repo");
+    let ito_path = repo.path().join(".ito");
+    let config = json!({ "repository": { "mode": "sqlite" } });
+    write(ito_path.join("config.json"), &config.to_string());
+
+    let err = resolve_repository_runtime(&ito_path, &ConfigContext::default())
+        .err()
+        .expect("expected sqlite config error");
+    let msg = err.to_string();
+    assert!(msg.contains("repository.sqlite.dbPath"));
 }
 
 struct FakeChangeRepo {
@@ -409,4 +495,155 @@ fn remote_runtime_uses_remote_factory() {
     let modules = list_modules(repos.modules.as_ref()).expect("list remote modules");
     assert_eq!(modules.len(), 1);
     assert_eq!(modules[0].id, "025");
+}
+
+#[test]
+fn repository_modes_return_consistent_change_names() {
+    let change_id = "025-07_parity";
+    let module_id = "025";
+
+    let fs_repo = TempDir::new().expect("temp repo");
+    let fs_ito_path = fs_repo.path().join(".ito");
+    make_change(fs_repo.path(), change_id);
+    make_module(fs_repo.path(), module_id, "repository-backends");
+    let fs_runtime = RepositoryRuntimeBuilder::new(&fs_ito_path)
+        .build()
+        .expect("filesystem runtime");
+
+    let sqlite_repo = TempDir::new().expect("temp repo");
+    let db_path = sqlite_repo.path().join("ito.db");
+    let store = SqliteBackendProjectStore::open(&db_path).expect("sqlite store");
+    store
+        .ensure_project("local", "demo")
+        .expect("ensure sqlite project");
+    store
+        .upsert_change(&UpsertChangeParams {
+            org: "local",
+            repo: "demo",
+            change_id,
+            module_id: Some(module_id),
+            proposal: Some("# Proposal"),
+            design: None,
+            tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
+            specs: &[("repository-runtime-selection", "## ADDED")],
+        })
+        .expect("upsert sqlite change");
+    store
+        .upsert_module(
+            "local",
+            "demo",
+            module_id,
+            "repository-backends",
+            Some("demo"),
+        )
+        .expect("upsert sqlite module");
+
+    let sqlite_runtime = RepositoryRuntimeBuilder::new(sqlite_repo.path().join(".ito"))
+        .mode(PersistenceMode::Sqlite)
+        .sqlite_runtime(SqliteRuntime {
+            db_path,
+            org: "local".to_string(),
+            repo: "demo".to_string(),
+        })
+        .build()
+        .expect("sqlite runtime");
+
+    let summary = ChangeSummary {
+        id: change_id.to_string(),
+        module_id: Some(module_id.to_string()),
+        completed_tasks: 0,
+        shelved_tasks: 0,
+        in_progress_tasks: 0,
+        pending_tasks: 1,
+        total_tasks: 1,
+        last_modified: Utc::now(),
+        has_proposal: true,
+        has_design: false,
+        has_specs: true,
+        has_tasks: true,
+    };
+    let change = Change {
+        id: change_id.to_string(),
+        module_id: Some(module_id.to_string()),
+        path: std::path::PathBuf::new(),
+        proposal: Some("# Proposal".to_string()),
+        design: None,
+        specs: vec![Spec {
+            name: "repository-runtime-selection".to_string(),
+            content: "## ADDED".to_string(),
+        }],
+        tasks: TasksParseResult::empty(),
+        last_modified: Utc::now(),
+    };
+    let module_summary = ModuleSummary {
+        id: module_id.to_string(),
+        name: "repository-backends".to_string(),
+        change_count: 1,
+    };
+    let module = Module {
+        id: module_id.to_string(),
+        name: "repository-backends".to_string(),
+        description: Some("demo".to_string()),
+        path: std::path::PathBuf::new(),
+    };
+    let remote_repos = RepositorySet {
+        changes: Arc::new(FakeChangeRepo::new(summary, change)),
+        modules: Arc::new(FakeModuleRepo::new(module_summary, module)),
+        tasks: Arc::new(FakeTaskRepo),
+        task_mutations: Arc::new(FakeTaskMutations),
+    };
+    let backend_runtime = BackendRuntime {
+        base_url: "http://127.0.0.1:9010".to_string(),
+        token: "test".to_string(),
+        timeout: std::time::Duration::from_secs(1),
+        max_retries: 1,
+        backup_dir: sqlite_repo.path().join("backups"),
+        org: "acme".to_string(),
+        repo: "widgets".to_string(),
+    };
+    let remote_runtime = RepositoryRuntimeBuilder::new(&fs_ito_path)
+        .mode(PersistenceMode::Remote)
+        .backend_runtime(backend_runtime)
+        .remote_factory(Arc::new(FakeRemoteFactory {
+            repos: remote_repos,
+        }))
+        .build()
+        .expect("remote runtime");
+
+    let fs_changes = list_changes(
+        fs_runtime.repositories().changes.as_ref(),
+        ListChangesInput {
+            progress_filter: ChangeProgressFilter::All,
+            sort: ChangeSortOrder::Name,
+        },
+    )
+    .expect("list fs changes");
+    let sqlite_changes = list_changes(
+        sqlite_runtime.repositories().changes.as_ref(),
+        ListChangesInput {
+            progress_filter: ChangeProgressFilter::All,
+            sort: ChangeSortOrder::Name,
+        },
+    )
+    .expect("list sqlite changes");
+    let remote_changes = list_changes(
+        remote_runtime.repositories().changes.as_ref(),
+        ListChangesInput {
+            progress_filter: ChangeProgressFilter::All,
+            sort: ChangeSortOrder::Name,
+        },
+    )
+    .expect("list remote changes");
+
+    assert_eq!(fs_changes[0].name, sqlite_changes[0].name);
+    assert_eq!(fs_changes[0].name, remote_changes[0].name);
+
+    let fs_modules = list_modules(fs_runtime.repositories().modules.as_ref()).expect("list fs");
+    let sqlite_modules =
+        list_modules(sqlite_runtime.repositories().modules.as_ref()).expect("list sqlite");
+    let remote_modules =
+        list_modules(remote_runtime.repositories().modules.as_ref()).expect("list remote");
+
+    assert_eq!(fs_modules[0].id, sqlite_modules[0].id);
+    assert_eq!(fs_modules[0].id, remote_modules[0].id);
 }

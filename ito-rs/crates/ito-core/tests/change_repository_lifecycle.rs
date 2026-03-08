@@ -16,7 +16,10 @@ use ito_domain::changes::{
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{TaskRepository, TasksParseResult};
+use ito_domain::tasks::{
+    TaskInitResult, TaskMutationError, TaskMutationResult, TaskMutationService,
+    TaskMutationServiceResult, TaskRepository, TasksParseResult,
+};
 
 fn write_change_dir(ito_path: &Path, id: &str) {
     let change_dir = ito_path.join("changes").join(id);
@@ -196,6 +199,66 @@ impl TaskRepository for FakeTaskRepo {
     }
 }
 
+struct FakeTaskMutations;
+
+impl TaskMutationService for FakeTaskMutations {
+    fn load_tasks_markdown(&self, _change_id: &str) -> TaskMutationServiceResult<Option<String>> {
+        Ok(None)
+    }
+
+    fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
+        Ok(TaskInitResult {
+            change_id: change_id.to_string(),
+            path: None,
+            existed: false,
+            revision: None,
+        })
+    }
+
+    fn start_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        Err(TaskMutationError::validation("unused in test"))
+    }
+
+    fn complete_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+        _note: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        Err(TaskMutationError::validation("unused in test"))
+    }
+
+    fn shelve_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+        _reason: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        Err(TaskMutationError::validation("unused in test"))
+    }
+
+    fn unshelve_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        Err(TaskMutationError::validation("unused in test"))
+    }
+
+    fn add_task(
+        &self,
+        _change_id: &str,
+        _title: &str,
+        _wave: Option<u32>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        Err(TaskMutationError::validation("unused in test"))
+    }
+}
+
 struct FakeRemoteFactory {
     repos: RepositorySet,
 }
@@ -230,6 +293,7 @@ fn remote_runtime_ignores_local_change_dirs() {
         changes: Arc::new(FakeRemoteChangeRepo::new(summary)),
         modules: Arc::new(FakeModuleRepo),
         tasks: Arc::new(FakeTaskRepo),
+        task_mutations: Arc::new(FakeTaskMutations),
     };
     let backend_runtime = BackendRuntime {
         base_url: "http://127.0.0.1:9010".to_string(),

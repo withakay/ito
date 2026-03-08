@@ -7,7 +7,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ito_config::types::ItoConfig;
+use ito_config::ito_dir::{absolutize_and_normalize, lexical_normalize};
+use ito_config::types::{ItoConfig, RepositoryPersistenceMode};
 use ito_config::{ConfigContext, load_cascading_project_config};
 
 use crate::backend_change_repository::BackendChangeRepository;
@@ -19,6 +20,7 @@ use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
 use crate::task_mutations::{boxed_fs_task_mutation_service, FsTaskMutationService};
+use crate::sqlite_project_store::SqliteBackendProjectStore;
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
@@ -29,6 +31,8 @@ use ito_domain::tasks::{TaskMutationService, TaskRepository};
 pub enum PersistenceMode {
     /// Local filesystem-backed repositories.
     Filesystem,
+    /// Local SQLite-backed repositories.
+    Sqlite,
     /// Remote repositories backed by the backend API.
     Remote,
 }
@@ -46,11 +50,23 @@ pub struct RepositorySet {
     pub task_mutations: Arc<dyn TaskMutationService + Send + Sync>,
 }
 
+/// Resolved SQLite runtime settings for local persistence.
+#[derive(Debug, Clone)]
+pub struct SqliteRuntime {
+    /// Path to the SQLite database file.
+    pub db_path: PathBuf,
+    /// Organization namespace for the local project (currently derived as `local`).
+    pub org: String,
+    /// Repository namespace for the local project (derived from the project root directory name).
+    pub repo: String,
+}
+
 /// Resolved repository runtime for the current configuration.
 pub struct RepositoryRuntime {
     mode: PersistenceMode,
     ito_path: PathBuf,
     backend_runtime: Option<BackendRuntime>,
+    sqlite_runtime: Option<SqliteRuntime>,
     repositories: RepositorySet,
 }
 
@@ -68,6 +84,11 @@ impl RepositoryRuntime {
     /// Resolved backend runtime, if remote mode is active.
     pub fn backend_runtime(&self) -> Option<&BackendRuntime> {
         self.backend_runtime.as_ref()
+    }
+
+    /// Resolved SQLite runtime, if SQLite mode is active.
+    pub fn sqlite_runtime(&self) -> Option<&SqliteRuntime> {
+        self.sqlite_runtime.as_ref()
     }
 
     /// Selected repository bundle.
@@ -102,6 +123,7 @@ pub struct RepositoryRuntimeBuilder {
     ito_path: PathBuf,
     mode: PersistenceMode,
     backend_runtime: Option<BackendRuntime>,
+    sqlite_runtime: Option<SqliteRuntime>,
     remote_factory: Arc<dyn RemoteRepositoryFactory>,
 }
 
@@ -112,6 +134,7 @@ impl RepositoryRuntimeBuilder {
             ito_path: ito_path.into(),
             mode: PersistenceMode::Filesystem,
             backend_runtime: None,
+            sqlite_runtime: None,
             remote_factory: Arc::new(HttpRemoteRepositoryFactory),
         }
     }
@@ -125,6 +148,12 @@ impl RepositoryRuntimeBuilder {
     /// Set the backend runtime for remote mode.
     pub fn backend_runtime(mut self, runtime: BackendRuntime) -> Self {
         self.backend_runtime = Some(runtime);
+        self
+    }
+
+    /// Set the SQLite runtime for SQLite mode.
+    pub fn sqlite_runtime(mut self, runtime: SqliteRuntime) -> Self {
+        self.sqlite_runtime = Some(runtime);
         self
     }
 
@@ -143,6 +172,20 @@ impl RepositoryRuntimeBuilder {
                     mode: PersistenceMode::Filesystem,
                     ito_path: self.ito_path,
                     backend_runtime: None,
+                    sqlite_runtime: None,
+                    repositories,
+                })
+            }
+            PersistenceMode::Sqlite => {
+                let runtime = self.sqlite_runtime.ok_or_else(|| {
+                    CoreError::validation("sqlite mode requires sqlite runtime".to_string())
+                })?;
+                let repositories = sqlite_repository_set(&runtime)?;
+                Ok(RepositoryRuntime {
+                    mode: PersistenceMode::Sqlite,
+                    ito_path: self.ito_path,
+                    backend_runtime: None,
+                    sqlite_runtime: Some(runtime),
                     repositories,
                 })
             }
@@ -155,6 +198,7 @@ impl RepositoryRuntimeBuilder {
                     mode: PersistenceMode::Remote,
                     ito_path: self.ito_path,
                     backend_runtime: Some(runtime),
+                    sqlite_runtime: None,
                     repositories,
                 })
             }
@@ -176,13 +220,23 @@ pub fn resolve_repository_runtime(
         .pointer("/backend/enabled")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    let sqlite_enabled = merged
+        .pointer("/repository/mode")
+        .and_then(|v| v.as_str())
+        .map(|v| v == "sqlite")
+        .unwrap_or(false);
 
     let config = match serde_json::from_value::<ItoConfig>(merged) {
         Ok(config) => config,
         Err(err) => {
-            if backend_enabled {
+            if backend_enabled || sqlite_enabled {
+                let mode = if backend_enabled {
+                    "backend mode is enabled"
+                } else {
+                    "sqlite persistence mode is enabled"
+                };
                 return Err(CoreError::validation(format!(
-                    "Failed to parse Ito config while backend mode is enabled: {err}"
+                    "Failed to parse Ito config while {mode}: {err}"
                 )));
             }
             return RepositoryRuntimeBuilder::new(ito_path).build();
@@ -190,7 +244,18 @@ pub fn resolve_repository_runtime(
     };
 
     if !config.backend.enabled {
-        return RepositoryRuntimeBuilder::new(ito_path).build();
+        return match config.repository.mode {
+            RepositoryPersistenceMode::Filesystem => {
+                RepositoryRuntimeBuilder::new(ito_path).build()
+            }
+            RepositoryPersistenceMode::Sqlite => {
+                let runtime = resolve_sqlite_runtime(&config, project_root)?;
+                RepositoryRuntimeBuilder::new(ito_path)
+                    .mode(PersistenceMode::Sqlite)
+                    .sqlite_runtime(runtime)
+                    .build()
+            }
+        };
     }
 
     let runtime = resolve_backend_runtime(&config.backend)?.ok_or_else(|| {
@@ -203,6 +268,40 @@ pub fn resolve_repository_runtime(
         .build()
 }
 
+fn resolve_sqlite_runtime(config: &ItoConfig, project_root: &Path) -> CoreResult<SqliteRuntime> {
+    let Some(db_path) = config.repository.sqlite.db_path.as_deref() else {
+        return Err(CoreError::validation(
+            "SQLite persistence mode requires 'repository.sqlite.dbPath' to be set",
+        ));
+    };
+    let db_path = db_path.trim();
+    if db_path.is_empty() {
+        return Err(CoreError::validation(
+            "SQLite persistence mode requires 'repository.sqlite.dbPath' to be set",
+        ));
+    }
+
+    let db_path = PathBuf::from(db_path);
+    let db_path = if db_path.is_absolute() {
+        db_path
+    } else {
+        project_root.join(db_path)
+    };
+    let db_path =
+        absolutize_and_normalize(&db_path).unwrap_or_else(|_| lexical_normalize(&db_path));
+
+    let repo = match project_root.file_name().and_then(|s| s.to_str()) {
+        Some(name) if !name.trim().is_empty() => name.to_string(),
+        _ => "project".to_string(),
+    };
+
+    Ok(SqliteRuntime {
+        db_path,
+        org: "local".to_string(),
+        repo,
+    })
+}
+
 fn filesystem_repository_set(ito_path: &Path) -> RepositorySet {
     let ito_path = ito_path.to_path_buf();
     RepositorySet {
@@ -211,6 +310,11 @@ fn filesystem_repository_set(ito_path: &Path) -> RepositorySet {
         tasks: Arc::new(OwnedFsTaskRepository::new(ito_path.clone())),
         task_mutations: Arc::new(FsTaskMutationService::new(ito_path)),
     }
+}
+
+fn sqlite_repository_set(runtime: &SqliteRuntime) -> CoreResult<RepositorySet> {
+    let store = SqliteBackendProjectStore::open(&runtime.db_path)?;
+    store.repository_set(&runtime.org, &runtime.repo)
 }
 
 pub(crate) fn boxed_fs_change_repository(ito_path: PathBuf) -> Box<dyn ChangeRepository + Send> {

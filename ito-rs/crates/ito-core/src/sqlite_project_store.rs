@@ -26,7 +26,8 @@ use ito_domain::tasks::{
     TaskRepository, TasksParseResult, parse_tasks_tracking_file,
 };
 
-use crate::errors::CoreError;
+use crate::errors::{CoreError, CoreResult};
+use crate::repository_runtime::RepositorySet;
 use crate::task_mutations::task_mutation_error_from_core;
 use crate::tasks::{
     apply_add_task, apply_complete_task, apply_shelve_task, apply_start_task, apply_unshelve_task,
@@ -91,7 +92,7 @@ impl SqliteBackendProjectStore {
     }
 
     fn initialize_schema(&self) -> Result<(), CoreError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS projects (
                 org TEXT NOT NULL,
@@ -152,7 +153,7 @@ impl SqliteBackendProjectStore {
             tasks_md,
             specs,
         } = params;
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let now = Utc::now().to_rfc3339();
 
         conn.execute(
@@ -193,7 +194,7 @@ impl SqliteBackendProjectStore {
         name: &str,
         description: Option<&str>,
     ) -> Result<(), CoreError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let now = Utc::now().to_rfc3339();
 
         conn.execute(
@@ -206,6 +207,33 @@ impl SqliteBackendProjectStore {
 
         Ok(())
     }
+
+    pub(crate) fn repository_set(&self, org: &str, repo: &str) -> CoreResult<RepositorySet> {
+        let conn = self.lock_conn()?;
+        let changes = load_changes_from_db(&conn, org, repo)?;
+        let modules = load_modules_from_db(&conn, org, repo)?;
+        let tasks_data = load_tasks_data_from_db(&conn, org, repo)?;
+
+        Ok(RepositorySet {
+            changes: Arc::new(SqliteChangeRepository { changes }),
+            modules: Arc::new(SqliteModuleRepository { modules }),
+            tasks: Arc::new(SqliteTaskRepository { tasks_data }),
+            task_mutations: Arc::new(SqliteTaskMutationService {
+                conn: Arc::clone(&self.conn),
+                org: org.to_string(),
+                repo: repo.to_string(),
+            }),
+        })
+    }
+
+    fn lock_conn(&self) -> DomainResult<std::sync::MutexGuard<'_, Connection>> {
+        self.conn.lock().map_err(|e| {
+            DomainError::io(
+                "locking sqlite connection",
+                std::io::Error::other(e.to_string()),
+            )
+        })
+    }
 }
 
 impl BackendProjectStore for SqliteBackendProjectStore {
@@ -214,7 +242,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn ChangeRepository + Send>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let changes = load_changes_from_db(&conn, org, repo)?;
         Ok(Box::new(SqliteChangeRepository { changes }))
     }
@@ -224,7 +252,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn ModuleRepository + Send>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let modules = load_modules_from_db(&conn, org, repo)?;
         Ok(Box::new(SqliteModuleRepository { modules }))
     }
@@ -234,7 +262,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
         org: &str,
         repo: &str,
     ) -> DomainResult<Box<dyn TaskRepository + Send>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let tasks_data = load_tasks_data_from_db(&conn, org, repo)?;
         Ok(Box::new(SqliteTaskRepository { tasks_data }))
     }
@@ -252,7 +280,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.lock_conn()?;
         let now = Utc::now().to_rfc3339();
         conn.execute(
             "INSERT OR IGNORE INTO projects (org, repo, created_at) VALUES (?1, ?2, ?3)",
@@ -268,7 +296,9 @@ impl BackendProjectStore for SqliteBackendProjectStore {
     }
 
     fn project_exists(&self, org: &str, repo: &str) -> bool {
-        let conn = self.conn.lock().unwrap();
+        let Ok(conn) = self.lock_conn() else {
+            return false;
+        };
         conn.query_row(
             "SELECT 1 FROM projects WHERE org = ?1 AND repo = ?2",
             rusqlite::params![org, repo],
