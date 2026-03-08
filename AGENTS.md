@@ -212,6 +212,16 @@ When creating a PR for a specific Ito change, include the change ID in the PR ti
 - Example: `feat(001-23): My cool change`
 - If no change ID applies, use normal conventional commit style without a change-id scope.
 
+## Git Fallback
+
+If normal `git` operations are blocked by 1Password biometric, SSH, or signing prompts and the user is unavailable to unlock them, use `git-yolo` as a drop-in replacement for `git`.
+
+- `git-yolo` wraps git with permissive SSH config
+- it uses `~/.ssh/config_remote`
+- it disables `commit.gpgsign` for that process
+
+Prefer normal `git` first. Use `git-yolo` when you are otherwise stuck and need to continue work.
+
 <!-- This section is maintained by the coding agent via lore (https://github.com/BYK/opencode-lore) -->
 ## Long-term Knowledge
 
