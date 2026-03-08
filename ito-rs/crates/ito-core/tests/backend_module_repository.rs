@@ -27,7 +27,7 @@ impl BackendModuleReader for FakeBackendModuleReader {
     fn get_module(&self, module_id: &str) -> DomainResult<Module> {
         self.modules
             .iter()
-            .find(|m| m.id == module_id)
+            .find(|m| m.id == module_id || m.name == module_id)
             .cloned()
             .ok_or_else(|| DomainError::not_found("module", module_id))
     }
@@ -52,6 +52,51 @@ fn backend_module_repository_normalizes_full_name_inputs() {
     assert!(repo.exists("5_demo"));
     let resolved = repo.get("005_demo").expect("module should resolve");
     assert_eq!(resolved.id, "005");
+}
+
+#[test]
+fn backend_module_repository_accepts_name_inputs() {
+    let module = Module {
+        id: "013".to_string(),
+        name: "dev-tooling".to_string(),
+        description: None,
+        path: PathBuf::new(),
+    };
+    let summary = ModuleSummary {
+        id: "013".to_string(),
+        name: "dev-tooling".to_string(),
+        change_count: 1,
+    };
+    let repo =
+        BackendModuleRepository::new(FakeBackendModuleReader::new(vec![summary], vec![module]));
+
+    let resolved = repo.get("dev-tooling").expect("module should resolve");
+    assert_eq!(resolved.id, "013");
+    assert_eq!(resolved.name, "dev-tooling");
+}
+
+#[test]
+fn backend_module_repository_list_sorts_by_id() {
+    let repo = BackendModuleRepository::new(FakeBackendModuleReader::new(
+        vec![
+            ModuleSummary {
+                id: "010".to_string(),
+                name: "zeta".to_string(),
+                change_count: 1,
+            },
+            ModuleSummary {
+                id: "002".to_string(),
+                name: "alpha".to_string(),
+                change_count: 3,
+            },
+        ],
+        vec![],
+    ));
+
+    let modules = repo.list().expect("list modules should succeed");
+    assert_eq!(modules.len(), 2);
+    assert_eq!(modules[0].id, "002");
+    assert_eq!(modules[1].id, "010");
 }
 
 #[test]
