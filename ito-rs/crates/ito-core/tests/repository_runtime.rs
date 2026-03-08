@@ -647,3 +647,62 @@ fn repository_modes_return_consistent_change_names() {
     assert_eq!(fs_modules[0].id, sqlite_modules[0].id);
     assert_eq!(fs_modules[0].id, remote_modules[0].id);
 }
+
+#[test]
+fn resolve_target_parity_between_filesystem_and_sqlite() {
+    let fs_repo = TempDir::new().expect("temp repo");
+    let fs_ito_path = fs_repo.path().join(".ito");
+    make_change(fs_repo.path(), "025-07_feature-one");
+    make_change(fs_repo.path(), "025-08_feature-two");
+
+    let fs_runtime = RepositoryRuntimeBuilder::new(&fs_ito_path)
+        .build()
+        .expect("filesystem runtime");
+
+    let sqlite_repo = TempDir::new().expect("temp repo");
+    let db_path = sqlite_repo.path().join("ito.db");
+    let store = SqliteBackendProjectStore::open(&db_path).expect("sqlite store");
+    store
+        .ensure_project("local", "demo")
+        .expect("ensure sqlite project");
+    for change_id in ["025-07_feature-one", "025-08_feature-two"] {
+        store
+            .upsert_change(&UpsertChangeParams {
+                org: "local",
+                repo: "demo",
+                change_id,
+                module_id: Some("025"),
+                proposal: Some("# Proposal"),
+                design: None,
+                tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
+                specs: &[],
+            })
+            .expect("upsert sqlite change");
+    }
+
+    let sqlite_runtime = RepositoryRuntimeBuilder::new(sqlite_repo.path().join(".ito"))
+        .mode(PersistenceMode::Sqlite)
+        .sqlite_runtime(SqliteRuntime {
+            db_path,
+            org: "local".to_string(),
+            repo: "demo".to_string(),
+        })
+        .build()
+        .expect("sqlite runtime");
+
+    let fs_repo = fs_runtime.repositories().changes.as_ref();
+    let sqlite_repo = sqlite_runtime.repositories().changes.as_ref();
+    let options = ResolveTargetOptions::default();
+
+    let exact_fs = fs_repo.resolve_target_with_options("025-07_feature-one", options);
+    let exact_sqlite = sqlite_repo.resolve_target_with_options("025-07_feature-one", options);
+    assert_eq!(exact_fs, exact_sqlite);
+
+    let numeric_fs = fs_repo.resolve_target_with_options("025-07", options);
+    let numeric_sqlite = sqlite_repo.resolve_target_with_options("025-07", options);
+    assert_eq!(numeric_fs, numeric_sqlite);
+
+    let slug_fs = fs_repo.resolve_target_with_options("feature", options);
+    let slug_sqlite = sqlite_repo.resolve_target_with_options("feature", options);
+    assert_eq!(slug_fs, slug_sqlite);
+}

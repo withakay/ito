@@ -8,12 +8,14 @@
 //! Database location: configurable via `BackendSqliteConfig::db_path`, with a
 //! default of `<data_dir>/sqlite/ito-backend.db`.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use rusqlite::Connection;
 
+use ito_common::match_::nearest_matches;
 use ito_domain::backend::BackendProjectStore;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
@@ -25,6 +27,7 @@ use ito_domain::tasks::{
     TaskInitResult, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
     TaskRepository, TasksParseResult, parse_tasks_tracking_file,
 };
+use regex::Regex;
 
 use crate::errors::{CoreError, CoreResult};
 use crate::repository_runtime::RepositorySet;
@@ -450,14 +453,90 @@ struct SqliteChangeRepository {
     changes: Vec<ChangeRow>,
 }
 
+impl SqliteChangeRepository {
+    fn change_names(&self) -> Vec<String> {
+        let mut names = Vec::with_capacity(self.changes.len());
+        for change in &self.changes {
+            names.push(change.change_id.clone());
+        }
+        names.sort();
+        names.dedup();
+        names
+    }
+
+    fn split_canonical_change_id<'b>(&self, name: &'b str) -> Option<(String, String, &'b str)> {
+        let (module_id, change_num) = parse_change_id(name)?;
+        let slug = name.split_once('_').map(|(_id, s)| s).unwrap_or("");
+        Some((module_id, change_num, slug))
+    }
+
+    fn tokenize_query(&self, input: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        for part in input.split_whitespace() {
+            let trimmed = part.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            out.push(trimmed.to_lowercase());
+        }
+        out
+    }
+
+    fn normalized_slug_text(&self, slug: &str) -> String {
+        let mut out = String::new();
+        for ch in slug.chars() {
+            if ch.is_ascii_alphanumeric() {
+                out.push(ch.to_ascii_lowercase());
+            } else {
+                out.push(' ');
+            }
+        }
+        out
+    }
+
+    fn slug_matches_tokens(&self, slug: &str, tokens: &[String]) -> bool {
+        if tokens.is_empty() {
+            return false;
+        }
+        let text = self.normalized_slug_text(slug);
+        for token in tokens {
+            if !text.contains(token) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_numeric_module_selector(&self, input: &str) -> bool {
+        let trimmed = input.trim();
+        !trimmed.is_empty() && trimmed.chars().all(|ch| ch.is_ascii_digit())
+    }
+
+    fn extract_two_numbers_as_change_id(&self, input: &str) -> Option<(String, String)> {
+        let re = Regex::new(r"\d+").ok()?;
+        let mut parts: Vec<&str> = Vec::new();
+        for m in re.find_iter(input) {
+            parts.push(m.as_str());
+            if parts.len() > 2 {
+                return None;
+            }
+        }
+        if parts.len() != 2 {
+            return None;
+        }
+        let parsed = format!("{}-{}", parts[0], parts[1]);
+        parse_change_id(&parsed)
+    }
+}
+
 impl ChangeRepository for SqliteChangeRepository {
     fn resolve_target_with_options(
         &self,
         input: &str,
         options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
-        // SQLite stores only active changes; Archived-only queries always return NotFound.
-        if !options.lifecycle.includes_active() {
+        let names = self.change_names();
+        if names.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
 
@@ -466,57 +545,187 @@ impl ChangeRepository for SqliteChangeRepository {
             return ChangeTargetResolution::NotFound;
         }
 
-        let ids: Vec<&str> = self.changes.iter().map(|c| c.change_id.as_str()).collect();
-
-        // 1. Exact match.
-        if ids.iter().any(|&id| id == input) {
+        if names.iter().any(|name| name == input) {
             return ChangeTargetResolution::Unique(input.to_string());
         }
 
-        // 2. Numeric change-id match: `1-12` → `001-12_*`.
-        if let Some((module_id, change_num)) = parse_change_id(input) {
+        let mut numeric_matches: BTreeSet<String> = BTreeSet::new();
+        let numeric_selector =
+            parse_change_id(input).or_else(|| self.extract_two_numbers_as_change_id(input));
+        if let Some((module_id, change_num)) = numeric_selector {
             let numeric_prefix = format!("{module_id}-{change_num}");
             let with_separator = format!("{numeric_prefix}_");
-            let mut numeric_matches: Vec<String> = Vec::new();
-            for &id in &ids {
-                if id == numeric_prefix || id.starts_with(&with_separator) {
-                    numeric_matches.push(id.to_string());
+            for name in &names {
+                if name == &numeric_prefix || name.starts_with(&with_separator) {
+                    numeric_matches.insert(name.clone());
                 }
             }
             if !numeric_matches.is_empty() {
+                let numeric_matches: Vec<String> = numeric_matches.into_iter().collect();
                 if numeric_matches.len() == 1 {
-                    return ChangeTargetResolution::Unique(
-                        numeric_matches.into_iter().next().unwrap(),
-                    );
+                    return ChangeTargetResolution::Unique(numeric_matches[0].clone());
                 }
                 return ChangeTargetResolution::Ambiguous(numeric_matches);
             }
         }
 
-        // 3. Prefix match on full id string.
-        let mut prefix_matches: Vec<String> = Vec::new();
-        for &id in &ids {
-            if id.starts_with(input) {
-                prefix_matches.push(id.to_string());
+        if let Some((module, query)) = input.split_once(':') {
+            let query = query.trim();
+            if !query.is_empty() {
+                let module_id = parse_module_id(module);
+                let tokens = self.tokenize_query(query);
+                let mut scoped_matches: BTreeSet<String> = BTreeSet::new();
+                for name in &names {
+                    let Some((name_module, _name_change, slug)) =
+                        self.split_canonical_change_id(name)
+                    else {
+                        continue;
+                    };
+                    if name_module != module_id {
+                        continue;
+                    }
+                    if self.slug_matches_tokens(slug, &tokens) {
+                        scoped_matches.insert(name.clone());
+                    }
+                }
+
+                if scoped_matches.is_empty() {
+                    return ChangeTargetResolution::NotFound;
+                }
+                let scoped_matches: Vec<String> = scoped_matches.into_iter().collect();
+                if scoped_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(scoped_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(scoped_matches);
             }
         }
 
-        if prefix_matches.is_empty() {
+        if self.is_numeric_module_selector(input) {
+            let module_id = parse_module_id(input);
+            let mut module_matches: BTreeSet<String> = BTreeSet::new();
+            for name in &names {
+                let Some((name_module, _name_change, _slug)) = self.split_canonical_change_id(name)
+                else {
+                    continue;
+                };
+                if name_module == module_id {
+                    module_matches.insert(name.clone());
+                }
+            }
+
+            if !module_matches.is_empty() {
+                let module_matches: Vec<String> = module_matches.into_iter().collect();
+                if module_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(module_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(module_matches);
+            }
+        }
+
+        let mut matches: BTreeSet<String> = BTreeSet::new();
+        for name in &names {
+            if name.starts_with(input) {
+                matches.insert(name.clone());
+            }
+        }
+
+        if matches.is_empty() {
+            let tokens = self.tokenize_query(input);
+            for name in &names {
+                let Some((_module, _change, slug)) = self.split_canonical_change_id(name) else {
+                    continue;
+                };
+                if self.slug_matches_tokens(slug, &tokens) {
+                    matches.insert(name.clone());
+                }
+            }
+        }
+
+        if matches.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
-        if prefix_matches.len() == 1 {
-            return ChangeTargetResolution::Unique(prefix_matches.into_iter().next().unwrap());
+
+        let matches: Vec<String> = matches.into_iter().collect();
+        if matches.len() == 1 {
+            return ChangeTargetResolution::Unique(matches[0].clone());
         }
-        ChangeTargetResolution::Ambiguous(prefix_matches)
+
+        ChangeTargetResolution::Ambiguous(matches)
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
-        self.changes
-            .iter()
-            .filter(|c| c.change_id.contains(input))
-            .take(max)
-            .map(|c| c.change_id.clone())
-            .collect()
+        let input = input.trim().to_lowercase();
+        if input.is_empty() || max == 0 {
+            return Vec::new();
+        }
+
+        let names = self.change_names();
+        let mut canonical_names: Vec<String> = Vec::new();
+        for name in &names {
+            if self.split_canonical_change_id(name).is_some() {
+                canonical_names.push(name.clone());
+            }
+        }
+
+        let mut scored: Vec<(usize, String)> = Vec::new();
+        let tokens = self.tokenize_query(&input);
+
+        for name in &canonical_names {
+            let lower = name.to_lowercase();
+            let mut score = 0;
+
+            if lower.starts_with(&input) {
+                score = score.max(100);
+            }
+            if lower.contains(&input) {
+                score = score.max(80);
+            }
+
+            let Some((_module, _change, slug)) = self.split_canonical_change_id(name) else {
+                continue;
+            };
+            if !tokens.is_empty() && self.slug_matches_tokens(slug, &tokens) {
+                score = score.max(70);
+            }
+
+            if let Some((module_id, change_num)) = parse_change_id(&input) {
+                let numeric_prefix = format!("{module_id}-{change_num}");
+                if name.starts_with(&numeric_prefix) {
+                    score = score.max(95);
+                }
+            }
+
+            if score > 0 {
+                scored.push((score, name.clone()));
+            }
+        }
+
+        scored.sort_by(|(a_score, a_name), (b_score, b_name)| {
+            b_score.cmp(a_score).then_with(|| a_name.cmp(b_name))
+        });
+
+        let mut out: Vec<String> = Vec::new();
+        for (_score, name) in scored.into_iter() {
+            out.push(name);
+            if out.len() == max {
+                break;
+            }
+        }
+
+        if out.len() < max {
+            let nearest = nearest_matches(&input, &canonical_names, max * 2);
+            for candidate in nearest {
+                if out.iter().any(|existing| existing == &candidate) {
+                    continue;
+                }
+                out.push(candidate);
+                if out.len() == max {
+                    break;
+                }
+            }
+        }
+
+        out
     }
 
     fn exists(&self, id: &str) -> bool {
