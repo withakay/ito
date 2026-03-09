@@ -124,6 +124,7 @@ impl BackendHttpClient {
         body: Option<&str>,
     ) -> DomainResult<ureq::http::Response<ureq::Body>> {
         let max_retries = self.inner.runtime.max_retries;
+        let retries_enabled = retries_enabled_by_default(method);
         let mut attempt = 0u32;
         loop {
             let response: Result<ureq::http::Response<ureq::Body>, ureq::Error> = match method {
@@ -155,7 +156,7 @@ impl BackendHttpClient {
             match response {
                 Ok(resp) => {
                     let status: u16 = resp.status().as_u16();
-                    if is_retriable_status(status) && attempt < max_retries {
+                    if retries_enabled && is_retriable_status(status) && attempt < max_retries {
                         attempt += 1;
                         sleep_backoff(attempt);
                         continue;
@@ -163,7 +164,7 @@ impl BackendHttpClient {
                     return Ok(resp);
                 }
                 Err(err) => {
-                    if attempt < max_retries {
+                    if retries_enabled && attempt < max_retries {
                         attempt += 1;
                         sleep_backoff(attempt);
                         continue;
@@ -175,6 +176,14 @@ impl BackendHttpClient {
                 }
             }
         }
+    }
+}
+
+fn retries_enabled_by_default(method: &str) -> bool {
+    match method {
+        "GET" => true,
+        "POST" => false,
+        _ => false,
     }
 }
 
@@ -840,3 +849,6 @@ struct ApiErrorBody {
     error: String,
     code: String,
 }
+
+#[cfg(test)]
+mod backend_http_tests;

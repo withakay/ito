@@ -3,7 +3,7 @@ mod fixtures;
 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use ito_config::types::{BackendAllowlistConfig, BackendAuthConfig, BackendRepoPolicy};
 use ito_test_support::{CmdOutput, rust_candidate_command};
@@ -68,8 +68,24 @@ fn spawn_backend_server() -> (String, tempfile::TempDir) {
         });
     });
 
-    std::thread::sleep(Duration::from_millis(100));
+    wait_for_backend_ready(&base_url);
     (base_url, data_dir)
+}
+
+fn wait_for_backend_ready(base_url: &str) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let health_url = format!("{base_url}/api/v1/health");
+
+    while Instant::now() < deadline {
+        if let Ok(response) = ureq::get(&health_url).call()
+            && response.status() == 200
+        {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    panic!("backend did not become ready: {health_url}");
 }
 
 fn write_backend_config(repo: &Path, base_url: &str) {

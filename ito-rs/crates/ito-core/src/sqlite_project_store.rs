@@ -1177,4 +1177,153 @@ mod tests {
             assert_eq!(changes[0].id, "change-1");
         }
     }
+
+    #[test]
+    fn push_artifact_bundle_rolls_back_partial_writes_on_failure() {
+        let store = SqliteBackendProjectStore::open_in_memory().unwrap();
+        store.ensure_project("acme", "widgets").unwrap();
+        store
+            .upsert_change(&UpsertChangeParams {
+                org: "acme",
+                repo: "widgets",
+                change_id: "025-01_atomic-push",
+                module_id: Some("025"),
+                proposal: Some("# Original Proposal"),
+                design: Some("# Original Design"),
+                tasks_md: Some("## 1. Tasks\n- [ ] 1.1 Keep original"),
+                specs: &[("spec-one", "## ADDED Original")],
+            })
+            .unwrap();
+
+        let mut bundle = store
+            .pull_artifact_bundle("acme", "widgets", "025-01_atomic-push")
+            .unwrap();
+        bundle.proposal = Some("# Updated Proposal".to_string());
+        bundle.specs = vec![
+            ("duplicate".to_string(), "## ADDED First".to_string()),
+            ("duplicate".to_string(), "## ADDED Second".to_string()),
+        ];
+
+        let err = store
+            .push_artifact_bundle("acme", "widgets", "025-01_atomic-push", &bundle)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            ito_domain::backend::BackendError::Other(message)
+                if message.contains("UNIQUE constraint failed")
+        ));
+
+        let current = store
+            .pull_artifact_bundle("acme", "widgets", "025-01_atomic-push")
+            .unwrap();
+        assert_eq!(current.proposal.as_deref(), Some("# Original Proposal"));
+        assert_eq!(current.design.as_deref(), Some("# Original Design"));
+        assert_eq!(
+            current.tasks.as_deref(),
+            Some("## 1. Tasks\n- [ ] 1.1 Keep original")
+        );
+        assert_eq!(
+            current.specs,
+            vec![("spec-one".to_string(), "## ADDED Original".to_string())]
+        );
+    }
+
+    #[test]
+    fn archive_change_rolls_back_when_spec_promotion_fails() {
+        let store = SqliteBackendProjectStore::open_in_memory().unwrap();
+        store.ensure_project("acme", "widgets").unwrap();
+        store
+            .upsert_change(&UpsertChangeParams {
+                org: "acme",
+                repo: "widgets",
+                change_id: "025-02_atomic-archive",
+                module_id: Some("025"),
+                proposal: Some("# Proposal"),
+                design: None,
+                tasks_md: Some("## 1. Tasks\n- [x] 1.1 Done"),
+                specs: &[("spec-one", "## ADDED Archive me")],
+            })
+            .unwrap();
+
+        {
+            let conn = store.conn.lock().unwrap();
+            conn.execute_batch(
+                "CREATE TRIGGER fail_promoted_spec_insert
+                 BEFORE INSERT ON promoted_specs
+                 BEGIN
+                     SELECT RAISE(ABORT, 'promoted spec insert failed');
+                 END;",
+            )
+            .unwrap();
+        }
+
+        let err = store
+            .archive_change("acme", "widgets", "025-02_atomic-archive")
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            ito_domain::backend::BackendError::Other(message)
+                if message.contains("promoted spec insert failed")
+        ));
+
+        let change_repo = store.change_repository("acme", "widgets").unwrap();
+        assert!(
+            change_repo.exists_with_filter("025-02_atomic-archive", ChangeLifecycleFilter::Active,)
+        );
+        assert!(
+            !change_repo
+                .exists_with_filter("025-02_atomic-archive", ChangeLifecycleFilter::Archived,)
+        );
+
+        let spec_repo = store.spec_repository("acme", "widgets").unwrap();
+        assert!(spec_repo.list().unwrap().is_empty());
+    }
+
+    #[test]
+    fn task_mutation_service_reports_poisoned_connection_without_panicking() {
+        let store = SqliteBackendProjectStore::open_in_memory().unwrap();
+        store.ensure_project("acme", "widgets").unwrap();
+        store
+            .upsert_change(&UpsertChangeParams {
+                org: "acme",
+                repo: "widgets",
+                change_id: "025-03_poisoned-lock",
+                module_id: Some("025"),
+                proposal: None,
+                design: None,
+                tasks_md: Some("## 1. Tasks\n- [ ] 1.1 Pending"),
+                specs: &[],
+            })
+            .unwrap();
+
+        let service = SqliteTaskMutationService {
+            conn: Arc::clone(&store.conn),
+            org: "acme".to_string(),
+            repo: "widgets".to_string(),
+        };
+
+        let poisoned_conn = Arc::clone(&store.conn);
+        let result = std::thread::spawn(move || {
+            let _guard = poisoned_conn.lock().unwrap();
+            panic!("poison sqlite connection mutex");
+        })
+        .join();
+        assert!(result.is_err());
+
+        let init_err = service.init_tasks("025-03_poisoned-lock").unwrap_err();
+        assert!(matches!(
+            init_err,
+            ito_domain::tasks::TaskMutationError::Other(message)
+                if message.contains("locking sqlite connection")
+        ));
+
+        let mutate_err = service
+            .start_task("025-03_poisoned-lock", "1.1")
+            .unwrap_err();
+        assert!(matches!(
+            mutate_err,
+            ito_domain::tasks::TaskMutationError::Other(message)
+                if message.contains("locking sqlite connection")
+        ));
+    }
 }

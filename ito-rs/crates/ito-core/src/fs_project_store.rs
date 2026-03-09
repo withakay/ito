@@ -196,15 +196,14 @@ impl BackendProjectStore for FsBackendProjectStore {
         let ito_path = self
             .ito_path_for(org, repo)
             .map_err(|err| BackendError::Other(err.to_string()))?;
-        let module_repo = self
-            .module_repository(org, repo)
-            .map_err(|err| BackendError::Other(err.to_string()))?;
         let spec_names = crate::archive::discover_change_specs(&ito_path, change_id)
             .map_err(|err| BackendError::Other(err.to_string()))?;
         crate::archive::copy_specs_to_main(&ito_path, change_id, &spec_names)
             .map_err(|err| BackendError::Other(err.to_string()))?;
+        crate::archive::mark_change_complete_in_module_markdown(&ito_path, change_id)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
         let archive_name = crate::archive::generate_archive_name(change_id);
-        crate::archive::move_to_archive(module_repo.as_ref(), &ito_path, change_id, &archive_name)
+        crate::archive::move_to_archive(&ito_path, change_id, &archive_name)
             .map_err(|err| BackendError::Other(err.to_string()))?;
 
         Ok(ArchiveResult {

@@ -226,9 +226,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     // Move to archive
-    let module_repo = runtime.repositories().modules.as_ref();
-    archive::move_to_archive(module_repo, ito_path, &change_name, &archive_name)
+    archive::mark_change_complete_in_module_markdown(ito_path, &change_name)
         .map_err(to_cli_error)?;
+    archive::move_to_archive(ito_path, &change_name, &archive_name).map_err(to_cli_error)?;
 
     eprintln!("✔ Archived '{}' as '{}'", change_name, archive_name);
     if !specs_updated.is_empty() {
@@ -312,12 +312,6 @@ fn handle_backend_archive(
     eprintln!("Backend mode enabled — syncing from backend before archiving...");
 
     let client = BackendHttpClient::new(runtime.clone());
-    let module_repo = rt
-        .repository_runtime()
-        .map_err(to_cli_error)?
-        .repositories()
-        .modules
-        .as_ref();
 
     // Audit pre-check
     {
@@ -336,7 +330,6 @@ fn handle_backend_archive(
     let outcome = backend_coordination::archive_with_backend(
         &client,
         &client,
-        module_repo,
         ito_path,
         change_name,
         &runtime.backup_dir,
