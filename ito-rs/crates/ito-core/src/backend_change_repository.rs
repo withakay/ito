@@ -4,13 +4,15 @@
 //! enabled. The filesystem repository remains the fallback when backend mode
 //! is disabled.
 
+use std::collections::BTreeSet;
+
 use ito_domain::backend::BackendChangeReader;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeSummary,
     ChangeTargetResolution, ResolveTargetOptions, parse_change_id, parse_module_id,
 };
 use ito_domain::errors::DomainResult;
-use std::collections::BTreeSet;
+use regex::Regex;
 
 /// Backend-backed change repository.
 ///
@@ -28,6 +30,72 @@ impl<R: BackendChangeReader> BackendChangeRepository<R> {
     }
 }
 
+impl<R: BackendChangeReader> BackendChangeRepository<R> {
+    fn split_canonical_change_id<'b>(&self, name: &'b str) -> Option<(String, String, &'b str)> {
+        let (module_id, change_num) = parse_change_id(name)?;
+        let slug = name.split_once('_').map(|(_id, s)| s).unwrap_or("");
+        Some((module_id, change_num, slug))
+    }
+
+    fn tokenize_query(&self, input: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        for part in input.split_whitespace() {
+            let trimmed = part.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            out.push(trimmed.to_lowercase());
+        }
+        out
+    }
+
+    fn normalized_slug_text(&self, slug: &str) -> String {
+        let mut out = String::new();
+        for ch in slug.chars() {
+            if ch.is_ascii_alphanumeric() {
+                out.push(ch.to_ascii_lowercase());
+            } else {
+                out.push(' ');
+            }
+        }
+        out
+    }
+
+    fn slug_matches_tokens(&self, slug: &str, tokens: &[String]) -> bool {
+        if tokens.is_empty() {
+            return false;
+        }
+        let text = self.normalized_slug_text(slug);
+        for token in tokens {
+            if !text.contains(token) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_numeric_module_selector(&self, input: &str) -> bool {
+        let trimmed = input.trim();
+        !trimmed.is_empty() && trimmed.chars().all(|ch| ch.is_ascii_digit())
+    }
+
+    fn extract_two_numbers_as_change_id(&self, input: &str) -> Option<(String, String)> {
+        let re = Regex::new(r"\d+").ok()?;
+        let mut parts: Vec<&str> = Vec::new();
+        for m in re.find_iter(input) {
+            parts.push(m.as_str());
+            if parts.len() > 2 {
+                return None;
+            }
+        }
+        if parts.len() != 2 {
+            return None;
+        }
+        let parsed = format!("{}-{}", parts[0], parts[1]);
+        parse_change_id(&parsed)
+    }
+}
+
 impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<R> {
     fn resolve_target_with_options(
         &self,
@@ -38,30 +106,32 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
             return ChangeTargetResolution::NotFound;
         };
 
+        let mut names: Vec<String> = summaries.iter().map(|s| s.id.clone()).collect();
+        names.sort();
+        names.dedup();
+
+        if names.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
         let input = input.trim();
         if input.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
 
-        let ids: Vec<String> = summaries.iter().map(|s| s.id.clone()).collect();
-
-        // 1. Exact match.
-        if ids.iter().any(|id| id == input) {
+        if names.iter().any(|name| name == input) {
             return ChangeTargetResolution::Unique(input.to_string());
         }
 
-        // 2. Numeric change-id match: `1-12` or `1-12_slug` → `001-12_*`.
-        let numeric_selector = parse_change_id(input).or_else(|| {
-            // Also handle bare `1-12` style via two-number extraction.
-            extract_two_numbers_as_change_id(input)
-        });
+        let mut numeric_matches: BTreeSet<String> = BTreeSet::new();
+        let numeric_selector =
+            parse_change_id(input).or_else(|| self.extract_two_numbers_as_change_id(input));
         if let Some((module_id, change_num)) = numeric_selector {
             let numeric_prefix = format!("{module_id}-{change_num}");
             let with_separator = format!("{numeric_prefix}_");
-            let mut numeric_matches: BTreeSet<String> = BTreeSet::new();
-            for id in &ids {
-                if id == &numeric_prefix || id.starts_with(&with_separator) {
-                    numeric_matches.insert(id.clone());
+            for name in &names {
+                if name == &numeric_prefix || name.starts_with(&with_separator) {
+                    numeric_matches.insert(name.clone());
                 }
             }
             if !numeric_matches.is_empty() {
@@ -73,23 +143,23 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
             }
         }
 
-        // 3. Module-scoped slug query: `1:setup` → changes in module 001 with "setup" in slug.
-        if let Some((module_part, query)) = input.split_once(':') {
+        if let Some((module, query)) = input.split_once(':') {
             let query = query.trim();
             if !query.is_empty() {
-                let module_id = parse_module_id(module_part);
-                let tokens = tokenize_query(query);
+                let module_id = parse_module_id(module);
+                let tokens = self.tokenize_query(query);
                 let mut scoped_matches: BTreeSet<String> = BTreeSet::new();
-                for id in &ids {
-                    let Some((name_module, _name_change, slug)) = split_canonical_change_id(id)
+                for name in &names {
+                    let Some((name_module, _name_change, slug)) =
+                        self.split_canonical_change_id(name)
                     else {
                         continue;
                     };
                     if name_module != module_id {
                         continue;
                     }
-                    if slug_matches_tokens(slug, &tokens) {
-                        scoped_matches.insert(id.clone());
+                    if self.slug_matches_tokens(slug, &tokens) {
+                        scoped_matches.insert(name.clone());
                     }
                 }
                 if scoped_matches.is_empty() {
@@ -103,36 +173,57 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
             }
         }
 
-        // 4. Prefix match on full id string.
-        let mut prefix_matches: BTreeSet<String> = BTreeSet::new();
-        for id in &ids {
-            if id.starts_with(input) {
-                prefix_matches.insert(id.clone());
+        if self.is_numeric_module_selector(input) {
+            let module_id = parse_module_id(input);
+            let mut module_matches: BTreeSet<String> = BTreeSet::new();
+            for name in &names {
+                let Some((name_module, _name_change, _slug)) = self.split_canonical_change_id(name)
+                else {
+                    continue;
+                };
+                if name_module == module_id {
+                    module_matches.insert(name.clone());
+                }
+            }
+
+            if !module_matches.is_empty() {
+                let module_matches: Vec<String> = module_matches.into_iter().collect();
+                if module_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(module_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(module_matches);
             }
         }
 
-        if prefix_matches.is_empty() {
-            // 5. Slug token match across all changes.
-            let tokens = tokenize_query(input);
-            for id in &ids {
-                let Some((_module, _change, slug)) = split_canonical_change_id(id) else {
+        let mut matches: BTreeSet<String> = BTreeSet::new();
+        for name in &names {
+            if name.starts_with(input) {
+                matches.insert(name.clone());
+            }
+        }
+
+        if matches.is_empty() {
+            let tokens = self.tokenize_query(input);
+            for name in &names {
+                let Some((_module, _change, slug)) = self.split_canonical_change_id(name) else {
                     continue;
                 };
-                if slug_matches_tokens(slug, &tokens) {
-                    prefix_matches.insert(id.clone());
+                if self.slug_matches_tokens(slug, &tokens) {
+                    matches.insert(name.clone());
                 }
             }
         }
 
-        if prefix_matches.is_empty() {
+        if matches.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
 
-        let prefix_matches: Vec<String> = prefix_matches.into_iter().collect();
-        if prefix_matches.len() == 1 {
-            return ChangeTargetResolution::Unique(prefix_matches[0].clone());
+        let matches: Vec<String> = matches.into_iter().collect();
+        if matches.len() == 1 {
+            return ChangeTargetResolution::Unique(matches[0].clone());
         }
-        ChangeTargetResolution::Ambiguous(prefix_matches)
+
+        ChangeTargetResolution::Ambiguous(matches)
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {

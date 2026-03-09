@@ -220,11 +220,22 @@ pub fn resolve_repository_runtime(
         .pointer("/backend/enabled")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let sqlite_enabled = merged
+    let raw_mode = merged
         .pointer("/repository/mode")
         .and_then(|v| v.as_str())
-        .map(|v| v == "sqlite")
-        .unwrap_or(false);
+        .unwrap_or("filesystem");
+
+    // Fail fast on unrecognized repository.mode values before attempting full
+    // config deserialization. This prevents silent fallback to filesystem mode
+    // when the user has set an invalid mode string.
+    if RepositoryPersistenceMode::parse_value(raw_mode).is_none() {
+        let valid = RepositoryPersistenceMode::ALL.join(", ");
+        return Err(CoreError::validation(format!(
+            "Invalid repository.mode '{raw_mode}': must be one of {valid}"
+        )));
+    }
+
+    let sqlite_enabled = raw_mode == "sqlite";
 
     let config = match serde_json::from_value::<ItoConfig>(merged) {
         Ok(config) => config,

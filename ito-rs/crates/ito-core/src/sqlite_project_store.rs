@@ -112,6 +112,7 @@ impl SqliteBackendProjectStore {
                 proposal TEXT,
                 design TEXT,
                 tasks_md TEXT,
+                archived_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 PRIMARY KEY (org, repo, change_id),
@@ -316,7 +317,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
 fn load_changes_from_db(conn: &Connection, org: &str, repo: &str) -> DomainResult<Vec<ChangeRow>> {
     let mut stmt = conn
         .prepare(
-            "SELECT change_id, module_id, proposal, design, tasks_md, created_at, updated_at
+            "SELECT change_id, module_id, proposal, design, tasks_md, created_at, updated_at, archived_at
              FROM changes WHERE org = ?1 AND repo = ?2",
         )
         .map_err(|e| map_sqlite_err("preparing change query", e))?;
@@ -331,6 +332,7 @@ fn load_changes_from_db(conn: &Connection, org: &str, repo: &str) -> DomainResul
                 tasks_md: row.get(4)?,
                 created_at: row.get(5)?,
                 updated_at: row.get(6)?,
+                archived_at: row.get(7)?,
                 specs: Vec::new(), // filled below
             })
         })
@@ -432,6 +434,7 @@ struct ChangeRow {
     #[allow(dead_code)]
     created_at: String,
     updated_at: String,
+    archived_at: Option<String>,
     specs: Vec<(String, String)>,
 }
 
@@ -454,9 +457,21 @@ struct SqliteChangeRepository {
 }
 
 impl SqliteChangeRepository {
-    fn change_names(&self) -> Vec<String> {
+    fn matches_lifecycle(&self, change: &ChangeRow, filter: ChangeLifecycleFilter) -> bool {
+        let is_archived = change.archived_at.is_some();
+        match filter {
+            ChangeLifecycleFilter::Active => !is_archived,
+            ChangeLifecycleFilter::Archived => is_archived,
+            ChangeLifecycleFilter::All => true,
+        }
+    }
+
+    fn change_names(&self, filter: ChangeLifecycleFilter) -> Vec<String> {
         let mut names = Vec::with_capacity(self.changes.len());
         for change in &self.changes {
+            if !self.matches_lifecycle(change, filter) {
+                continue;
+            }
             names.push(change.change_id.clone());
         }
         names.sort();
@@ -535,7 +550,7 @@ impl ChangeRepository for SqliteChangeRepository {
         input: &str,
         options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
-        let names = self.change_names();
+        let names = self.change_names(options.lifecycle);
         if names.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
@@ -659,7 +674,7 @@ impl ChangeRepository for SqliteChangeRepository {
             return Vec::new();
         }
 
-        let names = self.change_names();
+        let names = self.change_names(ChangeLifecycleFilter::Active);
         let mut canonical_names: Vec<String> = Vec::new();
         for name in &names {
             if self.split_canonical_change_id(name).is_some() {
@@ -733,17 +748,17 @@ impl ChangeRepository for SqliteChangeRepository {
     }
 
     fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
-        if !filter.includes_active() {
-            return false;
-        }
-        self.changes.iter().any(|c| c.change_id == id)
+        self.changes
+            .iter()
+            .any(|c| c.change_id == id && self.matches_lifecycle(c, filter))
     }
 
     fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
-        if !filter.includes_active() {
-            return Err(DomainError::not_found("change", id));
-        }
-        let Some(row) = self.changes.iter().find(|c| c.change_id == id) else {
+        let Some(row) = self
+            .changes
+            .iter()
+            .find(|c| c.change_id == id && self.matches_lifecycle(c, filter))
+        else {
             return Err(DomainError::not_found("change", id));
         };
 
@@ -777,11 +792,11 @@ impl ChangeRepository for SqliteChangeRepository {
     }
 
     fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
-        if !filter.includes_active() {
-            return Ok(Vec::new());
-        }
         let mut summaries = Vec::with_capacity(self.changes.len());
         for row in &self.changes {
+            if !self.matches_lifecycle(row, filter) {
+                continue;
+            }
             let tasks = row
                 .tasks_md
                 .as_deref()
