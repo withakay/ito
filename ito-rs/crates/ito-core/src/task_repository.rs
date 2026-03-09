@@ -65,15 +65,15 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
 
 fn read_schema_from_dir<F: FileSystem>(fs: &F, change_dir: &Path) -> String {
     let meta = change_dir.join(".ito.yaml");
-    if fs.is_file(&meta) {
-        if let Ok(contents) = fs.read_to_string(&meta) {
-            for line in contents.lines() {
-                let l = line.trim();
-                if let Some(rest) = l.strip_prefix("schema:") {
-                    let v = rest.trim();
-                    if !v.is_empty() {
-                        return v.to_string();
-                    }
+    if fs.is_file(&meta)
+        && let Ok(contents) = fs.read_to_string(&meta)
+    {
+        for line in contents.lines() {
+            let l = line.trim();
+            if let Some(rest) = l.strip_prefix("schema:") {
+                let v = rest.trim();
+                if !v.is_empty() {
+                    return v.to_string();
                 }
             }
         }

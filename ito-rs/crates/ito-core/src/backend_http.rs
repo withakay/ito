@@ -170,7 +170,7 @@ impl BackendHttpClient {
                     }
                     return Err(DomainError::io(
                         "backend request",
-                        IoError::new(std::io::ErrorKind::Other, err.to_string()),
+                        IoError::other(err.to_string()),
                     ));
                 }
             }

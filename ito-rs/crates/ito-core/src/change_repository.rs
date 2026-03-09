@@ -190,10 +190,10 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
     }
 
     fn parse_archived_change_id(&self, name: &str) -> Option<String> {
-        if let Some(remainder) = self.strip_archive_date_prefix(name) {
-            if parse_change_id(remainder).is_some() {
-                return Some(remainder.to_string());
-            }
+        if let Some(remainder) = self.strip_archive_date_prefix(name)
+            && parse_change_id(remainder).is_some()
+        {
+            return Some(remainder.to_string());
         }
 
         if parse_change_id(name).is_some() {
