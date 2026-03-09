@@ -79,7 +79,7 @@ fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
                 println!();
                 eprintln!("Configuration error: {error_msg}");
             }
-return Err(CliError::silent());
+            return Err(CliError::silent());
         }
     };
 
@@ -184,7 +184,7 @@ return Err(CliError::silent());
     if is_healthy {
         Ok(())
     } else {
-return Err(CliError::silent());
+        return Err(CliError::silent());
     }
 }
 
