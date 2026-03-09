@@ -7,7 +7,8 @@
 
 use std::path::PathBuf;
 
-use ito_domain::backend::BackendProjectStore;
+use chrono::{DateTime, Utc};
+use ito_domain::backend::{ArchiveResult, ArtifactBundle, BackendError, BackendProjectStore, PushResult};
 use ito_domain::changes::ChangeRepository;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::ModuleRepository;
@@ -17,6 +18,27 @@ use crate::repository_runtime::{
     boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_task_mutation_port,
     boxed_fs_task_repository, boxed_fs_spec_repository,
 };
+
+fn filesystem_revision(ito_path: &std::path::Path, change_id: &str) -> String {
+    let change_dir = ito_common::paths::changes_dir(ito_path).join(change_id);
+    if let Ok(Some(revision)) = crate::backend_sync::read_revision_file(&change_dir)
+        && !revision.trim().is_empty()
+    {
+        return revision;
+    }
+
+    let mut latest: Option<DateTime<Utc>> = None;
+    for relative in ["proposal.md", "design.md", "tasks.md"] {
+        let path = change_dir.join(relative);
+        if let Ok(metadata) = std::fs::metadata(&path)
+            && let Ok(modified) = metadata.modified()
+        {
+            let timestamp = DateTime::<Utc>::from(modified);
+            latest = Some(latest.map_or(timestamp, |current| current.max(timestamp)));
+        }
+    }
+    latest.unwrap_or_else(Utc::now).to_rfc3339()
+}
 
 /// Filesystem-backed project store rooted at a configurable data directory.
 ///
@@ -112,6 +134,79 @@ impl BackendProjectStore for FsBackendProjectStore {
     ) -> DomainResult<Box<dyn ito_domain::specs::SpecRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
         Ok(boxed_fs_spec_repository(ito_path))
+    }
+
+    fn pull_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArtifactBundle, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let mut bundle = crate::backend_sync::read_local_bundle(&ito_path, change_id)
+            .map_err(|err| BackendError::NotFound(err.to_string()))?;
+        bundle.revision = filesystem_revision(&ito_path, change_id);
+        Ok(bundle)
+    }
+
+    fn push_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+        bundle: &ArtifactBundle,
+    ) -> Result<PushResult, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let current_revision = filesystem_revision(&ito_path, change_id);
+        if !bundle.revision.trim().is_empty() && bundle.revision != current_revision {
+            return Err(BackendError::RevisionConflict(ito_domain::backend::RevisionConflict {
+                change_id: change_id.to_string(),
+                local_revision: bundle.revision.clone(),
+                server_revision: current_revision,
+            }));
+        }
+
+        let new_revision = Utc::now().to_rfc3339();
+        let mut next = bundle.clone();
+        next.change_id = change_id.to_string();
+        next.revision = new_revision.clone();
+        crate::backend_sync::write_bundle_to_local(&ito_path, change_id, &next)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+
+        Ok(PushResult {
+            change_id: change_id.to_string(),
+            new_revision,
+        })
+    }
+
+    fn archive_change(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArchiveResult, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let module_repo = self
+            .module_repository(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let spec_names = crate::archive::discover_change_specs(&ito_path, change_id)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        crate::archive::copy_specs_to_main(&ito_path, change_id, &spec_names)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let archive_name = crate::archive::generate_archive_name(change_id);
+        crate::archive::move_to_archive(module_repo.as_ref(), &ito_path, change_id, &archive_name)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+
+        Ok(ArchiveResult {
+            change_id: change_id.to_string(),
+            archived_at: Utc::now().to_rfc3339(),
+        })
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {

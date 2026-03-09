@@ -4,6 +4,7 @@ use crate::runtime::Runtime;
 use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
+use ito_core::backend_http::BackendHttpClient;
 use ito_core::backend_coordination;
 use ito_core::repository_runtime::PersistenceMode;
 
@@ -29,7 +30,7 @@ pub(super) fn sync_after_mutation(rt: &Runtime, change_id: &str) {
         }
     };
 
-    let client = StubSyncClient;
+    let client = BackendHttpClient::new(runtime.clone());
     let ito_path = rt.ito_path();
 
     if let Err(err) =
@@ -113,27 +114,6 @@ impl ito_core::BackendLeaseClient for StubLeaseClient {
         Err(ito_core::BackendError::Other(
             "Allocation endpoints not yet available on backend".to_string(),
         ))
-    }
-}
-
-/// Stub backend sync client.
-struct StubSyncClient;
-
-impl ito_core::BackendSyncClient for StubSyncClient {
-    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn push(
-        &self,
-        change_id: &str,
-        _bundle: &ito_core::ArtifactBundle,
-    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
     }
 }
 
@@ -240,7 +220,7 @@ pub(super) fn handle_backend_sync(
 ) -> CliResult<()> {
     let runtime = require_backend_runtime(rt)?;
     let ito_path = rt.ito_path();
-    let client = StubSyncClient;
+    let client = BackendHttpClient::new(runtime.clone());
     let change_repo = rt
         .repository_runtime()
         .map_err(to_cli_error)?

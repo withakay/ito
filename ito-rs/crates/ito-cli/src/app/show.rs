@@ -77,11 +77,9 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return handle_show_specs(rt, want_json);
     }
 
-    let ito_path = rt.ito_path();
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let change_repo = runtime.repositories().changes.as_ref();
     let spec_repo = runtime.repositories().specs.as_ref();
-    let repo_index = rt.repo_index();
 
     let explicit = typ.as_deref();
     let resolved_type = match explicit {

@@ -3,10 +3,8 @@ use crate::runtime::Runtime;
 use clap::ColorChoice;
 use clap::CommandFactory;
 use ito_config::ConfigContext;
-use ito_core::paths as core_paths;
 use ito_core::templates as core_templates;
 use ito_core::{ChangeRepository, ChangeTargetResolution, SpecRepository};
-use std::path::Path;
 
 pub(crate) fn schema_not_found_message(ctx: &ConfigContext, name: &str) -> String {
     let schemas = core_templates::list_available_schemas(ctx);

@@ -250,6 +250,21 @@ pub struct AddTaskRequest {
     pub wave: Option<u32>,
 }
 
+/// Request body for sync push operations.
+#[derive(Debug, Deserialize)]
+pub struct SyncPushRequest {
+    /// Proposal markdown content.
+    pub proposal: Option<String>,
+    /// Design markdown content.
+    pub design: Option<String>,
+    /// Tasks markdown content.
+    pub tasks: Option<String>,
+    /// Change spec delta files.
+    pub specs: Vec<(String, String)>,
+    /// Client revision marker.
+    pub revision: String,
+}
+
 /// Module summary for listings.
 #[derive(Debug, Serialize)]
 pub struct ApiModuleSummary {
@@ -320,6 +335,17 @@ fn map_task_mutation_err<T>(
         }
         ito_core::TaskMutationError::NotFound(_) => ApiErrorResponse::not_found(err.to_string()),
         ito_core::TaskMutationError::Other(_) => ApiErrorResponse::internal(err.to_string()),
+    })
+}
+
+fn map_backend_err<T>(result: Result<T, ito_core::BackendError>) -> Result<T, ApiErrorResponse> {
+    result.map_err(|err| match err {
+        ito_core::BackendError::LeaseConflict(_) => ApiErrorResponse::conflict(err.to_string()),
+        ito_core::BackendError::RevisionConflict(_) => ApiErrorResponse::conflict(err.to_string()),
+        ito_core::BackendError::Unavailable(message) => ApiErrorResponse::service_unavailable(message),
+        ito_core::BackendError::Unauthorized(message) => ApiErrorResponse::forbidden(message),
+        ito_core::BackendError::NotFound(message) => ApiErrorResponse::not_found(message),
+        ito_core::BackendError::Other(message) => ApiErrorResponse::internal(message),
     })
 }
 
@@ -486,6 +512,47 @@ pub async fn get_change_with_query(
         last_modified: change.last_modified.to_rfc3339(),
     };
     Ok(Json(api_change))
+}
+
+/// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}/sync` — pull an artifact bundle.
+pub async fn sync_pull_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ito_core::ArtifactBundle>, ApiErrorResponse> {
+    let bundle = map_backend_err(state.store.pull_artifact_bundle(&org, &repo, &change_id))?;
+    Ok(Json(bundle))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/sync` — push an artifact bundle.
+pub async fn sync_push_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+    Json(payload): Json<SyncPushRequest>,
+) -> Result<Json<ito_core::PushResult>, ApiErrorResponse> {
+    let bundle = ito_core::ArtifactBundle {
+        change_id: change_id.clone(),
+        proposal: payload.proposal,
+        design: payload.design,
+        tasks: payload.tasks,
+        specs: payload.specs,
+        revision: payload.revision,
+    };
+    let result = map_backend_err(state.store.push_artifact_bundle(
+        &org,
+        &repo,
+        &change_id,
+        &bundle,
+    ))?;
+    Ok(Json(result))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/archive` — archive a change.
+pub async fn archive_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ito_core::ArchiveResult>, ApiErrorResponse> {
+    let result = map_backend_err(state.store.archive_change(&org, &repo, &change_id))?;
+    Ok(Json(result))
 }
 
 /// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks` — get tasks for a change.
@@ -833,6 +900,11 @@ fn project_router() -> Router<Arc<AppState>> {
         .route("/auth/verify", get(auth_verify))
         .route("/changes", get(list_changes_with_query))
         .route("/changes/{change_id}", get(get_change_with_query))
+        .route(
+            "/changes/{change_id}/sync",
+            get(sync_pull_change).post(sync_push_change),
+        )
+        .route("/changes/{change_id}/archive", post(archive_change))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
         .route(
             "/changes/{change_id}/tasks/raw",

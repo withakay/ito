@@ -179,6 +179,31 @@ pub trait BackendProjectStore: Send + Sync {
         repo: &str,
     ) -> DomainResult<Box<dyn crate::specs::SpecRepository + Send>>;
 
+    /// Pull the latest artifact bundle for a change from backend-managed storage.
+    fn pull_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArtifactBundle, BackendError>;
+
+    /// Push an updated artifact bundle into backend-managed storage.
+    fn push_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+        bundle: &ArtifactBundle,
+    ) -> Result<PushResult, BackendError>;
+
+    /// Archive a change in backend-managed storage and mirror promoted specs.
+    fn archive_change(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArchiveResult, BackendError>;
+
     /// Ensure the project directory/storage structure exists.
     ///
     /// Called before first write to a project. Implementations should

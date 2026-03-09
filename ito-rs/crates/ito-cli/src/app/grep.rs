@@ -1,6 +1,7 @@
 use crate::cli::GrepArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+use ito_core::backend_http::BackendHttpClient;
 use ito_core::grep::{GrepInput, GrepScope, grep};
 use ito_core::{ChangeRepository, ModuleRepository};
 
@@ -149,10 +150,7 @@ fn materialize_backend_cache(
         }
     };
 
-    // Use the stub sync client (matches the tasks command pattern).
-    // The real HTTP client will be wired up when the backend adds
-    // sync endpoints.
-    let client = StubSyncClient;
+    let client = BackendHttpClient::new(runtime.clone());
 
     let change_ids: Vec<String> = match scope {
         GrepScope::Change(id) => {
@@ -191,25 +189,4 @@ fn materialize_backend_cache(
     }
 
     Ok(())
-}
-
-/// Stub backend sync client used until the backend adds sync endpoints.
-struct StubSyncClient;
-
-impl ito_core::BackendSyncClient for StubSyncClient {
-    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn push(
-        &self,
-        change_id: &str,
-        _bundle: &ito_core::ArtifactBundle,
-    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
 }

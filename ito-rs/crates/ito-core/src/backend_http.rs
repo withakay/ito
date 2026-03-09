@@ -11,7 +11,10 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 use crate::backend_client::{is_retriable_status, BackendRuntime};
-use ito_domain::backend::{BackendChangeReader, BackendModuleReader, BackendSpecReader};
+use ito_domain::backend::{
+    ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader, BackendModuleReader,
+    BackendSpecReader, BackendSyncClient, PushResult,
+};
 use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary};
@@ -24,7 +27,7 @@ use ito_domain::tasks::{
 
 /// Backend HTTP client shared across repository adapters.
 #[derive(Debug, Clone)]
-pub(crate) struct BackendHttpClient {
+pub struct BackendHttpClient {
     inner: Arc<BackendHttpClientInner>,
 }
 
@@ -36,7 +39,7 @@ struct BackendHttpClientInner {
 
 impl BackendHttpClient {
     /// Create a backend HTTP client from a resolved runtime.
-    pub(crate) fn new(runtime: BackendRuntime) -> Self {
+    pub fn new(runtime: BackendRuntime) -> Self {
         let agent = ureq::Agent::config_builder()
             .timeout_global(Some(runtime.timeout))
             .http_status_as_error(false)
@@ -91,6 +94,24 @@ impl BackendHttpClient {
             .request_with_retry("POST", url, body)
             .map_err(task_error_from_domain)?;
         parse_task_response(response)
+    }
+
+    fn backend_get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, ito_domain::backend::BackendError> {
+        let response = self
+            .request_with_retry("GET", url, None)
+            .map_err(backend_error_from_domain)?;
+        parse_backend_response(response)
+    }
+
+    fn backend_post_json<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        body: Option<&str>,
+    ) -> Result<T, ito_domain::backend::BackendError> {
+        let response = self
+            .request_with_retry("POST", url, body)
+            .map_err(backend_error_from_domain)?;
+        parse_backend_response(response)
     }
 
     fn request_with_retry(
@@ -370,6 +391,43 @@ impl TaskMutationService for BackendHttpClient {
     }
 }
 
+impl BackendSyncClient for BackendHttpClient {
+    fn pull(&self, change_id: &str) -> Result<ArtifactBundle, ito_domain::backend::BackendError> {
+        let url = format!(
+            "{}/changes/{change_id}/sync",
+            self.inner.runtime.project_api_prefix()
+        );
+        self.backend_get_json(&url)
+    }
+
+    fn push(
+        &self,
+        change_id: &str,
+        bundle: &ArtifactBundle,
+    ) -> Result<PushResult, ito_domain::backend::BackendError> {
+        let url = format!(
+            "{}/changes/{change_id}/sync",
+            self.inner.runtime.project_api_prefix()
+        );
+        let body = serde_json::to_string(bundle)
+            .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+        self.backend_post_json(&url, Some(&body))
+    }
+}
+
+impl BackendArchiveClient for BackendHttpClient {
+    fn mark_archived(
+        &self,
+        change_id: &str,
+    ) -> Result<ArchiveResult, ito_domain::backend::BackendError> {
+        let url = format!(
+            "{}/changes/{change_id}/archive",
+            self.inner.runtime.project_api_prefix()
+        );
+        self.backend_post_json(&url, Some("{}"))
+    }
+}
+
 fn read_response_body(response: ureq::http::Response<ureq::Body>) -> DomainResult<String> {
     let body = response
         .into_body()
@@ -391,6 +449,20 @@ fn parse_task_response<T: DeserializeOwned>(
     }
     serde_json::from_str(&body)
         .map_err(|err| TaskMutationError::other(format!("Failed to parse backend response: {err}")))
+}
+
+fn parse_backend_response<T: DeserializeOwned>(
+    response: ureq::http::Response<ureq::Body>,
+) -> Result<T, ito_domain::backend::BackendError> {
+    let status = response.status().as_u16();
+    let body = response
+        .into_body()
+        .read_to_string()
+        .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+    if !(200..300).contains(&status) {
+        return Err(map_status_to_backend_error(status, &body));
+    }
+    serde_json::from_str(&body).map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))
 }
 
 fn map_status_to_domain_error(
@@ -440,6 +512,21 @@ fn map_status_to_task_error(status: u16, body: &str) -> TaskMutationError {
     }
 }
 
+fn map_status_to_backend_error(status: u16, body: &str) -> ito_domain::backend::BackendError {
+    let message = if body.trim().is_empty() {
+        format!("backend returned HTTP {status}")
+    } else {
+        body.to_string()
+    };
+    match status {
+        401 | 403 => ito_domain::backend::BackendError::Unauthorized(message),
+        404 => ito_domain::backend::BackendError::NotFound(message),
+        409 => ito_domain::backend::BackendError::Other(message),
+        500..=599 => ito_domain::backend::BackendError::Unavailable(message),
+        _ => ito_domain::backend::BackendError::Other(message),
+    }
+}
+
 fn task_error_from_domain(err: DomainError) -> TaskMutationError {
     match err {
         DomainError::Io { context, source } => TaskMutationError::io(context, source),
@@ -453,6 +540,18 @@ fn task_error_from_domain(err: DomainError) -> TaskMutationError {
         } => TaskMutationError::validation(format!(
             "Ambiguous {entity} target '{input}'. Matches: {matches}"
         )),
+    }
+}
+
+fn backend_error_from_domain(err: DomainError) -> ito_domain::backend::BackendError {
+    match err {
+        DomainError::Io { source, .. } => ito_domain::backend::BackendError::Other(source.to_string()),
+        DomainError::NotFound { entity, id } => {
+            ito_domain::backend::BackendError::NotFound(format!("{entity} not found: {id}"))
+        }
+        DomainError::AmbiguousTarget { entity, input, matches } => ito_domain::backend::BackendError::Other(
+            format!("Ambiguous {entity} target '{input}'. Matches: {matches}"),
+        ),
     }
 }
 
