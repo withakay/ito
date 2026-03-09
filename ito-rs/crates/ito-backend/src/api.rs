@@ -644,8 +644,7 @@ pub async fn complete_change_task(
 ) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
     let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
     let note = payload.and_then(|Json(payload)| payload.note);
-    let result =
-        map_task_mutation_err(task_mutations.complete_task(&change_id, &task_id, note))?;
+    let result = map_task_mutation_err(task_mutations.complete_task(&change_id, &task_id, note))?;
     Ok(Json(api_task_mutation_result(result)))
 }
 
@@ -657,8 +656,7 @@ pub async fn shelve_change_task(
 ) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
     let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
     let reason = payload.and_then(|Json(payload)| payload.reason);
-    let result =
-        map_task_mutation_err(task_mutations.shelve_task(&change_id, &task_id, reason))?;
+    let result = map_task_mutation_err(task_mutations.shelve_task(&change_id, &task_id, reason))?;
     Ok(Json(api_task_mutation_result(result)))
 }
 
