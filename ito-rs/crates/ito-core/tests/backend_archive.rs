@@ -12,8 +12,6 @@ use ito_domain::backend::{
     ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendError, BackendSyncClient,
     PushResult,
 };
-use ito_domain::errors::DomainResult;
-use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
 use tempfile::TempDir;
 
 // ── Fake implementations ────────────────────────────────────────────
@@ -117,22 +115,6 @@ impl BackendArchiveClient for FakeArchiveClient {
     }
 }
 
-struct FakeModuleRepo;
-
-impl ModuleRepository for FakeModuleRepo {
-    fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
-        Ok(Vec::new())
-    }
-
-    fn get(&self, _id: &str) -> DomainResult<Module> {
-        Err(ito_domain::errors::DomainError::not_found("module", "none"))
-    }
-
-    fn exists(&self, _id: &str) -> bool {
-        false
-    }
-}
-
 fn setup_change(ito_path: &Path, change_id: &str) {
     let change_dir = ito_path.join("changes").join(change_id);
     std::fs::create_dir_all(change_dir.join("specs/backend-archive-sync")).unwrap();
@@ -165,12 +147,10 @@ fn backend_archive_happy_path_produces_committable_state() {
 
     let sync_client = FakeSyncClient::new(change_id);
     let archive_client = FakeArchiveClient::success();
-    let module_repo = FakeModuleRepo;
 
     let outcome = backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
         &ito_path,
         change_id,
         &backup_dir,
@@ -222,6 +202,50 @@ fn backend_archive_happy_path_produces_committable_state() {
 }
 
 #[test]
+fn backend_archive_does_not_mutate_local_module_markdown() {
+    let tmp = TempDir::new().unwrap();
+    let ito_path = tmp.path().join(".ito");
+    let backup_dir = tmp.path().join("backups");
+    std::fs::create_dir_all(&ito_path).unwrap();
+
+    let change_id = "024-05_remote-safe";
+    setup_change(&ito_path, change_id);
+
+    let module_dir = ito_path.join("modules").join("024_demo");
+    std::fs::create_dir_all(&module_dir).unwrap();
+    std::fs::write(
+        module_dir.join("module.md"),
+        format!("# Demo\n\n## Changes\n- [ ] {change_id}\n"),
+    )
+    .unwrap();
+
+    let sync_client = FakeSyncClient::new(change_id);
+    let archive_client = FakeArchiveClient::success();
+
+    let outcome = backend_coordination::archive_with_backend(
+        &sync_client,
+        &archive_client,
+        &ito_path,
+        change_id,
+        &backup_dir,
+        false,
+    )
+    .unwrap();
+
+    let module_md = std::fs::read_to_string(module_dir.join("module.md")).unwrap();
+    assert!(
+        module_md.contains(&format!("- [ ] {change_id}")),
+        "backend archive should not mutate local module markdown"
+    );
+
+    let archive_dir = ito_path
+        .join("changes")
+        .join("archive")
+        .join(outcome.archive_name);
+    assert!(archive_dir.exists(), "archive dir must still exist");
+}
+
+#[test]
 fn backend_archive_with_skip_specs_does_not_copy_specs() {
     let tmp = TempDir::new().unwrap();
     let ito_path = tmp.path().join(".ito");
@@ -233,12 +257,10 @@ fn backend_archive_with_skip_specs_does_not_copy_specs() {
 
     let sync_client = FakeSyncClient::new(change_id);
     let archive_client = FakeArchiveClient::success();
-    let module_repo = FakeModuleRepo;
 
     let outcome = backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
         &ito_path,
         change_id,
         &backup_dir,
@@ -273,12 +295,10 @@ fn backend_archive_fails_when_backend_unavailable_for_mark_archived() {
 
     let sync_client = FakeSyncClient::new(change_id);
     let archive_client = FakeArchiveClient::failing();
-    let module_repo = FakeModuleRepo;
 
     let err = backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
         &ito_path,
         change_id,
         &backup_dir,
@@ -313,12 +333,10 @@ fn backend_archive_fails_when_pull_unavailable() {
 
     let sync_client = FakeSyncClient::unavailable();
     let archive_client = FakeArchiveClient::success();
-    let module_repo = FakeModuleRepo;
 
     let err = backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
         &ito_path,
         change_id,
         &backup_dir,
@@ -363,12 +381,10 @@ fn backend_archive_creates_backup_before_overwriting() {
 
     let sync_client = FakeSyncClient::new(change_id);
     let archive_client = FakeArchiveClient::success();
-    let module_repo = FakeModuleRepo;
 
     backend_coordination::archive_with_backend(
         &sync_client,
         &archive_client,
-        &module_repo,
         &ito_path,
         change_id,
         &backup_dir,

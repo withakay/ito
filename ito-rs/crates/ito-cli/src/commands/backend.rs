@@ -52,12 +52,12 @@ fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
 
     // Try to resolve BackendRuntime
     let runtime = match resolve_backend_runtime(&config.backend) {
-        Ok(Some(runtime)) => runtime,
+        Ok(Some(runtime)) => Ok(runtime),
         Ok(None) => {
             // This shouldn't happen since we checked enabled=true above
-            return Err(CliError::msg(
+            Err(CliError::msg(
                 "Backend mode is enabled but runtime could not be resolved.",
-            ));
+            ))
         }
         Err(e) => {
             // Config validation failed
@@ -79,9 +79,9 @@ fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
                 println!();
                 eprintln!("Configuration error: {error_msg}");
             }
-return Err(CliError::silent());
+            Err(CliError::silent())
         }
-    };
+    }?;
 
     // Check for token security warning
     if config.backend.token.is_some() {
@@ -184,7 +184,7 @@ return Err(CliError::silent());
     if is_healthy {
         Ok(())
     } else {
-return Err(CliError::silent());
+        Err(CliError::silent())
     }
 }
 

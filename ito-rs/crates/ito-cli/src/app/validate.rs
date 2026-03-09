@@ -5,11 +5,10 @@ use crate::cli_error::{CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_core::audit;
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
 use ito_core::nearest_matches;
 use ito_core::templates;
 use ito_core::validate as core_validate;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 fn format_issue_loc(i: &core_validate::ValidationIssue) -> String {
@@ -62,11 +61,15 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let module_repo = FsModuleRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
+    let module_repo = runtime.repositories().modules.as_ref();
+    let spec_repo = runtime.repositories().specs.as_ref();
 
     if bulk {
         let repo_index = rt.repo_index();
+        let is_filesystem =
+            runtime.mode() == ito_core::repository_runtime::PersistenceMode::Filesystem;
 
         let want_all = args.iter().any(|a| a == "--all");
         let want_changes = want_all || args.iter().any(|a| a == "--changes");
@@ -87,14 +90,21 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         let mut items: Vec<Item> = Vec::new();
 
         if want_changes {
-            let module_ids = repo_index.module_ids.clone();
+            let module_ids: BTreeSet<String> = module_repo
+                .list()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|m| m.id)
+                .collect();
+            let change_summaries = change_repo.list().unwrap_or_default();
+            let repo_integrity = if is_filesystem {
+                core_validate::validate_change_dirs_repo_integrity(ito_path).unwrap_or_default()
+            } else {
+                Default::default()
+            };
 
-            let change_dirs = repo_index.change_dir_names.clone();
-
-            let repo_integrity =
-                core_validate::validate_change_dirs_repo_integrity(ito_path).unwrap_or_default();
-
-            for dir_name in change_dirs {
+            for summary in change_summaries {
+                let dir_name = summary.id;
                 let mut issues: Vec<core_validate::ValidationIssue> = Vec::new();
 
                 // Repo integrity checks (naming/module/duplicate numeric ids)
@@ -118,7 +128,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 // Delta validation only applies to the spec-driven workflow.
                 let schema = templates::read_change_schema(ito_path, &dir_name);
                 let report = if schema == "spec-driven" {
-                    core_validate::validate_change(&change_repo, ito_path, &dir_name, strict)
+                    core_validate::validate_change(change_repo, ito_path, &dir_name, strict)
                         .unwrap_or_else(|e| {
                             core_validate::ValidationReport::new(
                                 vec![core_validate::error(
@@ -141,14 +151,15 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 };
 
                 // tasks.md validation (enhanced + checkbox)
-                if let Ok(task_issues) =
-                    core_validate::validate_tasks_file(ito_path, &dir_name, strict)
+                if is_filesystem
+                    && let Ok(task_issues) =
+                        core_validate::validate_tasks_file(ito_path, &dir_name, strict)
                 {
                     issues.extend(task_issues);
                 }
 
                 // Audit consistency check (warnings only)
-                if !skip_audit {
+                if is_filesystem && !skip_audit {
                     issues.extend(validate_audit_consistency(ito_path, &dir_name));
                 }
 
@@ -176,7 +187,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
 
         if want_specs {
-            for spec_id in super::common::list_spec_ids_from_index(ito_path, repo_index) {
+            for spec_id in super::common::list_spec_ids(rt) {
                 let report = core_validate::validate_spec(ito_path, &spec_id, strict)
                     .unwrap_or_else(|e| {
                         core_validate::ValidationReport::new(
@@ -200,7 +211,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         if want_modules {
             for m in repo_index.module_dir_names.clone() {
                 let (_full_name, report) =
-                    core_validate::validate_module(&module_repo, ito_path, &m, strict)
+                    core_validate::validate_module(module_repo, ito_path, &m, strict)
                         .unwrap_or_else(|e| {
                             (
                                 m.clone(),
@@ -322,7 +333,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(_) => {
             return fail("Invalid type. Expected 'change', 'spec', or 'module'.");
         }
-        None => super::common::detect_item_type(&change_repo, ito_path, rt.repo_index(), &item),
+        None => super::common::detect_item_type(change_repo, spec_repo, &item),
     };
 
     // Special-case: TS `--type module <id>` behaves like validating a spec by id.
@@ -360,7 +371,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let actual = match super::common::resolve_change_target(&change_repo, &item) {
+            let actual = match super::common::resolve_change_target(change_repo, &item) {
                 Ok(id) => id,
                 Err(msg) => return fail(msg),
             };
@@ -374,7 +385,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             let schema = templates::read_change_schema(ito_path, &actual);
             let report = if schema == "spec-driven" {
-                core_validate::validate_change(&change_repo, ito_path, &actual, strict)
+                core_validate::validate_change(change_repo, ito_path, &actual, strict)
                     .map_err(to_cli_error)?
             } else {
                 core_validate::ValidationReport::new(
@@ -404,7 +415,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
         _ => {
             // unknown
-            let candidates = super::common::list_candidate_items(&change_repo, rt);
+            let candidates = super::common::list_candidate_items(change_repo, rt);
             let suggestions = nearest_matches(&item, &candidates, 5);
             fail(super::common::unknown_with_suggestions(
                 "item",
@@ -500,10 +511,11 @@ fn handle_validate_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let module_id = module_id.expect("checked");
 
     let ito_path = rt.ito_path();
-    let module_repo = FsModuleRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let module_repo = runtime.repositories().modules.as_ref();
 
     let (full_name, report) =
-        core_validate::validate_module(&module_repo, ito_path, &module_id, false)
+        core_validate::validate_module(module_repo, ito_path, &module_id, false)
             .map_err(to_cli_error)?;
     if report.valid {
         println!("Module '{full_name}' is valid");

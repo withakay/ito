@@ -1,9 +1,8 @@
 use ito_core::archive::{
     TaskStatus as ArchiveTaskStatus, archive_exists, categorize_specs, change_exists,
     check_task_completion, copy_specs_to_main, discover_change_specs, generate_archive_name,
-    list_available_changes, move_to_archive,
+    list_available_changes, mark_change_complete_in_module_markdown, move_to_archive,
 };
-use ito_core::module_repository::FsModuleRepository;
 use std::path::Path;
 
 fn write(path: &Path, contents: &str) {
@@ -97,9 +96,10 @@ fn discover_and_copy_specs_and_archive_change() {
     assert!(ito.join("specs").join("billing").join("spec.md").exists());
 
     // Archive.
-    let module_repo = FsModuleRepository::new(&ito);
     let archive_name = format!("2026-01-01-{change_name}");
-    move_to_archive(&module_repo, &ito, change_name, &archive_name).expect("move_to_archive");
+    mark_change_complete_in_module_markdown(&ito, change_name)
+        .expect("mark_change_complete_in_module_markdown");
+    move_to_archive(&ito, change_name, &archive_name).expect("move_to_archive");
 
     assert!(archive_exists(&ito, &archive_name));
     assert!(!ito.join("changes").join(change_name).exists());

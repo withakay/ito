@@ -913,6 +913,62 @@
         }
       ]
     },
+    "RepositoryPersistenceMode": {
+      "description": "Client-side repository persistence mode",
+      "oneOf": [
+        {
+          "description": "Filesystem-backed repositories.",
+          "enum": [
+            "filesystem"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "SQLite-backed repositories.",
+          "enum": [
+            "sqlite"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "RepositoryRuntimeConfig": {
+      "description": "Repository runtime configuration",
+      "properties": {
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RepositoryPersistenceMode"
+            }
+          ],
+          "default": "filesystem",
+          "description": "Client-side persistence mode"
+        },
+        "sqlite": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RepositorySqliteConfig"
+            }
+          ],
+          "default": {},
+          "description": "Local SQLite configuration"
+        }
+      },
+      "type": "object"
+    },
+    "RepositorySqliteConfig": {
+      "description": "Local SQLite repository configuration",
+      "properties": {
+        "dbPath": {
+          "description": "Path to the local SQLite database file",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "TddDefaults": {
       "description": "TDD defaults",
       "properties": {
@@ -1308,6 +1364,18 @@
         "string",
         "null"
       ]
+    },
+    "repository": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/RepositoryRuntimeConfig"
+        }
+      ],
+      "default": {
+        "mode": "filesystem",
+        "sqlite": {}
+      },
+      "description": "Repository runtime configuration"
     },
     "worktrees": {
       "allOf": [

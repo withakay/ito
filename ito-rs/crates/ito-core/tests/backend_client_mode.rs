@@ -62,11 +62,18 @@ struct FakeChangeReader {
 }
 
 impl BackendChangeReader for FakeChangeReader {
-    fn list_changes(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_changes(
+        &self,
+        _filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
         Ok(self.summaries.clone())
     }
 
-    fn get_change(&self, change_id: &str) -> DomainResult<Change> {
+    fn get_change(
+        &self,
+        change_id: &str,
+        _filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Change> {
         Err(DomainError::not_found("change", change_id))
     }
 }

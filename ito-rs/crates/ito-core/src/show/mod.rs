@@ -8,9 +8,11 @@ use std::path::Path;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::spec_repository::FsSpecRepository;
+use ito_domain::modules::ModuleRepository;
+use ito_domain::specs::SpecRepository;
 use serde::Serialize;
 
-use ito_common::paths;
 use ito_domain::changes::ChangeRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -121,14 +123,22 @@ pub struct ChangeDelta {
 
 /// Read the markdown for a spec id from `.ito/specs/<id>/spec.md`.
 pub fn read_spec_markdown(ito_path: &Path, id: &str) -> CoreResult<String> {
-    let path = paths::spec_markdown_path(ito_path, id);
-    ito_common::io::read_to_string(&path)
-        .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))
+    let repo = FsSpecRepository::new(ito_path);
+    read_spec_markdown_from_repository(&repo, id)
+}
+
+/// Read the markdown for a spec id from a repository.
+pub fn read_spec_markdown_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+    id: &str,
+) -> CoreResult<String> {
+    let spec = repo.get(id).into_core()?;
+    Ok(spec.markdown)
 }
 
 /// Read the proposal markdown for a change id.
 pub fn read_change_proposal_markdown(
-    repo: &impl ChangeRepository,
+    repo: &(impl ChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<Option<String>> {
     let change = repo.get(change_id).into_core()?;
@@ -136,15 +146,35 @@ pub fn read_change_proposal_markdown(
 }
 
 /// Read the raw markdown for a module's `module.md` file.
-pub fn read_module_markdown(ito_path: &Path, module_id: &str) -> CoreResult<String> {
-    use crate::error_bridge::IntoCoreResult;
-    use crate::module_repository::FsModuleRepository;
-
-    let module_repo = FsModuleRepository::new(ito_path);
+pub fn read_module_markdown(
+    module_repo: &(impl ModuleRepository + ?Sized),
+    module_id: &str,
+) -> CoreResult<String> {
     let module = module_repo.get(module_id).into_core()?;
     let module_md_path = module.path.join("module.md");
-    let md = ito_common::io::read_to_string_or_default(&module_md_path);
-    Ok(md)
+    if module_md_path.is_file() {
+        let md = ito_common::io::read_to_string_or_default(&module_md_path);
+        return Ok(md);
+    }
+
+    if module.path.as_os_str().is_empty() {
+        return Ok(render_module_markdown_fallback(&module));
+    }
+
+    Ok(String::new())
+}
+
+fn render_module_markdown_fallback(module: &ito_domain::modules::Module) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {}\n", module.name));
+    if let Some(description) = module.description.as_deref()
+        && !description.trim().is_empty()
+    {
+        out.push_str("\n## Purpose\n");
+        out.push_str(description.trim());
+        out.push('\n');
+    }
+    out
 }
 
 /// Parse spec markdown into a serializable structure.
@@ -166,7 +196,6 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
 
 /// Bundle all main specs under `.ito/specs/*/spec.md` into a JSON-friendly structure.
 pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJson> {
-    use crate::error_bridge::IntoCoreResult;
     use ito_common::fs::StdFs;
 
     let fs = StdFs;
@@ -178,9 +207,10 @@ pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJso
             "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
         ));
     }
-    let mut specs: Vec<BundledSpec> = Vec::new();
+
+    let mut specs = Vec::with_capacity(ids.len());
     for id in ids {
-        let path = paths::spec_markdown_path(ito_path, &id);
+        let path = ito_common::paths::spec_markdown_path(ito_path, &id);
         let markdown = ito_common::io::read_to_string(&path)
             .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))?;
         specs.push(BundledSpec {
@@ -196,12 +226,48 @@ pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJso
     })
 }
 
+/// Bundle all promoted specs from a repository into a JSON-friendly structure.
+pub fn bundle_specs_show_json_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+) -> CoreResult<SpecsBundleJson> {
+    let mut summaries = repo.list().into_core()?;
+    summaries.sort_by(|left, right| left.id.cmp(&right.id));
+    if summaries.is_empty() {
+        return Err(CoreError::not_found(
+            "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
+        ));
+    }
+
+    let mut specs = Vec::with_capacity(summaries.len());
+    for summary in summaries {
+        let spec = repo.get(&summary.id).into_core()?;
+        specs.push(BundledSpec {
+            id: spec.id,
+            path: spec.path.to_string_lossy().to_string(),
+            markdown: spec.markdown,
+        });
+    }
+
+    Ok(SpecsBundleJson {
+        spec_count: specs.len() as u32,
+        specs,
+    })
+}
+
 /// Bundle all main specs under `.ito/specs/*/spec.md` into a single markdown stream.
 ///
 /// Each spec is preceded by a metadata comment line:
 /// `<!-- spec-id: <id>; source: <absolute-path-to-spec.md> -->`.
 pub fn bundle_main_specs_markdown(ito_path: &Path) -> CoreResult<String> {
-    let bundle = bundle_main_specs_show_json(ito_path)?;
+    let repo = FsSpecRepository::new(ito_path);
+    bundle_specs_markdown_from_repository(&repo)
+}
+
+/// Bundle all promoted specs from a repository into a single markdown stream.
+pub fn bundle_specs_markdown_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+) -> CoreResult<String> {
+    let bundle = bundle_specs_show_json_from_repository(repo)?;
     let mut out = String::new();
     for (i, spec) in bundle.specs.iter().enumerate() {
         if i != 0 {
@@ -218,7 +284,7 @@ pub fn bundle_main_specs_markdown(ito_path: &Path) -> CoreResult<String> {
 
 /// Return all delta spec files for a change from the repository.
 pub fn read_change_delta_spec_files(
-    repo: &impl ChangeRepository,
+    repo: &(impl ChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<Vec<DeltaSpecFile>> {
     let change = repo.get(change_id).into_core()?;

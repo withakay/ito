@@ -31,6 +31,7 @@ ito tasks show <change-id>
 **If tasks.md is missing**
 
 - Create enhanced tracking file: `ito tasks init <change-id>`
+- In backend/remote mode, missing local `tasks.md` is normal. Prefer `ito tasks ...` directly, and use `ito tasks sync pull <change-id>` only when you explicitly need a local cache copy for inspection.
 
 **If the user asks "what should I do next?"**
 

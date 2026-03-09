@@ -3,14 +3,15 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
-use ito_core::DomainTaskRepository;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
 use ito_core::backend_coordination;
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
+use ito_core::backend_http::BackendHttpClient;
 use ito_core::paths as core_paths;
-use ito_core::task_repository::TaskRepository;
+
+fn requires_local_changes_dir(mode: ito_core::repository_runtime::PersistenceMode) -> bool {
+    mode == ito_core::repository_runtime::PersistenceMode::Filesystem
+}
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
@@ -25,8 +26,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let ito_path = rt.ito_path();
     let changes_dir = core_paths::changes_dir(ito_path);
+    let repository_runtime = rt.repository_runtime().map_err(to_cli_error)?;
 
-    if !changes_dir.exists() {
+    if requires_local_changes_dir(repository_runtime.mode()) && !changes_dir.exists() {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
@@ -42,9 +44,10 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         .map(|s| s.as_str());
 
     // If no change specified, list available changes and prompt for selection
-    let change_repo = FsChangeRepository::new(ito_path);
+    let runtime = repository_runtime;
+    let change_repo = runtime.repositories().changes.as_ref();
     let change_name = if let Some(name) = change_name {
-        match super::common::resolve_change_target(&change_repo, name) {
+        match super::common::resolve_change_target(change_repo, name) {
             Ok(resolved) => resolved,
             Err(msg) => return fail(msg),
         }
@@ -72,7 +75,7 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     // Check task completion unless skipping validation
     if !skip_validation {
-        let task_repo = TaskRepository::new(ito_path);
+        let task_repo = runtime.repositories().tasks.as_ref();
         let (completed, total) = task_repo.get_task_counts(&change_name).unwrap_or((0, 0));
         if total > 0 {
             if completed < total {
@@ -99,24 +102,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    // Check for backend mode — if enabled, attempt backend-aware archive flow.
-    // If backend endpoints are not implemented yet, fall back to local archive
-    // so backend-enabled configs don't block archiving.
+    // Check for backend mode — if enabled, run the repository-backed archive flow.
     if let Some(runtime) = try_backend_runtime(rt)? {
-        match handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime) {
-            Ok(()) => return Ok(()),
-            Err(err) => {
-                let msg = err.to_string();
-                if msg.contains("not yet available on backend") {
-                    eprintln!(
-                        "Warning: backend archive endpoints are not available yet ({}). Falling back to local archive flow.",
-                        msg
-                    );
-                } else {
-                    return Err(err);
-                }
-            }
-        }
+        return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
     }
 
     // ── Filesystem-only archive flow ───────────────────────────────
@@ -240,9 +228,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     // Move to archive
-    let module_repo = FsModuleRepository::new(ito_path);
-    archive::move_to_archive(&module_repo, ito_path, &change_name, &archive_name)
+    archive::mark_change_complete_in_module_markdown(ito_path, &change_name)
         .map_err(to_cli_error)?;
+    archive::move_to_archive(ito_path, &change_name, &archive_name).map_err(to_cli_error)?;
 
     eprintln!("✔ Archived '{}' as '{}'", change_name, archive_name);
     if !specs_updated.is_empty() {
@@ -315,41 +303,6 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
     resolve_backend_runtime(&config.backend).map_err(to_cli_error)
 }
 
-/// Stub backend sync client for archive pull.
-struct StubSyncClient;
-
-impl ito_core::BackendSyncClient for StubSyncClient {
-    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn push(
-        &self,
-        change_id: &str,
-        _bundle: &ito_core::ArtifactBundle,
-    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-}
-
-/// Stub backend archive client.
-struct StubArchiveClient;
-
-impl ito_core::BackendArchiveClient for StubArchiveClient {
-    fn mark_archived(
-        &self,
-        change_id: &str,
-    ) -> Result<ito_core::ArchiveResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Archive endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-}
-
 /// Backend-mode archive: pull from backend, archive locally, mark archived on backend.
 fn handle_backend_archive(
     rt: &Runtime,
@@ -360,9 +313,7 @@ fn handle_backend_archive(
 ) -> CliResult<()> {
     eprintln!("Backend mode enabled — syncing from backend before archiving...");
 
-    let sync_client = StubSyncClient;
-    let archive_client = StubArchiveClient;
-    let module_repo = FsModuleRepository::new(ito_path);
+    let client = BackendHttpClient::new(runtime.clone());
 
     // Audit pre-check
     {
@@ -379,9 +330,8 @@ fn handle_backend_archive(
 
     // Run the backend-mode archive orchestration
     let outcome = backend_coordination::archive_with_backend(
-        &sync_client,
-        &archive_client,
-        &module_repo,
+        &client,
+        &client,
         ito_path,
         change_name,
         &runtime.backup_dir,
@@ -445,19 +395,23 @@ fn handle_backend_archive(
 
 /// Archive all changes with `ChangeStatus::Complete`.
 ///
-/// Discovers completed changes via `FsChangeRepository::list_complete()`, then
+/// Discovers completed changes via the repository runtime, then
 /// archives each one sequentially using the existing single-change flow.
 /// Reports per-change progress and a summary on completion.
 fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let changes_dir = core_paths::changes_dir(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
 
-    if !changes_dir.exists() {
+    if requires_local_changes_dir(runtime.mode()) && !changes_dir.exists() {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
-    let change_repo = FsChangeRepository::new(ito_path);
-    let completed = change_repo.list_complete().map_err(to_cli_error)?;
+    let completed = runtime
+        .repositories()
+        .changes
+        .list_complete()
+        .map_err(to_cli_error)?;
 
     if completed.is_empty() {
         eprintln!("No completed changes to archive.");
@@ -516,4 +470,22 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::requires_local_changes_dir;
+
+    #[test]
+    fn only_filesystem_mode_requires_local_changes_dir() {
+        assert!(requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Filesystem
+        ));
+        assert!(!requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Sqlite
+        ));
+        assert!(!requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Remote
+        ));
+    }
 }

@@ -3,7 +3,9 @@ use ito_config::ito_dir::get_ito_path;
 use ito_core::audit::{
     AuditEvent, AuditWriter, EventContext, FsAuditWriter, resolve_context, resolve_user_identity,
 };
+use ito_core::errors::{CoreError, CoreResult};
 use ito_core::repo_index::RepoIndex;
+use ito_core::repository_runtime::{RepositoryRuntime, resolve_repository_runtime};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -56,6 +58,7 @@ pub(crate) struct Runtime {
     audit_writer: OnceLock<FsAuditWriter>,
     event_context: OnceLock<EventContext>,
     user_identity: OnceLock<String>,
+    repository_runtime: OnceLock<RepositoryRuntime>,
 }
 
 impl Runtime {
@@ -68,6 +71,7 @@ impl Runtime {
             audit_writer: OnceLock::new(),
             event_context: OnceLock::new(),
             user_identity: OnceLock::new(),
+            repository_runtime: OnceLock::new(),
         }
     }
 
@@ -101,6 +105,17 @@ impl Runtime {
     /// Returns the user identity string (e.g., "@jack"), lazily initialized.
     pub(crate) fn user_identity(&self) -> &str {
         self.user_identity.get_or_init(resolve_user_identity)
+    }
+
+    /// Returns the resolved repository runtime.
+    pub(crate) fn repository_runtime(&self) -> CoreResult<&RepositoryRuntime> {
+        if self.repository_runtime.get().is_none() {
+            let runtime = resolve_repository_runtime(self.ito_path(), &self.ctx)?;
+            let _ = self.repository_runtime.set(runtime);
+        }
+        self.repository_runtime
+            .get()
+            .ok_or_else(|| CoreError::validation("repository runtime unavailable".to_string()))
     }
 
     /// Emit an audit event using the runtime's writer. Best-effort: never fails.

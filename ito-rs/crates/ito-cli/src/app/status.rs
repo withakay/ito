@@ -2,7 +2,6 @@ use crate::cli::StatusArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::templates as core_templates;
 
 pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -17,8 +16,8 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let want_json = args.iter().any(|a| a == "--json");
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
-        let change_repo = FsChangeRepository::new(rt.ito_path());
-        let changes = change_repo.list().unwrap_or_default();
+        let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+        let changes = runtime.repositories().changes.list().unwrap_or_default();
         let mut msg = "Missing required option --change".to_string();
         if !changes.is_empty() {
             msg.push_str("\n\nAvailable changes:\n");
@@ -32,13 +31,14 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let schema = parse_string_flag(args, "--schema");
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
 
     // Match TS/ora: spinner output is written to stderr.
     eprintln!("- Loading change status...");
 
     let change = change.expect("checked above");
-    let change = match super::common::resolve_change_target(&change_repo, &change) {
+    let change = match super::common::resolve_change_target(change_repo, &change) {
         Ok(resolved) => resolved,
         Err(msg) => return fail(msg),
     };

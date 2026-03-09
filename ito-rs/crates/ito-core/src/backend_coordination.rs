@@ -11,7 +11,6 @@ use ito_domain::backend::{
     AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendLeaseClient,
     BackendSyncClient, ClaimResult, PushResult, ReleaseResult,
 };
-use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 use crate::backend_sync::map_backend_error;
 use crate::errors::{CoreError, CoreResult};
@@ -88,7 +87,6 @@ pub struct BackendArchiveOutcome {
 pub fn archive_with_backend(
     sync_client: &dyn BackendSyncClient,
     archive_client: &dyn BackendArchiveClient,
-    module_repo: &impl DomainModuleRepository,
     ito_path: &Path,
     change_id: &str,
     backup_dir: &Path,
@@ -107,7 +105,7 @@ pub fn archive_with_backend(
 
     // Step 3: Move to archive
     let archive_name = crate::archive::generate_archive_name(change_id);
-    crate::archive::move_to_archive(module_repo, ito_path, change_id, &archive_name)?;
+    crate::archive::move_to_archive(ito_path, change_id, &archive_name)?;
 
     // Step 4: Mark archived on backend
     let backend_result = archive_client
@@ -326,24 +324,6 @@ mod tests {
         }
     }
 
-    struct FakeModuleRepo;
-
-    impl ito_domain::modules::ModuleRepository for FakeModuleRepo {
-        fn list(
-            &self,
-        ) -> ito_domain::errors::DomainResult<Vec<ito_domain::modules::ModuleSummary>> {
-            Ok(Vec::new())
-        }
-
-        fn get(&self, _id: &str) -> ito_domain::errors::DomainResult<ito_domain::modules::Module> {
-            Err(ito_domain::errors::DomainError::not_found("module", "none"))
-        }
-
-        fn exists(&self, _id: &str) -> bool {
-            false
-        }
-    }
-
     fn setup_change_on_disk(ito_path: &std::path::Path, change_id: &str) {
         let change_dir = ito_path.join("changes").join(change_id);
         std::fs::create_dir_all(change_dir.join("specs/test-cap")).unwrap();
@@ -368,12 +348,10 @@ mod tests {
 
         let sync_client = FakeSyncClient::new(change_id);
         let archive_client = FakeArchiveClient::success();
-        let module_repo = FakeModuleRepo;
 
         let outcome = archive_with_backend(
             &sync_client,
             &archive_client,
-            &module_repo,
             &ito_path,
             change_id,
             &backup_dir,
@@ -419,12 +397,10 @@ mod tests {
 
         let sync_client = FakeSyncClient::new(change_id);
         let archive_client = FakeArchiveClient::success();
-        let module_repo = FakeModuleRepo;
 
         let outcome = archive_with_backend(
             &sync_client,
             &archive_client,
-            &module_repo,
             &ito_path,
             change_id,
             &backup_dir,
@@ -462,12 +438,10 @@ mod tests {
 
         let sync_client = FakeSyncClient::new(change_id);
         let archive_client = FakeArchiveClient::failing();
-        let module_repo = FakeModuleRepo;
 
         let err = archive_with_backend(
             &sync_client,
             &archive_client,
-            &module_repo,
             &ito_path,
             change_id,
             &backup_dir,
