@@ -23,6 +23,7 @@ use ito_domain::changes::{
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
+use ito_domain::specs::{SpecDocument, SpecRepository, SpecSummary};
 use ito_domain::tasks::{
     TaskInitResult, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
     TaskRepository, TasksParseResult, parse_tasks_tracking_file,
@@ -227,6 +228,7 @@ impl SqliteBackendProjectStore {
                 org: org.to_string(),
                 repo: repo.to_string(),
             }),
+            specs: Arc::new(SqliteSpecRepository { specs: Vec::new() }),
         })
     }
 
@@ -281,6 +283,14 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             org: org.to_string(),
             repo: repo.to_string(),
         }))
+    }
+
+    fn spec_repository(
+        &self,
+        _org: &str,
+        _repo: &str,
+    ) -> DomainResult<Box<dyn SpecRepository + Send>> {
+        Ok(Box::new(SqliteSpecRepository { specs: Vec::new() }))
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
@@ -917,6 +927,34 @@ impl ModuleRepository for SqliteModuleRepository {
 /// Task repository backed by pre-loaded SQLite data.
 struct SqliteTaskRepository {
     tasks_data: Vec<(String, Option<String>)>,
+}
+
+struct SqliteSpecRepository {
+    specs: Vec<SpecDocument>,
+}
+
+impl SpecRepository for SqliteSpecRepository {
+    fn list(&self) -> DomainResult<Vec<SpecSummary>> {
+        let mut specs: Vec<SpecSummary> = self
+            .specs
+            .iter()
+            .map(|spec| SpecSummary {
+                id: spec.id.clone(),
+                path: spec.path.clone(),
+                last_modified: spec.last_modified,
+            })
+            .collect();
+        specs.sort_by(|left, right| left.id.cmp(&right.id));
+        Ok(specs)
+    }
+
+    fn get(&self, id: &str) -> DomainResult<SpecDocument> {
+        self.specs
+            .iter()
+            .find(|spec| spec.id == id)
+            .cloned()
+            .ok_or_else(|| DomainError::not_found("spec", id))
+    }
 }
 
 impl TaskRepository for SqliteTaskRepository {

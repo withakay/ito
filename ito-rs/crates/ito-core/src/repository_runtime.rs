@@ -15,15 +15,18 @@ use crate::backend_change_repository::BackendChangeRepository;
 use crate::backend_client::{BackendRuntime, resolve_backend_runtime};
 use crate::backend_http::BackendHttpClient;
 use crate::backend_module_repository::BackendModuleRepository;
+use crate::backend_spec_repository::BackendSpecRepository;
 use crate::change_repository::FsChangeRepository;
 use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
+use crate::spec_repository::FsSpecRepository;
 use crate::task_mutations::{boxed_fs_task_mutation_service, FsTaskMutationService};
 use crate::sqlite_project_store::SqliteBackendProjectStore;
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
+use ito_domain::specs::SpecRepository;
 use ito_domain::tasks::{TaskMutationService, TaskRepository};
 
 /// Client persistence mode used for repository selection.
@@ -48,6 +51,8 @@ pub struct RepositorySet {
     pub tasks: Arc<dyn TaskRepository + Send + Sync>,
     /// Task mutation service implementation.
     pub task_mutations: Arc<dyn TaskMutationService + Send + Sync>,
+    /// Promoted spec repository implementation.
+    pub specs: Arc<dyn SpecRepository + Send + Sync>,
 }
 
 /// Resolved SQLite runtime settings for local persistence.
@@ -114,6 +119,7 @@ impl RemoteRepositoryFactory for HttpRemoteRepositoryFactory {
             modules: Arc::new(BackendModuleRepository::new(client.clone())),
             tasks: Arc::new(RemoteTaskRepository::new(client.clone())),
             task_mutations: Arc::new(client.clone()),
+            specs: Arc::new(BackendSpecRepository::new(client.clone())),
         })
     }
 }
@@ -319,7 +325,8 @@ fn filesystem_repository_set(ito_path: &Path) -> RepositorySet {
         changes: Arc::new(OwnedFsChangeRepository::new(ito_path.clone())),
         modules: Arc::new(OwnedFsModuleRepository::new(ito_path.clone())),
         tasks: Arc::new(OwnedFsTaskRepository::new(ito_path.clone())),
-        task_mutations: Arc::new(FsTaskMutationService::new(ito_path)),
+        task_mutations: Arc::new(FsTaskMutationService::new(ito_path.clone())),
+        specs: Arc::new(OwnedFsSpecRepository::new(ito_path)),
     }
 }
 
@@ -344,6 +351,10 @@ pub(crate) fn boxed_fs_task_mutation_port(
     ito_path: PathBuf,
 ) -> Box<dyn TaskMutationService + Send> {
     boxed_fs_task_mutation_service(ito_path)
+}
+
+pub(crate) fn boxed_fs_spec_repository(ito_path: PathBuf) -> Box<dyn SpecRepository + Send> {
+    Box::new(OwnedFsSpecRepository::new(ito_path))
 }
 
 // ── Owned-path filesystem wrappers ─────────────────────────────────
@@ -487,5 +498,33 @@ impl TaskRepository for OwnedFsTaskRepository {
         change_id: &str,
     ) -> ito_domain::errors::DomainResult<ito_domain::tasks::TasksParseResult> {
         self.inner().load_tasks(change_id)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct OwnedFsSpecRepository {
+    ito_path: PathBuf,
+}
+
+impl OwnedFsSpecRepository {
+    fn new(ito_path: PathBuf) -> Self {
+        Self { ito_path }
+    }
+
+    fn inner(&self) -> FsSpecRepository<'_> {
+        FsSpecRepository::new(&self.ito_path)
+    }
+}
+
+impl SpecRepository for OwnedFsSpecRepository {
+    fn list(&self) -> ito_domain::errors::DomainResult<Vec<ito_domain::specs::SpecSummary>> {
+        self.inner().list()
+    }
+
+    fn get(
+        &self,
+        id: &str,
+    ) -> ito_domain::errors::DomainResult<ito_domain::specs::SpecDocument> {
+        self.inner().get(id)
     }
 }

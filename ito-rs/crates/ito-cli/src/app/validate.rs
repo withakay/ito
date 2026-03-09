@@ -64,6 +64,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let change_repo = runtime.repositories().changes.as_ref();
     let module_repo = runtime.repositories().modules.as_ref();
+    let spec_repo = runtime.repositories().specs.as_ref();
 
     if bulk {
         let repo_index = rt.repo_index();
@@ -186,7 +187,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
 
         if want_specs {
-            for spec_id in super::common::list_spec_ids_from_index(ito_path, repo_index) {
+            for spec_id in super::common::list_spec_ids(rt) {
                 let report = core_validate::validate_spec(ito_path, &spec_id, strict)
                     .unwrap_or_else(|e| {
                         core_validate::ValidationReport::new(
@@ -332,7 +333,7 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(_) => {
             return fail("Invalid type. Expected 'change', 'spec', or 'module'.");
         }
-        None => super::common::detect_item_type(change_repo, ito_path, rt.repo_index(), &item),
+        None => super::common::detect_item_type(change_repo, spec_repo, &item),
     };
 
     // Special-case: TS `--type module <id>` behaves like validating a spec by id.

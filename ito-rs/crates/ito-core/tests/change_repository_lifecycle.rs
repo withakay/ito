@@ -16,6 +16,7 @@ use ito_domain::changes::{
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{ModuleRepository, ModuleSummary};
+use ito_domain::specs::{SpecDocument, SpecRepository, SpecSummary};
 use ito_domain::tasks::{
     TaskInitResult, TaskMutationError, TaskMutationResult, TaskMutationService,
     TaskMutationServiceResult, TaskRepository, TasksParseResult,
@@ -259,6 +260,18 @@ impl TaskMutationService for FakeTaskMutations {
     }
 }
 
+struct FakeSpecRepo;
+
+impl SpecRepository for FakeSpecRepo {
+    fn list(&self) -> DomainResult<Vec<SpecSummary>> {
+        Ok(Vec::new())
+    }
+
+    fn get(&self, id: &str) -> DomainResult<SpecDocument> {
+        Err(DomainError::not_found("spec", id))
+    }
+}
+
 struct FakeRemoteFactory {
     repos: RepositorySet,
 }
@@ -294,6 +307,7 @@ fn remote_runtime_ignores_local_change_dirs() {
         modules: Arc::new(FakeModuleRepo),
         tasks: Arc::new(FakeTaskRepo),
         task_mutations: Arc::new(FakeTaskMutations),
+        specs: Arc::new(FakeSpecRepo),
     };
     let backend_runtime = BackendRuntime {
         base_url: "http://127.0.0.1:9010".to_string(),

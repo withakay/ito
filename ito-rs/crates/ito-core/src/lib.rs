@@ -27,6 +27,9 @@ pub mod backend_http;
 /// Backend-backed module repository adapter.
 pub mod backend_module_repository;
 
+/// Backend-backed promoted spec repository adapter.
+pub mod backend_spec_repository;
+
 /// Backend-backed task repository adapter.
 pub mod backend_task_repository;
 
@@ -101,6 +104,9 @@ pub mod planning_init;
 /// Filesystem-backed task repository implementation.
 pub mod task_repository;
 
+/// Filesystem-backed promoted spec repository implementation.
+pub mod spec_repository;
+
 /// Task mutation services for filesystem and backend persistence.
 pub mod task_mutations;
 
@@ -141,14 +147,15 @@ pub mod templates;
 pub use ito_domain::backend::{
     AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
     BackendError, BackendEventIngestClient, BackendLeaseClient, BackendModuleReader,
-    BackendProjectStore, BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch,
-    EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
+    BackendProjectStore, BackendSpecReader, BackendSyncClient, BackendTaskReader, ClaimResult,
+    EventBatch, EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
 pub use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
 };
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
+pub use ito_domain::specs::{SpecDocument, SpecRepository, SpecSummary};
 pub use ito_domain::tasks::{
     ProgressInfo, TaskInitResult, TaskItem, TaskKind, TaskMutationError, TaskMutationResult,
     TaskMutationService, TaskMutationServiceResult, TaskRepository as DomainTaskRepository,

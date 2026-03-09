@@ -172,6 +172,13 @@ pub trait BackendProjectStore: Send + Sync {
         repo: &str,
     ) -> DomainResult<Box<dyn crate::tasks::TaskMutationService + Send>>;
 
+    /// Obtain a promoted spec repository for the given project.
+    fn spec_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::specs::SpecRepository + Send>>;
+
     /// Ensure the project directory/storage structure exists.
     ///
     /// Called before first write to a project. Implementations should
@@ -249,6 +256,15 @@ pub trait BackendModuleReader {
 pub trait BackendTaskReader {
     /// Load tasks content (raw markdown) from the backend for a change.
     fn load_tasks_content(&self, change_id: &str) -> DomainResult<Option<String>>;
+}
+
+/// Port for backend-backed promoted spec reading.
+pub trait BackendSpecReader {
+    /// List all promoted specs from the backend.
+    fn list_specs(&self) -> DomainResult<Vec<crate::specs::SpecSummary>>;
+
+    /// Get a promoted spec from the backend.
+    fn get_spec(&self, spec_id: &str) -> DomainResult<crate::specs::SpecDocument>;
 }
 
 // ── Event ingest DTOs ──────────────────────────────────────────────

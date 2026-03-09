@@ -22,6 +22,7 @@ use ito_domain::changes::{
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
+use ito_domain::specs::{SpecDocument, SpecRepository, SpecSummary};
 use ito_domain::tasks::{
     TaskInitResult, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
     TaskRepository, TasksParseResult,
@@ -402,6 +403,27 @@ impl TaskMutationService for FakeTaskMutations {
     }
 }
 
+struct FakeSpecRepo;
+
+impl SpecRepository for FakeSpecRepo {
+    fn list(&self) -> DomainResult<Vec<SpecSummary>> {
+        Ok(vec![SpecSummary {
+            id: "repository-runtime-selection".to_string(),
+            path: std::path::PathBuf::from(".ito/specs/repository-runtime-selection/spec.md"),
+            last_modified: Utc::now(),
+        }])
+    }
+
+    fn get(&self, id: &str) -> DomainResult<SpecDocument> {
+        Ok(SpecDocument {
+            id: id.to_string(),
+            path: std::path::PathBuf::from(format!(".ito/specs/{id}/spec.md")),
+            markdown: "# Spec\n".to_string(),
+            last_modified: Utc::now(),
+        })
+    }
+}
+
 struct FakeRemoteFactory {
     repos: RepositorySet,
 }
@@ -461,6 +483,7 @@ fn remote_runtime_uses_remote_factory() {
         modules: Arc::new(FakeModuleRepo::new(module_summary, module)),
         tasks: Arc::new(FakeTaskRepo),
         task_mutations: Arc::new(FakeTaskMutations),
+        specs: Arc::new(FakeSpecRepo),
     };
     let backend_runtime = BackendRuntime {
         base_url: "http://127.0.0.1:9010".to_string(),
@@ -591,6 +614,7 @@ fn repository_modes_return_consistent_change_names() {
         modules: Arc::new(FakeModuleRepo::new(module_summary, module)),
         tasks: Arc::new(FakeTaskRepo),
         task_mutations: Arc::new(FakeTaskMutations),
+        specs: Arc::new(FakeSpecRepo),
     };
     let backend_runtime = BackendRuntime {
         base_url: "http://127.0.0.1:9010".to_string(),

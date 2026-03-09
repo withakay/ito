@@ -5,7 +5,7 @@ use clap::CommandFactory;
 use ito_config::ConfigContext;
 use ito_core::paths as core_paths;
 use ito_core::templates as core_templates;
-use ito_core::{ChangeRepository, ChangeTargetResolution};
+use ito_core::{ChangeRepository, ChangeTargetResolution, SpecRepository};
 use std::path::Path;
 
 pub(crate) fn schema_not_found_message(ctx: &ConfigContext, name: &str) -> String {
@@ -52,8 +52,7 @@ pub(crate) fn unknown_with_suggestions(kind: &str, item: &str, suggestions: &[St
 
 pub(crate) fn detect_item_type(
     change_repo: &(impl ChangeRepository + ?Sized),
-    ito_path: &Path,
-    idx: &ito_core::repo_index::RepoIndex,
+    spec_repo: &(impl SpecRepository + ?Sized),
     item: &str,
 ) -> String {
     let is_change = match change_repo.resolve_target(item) {
@@ -62,8 +61,7 @@ pub(crate) fn detect_item_type(
             change_repo.exists(item)
         }
     };
-    let is_spec = idx.spec_dir_names.iter().any(|n| n == item)
-        && core_paths::spec_markdown_path(ito_path, item).exists();
+    let is_spec = spec_repo.get(item).is_ok();
     match (is_change, is_spec) {
         (true, true) => "ambiguous".to_string(),
         (true, false) => "change".to_string(),
@@ -73,7 +71,15 @@ pub(crate) fn detect_item_type(
 }
 
 pub(crate) fn list_spec_ids(rt: &Runtime) -> Vec<String> {
-    list_spec_ids_from_index(rt.ito_path(), rt.repo_index())
+    let Ok(runtime) = rt.repository_runtime() else {
+        return Vec::new();
+    };
+    runtime
+        .repositories()
+        .specs
+        .list()
+        .map(|specs| specs.into_iter().map(|spec| spec.id).collect())
+        .unwrap_or_default()
 }
 
 pub(crate) fn list_change_ids(change_repo: &(impl ChangeRepository + ?Sized)) -> Vec<String> {
@@ -129,21 +135,6 @@ pub(crate) fn list_candidate_items(
     let mut items = list_spec_ids(rt);
     items.extend(list_change_ids(change_repo));
     items
-}
-
-pub(crate) fn list_spec_ids_from_index(
-    ito_path: &Path,
-    idx: &ito_core::repo_index::RepoIndex,
-) -> Vec<String> {
-    let specs_dir = core_paths::specs_dir(ito_path);
-    let mut ids: Vec<String> = Vec::new();
-    for id in &idx.spec_dir_names {
-        if specs_dir.join(id).join("spec.md").exists() {
-            ids.push(id.clone());
-        }
-    }
-    ids.sort();
-    ids
 }
 
 pub(crate) fn last_positional(args: &[String]) -> Option<String> {

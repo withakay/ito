@@ -8,10 +8,11 @@ use std::path::Path;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::spec_repository::FsSpecRepository;
 use ito_domain::modules::ModuleRepository;
+use ito_domain::specs::SpecRepository;
 use serde::Serialize;
 
-use ito_common::paths;
 use ito_domain::changes::ChangeRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -122,9 +123,17 @@ pub struct ChangeDelta {
 
 /// Read the markdown for a spec id from `.ito/specs/<id>/spec.md`.
 pub fn read_spec_markdown(ito_path: &Path, id: &str) -> CoreResult<String> {
-    let path = paths::spec_markdown_path(ito_path, id);
-    ito_common::io::read_to_string(&path)
-        .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))
+    let repo = FsSpecRepository::new(ito_path);
+    read_spec_markdown_from_repository(&repo, id)
+}
+
+/// Read the markdown for a spec id from a repository.
+pub fn read_spec_markdown_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+    id: &str,
+) -> CoreResult<String> {
+    let spec = repo.get(id).into_core()?;
+    Ok(spec.markdown)
 }
 
 /// Read the proposal markdown for a change id.
@@ -187,7 +196,6 @@ pub fn parse_spec_show_json(id: &str, markdown: &str) -> SpecShowJson {
 
 /// Bundle all main specs under `.ito/specs/*/spec.md` into a JSON-friendly structure.
 pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJson> {
-    use crate::error_bridge::IntoCoreResult;
     use ito_common::fs::StdFs;
 
     let fs = StdFs;
@@ -199,9 +207,10 @@ pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJso
             "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
         ));
     }
-    let mut specs: Vec<BundledSpec> = Vec::new();
+
+    let mut specs = Vec::with_capacity(ids.len());
     for id in ids {
-        let path = paths::spec_markdown_path(ito_path, &id);
+        let path = ito_common::paths::spec_markdown_path(ito_path, &id);
         let markdown = ito_common::io::read_to_string(&path)
             .map_err(|e| CoreError::io(format!("reading spec {}", id), std::io::Error::other(e)))?;
         specs.push(BundledSpec {
@@ -217,12 +226,48 @@ pub fn bundle_main_specs_show_json(ito_path: &Path) -> CoreResult<SpecsBundleJso
     })
 }
 
+/// Bundle all promoted specs from a repository into a JSON-friendly structure.
+pub fn bundle_specs_show_json_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+) -> CoreResult<SpecsBundleJson> {
+    let mut summaries = repo.list().into_core()?;
+    summaries.sort_by(|left, right| left.id.cmp(&right.id));
+    if summaries.is_empty() {
+        return Err(CoreError::not_found(
+            "No specs found under .ito/specs (expected .ito/specs/<id>/spec.md)".to_string(),
+        ));
+    }
+
+    let mut specs = Vec::with_capacity(summaries.len());
+    for summary in summaries {
+        let spec = repo.get(&summary.id).into_core()?;
+        specs.push(BundledSpec {
+            id: spec.id,
+            path: spec.path.to_string_lossy().to_string(),
+            markdown: spec.markdown,
+        });
+    }
+
+    Ok(SpecsBundleJson {
+        spec_count: specs.len() as u32,
+        specs,
+    })
+}
+
 /// Bundle all main specs under `.ito/specs/*/spec.md` into a single markdown stream.
 ///
 /// Each spec is preceded by a metadata comment line:
 /// `<!-- spec-id: <id>; source: <absolute-path-to-spec.md> -->`.
 pub fn bundle_main_specs_markdown(ito_path: &Path) -> CoreResult<String> {
-    let bundle = bundle_main_specs_show_json(ito_path)?;
+    let repo = FsSpecRepository::new(ito_path);
+    bundle_specs_markdown_from_repository(&repo)
+}
+
+/// Bundle all promoted specs from a repository into a single markdown stream.
+pub fn bundle_specs_markdown_from_repository(
+    repo: &(impl SpecRepository + ?Sized),
+) -> CoreResult<String> {
+    let bundle = bundle_specs_show_json_from_repository(repo)?;
     let mut out = String::new();
     for (i, spec) in bundle.specs.iter().enumerate() {
         if i != 0 {

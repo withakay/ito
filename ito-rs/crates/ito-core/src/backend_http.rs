@@ -11,10 +11,11 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 use crate::backend_client::{is_retriable_status, BackendRuntime};
-use ito_domain::backend::{BackendChangeReader, BackendModuleReader};
+use ito_domain::backend::{BackendChangeReader, BackendModuleReader, BackendSpecReader};
 use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary};
+use ito_domain::specs::{SpecDocument, SpecSummary};
 use ito_domain::tasks::{
     DiagnosticLevel, ProgressInfo, TaskDiagnostic, TaskInitResult, TaskItem, TaskKind,
     TaskMutationError, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
@@ -245,6 +246,32 @@ impl BackendModuleReader for BackendHttpClient {
             name: module.name,
             description: module.description,
             path: PathBuf::new(),
+        })
+    }
+}
+
+impl BackendSpecReader for BackendHttpClient {
+    fn list_specs(&self) -> DomainResult<Vec<SpecSummary>> {
+        let url = format!("{}/specs", self.inner.runtime.project_api_prefix());
+        let specs: Vec<ApiSpecSummary> = self.get_json(&url, "spec", None)?;
+        Ok(specs
+            .into_iter()
+            .map(|spec| SpecSummary {
+                id: spec.id,
+                path: PathBuf::from(spec.path),
+                last_modified: parse_timestamp(&spec.last_modified).unwrap_or_else(|_| Utc::now()),
+            })
+            .collect())
+    }
+
+    fn get_spec(&self, spec_id: &str) -> DomainResult<SpecDocument> {
+        let url = format!("{}/specs/{spec_id}", self.inner.runtime.project_api_prefix());
+        let spec: ApiSpecDocument = self.get_json(&url, "spec", Some(spec_id))?;
+        Ok(SpecDocument {
+            id: spec.id,
+            path: PathBuf::from(spec.path),
+            markdown: spec.markdown,
+            last_modified: parse_timestamp(&spec.last_modified).unwrap_or_else(|_| Utc::now()),
         })
     }
 }
@@ -665,6 +692,21 @@ struct ApiTaskDetail {
     done_when: Option<String>,
     kind: String,
     header_line_index: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiSpecSummary {
+    id: String,
+    path: String,
+    last_modified: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiSpecDocument {
+    id: String,
+    path: String,
+    markdown: String,
+    last_modified: String,
 }
 
 #[derive(Debug, Deserialize)]

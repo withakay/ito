@@ -273,6 +273,30 @@ pub struct ApiModule {
     pub description: Option<String>,
 }
 
+/// Promoted spec summary for listings.
+#[derive(Debug, Serialize)]
+pub struct ApiSpecSummary {
+    /// Spec identifier.
+    pub id: String,
+    /// Canonical source path.
+    pub path: String,
+    /// ISO-8601 last modified timestamp.
+    pub last_modified: String,
+}
+
+/// Full promoted spec detail.
+#[derive(Debug, Serialize)]
+pub struct ApiSpecDocument {
+    /// Spec identifier.
+    pub id: String,
+    /// Canonical source path.
+    pub path: String,
+    /// Raw markdown contents.
+    pub markdown: String,
+    /// ISO-8601 last modified timestamp.
+    pub last_modified: String,
+}
+
 // ── Conversion helpers ──────────────────────────────────────────────
 
 /// Convert a `DomainResult<T>` to a `Result<T, ApiErrorResponse>`.
@@ -609,6 +633,40 @@ pub async fn get_module(
     }))
 }
 
+/// `GET /api/v1/projects/{org}/{repo}/specs` — list promoted specs.
+pub async fn list_specs(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo)): Path<(String, String)>,
+) -> Result<Json<Vec<ApiSpecSummary>>, ApiErrorResponse> {
+    let spec_repo = map_domain_err(state.store.spec_repository(&org, &repo))?;
+    let specs = map_domain_err(spec_repo.list())?;
+    let mut summaries = Vec::with_capacity(specs.len());
+    for spec in specs {
+        summaries.push(ApiSpecSummary {
+            id: spec.id,
+            path: spec.path.to_string_lossy().to_string(),
+            last_modified: spec.last_modified.to_rfc3339(),
+        });
+    }
+    summaries.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(Json(summaries))
+}
+
+/// `GET /api/v1/projects/{org}/{repo}/specs/{spec_id}` — get a promoted spec.
+pub async fn get_spec(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, spec_id)): Path<(String, String, String)>,
+) -> Result<Json<ApiSpecDocument>, ApiErrorResponse> {
+    let spec_repo = map_domain_err(state.store.spec_repository(&org, &repo))?;
+    let spec = map_domain_err(spec_repo.get(&spec_id))?;
+    Ok(Json(ApiSpecDocument {
+        id: spec.id,
+        path: spec.path.to_string_lossy().to_string(),
+        markdown: spec.markdown,
+        last_modified: spec.last_modified.to_rfc3339(),
+    }))
+}
+
 // ── Event ingest types ──────────────────────────────────────────────
 
 /// Request body for the event ingest endpoint.
@@ -800,6 +858,8 @@ fn project_router() -> Router<Arc<AppState>> {
         .route("/changes/{change_id}/tasks/add", post(add_change_task))
         .route("/modules", get(list_modules))
         .route("/modules/{module_id}", get(get_module))
+        .route("/specs", get(list_specs))
+        .route("/specs/{spec_id}", get(get_spec))
         .route("/events", post(ingest_events))
 }
 
