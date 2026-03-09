@@ -1,4 +1,6 @@
-use super::{is_not_found_error, optional_task_text_body, parse_timestamp, retries_enabled_by_default};
+use super::{
+    is_not_found_error, optional_task_text_body, parse_timestamp, retries_enabled_by_default,
+};
 use ito_domain::errors::DomainError;
 
 #[test]
