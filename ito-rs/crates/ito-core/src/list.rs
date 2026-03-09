@@ -141,7 +141,7 @@ pub struct SpecListItem {
 }
 
 /// List modules under `{ito_path}/modules`.
-pub fn list_modules(module_repo: &impl DomainModuleRepository) -> CoreResult<Vec<ModuleListItem>> {
+pub fn list_modules(module_repo: &dyn DomainModuleRepository) -> CoreResult<Vec<ModuleListItem>> {
     let mut modules: Vec<ModuleListItem> = Vec::new();
 
     for module in module_repo.list().into_core()? {
@@ -170,7 +170,7 @@ pub fn list_change_dirs(ito_path: &Path) -> CoreResult<Vec<PathBuf>> {
 
 /// List active changes using typed summaries for adapter rendering.
 pub fn list_changes(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &dyn DomainChangeRepository,
     input: ListChangesInput,
 ) -> CoreResult<Vec<ChangeListSummary>> {
     let mut summaries: Vec<ChangeSummary> = change_repo.list().into_core()?;

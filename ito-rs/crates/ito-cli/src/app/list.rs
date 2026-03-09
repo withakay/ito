@@ -2,8 +2,7 @@ use crate::cli::{ListArgs, ListSortOrder};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use chrono::{DateTime, Utc};
-use ito_core::change_repository::FsChangeRepository;
-use ito_core::module_repository::FsModuleRepository;
+use ito_core::repository_runtime::PersistenceMode;
 
 #[derive(Debug, serde::Serialize)]
 struct ModulesResponse {
@@ -54,11 +53,13 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
     };
 
     let ito_path = rt.ito_path();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repos = runtime.repositories();
 
     match mode {
         "modules" => {
-            let module_repo = FsModuleRepository::new(ito_path);
-            let modules = ito_core::list::list_modules(&module_repo).map_err(to_cli_error)?;
+            let modules =
+                ito_core::list::list_modules(repos.modules.as_ref()).map_err(to_cli_error)?;
 
             if want_json {
                 let payload = ModulesResponse { modules };
@@ -133,17 +134,18 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 ito_core::list::ChangeSortOrder::Recent
             };
 
-            let changes_dir = ito_path.join("changes");
-            if !changes_dir.exists() {
-                return Err(to_cli_error(miette::miette!(
-                    "No Ito changes directory found at {}",
-                    changes_dir.display()
-                )));
+            if runtime.mode() == PersistenceMode::Filesystem {
+                let changes_dir = ito_path.join("changes");
+                if !changes_dir.exists() {
+                    return Err(to_cli_error(miette::miette!(
+                        "No Ito changes directory found at {}",
+                        changes_dir.display()
+                    )));
+                }
             }
 
-            let change_repo = FsChangeRepository::new(ito_path);
             let summaries = ito_core::list::list_changes(
-                &change_repo,
+                repos.changes.as_ref(),
                 ito_core::list::ListChangesInput {
                     progress_filter,
                     sort: sort_order,

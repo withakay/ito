@@ -176,7 +176,7 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult
 
 /// Validate a change's delta specs by change id.
 pub fn validate_change(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
     change_id: &str,
     strict: bool,
@@ -339,7 +339,7 @@ fn resolve_validation_context(ito_path: &Path, change_id: &str) -> (ConfigContex
 
 fn validate_change_against_schema_validation(
     rep: &mut ReportBuilder,
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
     change_id: &str,
     resolved: &ResolvedSchema,
@@ -484,7 +484,7 @@ fn validate_change_against_schema_validation(
 
 fn run_validator_for_artifact(
     rep: &mut ReportBuilder,
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     ctx: ArtifactValidatorContext<'_>,
     artifact_id: &str,
     generates: &str,
@@ -582,7 +582,7 @@ fn validate_tasks_tracking_path(
 
 fn validate_change_delta_specs(
     rep: &mut ReportBuilder,
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<()> {
     use format_specs::DELTA_SPECS_V1;
@@ -680,8 +680,8 @@ pub struct ResolvedModule {
 /// Input can be a full directory name (`NNN_slug`) or the numeric module id
 /// (`NNN`). Empty input returns `Ok(None)`.
 pub fn resolve_module(
-    module_repo: &impl DomainModuleRepository,
-    _ito_path: &Path,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
+    ito_path: &Path,
     input: &str,
 ) -> CoreResult<Option<ResolvedModule>> {
     let trimmed = input.trim();
@@ -693,7 +693,15 @@ pub fn resolve_module(
     match module {
         Ok(m) => {
             let full_name = format!("{}_{}", m.id, m.name);
-            let module_dir = m.path;
+            let module_dir = if m.path.as_os_str().is_empty() {
+                let fallback = paths::modules_dir(ito_path).join(&full_name);
+                if !fallback.exists() {
+                    return Ok(None);
+                }
+                fallback
+            } else {
+                m.path
+            };
             let module_md = module_dir.join("module.md");
             Ok(Some(ResolvedModule {
                 id: m.id,
@@ -710,7 +718,7 @@ pub fn resolve_module(
 ///
 /// Returns the resolved module directory name along with the report.
 pub fn validate_module(
-    module_repo: &impl DomainModuleRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
     module_input: &str,
     strict: bool,

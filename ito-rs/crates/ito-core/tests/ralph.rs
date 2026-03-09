@@ -264,30 +264,73 @@ impl ChangeRepository for DriftingChangeRepo {
         self.repo().exists(id)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        self.repo().get(id)
+    fn exists_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> bool {
+        self.repo().exists_with_filter(id, filter)
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let out = self.repo().list();
-        self.maybe_drift();
+    fn get_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Change> {
+        self.repo().get_with_filter(id, filter)
+    }
+
+    fn list_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let out = self.repo().list_with_filter(filter);
+        if filter.includes_active() {
+            self.maybe_drift();
+        }
         out
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        self.repo().list_by_module(module_id)
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let out = self.repo().list_by_module_with_filter(module_id, filter);
+        if filter.includes_active() {
+            self.maybe_drift();
+        }
+        out
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.repo().list_incomplete()
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let out = self.repo().list_incomplete_with_filter(filter);
+        if filter.includes_active() {
+            self.maybe_drift();
+        }
+        out
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.repo().list_complete()
+    fn list_complete_with_filter(
+        &self,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let out = self.repo().list_complete_with_filter(filter);
+        if filter.includes_active() {
+            self.maybe_drift();
+        }
+        out
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        self.repo().get_summary(id)
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ito_domain::changes::ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        self.repo().get_summary_with_filter(id, filter)
     }
 }
 

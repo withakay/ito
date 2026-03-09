@@ -5,16 +5,16 @@ use ito_common::fs::{FileSystem, StdFs};
 use ito_common::match_::nearest_matches;
 use ito_common::paths;
 use ito_domain::changes::{
-    Change, ChangeRepository as DomainChangeRepository, ChangeStatus, ChangeSummary,
-    ChangeTargetResolution, ResolveTargetOptions, Spec, extract_module_id, parse_change_id,
-    parse_module_id,
+    Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeStatus,
+    ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec, extract_module_id,
+    parse_change_id, parse_module_id,
 };
 use ito_domain::discovery;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use regex::Regex;
-use std::collections::BTreeSet;
-use std::path::Path;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
 use crate::front_matter;
 use crate::task_repository::FsTaskRepository;
@@ -24,6 +24,19 @@ pub struct FsChangeRepository<'a, F: FileSystem = StdFs> {
     ito_path: &'a Path,
     task_repo: FsTaskRepository<'a>,
     fs: F,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChangeLifecycle {
+    Active,
+    Archived,
+}
+
+#[derive(Debug, Clone)]
+struct ChangeLocation {
+    id: String,
+    path: PathBuf,
+    lifecycle: ChangeLifecycle,
 }
 
 impl<'a> FsChangeRepository<'a, StdFs> {
@@ -109,18 +122,128 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         paths::changes_dir(self.ito_path)
     }
 
-    fn list_change_dir_names(&self, include_archived: bool) -> Vec<String> {
-        let mut out = discovery::list_change_dir_names(&self.fs, self.ito_path).unwrap_or_default();
-
-        if include_archived {
-            let archive_dir = self.changes_dir().join("archive");
-            let archived = discovery::list_dir_names(&self.fs, &archive_dir).unwrap_or_default();
-            out.extend(archived);
+    fn list_change_locations(&self, filter: ChangeLifecycleFilter) -> Vec<ChangeLocation> {
+        let mut active = Vec::new();
+        if filter.includes_active() {
+            active = self.list_active_locations();
         }
 
+        let mut archived = Vec::new();
+        if filter.includes_archived() {
+            archived = self.list_archived_locations();
+        }
+
+        match filter {
+            ChangeLifecycleFilter::Active => active,
+            ChangeLifecycleFilter::Archived => archived,
+            ChangeLifecycleFilter::All => {
+                let mut merged: BTreeMap<String, ChangeLocation> = BTreeMap::new();
+                for loc in active {
+                    merged.insert(loc.id.clone(), loc);
+                }
+                for loc in archived {
+                    merged.entry(loc.id.clone()).or_insert(loc);
+                }
+                merged.into_values().collect()
+            }
+        }
+    }
+
+    fn list_active_locations(&self) -> Vec<ChangeLocation> {
+        let mut out = Vec::new();
+        for name in discovery::list_change_dir_names(&self.fs, self.ito_path).unwrap_or_default() {
+            let path = self.changes_dir().join(&name);
+            out.push(ChangeLocation {
+                id: name,
+                path,
+                lifecycle: ChangeLifecycle::Active,
+            });
+        }
+        out.sort_by(|a, b| a.id.cmp(&b.id));
+        out
+    }
+
+    fn list_archived_locations(&self) -> Vec<ChangeLocation> {
+        let archive_dir = self.changes_dir().join("archive");
+        let mut by_id: BTreeMap<String, String> = BTreeMap::new();
+        let archived = discovery::list_dir_names(&self.fs, &archive_dir).unwrap_or_default();
+
+        for name in archived {
+            let Some(change_id) = self.parse_archived_change_id(&name) else {
+                continue;
+            };
+            let entry = by_id.entry(change_id).or_insert(name.clone());
+            if name > *entry {
+                *entry = name;
+            }
+        }
+
+        let mut out = Vec::new();
+        for (id, dir_name) in by_id {
+            out.push(ChangeLocation {
+                id,
+                path: archive_dir.join(dir_name),
+                lifecycle: ChangeLifecycle::Archived,
+            });
+        }
+        out
+    }
+
+    fn parse_archived_change_id(&self, name: &str) -> Option<String> {
+        if let Some(remainder) = self.strip_archive_date_prefix(name)
+            && parse_change_id(remainder).is_some()
+        {
+            return Some(remainder.to_string());
+        }
+
+        if parse_change_id(name).is_some() {
+            return Some(name.to_string());
+        }
+
+        None
+    }
+
+    fn strip_archive_date_prefix<'b>(&self, name: &'b str) -> Option<&'b str> {
+        let mut parts = name.splitn(4, '-');
+        let year = parts.next()?;
+        let month = parts.next()?;
+        let day = parts.next()?;
+        let remainder = parts.next()?;
+
+        if year.len() != 4 || month.len() != 2 || day.len() != 2 {
+            return None;
+        }
+        if !year.chars().all(|c| c.is_ascii_digit())
+            || !month.chars().all(|c| c.is_ascii_digit())
+            || !day.chars().all(|c| c.is_ascii_digit())
+        {
+            return None;
+        }
+        if remainder.trim().is_empty() {
+            return None;
+        }
+        Some(remainder)
+    }
+
+    fn list_change_ids(&self, filter: ChangeLifecycleFilter) -> Vec<String> {
+        let mut out: Vec<String> = self
+            .list_change_locations(filter)
+            .into_iter()
+            .map(|loc| loc.id)
+            .collect();
         out.sort();
         out.dedup();
         out
+    }
+
+    fn find_change_location(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> Option<ChangeLocation> {
+        self.list_change_locations(filter)
+            .into_iter()
+            .find(|loc| loc.id == id)
     }
 
     fn split_canonical_change_id<'b>(&self, name: &'b str) -> Option<(String, String, &'b str)> {
@@ -183,14 +306,28 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         parse_change_id(&parsed)
     }
 
-    fn resolve_unique_change_id(&self, input: &str) -> DomainResult<String> {
-        match self.resolve_target(input) {
+    fn resolve_unique_change_id(
+        &self,
+        input: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<String> {
+        match self.resolve_target_with_options(input, ResolveTargetOptions { lifecycle: filter }) {
             ChangeTargetResolution::Unique(id) => Ok(id),
             ChangeTargetResolution::Ambiguous(matches) => {
                 Err(DomainError::ambiguous_target("change", input, &matches))
             }
             ChangeTargetResolution::NotFound => Err(DomainError::not_found("change", input)),
         }
+    }
+
+    fn resolve_unique_change_location(
+        &self,
+        input: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeLocation> {
+        let id = self.resolve_unique_change_id(input, filter)?;
+        self.find_change_location(&id, filter)
+            .ok_or_else(|| DomainError::not_found("change", input))
     }
 
     fn read_optional_file(&self, path: &Path) -> DomainResult<Option<String>> {
@@ -303,6 +440,48 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
 
         Ok(latest)
     }
+
+    fn load_tasks_for_location(
+        &self,
+        location: &ChangeLocation,
+    ) -> DomainResult<ito_domain::tasks::TasksParseResult> {
+        match location.lifecycle {
+            ChangeLifecycle::Active => self.task_repo.load_tasks(&location.id),
+            ChangeLifecycle::Archived => self.task_repo.load_tasks_from_dir(&location.path),
+        }
+    }
+
+    fn build_summary_for_location(&self, location: &ChangeLocation) -> DomainResult<ChangeSummary> {
+        let tasks = self.load_tasks_for_location(location)?;
+        let progress = tasks.progress;
+        let completed_tasks = progress.complete as u32;
+        let shelved_tasks = progress.shelved as u32;
+        let in_progress_tasks = progress.in_progress as u32;
+        let pending_tasks = progress.pending as u32;
+        let total_tasks = progress.total as u32;
+        let last_modified = self.get_last_modified(&location.path)?;
+
+        let has_proposal = self.fs.is_file(&location.path.join("proposal.md"));
+        let has_design = self.fs.is_file(&location.path.join("design.md"));
+        let has_specs = self.has_specs(&location.path);
+        let has_tasks = total_tasks > 0;
+        let module_id = extract_module_id(&location.id);
+
+        Ok(ChangeSummary {
+            id: location.id.clone(),
+            module_id,
+            completed_tasks,
+            shelved_tasks,
+            in_progress_tasks,
+            pending_tasks,
+            total_tasks,
+            last_modified,
+            has_proposal,
+            has_design,
+            has_specs,
+            has_tasks,
+        })
+    }
 }
 
 impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
@@ -311,7 +490,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         input: &str,
         options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
-        let names = self.list_change_dir_names(options.include_archived);
+        let names = self.list_change_ids(options.lifecycle);
         if names.is_empty() {
             return ChangeTargetResolution::NotFound;
         }
@@ -435,7 +614,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             return Vec::new();
         }
 
-        let names = self.list_change_dir_names(false);
+        let names = self.list_change_ids(ChangeLifecycleFilter::Active);
         let canonical_names: Vec<String> = names
             .iter()
             .filter_map(|name| {
@@ -503,7 +682,12 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
     }
 
     fn exists(&self, id: &str) -> bool {
-        let resolution = self.resolve_target(id);
+        self.exists_with_filter(id, ChangeLifecycleFilter::Active)
+    }
+
+    fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
+        let resolution =
+            self.resolve_target_with_options(id, ResolveTargetOptions { lifecycle: filter });
         match resolution {
             ChangeTargetResolution::Unique(_) => true,
             ChangeTargetResolution::Ambiguous(_) => false,
@@ -511,12 +695,12 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         }
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        let actual_id = self.resolve_unique_change_id(id)?;
-        let path = self.changes_dir().join(&actual_id);
+    fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        let location = self.resolve_unique_change_location(id, filter)?;
+        let actual_id = location.id.clone();
 
-        let proposal = self.read_optional_file(&path.join("proposal.md"))?;
-        let design = self.read_optional_file(&path.join("design.md"))?;
+        let proposal = self.read_optional_file(&location.path.join("proposal.md"))?;
+        let design = self.read_optional_file(&location.path.join("design.md"))?;
 
         // Validate front matter identifiers in artifacts (non-blocking for
         // files without front matter).
@@ -527,9 +711,10 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             self.validate_artifact_front_matter(content, &actual_id)?;
         }
 
-        let specs = self.load_specs(&path)?;
-        let tasks = self.task_repo.load_tasks(&actual_id)?;
-        let last_modified = self.get_last_modified(&path)?;
+        let specs = self.load_specs(&location.path)?;
+        let tasks = self.load_tasks_for_location(&location)?;
+        let last_modified = self.get_last_modified(&location.path)?;
+        let path = location.path;
 
         Ok(Change {
             id: actual_id.clone(),
@@ -543,79 +728,58 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         })
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let changes_dir = self.changes_dir();
-        if !self.fs.is_dir(&changes_dir) {
-            return Ok(Vec::new());
-        }
-
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
         let mut summaries = Vec::new();
-        for name in discovery::list_change_dir_names(&self.fs, self.ito_path)? {
-            let summary = self.get_summary(&name)?;
-            summaries.push(summary);
+        for location in self.list_change_locations(filter) {
+            summaries.push(self.build_summary_for_location(&location)?);
         }
 
         summaries.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(summaries)
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
         let normalized_id = parse_module_id(module_id);
-        let all = self.list()?;
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.module_id.as_deref() == Some(&normalized_id))
             .collect())
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.list()?;
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.status() == ChangeStatus::InProgress)
             .collect())
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.list()?;
+    fn list_complete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.list_with_filter(filter)?;
         Ok(all
             .into_iter()
             .filter(|c| c.status() == ChangeStatus::Complete)
             .collect())
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        let actual_id = self.resolve_unique_change_id(id)?;
-        let path = self.changes_dir().join(&actual_id);
-
-        let progress = self.task_repo.get_progress(&actual_id)?;
-        let completed_tasks = progress.complete as u32;
-        let shelved_tasks = progress.shelved as u32;
-        let in_progress_tasks = progress.in_progress as u32;
-        let pending_tasks = progress.pending as u32;
-        let total_tasks = progress.total as u32;
-        let last_modified = self.get_last_modified(&path)?;
-
-        let has_proposal = self.fs.is_file(&path.join("proposal.md"));
-        let has_design = self.fs.is_file(&path.join("design.md"));
-        let has_specs = self.has_specs(&path);
-        let has_tasks = total_tasks > 0;
-        let module_id = extract_module_id(&actual_id);
-
-        Ok(ChangeSummary {
-            id: actual_id,
-            module_id,
-            completed_tasks,
-            shelved_tasks,
-            in_progress_tasks,
-            pending_tasks,
-            total_tasks,
-            last_modified,
-            has_proposal,
-            has_design,
-            has_specs,
-            has_tasks,
-        })
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        let location = self.resolve_unique_change_location(id, filter)?;
+        self.build_summary_for_location(&location)
     }
 }
 
@@ -742,7 +906,7 @@ mod tests {
             repo.resolve_target_with_options(
                 "1-12",
                 ResolveTargetOptions {
-                    include_archived: true,
+                    lifecycle: ChangeLifecycleFilter::All,
                 }
             ),
             ChangeTargetResolution::Unique("001-12_setup-wizard".to_string())

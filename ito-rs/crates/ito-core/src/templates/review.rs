@@ -4,18 +4,20 @@ use super::{
     default_schema_name, load_composed_user_guidance, read_change_schema, resolve_schema,
     validate_change_name_input,
 };
-use crate::change_repository::FsChangeRepository;
-use crate::module_repository::FsModuleRepository;
 use crate::show::{parse_change_show_json, read_change_delta_spec_files};
 use crate::validate::validate_change;
 use chrono::{SecondsFormat, Utc};
 use ito_common::paths;
 use ito_config::{ConfigContext, load_cascading_project_config};
+use ito_domain::changes::ChangeRepository;
+use ito_domain::modules::ModuleRepository;
 use std::collections::BTreeSet;
 use std::path::Path;
 
 /// Build the context payload used by `agent/review.md.j2`.
 pub fn compute_review_context(
+    change_repo: &(impl ChangeRepository + ?Sized),
+    module_repo: &(impl ModuleRepository + ?Sized),
     ito_path: &Path,
     change: &str,
     schema_name: Option<&str>,
@@ -36,7 +38,6 @@ pub fn compute_review_context(
         return Err(TemplatesError::ChangeNotFound(change.to_string()));
     }
 
-    let change_repo = FsChangeRepository::new(ito_path);
     let change_data = change_repo
         .get(change)
         .map_err(|_| TemplatesError::ChangeNotFound(change.to_string()))?;
@@ -54,7 +55,7 @@ pub fn compute_review_context(
     }
 
     let (validation_passed, validation_issues) =
-        match validate_change(&change_repo, ito_path, change, false) {
+        match validate_change(change_repo, ito_path, change, false) {
             Ok(report) => {
                 let mut issues = Vec::new();
                 for issue in report.issues {
@@ -110,7 +111,7 @@ pub fn compute_review_context(
     };
 
     let mut affected_specs = Vec::new();
-    if let Ok(delta_files) = read_change_delta_spec_files(&change_repo, change) {
+    if let Ok(delta_files) = read_change_delta_spec_files(change_repo, change) {
         let show = parse_change_show_json(change, &delta_files);
         for delta in show.deltas {
             if delta.operation != "MODIFIED" {
@@ -133,10 +134,7 @@ pub fn compute_review_context(
 
     let module_id = change_data.module_id.clone();
     let module_name = if let Some(id) = module_id.as_deref() {
-        FsModuleRepository::new(ito_path)
-            .get(id)
-            .ok()
-            .map(|module| module.name)
+        module_repo.get(id).ok().map(|module| module.name)
     } else {
         None
     };

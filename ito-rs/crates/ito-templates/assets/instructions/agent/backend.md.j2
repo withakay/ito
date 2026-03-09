@@ -117,10 +117,25 @@ All project-scoped endpoints require authentication.
 | GET | `/api/v1/ready` | Readiness check (unauthenticated) |
 | GET | `/api/v1/projects/{org}/{repo}/changes` | List changes |
 | GET | `/api/v1/projects/{org}/{repo}/changes/{id}` | Get change details |
+| GET | `/api/v1/projects/{org}/{repo}/changes/{id}/sync` | Pull change artifacts |
+| POST | `/api/v1/projects/{org}/{repo}/changes/{id}/sync` | Push change artifacts |
+| POST | `/api/v1/projects/{org}/{repo}/changes/{id}/archive` | Archive a change and mirror promoted specs |
 | GET | `/api/v1/projects/{org}/{repo}/changes/{id}/tasks` | Get change tasks |
 | GET | `/api/v1/projects/{org}/{repo}/modules` | List modules |
 | GET | `/api/v1/projects/{org}/{repo}/modules/{id}` | Get module details |
+| GET | `/api/v1/projects/{org}/{repo}/specs` | List promoted specs |
+| GET | `/api/v1/projects/{org}/{repo}/specs/{id}` | Get promoted spec markdown |
 | POST | `/api/v1/projects/{org}/{repo}/events` | Ingest audit events |
+
+## Remote Agent Workflow
+
+When backend mode is enabled, treat the CLI as the primary interface for active work.
+
+- Local `.ito/changes/*` and `.ito/specs/*` content may be absent by design; do not create markdown manually to compensate.
+- Use `ito show <change-or-spec>` and `ito show specs` for reads.
+- Use `ito tasks ...` for task mutations and `ito tasks sync pull <change-id>` when you need a local working copy for grep/diff.
+- Use `ito archive <change-id>` to promote specs and archive changes; this updates both the backend mirror and local Git projection.
+- Treat Git-projected files as scan/backup surfaces, not the source of truth for active mutations.
 
 ## Event Forwarding
 

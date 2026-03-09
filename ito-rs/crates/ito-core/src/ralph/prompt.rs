@@ -95,8 +95,8 @@ pub fn build_prompt_preamble(
 /// When `options.iteration` is set, this includes the iteration preamble.
 pub fn build_ralph_prompt(
     ito_path: &Path,
-    change_repo: &impl DomainChangeRepository,
-    module_repo: &impl DomainModuleRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     user_prompt: &str,
     options: BuildPromptOptions,
 ) -> CoreResult<String> {
@@ -136,7 +136,7 @@ pub fn build_ralph_prompt(
 
 fn load_change_context(
     ito_path: &Path,
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: &str,
 ) -> CoreResult<Option<String>> {
     let changes_dir = paths::changes_dir(ito_path);
@@ -160,7 +160,7 @@ fn load_change_context(
 }
 
 fn resolve_change_id(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     input: &str,
 ) -> CoreResult<Option<String>> {
     match change_repo.resolve_target(input) {
@@ -176,7 +176,7 @@ fn resolve_change_id(
 
 fn load_module_context(
     ito_path: &Path,
-    module_repo: &impl DomainModuleRepository,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
     module_id: &str,
 ) -> CoreResult<Option<String>> {
     let resolved = validate::resolve_module(module_repo, ito_path, module_id)?;

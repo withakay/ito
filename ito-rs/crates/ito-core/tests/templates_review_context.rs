@@ -1,4 +1,6 @@
 use ito_config::ConfigContext;
+use ito_core::change_repository::FsChangeRepository;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::templates::compute_review_context;
 use std::path::Path;
 
@@ -75,8 +77,17 @@ artifacts:
         ..Default::default()
     };
 
-    let review =
-        compute_review_context(&ito_path, change, Some("demo"), &ctx).expect("review context");
+    let change_repo = FsChangeRepository::new(&ito_path);
+    let module_repo = FsModuleRepository::new(&ito_path);
+    let review = compute_review_context(
+        &change_repo,
+        &module_repo,
+        &ito_path,
+        change,
+        Some("demo"),
+        &ctx,
+    )
+    .expect("review context");
 
     assert_eq!(review.change_name, change);
     assert_eq!(review.schema_name, "demo");

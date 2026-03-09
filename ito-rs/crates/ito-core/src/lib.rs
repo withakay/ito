@@ -21,6 +21,15 @@ pub mod backend_client;
 /// Backend-backed change repository adapter.
 pub mod backend_change_repository;
 
+/// Backend HTTP client for repository reads.
+pub mod backend_http;
+
+/// Backend-backed module repository adapter.
+pub mod backend_module_repository;
+
+/// Backend-backed promoted spec repository adapter.
+pub mod backend_spec_repository;
+
 /// Backend-backed task repository adapter.
 pub mod backend_task_repository;
 
@@ -95,6 +104,15 @@ pub mod planning_init;
 /// Filesystem-backed task repository implementation.
 pub mod task_repository;
 
+/// Filesystem-backed promoted spec repository implementation.
+pub mod spec_repository;
+
+/// Task mutation services for filesystem and backend persistence.
+pub mod task_mutations;
+
+/// Remote task repository backed by the backend API.
+pub mod remote_task_repository;
+
 /// Clock helpers (`now_time`, `now_date`).
 pub mod time;
 
@@ -113,6 +131,9 @@ pub mod repo_index;
 /// Display and inspection commands.
 pub mod show;
 
+/// Repository runtime selection and composition.
+pub mod repository_runtime;
+
 /// Statistics collection and computation for command usage.
 pub mod stats;
 
@@ -125,16 +146,20 @@ pub mod templates;
 // Re-export domain types for CLI and adapter convenience
 pub use ito_domain::backend::{
     AllocateResult, ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
-    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendProjectStore,
-    BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch, EventIngestResult,
-    LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
+    BackendError, BackendEventIngestClient, BackendLeaseClient, BackendModuleReader,
+    BackendProjectStore, BackendSpecReader, BackendSyncClient, BackendTaskReader, ClaimResult,
+    EventBatch, EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
-pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
+pub use ito_domain::changes::{
+    Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
+};
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
+pub use ito_domain::specs::{SpecDocument, SpecRepository, SpecSummary};
 pub use ito_domain::tasks::{
-    ProgressInfo, TaskItem, TaskRepository as DomainTaskRepository, TaskStatus, TasksFormat,
-    TasksParseResult,
+    ProgressInfo, TaskInitResult, TaskItem, TaskKind, TaskMutationError, TaskMutationResult,
+    TaskMutationService, TaskMutationServiceResult, TaskRepository as DomainTaskRepository,
+    TaskStatus, TasksFormat, TasksParseResult,
 };
 
 /// Harness integrations for running AI-assisted workflows.
