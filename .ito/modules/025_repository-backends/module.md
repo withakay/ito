@@ -34,10 +34,10 @@ Define repository-backed persistence for Ito so clients can resolve active work 
 - config
 
 ## Changes
-- [ ] 025-01_wire-change-repository-backends
-- [ ] 025-02_wire-task-repository-backends
-- [ ] 025-03_wire-module-repository-backends
-- [ ] 025-04_add-repository-runtime-factory
-- [ ] 025-05_mirror-specs-and-archives-to-backend
-- [ ] 025-06_improve-agent-backend-workflows
-- [ ] 025-07_add-local-sqlite-repository-mode
+- [x] 025-01_wire-change-repository-backends
+- [x] 025-02_wire-task-repository-backends
+- [x] 025-03_wire-module-repository-backends
+- [x] 025-04_add-repository-runtime-factory
+- [x] 025-05_mirror-specs-and-archives-to-backend
+- [x] 025-06_improve-agent-backend-workflows
+- [x] 025-07_add-local-sqlite-repository-mode

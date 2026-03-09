@@ -7,17 +7,40 @@
 
 use std::path::PathBuf;
 
-use ito_domain::backend::BackendProjectStore;
-use ito_domain::changes::{
-    Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
+use chrono::{DateTime, Utc};
+use ito_domain::backend::{
+    ArchiveResult, ArtifactBundle, BackendError, BackendProjectStore, PushResult,
 };
+use ito_domain::changes::ChangeRepository;
 use ito_domain::errors::{DomainError, DomainResult};
-use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{TaskRepository, TasksParseResult};
+use ito_domain::modules::ModuleRepository;
+use ito_domain::tasks::TaskRepository;
 
-use crate::change_repository::FsChangeRepository;
-use crate::module_repository::FsModuleRepository;
-use crate::task_repository::FsTaskRepository;
+use crate::repository_runtime::{
+    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_spec_repository,
+    boxed_fs_task_mutation_port, boxed_fs_task_repository,
+};
+
+fn filesystem_revision(ito_path: &std::path::Path, change_id: &str) -> String {
+    let change_dir = ito_common::paths::changes_dir(ito_path).join(change_id);
+    if let Ok(Some(revision)) = crate::backend_sync::read_revision_file(&change_dir)
+        && !revision.trim().is_empty()
+    {
+        return revision;
+    }
+
+    let mut latest: Option<DateTime<Utc>> = None;
+    for relative in ["proposal.md", "design.md", "tasks.md"] {
+        let path = change_dir.join(relative);
+        if let Ok(metadata) = std::fs::metadata(&path)
+            && let Ok(modified) = metadata.modified()
+        {
+            let timestamp = DateTime::<Utc>::from(modified);
+            latest = Some(latest.map_or(timestamp, |current| current.max(timestamp)));
+        }
+    }
+    latest.unwrap_or_else(Utc::now).to_rfc3339()
+}
 
 /// Filesystem-backed project store rooted at a configurable data directory.
 ///
@@ -76,7 +99,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn ChangeRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsChangeRepository::new(ito_path)))
+        Ok(boxed_fs_change_repository(ito_path))
     }
 
     fn module_repository(
@@ -85,7 +108,7 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn ModuleRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsModuleRepository::new(ito_path)))
+        Ok(boxed_fs_module_repository(ito_path))
     }
 
     fn task_repository(
@@ -94,7 +117,99 @@ impl BackendProjectStore for FsBackendProjectStore {
         repo: &str,
     ) -> DomainResult<Box<dyn TaskRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
-        Ok(Box::new(OwnedFsTaskRepository::new(ito_path)))
+        Ok(boxed_fs_task_repository(ito_path))
+    }
+
+    fn task_mutation_service(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn ito_domain::tasks::TaskMutationService + Send>> {
+        let ito_path = self.ito_path_for(org, repo)?;
+        Ok(boxed_fs_task_mutation_port(ito_path))
+    }
+
+    fn spec_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn ito_domain::specs::SpecRepository + Send>> {
+        let ito_path = self.ito_path_for(org, repo)?;
+        Ok(boxed_fs_spec_repository(ito_path))
+    }
+
+    fn pull_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArtifactBundle, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let mut bundle = crate::backend_sync::read_local_bundle(&ito_path, change_id)
+            .map_err(|err| BackendError::NotFound(err.to_string()))?;
+        bundle.revision = filesystem_revision(&ito_path, change_id);
+        Ok(bundle)
+    }
+
+    fn push_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+        bundle: &ArtifactBundle,
+    ) -> Result<PushResult, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let current_revision = filesystem_revision(&ito_path, change_id);
+        if !bundle.revision.trim().is_empty() && bundle.revision != current_revision {
+            return Err(BackendError::RevisionConflict(
+                ito_domain::backend::RevisionConflict {
+                    change_id: change_id.to_string(),
+                    local_revision: bundle.revision.clone(),
+                    server_revision: current_revision,
+                },
+            ));
+        }
+
+        let new_revision = Utc::now().to_rfc3339();
+        let mut next = bundle.clone();
+        next.change_id = change_id.to_string();
+        next.revision = new_revision.clone();
+        crate::backend_sync::write_bundle_to_local(&ito_path, change_id, &next)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+
+        Ok(PushResult {
+            change_id: change_id.to_string(),
+            new_revision,
+        })
+    }
+
+    fn archive_change(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArchiveResult, BackendError> {
+        let ito_path = self
+            .ito_path_for(org, repo)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let spec_names = crate::archive::discover_change_specs(&ito_path, change_id)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        crate::archive::copy_specs_to_main(&ito_path, change_id, &spec_names)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        crate::archive::mark_change_complete_in_module_markdown(&ito_path, change_id)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+        let archive_name = crate::archive::generate_archive_name(change_id);
+        crate::archive::move_to_archive(&ito_path, change_id, &archive_name)
+            .map_err(|err| BackendError::Other(err.to_string()))?;
+
+        Ok(ArchiveResult {
+            change_id: change_id.to_string(),
+            archived_at: Utc::now().to_rfc3339(),
+        })
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
@@ -107,120 +222,6 @@ impl BackendProjectStore for FsBackendProjectStore {
         self.ito_path_for(org, repo)
             .map(|p| p.is_dir())
             .unwrap_or(false)
-    }
-}
-
-// ── Owned-path repository wrappers ─────────────────────────────────
-//
-// The standard `Fs*Repository` types borrow their path (`&'a Path`).
-// The `BackendProjectStore` trait returns `Box<dyn ... + Send>` which
-// requires `'static`. These wrappers own the `PathBuf` and delegate
-// to the borrowed-path implementations by creating them on the fly.
-
-/// Change repository that owns its `.ito/` path.
-struct OwnedFsChangeRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsChangeRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsChangeRepository<'_> {
-        FsChangeRepository::new(&self.ito_path)
-    }
-}
-
-impl ChangeRepository for OwnedFsChangeRepository {
-    fn resolve_target_with_options(
-        &self,
-        input: &str,
-        options: ResolveTargetOptions,
-    ) -> ChangeTargetResolution {
-        self.inner().resolve_target_with_options(input, options)
-    }
-
-    fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
-        self.inner().suggest_targets(input, max)
-    }
-
-    fn exists(&self, id: &str) -> bool {
-        self.inner().exists(id)
-    }
-
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        self.inner().get(id)
-    }
-
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list()
-    }
-
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_by_module(module_id)
-    }
-
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_incomplete()
-    }
-
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.inner().list_complete()
-    }
-
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        self.inner().get_summary(id)
-    }
-}
-
-/// Module repository that owns its `.ito/` path.
-struct OwnedFsModuleRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsModuleRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsModuleRepository<'_> {
-        FsModuleRepository::new(&self.ito_path)
-    }
-}
-
-impl ModuleRepository for OwnedFsModuleRepository {
-    fn exists(&self, id: &str) -> bool {
-        self.inner().exists(id)
-    }
-
-    fn get(&self, id_or_name: &str) -> DomainResult<Module> {
-        self.inner().get(id_or_name)
-    }
-
-    fn list(&self) -> DomainResult<Vec<ModuleSummary>> {
-        self.inner().list()
-    }
-}
-
-/// Task repository that owns its `.ito/` path.
-struct OwnedFsTaskRepository {
-    ito_path: PathBuf,
-}
-
-impl OwnedFsTaskRepository {
-    fn new(ito_path: PathBuf) -> Self {
-        Self { ito_path }
-    }
-
-    fn inner(&self) -> FsTaskRepository<'_> {
-        FsTaskRepository::new(&self.ito_path)
-    }
-}
-
-impl TaskRepository for OwnedFsTaskRepository {
-    fn load_tasks(&self, change_id: &str) -> DomainResult<TasksParseResult> {
-        self.inner().load_tasks(change_id)
     }
 }
 

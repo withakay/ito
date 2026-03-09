@@ -8,8 +8,8 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 use ito_domain::changes::{
-    Change, ChangeRepository, ChangeStatus, ChangeSummary, ChangeTargetResolution,
-    ResolveTargetOptions,
+    Change, ChangeLifecycleFilter, ChangeRepository, ChangeStatus, ChangeSummary,
+    ChangeTargetResolution, ResolveTargetOptions,
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
@@ -101,8 +101,11 @@ impl ChangeRepository for MockChangeRepository {
     fn resolve_target_with_options(
         &self,
         input: &str,
-        _options: ResolveTargetOptions,
+        options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
+        if !options.lifecycle.includes_active() {
+            return ChangeTargetResolution::NotFound;
+        }
         let matches: Vec<&String> = self.changes.keys().filter(|k| k.contains(input)).collect();
         match matches.len() {
             0 => ChangeTargetResolution::NotFound,
@@ -121,21 +124,41 @@ impl ChangeRepository for MockChangeRepository {
     }
 
     fn exists(&self, id: &str) -> bool {
+        self.exists_with_filter(id, ChangeLifecycleFilter::Active)
+    }
+
+    fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
+        if !filter.includes_active() {
+            return false;
+        }
         self.changes.contains_key(id)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
+    fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        if !filter.includes_active() {
+            return Err(DomainError::not_found("change", id));
+        }
         self.changes
             .get(id)
             .cloned()
             .ok_or_else(|| DomainError::not_found("change", id))
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self.summaries.clone())
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -144,7 +167,13 @@ impl ChangeRepository for MockChangeRepository {
             .collect())
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -160,7 +189,13 @@ impl ChangeRepository for MockChangeRepository {
             .collect())
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_complete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        if !filter.includes_active() {
+            return Ok(Vec::new());
+        }
         Ok(self
             .summaries
             .iter()
@@ -176,7 +211,14 @@ impl ChangeRepository for MockChangeRepository {
             .collect())
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        if !filter.includes_active() {
+            return Err(DomainError::not_found("change", id));
+        }
         self.summaries
             .iter()
             .find(|s| s.id == id)

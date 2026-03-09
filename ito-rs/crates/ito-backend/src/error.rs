@@ -70,6 +70,17 @@ impl ApiErrorResponse {
         }
     }
 
+    /// Build a 409 Conflict error.
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::CONFLICT,
+            body: ApiError {
+                error: message.into(),
+                code: "conflict".to_string(),
+            },
+        }
+    }
+
     /// Build a 500 Internal Server Error.
     pub fn internal(message: impl Into<String>) -> Self {
         Self {

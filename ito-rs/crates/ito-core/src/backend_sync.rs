@@ -94,7 +94,7 @@ pub fn push_artifacts<S: BackendSyncClient + ?Sized>(
 // ── Local I/O helpers ───────────────────────────────────────────────
 
 /// Write a pulled artifact bundle to the local change directory.
-fn write_bundle_to_local(
+pub(crate) fn write_bundle_to_local(
     ito_path: &Path,
     change_id: &str,
     bundle: &ArtifactBundle,
@@ -177,7 +177,7 @@ fn write_bundle_to_local(
 }
 
 /// Read local change artifacts into an artifact bundle for pushing.
-fn read_local_bundle(ito_path: &Path, change_id: &str) -> CoreResult<ArtifactBundle> {
+pub(crate) fn read_local_bundle(ito_path: &Path, change_id: &str) -> CoreResult<ArtifactBundle> {
     let change_dir = paths::changes_dir(ito_path).join(change_id);
     if !change_dir.is_dir() {
         return Err(CoreError::not_found(format!(
@@ -233,13 +233,13 @@ fn read_optional_file(path: &Path) -> CoreResult<Option<String>> {
 }
 
 /// Write the backend revision to a metadata file in the change directory.
-fn write_revision_file(change_dir: &Path, revision: &str) -> CoreResult<()> {
+pub(crate) fn write_revision_file(change_dir: &Path, revision: &str) -> CoreResult<()> {
     let path = change_dir.join(REVISION_FILE);
     std::fs::write(&path, revision).map_err(|e| CoreError::io("writing revision file", e))
 }
 
 /// Read the backend revision from a metadata file in the change directory.
-fn read_revision_file(change_dir: &Path) -> CoreResult<Option<String>> {
+pub(crate) fn read_revision_file(change_dir: &Path) -> CoreResult<Option<String>> {
     let path = change_dir.join(REVISION_FILE);
     if !path.is_file() {
         return Ok(None);

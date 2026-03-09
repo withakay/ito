@@ -163,31 +163,23 @@ pub fn collect_change_artifact_files(change_dir: &Path) -> Vec<PathBuf> {
 /// # Errors
 ///
 /// Returns errors if the change/module cannot be found or the pattern is invalid.
-pub fn grep<CR, MR>(
+pub fn grep(
     ito_path: &Path,
     input: &GrepInput,
-    change_repo: &CR,
-    module_repo: &MR,
-) -> CoreResult<GrepOutput>
-where
-    CR: ito_domain::changes::ChangeRepository,
-    MR: ito_domain::modules::ModuleRepository,
-{
+    change_repo: &dyn ito_domain::changes::ChangeRepository,
+    module_repo: &dyn ito_domain::modules::ModuleRepository,
+) -> CoreResult<GrepOutput> {
     let files = resolve_scope_files(ito_path, &input.scope, change_repo, module_repo)?;
     search_files(&files, &input.pattern, input.limit)
 }
 
 /// Resolve a grep scope into the list of artifact files to search.
-fn resolve_scope_files<CR, MR>(
+fn resolve_scope_files(
     ito_path: &Path,
     scope: &GrepScope,
-    change_repo: &CR,
-    module_repo: &MR,
-) -> CoreResult<Vec<PathBuf>>
-where
-    CR: ito_domain::changes::ChangeRepository,
-    MR: ito_domain::modules::ModuleRepository,
-{
+    change_repo: &dyn ito_domain::changes::ChangeRepository,
+    module_repo: &dyn ito_domain::modules::ModuleRepository,
+) -> CoreResult<Vec<PathBuf>> {
     match scope {
         GrepScope::Change(change_id) => {
             let resolution = change_repo.resolve_target(change_id);

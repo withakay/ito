@@ -4,12 +4,15 @@
 //! enabled. The filesystem repository remains the fallback when backend mode
 //! is disabled.
 
+use std::collections::BTreeSet;
+
 use ito_domain::backend::BackendChangeReader;
 use ito_domain::changes::{
-    Change, ChangeRepository as DomainChangeRepository, ChangeSummary, ChangeTargetResolution,
-    ResolveTargetOptions,
+    Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeSummary,
+    ChangeTargetResolution, ResolveTargetOptions, parse_change_id, parse_module_id,
 };
 use ito_domain::errors::DomainResult;
+use regex::Regex;
 
 /// Backend-backed change repository.
 ///
@@ -27,45 +30,204 @@ impl<R: BackendChangeReader> BackendChangeRepository<R> {
     }
 }
 
+impl<R: BackendChangeReader> BackendChangeRepository<R> {
+    fn split_canonical_change_id<'b>(&self, name: &'b str) -> Option<(String, String, &'b str)> {
+        let (module_id, change_num) = parse_change_id(name)?;
+        let slug = name.split_once('_').map(|(_id, s)| s).unwrap_or("");
+        Some((module_id, change_num, slug))
+    }
+
+    fn tokenize_query(&self, input: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        for part in input.split_whitespace() {
+            let trimmed = part.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            out.push(trimmed.to_lowercase());
+        }
+        out
+    }
+
+    fn normalized_slug_text(&self, slug: &str) -> String {
+        let mut out = String::new();
+        for ch in slug.chars() {
+            if ch.is_ascii_alphanumeric() {
+                out.push(ch.to_ascii_lowercase());
+            } else {
+                out.push(' ');
+            }
+        }
+        out
+    }
+
+    fn slug_matches_tokens(&self, slug: &str, tokens: &[String]) -> bool {
+        if tokens.is_empty() {
+            return false;
+        }
+        let text = self.normalized_slug_text(slug);
+        for token in tokens {
+            if !text.contains(token) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_numeric_module_selector(&self, input: &str) -> bool {
+        let trimmed = input.trim();
+        !trimmed.is_empty() && trimmed.chars().all(|ch| ch.is_ascii_digit())
+    }
+
+    fn extract_two_numbers_as_change_id(&self, input: &str) -> Option<(String, String)> {
+        let re = Regex::new(r"\d+").ok()?;
+        let mut parts: Vec<&str> = Vec::new();
+        for m in re.find_iter(input) {
+            parts.push(m.as_str());
+            if parts.len() > 2 {
+                return None;
+            }
+        }
+        if parts.len() != 2 {
+            return None;
+        }
+        let parsed = format!("{}-{}", parts[0], parts[1]);
+        parse_change_id(&parsed)
+    }
+}
+
 impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<R> {
     fn resolve_target_with_options(
         &self,
         input: &str,
-        _options: ResolveTargetOptions,
+        options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
-        let Ok(summaries) = self.reader.list_changes() else {
+        let Ok(summaries) = self.reader.list_changes(options.lifecycle) else {
             return ChangeTargetResolution::NotFound;
         };
 
-        let input = input.trim();
-        let mut exact = Vec::new();
-        let mut prefix = Vec::new();
+        let mut names: Vec<String> = summaries.iter().map(|s| s.id.clone()).collect();
+        names.sort();
+        names.dedup();
 
-        for summary in &summaries {
-            if summary.id == input {
-                exact.push(summary.id.clone());
-            } else if summary.id.starts_with(input) {
-                prefix.push(summary.id.clone());
+        if names.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        let input = input.trim();
+        if input.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        if names.iter().any(|name| name == input) {
+            return ChangeTargetResolution::Unique(input.to_string());
+        }
+
+        let mut numeric_matches: BTreeSet<String> = BTreeSet::new();
+        let numeric_selector =
+            parse_change_id(input).or_else(|| self.extract_two_numbers_as_change_id(input));
+        if let Some((module_id, change_num)) = numeric_selector {
+            let numeric_prefix = format!("{module_id}-{change_num}");
+            let with_separator = format!("{numeric_prefix}_");
+            for name in &names {
+                if name == &numeric_prefix || name.starts_with(&with_separator) {
+                    numeric_matches.insert(name.clone());
+                }
+            }
+            if !numeric_matches.is_empty() {
+                let numeric_matches: Vec<String> = numeric_matches.into_iter().collect();
+                if numeric_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(numeric_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(numeric_matches);
             }
         }
 
-        if exact.len() == 1 {
-            return ChangeTargetResolution::Unique(exact.into_iter().next().unwrap());
-        }
-        if exact.is_empty() && prefix.len() == 1 {
-            return ChangeTargetResolution::Unique(prefix.into_iter().next().unwrap());
-        }
-        if !exact.is_empty() || !prefix.is_empty() {
-            let mut all = exact;
-            all.extend(prefix);
-            return ChangeTargetResolution::Ambiguous(all);
+        if let Some((module, query)) = input.split_once(':') {
+            let query = query.trim();
+            if !query.is_empty() {
+                let module_id = parse_module_id(module);
+                let tokens = self.tokenize_query(query);
+                let mut scoped_matches: BTreeSet<String> = BTreeSet::new();
+                for name in &names {
+                    let Some((name_module, _name_change, slug)) =
+                        self.split_canonical_change_id(name)
+                    else {
+                        continue;
+                    };
+                    if name_module != module_id {
+                        continue;
+                    }
+                    if self.slug_matches_tokens(slug, &tokens) {
+                        scoped_matches.insert(name.clone());
+                    }
+                }
+                if scoped_matches.is_empty() {
+                    return ChangeTargetResolution::NotFound;
+                }
+                let scoped_matches: Vec<String> = scoped_matches.into_iter().collect();
+                if scoped_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(scoped_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(scoped_matches);
+            }
         }
 
-        ChangeTargetResolution::NotFound
+        if self.is_numeric_module_selector(input) {
+            let module_id = parse_module_id(input);
+            let mut module_matches: BTreeSet<String> = BTreeSet::new();
+            for name in &names {
+                let Some((name_module, _name_change, _slug)) = self.split_canonical_change_id(name)
+                else {
+                    continue;
+                };
+                if name_module == module_id {
+                    module_matches.insert(name.clone());
+                }
+            }
+
+            if !module_matches.is_empty() {
+                let module_matches: Vec<String> = module_matches.into_iter().collect();
+                if module_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(module_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(module_matches);
+            }
+        }
+
+        let mut matches: BTreeSet<String> = BTreeSet::new();
+        for name in &names {
+            if name.starts_with(input) {
+                matches.insert(name.clone());
+            }
+        }
+
+        if matches.is_empty() {
+            let tokens = self.tokenize_query(input);
+            for name in &names {
+                let Some((_module, _change, slug)) = self.split_canonical_change_id(name) else {
+                    continue;
+                };
+                if self.slug_matches_tokens(slug, &tokens) {
+                    matches.insert(name.clone());
+                }
+            }
+        }
+
+        if matches.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        let matches: Vec<String> = matches.into_iter().collect();
+        if matches.len() == 1 {
+            return ChangeTargetResolution::Unique(matches[0].clone());
+        }
+
+        ChangeTargetResolution::Ambiguous(matches)
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
-        let Ok(summaries) = self.reader.list_changes() else {
+        let Ok(summaries) = self.reader.list_changes(ChangeLifecycleFilter::Active) else {
             return Vec::new();
         };
 
@@ -74,28 +236,42 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
     }
 
     fn exists(&self, id: &str) -> bool {
-        self.reader.get_change(id).is_ok()
+        self.exists_with_filter(id, ChangeLifecycleFilter::Active)
     }
 
-    fn get(&self, id: &str) -> DomainResult<Change> {
-        self.reader.get_change(id)
+    fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
+        self.reader.get_change(id, filter).is_ok()
     }
 
-    fn list(&self) -> DomainResult<Vec<ChangeSummary>> {
-        self.reader.list_changes()
+    fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        self.reader.get_change(id, filter)
     }
 
-    fn list_by_module(&self, module_id: &str) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
-        let filtered = all
-            .into_iter()
-            .filter(|s| s.module_id.as_deref() == Some(module_id))
-            .collect();
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        self.reader.list_changes(filter)
+    }
+
+    fn list_by_module_with_filter(
+        &self,
+        module_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let normalized_id = parse_module_id(module_id);
+        let all = self.reader.list_changes(filter)?;
+        let mut filtered = Vec::new();
+        for s in all {
+            if s.module_id.as_deref() == Some(&normalized_id) {
+                filtered.push(s);
+            }
+        }
         Ok(filtered)
     }
 
-    fn list_incomplete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
+    fn list_incomplete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.reader.list_changes(filter)?;
         let filtered = all
             .into_iter()
             .filter(|s| s.completed_tasks < s.total_tasks || s.total_tasks == 0)
@@ -103,8 +279,11 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         Ok(filtered)
     }
 
-    fn list_complete(&self) -> DomainResult<Vec<ChangeSummary>> {
-        let all = self.reader.list_changes()?;
+    fn list_complete_with_filter(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<ChangeSummary>> {
+        let all = self.reader.list_changes(filter)?;
         let filtered = all
             .into_iter()
             .filter(|s| s.total_tasks > 0 && s.completed_tasks == s.total_tasks)
@@ -112,8 +291,12 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         Ok(filtered)
     }
 
-    fn get_summary(&self, id: &str) -> DomainResult<ChangeSummary> {
-        let all = self.reader.list_changes()?;
+    fn get_summary_with_filter(
+        &self,
+        id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<ChangeSummary> {
+        let all = self.reader.list_changes(filter)?;
         for summary in all {
             if summary.id == id {
                 return Ok(summary);
@@ -142,11 +325,18 @@ mod tests {
     }
 
     impl BackendChangeReader for FakeReader {
-        fn list_changes(&self) -> DomainResult<Vec<ChangeSummary>> {
+        fn list_changes(
+            &self,
+            _filter: ito_domain::changes::ChangeLifecycleFilter,
+        ) -> DomainResult<Vec<ChangeSummary>> {
             Ok(self.changes.clone())
         }
 
-        fn get_change(&self, change_id: &str) -> DomainResult<Change> {
+        fn get_change(
+            &self,
+            change_id: &str,
+            _filter: ito_domain::changes::ChangeLifecycleFilter,
+        ) -> DomainResult<Change> {
             for c in &self.full {
                 if c.id == change_id {
                     return Ok(c.clone());

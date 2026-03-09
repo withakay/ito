@@ -13,10 +13,10 @@ use chrono::Utc;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use crate::module_repository::FsModuleRepository;
 use ito_common::fs::StdFs;
 use ito_common::id::parse_change_id;
 use ito_common::paths;
-use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Summary of task completion for a change.
@@ -197,44 +197,45 @@ pub fn copy_specs_to_main(
     Ok(updated)
 }
 
-fn mark_change_complete_in_module(
-    module_repo: &impl DomainModuleRepository,
+/// Mark a change complete in local filesystem-backed module markdown.
+pub fn mark_change_complete_in_module_markdown(
     ito_path: &Path,
     change_name: &str,
-) {
+) -> CoreResult<()> {
     let Ok(parsed) = parse_change_id(change_name) else {
-        return;
+        return Ok(());
     };
     let module_id = parsed.module_id;
-    let Ok(Some(resolved)) =
-        crate::validate::resolve_module(module_repo, ito_path, module_id.as_str())
+    let module_repo = FsModuleRepository::new(ito_path);
+    let Some(resolved) =
+        crate::validate::resolve_module(&module_repo, ito_path, module_id.as_str())?
     else {
-        return;
+        return Ok(());
     };
-    let Ok(md) = ito_common::io::read_to_string_std(&resolved.module_md) else {
-        return;
-    };
+    let md = ito_common::io::read_to_string_std(&resolved.module_md)
+        .map_err(|e| CoreError::io(format!("reading {}", resolved.module_md.display()), e))?;
 
     let mut out = String::new();
     for line in md.lines() {
         if line.contains(change_name) {
-            out.push_str(&line.replace("- [ ]", "- [x]"));
+            out.push_str(
+                &line
+                    .replacen("- [ ]", "- [x]", 1)
+                    .replacen("* [ ]", "* [x]", 1),
+            );
             out.push('\n');
             continue;
         }
         out.push_str(line);
         out.push('\n');
     }
-    let _ = ito_common::io::write_std(&resolved.module_md, out);
+    ito_common::io::write_std(&resolved.module_md, out)
+        .map_err(|e| CoreError::io(format!("writing {}", resolved.module_md.display()), e))?;
+    Ok(())
 }
 
 /// Move a change directory to the archive location.
-pub fn move_to_archive(
-    module_repo: &impl DomainModuleRepository,
-    ito_path: &Path,
-    change_name: &str,
-    archive_name: &str,
-) -> CoreResult<()> {
+pub fn move_to_archive(ito_path: &Path, change_name: &str, archive_name: &str) -> CoreResult<()> {
     let change_dir = paths::change_dir(ito_path, change_name);
     if !change_dir.exists() {
         return Err(CoreError::not_found(format!(
@@ -253,8 +254,6 @@ pub fn move_to_archive(
             dst.display()
         )));
     }
-
-    mark_change_complete_in_module(module_repo, ito_path, change_name);
 
     fs::rename(&change_dir, &dst).map_err(|e| CoreError::io("moving change to archive", e))?;
     Ok(())

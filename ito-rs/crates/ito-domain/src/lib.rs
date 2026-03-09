@@ -30,6 +30,9 @@ pub mod planning;
 /// Task models and task list parsing.
 pub mod tasks;
 
+/// Promoted spec models and repository.
+pub mod specs;
+
 /// Audit event domain types and pure functions.
 pub mod audit;
 

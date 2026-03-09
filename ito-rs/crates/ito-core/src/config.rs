@@ -8,7 +8,7 @@ use std::path::Path;
 use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::load_cascading_project_config;
-use ito_config::types::{IntegrationMode, WorktreeStrategy};
+use ito_config::types::{IntegrationMode, RepositoryPersistenceMode, WorktreeStrategy};
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
 ///
@@ -189,6 +189,23 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        "repository.mode" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: {}",
+                    path,
+                    RepositoryPersistenceMode::ALL.join(", ")
+                )));
+            };
+            if RepositoryPersistenceMode::parse_value(s).is_none() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: {}",
+                    s,
+                    path,
+                    RepositoryPersistenceMode::ALL.join(", ")
+                )));
+            }
+        }
         "changes.coordination_branch.name" => {
             let Some(s) = value.as_str() else {
                 return Err(CoreError::validation(format!(
@@ -271,6 +288,13 @@ pub fn is_valid_worktree_strategy(s: &str) -> bool {
 /// Returns `true` if valid, `false` otherwise.
 pub fn is_valid_integration_mode(s: &str) -> bool {
     IntegrationMode::parse_value(s).is_some()
+}
+
+/// Validate that a repository persistence mode string is one of the supported values.
+///
+/// Returns `true` if valid, `false` otherwise.
+pub fn is_valid_repository_mode(s: &str) -> bool {
+    RepositoryPersistenceMode::parse_value(s).is_some()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -414,6 +438,26 @@ mod tests {
     }
 
     #[test]
+    fn validate_config_value_accepts_valid_repository_mode() {
+        let parts = ["repository", "mode"];
+        let value = json!("filesystem");
+        assert!(validate_config_value(&parts, &value).is_ok());
+
+        let value = json!("sqlite");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_repository_mode() {
+        let parts = ["repository", "mode"];
+        let value = json!("remote");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("repository.mode"));
+    }
+
+    #[test]
     fn validate_config_value_rejects_invalid_integration_mode() {
         let parts = ["worktrees", "apply", "integration_mode"];
         let value = json!("squash_merge");
@@ -449,6 +493,14 @@ mod tests {
         assert!(is_valid_integration_mode("merge_parent"));
         assert!(!is_valid_integration_mode("squash"));
         assert!(!is_valid_integration_mode(""));
+    }
+
+    #[test]
+    fn is_valid_repository_mode_checks_correctly() {
+        assert!(is_valid_repository_mode("filesystem"));
+        assert!(is_valid_repository_mode("sqlite"));
+        assert!(!is_valid_repository_mode("remote"));
+        assert!(!is_valid_repository_mode(""));
     }
 
     #[test]

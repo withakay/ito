@@ -3,18 +3,20 @@ use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::output;
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::nearest_matches;
 use ito_core::show as core_show;
 
 fn handle_show_specs(rt: &Runtime, want_json: bool) -> CliResult<()> {
-    let ito_path = rt.ito_path();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let spec_repo = runtime.repositories().specs.as_ref();
     if want_json {
-        let json = core_show::bundle_main_specs_show_json(ito_path).map_err(to_cli_error)?;
+        let json =
+            core_show::bundle_specs_show_json_from_repository(spec_repo).map_err(to_cli_error)?;
         let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
         println!("{rendered}");
     } else {
-        let md = core_show::bundle_main_specs_markdown(ito_path).map_err(to_cli_error)?;
+        let md =
+            core_show::bundle_specs_markdown_from_repository(spec_repo).map_err(to_cli_error)?;
         print!("{md}");
     }
     Ok(())
@@ -75,15 +77,15 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return handle_show_specs(rt, want_json);
     }
 
-    let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let repo_index = rt.repo_index();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let change_repo = runtime.repositories().changes.as_ref();
+    let spec_repo = runtime.repositories().specs.as_ref();
 
     let explicit = typ.as_deref();
     let resolved_type = match explicit {
         Some("change") | Some("spec") => explicit.unwrap().to_string(),
         Some(_) => return fail("Invalid type. Expected 'change' or 'spec'."),
-        None => super::common::detect_item_type(&change_repo, ito_path, repo_index, &item),
+        None => super::common::detect_item_type(change_repo, spec_repo, &item),
     };
 
     if resolved_type == "ambiguous" {
@@ -92,7 +94,7 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
         ));
     }
     if resolved_type == "unknown" {
-        let candidates = super::common::list_candidate_items(&change_repo, rt);
+        let candidates = super::common::list_candidate_items(change_repo, rt);
         let suggestions = nearest_matches(&item, &candidates, 5);
         return fail(super::common::unknown_with_suggestions(
             "item",
@@ -121,7 +123,7 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     match resolved_type.as_str() {
         "spec" => {
-            let md = core_show::read_spec_markdown(ito_path, &item)
+            let md = core_show::read_spec_markdown_from_repository(spec_repo, &item)
                 .map_err(|e| CliError::msg(format!("Spec '{item}' not found: {e}")))?;
             if want_json {
                 if requirements && requirement_idx.is_some() {
@@ -153,18 +155,18 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "change" => {
-            let resolved_change = match super::common::resolve_change_target(&change_repo, &item) {
+            let resolved_change = match super::common::resolve_change_target(change_repo, &item) {
                 Ok(id) => id,
                 Err(msg) => return fail(msg),
             };
             if want_json {
-                let files = core_show::read_change_delta_spec_files(&change_repo, &resolved_change)
+                let files = core_show::read_change_delta_spec_files(change_repo, &resolved_change)
                     .unwrap_or_default();
                 let json = core_show::parse_change_show_json(&resolved_change, &files);
                 let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
                 println!("{rendered}");
             } else {
-                let md = core_show::read_change_proposal_markdown(&change_repo, &resolved_change)
+                let md = core_show::read_change_proposal_markdown(change_repo, &resolved_change)
                     .map_err(to_cli_error)?
                     .unwrap_or_default();
                 print!("{md}");
@@ -280,9 +282,10 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
     let module_id = module_id.expect("checked");
 
-    let ito_path = rt.ito_path();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let module_repo = runtime.repositories().modules.as_ref();
 
-    let md = core_show::read_module_markdown(ito_path, &module_id).map_err(to_cli_error)?;
+    let md = core_show::read_module_markdown(module_repo, &module_id).map_err(to_cli_error)?;
     print!("{md}");
 
     Ok(())

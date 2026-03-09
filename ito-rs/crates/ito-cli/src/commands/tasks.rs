@@ -1,97 +1,31 @@
-use crate::cli::{SyncAction, TasksAction, TasksArgs};
+use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
-use ito_core::change_repository::FsChangeRepository;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
+use ito_core::repository_runtime::PersistenceMode;
 use ito_core::tasks as core_tasks;
-use ito_core::tasks::{ChangeTargetResolution, DiagnosticLevel, TaskItem, TaskStatus, TasksFormat};
+use ito_core::tasks::{DiagnosticLevel, TaskStatus, TasksFormat};
+
+mod backend;
+mod support;
+
+use backend::{
+    handle_backend_allocate, handle_backend_claim, handle_backend_release, handle_backend_sync,
+    sync_after_mutation,
+};
+use support::{
+    backend_tasks_path, json_diagnostic, json_task, missing_tasks_message, print_json,
+    resolve_change_id, summarize_status, task_status_label, tasks_format_label,
+};
 
 fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
     resolve_coordination_branch_settings(&merged)
-}
-
-fn resolve_change_id(ito_path: &std::path::Path, input: &str) -> CliResult<String> {
-    let change_repo = FsChangeRepository::new(ito_path);
-    match change_repo.resolve_target(input) {
-        ChangeTargetResolution::Unique(id) => Ok(id),
-        ChangeTargetResolution::Ambiguous(matches) => {
-            let mut msg = format!("Change '{input}' is ambiguous. Matches:\n");
-            for id in matches.iter().take(8) {
-                msg.push_str(&format!("  {id}\n"));
-            }
-            if matches.len() > 8 {
-                msg.push_str(&format!("  ... and {} more\n", matches.len() - 8));
-            }
-            msg.push_str("Use a longer prefix or the full canonical change ID.");
-            Err(CliError::msg(msg))
-        }
-        ChangeTargetResolution::NotFound => {
-            let mut msg = format!("Change '{input}' not found");
-            let suggestions = change_repo.suggest_targets(input, 5);
-            if !suggestions.is_empty() {
-                msg.push_str("\n\nDid you mean:\n");
-                for suggestion in suggestions {
-                    msg.push_str(&format!("  {suggestion}\n"));
-                }
-            }
-            Err(CliError::msg(msg))
-        }
-    }
-}
-
-fn task_status_label(status: TaskStatus) -> &'static str {
-    match status {
-        TaskStatus::Pending => "pending",
-        TaskStatus::InProgress => "in_progress",
-        TaskStatus::Complete => "complete",
-        TaskStatus::Shelved => "shelved",
-    }
-}
-
-fn tasks_format_label(format: TasksFormat) -> &'static str {
-    match format {
-        TasksFormat::Enhanced => "enhanced",
-        TasksFormat::Checkbox => "checkbox",
-    }
-}
-
-fn json_task(task: &TaskItem) -> serde_json::Value {
-    serde_json::json!({
-        "id": &task.id,
-        "name": &task.name,
-        "wave": task.wave,
-        "status": task_status_label(task.status),
-        "updated_at": &task.updated_at,
-        "dependencies": &task.dependencies,
-        "files": &task.files,
-        "action": &task.action,
-        "verify": &task.verify,
-        "done_when": &task.done_when,
-        "kind": format!("{:?}", task.kind).to_lowercase(),
-        "header_line_index": task.header_line_index,
-    })
-}
-
-fn json_diagnostic(path: &std::path::Path, d: &core_tasks::TaskDiagnostic) -> serde_json::Value {
-    serde_json::json!({
-        "level": d.level.as_str(),
-        "message": &d.message,
-        "task_id": &d.task_id,
-        "line": d.line,
-        "path": path.display().to_string(),
-    })
-}
-
-fn print_json(value: &serde_json::Value) -> CliResult<()> {
-    let rendered = serde_json::to_string_pretty(value).map_err(to_cli_error)?;
-    println!("{rendered}");
-    Ok(())
 }
 
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
@@ -181,7 +115,6 @@ pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()>
     if args.json {
         forwarded.push("--json".to_string());
     }
-
     handle_tasks(rt, &forwarded)
 }
 
@@ -210,79 +143,112 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let sub = args.first().map(|s| s.as_str()).unwrap_or("");
     let want_json = args.iter().any(|a| a == "--json");
     let ito_path = rt.ito_path();
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repos = runtime.repositories();
+    let change_repo = repos.changes.as_ref();
+    let task_repo = repos.tasks.as_ref();
+    let task_mutations = repos.task_mutations.as_ref();
 
     // Handle "ready" specially since change_id is optional
     if sub == "ready" {
         return handle_tasks_ready(rt, args);
     }
-
     let input_change_id = args.get(1).map(|s| s.as_str()).unwrap_or("");
     if input_change_id.is_empty() || input_change_id.starts_with('-') {
         return fail("Missing required argument <change-id>");
     }
 
-    let change_id = resolve_change_id(ito_path, input_change_id)?;
+    let change_id = resolve_change_id(change_repo, input_change_id)?;
 
     match sub {
         "init" => {
-            let change_dir = ito_path.join("changes").join(&change_id);
-            if !change_dir.exists() {
-                return fail(format!("Change '{change_id}' not found"));
+            if runtime.mode() == PersistenceMode::Filesystem {
+                let change_dir = ito_path.join("changes").join(&change_id);
+                if !change_dir.exists() {
+                    return fail(format!("Change '{change_id}' not found"));
+                }
             }
 
-            let (path, already_existed) =
-                core_tasks::init_tasks(ito_path, &change_id).map_err(to_cli_error)?;
+            let result = task_mutations
+                .init_tasks(&change_id)
+                .map_err(to_cli_error)?;
 
-            if already_existed {
-                let file = path
-                    .file_name()
+            if result.existed {
+                let file = result
+                    .path
+                    .as_ref()
+                    .and_then(|p| p.file_name())
                     .and_then(|s| s.to_str())
-                    .unwrap_or("tracking file");
+                    .unwrap_or("backend tasks");
                 return fail(format!(
                     "{file} already exists for \"{change_id}\". Use \"tasks add\" to add tasks."
                 ));
             }
 
             if want_json {
+                let path = result.path.as_ref().map(|p| p.display().to_string());
                 return print_json(&serde_json::json!({
                     "action": "init",
                     "change_id": change_id,
-                    "path": path.display().to_string(),
+                    "path": path,
                     "created": true,
                 }));
             }
-            let file = path
-                .file_name()
+            let file = result
+                .path
+                .as_ref()
+                .and_then(|p| p.file_name())
                 .and_then(|s| s.to_str())
-                .unwrap_or("tracking file");
+                .unwrap_or("backend tasks");
             eprintln!("✔ Enhanced {file} created for \"{change_id}\"");
             Ok(())
         }
         "status" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-            let file = path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("tracking file");
-
-            if !path.exists() {
-                if want_json {
-                    return print_json(&serde_json::json!({
-                        "action": "status",
-                        "change_id": change_id,
-                        "path": path.display().to_string(),
-                        "exists": false,
-                        "message": format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
-                    }));
+            let (path, status) = if runtime.mode() == PersistenceMode::Remote {
+                let path = backend_tasks_path();
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "status",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
                 }
-                println!(
-                    "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                );
-                return Ok(());
-            }
+                let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
+                    .map_err(to_cli_error)?;
+                (path, status)
+            } else {
+                let path =
+                    core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
 
-            let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                if !path.exists() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "status",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
+                }
+
+                let status =
+                    core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                (path, summarize_status(status))
+            };
 
             if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
             {
@@ -384,18 +350,47 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "next" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-
-            let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+            let (path, status) = if runtime.mode() == PersistenceMode::Remote {
+                let path = backend_tasks_path();
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "next",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
+                }
+                let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
+                    .map_err(to_cli_error)?;
+                (path, status)
+            } else {
+                let path =
+                    core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
+                let status =
+                    core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                (path, summarize_status(status))
+            };
 
             if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
             {
                 return Err(CliError::msg(msg));
             }
 
-            let next_task =
-                core_tasks::get_next_task(ito_path, &change_id).map_err(to_cli_error)?;
+            let file_label = path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("tracking file");
+            let next_task = core_tasks::get_next_task_from_summary(&status, file_label)
+                .map_err(to_cli_error)?;
 
             match status.format {
                 TasksFormat::Checkbox => {
@@ -537,8 +532,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }
             }
 
-            let _task =
-                core_tasks::start_task(ito_path, &change_id, task_id).map_err(to_cli_error)?;
+            let _task = task_mutations
+                .start_task(&change_id, task_id)
+                .map_err(to_cli_error)?;
 
             // Emit audit event for task start
             if let Some(event) = AuditEventBuilder::new()
@@ -560,8 +556,14 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
 
             if want_json {
-                let status =
-                    core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                let status = if runtime.mode() == PersistenceMode::Remote {
+                    core_tasks::get_task_status_from_repository(task_repo, &change_id)
+                        .map_err(to_cli_error)?
+                } else {
+                    let status =
+                        core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                    summarize_status(status)
+                };
                 return print_json(&serde_json::json!({
                     "action": "start",
                     "change_id": change_id,
@@ -579,7 +581,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-id>");
             }
 
-            let _task = core_tasks::complete_task(ito_path, &change_id, task_id, None)
+            let _task = task_mutations
+                .complete_task(&change_id, task_id, None)
                 .map_err(to_cli_error)?;
 
             // Emit audit event for task completion
@@ -601,8 +604,14 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
 
             if want_json {
-                let status =
-                    core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                let status = if runtime.mode() == PersistenceMode::Remote {
+                    core_tasks::get_task_status_from_repository(task_repo, &change_id)
+                        .map_err(to_cli_error)?
+                } else {
+                    let status =
+                        core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+                    summarize_status(status)
+                };
                 return print_json(&serde_json::json!({
                     "action": "complete",
                     "change_id": change_id,
@@ -620,7 +629,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-id>");
             }
 
-            let _task = core_tasks::shelve_task(ito_path, &change_id, task_id, None)
+            let _task = task_mutations
+                .shelve_task(&change_id, task_id, None)
                 .map_err(to_cli_error)?;
 
             // Emit audit event for task shelve
@@ -658,8 +668,9 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-id>");
             }
 
-            let _task =
-                core_tasks::unshelve_task(ito_path, &change_id, task_id).map_err(to_cli_error)?;
+            let _task = task_mutations
+                .unshelve_task(&change_id, task_id)
+                .map_err(to_cli_error)?;
 
             // Emit audit event for task unshelve
             if let Some(event) = AuditEventBuilder::new()
@@ -698,8 +709,10 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
             let wave = parse_wave_flag(args);
 
-            let task = core_tasks::add_task(ito_path, &change_id, task_name, Some(wave))
-                .map_err(to_cli_error)?;
+            let task = task_mutations
+                .add_task(&change_id, task_name, Some(wave))
+                .map_err(to_cli_error)?
+                .task;
 
             // Emit audit event for task add
             if let Some(event) = AuditEventBuilder::new()
@@ -736,64 +749,156 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         "show" => {
-            let path =
-                core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-            let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+            if runtime.mode() == PersistenceMode::Remote {
+                let path = backend_tasks_path();
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "show",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
+                }
+                let parsed = task_repo.load_tasks(&change_id).map_err(to_cli_error)?;
 
-            if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics)
-            {
-                return Err(CliError::msg(msg));
-            }
+                if let Some(msg) =
+                    diagnostics::blocking_task_error_message(&path, &parsed.diagnostics)
+                {
+                    return Err(CliError::msg(msg));
+                }
 
-            if want_json {
+                if want_json {
+                    let tasks: Vec<serde_json::Value> =
+                        parsed.tasks.iter().map(json_task).collect();
+                    let mut wave_refs: Vec<_> = parsed.waves.iter().collect();
+                    wave_refs.sort_by_key(|wave| wave.wave);
+                    let waves: Vec<serde_json::Value> = wave_refs
+                        .iter()
+                        .map(|wave| {
+                            serde_json::json!({
+                                "wave": wave.wave,
+                                "depends_on": wave.depends_on,
+                                "header_line_index": wave.header_line_index,
+                                "depends_on_line_index": wave.depends_on_line_index,
+                            })
+                        })
+                        .collect();
+                    let warnings: Vec<serde_json::Value> = parsed
+                        .diagnostics
+                        .iter()
+                        .filter(|d| d.level == DiagnosticLevel::Warning)
+                        .map(|d| json_diagnostic(&path, d))
+                        .collect();
+                    return print_json(&serde_json::json!({
+                        "action": "show",
+                        "change_id": change_id,
+                        "path": path.display().to_string(),
+                        "format": tasks_format_label(parsed.format),
+                        "progress": {
+                            "total": parsed.progress.total,
+                            "complete": parsed.progress.complete,
+                            "shelved": parsed.progress.shelved,
+                            "in_progress": parsed.progress.in_progress,
+                            "pending": parsed.progress.pending,
+                            "remaining": parsed.progress.remaining,
+                        },
+                        "warnings": warnings,
+                        "waves": waves,
+                        "tasks": tasks,
+                        "raw": raw,
+                    }));
+                }
+
+                if let Some(contents) = raw {
+                    print!("{contents}");
+                    return Ok(());
+                }
+
+                println!("Tasks for: {change_id}");
+                println!("──────────────────────────────────────────────────");
+                for task in parsed.tasks {
+                    println!(
+                        "{} [{}] {}",
+                        task.id,
+                        task_status_label(task.status),
+                        task.name
+                    );
+                }
+                println!();
+                println!("Backend tasks markdown is not available.");
+                Ok(())
+            } else {
+                let path =
+                    core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
+                let status =
+                    core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+
+                if let Some(msg) =
+                    diagnostics::blocking_task_error_message(&path, &status.diagnostics)
+                {
+                    return Err(CliError::msg(msg));
+                }
+
+                if want_json {
+                    let contents = core_tasks::read_tasks_markdown(ito_path, &change_id)
+                        .map_err(to_cli_error)?;
+                    let parsed = core_tasks::parse_tasks_tracking_file(&contents);
+
+                    let tasks: Vec<serde_json::Value> =
+                        status.items.iter().map(json_task).collect();
+                    let mut wave_refs: Vec<_> = parsed.waves.iter().collect();
+                    wave_refs.sort_by_key(|wave| wave.wave);
+                    let waves: Vec<serde_json::Value> = wave_refs
+                        .iter()
+                        .map(|wave| {
+                            serde_json::json!({
+                                "wave": wave.wave,
+                                "depends_on": wave.depends_on,
+                                "header_line_index": wave.header_line_index,
+                                "depends_on_line_index": wave.depends_on_line_index,
+                            })
+                        })
+                        .collect();
+                    let warnings: Vec<serde_json::Value> = status
+                        .diagnostics
+                        .iter()
+                        .filter(|d| d.level == DiagnosticLevel::Warning)
+                        .map(|d| json_diagnostic(&path, d))
+                        .collect();
+                    return print_json(&serde_json::json!({
+                        "action": "show",
+                        "change_id": change_id,
+                        "path": path.display().to_string(),
+                        "format": tasks_format_label(status.format),
+                        "progress": {
+                            "total": status.progress.total,
+                            "complete": status.progress.complete,
+                            "shelved": status.progress.shelved,
+                            "in_progress": status.progress.in_progress,
+                            "pending": status.progress.pending,
+                            "remaining": status.progress.remaining,
+                        },
+                        "warnings": warnings,
+                        "waves": waves,
+                        "tasks": tasks,
+                        "raw": contents,
+                    }));
+                }
+
                 let contents =
                     core_tasks::read_tasks_markdown(ito_path, &change_id).map_err(to_cli_error)?;
-                let parsed = core_tasks::parse_tasks_tracking_file(&contents);
-
-                let tasks: Vec<serde_json::Value> = status.items.iter().map(json_task).collect();
-                let mut wave_refs: Vec<_> = parsed.waves.iter().collect();
-                wave_refs.sort_by_key(|wave| wave.wave);
-                let waves: Vec<serde_json::Value> = wave_refs
-                    .iter()
-                    .map(|wave| {
-                        serde_json::json!({
-                            "wave": wave.wave,
-                            "depends_on": wave.depends_on,
-                            "header_line_index": wave.header_line_index,
-                            "depends_on_line_index": wave.depends_on_line_index,
-                        })
-                    })
-                    .collect();
-                let warnings: Vec<serde_json::Value> = status
-                    .diagnostics
-                    .iter()
-                    .filter(|d| d.level == DiagnosticLevel::Warning)
-                    .map(|d| json_diagnostic(&path, d))
-                    .collect();
-                return print_json(&serde_json::json!({
-                    "action": "show",
-                    "change_id": change_id,
-                    "path": path.display().to_string(),
-                    "format": tasks_format_label(status.format),
-                    "progress": {
-                        "total": status.progress.total,
-                        "complete": status.progress.complete,
-                        "shelved": status.progress.shelved,
-                        "in_progress": status.progress.in_progress,
-                        "pending": status.progress.pending,
-                        "remaining": status.progress.remaining,
-                    },
-                    "warnings": warnings,
-                    "waves": waves,
-                    "tasks": tasks,
-                    "raw": contents,
-                }));
+                print!("{contents}");
+                Ok(())
             }
-
-            let contents =
-                core_tasks::read_tasks_markdown(ito_path, &change_id).map_err(to_cli_error)?;
-            print!("{contents}");
-            Ok(())
         }
         _ => fail(format!("Unknown tasks subcommand '{sub}'")),
     }
@@ -821,10 +926,40 @@ fn handle_tasks_ready(rt: &Runtime, args: &[String]) -> CliResult<()> {
 /// Show ready tasks for a single change
 fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let change_id = resolve_change_id(ito_path, change_id)?;
-    let path = core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-
-    let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repos = runtime.repositories();
+    let change_repo = repos.changes.as_ref();
+    let task_repo = repos.tasks.as_ref();
+    let task_mutations = repos.task_mutations.as_ref();
+    let change_id = resolve_change_id(change_repo, change_id)?;
+    let (path, status) = if runtime.mode() == PersistenceMode::Remote {
+        let path = backend_tasks_path();
+        let raw = task_mutations
+            .load_tasks_markdown(&change_id)
+            .map_err(to_cli_error)?;
+        if raw.is_none() {
+            let message = missing_tasks_message(&path, &change_id);
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "ready",
+                    "change_id": change_id,
+                    "path": path.display().to_string(),
+                    "exists": false,
+                    "message": message,
+                    "ready_tasks": [],
+                }));
+            }
+            println!("{message}");
+            return Ok(());
+        }
+        let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
+            .map_err(to_cli_error)?;
+        (path, status)
+    } else {
+        let path = core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
+        let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;
+        (path, summarize_status(status))
+    };
 
     if let Some(msg) = diagnostics::blocking_task_error_message(&path, &status.diagnostics) {
         return Err(CliError::msg(msg));
@@ -869,9 +1004,15 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
 /// Show ready tasks across all changes
 fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     let ito_path = rt.ito_path();
-    let change_repo = FsChangeRepository::new(ito_path);
-    let ready_changes = core_tasks::list_ready_tasks_across_changes(&change_repo, ito_path)
-        .map_err(to_cli_error)?;
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repos = runtime.repositories();
+    let change_repo = repos.changes.as_ref();
+    let ready_changes = if runtime.mode() == PersistenceMode::Remote {
+        core_tasks::list_ready_tasks_across_changes_with_repo(change_repo, repos.tasks.as_ref())
+            .map_err(to_cli_error)?
+    } else {
+        core_tasks::list_ready_tasks_across_changes(change_repo, ito_path).map_err(to_cli_error)?
+    };
 
     if ready_changes.is_empty() {
         if want_json {
@@ -907,267 +1048,4 @@ fn handle_tasks_ready_all(rt: &Runtime, want_json: bool) -> CliResult<()> {
     }
 
     Ok(())
-}
-
-// ── Backend sync after task mutation ────────────────────────────────
-
-use ito_config::types::ItoConfig;
-use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
-use ito_core::backend_coordination;
-
-/// Try to resolve backend runtime from config. Returns `None` if backend
-/// mode is disabled (no error). Returns `Err` only if backend is enabled
-/// but misconfigured.
-fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
-    let ito_path = rt.ito_path();
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = match serde_json::from_value(merged) {
-        Ok(config) => config,
-        Err(e) => {
-            tracing::warn!("Skipping backend integration due to invalid config: {e}");
-            eprintln!("Warning: backend integration skipped due to invalid config: {e}");
-            return Ok(None);
-        }
-    };
-
-    if !config.backend.enabled {
-        return Ok(None);
-    }
-
-    resolve_backend_runtime(&config.backend).map_err(to_cli_error)
-}
-
-/// Best-effort push of task artifacts to the backend after a mutation.
-///
-/// If backend mode is not enabled, this is a no-op. If the push fails,
-/// the error is reported as a warning but does not fail the command
-/// (the local mutation already succeeded).
-fn sync_after_mutation(rt: &Runtime, change_id: &str) {
-    let runtime = match try_backend_runtime(rt) {
-        Ok(Some(runtime)) => runtime,
-        Ok(None) => return, // Backend not enabled
-        Err(e) => {
-            eprintln!("Warning: backend sync skipped: {e}");
-            return;
-        }
-    };
-
-    let client = StubSyncClient;
-    let ito_path = rt.ito_path();
-
-    if let Err(err) =
-        backend_coordination::sync_push(&client, ito_path, change_id, &runtime.backup_dir)
-    {
-        let msg = err.to_string();
-        if msg.contains("not yet available on backend") {
-            // Backend endpoints are not available yet; don't spam warnings on every mutation.
-            return;
-        }
-
-        eprintln!(
-            "Warning: backend sync after task mutation failed: {}. \
-             Run 'ito tasks sync push {change_id}' manually.",
-            err
-        );
-    }
-}
-
-// ── Backend coordination handlers ──────────────────────────────────
-
-/// Resolve backend runtime config, failing if backend mode is not enabled.
-fn require_backend_runtime(rt: &Runtime) -> CliResult<BackendRuntime> {
-    let ito_path = rt.ito_path();
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged)
-        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))?;
-
-    if !config.backend.enabled {
-        return Err(CliError::msg(
-            "Backend mode is not enabled. Set 'backend.enabled=true' in your Ito config.",
-        ));
-    }
-
-    resolve_backend_runtime(&config.backend)
-        .map_err(to_cli_error)?
-        .ok_or_else(|| CliError::msg("Backend mode is enabled but runtime could not be resolved."))
-}
-
-/// Stub backend lease client that returns not-implemented errors.
-///
-/// The actual HTTP client will be implemented when the backend adds
-/// lease/allocation endpoints. For now the CLI surface is wired up
-/// and will report a clear error.
-struct StubLeaseClient;
-
-impl ito_core::BackendLeaseClient for StubLeaseClient {
-    fn claim(&self, change_id: &str) -> Result<ito_core::ClaimResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Lease endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn release(&self, change_id: &str) -> Result<ito_core::ReleaseResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Lease endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn allocate(&self) -> Result<ito_core::AllocateResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(
-            "Allocation endpoints not yet available on backend".to_string(),
-        ))
-    }
-}
-
-/// Stub backend sync client.
-struct StubSyncClient;
-
-impl ito_core::BackendSyncClient for StubSyncClient {
-    fn pull(&self, change_id: &str) -> Result<ito_core::ArtifactBundle, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn push(
-        &self,
-        change_id: &str,
-        _bundle: &ito_core::ArtifactBundle,
-    ) -> Result<ito_core::PushResult, ito_core::BackendError> {
-        Err(ito_core::BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-}
-
-fn handle_backend_claim(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
-    let _runtime = require_backend_runtime(rt)?;
-    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
-    let client = StubLeaseClient;
-
-    let result = backend_coordination::claim_change(&client, &change_id).map_err(to_cli_error)?;
-
-    if want_json {
-        return print_json(&serde_json::json!({
-            "action": "claim",
-            "change_id": result.change_id,
-            "holder": result.holder,
-            "expires_at": result.expires_at,
-        }));
-    }
-
-    eprintln!(
-        "✔ Change \"{}\" claimed by \"{}\"",
-        result.change_id, result.holder
-    );
-    Ok(())
-}
-
-fn handle_backend_release(rt: &Runtime, change_id: &str, want_json: bool) -> CliResult<()> {
-    let _runtime = require_backend_runtime(rt)?;
-    let change_id = resolve_change_id(rt.ito_path(), change_id)?;
-    let client = StubLeaseClient;
-
-    let result = backend_coordination::release_change(&client, &change_id).map_err(to_cli_error)?;
-
-    if want_json {
-        return print_json(&serde_json::json!({
-            "action": "release",
-            "change_id": result.change_id,
-        }));
-    }
-
-    eprintln!("✔ Change \"{}\" released", result.change_id);
-    Ok(())
-}
-
-fn handle_backend_allocate(rt: &Runtime, want_json: bool) -> CliResult<()> {
-    let _runtime = require_backend_runtime(rt)?;
-    let client = StubLeaseClient;
-
-    let result = backend_coordination::allocate_change(&client).map_err(to_cli_error)?;
-
-    if let Some(claim) = &result.claim {
-        if want_json {
-            return print_json(&serde_json::json!({
-                "action": "allocate",
-                "allocated": true,
-                "change_id": claim.change_id,
-                "holder": claim.holder,
-                "expires_at": claim.expires_at,
-            }));
-        }
-
-        eprintln!(
-            "✔ Allocated change \"{}\" to \"{}\"",
-            claim.change_id, claim.holder
-        );
-    } else if want_json {
-        return print_json(&serde_json::json!({
-            "action": "allocate",
-            "allocated": false,
-            "message": "No allocatable work is currently available",
-        }));
-    } else {
-        println!("No allocatable work is currently available.");
-    }
-
-    Ok(())
-}
-
-fn handle_backend_sync(rt: &Runtime, action: &SyncAction, want_json: bool) -> CliResult<()> {
-    let runtime = require_backend_runtime(rt)?;
-    let ito_path = rt.ito_path();
-    let client = StubSyncClient;
-
-    match action {
-        SyncAction::Pull { change_id } => {
-            let change_id = resolve_change_id(ito_path, change_id)?;
-            let bundle =
-                backend_coordination::sync_pull(&client, ito_path, &change_id, &runtime.backup_dir)
-                    .map_err(to_cli_error)?;
-
-            if want_json {
-                return print_json(&serde_json::json!({
-                    "action": "sync_pull",
-                    "change_id": bundle.change_id,
-                    "revision": bundle.revision,
-                    "artifacts": {
-                        "proposal": bundle.proposal.is_some(),
-                        "design": bundle.design.is_some(),
-                        "tasks": bundle.tasks.is_some(),
-                        "specs": bundle.specs.len(),
-                    },
-                }));
-            }
-
-            eprintln!(
-                "✔ Pulled artifacts for \"{}\" (revision: {})",
-                bundle.change_id, bundle.revision
-            );
-            Ok(())
-        }
-        SyncAction::Push { change_id } => {
-            let change_id = resolve_change_id(ito_path, change_id)?;
-            let result =
-                backend_coordination::sync_push(&client, ito_path, &change_id, &runtime.backup_dir)
-                    .map_err(to_cli_error)?;
-
-            if want_json {
-                return print_json(&serde_json::json!({
-                    "action": "sync_push",
-                    "change_id": result.change_id,
-                    "new_revision": result.new_revision,
-                }));
-            }
-
-            eprintln!(
-                "✔ Pushed artifacts for \"{}\" (new revision: {})",
-                result.change_id, result.new_revision
-            );
-            Ok(())
-        }
-    }
 }
