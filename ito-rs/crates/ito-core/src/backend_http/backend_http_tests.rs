@@ -11,6 +11,12 @@ fn get_requests_are_retried_by_default() {
 #[test]
 fn post_requests_are_not_retried_by_default() {
     assert!(!retries_enabled_by_default("POST"));
+    assert!(!retries_enabled_by_default("PUT"));
+    assert!(!retries_enabled_by_default("PATCH"));
+    assert!(!retries_enabled_by_default("DELETE"));
+    assert!(!retries_enabled_by_default("HEAD"));
+    assert!(!retries_enabled_by_default("OPTIONS"));
+    assert!(!retries_enabled_by_default("TRACE"));
 }
 
 #[test]

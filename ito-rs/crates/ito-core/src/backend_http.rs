@@ -190,6 +190,12 @@ fn retries_enabled_by_default(method: &str) -> bool {
     match method {
         "GET" => true,
         "POST" => false,
+        "PUT" => false,
+        "PATCH" => false,
+        "DELETE" => false,
+        "HEAD" => false,
+        "OPTIONS" => false,
+        "TRACE" => false,
         _ => false,
     }
 }
@@ -251,14 +257,16 @@ impl BackendChangeReader for BackendHttpClient {
             path: PathBuf::new(),
             proposal: change.proposal,
             design: change.design,
-            specs: change
-                .specs
-                .into_iter()
-                .map(|spec| Spec {
-                    name: spec.name,
-                    content: spec.content,
-                })
-                .collect(),
+            specs: {
+                let mut specs = Vec::with_capacity(change.specs.len());
+                for spec in change.specs {
+                    specs.push(Spec {
+                        name: spec.name,
+                        content: spec.content,
+                    });
+                }
+                specs
+            },
             tasks,
             last_modified,
         })
@@ -269,14 +277,15 @@ impl BackendModuleReader for BackendHttpClient {
     fn list_modules(&self) -> DomainResult<Vec<ModuleSummary>> {
         let url = format!("{}/modules", self.inner.runtime.project_api_prefix());
         let modules: Vec<ApiModuleSummary> = self.get_json(&url, "module", None)?;
-        Ok(modules
-            .into_iter()
-            .map(|m| ModuleSummary {
+        let mut out = Vec::with_capacity(modules.len());
+        for m in modules {
+            out.push(ModuleSummary {
                 id: m.id,
                 name: m.name,
                 change_count: m.change_count,
-            })
-            .collect())
+            });
+        }
+        Ok(out)
     }
 
     fn get_module(&self, module_id: &str) -> DomainResult<Module> {
@@ -605,7 +614,14 @@ fn sleep_backoff(attempt: u32) {
 fn task_list_to_parse_result(list: ApiTaskList) -> TasksParseResult {
     let format = match list.format.as_str() {
         "enhanced" => TasksFormat::Enhanced,
-        _ => TasksFormat::Checkbox,
+        "checkbox" => TasksFormat::Checkbox,
+        other => {
+            tracing::warn!(
+                format = %other,
+                "unknown backend task format; falling back to checkbox parsing"
+            );
+            TasksFormat::Checkbox
+        }
     };
 
     let mut tasks = Vec::with_capacity(list.tasks.len());
@@ -751,7 +767,6 @@ struct ApiChange {
     proposal: Option<String>,
     design: Option<String>,
     specs: Vec<ApiSpec>,
-    #[allow(dead_code)]
     progress: ApiProgress,
     last_modified: String,
 }
