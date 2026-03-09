@@ -9,6 +9,10 @@ use ito_core::backend_coordination;
 use ito_core::backend_http::BackendHttpClient;
 use ito_core::paths as core_paths;
 
+fn requires_local_changes_dir(mode: ito_core::repository_runtime::PersistenceMode) -> bool {
+    mode == ito_core::repository_runtime::PersistenceMode::Filesystem
+}
+
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     use ito_core::archive;
 
@@ -23,10 +27,8 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let changes_dir = core_paths::changes_dir(ito_path);
     let repository_runtime = rt.repository_runtime().map_err(to_cli_error)?;
-    let remote_mode =
-        repository_runtime.mode() == ito_core::repository_runtime::PersistenceMode::Remote;
 
-    if !changes_dir.exists() && !remote_mode {
+    if requires_local_changes_dir(repository_runtime.mode()) && !changes_dir.exists() {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
@@ -400,9 +402,8 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let changes_dir = core_paths::changes_dir(ito_path);
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
-    let remote_mode = runtime.mode() == ito_core::repository_runtime::PersistenceMode::Remote;
 
-    if !changes_dir.exists() && !remote_mode {
+    if requires_local_changes_dir(runtime.mode()) && !changes_dir.exists() {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
@@ -469,4 +470,22 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::requires_local_changes_dir;
+
+    #[test]
+    fn only_filesystem_mode_requires_local_changes_dir() {
+        assert!(requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Filesystem
+        ));
+        assert!(!requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Sqlite
+        ));
+        assert!(!requires_local_changes_dir(
+            ito_core::repository_runtime::PersistenceMode::Remote
+        ));
+    }
 }

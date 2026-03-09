@@ -179,6 +179,13 @@ impl BackendHttpClient {
     }
 }
 
+fn optional_task_text_body(field: &str, value: Option<String>) -> String {
+    match value {
+        Some(value) => serde_json::json!({ field: value }).to_string(),
+        None => "{}".to_string(),
+    }
+}
+
 fn retries_enabled_by_default(method: &str) -> bool {
     match method {
         "GET" => true,
@@ -353,13 +360,14 @@ impl TaskMutationService for BackendHttpClient {
         &self,
         change_id: &str,
         task_id: &str,
-        _note: Option<String>,
+        note: Option<String>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
         let url = format!(
             "{}/changes/{change_id}/tasks/{task_id}/complete",
             self.inner.runtime.project_api_prefix()
         );
-        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        let body = optional_task_text_body("note", note);
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some(&body))?;
         Ok(task_mutation_from_api(response))
     }
 
@@ -367,13 +375,14 @@ impl TaskMutationService for BackendHttpClient {
         &self,
         change_id: &str,
         task_id: &str,
-        _reason: Option<String>,
+        reason: Option<String>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
         let url = format!(
             "{}/changes/{change_id}/tasks/{task_id}/shelve",
             self.inner.runtime.project_api_prefix()
         );
-        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        let body = optional_task_text_body("reason", reason);
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some(&body))?;
         Ok(task_mutation_from_api(response))
     }
 

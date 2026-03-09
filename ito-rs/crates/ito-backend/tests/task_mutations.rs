@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use ito_config::types::{BackendAllowlistConfig, BackendAuthConfig, BackendRepoPolicy};
 use serde::Deserialize;
+use serde_json::json;
 
 const ORG: &str = "acme";
 const REPO: &str = "widgets";
@@ -187,4 +188,66 @@ async fn start_task_endpoint_reports_missing_tasks_as_not_found() {
             .error
             .contains("Run \"ito tasks init 001-03_missing-start\" first")
     );
+}
+
+#[tokio::test]
+async fn complete_task_endpoint_accepts_note_payload() {
+    let (base_url, data_dir) = spawn_backend().await;
+    let change_id = "001-04_remote-complete";
+    seed_change(
+        data_dir.path(),
+        change_id,
+        Some(
+            "# Tasks for: 001-04_remote-complete\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-03-01\n- **Status**: [>] in-progress\n",
+        ),
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(project_url(
+            &base_url,
+            &format!("changes/{change_id}/tasks/1.1/complete"),
+        ))
+        .header("Authorization", format!("Bearer {ADMIN_TOKEN}"))
+        .json(&json!({ "note": "done" }))
+        .send()
+        .await
+        .expect("send request");
+
+    assert_eq!(response.status(), 200);
+    let payload: ApiTaskMutationResult = response.json().await.expect("parse mutation payload");
+    assert_eq!(payload.change_id, change_id);
+    assert_eq!(payload.task.id, "1.1");
+    assert_eq!(payload.task.status, "complete");
+}
+
+#[tokio::test]
+async fn shelve_task_endpoint_accepts_reason_payload() {
+    let (base_url, data_dir) = spawn_backend().await;
+    let change_id = "001-05_remote-shelve";
+    seed_change(
+        data_dir.path(),
+        change_id,
+        Some(
+            "# Tasks for: 001-05_remote-shelve\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-03-01\n- **Status**: [ ] pending\n",
+        ),
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(project_url(
+            &base_url,
+            &format!("changes/{change_id}/tasks/1.1/shelve"),
+        ))
+        .header("Authorization", format!("Bearer {ADMIN_TOKEN}"))
+        .json(&json!({ "reason": "waiting" }))
+        .send()
+        .await
+        .expect("send request");
+
+    assert_eq!(response.status(), 200);
+    let payload: ApiTaskMutationResult = response.json().await.expect("parse mutation payload");
+    assert_eq!(payload.change_id, change_id);
+    assert_eq!(payload.task.id, "1.1");
+    assert_eq!(payload.task.status, "shelved");
 }
