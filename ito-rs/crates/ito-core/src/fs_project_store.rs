@@ -14,7 +14,8 @@ use ito_domain::modules::ModuleRepository;
 use ito_domain::tasks::TaskRepository;
 
 use crate::repository_runtime::{
-    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_task_repository,
+    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_task_mutation_port,
+    boxed_fs_task_repository,
 };
 
 /// Filesystem-backed project store rooted at a configurable data directory.
@@ -93,6 +94,15 @@ impl BackendProjectStore for FsBackendProjectStore {
     ) -> DomainResult<Box<dyn TaskRepository + Send>> {
         let ito_path = self.ito_path_for(org, repo)?;
         Ok(boxed_fs_task_repository(ito_path))
+    }
+
+    fn task_mutation_service(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn ito_domain::tasks::TaskMutationService + Send>> {
+        let ito_path = self.ito_path_for(org, repo)?;
+        Ok(boxed_fs_task_mutation_port(ito_path))
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {

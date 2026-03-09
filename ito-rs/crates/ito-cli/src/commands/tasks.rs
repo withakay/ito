@@ -17,8 +17,8 @@ use backend::{
     sync_after_mutation,
 };
 use support::{
-    backend_tasks_path, json_diagnostic, json_task, print_json, resolve_change_id, status_is_empty,
-    summarize_status, task_status_label, tasks_format_label,
+    backend_tasks_path, json_diagnostic, json_task, missing_tasks_message, print_json,
+    resolve_change_id, summarize_status, task_status_label, tasks_format_label,
 };
 
 fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
@@ -205,50 +205,43 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
         "status" => {
             let (path, status) = if runtime.mode() == PersistenceMode::Remote {
-                let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
-                    .map_err(to_cli_error)?;
                 let path = backend_tasks_path();
-                if status_is_empty(&status) {
-                    let file = path
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("backend tasks");
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
                     if want_json {
                         return print_json(&serde_json::json!({
                             "action": "status",
                             "change_id": change_id,
                             "path": path.display().to_string(),
                             "exists": false,
-                            "message": format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
+                            "message": message,
                         }));
                     }
-                    println!(
-                        "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                    );
+                    println!("{message}");
                     return Ok(());
                 }
+                let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
+                    .map_err(to_cli_error)?;
                 (path, status)
             } else {
                 let path =
                     core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
-                let file = path
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("tracking file");
 
                 if !path.exists() {
+                    let message = missing_tasks_message(&path, &change_id);
                     if want_json {
                         return print_json(&serde_json::json!({
                             "action": "status",
                             "change_id": change_id,
                             "path": path.display().to_string(),
                             "exists": false,
-                            "message": format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."),
+                            "message": message,
                         }));
                     }
-                    println!(
-                        "No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                    );
+                    println!("{message}");
                     return Ok(());
                 }
 
@@ -358,14 +351,27 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
         "next" => {
             let (path, status) = if runtime.mode() == PersistenceMode::Remote {
+                let path = backend_tasks_path();
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "next",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
+                }
                 let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
                     .map_err(to_cli_error)?;
-                if status_is_empty(&status) {
-                    return fail(format!(
-                        "No backend tasks found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                    ));
-                }
-                (backend_tasks_path(), status)
+                (path, status)
             } else {
                 let path =
                     core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
@@ -745,23 +751,30 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
         "show" => {
             if runtime.mode() == PersistenceMode::Remote {
                 let path = backend_tasks_path();
-                let parsed = task_repo.load_tasks(&change_id).map_err(to_cli_error)?;
-                if parsed.tasks.is_empty() && parsed.progress.total == 0 {
-                    return fail(format!(
-                        "No backend tasks found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-                    ));
+                let raw = task_mutations
+                    .load_tasks_markdown(&change_id)
+                    .map_err(to_cli_error)?;
+                if raw.is_none() {
+                    let message = missing_tasks_message(&path, &change_id);
+                    if want_json {
+                        return print_json(&serde_json::json!({
+                            "action": "show",
+                            "change_id": change_id,
+                            "path": path.display().to_string(),
+                            "exists": false,
+                            "message": message,
+                        }));
+                    }
+                    println!("{message}");
+                    return Ok(());
                 }
+                let parsed = task_repo.load_tasks(&change_id).map_err(to_cli_error)?;
 
                 if let Some(msg) =
                     diagnostics::blocking_task_error_message(&path, &parsed.diagnostics)
                 {
                     return Err(CliError::msg(msg));
                 }
-
-                let raw = task_mutations
-                    .load_tasks_markdown(&change_id)
-                    .ok()
-                    .flatten();
 
                 if want_json {
                     let tasks: Vec<serde_json::Value> =
@@ -917,16 +930,31 @@ fn handle_tasks_ready_single(rt: &Runtime, change_id: &str, want_json: bool) -> 
     let repos = runtime.repositories();
     let change_repo = repos.changes.as_ref();
     let task_repo = repos.tasks.as_ref();
+    let task_mutations = repos.task_mutations.as_ref();
     let change_id = resolve_change_id(change_repo, change_id)?;
     let (path, status) = if runtime.mode() == PersistenceMode::Remote {
+        let path = backend_tasks_path();
+        let raw = task_mutations
+            .load_tasks_markdown(&change_id)
+            .map_err(to_cli_error)?;
+        if raw.is_none() {
+            let message = missing_tasks_message(&path, &change_id);
+            if want_json {
+                return print_json(&serde_json::json!({
+                    "action": "ready",
+                    "change_id": change_id,
+                    "path": path.display().to_string(),
+                    "exists": false,
+                    "message": message,
+                    "ready_tasks": [],
+                }));
+            }
+            println!("{message}");
+            return Ok(());
+        }
         let status = core_tasks::get_task_status_from_repository(task_repo, &change_id)
             .map_err(to_cli_error)?;
-        if status_is_empty(&status) {
-            return fail(format!(
-                "No backend tasks found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-            ));
-        }
-        (backend_tasks_path(), status)
+        (path, status)
     } else {
         let path = core_tasks::tracking_file_path(ito_path, &change_id).map_err(to_cli_error)?;
         let status = core_tasks::get_task_status(ito_path, &change_id).map_err(to_cli_error)?;

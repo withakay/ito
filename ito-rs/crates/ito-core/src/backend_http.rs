@@ -1,10 +1,8 @@
-//! HTTP client for backend repository reads.
-//!
-//! Provides a shared backend client that implements repository reader ports
-//! using the backend REST API.
+//! HTTP client for backend repository reads and task mutations.
 
 use std::collections::BTreeSet;
 use std::io::{Error as IoError, ErrorKind};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -18,8 +16,9 @@ use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary};
 use ito_domain::tasks::{
-    DiagnosticLevel, ProgressInfo, TaskDiagnostic, TaskItem, TaskKind, TaskStatus, TasksFormat,
-    TasksParseResult, WaveInfo,
+    DiagnosticLevel, ProgressInfo, TaskDiagnostic, TaskInitResult, TaskItem, TaskKind,
+    TaskMutationError, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
+    TaskStatus, TasksFormat, TasksParseResult, WaveInfo,
 };
 
 /// Backend HTTP client shared across repository adapters.
@@ -65,7 +64,7 @@ impl BackendHttpClient {
         entity: &'static str,
         id: Option<&str>,
     ) -> DomainResult<T> {
-        let response = self.request_with_retry(url)?;
+        let response = self.request_with_retry("GET", url, None)?;
         let status = response.status().as_u16();
         let body = read_response_body(response)?;
         if status != 200 {
@@ -75,23 +74,62 @@ impl BackendHttpClient {
             .map_err(|err| DomainError::io("parsing backend response", IoError::other(err)))
     }
 
-    fn request_with_retry(&self, url: &str) -> DomainResult<ureq::http::Response<ureq::Body>> {
+    fn task_get_json<T: DeserializeOwned>(&self, url: &str) -> TaskMutationServiceResult<T> {
+        let response = self
+            .request_with_retry("GET", url, None)
+            .map_err(task_error_from_domain)?;
+        parse_task_response(response)
+    }
+
+    fn task_post_json<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        body: Option<&str>,
+    ) -> TaskMutationServiceResult<T> {
+        let response = self
+            .request_with_retry("POST", url, body)
+            .map_err(task_error_from_domain)?;
+        parse_task_response(response)
+    }
+
+    fn request_with_retry(
+        &self,
+        method: &str,
+        url: &str,
+        body: Option<&str>,
+    ) -> DomainResult<ureq::http::Response<ureq::Body>> {
         let max_retries = self.inner.runtime.max_retries;
         let mut attempt = 0u32;
         loop {
-            let response = self
-                .inner
-                .agent
-                .get(url)
-                .header(
-                    "Authorization",
-                    &format!("Bearer {}", self.inner.runtime.token),
-                )
-                .call();
+            let response: Result<ureq::http::Response<ureq::Body>, ureq::Error> = match method {
+                "GET" => self
+                    .inner
+                    .agent
+                    .get(url)
+                    .header(
+                        "Authorization",
+                        &format!("Bearer {}", self.inner.runtime.token),
+                    )
+                    .call(),
+                "POST" => {
+                    // In ureq v3, POST always uses send() — use empty string when no body.
+                    let payload = body.unwrap_or("{}");
+                    self.inner
+                        .agent
+                        .post(url)
+                        .header(
+                            "Authorization",
+                            &format!("Bearer {}", self.inner.runtime.token),
+                        )
+                        .header("Content-Type", "application/json")
+                        .send(payload)
+                }
+                _ => unreachable!("unsupported backend http method"),
+            };
 
             match response {
                 Ok(resp) => {
-                    let status = resp.status().as_u16();
+                    let status: u16 = resp.status().as_u16();
                     if is_retriable_status(status) && attempt < max_retries {
                         attempt += 1;
                         sleep_backoff(attempt);
@@ -107,7 +145,7 @@ impl BackendHttpClient {
                     }
                     return Err(DomainError::io(
                         "backend request",
-                        IoError::other(err.to_string()),
+                        IoError::new(std::io::ErrorKind::Other, err.to_string()),
                     ));
                 }
             }
@@ -165,7 +203,7 @@ impl BackendChangeReader for BackendHttpClient {
         Ok(Change {
             id: change.id,
             module_id: change.module_id,
-            path: std::path::PathBuf::new(),
+            path: PathBuf::new(),
             proposal: change.proposal,
             design: change.design,
             specs: change
@@ -206,8 +244,102 @@ impl BackendModuleReader for BackendHttpClient {
             id: module.id,
             name: module.name,
             description: module.description,
-            path: std::path::PathBuf::new(),
+            path: PathBuf::new(),
         })
+    }
+}
+
+impl TaskMutationService for BackendHttpClient {
+    fn load_tasks_markdown(&self, change_id: &str) -> TaskMutationServiceResult<Option<String>> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/raw",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskMarkdown = self.task_get_json(&url)?;
+        Ok(response.content)
+    }
+
+    fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/init",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskInitResult = self.task_post_json(&url, Some("{}"))?;
+        Ok(TaskInitResult {
+            change_id: response.change_id,
+            path: response.path.map(PathBuf::from),
+            existed: response.existed,
+            revision: response.revision,
+        })
+    }
+
+    fn start_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/{task_id}/start",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        Ok(task_mutation_from_api(response))
+    }
+
+    fn complete_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+        _note: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/{task_id}/complete",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        Ok(task_mutation_from_api(response))
+    }
+
+    fn shelve_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+        _reason: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/{task_id}/shelve",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        Ok(task_mutation_from_api(response))
+    }
+
+    fn unshelve_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/{task_id}/unshelve",
+            self.inner.runtime.project_api_prefix()
+        );
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some("{}"))?;
+        Ok(task_mutation_from_api(response))
+    }
+
+    fn add_task(
+        &self,
+        change_id: &str,
+        title: &str,
+        wave: Option<u32>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let url = format!(
+            "{}/changes/{change_id}/tasks/add",
+            self.inner.runtime.project_api_prefix()
+        );
+        let body = serde_json::json!({ "title": title, "wave": wave }).to_string();
+        let response: ApiTaskMutationEnvelope = self.task_post_json(&url, Some(&body))?;
+        Ok(task_mutation_from_api(response))
     }
 }
 
@@ -217,6 +349,21 @@ fn read_response_body(response: ureq::http::Response<ureq::Body>) -> DomainResul
         .read_to_string()
         .map_err(|err| DomainError::io("reading backend response", IoError::other(err)))?;
     Ok(body)
+}
+
+fn parse_task_response<T: DeserializeOwned>(
+    response: ureq::http::Response<ureq::Body>,
+) -> TaskMutationServiceResult<T> {
+    let status = response.status().as_u16();
+    let body = response
+        .into_body()
+        .read_to_string()
+        .map_err(|err| TaskMutationError::io("reading backend response", IoError::other(err)))?;
+    if !(200..300).contains(&status) {
+        return Err(map_status_to_task_error(status, &body));
+    }
+    serde_json::from_str(&body)
+        .map_err(|err| TaskMutationError::other(format!("Failed to parse backend response: {err}")))
 }
 
 fn map_status_to_domain_error(
@@ -243,6 +390,43 @@ fn map_status_to_domain_error(
         format!("backend returned HTTP {status}: {body}")
     };
     DomainError::io("backend request", IoError::new(kind, msg))
+}
+
+fn map_status_to_task_error(status: u16, body: &str) -> TaskMutationError {
+    if let Ok(api_error) = serde_json::from_str::<ApiErrorBody>(body) {
+        return match api_error.code.as_str() {
+            "not_found" => TaskMutationError::not_found(api_error.error),
+            "bad_request" => TaskMutationError::validation(api_error.error),
+            _ => TaskMutationError::other(api_error.error),
+        };
+    }
+
+    let message = if body.trim().is_empty() {
+        format!("backend returned HTTP {status}")
+    } else {
+        format!("backend returned HTTP {status}: {body}")
+    };
+    match status {
+        404 => TaskMutationError::not_found(message),
+        400..=499 => TaskMutationError::validation(message),
+        _ => TaskMutationError::other(message),
+    }
+}
+
+fn task_error_from_domain(err: DomainError) -> TaskMutationError {
+    match err {
+        DomainError::Io { context, source } => TaskMutationError::io(context, source),
+        DomainError::NotFound { entity, id } => {
+            TaskMutationError::not_found(format!("{entity} not found: {id}"))
+        }
+        DomainError::AmbiguousTarget {
+            entity,
+            input,
+            matches,
+        } => TaskMutationError::validation(format!(
+            "Ambiguous {entity} target '{input}'. Matches: {matches}"
+        )),
+    }
 }
 
 fn parse_timestamp(raw: &str) -> DomainResult<DateTime<Utc>> {
@@ -355,6 +539,31 @@ fn tasks_from_progress(progress: &ApiProgress) -> TasksParseResult {
     }
 }
 
+fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResult {
+    TaskMutationResult {
+        change_id: response.change_id,
+        task: TaskItem {
+            id: response.task.id,
+            name: response.task.name,
+            wave: response.task.wave,
+            status: TaskStatus::from_enhanced_label(&response.task.status)
+                .unwrap_or(TaskStatus::Pending),
+            updated_at: response.task.updated_at,
+            dependencies: response.task.dependencies,
+            files: response.task.files,
+            action: response.task.action,
+            verify: response.task.verify,
+            done_when: response.task.done_when,
+            kind: match response.task.kind.as_str() {
+                "checkpoint" => TaskKind::Checkpoint,
+                _ => TaskKind::Normal,
+            },
+            header_line_index: response.task.header_line_index,
+        },
+        revision: response.revision,
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct ApiChangeSummary {
     id: String,
@@ -421,6 +630,44 @@ struct ApiTaskItem {
 }
 
 #[derive(Debug, Deserialize)]
+struct ApiTaskMarkdown {
+    #[allow(dead_code)]
+    change_id: String,
+    content: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiTaskInitResult {
+    change_id: String,
+    path: Option<String>,
+    existed: bool,
+    revision: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiTaskMutationEnvelope {
+    change_id: String,
+    task: ApiTaskDetail,
+    revision: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiTaskDetail {
+    id: String,
+    name: String,
+    wave: Option<u32>,
+    status: String,
+    updated_at: Option<String>,
+    dependencies: Vec<String>,
+    files: Vec<String>,
+    action: String,
+    verify: Option<String>,
+    done_when: Option<String>,
+    kind: String,
+    header_line_index: usize,
+}
+
+#[derive(Debug, Deserialize)]
 struct ApiModuleSummary {
     id: String,
     name: String,
@@ -432,4 +679,10 @@ struct ApiModule {
     id: String,
     name: String,
     description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiErrorBody {
+    error: String,
+    code: String,
 }

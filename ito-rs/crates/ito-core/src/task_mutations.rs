@@ -1,74 +1,13 @@
-//! Task mutation services for filesystem and backend persistence.
+//! Task mutation services for filesystem-backed persistence.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use crate::backend_sync::map_backend_error;
-use crate::errors::{CoreError, CoreResult};
-use crate::tasks::{
-    TaskItem, apply_add_task, apply_complete_task, apply_shelve_task, apply_start_task,
-    apply_unshelve_task, enhanced_tasks_template, tracking_file_path,
+use crate::errors::CoreError;
+use ito_domain::errors::DomainError;
+use ito_domain::tasks::{
+    TaskInitResult, TaskMutationError, TaskMutationResult, TaskMutationService,
+    TaskMutationServiceResult,
 };
-use ito_domain::backend::{ArtifactBundle, BackendError, BackendSyncClient, PushResult};
-
-const BACKEND_TASKS_LABEL: &str = "backend tasks";
-
-/// Outcome of a task mutation.
-#[derive(Debug, Clone)]
-pub struct TaskMutationResult {
-    /// Change identifier the mutation applied to.
-    pub change_id: String,
-    /// Updated task item.
-    pub task: TaskItem,
-    /// Backend revision after the mutation, when applicable.
-    pub revision: Option<String>,
-}
-
-/// Outcome of initializing a tracking file or artifact.
-#[derive(Debug, Clone)]
-pub struct TaskInitResult {
-    /// Change identifier the init applied to.
-    pub change_id: String,
-    /// Tracking path when filesystem-backed.
-    pub path: Option<PathBuf>,
-    /// Whether the tracking file already existed.
-    pub existed: bool,
-    /// Backend revision after the mutation, when applicable.
-    pub revision: Option<String>,
-}
-
-/// Service interface for task mutations.
-pub trait TaskMutationService: Send + Sync {
-    /// Load raw task tracking markdown, if available.
-    fn load_tasks_markdown(&self, change_id: &str) -> CoreResult<Option<String>>;
-    /// Initialize a tracking file/artifact for a change.
-    fn init_tasks(&self, change_id: &str) -> CoreResult<TaskInitResult>;
-    /// Mark a task as in-progress.
-    fn start_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult>;
-    /// Mark a task as complete.
-    fn complete_task(
-        &self,
-        change_id: &str,
-        task_id: &str,
-        note: Option<String>,
-    ) -> CoreResult<TaskMutationResult>;
-    /// Shelve a task.
-    fn shelve_task(
-        &self,
-        change_id: &str,
-        task_id: &str,
-        reason: Option<String>,
-    ) -> CoreResult<TaskMutationResult>;
-    /// Unshelve a task.
-    fn unshelve_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult>;
-    /// Add a new task.
-    fn add_task(
-        &self,
-        change_id: &str,
-        title: &str,
-        wave: Option<u32>,
-    ) -> CoreResult<TaskMutationResult>;
-}
 
 /// Filesystem-backed task mutation service.
 #[derive(Debug, Clone)]
@@ -83,21 +22,43 @@ impl FsTaskMutationService {
             ito_path: ito_path.into(),
         }
     }
+
+    /// Return a `NotFound` error when the tasks file is absent, with a helpful init hint.
+    fn missing_tasks_error(change_id: &str) -> TaskMutationError {
+        TaskMutationError::not_found(format!(
+            "No backend tasks found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
+        ))
+    }
+
+    /// Resolve the tracking file path and verify it exists.
+    ///
+    /// Returns `Err(NotFound)` when the file is absent so callers get a consistent
+    /// 404-class error rather than an opaque IO failure.
+    fn require_tasks_path(&self, change_id: &str) -> TaskMutationServiceResult<std::path::PathBuf> {
+        let path = crate::tasks::tracking_file_path(&self.ito_path, change_id)
+            .map_err(task_mutation_error_from_core)?;
+        if !path.exists() {
+            return Err(Self::missing_tasks_error(change_id));
+        }
+        Ok(path)
+    }
 }
 
 impl TaskMutationService for FsTaskMutationService {
-    fn load_tasks_markdown(&self, change_id: &str) -> CoreResult<Option<String>> {
-        let path = tracking_file_path(&self.ito_path, change_id)?;
+    fn load_tasks_markdown(&self, change_id: &str) -> TaskMutationServiceResult<Option<String>> {
+        let path = crate::tasks::tracking_file_path(&self.ito_path, change_id)
+            .map_err(task_mutation_error_from_core)?;
         if !path.exists() {
             return Ok(None);
         }
         let contents = ito_common::io::read_to_string_std(&path)
-            .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
+            .map_err(|e| TaskMutationError::io("reading tasks markdown", e))?;
         Ok(Some(contents))
     }
 
-    fn init_tasks(&self, change_id: &str) -> CoreResult<TaskInitResult> {
-        let (path, existed) = crate::tasks::init_tasks(&self.ito_path, change_id)?;
+    fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
+        let (path, existed) =
+            crate::tasks::init_tasks(&self.ito_path, change_id).map_err(task_mutation_error_from_core)?;
         Ok(TaskInitResult {
             change_id: change_id.to_string(),
             path: Some(path),
@@ -106,8 +67,15 @@ impl TaskMutationService for FsTaskMutationService {
         })
     }
 
-    fn start_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult> {
-        let task = crate::tasks::start_task(&self.ito_path, change_id, task_id)?;
+    fn start_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        // Verify tasks file exists before delegating to core (gives a 404 instead of IO error).
+        let _ = self.require_tasks_path(change_id)?;
+        let task = crate::tasks::start_task(&self.ito_path, change_id, task_id)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskMutationResult {
             change_id: change_id.to_string(),
             task,
@@ -120,8 +88,10 @@ impl TaskMutationService for FsTaskMutationService {
         change_id: &str,
         task_id: &str,
         note: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
-        let task = crate::tasks::complete_task(&self.ito_path, change_id, task_id, note)?;
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let _ = self.require_tasks_path(change_id)?;
+        let task = crate::tasks::complete_task(&self.ito_path, change_id, task_id, note)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskMutationResult {
             change_id: change_id.to_string(),
             task,
@@ -134,8 +104,10 @@ impl TaskMutationService for FsTaskMutationService {
         change_id: &str,
         task_id: &str,
         reason: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
-        let task = crate::tasks::shelve_task(&self.ito_path, change_id, task_id, reason)?;
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let _ = self.require_tasks_path(change_id)?;
+        let task = crate::tasks::shelve_task(&self.ito_path, change_id, task_id, reason)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskMutationResult {
             change_id: change_id.to_string(),
             task,
@@ -143,8 +115,14 @@ impl TaskMutationService for FsTaskMutationService {
         })
     }
 
-    fn unshelve_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult> {
-        let task = crate::tasks::unshelve_task(&self.ito_path, change_id, task_id)?;
+    fn unshelve_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let _ = self.require_tasks_path(change_id)?;
+        let task = crate::tasks::unshelve_task(&self.ito_path, change_id, task_id)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskMutationResult {
             change_id: change_id.to_string(),
             task,
@@ -157,8 +135,10 @@ impl TaskMutationService for FsTaskMutationService {
         change_id: &str,
         title: &str,
         wave: Option<u32>,
-    ) -> CoreResult<TaskMutationResult> {
-        let task = crate::tasks::add_task(&self.ito_path, change_id, title, wave)?;
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        let _ = self.require_tasks_path(change_id)?;
+        let task = crate::tasks::add_task(&self.ito_path, change_id, title, wave)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskMutationResult {
             change_id: change_id.to_string(),
             task,
@@ -167,146 +147,35 @@ impl TaskMutationService for FsTaskMutationService {
     }
 }
 
-/// Backend-backed task mutation service using artifact sync.
-#[derive(Clone)]
-pub struct RemoteTaskMutationService {
-    sync_client: Arc<dyn BackendSyncClient + Send + Sync>,
+pub(crate) fn boxed_fs_task_mutation_service(
+    ito_path: PathBuf,
+) -> Box<dyn TaskMutationService + Send> {
+    Box::new(FsTaskMutationService::new(ito_path))
 }
 
-impl RemoteTaskMutationService {
-    /// Create a backend-backed task mutation service.
-    pub fn new(sync_client: Arc<dyn BackendSyncClient + Send + Sync>) -> Self {
-        Self { sync_client }
-    }
-
-    fn pull_bundle(&self, change_id: &str) -> CoreResult<ArtifactBundle> {
-        self.sync_client
-            .pull(change_id)
-            .map_err(|err| map_backend_error(err, "pull"))
-    }
-
-    fn push_bundle(&self, change_id: &str, bundle: &ArtifactBundle) -> CoreResult<PushResult> {
-        self.sync_client
-            .push(change_id, bundle)
-            .map_err(|err| map_backend_error(err, "push"))
-    }
-
-    fn mutate_tasks<F>(&self, change_id: &str, op: F) -> CoreResult<TaskMutationResult>
-    where
-        F: FnOnce(&str) -> CoreResult<crate::tasks::TaskMutationOutcome>,
-    {
-        let mut bundle = self.pull_bundle(change_id)?;
-        let tasks = bundle.tasks.as_deref().ok_or_else(|| {
-            CoreError::not_found(format!(
-                "No {BACKEND_TASKS_LABEL} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
-            ))
-        })?;
-
-        let outcome = op(tasks)?;
-        bundle.tasks = Some(outcome.updated_content);
-
-        let result = self.push_bundle(change_id, &bundle)?;
-        Ok(TaskMutationResult {
-            change_id: change_id.to_string(),
-            task: outcome.task,
-            revision: Some(result.new_revision),
-        })
-    }
-}
-
-impl TaskMutationService for RemoteTaskMutationService {
-    fn load_tasks_markdown(&self, change_id: &str) -> CoreResult<Option<String>> {
-        let bundle = self.pull_bundle(change_id)?;
-        Ok(bundle.tasks)
-    }
-
-    fn init_tasks(&self, change_id: &str) -> CoreResult<TaskInitResult> {
-        let mut bundle = self.pull_bundle(change_id)?;
-        if bundle.tasks.is_some() {
-            return Ok(TaskInitResult {
-                change_id: change_id.to_string(),
-                path: None,
-                existed: true,
-                revision: None,
-            });
+pub(crate) fn task_mutation_error_from_core(err: CoreError) -> TaskMutationError {
+    match err {
+        CoreError::Domain(domain) => match domain {
+            DomainError::Io { context, source } => TaskMutationError::io(context, source),
+            DomainError::NotFound { entity, id } => {
+                TaskMutationError::not_found(format!("{entity} not found: {id}"))
+            }
+            DomainError::AmbiguousTarget {
+                entity,
+                input,
+                matches,
+            } => TaskMutationError::validation(format!(
+                "Ambiguous {entity} target '{input}'. Matches: {matches}"
+            )),
+        },
+        CoreError::Io { context, source } => TaskMutationError::io(context, source),
+        CoreError::Validation(message) => TaskMutationError::validation(message),
+        CoreError::Parse(message) => TaskMutationError::validation(message),
+        CoreError::Process(message) => TaskMutationError::other(message),
+        CoreError::Sqlite(message) => TaskMutationError::other(format!("sqlite error: {message}")),
+        CoreError::NotFound(message) => TaskMutationError::not_found(message),
+        CoreError::Serde { context, message } => {
+            TaskMutationError::other(format!("{context}: {message}"))
         }
-
-        let now = chrono::Local::now();
-        let contents = enhanced_tasks_template(change_id, now);
-        bundle.tasks = Some(contents);
-        let result = self.push_bundle(change_id, &bundle)?;
-
-        Ok(TaskInitResult {
-            change_id: change_id.to_string(),
-            path: None,
-            existed: false,
-            revision: Some(result.new_revision),
-        })
     }
-
-    fn start_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult> {
-        self.mutate_tasks(change_id, |tasks| {
-            apply_start_task(tasks, change_id, task_id, BACKEND_TASKS_LABEL)
-        })
-    }
-
-    fn complete_task(
-        &self,
-        change_id: &str,
-        task_id: &str,
-        _note: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
-        self.mutate_tasks(change_id, |tasks| {
-            apply_complete_task(tasks, task_id, BACKEND_TASKS_LABEL)
-        })
-    }
-
-    fn shelve_task(
-        &self,
-        change_id: &str,
-        task_id: &str,
-        _reason: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
-        self.mutate_tasks(change_id, |tasks| {
-            apply_shelve_task(tasks, task_id, BACKEND_TASKS_LABEL)
-        })
-    }
-
-    fn unshelve_task(&self, change_id: &str, task_id: &str) -> CoreResult<TaskMutationResult> {
-        self.mutate_tasks(change_id, |tasks| {
-            apply_unshelve_task(tasks, task_id, BACKEND_TASKS_LABEL)
-        })
-    }
-
-    fn add_task(
-        &self,
-        change_id: &str,
-        title: &str,
-        wave: Option<u32>,
-    ) -> CoreResult<TaskMutationResult> {
-        self.mutate_tasks(change_id, |tasks| {
-            apply_add_task(tasks, title, wave, BACKEND_TASKS_LABEL)
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct StubBackendSyncClient;
-
-impl BackendSyncClient for StubBackendSyncClient {
-    fn pull(&self, change_id: &str) -> Result<ArtifactBundle, BackendError> {
-        Err(BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-
-    fn push(&self, change_id: &str, _bundle: &ArtifactBundle) -> Result<PushResult, BackendError> {
-        Err(BackendError::Other(format!(
-            "Sync endpoints not yet available on backend for change '{change_id}'"
-        )))
-    }
-}
-
-pub(crate) fn stub_backend_sync_client() -> Arc<dyn BackendSyncClient + Send + Sync> {
-    Arc::new(StubBackendSyncClient)
 }

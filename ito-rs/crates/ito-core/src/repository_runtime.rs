@@ -18,13 +18,11 @@ use crate::change_repository::FsChangeRepository;
 use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
-use crate::task_mutations::{
-    FsTaskMutationService, RemoteTaskMutationService, TaskMutationService, stub_backend_sync_client,
-};
+use crate::task_mutations::{boxed_fs_task_mutation_service, FsTaskMutationService};
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
-use ito_domain::tasks::TaskRepository;
+use ito_domain::tasks::{TaskMutationService, TaskRepository};
 
 /// Client persistence mode used for repository selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,8 +91,8 @@ impl RemoteRepositoryFactory for HttpRemoteRepositoryFactory {
         Ok(RepositorySet {
             changes: Arc::new(BackendChangeRepository::new(client.clone())),
             modules: Arc::new(BackendModuleRepository::new(client.clone())),
-            tasks: Arc::new(RemoteTaskRepository::new(client)),
-            task_mutations: Arc::new(RemoteTaskMutationService::new(stub_backend_sync_client())),
+            tasks: Arc::new(RemoteTaskRepository::new(client.clone())),
+            task_mutations: Arc::new(client.clone()),
         })
     }
 }
@@ -225,6 +223,12 @@ pub(crate) fn boxed_fs_module_repository(ito_path: PathBuf) -> Box<dyn ModuleRep
 
 pub(crate) fn boxed_fs_task_repository(ito_path: PathBuf) -> Box<dyn TaskRepository + Send> {
     Box::new(OwnedFsTaskRepository::new(ito_path))
+}
+
+pub(crate) fn boxed_fs_task_mutation_port(
+    ito_path: PathBuf,
+) -> Box<dyn TaskMutationService + Send> {
+    boxed_fs_task_mutation_service(ito_path)
 }
 
 // ── Owned-path filesystem wrappers ─────────────────────────────────

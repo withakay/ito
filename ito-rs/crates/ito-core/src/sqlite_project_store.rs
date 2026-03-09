@@ -9,7 +9,7 @@
 //! default of `<data_dir>/sqlite/ito-backend.db`.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use rusqlite::Connection;
@@ -21,9 +21,17 @@ use ito_domain::changes::{
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{parse_tasks_tracking_file, TaskRepository, TasksParseResult};
+use ito_domain::tasks::{
+    TaskInitResult, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
+    TaskRepository, TasksParseResult, parse_tasks_tracking_file,
+};
 
 use crate::errors::CoreError;
+use crate::task_mutations::task_mutation_error_from_core;
+use crate::tasks::{
+    apply_add_task, apply_complete_task, apply_shelve_task, apply_start_task, apply_unshelve_task,
+    enhanced_tasks_template,
+};
 
 /// Parameters for inserting or updating a change in the SQLite store.
 pub struct UpsertChangeParams<'a> {
@@ -50,7 +58,7 @@ pub struct UpsertChangeParams<'a> {
 /// All projects share one database, namespaced by `{org}/{repo}`.
 /// The connection is protected by a `Mutex` for thread safety.
 pub struct SqliteBackendProjectStore {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteBackendProjectStore {
@@ -65,19 +73,18 @@ impl SqliteBackendProjectStore {
             .map_err(|e| CoreError::sqlite(format!("opening database: {e}")))?;
 
         let store = Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         };
         store.initialize_schema()?;
         Ok(store)
     }
 
-    /// Open an in-memory SQLite project store (for testing).
-    #[cfg(test)]
+    /// Open an in-memory SQLite project store (for testing and integration tests).
     pub fn open_in_memory() -> Result<Self, CoreError> {
         let conn = Connection::open_in_memory()
             .map_err(|e| CoreError::sqlite(format!("opening in-memory database: {e}")))?;
         let store = Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         };
         store.initialize_schema()?;
         Ok(store)
@@ -230,6 +237,18 @@ impl BackendProjectStore for SqliteBackendProjectStore {
         let conn = self.conn.lock().unwrap();
         let tasks_data = load_tasks_data_from_db(&conn, org, repo)?;
         Ok(Box::new(SqliteTaskRepository { tasks_data }))
+    }
+
+    fn task_mutation_service(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn TaskMutationService + Send>> {
+        Ok(Box::new(SqliteTaskMutationService {
+            conn: Arc::clone(&self.conn),
+            org: org.to_string(),
+            repo: repo.to_string(),
+        }))
     }
 
     fn ensure_project(&self, org: &str, repo: &str) -> DomainResult<()> {
@@ -657,6 +676,159 @@ impl TaskRepository for SqliteTaskRepository {
         };
 
         Ok(parse_tasks_tracking_file(md))
+    }
+}
+
+struct SqliteTaskMutationService {
+    conn: Arc<Mutex<Connection>>,
+    org: String,
+    repo: String,
+}
+
+impl SqliteTaskMutationService {
+    fn load_current_markdown(
+        &self,
+        change_id: &str,
+    ) -> TaskMutationServiceResult<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT tasks_md FROM changes WHERE org = ?1 AND repo = ?2 AND change_id = ?3")
+            .map_err(|err| {
+                task_mutation_error_from_core(CoreError::sqlite(format!(
+                    "preparing task mutation query: {err}"
+                )))
+            })?;
+        let result: rusqlite::Result<Option<String>> = stmt.query_row(
+            rusqlite::params![&self.org, &self.repo, change_id],
+            |row| row.get(0),
+        );
+        match result {
+            Ok(markdown) => Ok(markdown),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ito_domain::tasks::TaskMutationError::not_found(
+                format!("Change '{change_id}' not found"),
+            )),
+            Err(err) => Err(task_mutation_error_from_core(CoreError::sqlite(format!(
+                "loading sqlite tasks markdown: {err}"
+            )))),
+        }
+    }
+
+    fn store_markdown(
+        &self,
+        change_id: &str,
+        markdown: &str,
+    ) -> TaskMutationServiceResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let updated = conn
+            .execute(
+                "UPDATE changes SET tasks_md = ?1, updated_at = ?2 WHERE org = ?3 AND repo = ?4 AND change_id = ?5",
+                rusqlite::params![
+                    markdown,
+                    Utc::now().to_rfc3339(),
+                    &self.org,
+                    &self.repo,
+                    change_id,
+                ],
+            )
+            .map_err(|err| {
+                task_mutation_error_from_core(CoreError::sqlite(format!(
+                    "updating sqlite tasks markdown: {err}"
+                )))
+            })?;
+        if updated == 0 {
+            return Err(ito_domain::tasks::TaskMutationError::not_found(format!(
+                "Change '{change_id}' not found"
+            )));
+        }
+        Ok(())
+    }
+
+    fn mutate<F>(&self, change_id: &str, op: F) -> TaskMutationServiceResult<TaskMutationResult>
+    where
+        F: FnOnce(&str) -> Result<crate::tasks::TaskMutationOutcome, CoreError>,
+    {
+        let markdown = self.load_current_markdown(change_id)?;
+        let tasks = markdown.ok_or_else(|| {
+            ito_domain::tasks::TaskMutationError::not_found(format!(
+                "No backend tasks found for \"{change_id}\". Run \"ito tasks init {change_id}\" first."
+            ))
+        })?;
+        let outcome = op(&tasks).map_err(task_mutation_error_from_core)?;
+        self.store_markdown(change_id, &outcome.updated_content)?;
+        Ok(TaskMutationResult {
+            change_id: change_id.to_string(),
+            task: outcome.task,
+            revision: None,
+        })
+    }
+}
+
+impl TaskMutationService for SqliteTaskMutationService {
+    fn load_tasks_markdown(&self, change_id: &str) -> TaskMutationServiceResult<Option<String>> {
+        self.load_current_markdown(change_id)
+    }
+
+    fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
+        let current = self.load_current_markdown(change_id)?;
+        if current.is_some() {
+            return Ok(TaskInitResult {
+                change_id: change_id.to_string(),
+                path: None,
+                existed: true,
+                revision: None,
+            });
+        }
+        let contents = enhanced_tasks_template(change_id, chrono::Local::now());
+        self.store_markdown(change_id, &contents)?;
+        Ok(TaskInitResult {
+            change_id: change_id.to_string(),
+            path: None,
+            existed: false,
+            revision: None,
+        })
+    }
+
+    fn start_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        self.mutate(change_id, |tasks| apply_start_task(tasks, change_id, task_id, "backend tasks"))
+    }
+
+    fn complete_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+        _note: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        self.mutate(change_id, |tasks| apply_complete_task(tasks, task_id, "backend tasks"))
+    }
+
+    fn shelve_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+        _reason: Option<String>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        self.mutate(change_id, |tasks| apply_shelve_task(tasks, task_id, "backend tasks"))
+    }
+
+    fn unshelve_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        self.mutate(change_id, |tasks| apply_unshelve_task(tasks, task_id, "backend tasks"))
+    }
+
+    fn add_task(
+        &self,
+        change_id: &str,
+        title: &str,
+        wave: Option<u32>,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
+        self.mutate(change_id, |tasks| apply_add_task(tasks, title, wave, "backend tasks"))
     }
 }
 

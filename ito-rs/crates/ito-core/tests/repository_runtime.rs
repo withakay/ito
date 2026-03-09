@@ -12,13 +12,15 @@ use ito_core::list::{
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,
 };
-use ito_core::task_mutations::{TaskInitResult, TaskMutationResult, TaskMutationService};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec,
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
-use ito_domain::tasks::{TaskRepository, TasksParseResult};
+use ito_domain::tasks::{
+    TaskInitResult, TaskMutationResult, TaskMutationService, TaskMutationServiceResult,
+    TaskRepository, TasksParseResult,
+};
 
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
@@ -254,23 +256,27 @@ impl TaskRepository for FakeTaskRepo {
 struct FakeTaskMutations;
 
 impl FakeTaskMutations {
-    fn unsupported<T>() -> CoreResult<T> {
-        Err(ito_core::errors::CoreError::process(
+    fn unsupported<T>() -> TaskMutationServiceResult<T> {
+        Err(ito_domain::tasks::TaskMutationError::other(
             "task mutations not configured",
         ))
     }
 }
 
 impl TaskMutationService for FakeTaskMutations {
-    fn load_tasks_markdown(&self, _change_id: &str) -> CoreResult<Option<String>> {
+    fn load_tasks_markdown(&self, _change_id: &str) -> TaskMutationServiceResult<Option<String>> {
         Ok(None)
     }
 
-    fn init_tasks(&self, _change_id: &str) -> CoreResult<TaskInitResult> {
+    fn init_tasks(&self, _change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
         Self::unsupported()
     }
 
-    fn start_task(&self, _change_id: &str, _task_id: &str) -> CoreResult<TaskMutationResult> {
+    fn start_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
         Self::unsupported()
     }
 
@@ -279,7 +285,7 @@ impl TaskMutationService for FakeTaskMutations {
         _change_id: &str,
         _task_id: &str,
         _note: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
         Self::unsupported()
     }
 
@@ -288,11 +294,15 @@ impl TaskMutationService for FakeTaskMutations {
         _change_id: &str,
         _task_id: &str,
         _reason: Option<String>,
-    ) -> CoreResult<TaskMutationResult> {
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
         Self::unsupported()
     }
 
-    fn unshelve_task(&self, _change_id: &str, _task_id: &str) -> CoreResult<TaskMutationResult> {
+    fn unshelve_task(
+        &self,
+        _change_id: &str,
+        _task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
         Self::unsupported()
     }
 
@@ -301,7 +311,7 @@ impl TaskMutationService for FakeTaskMutations {
         _change_id: &str,
         _title: &str,
         _wave: Option<u32>,
-    ) -> CoreResult<TaskMutationResult> {
+    ) -> TaskMutationServiceResult<TaskMutationResult> {
         Self::unsupported()
     }
 }

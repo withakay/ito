@@ -148,8 +148,9 @@ pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTar
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
 pub use ito_domain::tasks::{
-    ProgressInfo, TaskItem, TaskRepository as DomainTaskRepository, TaskStatus, TasksFormat,
-    TasksParseResult,
+    ProgressInfo, TaskInitResult, TaskItem, TaskKind, TaskMutationError, TaskMutationResult,
+    TaskMutationService, TaskMutationServiceResult, TaskRepository as DomainTaskRepository,
+    TaskStatus, TasksFormat, TasksParseResult,
 };
 
 /// Harness integrations for running AI-assisted workflows.

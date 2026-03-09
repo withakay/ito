@@ -84,6 +84,14 @@ pub(super) fn backend_tasks_path() -> PathBuf {
     PathBuf::from("backend tasks")
 }
 
+pub(super) fn missing_tasks_message(path: &Path, change_id: &str) -> String {
+    let file = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("tracking file");
+    format!("No {file} found for \"{change_id}\". Run \"ito tasks init {change_id}\" first.")
+}
+
 pub(super) fn summarize_status(status: TaskStatusResult) -> TaskStatusSummary {
     TaskStatusSummary {
         format: status.format,
@@ -95,9 +103,6 @@ pub(super) fn summarize_status(status: TaskStatusResult) -> TaskStatusSummary {
     }
 }
 
-pub(super) fn status_is_empty(status: &TaskStatusSummary) -> bool {
-    status.items.is_empty() && status.progress.total == 0
-}
 
 pub(super) fn print_json(value: &serde_json::Value) -> CliResult<()> {
     let rendered = serde_json::to_string_pretty(value).map_err(to_cli_error)?;

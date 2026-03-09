@@ -165,6 +165,13 @@ pub trait BackendProjectStore: Send + Sync {
         repo: &str,
     ) -> DomainResult<Box<dyn crate::tasks::TaskRepository + Send>>;
 
+    /// Obtain a task mutation service for the given project.
+    fn task_mutation_service(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::tasks::TaskMutationService + Send>>;
+
     /// Ensure the project directory/storage structure exists.
     ///
     /// Called before first write to a project. Implementations should
