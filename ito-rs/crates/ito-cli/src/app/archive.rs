@@ -100,24 +100,9 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    // Check for backend mode — if enabled, attempt backend-aware archive flow.
-    // If backend endpoints are not implemented yet, fall back to local archive
-    // so backend-enabled configs don't block archiving.
+    // Check for backend mode — if enabled, run the repository-backed archive flow.
     if let Some(runtime) = try_backend_runtime(rt)? {
-        match handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime) {
-            Ok(()) => return Ok(()),
-            Err(err) => {
-                let msg = err.to_string();
-                if msg.contains("not yet available on backend") {
-                    eprintln!(
-                        "Warning: backend archive endpoints are not available yet ({}). Falling back to local archive flow.",
-                        msg
-                    );
-                } else {
-                    return Err(err);
-                }
-            }
-        }
+        return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
     }
 
     // ── Filesystem-only archive flow ───────────────────────────────
@@ -421,12 +406,13 @@ fn handle_backend_archive(
 fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
     let ito_path = rt.ito_path();
     let changes_dir = core_paths::changes_dir(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let remote_mode = runtime.mode() == ito_core::repository_runtime::PersistenceMode::Remote;
 
-    if !changes_dir.exists() {
+    if !changes_dir.exists() && !remote_mode {
         return fail("No Ito changes directory found. Run 'ito init' first.");
     }
 
-    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let completed = runtime
         .repositories()
         .changes

@@ -1165,4 +1165,14 @@ mod tests {
         assert_eq!(entries[1].id, "beta");
         assert_eq!(entries[1].path, "path/b");
     }
+
+    #[test]
+    fn backend_instruction_is_cli_first_for_remote_mode() {
+        let instruction = generate_backend_instruction();
+
+        assert!(instruction.contains("do not create markdown manually"));
+        assert!(instruction.contains("ito show specs"));
+        assert!(instruction.contains("ito tasks sync pull <change-id>"));
+        assert!(instruction.contains("ito archive <change-id>"));
+    }
 }
