@@ -38,7 +38,9 @@ fn make_change(root: &Path, id: &str) {
 
 fn make_archived_change(root: &Path, id: &str) {
     write(
-        root.join(".ito/changes/archive").join(id).join("proposal.md"),
+        root.join(".ito/changes/archive")
+            .join(id)
+            .join("proposal.md"),
         "## Why\narchived fixture\n",
     );
 }
@@ -196,9 +198,18 @@ fn change_target_resolution_matches_across_repository_modes() {
 
     for (input, expected) in cases {
         let options = ResolveTargetOptions::default();
-        assert_eq!(fs_repo.resolve_target_with_options(input, options), expected);
-        assert_eq!(sqlite_repo.resolve_target_with_options(input, options), expected);
-        assert_eq!(remote_repo.resolve_target_with_options(input, options), expected);
+        assert_eq!(
+            fs_repo.resolve_target_with_options(input, options),
+            expected
+        );
+        assert_eq!(
+            sqlite_repo.resolve_target_with_options(input, options),
+            expected
+        );
+        assert_eq!(
+            remote_repo.resolve_target_with_options(input, options),
+            expected
+        );
     }
 }
 

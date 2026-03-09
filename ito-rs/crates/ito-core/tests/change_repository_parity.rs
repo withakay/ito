@@ -7,8 +7,8 @@
 use chrono::Utc;
 use ito_core::backend_change_repository::BackendChangeRepository;
 use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};
-use ito_domain::backend::BackendProjectStore;
 use ito_domain::backend::BackendChangeReader;
+use ito_domain::backend::BackendProjectStore;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
     ResolveTargetOptions,
@@ -302,10 +302,8 @@ fn sqlite_resolve_all_filter_finds_active_changes() {
 
 #[test]
 fn sqlite_list_by_module_normalizes_module_id() {
-    let ts = sqlite_store_with_changes(&[
-        ("001-01_alpha", Some("001")),
-        ("002-01_beta", Some("002")),
-    ]);
+    let ts =
+        sqlite_store_with_changes(&[("001-01_alpha", Some("001")), ("002-01_beta", Some("002"))]);
     let repo = ts.store.change_repository("org", "repo").unwrap();
 
     // Short form `1` should normalize to `001`.
@@ -338,10 +336,8 @@ fn sqlite_list_archived_filter_returns_empty() {
 #[test]
 fn sqlite_list_all_filter_returns_active_changes() {
     // All filter should return all SQLite changes (treated as active).
-    let ts = sqlite_store_with_changes(&[
-        ("001-01_alpha", Some("001")),
-        ("002-01_beta", Some("002")),
-    ]);
+    let ts =
+        sqlite_store_with_changes(&[("001-01_alpha", Some("001")), ("002-01_beta", Some("002"))]);
     let repo = ts.store.change_repository("org", "repo").unwrap();
 
     let result = repo.list_with_filter(ChangeLifecycleFilter::All).unwrap();

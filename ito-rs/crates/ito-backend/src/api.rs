@@ -342,7 +342,9 @@ fn map_backend_err<T>(result: Result<T, ito_core::BackendError>) -> Result<T, Ap
     result.map_err(|err| match err {
         ito_core::BackendError::LeaseConflict(_) => ApiErrorResponse::conflict(err.to_string()),
         ito_core::BackendError::RevisionConflict(_) => ApiErrorResponse::conflict(err.to_string()),
-        ito_core::BackendError::Unavailable(message) => ApiErrorResponse::service_unavailable(message),
+        ito_core::BackendError::Unavailable(message) => {
+            ApiErrorResponse::service_unavailable(message)
+        }
         ito_core::BackendError::Unauthorized(message) => ApiErrorResponse::forbidden(message),
         ito_core::BackendError::NotFound(message) => ApiErrorResponse::not_found(message),
         ito_core::BackendError::Other(message) => ApiErrorResponse::internal(message),
@@ -537,12 +539,11 @@ pub async fn sync_push_change(
         specs: payload.specs,
         revision: payload.revision,
     };
-    let result = map_backend_err(state.store.push_artifact_bundle(
-        &org,
-        &repo,
-        &change_id,
-        &bundle,
-    ))?;
+    let result = map_backend_err(
+        state
+            .store
+            .push_artifact_bundle(&org, &repo, &change_id, &bundle),
+    )?;
     Ok(Json(result))
 }
 
@@ -658,11 +659,8 @@ pub async fn add_change_task(
     Json(payload): Json<AddTaskRequest>,
 ) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
     let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
-    let result = map_task_mutation_err(task_mutations.add_task(
-        &change_id,
-        &payload.title,
-        payload.wave,
-    ))?;
+    let result =
+        map_task_mutation_err(task_mutations.add_task(&change_id, &payload.title, payload.wave))?;
     Ok(Json(api_task_mutation_result(result)))
 }
 
@@ -935,7 +933,9 @@ fn project_router() -> Router<Arc<AppState>> {
         .route("/events", post(ingest_events))
 }
 
-fn parse_lifecycle_filter(value: Option<String>) -> Result<ChangeLifecycleFilter, ApiErrorResponse> {
+fn parse_lifecycle_filter(
+    value: Option<String>,
+) -> Result<ChangeLifecycleFilter, ApiErrorResponse> {
     let Some(raw) = value else {
         return Ok(ChangeLifecycleFilter::Active);
     };

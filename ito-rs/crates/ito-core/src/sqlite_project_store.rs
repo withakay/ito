@@ -317,7 +317,10 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
         let changes = load_changes_from_db(&conn, org, repo)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        let Some(change) = changes.into_iter().find(|change| change.change_id == change_id) else {
+        let Some(change) = changes
+            .into_iter()
+            .find(|change| change.change_id == change_id)
+        else {
             return Err(ito_domain::backend::BackendError::NotFound(format!(
                 "change '{change_id}'"
             )));
@@ -415,7 +418,10 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
         let changes = load_changes_from_db(&conn, org, repo)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        let Some(change) = changes.into_iter().find(|change| change.change_id == change_id) else {
+        let Some(change) = changes
+            .into_iter()
+            .find(|change| change.change_id == change_id)
+        else {
             return Err(ito_domain::backend::BackendError::NotFound(format!(
                 "change '{change_id}'"
             )));
@@ -1165,10 +1171,7 @@ struct SqliteTaskMutationService {
 }
 
 impl SqliteTaskMutationService {
-    fn load_current_markdown(
-        &self,
-        change_id: &str,
-    ) -> TaskMutationServiceResult<Option<String>> {
+    fn load_current_markdown(&self, change_id: &str) -> TaskMutationServiceResult<Option<String>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT tasks_md FROM changes WHERE org = ?1 AND repo = ?2 AND change_id = ?3")
@@ -1177,26 +1180,24 @@ impl SqliteTaskMutationService {
                     "preparing task mutation query: {err}"
                 )))
             })?;
-        let result: rusqlite::Result<Option<String>> = stmt.query_row(
-            rusqlite::params![&self.org, &self.repo, change_id],
-            |row| row.get(0),
-        );
+        let result: rusqlite::Result<Option<String>> = stmt
+            .query_row(rusqlite::params![&self.org, &self.repo, change_id], |row| {
+                row.get(0)
+            });
         match result {
             Ok(markdown) => Ok(markdown),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ito_domain::tasks::TaskMutationError::not_found(
-                format!("Change '{change_id}' not found"),
-            )),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                Err(ito_domain::tasks::TaskMutationError::not_found(format!(
+                    "Change '{change_id}' not found"
+                )))
+            }
             Err(err) => Err(task_mutation_error_from_core(CoreError::sqlite(format!(
                 "loading sqlite tasks markdown: {err}"
             )))),
         }
     }
 
-    fn store_markdown(
-        &self,
-        change_id: &str,
-        markdown: &str,
-    ) -> TaskMutationServiceResult<()> {
+    fn store_markdown(&self, change_id: &str, markdown: &str) -> TaskMutationServiceResult<()> {
         let conn = self.conn.lock().unwrap();
         let updated = conn
             .execute(
@@ -1272,7 +1273,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         change_id: &str,
         task_id: &str,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_start_task(tasks, change_id, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_start_task(tasks, change_id, task_id, "backend tasks")
+        })
     }
 
     fn complete_task(
@@ -1281,7 +1284,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         task_id: &str,
         _note: Option<String>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_complete_task(tasks, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_complete_task(tasks, task_id, "backend tasks")
+        })
     }
 
     fn shelve_task(
@@ -1290,7 +1295,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         task_id: &str,
         _reason: Option<String>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_shelve_task(tasks, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_shelve_task(tasks, task_id, "backend tasks")
+        })
     }
 
     fn unshelve_task(
@@ -1298,7 +1305,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         change_id: &str,
         task_id: &str,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_unshelve_task(tasks, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_unshelve_task(tasks, task_id, "backend tasks")
+        })
     }
 
     fn add_task(
@@ -1307,7 +1316,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         title: &str,
         wave: Option<u32>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_add_task(tasks, title, wave, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_add_task(tasks, title, wave, "backend tasks")
+        })
     }
 }
 

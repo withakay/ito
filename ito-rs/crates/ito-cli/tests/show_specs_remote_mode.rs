@@ -33,7 +33,10 @@ fn spawn_backend_server() -> (String, tempfile::TempDir) {
     let data_dir = tempfile::tempdir().expect("backend data dir");
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,
@@ -125,14 +128,28 @@ fn show_specs_reads_backend_specs_without_local_markdown() {
         home.path(),
     );
 
-    assert_eq!(output.code, 0, "stdout={} stderr={}", output.stdout, output.stderr);
+    assert_eq!(
+        output.code, 0,
+        "stdout={} stderr={}",
+        output.stdout, output.stderr
+    );
     let json: serde_json::Value = serde_json::from_str(&output.stdout).expect("json output");
     let specs = json["specs"].as_array().expect("spec list");
     assert_eq!(specs.len(), 2);
     assert_eq!(specs[0]["id"].as_str(), Some("alpha"));
     assert_eq!(specs[1]["id"].as_str(), Some("beta"));
-    assert!(specs[0]["markdown"].as_str().unwrap_or_default().contains("# Alpha"));
-    assert!(specs[1]["markdown"].as_str().unwrap_or_default().contains("# Beta"));
+    assert!(
+        specs[0]["markdown"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("# Alpha")
+    );
+    assert!(
+        specs[1]["markdown"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("# Beta")
+    );
     assert!(
         !repo.path().join(".ito/specs").exists(),
         "remote mode should not require local promoted spec markdown"

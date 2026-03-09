@@ -5,7 +5,9 @@ use ito_domain::changes::ChangeLifecycleFilter;
 #[test]
 fn sqlite_archive_promotes_specs_and_marks_change_archived() {
     let store = SqliteBackendProjectStore::open_in_memory().expect("sqlite store");
-    store.ensure_project("acme", "widgets").expect("project row");
+    store
+        .ensure_project("acme", "widgets")
+        .expect("project row");
     store
         .upsert_change(&UpsertChangeParams {
             org: "acme",
@@ -31,10 +33,12 @@ fn sqlite_archive_promotes_specs_and_marks_change_archived() {
     let change_repo = store
         .change_repository("acme", "widgets")
         .expect("change repo");
-    assert!(change_repo
-        .list_with_filter(ChangeLifecycleFilter::Archived)
-        .expect("archived list")
-        .iter()
-        .any(|change| change.id == "025-05_archive-me"));
+    assert!(
+        change_repo
+            .list_with_filter(ChangeLifecycleFilter::Archived)
+            .expect("archived list")
+            .iter()
+            .any(|change| change.id == "025-05_archive-me")
+    );
     assert!(!change_repo.exists_with_filter("025-05_archive-me", ChangeLifecycleFilter::Active));
 }

@@ -7,8 +7,8 @@ use crate::util::parse_string_flag;
 use ito_core::audit;
 use ito_core::nearest_matches;
 use ito_core::templates;
-use std::collections::BTreeSet;
 use ito_core::validate as core_validate;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 fn format_issue_loc(i: &core_validate::ValidationIssue) -> String {
@@ -68,7 +68,8 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     if bulk {
         let repo_index = rt.repo_index();
-        let is_filesystem = runtime.mode() == ito_core::repository_runtime::PersistenceMode::Filesystem;
+        let is_filesystem =
+            runtime.mode() == ito_core::repository_runtime::PersistenceMode::Filesystem;
 
         let want_all = args.iter().any(|a| a == "--all");
         let want_changes = want_all || args.iter().any(|a| a == "--changes");

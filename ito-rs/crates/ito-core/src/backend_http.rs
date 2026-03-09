@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
-use crate::backend_client::{is_retriable_status, BackendRuntime};
+use crate::backend_client::{BackendRuntime, is_retriable_status};
 use ito_domain::backend::{
     ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader, BackendModuleReader,
     BackendSpecReader, BackendSyncClient, PushResult,
@@ -96,7 +96,10 @@ impl BackendHttpClient {
         parse_task_response(response)
     }
 
-    fn backend_get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, ito_domain::backend::BackendError> {
+    fn backend_get_json<T: DeserializeOwned>(
+        &self,
+        url: &str,
+    ) -> Result<T, ito_domain::backend::BackendError> {
         let response = self
             .request_with_retry("GET", url, None)
             .map_err(backend_error_from_domain)?;
@@ -286,7 +289,10 @@ impl BackendSpecReader for BackendHttpClient {
     }
 
     fn get_spec(&self, spec_id: &str) -> DomainResult<SpecDocument> {
-        let url = format!("{}/specs/{spec_id}", self.inner.runtime.project_api_prefix());
+        let url = format!(
+            "{}/specs/{spec_id}",
+            self.inner.runtime.project_api_prefix()
+        );
         let spec: ApiSpecDocument = self.get_json(&url, "spec", Some(spec_id))?;
         Ok(SpecDocument {
             id: spec.id,
@@ -462,7 +468,8 @@ fn parse_backend_response<T: DeserializeOwned>(
     if !(200..300).contains(&status) {
         return Err(map_status_to_backend_error(status, &body));
     }
-    serde_json::from_str(&body).map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))
+    serde_json::from_str(&body)
+        .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))
 }
 
 fn map_status_to_domain_error(
@@ -545,13 +552,19 @@ fn task_error_from_domain(err: DomainError) -> TaskMutationError {
 
 fn backend_error_from_domain(err: DomainError) -> ito_domain::backend::BackendError {
     match err {
-        DomainError::Io { source, .. } => ito_domain::backend::BackendError::Other(source.to_string()),
+        DomainError::Io { source, .. } => {
+            ito_domain::backend::BackendError::Other(source.to_string())
+        }
         DomainError::NotFound { entity, id } => {
             ito_domain::backend::BackendError::NotFound(format!("{entity} not found: {id}"))
         }
-        DomainError::AmbiguousTarget { entity, input, matches } => ito_domain::backend::BackendError::Other(
-            format!("Ambiguous {entity} target '{input}'. Matches: {matches}"),
-        ),
+        DomainError::AmbiguousTarget {
+            entity,
+            input,
+            matches,
+        } => ito_domain::backend::BackendError::Other(format!(
+            "Ambiguous {entity} target '{input}'. Matches: {matches}"
+        )),
     }
 }
 

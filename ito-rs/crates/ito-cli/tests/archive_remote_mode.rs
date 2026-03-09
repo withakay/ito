@@ -23,14 +23,20 @@ fn seed_remote_change(data_dir: &Path, change_id: &str) {
     std::fs::create_dir_all(change_dir.join("specs/spec-one")).expect("spec dir");
     fixtures::write(change_dir.join("proposal.md"), "# Proposal\n");
     fixtures::write(change_dir.join("tasks.md"), "- [x] done\n");
-    fixtures::write(change_dir.join("specs/spec-one/spec.md"), "## ADDED Requirements\n");
+    fixtures::write(
+        change_dir.join("specs/spec-one/spec.md"),
+        "## ADDED Requirements\n",
+    );
 }
 
 fn spawn_backend_server() -> (String, tempfile::TempDir) {
     let data_dir = tempfile::tempdir().expect("backend data dir");
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,
@@ -116,7 +122,12 @@ fn remote_archive_succeeds_without_local_active_change_markdown() {
     seed_remote_change(data_dir.path(), change_id);
     write_backend_config(repo.path(), &base_url);
 
-    let out = run_cli(&rust_path, &["archive", change_id, "--yes"], repo.path(), home.path());
+    let out = run_cli(
+        &rust_path,
+        &["archive", change_id, "--yes"],
+        repo.path(),
+        home.path(),
+    );
 
     assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
     assert!(repo.path().join(".ito/specs/spec-one/spec.md").exists());

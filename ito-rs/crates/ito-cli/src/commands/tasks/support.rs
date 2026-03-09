@@ -103,7 +103,6 @@ pub(super) fn summarize_status(status: TaskStatusResult) -> TaskStatusSummary {
     }
 }
 
-
 pub(super) fn print_json(value: &serde_json::Value) -> CliResult<()> {
     let rendered = serde_json::to_string_pretty(value).map_err(to_cli_error)?;
     println!("{rendered}");

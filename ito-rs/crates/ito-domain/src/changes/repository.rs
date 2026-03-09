@@ -4,9 +4,10 @@ use super::{Change, ChangeSummary};
 use crate::errors::DomainResult;
 
 /// Lifecycle filter for change repository queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ChangeLifecycleFilter {
     /// Only active (non-archived) changes.
+    #[default]
     Active,
     /// Only archived changes.
     Archived,
@@ -48,12 +49,6 @@ impl ChangeLifecycleFilter {
             "all" => Some(ChangeLifecycleFilter::All),
             _ => None,
         }
-    }
-}
-
-impl Default for ChangeLifecycleFilter {
-    fn default() -> Self {
-        ChangeLifecycleFilter::Active
     }
 }
 

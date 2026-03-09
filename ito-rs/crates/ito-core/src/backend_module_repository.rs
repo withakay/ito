@@ -4,8 +4,8 @@
 //! enabled. The filesystem repository remains the fallback when backend mode
 //! is disabled.
 
-use ito_domain::backend::BackendModuleReader;
 use ito_common::id::parse_module_id as parse_common_module_id;
+use ito_domain::backend::BackendModuleReader;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository as DomainModuleRepository, ModuleSummary};
 

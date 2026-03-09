@@ -8,15 +8,17 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use ito_domain::backend::{ArchiveResult, ArtifactBundle, BackendError, BackendProjectStore, PushResult};
+use ito_domain::backend::{
+    ArchiveResult, ArtifactBundle, BackendError, BackendProjectStore, PushResult,
+};
 use ito_domain::changes::ChangeRepository;
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::ModuleRepository;
 use ito_domain::tasks::TaskRepository;
 
 use crate::repository_runtime::{
-    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_task_mutation_port,
-    boxed_fs_task_repository, boxed_fs_spec_repository,
+    boxed_fs_change_repository, boxed_fs_module_repository, boxed_fs_spec_repository,
+    boxed_fs_task_mutation_port, boxed_fs_task_repository,
 };
 
 fn filesystem_revision(ito_path: &std::path::Path, change_id: &str) -> String {
@@ -163,11 +165,13 @@ impl BackendProjectStore for FsBackendProjectStore {
             .map_err(|err| BackendError::Other(err.to_string()))?;
         let current_revision = filesystem_revision(&ito_path, change_id);
         if !bundle.revision.trim().is_empty() && bundle.revision != current_revision {
-            return Err(BackendError::RevisionConflict(ito_domain::backend::RevisionConflict {
-                change_id: change_id.to_string(),
-                local_revision: bundle.revision.clone(),
-                server_revision: current_revision,
-            }));
+            return Err(BackendError::RevisionConflict(
+                ito_domain::backend::RevisionConflict {
+                    change_id: change_id.to_string(),
+                    local_revision: bundle.revision.clone(),
+                    server_revision: current_revision,
+                },
+            ));
         }
 
         let new_revision = Utc::now().to_rfc3339();

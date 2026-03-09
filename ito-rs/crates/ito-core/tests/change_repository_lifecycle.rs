@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 use ito_core::backend_client::BackendRuntime;
 use ito_core::change_repository::FsChangeRepository;
-use ito_core::list::{list_changes, ChangeProgressFilter, ChangeSortOrder, ListChangesInput};
+use ito_core::list::{ChangeProgressFilter, ChangeSortOrder, ListChangesInput, list_changes};
 use ito_core::repository_runtime::{
     PersistenceMode, RemoteRepositoryFactory, RepositoryRuntimeBuilder, RepositorySet,
 };

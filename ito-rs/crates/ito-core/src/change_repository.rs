@@ -311,10 +311,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         input: &str,
         filter: ChangeLifecycleFilter,
     ) -> DomainResult<String> {
-        match self.resolve_target_with_options(
-            input,
-            ResolveTargetOptions { lifecycle: filter },
-        ) {
+        match self.resolve_target_with_options(input, ResolveTargetOptions { lifecycle: filter }) {
             ChangeTargetResolution::Unique(id) => Ok(id),
             ChangeTargetResolution::Ambiguous(matches) => {
                 Err(DomainError::ambiguous_target("change", input, &matches))
@@ -454,10 +451,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         }
     }
 
-    fn build_summary_for_location(
-        &self,
-        location: &ChangeLocation,
-    ) -> DomainResult<ChangeSummary> {
+    fn build_summary_for_location(&self, location: &ChangeLocation) -> DomainResult<ChangeSummary> {
         let tasks = self.load_tasks_for_location(location)?;
         let progress = tasks.progress;
         let completed_tasks = progress.complete as u32;
@@ -692,9 +686,8 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
     }
 
     fn exists_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> bool {
-        let resolution = self.resolve_target_with_options(id, ResolveTargetOptions {
-            lifecycle: filter,
-        });
+        let resolution =
+            self.resolve_target_with_options(id, ResolveTargetOptions { lifecycle: filter });
         match resolution {
             ChangeTargetResolution::Unique(_) => true,
             ChangeTargetResolution::Ambiguous(_) => false,
@@ -735,10 +728,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         })
     }
 
-    fn list_with_filter(
-        &self,
-        filter: ChangeLifecycleFilter,
-    ) -> DomainResult<Vec<ChangeSummary>> {
+    fn list_with_filter(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
         let mut summaries = Vec::new();
         for location in self.list_change_locations(filter) {
             summaries.push(self.build_summary_for_location(&location)?);

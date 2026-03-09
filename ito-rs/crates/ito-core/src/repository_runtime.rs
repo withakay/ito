@@ -21,8 +21,8 @@ use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
 use crate::remote_task_repository::RemoteTaskRepository;
 use crate::spec_repository::FsSpecRepository;
-use crate::task_mutations::{boxed_fs_task_mutation_service, FsTaskMutationService};
 use crate::sqlite_project_store::SqliteBackendProjectStore;
+use crate::task_mutations::{FsTaskMutationService, boxed_fs_task_mutation_service};
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
@@ -521,10 +521,7 @@ impl SpecRepository for OwnedFsSpecRepository {
         self.inner().list()
     }
 
-    fn get(
-        &self,
-        id: &str,
-    ) -> ito_domain::errors::DomainResult<ito_domain::specs::SpecDocument> {
+    fn get(&self, id: &str) -> ito_domain::errors::DomainResult<ito_domain::specs::SpecDocument> {
         self.inner().get(id)
     }
 }

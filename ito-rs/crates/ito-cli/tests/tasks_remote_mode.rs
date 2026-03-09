@@ -35,7 +35,10 @@ fn spawn_backend_server() -> (String, tempfile::TempDir) {
     let data_dir = tempfile::tempdir().expect("backend data dir");
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,
@@ -141,7 +144,8 @@ fn remote_task_start_updates_backend_without_local_tasks_file() {
 
     assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
     assert!(
-        !repo.path()
+        !repo
+            .path()
             .join(".ito/changes")
             .join(change_id)
             .join("tasks.md")
@@ -149,8 +153,9 @@ fn remote_task_start_updates_backend_without_local_tasks_file() {
         "remote mode should not create a local tasks.md primary write path"
     );
 
-    let raw = std::fs::read_to_string(project_change_dir(data_dir.path(), change_id).join("tasks.md"))
-        .expect("read backend tasks");
+    let raw =
+        std::fs::read_to_string(project_change_dir(data_dir.path(), change_id).join("tasks.md"))
+            .expect("read backend tasks");
     assert!(raw.contains("- **Status**: [>] in-progress"), "{raw}");
 }
 
@@ -173,7 +178,11 @@ fn remote_missing_tasks_commands_do_not_hard_fail() {
         home.path(),
     );
     assert_eq!(status.code, 0, "stderr={}", status.stderr);
-    assert!(status.stdout.contains("\"exists\": false"), "{}", status.stdout);
+    assert!(
+        status.stdout.contains("\"exists\": false"),
+        "{}",
+        status.stdout
+    );
     // In JSON output the change_id is escaped; check for the unescaped substring
     assert!(
         status.stdout.contains("No backend tasks found for"),

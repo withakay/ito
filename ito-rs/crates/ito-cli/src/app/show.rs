@@ -10,8 +10,8 @@ fn handle_show_specs(rt: &Runtime, want_json: bool) -> CliResult<()> {
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let spec_repo = runtime.repositories().specs.as_ref();
     if want_json {
-        let json = core_show::bundle_specs_show_json_from_repository(spec_repo)
-            .map_err(to_cli_error)?;
+        let json =
+            core_show::bundle_specs_show_json_from_repository(spec_repo).map_err(to_cli_error)?;
         let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
         println!("{rendered}");
     } else {
@@ -123,8 +123,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     match resolved_type.as_str() {
         "spec" => {
-                let md = core_show::read_spec_markdown_from_repository(spec_repo, &item)
-                    .map_err(|e| CliError::msg(format!("Spec '{item}' not found: {e}")))?;
+            let md = core_show::read_spec_markdown_from_repository(spec_repo, &item)
+                .map_err(|e| CliError::msg(format!("Spec '{item}' not found: {e}")))?;
             if want_json {
                 if requirements && requirement_idx.is_some() {
                     return fail("Cannot use --requirement with --requirements");

@@ -43,7 +43,10 @@ async fn spawn_backend() -> (String, tempfile::TempDir) {
     seed_project(data_dir.path());
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,
@@ -109,7 +112,13 @@ async fn sync_pull_returns_artifact_bundle() {
     assert_eq!(response.status(), 200);
     let bundle: ArtifactBundle = response.json().await.unwrap();
     assert_eq!(bundle.change_id, "025-05_archive-me");
-    assert!(bundle.proposal.as_deref().unwrap_or_default().contains("Proposal"));
+    assert!(
+        bundle
+            .proposal
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Proposal")
+    );
     assert_eq!(bundle.specs.len(), 1);
 }
 
@@ -165,7 +174,12 @@ async fn archive_endpoint_promotes_specs_and_moves_change() {
     assert_eq!(result.change_id, "025-05_archive-me");
     assert!(!result.archived_at.is_empty());
 
-    let ito_dir = dir.path().join("projects").join(ORG).join(REPO).join(".ito");
+    let ito_dir = dir
+        .path()
+        .join("projects")
+        .join(ORG)
+        .join(REPO)
+        .join(".ito");
     assert!(ito_dir.join("specs/spec-one/spec.md").exists());
     assert!(!ito_dir.join("changes/025-05_archive-me").exists());
     let archived = ito_dir.join("changes/archive");

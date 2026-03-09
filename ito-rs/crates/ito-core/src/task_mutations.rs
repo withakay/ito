@@ -57,8 +57,8 @@ impl TaskMutationService for FsTaskMutationService {
     }
 
     fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult> {
-        let (path, existed) =
-            crate::tasks::init_tasks(&self.ito_path, change_id).map_err(task_mutation_error_from_core)?;
+        let (path, existed) = crate::tasks::init_tasks(&self.ito_path, change_id)
+            .map_err(task_mutation_error_from_core)?;
         Ok(TaskInitResult {
             change_id: change_id.to_string(),
             path: Some(path),

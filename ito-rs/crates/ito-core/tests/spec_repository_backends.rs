@@ -47,7 +47,10 @@ fn filesystem_runtime_exposes_promoted_specs() {
 
     let summaries = runtime.repositories().specs.list().expect("list specs");
     assert_eq!(
-        summaries.into_iter().map(|spec| spec.id).collect::<Vec<_>>(),
+        summaries
+            .into_iter()
+            .map(|spec| spec.id)
+            .collect::<Vec<_>>(),
         vec!["alpha".to_string(), "beta".to_string()]
     );
 

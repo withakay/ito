@@ -36,7 +36,10 @@ async fn spawn_backend() -> (String, tempfile::TempDir) {
     let data_dir = tempfile::tempdir().expect("backend data dir");
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,
@@ -100,7 +103,10 @@ async fn tasks_markdown_endpoint_returns_none_for_missing_artifact() {
 
     let client = reqwest::Client::new();
     let response = client
-        .get(project_url(&base_url, "changes/001-01_missing-tasks/tasks/raw"))
+        .get(project_url(
+            &base_url,
+            "changes/001-01_missing-tasks/tasks/raw",
+        ))
         .header("Authorization", format!("Bearer {ADMIN_TOKEN}"))
         .send()
         .await
@@ -176,5 +182,9 @@ async fn start_task_endpoint_reports_missing_tasks_as_not_found() {
     assert_eq!(response.status(), 404);
     let payload: ApiError = response.json().await.expect("parse error payload");
     assert_eq!(payload.code, "not_found");
-    assert!(payload.error.contains("Run \"ito tasks init 001-03_missing-start\" first"));
+    assert!(
+        payload
+            .error
+            .contains("Run \"ito tasks init 001-03_missing-start\" first")
+    );
 }

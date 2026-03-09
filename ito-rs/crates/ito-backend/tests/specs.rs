@@ -22,14 +22,22 @@ const TOKEN_SEED: &str = "spec-seed";
 
 async fn spawn_backend_with_specs() -> String {
     let data_dir = tempfile::tempdir().unwrap();
-    let ito_dir = data_dir.path().join("projects").join(ORG).join(REPO).join(".ito");
+    let ito_dir = data_dir
+        .path()
+        .join("projects")
+        .join(ORG)
+        .join(REPO)
+        .join(".ito");
     std::fs::create_dir_all(ito_dir.join("specs/alpha")).unwrap();
     std::fs::create_dir_all(ito_dir.join("specs/beta")).unwrap();
     std::fs::write(ito_dir.join("specs/alpha/spec.md"), "# Alpha\n").unwrap();
     std::fs::write(ito_dir.join("specs/beta/spec.md"), "# Beta\n").unwrap();
 
     let mut repos = BTreeMap::new();
-    repos.insert(ORG.to_string(), BackendRepoPolicy::List(vec![REPO.to_string()]));
+    repos.insert(
+        ORG.to_string(),
+        BackendRepoPolicy::List(vec![REPO.to_string()]),
+    );
     let allowlist = BackendAllowlistConfig {
         orgs: vec![ORG.to_string()],
         repos,

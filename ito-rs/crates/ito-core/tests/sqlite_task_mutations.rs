@@ -5,7 +5,9 @@ use ito_domain::tasks::TaskStatus;
 #[test]
 fn sqlite_task_mutation_service_initializes_missing_tasks() {
     let store = SqliteBackendProjectStore::open_in_memory().expect("sqlite store");
-    store.ensure_project("acme", "widgets").expect("project row");
+    store
+        .ensure_project("acme", "widgets")
+        .expect("project row");
     store
         .upsert_change(&UpsertChangeParams {
             org: "acme",
@@ -34,13 +36,18 @@ fn sqlite_task_mutation_service_initializes_missing_tasks() {
         .expect("task repository");
     let parsed = repo.load_tasks("025-02_demo").expect("load tasks");
     // Template has 1 task + 1 checkpoint = 2 total items
-    assert_eq!(parsed.progress.total, 2, "template should have 2 items (1 task + 1 checkpoint)");
+    assert_eq!(
+        parsed.progress.total, 2,
+        "template should have 2 items (1 task + 1 checkpoint)"
+    );
 }
 
 #[test]
 fn sqlite_task_mutation_service_updates_existing_markdown() {
     let store = SqliteBackendProjectStore::open_in_memory().expect("sqlite store");
-    store.ensure_project("acme", "widgets").expect("project row");
+    store
+        .ensure_project("acme", "widgets")
+        .expect("project row");
     store
         .upsert_change(&UpsertChangeParams {
             org: "acme",
@@ -59,7 +66,9 @@ fn sqlite_task_mutation_service_updates_existing_markdown() {
     let service = store
         .task_mutation_service("acme", "widgets")
         .expect("task mutation service");
-    let result = service.start_task("025-02_demo", "1.1").expect("start task");
+    let result = service
+        .start_task("025-02_demo", "1.1")
+        .expect("start task");
 
     assert_eq!(result.change_id, "025-02_demo");
     assert!(result.revision.is_none());
@@ -70,13 +79,18 @@ fn sqlite_task_mutation_service_updates_existing_markdown() {
         .load_tasks_markdown("025-02_demo")
         .expect("load tasks markdown")
         .expect("tasks markdown present");
-    assert!(markdown.contains("- **Status**: [>] in-progress"), "{markdown}");
+    assert!(
+        markdown.contains("- **Status**: [>] in-progress"),
+        "{markdown}"
+    );
 }
 
 #[test]
 fn sqlite_task_mutation_service_returns_not_found_for_missing_tasks() {
     let store = SqliteBackendProjectStore::open_in_memory().expect("sqlite store");
-    store.ensure_project("acme", "widgets").expect("project row");
+    store
+        .ensure_project("acme", "widgets")
+        .expect("project row");
     store
         .upsert_change(&UpsertChangeParams {
             org: "acme",

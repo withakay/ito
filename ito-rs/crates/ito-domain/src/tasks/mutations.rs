@@ -92,8 +92,11 @@ pub trait TaskMutationService: Send + Sync {
     /// Initialize a tracking file or remote artifact for a change.
     fn init_tasks(&self, change_id: &str) -> TaskMutationServiceResult<TaskInitResult>;
     /// Mark a task as in-progress.
-    fn start_task(&self, change_id: &str, task_id: &str)
-    -> TaskMutationServiceResult<TaskMutationResult>;
+    fn start_task(
+        &self,
+        change_id: &str,
+        task_id: &str,
+    ) -> TaskMutationServiceResult<TaskMutationResult>;
     /// Mark a task as complete.
     fn complete_task(
         &self,
