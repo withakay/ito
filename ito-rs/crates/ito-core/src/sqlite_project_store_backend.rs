@@ -182,7 +182,7 @@ impl BackendProjectStore for SqliteBackendProjectStore {
     ) -> Result<ito_domain::backend::ArchiveResult, ito_domain::backend::BackendError> {
         let archived_at = Utc::now().to_rfc3339();
         self.with_backend_transaction(|tx| {
-            let changes = load_changes_from_db(&tx, org, repo)
+            let changes = load_changes_from_db(tx, org, repo)
                 .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
             let Some(change) = changes.into_iter().find(|change| change.change_id == change_id)
             else {
