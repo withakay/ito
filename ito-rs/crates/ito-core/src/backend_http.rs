@@ -194,6 +194,10 @@ fn retries_enabled_by_default(method: &str) -> bool {
     }
 }
 
+fn is_not_found_error(err: &DomainError) -> bool {
+    matches!(err, DomainError::NotFound { .. })
+}
+
 impl BackendChangeReader for BackendHttpClient {
     fn list_changes(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
         let url = format!(
@@ -233,7 +237,7 @@ impl BackendChangeReader for BackendHttpClient {
         let tasks = match self.load_tasks_parse_result(change_id) {
             Ok(tasks) => tasks,
             Err(err) => {
-                if filter.includes_archived() {
+                if filter.includes_archived() && is_not_found_error(&err) {
                     tasks_from_progress(&change.progress)
                 } else {
                     return Err(err);
@@ -294,14 +298,15 @@ impl BackendSpecReader for BackendHttpClient {
     fn list_specs(&self) -> DomainResult<Vec<SpecSummary>> {
         let url = format!("{}/specs", self.inner.runtime.project_api_prefix());
         let specs: Vec<ApiSpecSummary> = self.get_json(&url, "spec", None)?;
-        Ok(specs
-            .into_iter()
-            .map(|spec| SpecSummary {
+        let mut out = Vec::with_capacity(specs.len());
+        for spec in specs {
+            out.push(SpecSummary {
                 id: spec.id,
                 path: PathBuf::from(spec.path),
-                last_modified: parse_timestamp(&spec.last_modified).unwrap_or_else(|_| Utc::now()),
-            })
-            .collect())
+                last_modified: parse_timestamp(&spec.last_modified)?,
+            });
+        }
+        Ok(out)
     }
 
     fn get_spec(&self, spec_id: &str) -> DomainResult<SpecDocument> {
@@ -314,7 +319,7 @@ impl BackendSpecReader for BackendHttpClient {
             id: spec.id,
             path: PathBuf::from(spec.path),
             markdown: spec.markdown,
-            last_modified: parse_timestamp(&spec.last_modified).unwrap_or_else(|_| Utc::now()),
+            last_modified: parse_timestamp(&spec.last_modified)?,
         })
     }
 }
