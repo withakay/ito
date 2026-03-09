@@ -141,6 +141,13 @@ After deployment, create separate PR to:
 
 ## Quick Start
 
+### Backend-Backed Mode
+
+- When `backend.enabled=true` or repository persistence is remote, local active-work markdown may be absent by design.
+- Do not create or edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually just to make remote mode work.
+- Use CLI/repository-backed flows for active work: `ito show <item>`, `ito show specs`, `ito tasks ...`, `ito tasks sync pull <change-id>`, and `ito archive <change-id>`.
+- Treat local Git/projected files as read-oriented scan and backup surfaces; mutations must go through the CLI-backed repository path.
+
 ### CLI Commands
 
 ```bash

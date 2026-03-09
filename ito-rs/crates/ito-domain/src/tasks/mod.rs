@@ -14,6 +14,7 @@
 mod checkbox;
 mod compute;
 mod cycle;
+mod mutations;
 mod parse;
 mod relational;
 mod repository;
@@ -21,6 +22,11 @@ mod update;
 
 /// Compute ready vs blocked tasks for a parsed tracking file.
 pub use compute::compute_ready_and_blocked;
+/// Task mutation result types and port.
+pub use mutations::{
+    TaskInitResult, TaskMutationError, TaskMutationResult, TaskMutationService,
+    TaskMutationServiceResult,
+};
 /// Detect whether a `tasks.md` file is enhanced or checkbox format.
 pub use parse::detect_tasks_format;
 /// Generate the enhanced `tasks.md` template for a change.

@@ -104,6 +104,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "assert-struct"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7c1d15176e70a5c6f5f2b226928371188d7da903bd0f132ea09a85df1d8a4ad"
+dependencies = [
+ "assert-struct-macros",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
+name = "assert-struct-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8130b5a7bd5f06ab6a03f116cbe6fc9798f12121b670e832409ffa8306a1715d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
 name = "assert_cmd"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1346,6 +1370,7 @@ dependencies = [
 name = "ito-core"
 version = "0.1.18"
 dependencies = [
+ "assert-struct",
  "base64",
  "chrono",
  "filetime",

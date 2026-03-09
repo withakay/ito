@@ -57,6 +57,14 @@ pub struct ItoConfig {
     pub audit: AuditConfig,
 
     #[serde(default)]
+    #[schemars(default, description = "Repository runtime configuration")]
+    /// Repository runtime configuration for local persistence.
+    ///
+    /// When backend mode is enabled, remote runtime selection takes precedence
+    /// over these settings.
+    pub repository: RepositoryRuntimeConfig,
+
+    #[serde(default)]
     #[schemars(default, description = "Backend state API configuration")]
     /// Backend state API configuration.
     pub backend: BackendApiConfig,
@@ -65,6 +73,85 @@ pub struct ItoConfig {
     #[schemars(default, description = "Backend server configuration (multi-tenant)")]
     /// Backend server configuration for hosting the multi-tenant API.
     pub backend_server: BackendServerConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Repository runtime configuration")]
+/// Repository runtime configuration for local persistence selection.
+pub struct RepositoryRuntimeConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Client-side persistence mode")]
+    /// Client-side persistence mode (defaults to filesystem).
+    ///
+    /// Ignored when backend mode is enabled.
+    pub mode: RepositoryPersistenceMode,
+
+    #[serde(default)]
+    #[schemars(default, description = "Local SQLite configuration")]
+    /// Local SQLite configuration (used only when mode is `sqlite`).
+    pub sqlite: RepositorySqliteConfig,
+}
+
+impl Default for RepositoryRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            mode: RepositoryPersistenceMode::Filesystem,
+            sqlite: RepositorySqliteConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+#[schemars(description = "Client-side repository persistence mode")]
+/// Client-side repository persistence mode (local only).
+pub enum RepositoryPersistenceMode {
+    /// Filesystem-backed repositories.
+    #[default]
+    Filesystem,
+    /// SQLite-backed repositories.
+    Sqlite,
+}
+
+impl RepositoryPersistenceMode {
+    /// Return a stable string identifier for display.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RepositoryPersistenceMode::Filesystem => "filesystem",
+            RepositoryPersistenceMode::Sqlite => "sqlite",
+        }
+    }
+
+    /// All supported persistence mode values.
+    pub const ALL: &'static [&'static str] = &["filesystem", "sqlite"];
+
+    /// Parse a string into a persistence mode, returning `None` for invalid values.
+    pub fn parse_value(s: &str) -> Option<Self> {
+        match s {
+            "filesystem" => Some(Self::Filesystem),
+            "sqlite" => Some(Self::Sqlite),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for RepositoryPersistenceMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Local SQLite repository configuration")]
+/// Local SQLite repository configuration for client-side persistence.
+pub struct RepositorySqliteConfig {
+    #[serde(default, rename = "dbPath", skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Path to the local SQLite database file")]
+    /// Path to the local SQLite database file.
+    ///
+    /// Required when `repository.mode` is `sqlite`. Relative paths resolve
+    /// against the project root.
+    pub db_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

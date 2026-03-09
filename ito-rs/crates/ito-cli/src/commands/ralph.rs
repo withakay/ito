@@ -1,16 +1,14 @@
 use crate::cli::{HarnessArg, RalphArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
-use ito_core::change_repository::FsChangeRepository;
+use ito_core::ChangeRepository;
 use ito_core::harness::ClaudeCodeHarness;
 use ito_core::harness::CodexHarness;
 use ito_core::harness::GitHubCopilotHarness;
 use ito_core::harness::Harness;
 use ito_core::harness::OpencodeHarness;
 use ito_core::harness::stub::StubHarness;
-use ito_core::module_repository::FsModuleRepository;
 use ito_core::ralph as core_ralph;
-use ito_core::task_repository::FsTaskRepository;
 use std::io::IsTerminal;
 
 /// Handle the `ito loop` command (deprecated alias for `ito ralph`).
@@ -137,9 +135,11 @@ pub(crate) fn handle_ralph_clap(
 
     let worktree_config = load_worktree_config(ito_path, rt);
 
-    let change_repo = FsChangeRepository::new(ito_path);
-    let module_repo = FsModuleRepository::new(ito_path);
-    let task_repo = FsTaskRepository::new(ito_path);
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repositories = runtime.repositories();
+    let change_repo = repositories.changes.as_ref();
+    let module_repo = repositories.modules.as_ref();
+    let task_repo = repositories.tasks.as_ref();
 
     // Interactive target selection lives in the CLI layer.
     // When no explicit change is provided, prompt for one or more changes and
@@ -159,7 +159,7 @@ pub(crate) fn handle_ralph_clap(
         }
 
         let single_target = args.status || args.add_context.is_some() || args.clear_context;
-        let selected = pick_change_ids(&change_repo, args.module.as_deref(), single_target)?;
+        let selected = pick_change_ids(change_repo, args.module.as_deref(), single_target)?;
 
         let mut overrides = RalphWizardOverrides::from_args(args);
         if !single_target {
@@ -207,9 +207,9 @@ pub(crate) fn handle_ralph_clap(
 
             core_ralph::run_ralph(
                 ito_path,
-                &change_repo,
-                &task_repo,
-                &module_repo,
+                change_repo,
+                task_repo,
+                module_repo,
                 per_change,
                 harness_impl.as_mut(),
             )
@@ -247,9 +247,9 @@ pub(crate) fn handle_ralph_clap(
 
     core_ralph::run_ralph(
         ito_path,
-        &change_repo,
-        &task_repo,
-        &module_repo,
+        change_repo,
+        task_repo,
+        module_repo,
         opts,
         harness_impl.as_mut(),
     )
@@ -483,7 +483,7 @@ fn argv_has_any_flag(argv: &[String], flags: &[&str]) -> bool {
 }
 
 fn pick_change_ids(
-    change_repo: &FsChangeRepository<'_>,
+    change_repo: &dyn ChangeRepository,
     module_id: Option<&str>,
     single: bool,
 ) -> CliResult<Vec<String>> {

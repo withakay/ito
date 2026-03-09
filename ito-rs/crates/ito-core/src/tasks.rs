@@ -7,6 +7,7 @@ use crate::errors::{CoreError, CoreResult};
 use crate::templates::{ValidatorId, load_schema_validation, read_change_schema, resolve_schema};
 use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
+use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 
 // Re-export domain types and functions for CLI convenience
 pub use ito_domain::changes::ChangeTargetResolution;
@@ -145,6 +146,23 @@ fn sort_blocked_tasks_by_id(items: &mut [(TaskItem, Vec<String>)]) {
     items.sort_by(|(a, _), (b, _)| compare_task_ids(&a.id, &b.id));
 }
 
+/// Summary of task tracking status for a change.
+#[derive(Debug, Clone)]
+pub struct TaskStatusSummary {
+    /// Detected file format.
+    pub format: TasksFormat,
+    /// All parsed tasks.
+    pub items: Vec<TaskItem>,
+    /// Progress summary.
+    pub progress: ProgressInfo,
+    /// Parse diagnostics.
+    pub diagnostics: Vec<TaskDiagnostic>,
+    /// Ready tasks (computed).
+    pub ready: Vec<TaskItem>,
+    /// Blocked tasks with their blockers.
+    pub blocked: Vec<(TaskItem, Vec<String>)>,
+}
+
 /// Ready task list for a single change.
 #[derive(Debug, Clone)]
 pub struct ReadyTasksForChange {
@@ -159,7 +177,7 @@ pub struct ReadyTasksForChange {
 /// This use-case keeps repository traversal and task orchestration in core,
 /// while adapters remain focused on argument parsing and presentation.
 pub fn list_ready_tasks_across_changes(
-    change_repo: &impl DomainChangeRepository,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
 ) -> CoreResult<Vec<ReadyTasksForChange>> {
     let summaries = change_repo.list().into_core()?;
@@ -202,6 +220,44 @@ pub fn list_ready_tasks_across_changes(
     Ok(results)
 }
 
+/// Collect ready tasks across all currently ready changes using repositories.
+pub fn list_ready_tasks_across_changes_with_repo(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    task_repo: &(impl DomainTaskRepository + ?Sized),
+) -> CoreResult<Vec<ReadyTasksForChange>> {
+    let summaries = change_repo.list().into_core()?;
+
+    let mut results: Vec<ReadyTasksForChange> = Vec::new();
+    for summary in &summaries {
+        if !summary.is_ready() {
+            continue;
+        }
+
+        let parsed = task_repo.load_tasks(&summary.id).into_core()?;
+        if parsed
+            .diagnostics
+            .iter()
+            .any(|d| d.level == ito_domain::tasks::DiagnosticLevel::Error)
+        {
+            continue;
+        }
+
+        let (mut ready, _blocked) = compute_ready_and_blocked(&parsed);
+        if ready.is_empty() {
+            continue;
+        }
+
+        sort_task_items_by_id(&mut ready);
+
+        results.push(ReadyTasksForChange {
+            change_id: summary.id.clone(),
+            ready_tasks: ready,
+        });
+    }
+
+    Ok(results)
+}
+
 /// Result of getting task status for a change.
 #[derive(Debug, Clone)]
 pub struct TaskStatusResult {
@@ -219,6 +275,37 @@ pub struct TaskStatusResult {
     pub ready: Vec<TaskItem>,
     /// Blocked tasks with their blockers.
     pub blocked: Vec<(TaskItem, Vec<String>)>,
+}
+
+impl TaskStatusResult {
+    /// Convert this status result into a summary without a tracking path.
+    pub fn into_summary(self) -> TaskStatusSummary {
+        TaskStatusSummary {
+            format: self.format,
+            items: self.items,
+            progress: self.progress,
+            diagnostics: self.diagnostics,
+            ready: self.ready,
+            blocked: self.blocked,
+        }
+    }
+}
+
+fn summarize_tasks(parsed: TasksParseResult) -> TaskStatusSummary {
+    let (mut ready, mut blocked) = compute_ready_and_blocked(&parsed);
+    sort_task_items_by_id(&mut ready);
+    sort_blocked_tasks_by_id(&mut blocked);
+    let mut items = parsed.tasks;
+    sort_task_items_by_id(&mut items);
+
+    TaskStatusSummary {
+        format: parsed.format,
+        items,
+        progress: parsed.progress,
+        diagnostics: parsed.diagnostics,
+        ready,
+        blocked,
+    }
 }
 
 /// Initialize a tracking file for a change.
@@ -265,21 +352,26 @@ pub fn get_task_status(ito_path: &Path, change_id: &str) -> CoreResult<TaskStatu
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
     let parsed = parse_tasks_tracking_file(&contents);
-    let (mut ready, mut blocked) = compute_ready_and_blocked(&parsed);
-    sort_task_items_by_id(&mut ready);
-    sort_blocked_tasks_by_id(&mut blocked);
-    let mut items = parsed.tasks;
-    sort_task_items_by_id(&mut items);
+    let summary = summarize_tasks(parsed);
 
     Ok(TaskStatusResult {
         path,
-        format: parsed.format,
-        items,
-        progress: parsed.progress,
-        diagnostics: parsed.diagnostics,
-        ready,
-        blocked,
+        format: summary.format,
+        items: summary.items,
+        progress: summary.progress,
+        diagnostics: summary.diagnostics,
+        ready: summary.ready,
+        blocked: summary.blocked,
     })
+}
+
+/// Get task status for a change using a repository.
+pub fn get_task_status_from_repository(
+    task_repo: &(impl DomainTaskRepository + ?Sized),
+    change_id: &str,
+) -> CoreResult<TaskStatusSummary> {
+    let parsed = task_repo.load_tasks(change_id).into_core()?;
+    Ok(summarize_tasks(parsed))
 }
 
 /// Get the next actionable task for a change.
@@ -293,37 +385,369 @@ pub fn get_next_task(ito_path: &Path, change_id: &str) -> CoreResult<Option<Task
 /// Get the next actionable task using a previously computed status.
 pub fn get_next_task_from_status(status: &TaskStatusResult) -> CoreResult<Option<TaskItem>> {
     let file = tracking_file_label(&status.path);
+    next_task_from_parts(
+        status.format,
+        &status.progress,
+        &status.diagnostics,
+        &status.items,
+        &status.ready,
+        file,
+    )
+}
 
-    if status
-        .diagnostics
+/// Get the next actionable task using a repository-backed summary.
+pub fn get_next_task_from_summary(
+    summary: &TaskStatusSummary,
+    file_label: &str,
+) -> CoreResult<Option<TaskItem>> {
+    next_task_from_parts(
+        summary.format,
+        &summary.progress,
+        &summary.diagnostics,
+        &summary.items,
+        &summary.ready,
+        file_label,
+    )
+}
+
+fn next_task_from_parts(
+    format: TasksFormat,
+    progress: &ProgressInfo,
+    diagnostics: &[TaskDiagnostic],
+    items: &[TaskItem],
+    ready: &[TaskItem],
+    file_label: &str,
+) -> CoreResult<Option<TaskItem>> {
+    if diagnostics
         .iter()
         .any(|d| d.level == DiagnosticLevel::Error)
     {
-        return Err(CoreError::validation(format!("{file} contains errors")));
+        return Err(CoreError::validation(format!(
+            "{file_label} contains errors"
+        )));
     }
 
-    if status.progress.remaining == 0 {
+    if progress.remaining == 0 {
         return Ok(None);
     }
 
-    match status.format {
+    match format {
         TasksFormat::Checkbox => {
-            if let Some(current) = status
-                .items
-                .iter()
-                .find(|t| t.status == TaskStatus::InProgress)
-            {
+            if let Some(current) = items.iter().find(|t| t.status == TaskStatus::InProgress) {
                 return Ok(Some(current.clone()));
             }
 
-            Ok(status
-                .items
+            Ok(items
                 .iter()
                 .find(|t| t.status == TaskStatus::Pending)
                 .cloned())
         }
-        TasksFormat::Enhanced => Ok(status.ready.first().cloned()),
+        TasksFormat::Enhanced => Ok(ready.first().cloned()),
     }
+}
+
+pub(crate) struct TaskMutationOutcome {
+    pub(crate) task: TaskItem,
+    pub(crate) updated_content: String,
+}
+
+fn parse_tasks_for_mutation(contents: &str, file_label: &str) -> CoreResult<TasksParseResult> {
+    let parsed = parse_tasks_tracking_file(contents);
+    if parsed
+        .diagnostics
+        .iter()
+        .any(|d| d.level == DiagnosticLevel::Error)
+    {
+        return Err(CoreError::validation(format!(
+            "{file_label} contains errors"
+        )));
+    }
+    Ok(parsed)
+}
+
+pub(crate) fn apply_start_task(
+    contents: &str,
+    change_id: &str,
+    task_id: &str,
+    file_label: &str,
+) -> CoreResult<TaskMutationOutcome> {
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
+    let resolved_task_id = resolve_task_id(&parsed, task_id, file_label)?;
+
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in {file_label}"
+        )));
+    };
+
+    if parsed.format == TasksFormat::Checkbox
+        && let Some(current) = parsed
+            .tasks
+            .iter()
+            .find(|t| t.status == TaskStatus::InProgress)
+        && current.id != resolved_task_id
+    {
+        return Err(CoreError::validation(format!(
+            "Task \"{}\" is already in-progress (complete it before starting another task)",
+            current.id
+        )));
+    }
+
+    if parsed.format == TasksFormat::Checkbox {
+        match task.status {
+            TaskStatus::Pending => {}
+            TaskStatus::InProgress => {
+                return Err(CoreError::validation(format!(
+                    "Task \"{resolved_task_id}\" is already in-progress"
+                )));
+            }
+            TaskStatus::Complete => {
+                return Err(CoreError::validation(format!(
+                    "Task \"{resolved_task_id}\" is already complete"
+                )));
+            }
+            TaskStatus::Shelved => {
+                return Err(CoreError::validation(format!(
+                    "Checkbox-only {file_label} does not support shelving"
+                )));
+            }
+        }
+
+        let updated =
+            update_checkbox_task_status(contents, resolved_task_id, TaskStatus::InProgress)
+                .map_err(CoreError::validation)?;
+
+        let mut result = task.clone();
+        result.status = TaskStatus::InProgress;
+        return Ok(TaskMutationOutcome {
+            task: result,
+            updated_content: updated,
+        });
+    }
+
+    if task.status == TaskStatus::Shelved {
+        return Err(CoreError::validation(format!(
+            "Task \"{task_id}\" is shelved (run \"ito tasks unshelve {change_id} {task_id}\" first)"
+        )));
+    }
+
+    if task.status != TaskStatus::Pending {
+        return Err(CoreError::validation(format!(
+            "Task \"{task_id}\" is not pending (current: {})",
+            task.status.as_enhanced_label()
+        )));
+    }
+
+    let (ready, blocked) = compute_ready_and_blocked(&parsed);
+    if !ready.iter().any(|t| t.id == task_id) {
+        if let Some((_, blockers)) = blocked.iter().find(|(t, _)| t.id == task_id) {
+            let mut msg = String::from("Task is blocked:");
+            for b in blockers {
+                msg.push_str("\n- ");
+                msg.push_str(b);
+            }
+            return Err(CoreError::validation(msg));
+        }
+        return Err(CoreError::validation("Task is blocked"));
+    }
+
+    let updated = update_enhanced_task_status(
+        contents,
+        task_id,
+        TaskStatus::InProgress,
+        chrono::Local::now(),
+    );
+
+    let mut result = task.clone();
+    result.status = TaskStatus::InProgress;
+    Ok(TaskMutationOutcome {
+        task: result,
+        updated_content: updated,
+    })
+}
+
+pub(crate) fn apply_complete_task(
+    contents: &str,
+    task_id: &str,
+    file_label: &str,
+) -> CoreResult<TaskMutationOutcome> {
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
+    let resolved_task_id = resolve_task_id(&parsed, task_id, file_label)?;
+
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in {file_label}"
+        )));
+    };
+
+    let updated = if parsed.format == TasksFormat::Checkbox {
+        update_checkbox_task_status(contents, resolved_task_id, TaskStatus::Complete)
+            .map_err(CoreError::validation)?
+    } else {
+        update_enhanced_task_status(
+            contents,
+            task_id,
+            TaskStatus::Complete,
+            chrono::Local::now(),
+        )
+    };
+
+    let mut result = task.clone();
+    result.status = TaskStatus::Complete;
+    Ok(TaskMutationOutcome {
+        task: result,
+        updated_content: updated,
+    })
+}
+
+pub(crate) fn apply_shelve_task(
+    contents: &str,
+    task_id: &str,
+    file_label: &str,
+) -> CoreResult<TaskMutationOutcome> {
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
+    if parsed.format == TasksFormat::Checkbox {
+        return Err(CoreError::validation(format!(
+            "Checkbox-only {file_label} does not support shelving"
+        )));
+    }
+
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in {file_label}"
+        )));
+    };
+
+    if task.status == TaskStatus::Complete {
+        return Err(CoreError::validation(format!(
+            "Task \"{task_id}\" is already complete"
+        )));
+    }
+
+    let updated =
+        update_enhanced_task_status(contents, task_id, TaskStatus::Shelved, chrono::Local::now());
+
+    let mut result = task.clone();
+    result.status = TaskStatus::Shelved;
+    Ok(TaskMutationOutcome {
+        task: result,
+        updated_content: updated,
+    })
+}
+
+pub(crate) fn apply_unshelve_task(
+    contents: &str,
+    task_id: &str,
+    file_label: &str,
+) -> CoreResult<TaskMutationOutcome> {
+    let parsed = parse_tasks_for_mutation(contents, file_label)?;
+    if parsed.format == TasksFormat::Checkbox {
+        return Err(CoreError::validation(format!(
+            "Checkbox-only {file_label} does not support shelving"
+        )));
+    }
+
+    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
+        return Err(CoreError::not_found(format!(
+            "Task \"{task_id}\" not found in {file_label}"
+        )));
+    };
+
+    if task.status != TaskStatus::Shelved {
+        return Err(CoreError::validation(format!(
+            "Task \"{task_id}\" is not shelved"
+        )));
+    }
+
+    let updated =
+        update_enhanced_task_status(contents, task_id, TaskStatus::Pending, chrono::Local::now());
+
+    let mut result = task.clone();
+    result.status = TaskStatus::Pending;
+    Ok(TaskMutationOutcome {
+        task: result,
+        updated_content: updated,
+    })
+}
+
+pub(crate) fn apply_add_task(
+    contents: &str,
+    title: &str,
+    wave: Option<u32>,
+    file_label: &str,
+) -> CoreResult<TaskMutationOutcome> {
+    let parsed = parse_tasks_tracking_file(contents);
+    if parsed.format != TasksFormat::Enhanced {
+        return Err(CoreError::validation(
+            "Cannot add tasks to checkbox-only tracking file. Convert to enhanced format first.",
+        ));
+    }
+
+    if parsed
+        .diagnostics
+        .iter()
+        .any(|d| d.level == DiagnosticLevel::Error)
+    {
+        return Err(CoreError::validation(format!(
+            "{file_label} contains errors"
+        )));
+    }
+
+    let wave = wave.unwrap_or(1);
+    let mut max_n = 0u32;
+    for t in &parsed.tasks {
+        if let Some((w, n)) = t.id.split_once('.')
+            && let (Ok(w), Ok(n)) = (w.parse::<u32>(), n.parse::<u32>())
+            && w == wave
+        {
+            max_n = max_n.max(n);
+        }
+    }
+    let new_id = format!("{wave}.{}", max_n + 1);
+
+    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let block = format!(
+        "\n### Task {new_id}: {title}\n- **Files**: `path/to/file.rs`\n- **Dependencies**: None\n- **Action**:\n  [Describe what needs to be done]\n- **Verify**: `cargo test --workspace`\n- **Done When**: [Success criteria]\n- **Updated At**: {date}\n- **Status**: [ ] pending\n"
+    );
+
+    let mut out = contents.to_string();
+    if out.contains(&format!("## Wave {wave}")) {
+        if let Some(pos) = out.find("## Checkpoints") {
+            out.insert_str(pos, &block);
+        } else {
+            out.push_str(&block);
+        }
+    } else if let Some(pos) = out.find("## Checkpoints") {
+        out.insert_str(
+            pos,
+            &format!("\n---\n\n## Wave {wave}\n- **Depends On**: None\n"),
+        );
+        let pos2 = out.find("## Checkpoints").unwrap_or(out.len());
+        out.insert_str(pos2, &block);
+    } else {
+        out.push_str(&format!(
+            "\n---\n\n## Wave {wave}\n- **Depends On**: None\n"
+        ));
+        out.push_str(&block);
+    }
+
+    Ok(TaskMutationOutcome {
+        task: TaskItem {
+            id: new_id,
+            name: title.to_string(),
+            wave: Some(wave),
+            status: TaskStatus::Pending,
+            updated_at: Some(date),
+            dependencies: Vec::new(),
+            files: vec!["path/to/file.rs".to_string()],
+            action: "[Describe what needs to be done]".to_string(),
+            verify: Some("cargo test --workspace".to_string()),
+            done_when: Some("[Success criteria]".to_string()),
+            kind: TaskKind::Normal,
+            header_line_index: 0,
+        },
+        updated_content: out,
+    })
 }
 
 /// Mark a task as in-progress in a change's tracking file.
@@ -357,111 +781,11 @@ pub fn start_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreResult
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
-    let parsed = parse_tasks_tracking_file(&contents);
-
-    // Check for errors
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!("{file} contains errors")));
-    }
-
-    let resolved_task_id = resolve_task_id(&parsed, task_id, file)?;
-
-    // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
-        return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in {file}"
-        )));
-    };
-
-    // Checkbox format: check for existing in-progress task
-    if parsed.format == TasksFormat::Checkbox
-        && let Some(current) = parsed
-            .tasks
-            .iter()
-            .find(|t| t.status == TaskStatus::InProgress)
-        && current.id != resolved_task_id
-    {
-        return Err(CoreError::validation(format!(
-            "Task \"{}\" is already in-progress (complete it before starting another task)",
-            current.id
-        )));
-    }
-
-    if parsed.format == TasksFormat::Checkbox {
-        // Validate status
-        match task.status {
-            TaskStatus::Pending => {}
-            TaskStatus::InProgress => {
-                return Err(CoreError::validation(format!(
-                    "Task \"{resolved_task_id}\" is already in-progress"
-                )));
-            }
-            TaskStatus::Complete => {
-                return Err(CoreError::validation(format!(
-                    "Task \"{resolved_task_id}\" is already complete"
-                )));
-            }
-            TaskStatus::Shelved => {
-                return Err(CoreError::validation(format!(
-                    "Checkbox-only {file} does not support shelving"
-                )));
-            }
-        }
-
-        let updated =
-            update_checkbox_task_status(&contents, resolved_task_id, TaskStatus::InProgress)
-                .map_err(CoreError::validation)?;
-        ito_common::io::write_std(&path, updated.as_bytes())
-            .map_err(|e| CoreError::io(format!("write {file}"), e))?;
-
-        let mut result = task.clone();
-        result.status = TaskStatus::InProgress;
-        return Ok(result);
-    }
-
-    // Enhanced format: validate status and check if ready
-    if task.status == TaskStatus::Shelved {
-        return Err(CoreError::validation(format!(
-            "Task \"{task_id}\" is shelved (run \"ito tasks unshelve {change_id} {task_id}\" first)"
-        )));
-    }
-
-    if task.status != TaskStatus::Pending {
-        return Err(CoreError::validation(format!(
-            "Task \"{task_id}\" is not pending (current: {})",
-            task.status.as_enhanced_label()
-        )));
-    }
-
-    let (ready, blocked) = compute_ready_and_blocked(&parsed);
-    if !ready.iter().any(|t| t.id == task_id) {
-        if let Some((_, blockers)) = blocked.iter().find(|(t, _)| t.id == task_id) {
-            let mut msg = String::from("Task is blocked:");
-            for b in blockers {
-                msg.push_str("\n- ");
-                msg.push_str(b);
-            }
-            return Err(CoreError::validation(msg));
-        }
-        return Err(CoreError::validation("Task is blocked"));
-    }
-
-    let updated = update_enhanced_task_status(
-        &contents,
-        task_id,
-        TaskStatus::InProgress,
-        chrono::Local::now(),
-    );
-    ito_common::io::write_std(&path, updated.as_bytes())
+    let outcome = apply_start_task(&contents, change_id, task_id, file)?;
+    ito_common::io::write_std(&path, outcome.updated_content.as_bytes())
         .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
-    let mut result = task.clone();
-    result.status = TaskStatus::InProgress;
-    Ok(result)
+    Ok(outcome.task)
 }
 
 /// Mark a task in a change's tracking file as complete.
@@ -500,44 +824,11 @@ pub fn complete_task(
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
-    let parsed = parse_tasks_tracking_file(&contents);
-
-    // Check for errors
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!("{file} contains errors")));
-    }
-
-    let resolved_task_id = resolve_task_id(&parsed, task_id, file)?;
-
-    // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == resolved_task_id) else {
-        return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in {file}"
-        )));
-    };
-
-    let updated = if parsed.format == TasksFormat::Checkbox {
-        update_checkbox_task_status(&contents, resolved_task_id, TaskStatus::Complete)
-            .map_err(CoreError::validation)?
-    } else {
-        update_enhanced_task_status(
-            &contents,
-            task_id,
-            TaskStatus::Complete,
-            chrono::Local::now(),
-        )
-    };
-
-    ito_common::io::write_std(&path, updated.as_bytes())
+    let outcome = apply_complete_task(&contents, task_id, file)?;
+    ito_common::io::write_std(&path, outcome.updated_content.as_bytes())
         .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
-    let mut result = task.clone();
-    result.status = TaskStatus::Complete;
-    Ok(result)
+    Ok(outcome.task)
 }
 
 /// Shelve a task (transition to shelved).
@@ -554,49 +845,11 @@ pub fn shelve_task(
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
-    let parsed = parse_tasks_tracking_file(&contents);
-
-    if parsed.format == TasksFormat::Checkbox {
-        return Err(CoreError::validation(format!(
-            "Checkbox-only {file} does not support shelving"
-        )));
-    }
-
-    // Check for errors
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!("{file} contains errors")));
-    }
-
-    // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
-        return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in {file}"
-        )));
-    };
-
-    if task.status == TaskStatus::Complete {
-        return Err(CoreError::validation(format!(
-            "Task \"{task_id}\" is already complete"
-        )));
-    }
-
-    let updated = update_enhanced_task_status(
-        &contents,
-        task_id,
-        TaskStatus::Shelved,
-        chrono::Local::now(),
-    );
-
-    ito_common::io::write_std(&path, updated.as_bytes())
+    let outcome = apply_shelve_task(&contents, task_id, file)?;
+    ito_common::io::write_std(&path, outcome.updated_content.as_bytes())
         .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
-    let mut result = task.clone();
-    result.status = TaskStatus::Shelved;
-    Ok(result)
+    Ok(outcome.task)
 }
 
 /// Unshelve a task (transition back to pending).
@@ -608,49 +861,11 @@ pub fn unshelve_task(ito_path: &Path, change_id: &str, task_id: &str) -> CoreRes
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
-    let parsed = parse_tasks_tracking_file(&contents);
-
-    if parsed.format == TasksFormat::Checkbox {
-        return Err(CoreError::validation(format!(
-            "Checkbox-only {file} does not support shelving"
-        )));
-    }
-
-    // Check for errors
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!("{file} contains errors")));
-    }
-
-    // Find the task
-    let Some(task) = parsed.tasks.iter().find(|t| t.id == task_id) else {
-        return Err(CoreError::not_found(format!(
-            "Task \"{task_id}\" not found in {file}"
-        )));
-    };
-
-    if task.status != TaskStatus::Shelved {
-        return Err(CoreError::validation(format!(
-            "Task \"{task_id}\" is not shelved"
-        )));
-    }
-
-    let updated = update_enhanced_task_status(
-        &contents,
-        task_id,
-        TaskStatus::Pending,
-        chrono::Local::now(),
-    );
-
-    ito_common::io::write_std(&path, updated.as_bytes())
+    let outcome = apply_unshelve_task(&contents, task_id, file)?;
+    ito_common::io::write_std(&path, outcome.updated_content.as_bytes())
         .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
-    let mut result = task.clone();
-    result.status = TaskStatus::Pending;
-    Ok(result)
+    Ok(outcome.task)
 }
 
 /// Add a new task to a change's tracking file.
@@ -662,88 +877,16 @@ pub fn add_task(
     title: &str,
     wave: Option<u32>,
 ) -> CoreResult<TaskItem> {
-    let wave = wave.unwrap_or(1);
     let path = checked_tasks_path(ito_path, change_id)?;
     let file = tracking_file_label(&path);
     let contents = ito_common::io::read_to_string_std(&path)
         .map_err(|e| CoreError::io(format!("read {}", path.display()), e))?;
 
-    let parsed = parse_tasks_tracking_file(&contents);
-
-    if parsed.format != TasksFormat::Enhanced {
-        return Err(CoreError::validation(
-            "Cannot add tasks to checkbox-only tracking file. Convert to enhanced format first.",
-        ));
-    }
-
-    // Check for errors
-    if parsed
-        .diagnostics
-        .iter()
-        .any(|d| d.level == DiagnosticLevel::Error)
-    {
-        return Err(CoreError::validation(format!("{file} contains errors")));
-    }
-
-    // Compute next task ID for this wave
-    let mut max_n = 0u32;
-    for t in &parsed.tasks {
-        if let Some((w, n)) = t.id.split_once('.')
-            && let (Ok(w), Ok(n)) = (w.parse::<u32>(), n.parse::<u32>())
-            && w == wave
-        {
-            max_n = max_n.max(n);
-        }
-    }
-    let new_id = format!("{wave}.{}", max_n + 1);
-
-    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let block = format!(
-        "\n### Task {new_id}: {title}\n- **Files**: `path/to/file.rs`\n- **Dependencies**: None\n- **Action**:\n  [Describe what needs to be done]\n- **Verify**: `cargo test --workspace`\n- **Done When**: [Success criteria]\n- **Updated At**: {date}\n- **Status**: [ ] pending\n"
-    );
-
-    let mut out = contents.clone();
-    if out.contains(&format!("## Wave {wave}")) {
-        // Insert before the next major section after this wave.
-        if let Some(pos) = out.find("## Checkpoints") {
-            out.insert_str(pos, &block);
-        } else {
-            out.push_str(&block);
-        }
-    } else {
-        // Create wave section before checkpoints (or at end).
-        if let Some(pos) = out.find("## Checkpoints") {
-            out.insert_str(
-                pos,
-                &format!("\n---\n\n## Wave {wave}\n- **Depends On**: None\n"),
-            );
-            let pos2 = out.find("## Checkpoints").unwrap_or(out.len());
-            out.insert_str(pos2, &block);
-        } else {
-            out.push_str(&format!(
-                "\n---\n\n## Wave {wave}\n- **Depends On**: None\n"
-            ));
-            out.push_str(&block);
-        }
-    }
-
-    ito_common::io::write_std(&path, out.as_bytes())
+    let outcome = apply_add_task(&contents, title, wave, file)?;
+    ito_common::io::write_std(&path, outcome.updated_content.as_bytes())
         .map_err(|e| CoreError::io(format!("write {file}"), e))?;
 
-    Ok(TaskItem {
-        id: new_id,
-        name: title.to_string(),
-        wave: Some(wave),
-        status: TaskStatus::Pending,
-        updated_at: Some(date),
-        dependencies: Vec::new(),
-        files: vec!["path/to/file.rs".to_string()],
-        action: "[Describe what needs to be done]".to_string(),
-        verify: Some("cargo test --workspace".to_string()),
-        done_when: Some("[Success criteria]".to_string()),
-        kind: TaskKind::Normal,
-        header_line_index: 0,
-    })
+    Ok(outcome.task)
 }
 
 /// Show a specific task by ID.

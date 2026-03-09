@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::changes::ChangeLifecycleFilter;
 use crate::errors::DomainResult;
 
 // ── Lease DTOs ──────────────────────────────────────────────────────
@@ -164,6 +165,45 @@ pub trait BackendProjectStore: Send + Sync {
         repo: &str,
     ) -> DomainResult<Box<dyn crate::tasks::TaskRepository + Send>>;
 
+    /// Obtain a task mutation service for the given project.
+    fn task_mutation_service(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::tasks::TaskMutationService + Send>>;
+
+    /// Obtain a promoted spec repository for the given project.
+    fn spec_repository(
+        &self,
+        org: &str,
+        repo: &str,
+    ) -> DomainResult<Box<dyn crate::specs::SpecRepository + Send>>;
+
+    /// Pull the latest artifact bundle for a change from backend-managed storage.
+    fn pull_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArtifactBundle, BackendError>;
+
+    /// Push an updated artifact bundle into backend-managed storage.
+    fn push_artifact_bundle(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+        bundle: &ArtifactBundle,
+    ) -> Result<PushResult, BackendError>;
+
+    /// Archive a change in backend-managed storage and mirror promoted specs.
+    fn archive_change(
+        &self,
+        org: &str,
+        repo: &str,
+        change_id: &str,
+    ) -> Result<ArchiveResult, BackendError>;
+
     /// Ensure the project directory/storage structure exists.
     ///
     /// Called before first write to a project. Implementations should
@@ -209,10 +249,29 @@ pub trait BackendSyncClient {
 /// instead of the filesystem when backend mode is enabled.
 pub trait BackendChangeReader {
     /// List all change summaries from the backend.
-    fn list_changes(&self) -> DomainResult<Vec<crate::changes::ChangeSummary>>;
+    fn list_changes(
+        &self,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<Vec<crate::changes::ChangeSummary>>;
 
     /// Get a full change from the backend.
-    fn get_change(&self, change_id: &str) -> DomainResult<crate::changes::Change>;
+    fn get_change(
+        &self,
+        change_id: &str,
+        filter: ChangeLifecycleFilter,
+    ) -> DomainResult<crate::changes::Change>;
+}
+
+/// Port for backend-backed module listing.
+///
+/// Used by repository adapters to resolve module data from the backend when
+/// backend mode is enabled.
+pub trait BackendModuleReader {
+    /// List all module summaries from the backend.
+    fn list_modules(&self) -> DomainResult<Vec<crate::modules::ModuleSummary>>;
+
+    /// Get a full module from the backend.
+    fn get_module(&self, module_id: &str) -> DomainResult<crate::modules::Module>;
 }
 
 /// Port for backend-backed task reading.
@@ -222,6 +281,15 @@ pub trait BackendChangeReader {
 pub trait BackendTaskReader {
     /// Load tasks content (raw markdown) from the backend for a change.
     fn load_tasks_content(&self, change_id: &str) -> DomainResult<Option<String>>;
+}
+
+/// Port for backend-backed promoted spec reading.
+pub trait BackendSpecReader {
+    /// List all promoted specs from the backend.
+    fn list_specs(&self) -> DomainResult<Vec<crate::specs::SpecSummary>>;
+
+    /// Get a promoted spec from the backend.
+    fn get_spec(&self, spec_id: &str) -> DomainResult<crate::specs::SpecDocument>;
 }
 
 // ── Event ingest DTOs ──────────────────────────────────────────────

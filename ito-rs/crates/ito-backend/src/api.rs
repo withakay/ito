@@ -9,7 +9,7 @@
 //! Health and readiness endpoints remain at `/api/v1/health` and `/api/v1/ready`.
 
 use axum::Router;
-use axum::extract::{Extension, Path, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{get, post};
@@ -19,6 +19,7 @@ use std::sync::Arc;
 use crate::auth::TokenScope;
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
+use ito_core::ChangeLifecycleFilter;
 
 // ── Response types ──────────────────────────────────────────────────
 
@@ -66,12 +67,33 @@ pub struct ApiChangeSummary {
     pub module_id: Option<String>,
     /// Number of completed tasks.
     pub completed_tasks: u32,
+    /// Number of shelved tasks.
+    pub shelved_tasks: u32,
+    /// Number of in-progress tasks.
+    pub in_progress_tasks: u32,
+    /// Number of pending tasks.
+    pub pending_tasks: u32,
     /// Total number of tasks.
     pub total_tasks: u32,
+    /// Whether proposal.md exists.
+    pub has_proposal: bool,
+    /// Whether design.md exists.
+    pub has_design: bool,
+    /// Whether specs are present.
+    pub has_specs: bool,
+    /// Whether tasks.md exists and contains tasks.
+    pub has_tasks: bool,
     /// Derived work status label.
     pub work_status: String,
     /// ISO-8601 timestamp of last modification.
     pub last_modified: String,
+}
+
+/// Query parameters for change list/get requests.
+#[derive(Debug, Deserialize)]
+pub struct ChangeQuery {
+    /// Lifecycle filter: active, archived, or all.
+    pub lifecycle: Option<String>,
 }
 
 /// Full change detail returned by get endpoint.
@@ -149,6 +171,114 @@ pub struct ApiTaskList {
     pub format: String,
 }
 
+/// Full task detail used by mutation responses.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiTaskDetail {
+    /// Task identifier.
+    pub id: String,
+    /// Task name.
+    pub name: String,
+    /// Wave number when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wave: Option<u32>,
+    /// Current status label.
+    pub status: String,
+    /// Last updated date when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+    /// Explicit task dependencies.
+    pub dependencies: Vec<String>,
+    /// Referenced files.
+    pub files: Vec<String>,
+    /// Suggested action text.
+    pub action: String,
+    /// Verification command.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verify: Option<String>,
+    /// Completion criteria.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub done_when: Option<String>,
+    /// Task kind label.
+    pub kind: String,
+    /// 0-based header line index.
+    pub header_line_index: usize,
+}
+
+/// Raw tasks markdown response.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiTaskMarkdown {
+    /// Change identifier.
+    pub change_id: String,
+    /// Raw tasks markdown, when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
+/// Task init response payload.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiTaskInitResult {
+    /// Change identifier.
+    pub change_id: String,
+    /// Tracking path, if filesystem-backed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    /// Whether the tasks artifact already existed.
+    pub existed: bool,
+    /// Revision marker when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<String>,
+}
+
+/// Task mutation response payload.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiTaskMutationResult {
+    /// Change identifier.
+    pub change_id: String,
+    /// Updated task detail.
+    pub task: ApiTaskDetail,
+    /// Revision marker when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<String>,
+}
+
+/// Request body for adding a task.
+#[derive(Debug, Deserialize)]
+pub struct AddTaskRequest {
+    /// Task title.
+    pub title: String,
+    /// Optional target wave.
+    pub wave: Option<u32>,
+}
+
+/// Request body for completing a task.
+#[derive(Debug, Deserialize, Default)]
+pub struct CompleteTaskRequest {
+    /// Optional completion note.
+    pub note: Option<String>,
+}
+
+/// Request body for shelving a task.
+#[derive(Debug, Deserialize, Default)]
+pub struct ShelveTaskRequest {
+    /// Optional shelving reason.
+    pub reason: Option<String>,
+}
+
+/// Request body for sync push operations.
+#[derive(Debug, Deserialize)]
+pub struct SyncPushRequest {
+    /// Proposal markdown content.
+    pub proposal: Option<String>,
+    /// Design markdown content.
+    pub design: Option<String>,
+    /// Tasks markdown content.
+    pub tasks: Option<String>,
+    /// Change spec delta files.
+    pub specs: Vec<(String, String)>,
+    /// Client revision marker.
+    pub revision: String,
+}
+
 /// Module summary for listings.
 #[derive(Debug, Serialize)]
 pub struct ApiModuleSummary {
@@ -172,6 +302,30 @@ pub struct ApiModule {
     pub description: Option<String>,
 }
 
+/// Promoted spec summary for listings.
+#[derive(Debug, Serialize)]
+pub struct ApiSpecSummary {
+    /// Spec identifier.
+    pub id: String,
+    /// Canonical source path.
+    pub path: String,
+    /// ISO-8601 last modified timestamp.
+    pub last_modified: String,
+}
+
+/// Full promoted spec detail.
+#[derive(Debug, Serialize)]
+pub struct ApiSpecDocument {
+    /// Spec identifier.
+    pub id: String,
+    /// Canonical source path.
+    pub path: String,
+    /// Raw markdown contents.
+    pub markdown: String,
+    /// ISO-8601 last modified timestamp.
+    pub last_modified: String,
+}
+
 // ── Conversion helpers ──────────────────────────────────────────────
 
 /// Convert a `DomainResult<T>` to a `Result<T, ApiErrorResponse>`.
@@ -183,6 +337,70 @@ fn map_domain_err<T>(result: Result<T, ito_core::DomainError>) -> Result<T, ApiE
         let core_err: ito_core::errors::CoreError = e.into();
         ApiErrorResponse::from(core_err)
     })
+}
+
+fn map_task_mutation_err<T>(
+    result: ito_core::TaskMutationServiceResult<T>,
+) -> Result<T, ApiErrorResponse> {
+    result.map_err(|err| match err {
+        ito_core::TaskMutationError::Io { .. } => ApiErrorResponse::internal(err.to_string()),
+        ito_core::TaskMutationError::Validation(_) => {
+            ApiErrorResponse::bad_request(err.to_string())
+        }
+        ito_core::TaskMutationError::NotFound(_) => ApiErrorResponse::not_found(err.to_string()),
+        ito_core::TaskMutationError::Other(_) => ApiErrorResponse::internal(err.to_string()),
+    })
+}
+
+fn map_backend_err<T>(result: Result<T, ito_core::BackendError>) -> Result<T, ApiErrorResponse> {
+    result.map_err(|err| match err {
+        ito_core::BackendError::LeaseConflict(_) => ApiErrorResponse::conflict(err.to_string()),
+        ito_core::BackendError::RevisionConflict(_) => ApiErrorResponse::conflict(err.to_string()),
+        ito_core::BackendError::Unavailable(message) => {
+            ApiErrorResponse::service_unavailable(message)
+        }
+        ito_core::BackendError::Unauthorized(message) => ApiErrorResponse::forbidden(message),
+        ito_core::BackendError::NotFound(message) => ApiErrorResponse::not_found(message),
+        ito_core::BackendError::Other(message) => ApiErrorResponse::internal(message),
+    })
+}
+
+fn api_task_detail(task: ito_core::TaskItem) -> ApiTaskDetail {
+    ApiTaskDetail {
+        id: task.id,
+        name: task.name,
+        wave: task.wave,
+        status: task.status.as_enhanced_label().to_string(),
+        updated_at: task.updated_at,
+        dependencies: task.dependencies,
+        files: task.files,
+        action: task.action,
+        verify: task.verify,
+        done_when: task.done_when,
+        kind: match task.kind {
+            ito_core::TaskKind::Normal => "normal",
+            ito_core::TaskKind::Checkpoint => "checkpoint",
+        }
+        .to_string(),
+        header_line_index: task.header_line_index,
+    }
+}
+
+fn api_task_init_result(result: ito_core::TaskInitResult) -> ApiTaskInitResult {
+    ApiTaskInitResult {
+        change_id: result.change_id,
+        path: result.path.map(|path| path.display().to_string()),
+        existed: result.existed,
+        revision: result.revision,
+    }
+}
+
+fn api_task_mutation_result(result: ito_core::TaskMutationResult) -> ApiTaskMutationResult {
+    ApiTaskMutationResult {
+        change_id: result.change_id,
+        task: api_task_detail(result.task),
+        revision: result.revision,
+    }
 }
 
 // ── Top-level handlers (no org/repo) ────────────────────────────────
@@ -247,13 +465,14 @@ pub async fn auth_verify(Extension(scope): Extension<TokenScope>) -> Json<AuthVe
     }
 }
 
-/// `GET /api/v1/projects/{org}/{repo}/changes` — list all changes as summaries.
-pub async fn list_changes(
+pub async fn list_changes_with_query(
     State(state): State<Arc<AppState>>,
     Path((org, repo)): Path<(String, String)>,
+    Query(query): Query<ChangeQuery>,
 ) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
+    let filter = parse_lifecycle_filter(query.lifecycle)?;
     let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
-    let changes = map_domain_err(change_repo.list())?;
+    let changes = map_domain_err(change_repo.list_with_filter(filter))?;
 
     let mut summaries: Vec<ApiChangeSummary> = Vec::with_capacity(changes.len());
     for c in changes {
@@ -261,7 +480,14 @@ pub async fn list_changes(
             id: c.id.clone(),
             module_id: c.module_id.clone(),
             completed_tasks: c.completed_tasks,
+            shelved_tasks: c.shelved_tasks,
+            in_progress_tasks: c.in_progress_tasks,
+            pending_tasks: c.pending_tasks,
             total_tasks: c.total_tasks,
+            has_proposal: c.has_proposal,
+            has_design: c.has_design,
+            has_specs: c.has_specs,
+            has_tasks: c.has_tasks,
             work_status: c.work_status().to_string(),
             last_modified: c.last_modified.to_rfc3339(),
         });
@@ -270,13 +496,14 @@ pub async fn list_changes(
     Ok(Json(summaries))
 }
 
-/// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}` — get a full change by ID.
-pub async fn get_change(
+pub async fn get_change_with_query(
     State(state): State<Arc<AppState>>,
     Path((org, repo, change_id)): Path<(String, String, String)>,
+    Query(query): Query<ChangeQuery>,
 ) -> Result<Json<ApiChange>, ApiErrorResponse> {
+    let filter = parse_lifecycle_filter(query.lifecycle)?;
     let change_repo = map_domain_err(state.store.change_repository(&org, &repo))?;
-    let change = map_domain_err(change_repo.get(&change_id))?;
+    let change = map_domain_err(change_repo.get_with_filter(&change_id, filter))?;
     let api_change = ApiChange {
         id: change.id,
         module_id: change.module_id,
@@ -301,6 +528,46 @@ pub async fn get_change(
         last_modified: change.last_modified.to_rfc3339(),
     };
     Ok(Json(api_change))
+}
+
+/// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}/sync` — pull an artifact bundle.
+pub async fn sync_pull_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ito_core::ArtifactBundle>, ApiErrorResponse> {
+    let bundle = map_backend_err(state.store.pull_artifact_bundle(&org, &repo, &change_id))?;
+    Ok(Json(bundle))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/sync` — push an artifact bundle.
+pub async fn sync_push_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+    Json(payload): Json<SyncPushRequest>,
+) -> Result<Json<ito_core::PushResult>, ApiErrorResponse> {
+    let bundle = ito_core::ArtifactBundle {
+        change_id: change_id.clone(),
+        proposal: payload.proposal,
+        design: payload.design,
+        tasks: payload.tasks,
+        specs: payload.specs,
+        revision: payload.revision,
+    };
+    let result = map_backend_err(
+        state
+            .store
+            .push_artifact_bundle(&org, &repo, &change_id, &bundle),
+    )?;
+    Ok(Json(result))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/archive` — archive a change.
+pub async fn archive_change(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ito_core::ArchiveResult>, ApiErrorResponse> {
+    let result = map_backend_err(state.store.archive_change(&org, &repo, &change_id))?;
+    Ok(Json(result))
 }
 
 /// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks` — get tasks for a change.
@@ -339,6 +606,82 @@ pub async fn get_change_tasks(
     }))
 }
 
+/// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/raw` — get raw tasks markdown.
+pub async fn get_change_tasks_markdown(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ApiTaskMarkdown>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let content = map_task_mutation_err(task_mutations.load_tasks_markdown(&change_id))?;
+    Ok(Json(ApiTaskMarkdown { change_id, content }))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/init` — initialize tasks.
+pub async fn init_change_tasks(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+) -> Result<Json<ApiTaskInitResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let result = map_task_mutation_err(task_mutations.init_tasks(&change_id))?;
+    Ok(Json(api_task_init_result(result)))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/{task_id}/start` — start a task.
+pub async fn start_change_task(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id, task_id)): Path<(String, String, String, String)>,
+) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let result = map_task_mutation_err(task_mutations.start_task(&change_id, &task_id))?;
+    Ok(Json(api_task_mutation_result(result)))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/{task_id}/complete` — complete a task.
+pub async fn complete_change_task(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id, task_id)): Path<(String, String, String, String)>,
+    payload: Option<Json<CompleteTaskRequest>>,
+) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let note = payload.and_then(|Json(payload)| payload.note);
+    let result = map_task_mutation_err(task_mutations.complete_task(&change_id, &task_id, note))?;
+    Ok(Json(api_task_mutation_result(result)))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/{task_id}/shelve` — shelve a task.
+pub async fn shelve_change_task(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id, task_id)): Path<(String, String, String, String)>,
+    payload: Option<Json<ShelveTaskRequest>>,
+) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let reason = payload.and_then(|Json(payload)| payload.reason);
+    let result = map_task_mutation_err(task_mutations.shelve_task(&change_id, &task_id, reason))?;
+    Ok(Json(api_task_mutation_result(result)))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/{task_id}/unshelve` — unshelve a task.
+pub async fn unshelve_change_task(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id, task_id)): Path<(String, String, String, String)>,
+) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let result = map_task_mutation_err(task_mutations.unshelve_task(&change_id, &task_id))?;
+    Ok(Json(api_task_mutation_result(result)))
+}
+
+/// `POST /api/v1/projects/{org}/{repo}/changes/{change_id}/tasks/add` — add a task.
+pub async fn add_change_task(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, change_id)): Path<(String, String, String)>,
+    Json(payload): Json<AddTaskRequest>,
+) -> Result<Json<ApiTaskMutationResult>, ApiErrorResponse> {
+    let task_mutations = map_domain_err(state.store.task_mutation_service(&org, &repo))?;
+    let result =
+        map_task_mutation_err(task_mutations.add_task(&change_id, &payload.title, payload.wave))?;
+    Ok(Json(api_task_mutation_result(result)))
+}
+
 /// `GET /api/v1/projects/{org}/{repo}/modules` — list all modules as summaries.
 pub async fn list_modules(
     State(state): State<Arc<AppState>>,
@@ -370,6 +713,40 @@ pub async fn get_module(
         id: module.id,
         name: module.name,
         description: module.description,
+    }))
+}
+
+/// `GET /api/v1/projects/{org}/{repo}/specs` — list promoted specs.
+pub async fn list_specs(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo)): Path<(String, String)>,
+) -> Result<Json<Vec<ApiSpecSummary>>, ApiErrorResponse> {
+    let spec_repo = map_domain_err(state.store.spec_repository(&org, &repo))?;
+    let specs = map_domain_err(spec_repo.list())?;
+    let mut summaries = Vec::with_capacity(specs.len());
+    for spec in specs {
+        summaries.push(ApiSpecSummary {
+            id: spec.id,
+            path: spec.path.to_string_lossy().to_string(),
+            last_modified: spec.last_modified.to_rfc3339(),
+        });
+    }
+    summaries.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(Json(summaries))
+}
+
+/// `GET /api/v1/projects/{org}/{repo}/specs/{spec_id}` — get a promoted spec.
+pub async fn get_spec(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo, spec_id)): Path<(String, String, String)>,
+) -> Result<Json<ApiSpecDocument>, ApiErrorResponse> {
+    let spec_repo = map_domain_err(state.store.spec_repository(&org, &repo))?;
+    let spec = map_domain_err(spec_repo.get(&spec_id))?;
+    Ok(Json(ApiSpecDocument {
+        id: spec.id,
+        path: spec.path.to_string_lossy().to_string(),
+        markdown: spec.markdown,
+        last_modified: spec.last_modified.to_rfc3339(),
     }))
 }
 
@@ -537,12 +914,55 @@ pub async fn ingest_events(
 fn project_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/auth/verify", get(auth_verify))
-        .route("/changes", get(list_changes))
-        .route("/changes/{change_id}", get(get_change))
+        .route("/changes", get(list_changes_with_query))
+        .route("/changes/{change_id}", get(get_change_with_query))
+        .route(
+            "/changes/{change_id}/sync",
+            get(sync_pull_change).post(sync_push_change),
+        )
+        .route("/changes/{change_id}/archive", post(archive_change))
         .route("/changes/{change_id}/tasks", get(get_change_tasks))
+        .route(
+            "/changes/{change_id}/tasks/raw",
+            get(get_change_tasks_markdown),
+        )
+        .route("/changes/{change_id}/tasks/init", post(init_change_tasks))
+        .route(
+            "/changes/{change_id}/tasks/{task_id}/start",
+            post(start_change_task),
+        )
+        .route(
+            "/changes/{change_id}/tasks/{task_id}/complete",
+            post(complete_change_task),
+        )
+        .route(
+            "/changes/{change_id}/tasks/{task_id}/shelve",
+            post(shelve_change_task),
+        )
+        .route(
+            "/changes/{change_id}/tasks/{task_id}/unshelve",
+            post(unshelve_change_task),
+        )
+        .route("/changes/{change_id}/tasks/add", post(add_change_task))
         .route("/modules", get(list_modules))
         .route("/modules/{module_id}", get(get_module))
+        .route("/specs", get(list_specs))
+        .route("/specs/{spec_id}", get(get_spec))
         .route("/events", post(ingest_events))
+}
+
+fn parse_lifecycle_filter(
+    value: Option<String>,
+) -> Result<ChangeLifecycleFilter, ApiErrorResponse> {
+    let Some(raw) = value else {
+        return Ok(ChangeLifecycleFilter::Active);
+    };
+    ChangeLifecycleFilter::parse(&raw).ok_or_else(|| {
+        ApiErrorResponse::bad_request(format!(
+            "Invalid lifecycle '{}'. Expected active, archived, or all.",
+            raw
+        ))
+    })
 }
 
 /// Build the v1 API router with all endpoints.

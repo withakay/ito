@@ -1,5 +1,6 @@
 use ito_core::change_repository::FsChangeRepository;
 use ito_core::errors::CoreError;
+use ito_core::module_repository::FsModuleRepository;
 use ito_core::show::{
     DeltaSpecFile, bundle_main_specs_markdown, bundle_main_specs_show_json, load_delta_spec_file,
     parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files,
@@ -129,7 +130,8 @@ fn read_module_markdown_returns_contents_for_existing_module() {
         module_content,
     );
 
-    let result = read_module_markdown(&ito, "006").expect("should read module.md");
+    let module_repo = FsModuleRepository::new(&ito);
+    let result = read_module_markdown(&module_repo, "006").expect("should read module.md");
     assert_eq!(result, module_content);
 }
 
@@ -140,7 +142,9 @@ fn read_module_markdown_returns_empty_for_missing_module_md() {
     // Create the module directory but not the module.md file
     std::fs::create_dir_all(ito.join("modules").join("007_empty")).unwrap();
 
-    let result = read_module_markdown(&ito, "007").expect("should succeed with empty string");
+    let module_repo = FsModuleRepository::new(&ito);
+    let result =
+        read_module_markdown(&module_repo, "007").expect("should succeed with empty string");
     assert!(
         result.is_empty(),
         "should return empty string for missing module.md, got: {result}"
@@ -153,7 +157,8 @@ fn read_module_markdown_returns_error_for_nonexistent_module() {
     let ito = td.path().join(".ito");
     // Don't create any modules directory
 
-    let result = read_module_markdown(&ito, "999");
+    let module_repo = FsModuleRepository::new(&ito);
+    let result = read_module_markdown(&module_repo, "999");
     assert!(result.is_err(), "should fail for nonexistent module");
 }
 
