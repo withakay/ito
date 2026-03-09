@@ -131,7 +131,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         task_id: &str,
         _reason: Option<String>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_shelve_task(tasks, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_shelve_task(tasks, task_id, "backend tasks")
+        })
     }
 
     fn unshelve_task(
@@ -139,7 +141,9 @@ impl TaskMutationService for SqliteTaskMutationService {
         change_id: &str,
         task_id: &str,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_unshelve_task(tasks, task_id, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_unshelve_task(tasks, task_id, "backend tasks")
+        })
     }
 
     fn add_task(
@@ -148,6 +152,8 @@ impl TaskMutationService for SqliteTaskMutationService {
         title: &str,
         wave: Option<u32>,
     ) -> TaskMutationServiceResult<TaskMutationResult> {
-        self.mutate(change_id, |tasks| apply_add_task(tasks, title, wave, "backend tasks"))
+        self.mutate(change_id, |tasks| {
+            apply_add_task(tasks, title, wave, "backend tasks")
+        })
     }
 }

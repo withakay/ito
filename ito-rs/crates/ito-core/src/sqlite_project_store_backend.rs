@@ -64,7 +64,10 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
         let changes = load_changes_from_db(&conn, org, repo)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        let Some(change) = changes.into_iter().find(|change| change.change_id == change_id) else {
+        let Some(change) = changes
+            .into_iter()
+            .find(|change| change.change_id == change_id)
+        else {
             return Err(ito_domain::backend::BackendError::NotFound(format!(
                 "change '{change_id}'"
             )));
@@ -162,7 +165,10 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
         let changes = load_changes_from_db(&conn, org, repo)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        let Some(change) = changes.into_iter().find(|change| change.change_id == change_id) else {
+        let Some(change) = changes
+            .into_iter()
+            .find(|change| change.change_id == change_id)
+        else {
             return Err(ito_domain::backend::BackendError::NotFound(format!(
                 "change '{change_id}'"
             )));
