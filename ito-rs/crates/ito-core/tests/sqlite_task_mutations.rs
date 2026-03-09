@@ -1,6 +1,6 @@
 use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};
 use ito_domain::backend::BackendProjectStore;
-use ito_domain::tasks::{TaskMutationService, TaskStatus};
+use ito_domain::tasks::TaskStatus;
 
 #[test]
 fn sqlite_task_mutation_service_initializes_missing_tasks() {

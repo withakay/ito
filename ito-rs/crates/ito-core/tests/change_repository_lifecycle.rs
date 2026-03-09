@@ -12,7 +12,7 @@ use ito_core::repository_runtime::{
 };
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
-    ResolveTargetOptions, Spec,
+    ResolveTargetOptions,
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{ModuleRepository, ModuleSummary};

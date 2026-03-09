@@ -399,17 +399,6 @@ pub async fn auth_verify(Extension(scope): Extension<TokenScope>) -> Json<AuthVe
     }
 }
 
-/// `GET /api/v1/projects/{org}/{repo}/changes` — list changes as summaries.
-///
-/// Optional query parameter: `lifecycle=active|archived|all`.
-pub async fn list_changes(
-    State(state): State<Arc<AppState>>,
-    Path((org, repo)): Path<(String, String)>,
-) -> Result<Json<Vec<ApiChangeSummary>>, ApiErrorResponse> {
-    list_changes_with_query(State(state), Path((org, repo)), Query(ChangeQuery { lifecycle: None }))
-        .await
-}
-
 pub async fn list_changes_with_query(
     State(state): State<Arc<AppState>>,
     Path((org, repo)): Path<(String, String)>,
@@ -439,21 +428,6 @@ pub async fn list_changes_with_query(
     }
 
     Ok(Json(summaries))
-}
-
-/// `GET /api/v1/projects/{org}/{repo}/changes/{change_id}` — get a full change by ID.
-///
-/// Optional query parameter: `lifecycle=active|archived|all`.
-pub async fn get_change(
-    State(state): State<Arc<AppState>>,
-    Path((org, repo, change_id)): Path<(String, String, String)>,
-) -> Result<Json<ApiChange>, ApiErrorResponse> {
-    get_change_with_query(
-        State(state),
-        Path((org, repo, change_id)),
-        Query(ChangeQuery { lifecycle: None }),
-    )
-    .await
 }
 
 pub async fn get_change_with_query(

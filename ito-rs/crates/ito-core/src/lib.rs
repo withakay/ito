@@ -144,7 +144,9 @@ pub use ito_domain::backend::{
     BackendProjectStore, BackendSyncClient, BackendTaskReader, ClaimResult, EventBatch,
     EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
-pub use ito_domain::changes::{Change, ChangeRepository, ChangeSummary, ChangeTargetResolution};
+pub use ito_domain::changes::{
+    Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
+};
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
 pub use ito_domain::tasks::{
