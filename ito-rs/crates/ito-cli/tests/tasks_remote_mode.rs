@@ -136,7 +136,7 @@ fn remote_task_start_updates_backend_without_local_tasks_file() {
     write_backend_config(repo.path(), &base_url);
 
     let out = run_cli(
-        &rust_path,
+        rust_path,
         &["tasks", "start", change_id, "1.1"],
         repo.path(),
         home.path(),
@@ -172,7 +172,7 @@ fn remote_missing_tasks_commands_do_not_hard_fail() {
     write_backend_config(repo.path(), &base_url);
 
     let status = run_cli(
-        &rust_path,
+        rust_path,
         &["tasks", "status", change_id, "--json"],
         repo.path(),
         home.path(),
@@ -196,7 +196,7 @@ fn remote_missing_tasks_commands_do_not_hard_fail() {
     );
 
     let ready = run_cli(
-        &rust_path,
+        rust_path,
         &["tasks", "ready", change_id],
         repo.path(),
         home.path(),
@@ -210,7 +210,7 @@ fn remote_missing_tasks_commands_do_not_hard_fail() {
     );
 
     let show = run_cli(
-        &rust_path,
+        rust_path,
         &["tasks", "show", change_id, "--json"],
         repo.path(),
         home.path(),
