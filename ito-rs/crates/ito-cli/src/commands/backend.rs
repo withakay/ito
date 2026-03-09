@@ -184,7 +184,7 @@ fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
     if is_healthy {
         Ok(())
     } else {
-        return Err(CliError::silent());
+        Err(CliError::silent())
     }
 }
 
