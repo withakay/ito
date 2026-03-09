@@ -122,7 +122,7 @@ fn show_specs_reads_backend_specs_without_local_markdown() {
     write_backend_config(repo.path(), &base_url);
 
     let output = run_cli(
-        &rust_path,
+        rust_path,
         &["show", "specs", "--json"],
         repo.path(),
         home.path(),

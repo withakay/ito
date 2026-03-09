@@ -151,12 +151,11 @@ pub(crate) fn handle_validate(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 };
 
                 // tasks.md validation (enhanced + checkbox)
-                if is_filesystem {
-                    if let Ok(task_issues) =
+                if is_filesystem
+                    && let Ok(task_issues) =
                         core_validate::validate_tasks_file(ito_path, &dir_name, strict)
-                    {
-                        issues.extend(task_issues);
-                    }
+                {
+                    issues.extend(task_issues);
                 }
 
                 // Audit consistency check (warnings only)

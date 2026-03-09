@@ -123,7 +123,7 @@ fn remote_archive_succeeds_without_local_active_change_markdown() {
     write_backend_config(repo.path(), &base_url);
 
     let out = run_cli(
-        &rust_path,
+        rust_path,
         &["archive", change_id, "--yes"],
         repo.path(),
         home.path(),
