@@ -7,9 +7,10 @@
 use ito_domain::backend::BackendChangeReader;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeSummary,
-    ChangeTargetResolution, ResolveTargetOptions,
+    ChangeTargetResolution, ResolveTargetOptions, parse_change_id, parse_module_id,
 };
 use ito_domain::errors::DomainResult;
+use std::collections::BTreeSet;
 
 /// Backend-backed change repository.
 ///
@@ -38,30 +39,100 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         };
 
         let input = input.trim();
-        let mut exact = Vec::new();
-        let mut prefix = Vec::new();
+        if input.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
 
-        for summary in &summaries {
-            if summary.id == input {
-                exact.push(summary.id.clone());
-            } else if summary.id.starts_with(input) {
-                prefix.push(summary.id.clone());
+        let ids: Vec<String> = summaries.iter().map(|s| s.id.clone()).collect();
+
+        // 1. Exact match.
+        if ids.iter().any(|id| id == input) {
+            return ChangeTargetResolution::Unique(input.to_string());
+        }
+
+        // 2. Numeric change-id match: `1-12` or `1-12_slug` → `001-12_*`.
+        let numeric_selector = parse_change_id(input).or_else(|| {
+            // Also handle bare `1-12` style via two-number extraction.
+            extract_two_numbers_as_change_id(input)
+        });
+        if let Some((module_id, change_num)) = numeric_selector {
+            let numeric_prefix = format!("{module_id}-{change_num}");
+            let with_separator = format!("{numeric_prefix}_");
+            let mut numeric_matches: BTreeSet<String> = BTreeSet::new();
+            for id in &ids {
+                if id == &numeric_prefix || id.starts_with(&with_separator) {
+                    numeric_matches.insert(id.clone());
+                }
+            }
+            if !numeric_matches.is_empty() {
+                let numeric_matches: Vec<String> = numeric_matches.into_iter().collect();
+                if numeric_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(numeric_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(numeric_matches);
             }
         }
 
-        if exact.len() == 1 {
-            return ChangeTargetResolution::Unique(exact.into_iter().next().unwrap());
-        }
-        if exact.is_empty() && prefix.len() == 1 {
-            return ChangeTargetResolution::Unique(prefix.into_iter().next().unwrap());
-        }
-        if !exact.is_empty() || !prefix.is_empty() {
-            let mut all = exact;
-            all.extend(prefix);
-            return ChangeTargetResolution::Ambiguous(all);
+        // 3. Module-scoped slug query: `1:setup` → changes in module 001 with "setup" in slug.
+        if let Some((module_part, query)) = input.split_once(':') {
+            let query = query.trim();
+            if !query.is_empty() {
+                let module_id = parse_module_id(module_part);
+                let tokens = tokenize_query(query);
+                let mut scoped_matches: BTreeSet<String> = BTreeSet::new();
+                for id in &ids {
+                    let Some((name_module, _name_change, slug)) = split_canonical_change_id(id)
+                    else {
+                        continue;
+                    };
+                    if name_module != module_id {
+                        continue;
+                    }
+                    if slug_matches_tokens(slug, &tokens) {
+                        scoped_matches.insert(id.clone());
+                    }
+                }
+                if scoped_matches.is_empty() {
+                    return ChangeTargetResolution::NotFound;
+                }
+                let scoped_matches: Vec<String> = scoped_matches.into_iter().collect();
+                if scoped_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(scoped_matches[0].clone());
+                }
+                return ChangeTargetResolution::Ambiguous(scoped_matches);
+            }
         }
 
-        ChangeTargetResolution::NotFound
+        // 4. Prefix match on full id string.
+        let mut prefix_matches: BTreeSet<String> = BTreeSet::new();
+        for id in &ids {
+            if id.starts_with(input) {
+                prefix_matches.insert(id.clone());
+            }
+        }
+
+        if prefix_matches.is_empty() {
+            // 5. Slug token match across all changes.
+            let tokens = tokenize_query(input);
+            for id in &ids {
+                let Some((_module, _change, slug)) = split_canonical_change_id(id) else {
+                    continue;
+                };
+                if slug_matches_tokens(slug, &tokens) {
+                    prefix_matches.insert(id.clone());
+                }
+            }
+        }
+
+        if prefix_matches.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        let prefix_matches: Vec<String> = prefix_matches.into_iter().collect();
+        if prefix_matches.len() == 1 {
+            return ChangeTargetResolution::Unique(prefix_matches[0].clone());
+        }
+        ChangeTargetResolution::Ambiguous(prefix_matches)
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
@@ -94,11 +165,14 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         module_id: &str,
         filter: ChangeLifecycleFilter,
     ) -> DomainResult<Vec<ChangeSummary>> {
+        let normalized_id = parse_module_id(module_id);
         let all = self.reader.list_changes(filter)?;
-        let filtered = all
-            .into_iter()
-            .filter(|s| s.module_id.as_deref() == Some(module_id))
-            .collect();
+        let mut filtered = Vec::new();
+        for s in all {
+            if s.module_id.as_deref() == Some(&normalized_id) {
+                filtered.push(s);
+            }
+        }
         Ok(filtered)
     }
 
@@ -139,6 +213,73 @@ impl<R: BackendChangeReader> DomainChangeRepository for BackendChangeRepository<
         }
         Err(ito_domain::errors::DomainError::not_found("change", id))
     }
+}
+
+// ── Resolution helpers ─────────────────────────────────────────────
+//
+// These mirror the logic in `FsChangeRepository` so that backend and
+// filesystem resolution behave identically for inputs like `1-12` or
+// `1:slug`.
+
+/// Split a canonical change id into `(module_id, change_num, slug)`.
+fn split_canonical_change_id(name: &str) -> Option<(String, String, &str)> {
+    let (module_id, change_num) = parse_change_id(name)?;
+    let slug = name.split_once('_').map(|(_id, s)| s).unwrap_or("");
+    Some((module_id, change_num, slug))
+}
+
+/// Tokenize a query string into lowercase words.
+fn tokenize_query(input: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    for s in input.split_whitespace() {
+        let t = s.trim().to_lowercase();
+        if !t.is_empty() {
+            tokens.push(t);
+        }
+    }
+    tokens
+}
+
+/// Return `true` when all tokens appear in the normalized slug text.
+fn slug_matches_tokens(slug: &str, tokens: &[String]) -> bool {
+    if tokens.is_empty() {
+        return false;
+    }
+    let mut text = String::new();
+    for ch in slug.chars() {
+        if ch.is_ascii_alphanumeric() {
+            text.push(ch.to_ascii_lowercase());
+        } else {
+            text.push(' ');
+        }
+    }
+    for token in tokens {
+        if !text.contains(token.as_str()) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Extract two numbers from an input string and format as a change id prefix.
+///
+/// Handles inputs like `1-12` (already handled by `parse_change_id`) and
+/// alternative separators like `1:12`.
+fn extract_two_numbers_as_change_id(input: &str) -> Option<(String, String)> {
+    use regex::Regex;
+    let re = Regex::new(r"\d+").ok()?;
+    let mut parts: Vec<&str> = Vec::new();
+    for m in re.find_iter(input) {
+        parts.push(m.as_str());
+        if parts.len() > 2 {
+            return None;
+        }
+    }
+    if parts.len() != 2 {
+        return None;
+    }
+    let parsed = format!("{}-{}", parts[0], parts[1]);
+    parse_change_id(&parsed)
 }
 
 #[cfg(test)]

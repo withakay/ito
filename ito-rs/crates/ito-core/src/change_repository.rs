@@ -705,10 +705,9 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
     fn get_with_filter(&self, id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
         let location = self.resolve_unique_change_location(id, filter)?;
         let actual_id = location.id.clone();
-        let path = location.path;
 
-        let proposal = self.read_optional_file(&path.join("proposal.md"))?;
-        let design = self.read_optional_file(&path.join("design.md"))?;
+        let proposal = self.read_optional_file(&location.path.join("proposal.md"))?;
+        let design = self.read_optional_file(&location.path.join("design.md"))?;
 
         // Validate front matter identifiers in artifacts (non-blocking for
         // files without front matter).
@@ -719,9 +718,10 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             self.validate_artifact_front_matter(content, &actual_id)?;
         }
 
-        let specs = self.load_specs(&path)?;
+        let specs = self.load_specs(&location.path)?;
         let tasks = self.load_tasks_for_location(&location)?;
-        let last_modified = self.get_last_modified(&path)?;
+        let last_modified = self.get_last_modified(&location.path)?;
+        let path = location.path;
 
         Ok(Change {
             id: actual_id.clone(),

@@ -17,7 +17,7 @@ use rusqlite::Connection;
 use ito_domain::backend::BackendProjectStore;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
-    ResolveTargetOptions, Spec,
+    ResolveTargetOptions, Spec, parse_change_id, parse_module_id,
 };
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};
@@ -407,20 +407,58 @@ impl ChangeRepository for SqliteChangeRepository {
         input: &str,
         options: ResolveTargetOptions,
     ) -> ChangeTargetResolution {
+        // SQLite stores only active changes; Archived-only queries always return NotFound.
         if !options.lifecycle.includes_active() {
             return ChangeTargetResolution::NotFound;
         }
-        let mut matches = Vec::new();
-        for c in &self.changes {
-            if c.change_id == input || c.change_id.contains(input) {
-                matches.push(c.change_id.clone());
+
+        let input = input.trim();
+        if input.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+
+        let ids: Vec<&str> = self.changes.iter().map(|c| c.change_id.as_str()).collect();
+
+        // 1. Exact match.
+        if ids.iter().any(|&id| id == input) {
+            return ChangeTargetResolution::Unique(input.to_string());
+        }
+
+        // 2. Numeric change-id match: `1-12` → `001-12_*`.
+        if let Some((module_id, change_num)) = parse_change_id(input) {
+            let numeric_prefix = format!("{module_id}-{change_num}");
+            let with_separator = format!("{numeric_prefix}_");
+            let mut numeric_matches: Vec<String> = Vec::new();
+            for &id in &ids {
+                if id == numeric_prefix || id.starts_with(&with_separator) {
+                    numeric_matches.push(id.to_string());
+                }
+            }
+            if !numeric_matches.is_empty() {
+                if numeric_matches.len() == 1 {
+                    return ChangeTargetResolution::Unique(
+                        numeric_matches.into_iter().next().unwrap(),
+                    );
+                }
+                return ChangeTargetResolution::Ambiguous(numeric_matches);
             }
         }
-        match matches.len() {
-            0 => ChangeTargetResolution::NotFound,
-            1 => ChangeTargetResolution::Unique(matches.into_iter().next().unwrap()),
-            _ => ChangeTargetResolution::Ambiguous(matches),
+
+        // 3. Prefix match on full id string.
+        let mut prefix_matches: Vec<String> = Vec::new();
+        for &id in &ids {
+            if id.starts_with(input) {
+                prefix_matches.push(id.to_string());
+            }
         }
+
+        if prefix_matches.is_empty() {
+            return ChangeTargetResolution::NotFound;
+        }
+        if prefix_matches.len() == 1 {
+            return ChangeTargetResolution::Unique(prefix_matches.into_iter().next().unwrap());
+        }
+        ChangeTargetResolution::Ambiguous(prefix_matches)
     }
 
     fn suggest_targets(&self, input: &str, max: usize) -> Vec<String> {
@@ -519,11 +557,15 @@ impl ChangeRepository for SqliteChangeRepository {
         module_id: &str,
         filter: ChangeLifecycleFilter,
     ) -> DomainResult<Vec<ChangeSummary>> {
+        let normalized_id = parse_module_id(module_id);
         let all = self.list_with_filter(filter)?;
-        Ok(all
-            .into_iter()
-            .filter(|c| c.module_id.as_deref() == Some(module_id))
-            .collect())
+        let mut out = Vec::new();
+        for c in all {
+            if c.module_id.as_deref() == Some(&normalized_id) {
+                out.push(c);
+            }
+        }
+        Ok(out)
     }
 
     fn list_incomplete_with_filter(
