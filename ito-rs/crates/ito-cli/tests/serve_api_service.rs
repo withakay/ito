@@ -31,12 +31,7 @@ impl TestContext {
     }
 
     fn run(&self, args: &[&str]) -> ito_test_support::CmdOutput {
-        run_rust_candidate(
-            self.rust_path,
-            args,
-            self.repo.path(),
-            self.home.path(),
-        )
+        run_rust_candidate(self.rust_path, args, self.repo.path(), self.home.path())
     }
 }
 
@@ -129,7 +124,10 @@ fn service_mode_reports_malformed_backend_config() {
 fn serve_api_reports_unknown_fields_in_explicit_config_file() {
     let cx = TestContext::new();
     let config_path = cx.repo.path().join("backend.json");
-    fixtures::write(&config_path, r#"{"server":{"auth":{"adminTokens":["token"]}}}"#);
+    fixtures::write(
+        &config_path,
+        r#"{"server":{"auth":{"adminTokens":["token"]}}}"#,
+    );
 
     let out = cx.run(&[
         "serve-api",
@@ -140,5 +138,9 @@ fn serve_api_reports_unknown_fields_in_explicit_config_file() {
     ]);
 
     assert_ne!(out.code, 0);
-    assert!(out.stderr.contains("unknown field(s): server"), "stderr={}", out.stderr);
+    assert!(
+        out.stderr.contains("unknown field(s): server"),
+        "stderr={}",
+        out.stderr
+    );
 }

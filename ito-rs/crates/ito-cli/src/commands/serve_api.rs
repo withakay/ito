@@ -107,7 +107,10 @@ pub(crate) fn handle_serve_api_clap(
     Ok(())
 }
 
-fn load_backend_server_config(ctx: &ConfigContext, args: &ServeApiArgs) -> CliResult<BackendServerConfig> {
+fn load_backend_server_config(
+    ctx: &ConfigContext,
+    args: &ServeApiArgs,
+) -> CliResult<BackendServerConfig> {
     if let Some(path) = &args.config {
         return load_backend_server_config_file(Path::new(path));
     }
@@ -135,8 +138,12 @@ fn load_backend_server_config_file(path: &Path) -> CliResult<BackendServerConfig
 }
 
 fn load_backend_server_json_config(contents: &str, path: &Path) -> CliResult<BackendServerConfig> {
-    let value: serde_json::Value = serde_json::from_str(contents)
-        .map_err(|e| CliError::msg(format!("Invalid backend server config in {}: {e}", path.display())))?;
+    let value: serde_json::Value = serde_json::from_str(contents).map_err(|e| {
+        CliError::msg(format!(
+            "Invalid backend server config in {}: {e}",
+            path.display()
+        ))
+    })?;
 
     if value.get("backendServer").is_some() {
         let parsed: ItoConfig = deserialize_json_with_unknown_check(contents, path, "Ito config")?;
@@ -147,8 +154,12 @@ fn load_backend_server_json_config(contents: &str, path: &Path) -> CliResult<Bac
 }
 
 fn load_backend_server_toml_config(contents: &str, path: &Path) -> CliResult<BackendServerConfig> {
-    let value: toml::Value = toml::from_str(contents)
-        .map_err(|e| CliError::msg(format!("Invalid backend server config in {}: {e}", path.display())))?;
+    let value: toml::Value = toml::from_str(contents).map_err(|e| {
+        CliError::msg(format!(
+            "Invalid backend server config in {}: {e}",
+            path.display()
+        ))
+    })?;
 
     if value.get("backendServer").is_some() {
         let parsed: ItoConfig = deserialize_toml_with_unknown_check(contents, path, "Ito config")?;
@@ -165,10 +176,9 @@ fn deserialize_json_with_unknown_check<T: DeserializeOwned>(
 ) -> CliResult<T> {
     let mut ignored = Vec::new();
     let mut deserializer = serde_json::Deserializer::from_str(contents);
-    let parsed = serde_ignored::deserialize(&mut deserializer, |field| {
-        ignored.push(field.to_string())
-    })
-    .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
+    let parsed =
+        serde_ignored::deserialize(&mut deserializer, |field| ignored.push(field.to_string()))
+            .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
     reject_unknown_fields(path, kind, &ignored)?;
     Ok(parsed)
 }
@@ -180,10 +190,8 @@ fn deserialize_toml_with_unknown_check<T: DeserializeOwned>(
 ) -> CliResult<T> {
     let mut ignored = Vec::new();
     let deserializer = toml::Deserializer::new(contents);
-    let parsed = serde_ignored::deserialize(deserializer, |field| {
-        ignored.push(field.to_string())
-    })
-    .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
+    let parsed = serde_ignored::deserialize(deserializer, |field| ignored.push(field.to_string()))
+        .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
     reject_unknown_fields(path, kind, &ignored)?;
     Ok(parsed)
 }
