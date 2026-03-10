@@ -19,7 +19,7 @@ use ito_config::types::{
 use ito_config::{ConfigContext, load_global_ito_config};
 use ito_core::backend_auth::{self, InitAuthResult};
 use serde::de::DeserializeOwned;
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 pub(crate) fn handle_serve_api_clap(
@@ -75,14 +75,7 @@ pub(crate) fn handle_serve_api_clap(
 
     // Build allowlist from CLI args
     if !args.allow_org.is_empty() {
-        let mut repos = BTreeMap::new();
-        for org in &args.allow_org {
-            repos.insert(org.clone(), BackendRepoPolicy::All("*".to_string()));
-        }
-        config.allowed = BackendAllowlistConfig {
-            orgs: args.allow_org.clone(),
-            repos,
-        };
+        config.allowed = merge_allow_orgs(config.allowed, &args.allow_org);
     }
     config.enabled = true;
     if let Some(bind) = &args.bind {
@@ -169,6 +162,21 @@ fn load_backend_server_toml_config(contents: &str, path: &Path) -> CliResult<Bac
     deserialize_toml_with_unknown_check(contents, path, "backend server config")
 }
 
+fn merge_allow_orgs(
+    mut allowlist: BackendAllowlistConfig,
+    allow_orgs: &[String],
+) -> BackendAllowlistConfig {
+    let mut orgs: BTreeSet<String> = allowlist.orgs.into_iter().collect();
+    for org in allow_orgs {
+        orgs.insert(org.clone());
+        allowlist
+            .repos
+            .insert(org.clone(), BackendRepoPolicy::All("*".to_string()));
+    }
+    allowlist.orgs = orgs.into_iter().collect();
+    allowlist
+}
+
 fn deserialize_json_with_unknown_check<T: DeserializeOwned>(
     contents: &str,
     path: &Path,
@@ -179,6 +187,9 @@ fn deserialize_json_with_unknown_check<T: DeserializeOwned>(
     let parsed =
         serde_ignored::deserialize(&mut deserializer, |field| ignored.push(field.to_string()))
             .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
+    deserializer.end().map_err(|e| {
+        CliError::msg(format!("Invalid {kind} in {}: {e}", path.display()))
+    })?;
     reject_unknown_fields(path, kind, &ignored)?;
     Ok(parsed)
 }
@@ -209,95 +220,5 @@ fn reject_unknown_fields(path: &Path, kind: &str, ignored: &[String]) -> CliResu
 }
 
 #[cfg(test)]
-mod serve_api_tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    #[test]
-    fn builds_config_with_defaults() {
-        let args = ServeApiArgs {
-            init: false,
-            service: false,
-            port: None,
-            bind: None,
-            data_dir: None,
-            admin_token: vec![],
-            token_seed: None,
-            allow_org: vec![],
-            config: None,
-        };
-        assert!(args.port.is_none());
-        assert!(args.bind.is_none());
-    }
-
-    #[test]
-    fn builds_allowlist_from_allow_org_args() {
-        let orgs = vec!["acme".to_string(), "globex".to_string()];
-        let mut repos = BTreeMap::new();
-        for org in &orgs {
-            repos.insert(org.clone(), BackendRepoPolicy::All("*".to_string()));
-        }
-        let allowlist = BackendAllowlistConfig {
-            orgs: orgs.clone(),
-            repos,
-        };
-        assert!(allowlist.is_allowed("acme", "any-repo"));
-        assert!(allowlist.is_allowed("globex", "another-repo"));
-        assert!(!allowlist.is_allowed("unknown-org", "repo"));
-    }
-
-    #[test]
-    fn load_backend_server_config_file_rejects_unknown_json_fields() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("backend.json");
-        std::fs::write(&path, r#"{"server":{"auth":{}}}"#).unwrap();
-
-        let err = load_backend_server_config_file(&path).unwrap_err();
-        assert!(err.to_string().contains("unknown field(s): server"));
-    }
-
-    #[test]
-    fn load_backend_server_config_file_reads_toml() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("backend.toml");
-        std::fs::write(
-            &path,
-            "bind = \"0.0.0.0\"\nport = 9020\n[auth]\nadminTokens = [\"token\"]\n",
-        )
-        .unwrap();
-
-        let config = load_backend_server_config_file(&path).unwrap();
-        assert_eq!(config.bind, "0.0.0.0");
-        assert_eq!(config.port, 9020);
-        assert_eq!(config.auth.admin_tokens, vec!["token".to_string()]);
-    }
-
-    #[test]
-    fn load_backend_server_config_file_accepts_full_ito_json_config() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("config.json");
-        std::fs::write(
-            &path,
-            r#"{
-                "backendServer": {
-                    "bind": "0.0.0.0",
-                    "port": 9030,
-                    "auth": {
-                        "adminTokens": ["token"]
-                    }
-                },
-                "changes": {
-                    "coordination_branch": {
-                        "enabled": false
-                    }
-                }
-            }"#,
-        )
-        .unwrap();
-
-        let config = load_backend_server_config_file(&path).unwrap();
-        assert_eq!(config.bind, "0.0.0.0");
-        assert_eq!(config.port, 9030);
-        assert_eq!(config.auth.admin_tokens, vec!["token".to_string()]);
-    }
-}
+#[path = "serve_api/serve_api_tests.rs"]
+mod serve_api_tests;

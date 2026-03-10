@@ -1,7 +1,7 @@
 ---
 description: Simplifies and refines Rust code for clarity, consistency, and maintainability
 mode: subagent
-model: "openai/gpt-5.4"
+model: "openai/gpt-5.3-codex"
 temperature: 0.2
 tools:
   read: true
