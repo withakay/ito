@@ -187,9 +187,9 @@ fn deserialize_json_with_unknown_check<T: DeserializeOwned>(
     let parsed =
         serde_ignored::deserialize(&mut deserializer, |field| ignored.push(field.to_string()))
             .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
-    deserializer.end().map_err(|e| {
-        CliError::msg(format!("Invalid {kind} in {}: {e}", path.display()))
-    })?;
+    deserializer
+        .end()
+        .map_err(|e| CliError::msg(format!("Invalid {kind} in {}: {e}", path.display())))?;
     reject_unknown_fields(path, kind, &ignored)?;
     Ok(parsed)
 }
