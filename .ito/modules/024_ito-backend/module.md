@@ -5,6 +5,7 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 
 ## Scope
 - backend-state-api
+- backend-server-cli
 - backend-auth
 - change-leasing
 - change-allocation
@@ -15,6 +16,7 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - backend-client-runtime
 - backend-change-claim
 - backend-change-sync
+- backend-import
 - change-repository
 - task-repository
 - cli-tasks
@@ -37,3 +39,5 @@ Introduce a shared Ito backend service so multiple harness instances can coordin
 - [x] 024-13_add-homebrew-systemd-backend-services
 - [ ] 024-15_docker-and-helm
 - [ ] 024-16_homebrew-service-bootstrap
+- [ ] 024-18_import-local-state-to-backend
+- [ ] 024-19_move-serve-api-under-backend

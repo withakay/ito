@@ -111,7 +111,7 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::OpenCode, AgentTier::General),
         AgentConfig {
-            model: "openai/gpt-5.2-codex".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             variant: Some("high".to_string()),
             temperature: Some(0.3),
             ..Default::default()
@@ -120,7 +120,7 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::OpenCode, AgentTier::Thinking),
         AgentConfig {
-            model: "openai/gpt-5.2-codex".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             variant: Some("xhigh".to_string()),
             temperature: Some(0.5),
             ..Default::default()
@@ -154,14 +154,14 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::Codex, AgentTier::Quick),
         AgentConfig {
-            model: "openai/gpt-5.1-codex-mini".to_string(),
+            model: "openai/gpt-5-mini".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::Codex, AgentTier::General),
         AgentConfig {
-            model: "openai/gpt-5.2-codex".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             reasoning_effort: Some("high".to_string()),
             ..Default::default()
         },
@@ -169,7 +169,7 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::Codex, AgentTier::Thinking),
         AgentConfig {
-            model: "openai/gpt-5.2-codex".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             reasoning_effort: Some("xhigh".to_string()),
             ..Default::default()
         },
@@ -186,14 +186,14 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::Pi, AgentTier::General),
         AgentConfig {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::Pi, AgentTier::Thinking),
         AgentConfig {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             ..Default::default()
         },
     );
@@ -209,14 +209,14 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::GitHubCopilot, AgentTier::General),
         AgentConfig {
-            model: "github-copilot/gpt-5.2-codex".to_string(),
+            model: "github-copilot/gpt-5.4".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::GitHubCopilot, AgentTier::Thinking),
         AgentConfig {
-            model: "github-copilot/gpt-5.2-codex".to_string(),
+            model: "github-copilot/gpt-5.4".to_string(),
             ..Default::default()
         },
     );
