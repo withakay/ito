@@ -179,6 +179,14 @@ pub(crate) fn write_bundle_to_local(
 /// Read local change artifacts into an artifact bundle for pushing.
 pub(crate) fn read_local_bundle(ito_path: &Path, change_id: &str) -> CoreResult<ArtifactBundle> {
     let change_dir = paths::changes_dir(ito_path).join(change_id);
+    read_bundle_from_change_dir(&change_dir, change_id)
+}
+
+/// Read change artifacts from an explicit directory into an artifact bundle.
+pub(crate) fn read_bundle_from_change_dir(
+    change_dir: &Path,
+    change_id: &str,
+) -> CoreResult<ArtifactBundle> {
     if !change_dir.is_dir() {
         return Err(CoreError::not_found(format!(
             "Change directory not found: {change_id}"
@@ -210,7 +218,7 @@ pub(crate) fn read_local_bundle(ito_path: &Path, change_id: &str) -> CoreResult<
     }
     specs.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let revision = read_revision_file(&change_dir)?.unwrap_or_default();
+    let revision = read_revision_file(change_dir)?.unwrap_or_default();
 
     Ok(ArtifactBundle {
         change_id: change_id.to_string(),
