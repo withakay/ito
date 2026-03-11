@@ -40,12 +40,12 @@ Workflow: `/.github/workflows/v-release.yml`
 
 ### 3) Update Homebrew formula
 
-Workflow: `/.github/workflows/homebrew.yml`
+Workflow/job: `/.github/workflows/v-release.yml` → `publish-homebrew-formula`
 
-- Trigger: GitHub release event `published`
+- Trigger: version tag push handled by the cargo-dist release workflow
 - What it does:
-  - Calls the reusable workflow `/.github/workflows/update-homebrew.yml`
-  - Downloads cargo-dist artifacts from the release and computes sha256
+  - Uses the dist-generated `ito.rb` release artifact
+  - Patches the generated formula with Ito's Homebrew `service do` block
   - Updates `withakay/homebrew-ito` formula `Formula/ito.rb` and pushes to `main`
 
 ### 4) Polish release notes
