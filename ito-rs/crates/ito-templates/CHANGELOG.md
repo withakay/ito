@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.19] - 2026-03-10
+
+### 🚀 Features
+
+- *(025)* Complete repository backends module ([#161](https://github.com/withakay/ito/pull/161))
+
+### 💼 Other
+
+- Sync local main with origin/main
 ## [0.1.18] - 2026-03-07
 ## [0.1.17] - 2026-03-07
 ## [0.1.16] - 2026-03-07

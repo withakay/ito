@@ -1297,7 +1297,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-backend"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1318,7 +1318,7 @@ dependencies = [
 
 [[package]]
 name = "ito-cli"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1352,14 +1352,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1370,7 +1370,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "assert-struct",
  "base64",
@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1418,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "chrono",
  "hex",
@@ -1432,7 +1432,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1441,7 +1441,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1501,9 +1501,9 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libc"
-version = "0.2.182"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libredox"
@@ -2127,9 +2127,9 @@ dependencies = [
 
 [[package]]
 name = "schannel"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891d81b926048e76efe18581bf793546b4c0eaf8448d72be8de2bbee5fd166e1"
+checksum = "91c1b7e4904c873ef0710c1f407dde2e6287de2bebc1bbbf7d430bb7cbffd939"
 dependencies = [
  "windows-sys 0.61.2",
 ]
@@ -3562,18 +3562,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.40"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a789c6e490b576db9f7e6b6d661bcc9799f7c0ac8352f56ea20193b2681532e5"
+checksum = "f2578b716f8a7a858b7f02d5bd870c14bf4ddbbcf3a4c05414ba6503640505e3"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.40"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f65c489a7071a749c849713807783f70672b28094011623e200cb86dcb835953"
+checksum = "7e6cc098ea4d3bd6246687de65af3f920c430e236bee1e3bf2e441463f08a02f"
 dependencies = [
  "proc-macro2",
  "quote",
