@@ -328,6 +328,7 @@ jobs:
 
             python3 - "$filename" <<'PY'
           from pathlib import Path
+          import re
           import sys
 
           path = Path("Formula") / sys.argv[1]
@@ -335,10 +336,6 @@ jobs:
 
           if "service do\n" in text:
               raise SystemExit(f"{path} already contains a Homebrew service block")
-
-          marker = "\n  test do\n"
-          if marker not in text:
-              raise SystemExit(f"Could not find test block in {path}")
 
           service_block = """
             service do
@@ -349,7 +346,11 @@ jobs:
             end
           """
 
-          path.write_text(text.replace(marker, f"{service_block}{marker}", 1))
+          updated, count = re.subn(r"\nend\s*\Z", f"{service_block}\nend\n", text, count=1)
+          if count != 1:
+              raise SystemExit(f"Could not find final class end in {path}")
+
+          path.write_text(updated)
           PY
 
             export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
