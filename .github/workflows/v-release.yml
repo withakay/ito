@@ -328,7 +328,6 @@ jobs:
 
             python3 - "$filename" <<'PY'
           from pathlib import Path
-          import re
           import sys
 
           path = Path("Formula") / sys.argv[1]
@@ -346,11 +345,11 @@ jobs:
             end
           """.strip("\n")
 
-          updated, count = re.subn(r"\n?end\s*\Z", f"\n{service_block}\n\nend\n", text, count=1)
-          if count != 1:
+          stripped = text.rstrip()
+          if not stripped.endswith("end"):
               raise SystemExit(f"Could not find final class end in {path}")
 
-          path.write_text(updated)
+          path.write_text(f"{stripped.removesuffix('end')}\n{service_block}\n\nend\n")
           PY
 
             export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
