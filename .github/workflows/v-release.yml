@@ -344,9 +344,9 @@ jobs:
               log_path var/"log/ito-backend.log"
               error_log_path var/"log/ito-backend.log"
             end
-          """
+          """.strip("\n")
 
-          updated, count = re.subn(r"\nend\s*\Z", f"{service_block}\nend\n", text, count=1)
+          updated, count = re.subn(r"\n?end\s*\Z", f"\n{service_block}\n\nend\n", text, count=1)
           if count != 1:
               raise SystemExit(f"Could not find final class end in {path}")
 
