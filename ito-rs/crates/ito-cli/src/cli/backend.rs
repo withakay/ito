@@ -57,4 +57,19 @@ pub enum BackendAction {
         #[arg(long)]
         repo: Option<String>,
     },
+
+    /// Import local active and archived changes into backend-managed state
+    ///
+    /// Scans local `.ito/changes/` and `.ito/changes/archive/`, then imports
+    /// active and archived change artifacts into the configured backend project.
+    ///
+    /// Examples:
+    ///   ito backend import
+    ///   ito backend import --dry-run
+    #[command(verbatim_doc_comment, visible_alias = "im")]
+    Import {
+        /// Preview import scope without mutating backend state
+        #[arg(long)]
+        dry_run: bool,
+    },
 }

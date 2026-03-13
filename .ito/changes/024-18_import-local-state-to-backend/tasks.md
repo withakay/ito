@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core import`
 - **Done When**: Core exposes a reusable import API with imported/skipped/failed summary output for both lifecycle states.
 - **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Make import rerunnable and dry-run aware
 
@@ -36,7 +36,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core import && cargo test -p ito-backend import`
 - **Done When**: Repeated imports are safe, dry-run performs no writes, and partial imports can be rerun without duplication.
 - **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli backend`
 - **Done When**: Users can run direct imports from the CLI and see consistent preview and completion summaries.
 - **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Add backend read-parity integration coverage
 
@@ -62,4 +62,4 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: The new import workflow is covered by integration tests that fail if lifecycle parity regresses.
 - **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Status**: [x] complete
