@@ -7,26 +7,69 @@ use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
 use ito_core::backend_client::resolve_backend_runtime;
 use ito_core::backend_health::check_backend_health;
+use ito_core::backend_http::BackendHttpClient;
+use ito_core::backend_import::{RepositoryBackedImportSink, import_local_changes_with_options};
+use std::path::Path;
 
 /// Dispatch `ito backend` subcommands.
 pub fn handle_backend_clap(rt: &Runtime, args: &BackendArgs) -> CliResult<()> {
     match &args.action {
         BackendAction::Status { json } => handle_status(rt, *json),
+        BackendAction::Import { dry_run } => handle_import(rt, *dry_run),
         BackendAction::GenerateToken { seed, org, repo } => {
             handle_generate_token(rt, seed.clone(), org.clone(), repo.clone())
         }
     }
 }
 
-fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
-    // Load cascading project config
-    let ito_path = rt.ito_path();
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+fn handle_import(rt: &Runtime, dry_run: bool) -> CliResult<()> {
+    let config = load_project_config(rt)?;
+    let runtime = resolve_backend_runtime(&config.backend)
+        .map_err(|e| CliError::msg(format!("Invalid backend config: {e}")))?
+        .ok_or_else(|| CliError::msg("backend mode is required for `ito backend import`"))?;
 
-    // Deserialize as ItoConfig
-    let config: ItoConfig = serde_json::from_value(merged)
-        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))?;
+    let client = BackendHttpClient::new(runtime);
+    let sink = RepositoryBackedImportSink::new(&client, &client, &client);
+    let summary = import_local_changes_with_options(&sink, rt.ito_path(), dry_run)
+        .map_err(|e| CliError::msg(format!("Backend import failed: {e}")))?;
+
+    if dry_run {
+        println!(
+            "Would import {} change(s); skip {} and fail {} during preview.",
+            summary.previewed, summary.skipped, summary.failed
+        );
+    } else {
+        println!(
+            "Imported {} change(s); skipped {}; failed {}.",
+            summary.imported, summary.skipped, summary.failed
+        );
+    }
+
+    if summary.failed > 0 {
+        return Err(CliError::silent());
+    }
+    Ok(())
+}
+
+fn load_project_config(rt: &Runtime) -> CliResult<ItoConfig> {
+    let ito_path = rt.ito_path();
+    let project_root = resolve_project_root(ito_path)?;
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    serde_json::from_value(merged)
+        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))
+}
+
+fn resolve_project_root(ito_path: &Path) -> CliResult<&Path> {
+    ito_path.parent().ok_or_else(|| {
+        CliError::msg(format!(
+            "Invalid Ito root without parent directory: {}",
+            ito_path.display()
+        ))
+    })
+}
+
+fn handle_status(rt: &Runtime, json: bool) -> CliResult<()> {
+    let config = load_project_config(rt)?;
 
     // Check if backend is enabled
     if !config.backend.enabled {
@@ -262,11 +305,7 @@ fn resolve_org_repo(
     const ENV_PROJECT_REPO: &str = "ITO_BACKEND_PROJECT_REPO";
 
     // Load project config for fallback values
-    let ito_path = rt.ito_path();
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let config: ItoConfig = serde_json::from_value(merged)
-        .map_err(|e| CliError::msg(format!("Invalid merged Ito config: {e}")))?;
+    let config = load_project_config(rt)?;
 
     // Resolve org: env > flag > config
     let mut org = std::env::var(ENV_PROJECT_ORG)
@@ -329,4 +368,25 @@ fn prompt_for_value(prompt: &str) -> CliResult<String> {
     }
 
     Ok(trimmed.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_project_root;
+    use std::path::Path;
+
+    #[test]
+    fn resolve_project_root_returns_parent_directory() {
+        let root = resolve_project_root(Path::new("/tmp/project/.ito")).unwrap();
+        assert_eq!(root, Path::new("/tmp/project"));
+    }
+
+    #[test]
+    fn resolve_project_root_rejects_parentless_paths() {
+        let err = resolve_project_root(Path::new("/")).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("Invalid Ito root without parent directory")
+        );
+    }
 }
