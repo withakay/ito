@@ -236,7 +236,7 @@ impl BackendChangeReader for FakeChangeReader {
 }
 
 struct FakeSyncClient {
-    pulled: ArtifactBundle,
+    pulled: Result<ArtifactBundle, BackendError>,
     pushes: RefCell<Vec<String>>,
     pulls: RefCell<Vec<String>>,
 }
@@ -244,7 +244,7 @@ struct FakeSyncClient {
 impl BackendSyncClient for FakeSyncClient {
     fn pull(&self, change_id: &str) -> Result<ArtifactBundle, BackendError> {
         self.pulls.borrow_mut().push(change_id.to_string());
-        Ok(self.pulled.clone())
+        self.pulled.clone()
     }
 
     fn push(&self, change_id: &str, _bundle: &ArtifactBundle) -> Result<PushResult, BackendError> {
@@ -283,7 +283,7 @@ fn skips_already_imported_active_change_when_remote_bundle_matches() {
         archived: Vec::new(),
     };
     let sync = FakeSyncClient {
-        pulled: bundle,
+        pulled: Ok(bundle),
         pushes: RefCell::new(Vec::new()),
         pulls: RefCell::new(Vec::new()),
     };
@@ -321,7 +321,7 @@ fn rerun_archives_existing_remote_active_change_without_repush_when_bundle_match
         archived: Vec::new(),
     };
     let sync = FakeSyncClient {
-        pulled: bundle,
+        pulled: Ok(bundle),
         pushes: RefCell::new(Vec::new()),
         pulls: RefCell::new(Vec::new()),
     };
@@ -354,7 +354,7 @@ fn dry_run_uses_preview_logic_without_mutating_backend() {
         archived: Vec::new(),
     };
     let sync = FakeSyncClient {
-        pulled: read_bundle(&ito_path, "024-18_active-example"),
+        pulled: Ok(read_bundle(&ito_path, "024-18_active-example")),
         pushes: RefCell::new(Vec::new()),
         pulls: RefCell::new(Vec::new()),
     };
@@ -368,4 +368,75 @@ fn dry_run_uses_preview_logic_without_mutating_backend() {
     assert_eq!(summary.previewed, 1);
     assert_eq!(sync.pushes.into_inner(), Vec::<String>::new());
     assert_eq!(archive.archives.into_inner(), Vec::<String>::new());
+}
+
+#[test]
+fn pushes_when_remote_active_bundle_differs() {
+    let tmp = TempDir::new().unwrap();
+    let ito_path = tmp.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/archive")).unwrap();
+    write_active_change(&ito_path, "024-18_active-example");
+
+    let reader = FakeChangeReader {
+        active: vec![summary("024-18_active-example")],
+        archived: Vec::new(),
+    };
+    let sync = FakeSyncClient {
+        pulled: Ok(ArtifactBundle {
+            proposal: Some("# Old proposal\n".to_string()),
+            ..read_bundle(&ito_path, "024-18_active-example")
+        }),
+        pushes: RefCell::new(Vec::new()),
+        pulls: RefCell::new(Vec::new()),
+    };
+    let archive = FakeArchiveClient {
+        archives: RefCell::new(Vec::new()),
+    };
+    let sink = RepositoryBackedImportSink::new(&reader, &sync, &archive);
+
+    let summary = import_local_changes(&sink, &ito_path).unwrap();
+
+    assert_eq!(summary.imported, 1);
+    assert_eq!(
+        sync.pulls.into_inner(),
+        vec!["024-18_active-example".to_string()]
+    );
+    assert_eq!(
+        sync.pushes.into_inner(),
+        vec!["024-18_active-example".to_string()]
+    );
+}
+
+#[test]
+fn active_local_change_fails_when_backend_only_has_archived_copy() {
+    let tmp = TempDir::new().unwrap();
+    let ito_path = tmp.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/archive")).unwrap();
+    write_active_change(&ito_path, "024-18_active-example");
+
+    let reader = FakeChangeReader {
+        active: Vec::new(),
+        archived: vec![summary("024-18_active-example")],
+    };
+    let sync = FakeSyncClient {
+        pulled: Err(BackendError::NotFound("unused".to_string())),
+        pushes: RefCell::new(Vec::new()),
+        pulls: RefCell::new(Vec::new()),
+    };
+    let archive = FakeArchiveClient {
+        archives: RefCell::new(Vec::new()),
+    };
+    let sink = RepositoryBackedImportSink::new(&reader, &sync, &archive);
+
+    let summary = import_local_changes(&sink, &ito_path).unwrap();
+
+    assert_eq!(summary.imported, 0);
+    assert_eq!(summary.failed, 1);
+    assert!(
+        summary.results[0]
+            .message
+            .as_deref()
+            .unwrap_or_default()
+            .contains("backend already contains archived change")
+    );
 }

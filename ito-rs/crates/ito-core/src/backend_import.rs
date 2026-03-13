@@ -95,6 +95,15 @@ pub trait BackendImportSink {
     fn import_change(&self, change: &LocalImportChange) -> CoreResult<ImportAction>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ImportPlan {
+    Skip(String),
+    Import {
+        push_bundle: bool,
+        mark_archived: bool,
+    },
+}
+
 /// Import sink backed by the existing backend read/sync/archive ports.
 pub struct RepositoryBackedImportSink<'a, R, S, A> {
     change_reader: &'a R,
@@ -120,17 +129,19 @@ where
     A: BackendArchiveClient,
 {
     fn preview_change(&self, change: &LocalImportChange) -> CoreResult<ImportAction> {
-        match evaluate_import_action(self.change_reader, self.sync_client, change)? {
-            ImportAction::Imported | ImportAction::Previewed => Ok(ImportAction::Previewed),
-            ImportAction::Skipped(message) => Ok(ImportAction::Skipped(message)),
+        match evaluate_import_plan(self.change_reader, self.sync_client, change)? {
+            ImportPlan::Skip(message) => Ok(ImportAction::Skipped(message)),
+            ImportPlan::Import { .. } => Ok(ImportAction::Previewed),
         }
     }
 
     fn import_change(&self, change: &LocalImportChange) -> CoreResult<ImportAction> {
-        let action = evaluate_import_action(self.change_reader, self.sync_client, change)?;
-        match action {
-            ImportAction::Imported | ImportAction::Previewed => {
-                if requires_push(self.change_reader, self.sync_client, change)? {
+        match evaluate_import_plan(self.change_reader, self.sync_client, change)? {
+            ImportPlan::Import {
+                push_bundle,
+                mark_archived,
+            } => {
+                if push_bundle {
                     let mut bundle = change.bundle.clone();
                     bundle.revision.clear();
                     self.sync_client
@@ -138,13 +149,7 @@ where
                         .map_err(|err| CoreError::process(err.to_string()))?;
                 }
 
-                if change.lifecycle == ImportLifecycle::Archived
-                    && !exists_in_backend(
-                        self.change_reader,
-                        &change.change_id,
-                        ChangeLifecycleFilter::Archived,
-                    )?
-                {
+                if mark_archived {
                     self.archive_client
                         .mark_archived(&change.change_id)
                         .map_err(|err| CoreError::process(err.to_string()))?;
@@ -152,7 +157,7 @@ where
 
                 Ok(ImportAction::Imported)
             }
-            ImportAction::Skipped(message) => Ok(ImportAction::Skipped(message)),
+            ImportPlan::Skip(message) => Ok(ImportAction::Skipped(message)),
         }
     }
 }
@@ -234,11 +239,11 @@ pub fn import_local_changes_with_options(
     })
 }
 
-fn evaluate_import_action<R, S>(
+fn evaluate_import_plan<R, S>(
     change_reader: &R,
     sync_client: &S,
     change: &LocalImportChange,
-) -> CoreResult<ImportAction>
+) -> CoreResult<ImportPlan>
 where
     R: BackendChangeReader,
     S: BackendSyncClient,
@@ -262,16 +267,39 @@ where
                     change.change_id
                 )));
             }
-            if active_exists && !requires_push(change_reader, sync_client, change)? {
-                return Ok(ImportAction::Skipped("already imported".to_string()));
+            if !active_exists {
+                return Ok(ImportPlan::Import {
+                    push_bundle: true,
+                    mark_archived: false,
+                });
             }
-            Ok(ImportAction::Imported)
+
+            if remote_bundle_matches(sync_client, change)? {
+                return Ok(ImportPlan::Skip("already imported".to_string()));
+            }
+
+            Ok(ImportPlan::Import {
+                push_bundle: true,
+                mark_archived: false,
+            })
         }
         ImportLifecycle::Archived => {
             if archived_exists {
-                return Ok(ImportAction::Skipped("already archived".to_string()));
+                return Ok(ImportPlan::Skip("already archived".to_string()));
             }
-            Ok(ImportAction::Imported)
+
+            if !active_exists {
+                return Ok(ImportPlan::Import {
+                    push_bundle: true,
+                    mark_archived: true,
+                });
+            }
+
+            let push_bundle = !remote_bundle_matches(sync_client, change)?;
+            Ok(ImportPlan::Import {
+                push_bundle,
+                mark_archived: true,
+            })
         }
     }
 }
@@ -290,27 +318,14 @@ where
     Ok(changes.into_iter().any(|change| change.id == change_id))
 }
 
-fn requires_push<R, S>(
-    change_reader: &R,
-    sync_client: &S,
-    change: &LocalImportChange,
-) -> CoreResult<bool>
+fn remote_bundle_matches<S>(sync_client: &S, change: &LocalImportChange) -> CoreResult<bool>
 where
-    R: BackendChangeReader,
     S: BackendSyncClient,
 {
-    if !exists_in_backend(
-        change_reader,
-        &change.change_id,
-        ChangeLifecycleFilter::Active,
-    )? {
-        return Ok(true);
-    }
-
     let remote = sync_client
         .pull(&change.change_id)
         .map_err(|err| CoreError::process(err.to_string()))?;
-    Ok(!artifact_bundles_match(&remote, &change.bundle))
+    Ok(artifact_bundles_match(&remote, &change.bundle))
 }
 
 fn artifact_bundles_match(left: &ArtifactBundle, right: &ArtifactBundle) -> bool {
@@ -354,19 +369,18 @@ fn discover_local_import_changes(ito_path: &Path) -> CoreResult<Vec<LocalImportC
 }
 
 fn canonical_archived_change_id(archived_name: &str) -> CoreResult<String> {
-    let Some(remainder) = archived_name.strip_prefix("20") else {
-        return Err(CoreError::validation(format!(
-            "Archived change directory has unexpected format: {archived_name}"
-        )));
-    };
-    if remainder.len() < 9
-        || &remainder[2..3] != "-"
-        || &remainder[5..6] != "-"
-        || &remainder[8..9] != "-"
+    let parts: Vec<&str> = archived_name.splitn(4, '-').collect();
+    if parts.len() != 4
+        || parts[0].len() != 4
+        || parts[1].len() != 2
+        || parts[2].len() != 2
+        || !parts[0].chars().all(|ch| ch.is_ascii_digit())
+        || !parts[1].chars().all(|ch| ch.is_ascii_digit())
+        || !parts[2].chars().all(|ch| ch.is_ascii_digit())
     {
         return Err(CoreError::validation(format!(
             "Archived change directory has unexpected format: {archived_name}"
         )));
     }
-    Ok(remainder[9..].to_string())
+    Ok(parts[3].to_string())
 }
