@@ -7,6 +7,7 @@ use ito_common::paths;
 use ito_domain::backend::{BackendArchiveClient, BackendChangeReader, BackendSyncClient};
 use ito_domain::changes::ChangeLifecycleFilter;
 use ito_domain::discovery;
+use ito_domain::errors::DomainError;
 
 use crate::ArtifactBundle;
 use crate::backend_sync::read_bundle_from_change_dir;
@@ -312,10 +313,11 @@ fn exists_in_backend<R>(
 where
     R: BackendChangeReader,
 {
-    let changes = change_reader
-        .list_changes(filter)
-        .map_err(CoreError::from)?;
-    Ok(changes.into_iter().any(|change| change.id == change_id))
+    match change_reader.get_change(change_id, filter) {
+        Ok(_) => Ok(true),
+        Err(DomainError::NotFound { .. }) => Ok(false),
+        Err(err) => Err(CoreError::from(err)),
+    }
 }
 
 fn remote_bundle_matches<S>(sync_client: &S, change: &LocalImportChange) -> CoreResult<bool>
@@ -374,6 +376,7 @@ fn canonical_archived_change_id(archived_name: &str) -> CoreResult<String> {
         || parts[0].len() != 4
         || parts[1].len() != 2
         || parts[2].len() != 2
+        || parts[3].is_empty()
         || !parts[0].chars().all(|ch| ch.is_ascii_digit())
         || !parts[1].chars().all(|ch| ch.is_ascii_digit())
         || !parts[2].chars().all(|ch| ch.is_ascii_digit())

@@ -24,12 +24,6 @@ pub fn handle_backend_clap(rt: &Runtime, args: &BackendArgs) -> CliResult<()> {
 
 fn handle_import(rt: &Runtime, dry_run: bool) -> CliResult<()> {
     let config = load_project_config(rt)?;
-    if !config.backend.enabled {
-        return Err(CliError::msg(
-            "backend mode is required for `ito backend import`",
-        ));
-    }
-
     let runtime = resolve_backend_runtime(&config.backend)
         .map_err(|e| CliError::msg(format!("Invalid backend config: {e}")))?
         .ok_or_else(|| CliError::msg("backend mode is required for `ito backend import`"))?;

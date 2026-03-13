@@ -14,6 +14,7 @@ use ito_domain::backend::{
 };
 use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary};
 use ito_domain::errors::{DomainError, DomainResult};
+use ito_domain::tasks::TasksParseResult;
 use tempfile::TempDir;
 
 fn write_active_change(ito_path: &Path, change_id: &str) {
@@ -212,13 +213,29 @@ fn summary(id: &str) -> ChangeSummary {
     }
 }
 
+fn change(id: &str) -> Change {
+    Change {
+        id: id.to_string(),
+        module_id: Some("024".to_string()),
+        path: std::path::PathBuf::new(),
+        proposal: Some("# Proposal\n".to_string()),
+        design: None,
+        specs: Vec::new(),
+        tasks: TasksParseResult::empty(),
+        last_modified: Utc::now(),
+    }
+}
+
 struct FakeChangeReader {
     active: Vec<ChangeSummary>,
     archived: Vec<ChangeSummary>,
+    list_calls: RefCell<Vec<ChangeLifecycleFilter>>,
+    get_calls: RefCell<Vec<(String, ChangeLifecycleFilter)>>,
 }
 
 impl BackendChangeReader for FakeChangeReader {
     fn list_changes(&self, filter: ChangeLifecycleFilter) -> DomainResult<Vec<ChangeSummary>> {
+        self.list_calls.borrow_mut().push(filter);
         Ok(match filter {
             ChangeLifecycleFilter::Active => self.active.clone(),
             ChangeLifecycleFilter::Archived => self.archived.clone(),
@@ -230,7 +247,28 @@ impl BackendChangeReader for FakeChangeReader {
         })
     }
 
-    fn get_change(&self, change_id: &str, _filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+    fn get_change(&self, change_id: &str, filter: ChangeLifecycleFilter) -> DomainResult<Change> {
+        self.get_calls
+            .borrow_mut()
+            .push((change_id.to_string(), filter));
+
+        let exists = match filter {
+            ChangeLifecycleFilter::Active => {
+                self.active.iter().any(|change| change.id == change_id)
+            }
+            ChangeLifecycleFilter::Archived => {
+                self.archived.iter().any(|change| change.id == change_id)
+            }
+            ChangeLifecycleFilter::All => {
+                self.active.iter().any(|change| change.id == change_id)
+                    || self.archived.iter().any(|change| change.id == change_id)
+            }
+        };
+
+        if exists {
+            return Ok(change(change_id));
+        }
+
         Err(DomainError::not_found("change", change_id))
     }
 }
@@ -281,6 +319,8 @@ fn skips_already_imported_active_change_when_remote_bundle_matches() {
     let reader = FakeChangeReader {
         active: vec![summary("024-18_active-example")],
         archived: Vec::new(),
+        list_calls: RefCell::new(Vec::new()),
+        get_calls: RefCell::new(Vec::new()),
     };
     let sync = FakeSyncClient {
         pulled: Ok(bundle),
@@ -297,6 +337,23 @@ fn skips_already_imported_active_change_when_remote_bundle_matches() {
     assert_eq!(summary.imported, 0);
     assert_eq!(summary.skipped, 1);
     assert_eq!(summary.failed, 0);
+    assert_eq!(
+        reader.list_calls.into_inner(),
+        Vec::<ChangeLifecycleFilter>::new()
+    );
+    assert_eq!(
+        reader.get_calls.into_inner(),
+        vec![
+            (
+                "024-18_active-example".to_string(),
+                ChangeLifecycleFilter::Active,
+            ),
+            (
+                "024-18_active-example".to_string(),
+                ChangeLifecycleFilter::Archived,
+            ),
+        ]
+    );
     assert_eq!(sync.pushes.into_inner(), Vec::<String>::new());
     assert_eq!(archive.archives.into_inner(), Vec::<String>::new());
 }
@@ -319,6 +376,8 @@ fn rerun_archives_existing_remote_active_change_without_repush_when_bundle_match
     let reader = FakeChangeReader {
         active: vec![summary("024-17_archived-example")],
         archived: Vec::new(),
+        list_calls: RefCell::new(Vec::new()),
+        get_calls: RefCell::new(Vec::new()),
     };
     let sync = FakeSyncClient {
         pulled: Ok(bundle),
@@ -352,6 +411,8 @@ fn dry_run_uses_preview_logic_without_mutating_backend() {
     let reader = FakeChangeReader {
         active: Vec::new(),
         archived: Vec::new(),
+        list_calls: RefCell::new(Vec::new()),
+        get_calls: RefCell::new(Vec::new()),
     };
     let sync = FakeSyncClient {
         pulled: Ok(read_bundle(&ito_path, "024-18_active-example")),
@@ -380,6 +441,8 @@ fn pushes_when_remote_active_bundle_differs() {
     let reader = FakeChangeReader {
         active: vec![summary("024-18_active-example")],
         archived: Vec::new(),
+        list_calls: RefCell::new(Vec::new()),
+        get_calls: RefCell::new(Vec::new()),
     };
     let sync = FakeSyncClient {
         pulled: Ok(ArtifactBundle {
@@ -417,6 +480,8 @@ fn active_local_change_fails_when_backend_only_has_archived_copy() {
     let reader = FakeChangeReader {
         active: Vec::new(),
         archived: vec![summary("024-18_active-example")],
+        list_calls: RefCell::new(Vec::new()),
+        get_calls: RefCell::new(Vec::new()),
     };
     let sync = FakeSyncClient {
         pulled: Err(BackendError::NotFound("unused".to_string())),
@@ -438,5 +503,20 @@ fn active_local_change_fails_when_backend_only_has_archived_copy() {
             .as_deref()
             .unwrap_or_default()
             .contains("backend already contains archived change")
+    );
+}
+
+#[test]
+fn archived_directory_requires_non_empty_canonical_change_id() {
+    let tmp = TempDir::new().unwrap();
+    let ito_path = tmp.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/archive/2026-03-10-")).unwrap();
+
+    let sink = RecordingSink::default();
+    let err = import_local_changes(&sink, &ito_path).unwrap_err();
+
+    assert!(
+        err.to_string()
+            .contains("Archived change directory has unexpected format")
     );
 }
