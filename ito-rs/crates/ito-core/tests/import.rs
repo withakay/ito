@@ -175,6 +175,26 @@ fn import_summary_records_failures_without_aborting_remaining_changes() {
 }
 
 #[test]
+fn ignores_unrecognized_archive_directories_during_discovery() {
+    let tmp = TempDir::new().unwrap();
+    let ito_path = tmp.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/archive")).unwrap();
+    write_active_change(&ito_path, "024-18_active-example");
+    write_archived_change(
+        &ito_path,
+        "2026-03-10-024-17_archived-example",
+        "024-17_archived-example",
+    );
+    std::fs::create_dir_all(ito_path.join("changes/archive/README")).unwrap();
+
+    let sink = RecordingSink::default();
+    let summary = import_local_changes(&sink, &ito_path).unwrap();
+
+    assert_summary_counts(&summary, 2, 0, 0);
+    assert_eq!(sink.calls.into_inner().len(), 2);
+}
+
+#[test]
 fn dry_run_previews_without_importing() {
     let tmp = TempDir::new().unwrap();
     let ito_path = tmp.path().join(".ito");
@@ -507,16 +527,16 @@ fn active_local_change_fails_when_backend_only_has_archived_copy() {
 }
 
 #[test]
-fn archived_directory_requires_non_empty_canonical_change_id() {
+fn archived_directory_with_empty_canonical_change_id_is_ignored() {
     let tmp = TempDir::new().unwrap();
     let ito_path = tmp.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes")).unwrap();
     std::fs::create_dir_all(ito_path.join("changes/archive/2026-03-10-")).unwrap();
+    write_active_change(&ito_path, "024-18_active-example");
 
     let sink = RecordingSink::default();
-    let err = import_local_changes(&sink, &ito_path).unwrap_err();
+    let summary = import_local_changes(&sink, &ito_path).unwrap();
 
-    assert!(
-        err.to_string()
-            .contains("Archived change directory has unexpected format")
-    );
+    assert_summary_counts(&summary, 1, 0, 0);
+    assert_eq!(sink.calls.into_inner().len(), 1);
 }

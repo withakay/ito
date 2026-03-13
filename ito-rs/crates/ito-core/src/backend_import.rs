@@ -355,7 +355,17 @@ fn discover_local_import_changes(ito_path: &Path) -> CoreResult<Vec<LocalImportC
 
     let archive_dir = paths::changes_archive_dir(ito_path);
     for archived_name in discovery::list_dir_names(&fs, &archive_dir)? {
-        let canonical_change_id = canonical_archived_change_id(&archived_name)?;
+        let canonical_change_id = match canonical_archived_change_id(&archived_name) {
+            Ok(change_id) => change_id,
+            Err(err) => {
+                tracing::warn!(
+                    archived_name = %archived_name,
+                    error = %err,
+                    "skipping unrecognized archived change directory during backend import"
+                );
+                continue;
+            }
+        };
         let path = archive_dir.join(&archived_name);
         let bundle = read_bundle_from_change_dir(&path, &canonical_change_id)?;
         changes.push(LocalImportChange {
