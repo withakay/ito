@@ -1,4 +1,4 @@
-//! Handler for the `serve-api` subcommand.
+//! Handler for the `backend serve` subcommand.
 //!
 //! Starts a multi-tenant backend API server. Configuration is assembled from
 //! CLI flags, environment variables, and the global config file
@@ -53,7 +53,7 @@ pub(crate) fn handle_serve_api_clap(
                 println!("Tokens are stored in the config file (not printed for security).");
                 println!();
                 println!("Start the server with:");
-                println!("  ito serve-api");
+                println!("  ito backend serve");
             }
         }
 

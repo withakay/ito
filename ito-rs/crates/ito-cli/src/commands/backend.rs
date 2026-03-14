@@ -14,6 +14,7 @@ use std::path::Path;
 /// Dispatch `ito backend` subcommands.
 pub fn handle_backend_clap(rt: &Runtime, args: &BackendArgs) -> CliResult<()> {
     match &args.action {
+        BackendAction::Serve(args) => super::handle_serve_api_clap(rt, args),
         BackendAction::Status { json } => handle_status(rt, *json),
         BackendAction::Import { dry_run } => handle_import(rt, *dry_run),
         BackendAction::GenerateToken { seed, org, repo } => {
@@ -290,7 +291,7 @@ fn resolve_seed(rt: &Runtime, seed_flag: &Option<String>) -> CliResult<String> {
 
     // No seed found
     Err(CliError::msg(
-        "No token seed configured. Run 'ito serve-api --init' to generate one, \
+        "No token seed configured. Run 'ito backend serve --init' to generate one, \
          or set ITO_BACKEND_TOKEN_SEED environment variable.",
     ))
 }

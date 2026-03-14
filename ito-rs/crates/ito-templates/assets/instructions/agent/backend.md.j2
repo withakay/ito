@@ -59,7 +59,7 @@ Config values take precedence over environment variables.
 
 ## Server Configuration (`server` section)
 
-The server config is used when running `ito serve`:
+The server config is used when running `ito backend serve`:
 
 ```json
 {
@@ -151,11 +151,11 @@ Forwarding is best-effort and never affects command outcome.
 ## Running the Server
 
 ```bash
-ito serve --data-dir /path/to/data --admin-token <token> --token-seed <seed> --allow-org my-org
+ito backend serve --data-dir /path/to/data --admin-token <token> --token-seed <seed> --allow-org my-org
 ```
 
 Or with a config file that has the `server` section configured:
 
 ```bash
-ito serve
+ito backend serve
 ```

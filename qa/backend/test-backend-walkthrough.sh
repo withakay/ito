@@ -40,7 +40,7 @@ Usage:
 
 Commands:
   reset           Recreate sample backend data
-  start           Start ito serve-api against the sample data
+  start           Start ito backend serve against the sample data
   stop            Stop the sample backend
   status          Show runtime paths and server state
   walk            Run the full guided walkthrough
@@ -454,7 +454,7 @@ start_server() {
     for org in "${ALLOW_ORGS[@]}"; do
       org_args+=(--allow-org "$org")
     done
-    exec "$ITO_BIN" serve-api \
+    exec "$ITO_BIN" backend serve \
       --bind "$HOST" \
       --port "$PORT" \
       --data-dir "$DATA_DIR" \

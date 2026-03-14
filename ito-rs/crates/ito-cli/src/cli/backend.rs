@@ -1,5 +1,16 @@
 use clap::{Args, Subcommand};
 
+use crate::cli::ServeApiArgs;
+
+/// Hidden deprecated top-level `serve-api` argument capture.
+#[derive(Args, Debug, Clone)]
+#[command(disable_help_flag = true, disable_help_subcommand = true)]
+pub struct RemovedServeApiArgs {
+    /// Trailing arguments passed to the removed command.
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub args: Vec<String>,
+}
+
 /// Backend client management commands.
 #[derive(Args, Debug, Clone)]
 pub struct BackendArgs {
@@ -10,6 +21,19 @@ pub struct BackendArgs {
 /// Backend subcommands.
 #[derive(Subcommand, Debug, Clone)]
 pub enum BackendAction {
+    /// Start the backend state API server
+    ///
+    /// Starts the multi-tenant backend server using the canonical backend
+    /// command path.
+    ///
+    /// Examples:
+    ///   ito backend serve
+    ///   ito backend serve --service
+    ///   ito backend serve --port 8080 --bind 0.0.0.0
+    ///   ito backend serve --admin-token my-secret
+    #[command(verbatim_doc_comment)]
+    Serve(ServeApiArgs),
+
     /// Check backend configuration, connectivity, and authentication
     ///
     /// Validates that:

@@ -22,7 +22,7 @@ pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
 
 #[cfg(feature = "backend")]
-pub use backend::{BackendAction, BackendArgs};
+pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs};
 
 /// Creates a Styles builder preconfigured for CLI output.
 ///
@@ -272,20 +272,6 @@ pub enum Commands {
     #[cfg(feature = "web")]
     Serve(ServeArgs),
 
-    /// Start the backend state API server
-    ///
-    /// Exposes Ito project state (changes, tasks, modules) via a RESTful
-    /// HTTP API for multi-agent coordination.
-    ///
-    /// Examples:
-    ///   ito serve-api
-    ///   ito serve-api --service
-    ///   ito serve-api --port 8080 --bind 0.0.0.0
-    ///   ito serve-api --admin-token my-secret
-    #[command(verbatim_doc_comment)]
-    #[cfg(feature = "backend")]
-    ServeApi(ServeApiArgs),
-
     /// Manage backend client configuration and connectivity
     ///
     /// Commands for validating backend configuration, checking server
@@ -307,6 +293,11 @@ pub enum Commands {
     #[command(verbatim_doc_comment, visible_alias = "be")]
     #[cfg(feature = "backend")]
     Backend(BackendArgs),
+
+    /// Removed top-level alias for backend server startup.
+    #[command(name = "serve-api", hide = true)]
+    #[cfg(feature = "backend")]
+    ServeApiRemoved(RemovedServeApiArgs),
 
     // ─── Audit ────────────────────────────────────────────────────────────────────
     /// Query, validate, and manage the audit event log
