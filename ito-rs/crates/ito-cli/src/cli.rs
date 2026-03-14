@@ -22,7 +22,7 @@ pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
 
 #[cfg(feature = "backend")]
-pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs};
+pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
 
 /// Creates a Styles builder preconfigured for CLI output.
 ///
@@ -390,62 +390,6 @@ pub struct ServeArgs {
 pub enum ServeAction {
     /// Start the server (default if no subcommand)
     Start,
-}
-
-/// Multi-tenant backend state API server for multi-agent coordination.
-#[derive(Args, Debug, Clone)]
-#[cfg(feature = "backend")]
-pub struct ServeApiArgs {
-    /// Generate auth tokens and write them to the global config file, then exit.
-    ///
-    /// On first run, generates a cryptographically random admin token and token
-    /// seed, writes them to `~/.config/ito/config.json`, and exits without
-    /// starting the server. If tokens already exist, reports the config path and exits.
-    #[arg(long, conflicts_with = "service")]
-    pub init: bool,
-
-    /// Ensure backend auth exists for unattended service startup, then run.
-    ///
-    /// If backend auth is missing, silently generates and persists tokens to
-    /// `~/.config/ito/config.json` before continuing startup.
-    #[arg(long, conflicts_with = "init")]
-    pub service: bool,
-
-    /// Port to listen on (default: 9010)
-    #[arg(short, long)]
-    pub port: Option<u16>,
-
-    /// Address to bind to (default: 127.0.0.1)
-    #[arg(short, long)]
-    pub bind: Option<String>,
-
-    /// Root directory for backend-managed project data.
-    ///
-    /// Defaults to `$XDG_DATA_HOME/ito/backend` or `$HOME/.local/share/ito/backend`.
-    #[arg(long)]
-    pub data_dir: Option<String>,
-
-    /// Admin bearer token with full access to all projects.
-    ///
-    /// Can be specified multiple times. Also set via `ITO_BACKEND_ADMIN_TOKEN`.
-    #[arg(long)]
-    pub admin_token: Vec<String>,
-
-    /// Secret seed for deriving per-project tokens via HMAC-SHA256.
-    ///
-    /// Also set via `ITO_BACKEND_TOKEN_SEED`.
-    #[arg(long)]
-    pub token_seed: Option<String>,
-
-    /// Allow an organization (can be specified multiple times).
-    #[arg(long)]
-    pub allow_org: Vec<String>,
-
-    /// Path to a TOML/JSON config file for full backend server configuration.
-    ///
-    /// When provided, CLI flags override corresponding config file values.
-    #[arg(long)]
-    pub config: Option<String>,
 }
 
 /// Deprecated alias for `create change`.

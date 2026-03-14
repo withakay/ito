@@ -334,7 +334,7 @@ fn removed_serve_api_replacement(args: &crate::cli::RemovedServeApiArgs) -> Stri
     replacement.join(" ")
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "backend"))]
 mod tests {
     use super::removed_serve_api_replacement;
     use crate::cli::RemovedServeApiArgs;

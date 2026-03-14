@@ -33,7 +33,7 @@ pub(crate) use ralph::handle_ralph_clap;
 #[cfg(feature = "web")]
 pub(crate) use serve::handle_serve_clap;
 #[cfg(feature = "backend")]
-pub(crate) use serve_api::handle_serve_api_clap;
+pub(crate) use serve_api::handle_backend_serve_clap;
 pub(crate) use stats::handle_stats_clap;
 pub(crate) use tasks::handle_tasks_clap;
 pub(crate) use templates::handle_templates_clap;

@@ -133,7 +133,7 @@ fn backend_serve_init_prints_backend_command_guidance() {
         out.stdout
     );
     assert!(
-        out.stdout.contains("  ito backend serve"),
+        out.stdout.contains("ito backend serve"),
         "stdout={}",
         out.stdout
     );

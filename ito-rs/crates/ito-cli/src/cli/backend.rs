@@ -1,7 +1,5 @@
 use clap::{Args, Subcommand};
 
-use crate::cli::ServeApiArgs;
-
 /// Hidden deprecated top-level `serve-api` argument capture.
 #[derive(Args, Debug, Clone)]
 #[command(disable_help_flag = true, disable_help_subcommand = true)]
@@ -9,6 +7,46 @@ pub struct RemovedServeApiArgs {
     /// Trailing arguments passed to the removed command.
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
+}
+
+/// Arguments for `ito backend serve`.
+#[derive(Args, Debug, Clone)]
+pub struct ServeArgs {
+    /// Generate auth tokens and write them to the global config file, then exit.
+    #[arg(long, conflicts_with = "service")]
+    pub init: bool,
+
+    /// Ensure backend auth exists for unattended service startup, then run.
+    #[arg(long, conflicts_with = "init")]
+    pub service: bool,
+
+    /// Port to listen on (default: 9010)
+    #[arg(short, long)]
+    pub port: Option<u16>,
+
+    /// Address to bind to (default: 127.0.0.1)
+    #[arg(short, long)]
+    pub bind: Option<String>,
+
+    /// Root directory for backend-managed project data.
+    #[arg(long)]
+    pub data_dir: Option<String>,
+
+    /// Admin bearer token with full access to all projects.
+    #[arg(long)]
+    pub admin_token: Vec<String>,
+
+    /// Secret seed for deriving per-project tokens via HMAC-SHA256.
+    #[arg(long)]
+    pub token_seed: Option<String>,
+
+    /// Allow an organization (can be specified multiple times).
+    #[arg(long)]
+    pub allow_org: Vec<String>,
+
+    /// Path to a TOML/JSON config file for full backend server configuration.
+    #[arg(long)]
+    pub config: Option<String>,
 }
 
 /// Backend client management commands.
@@ -32,7 +70,7 @@ pub enum BackendAction {
     ///   ito backend serve --port 8080 --bind 0.0.0.0
     ///   ito backend serve --admin-token my-secret
     #[command(verbatim_doc_comment)]
-    Serve(ServeApiArgs),
+    Serve(ServeArgs),
 
     /// Check backend configuration, connectivity, and authentication
     ///

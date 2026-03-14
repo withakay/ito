@@ -10,7 +10,7 @@
 //! lives in [`ito_core::backend_auth`]; this module handles only argument
 //! parsing and output formatting.
 
-use crate::cli::ServeApiArgs;
+use crate::cli::BackendServeArgs;
 use crate::cli_error::{CliError, CliResult};
 
 use ito_config::types::{
@@ -22,9 +22,9 @@ use serde::de::DeserializeOwned;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-pub(crate) fn handle_serve_api_clap(
+pub(crate) fn handle_backend_serve_clap(
     _rt: &crate::runtime::Runtime,
-    args: &ServeApiArgs,
+    args: &BackendServeArgs,
 ) -> CliResult<()> {
     let ctx = ConfigContext::from_process_env();
     let bootstrap_result = if args.init || args.service {
@@ -102,7 +102,7 @@ pub(crate) fn handle_serve_api_clap(
 
 fn load_backend_server_config(
     ctx: &ConfigContext,
-    args: &ServeApiArgs,
+    args: &BackendServeArgs,
 ) -> CliResult<BackendServerConfig> {
     if let Some(path) = &args.config {
         return load_backend_server_config_file(Path::new(path));

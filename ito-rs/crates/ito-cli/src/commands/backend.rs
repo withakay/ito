@@ -14,7 +14,7 @@ use std::path::Path;
 /// Dispatch `ito backend` subcommands.
 pub fn handle_backend_clap(rt: &Runtime, args: &BackendArgs) -> CliResult<()> {
     match &args.action {
-        BackendAction::Serve(args) => super::handle_serve_api_clap(rt, args),
+        BackendAction::Serve(args) => super::handle_backend_serve_clap(rt, args),
         BackendAction::Status { json } => handle_status(rt, *json),
         BackendAction::Import { dry_run } => handle_import(rt, *dry_run),
         BackendAction::GenerateToken { seed, org, repo } => {
