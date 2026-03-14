@@ -25,8 +25,8 @@ ______________________________________________________________________
 - **Action**: Move backend server startup into the backend command group while reusing the existing serve implementation and preserving current flags/config behavior.
 - **Verify**: `cargo test -p ito-cli backend`
 - **Done When**: `ito backend serve` starts the backend server successfully and current serve-mode tests pass through the new command path.
-- **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-13
+- **Status**: [x] complete
 
 ### Task 1.2: Remove top-level `serve-api` and add migration guidance
 
@@ -35,8 +35,8 @@ ______________________________________________________________________
 - **Action**: Remove the top-level `serve-api` entrypoint and replace any remaining invocation path with actionable guidance to use `ito backend serve`.
 - **Verify**: `cargo test -p ito-cli cli`
 - **Done When**: `ito serve-api` is no longer a supported command and users are guided to `ito backend serve` instead.
-- **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-13
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -51,5 +51,5 @@ ______________________________________________________________________
 - **Action**: Update backend instructions, QA walkthroughs, help snapshots, and related docs to reference `ito backend serve` as the canonical startup command.
 - **Verify**: `cargo test -p ito-cli --test backend_qa_walkthrough && make check`
 - **Done When**: No backend startup guidance points to `ito serve-api`, and QA/docs validation passes under the new command path.
-- **Updated At**: 2026-03-10
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-14
+- **Status**: [x] complete

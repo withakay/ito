@@ -27,7 +27,7 @@ impl TestContext {
     }
 
     fn run_service_mode(&self) -> ito_test_support::CmdOutput {
-        self.run(&["serve-api", "--service", "--bind", "not-an-address"])
+        self.run(&["backend", "serve", "--service", "--bind", "not-an-address"])
     }
 
     fn run(&self, args: &[&str]) -> ito_test_support::CmdOutput {
@@ -50,7 +50,7 @@ fn assert_silent_invalid_address(out: &ito_test_support::CmdOutput) {
 }
 
 #[test]
-fn service_mode_bootstraps_missing_auth_silently() {
+fn backend_serve_service_mode_bootstraps_missing_auth_silently() {
     let cx = TestContext::new();
 
     let out = cx.run_service_mode();
@@ -75,7 +75,7 @@ fn service_mode_bootstraps_missing_auth_silently() {
 }
 
 #[test]
-fn service_mode_reuses_existing_auth_without_printing_init_output() {
+fn backend_serve_service_mode_reuses_existing_auth_without_printing_init_output() {
     let cx = TestContext::new();
 
     let config_path = cx.config_path();
@@ -104,7 +104,7 @@ fn service_mode_reuses_existing_auth_without_printing_init_output() {
 }
 
 #[test]
-fn service_mode_reports_malformed_backend_config() {
+fn backend_serve_service_mode_reports_malformed_backend_config() {
     let cx = TestContext::new();
 
     let config_path = cx.config_path();
@@ -121,7 +121,31 @@ fn service_mode_reports_malformed_backend_config() {
 }
 
 #[test]
-fn serve_api_reports_unknown_fields_in_explicit_config_file() {
+fn backend_serve_init_prints_backend_command_guidance() {
+    let cx = TestContext::new();
+
+    let out = cx.run(&["backend", "serve", "--init"]);
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("Generated backend server auth tokens."),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("ito backend serve"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        !out.stdout.contains("ito serve-api"),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+fn backend_serve_reports_unknown_fields_in_explicit_config_file() {
     let cx = TestContext::new();
     let config_path = cx.repo.path().join("backend.json");
     fixtures::write(
@@ -130,7 +154,8 @@ fn serve_api_reports_unknown_fields_in_explicit_config_file() {
     );
 
     let out = cx.run(&[
-        "serve-api",
+        "backend",
+        "serve",
         "--config",
         config_path.to_str().unwrap(),
         "--bind",

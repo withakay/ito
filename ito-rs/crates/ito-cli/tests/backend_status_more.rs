@@ -418,8 +418,15 @@ fn generate_token_no_seed_fails() {
     assert_ne!(out.code, 0, "should fail without seed");
     let combined = format!("{}{}", out.stdout, out.stderr);
     assert!(
-        combined.contains("No token seed configured") || combined.contains("seed"),
-        "output should mention missing seed\nstdout={}\nstderr={}",
+        combined
+            .contains("No token seed configured. Run 'ito backend serve --init' to generate one"),
+        "output should mention backend serve init guidance\nstdout={}\nstderr={}",
+        out.stdout,
+        out.stderr
+    );
+    assert!(
+        !combined.contains("ito serve-api --init"),
+        "output should not mention removed serve-api command\nstdout={}\nstderr={}",
         out.stdout,
         out.stderr
     );

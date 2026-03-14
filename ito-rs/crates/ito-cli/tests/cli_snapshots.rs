@@ -137,6 +137,19 @@ fn snapshot_agent_instruction_help() {
 }
 
 #[test]
+fn snapshot_backend_help() {
+    insta::assert_snapshot!("ito_backend_help", snapshot(&["backend", "--help"]));
+}
+
+#[test]
+fn snapshot_backend_serve_help() {
+    insta::assert_snapshot!(
+        "ito_backend_serve_help",
+        snapshot(&["backend", "serve", "--help"])
+    );
+}
+
+#[test]
 fn snapshot_list_help() {
     insta::assert_snapshot!("ito_list_help", snapshot(&["list", "--help"]));
 }

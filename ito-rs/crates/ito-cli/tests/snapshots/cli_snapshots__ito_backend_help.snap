@@ -1,0 +1,40 @@
+---
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"backend\", \"--help\"])"
+---
+Manage backend client configuration and connectivity
+
+Commands for validating backend configuration, checking server
+connectivity, and generating authentication tokens.
+
+Token resolution order (highest priority first):
+  1. Environment variable (ITO_BACKEND_TOKEN)
+  2. CLI flag (where applicable)
+  3. Config file (backend.token in .ito/config.json)
+
+Security: Store tokens in environment variables or .ito/config.local.json
+(gitignored), not in .ito/config.json which may be committed to git.
+
+Examples:
+  ito backend status
+  ito backend status --json
+  ito backend generate-token
+  ito backend generate-token --seed my-seed --org acme --repo widgets
+
+Usage: ito backend [OPTIONS] <COMMAND>
+
+Commands:
+  serve           Start the backend state API server
+  status          Check backend configuration, connectivity, and authentication [aliases: st]
+  generate-token  Generate a project-scoped bearer token from an HMAC seed [aliases: gt]
+  import          Import local active and archived changes into backend-managed state [aliases: im]
+
+Options:
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+  -h, --help
+          Print help (see a summary with '-h')
