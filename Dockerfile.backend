@@ -7,7 +7,7 @@
 # Usage:
 #   docker compose -f docker-compose.backend.yml up --build
 #
-# The entrypoint runs `ito serve-api` with bind 0.0.0.0 so the port is
+# The entrypoint runs `ito backend serve` with bind 0.0.0.0 so the port is
 # accessible from the Docker host.
 
 # ---------- build stage ----------
@@ -36,4 +36,4 @@ ENV ITO_BACKEND_DATA_DIR=/data
 
 EXPOSE 9010
 
-ENTRYPOINT ["ito", "serve-api", "--bind", "0.0.0.0"]
+ENTRYPOINT ["ito", "backend", "serve", "--bind", "0.0.0.0"]

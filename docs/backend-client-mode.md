@@ -13,21 +13,21 @@ Ito provides several options for running the backend locally:
 
 | Runtime | Platform | Best For |
 |---------|----------|----------|
-| Ito CLI (`ito serve-api`) | macOS, Linux | Local development, ad-hoc testing |
+| Ito CLI (`ito backend serve`) | macOS, Linux | Local development, ad-hoc testing |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
 | Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
-#### Ito CLI (`ito serve-api`)
+#### Ito CLI (`ito backend serve`)
 
 Run the backend directly with the installed Ito binary. This is the quickest way to start a local server when you already have Ito installed.
 
 ```bash
 # One-time: generate and persist auth tokens to ~/.config/ito/config.json
-ito serve-api --init
+ito backend serve --init
 
 # Start the backend (reads tokens from config file automatically)
-ito serve-api
+ito backend serve
 
 # Verify health
 curl http://127.0.0.1:9010/api/v1/health
@@ -42,7 +42,7 @@ Auth configuration is resolved in this order (highest priority first):
 You can also pass values directly:
 
 ```bash
-ito serve-api \
+ito backend serve \
   --admin-token "dev-admin-token" \
   --token-seed "dev-token-seed" \
   --data-dir "/path/to/backend/data"
@@ -70,7 +70,7 @@ For long-running development on macOS, you can run the backend as a Homebrew-man
 ```bash
 # Install the tap and formula
 brew tap withakay/ito
-brew install ito
+brew install ito-cli
 
 # Start the service
 brew services start ito-cli
@@ -81,10 +81,10 @@ brew services start ito-cli
 curl http://127.0.0.1:9010/api/v1/health
 ```
 
-The Homebrew formula's service block runs `ito serve-api --service`.
+The Homebrew formula's service block runs `ito backend serve --service`.
 
 If you want to generate tokens ahead of time or inspect the config path, you can still run
-`ito serve-api --init` manually before starting the service.
+`ito backend serve --init` manually before starting the service.
 
 Service management commands:
 
@@ -118,7 +118,7 @@ For Linux systems with systemd, you can run the backend as a user or system serv
 
 ```bash
 # One-time: generate and persist auth tokens to ~/.config/ito/config.json
-ito serve-api --init
+ito backend serve --init
 
 # Install the unit file
 mkdir -p ~/.config/systemd/user/
