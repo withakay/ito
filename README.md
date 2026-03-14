@@ -119,11 +119,11 @@ Ito includes an optional multi-tenant backend API for coordinating multiple agen
 | Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
-**Quick start (`ito serve-api`):**
+**Quick start (`ito backend serve`):**
 
 ```bash
-ito serve-api --init   # one-time: generate and save auth tokens
-ito serve-api          # start the server (reads tokens from config)
+ito backend serve --init   # one-time: generate and save auth tokens
+ito backend serve          # start the server (reads tokens from config)
 curl http://127.0.0.1:9010/api/v1/health
 ```
 
@@ -138,17 +138,17 @@ curl http://127.0.0.1:9010/api/v1/health
 
 ```bash
 brew tap withakay/ito
-brew install ito
-brew services start ito
+brew install ito-cli
+brew services start ito-cli
 ```
 
-The Homebrew service runs `ito serve-api --service`, which creates backend auth in
+The Homebrew service runs `ito backend serve --service`, which creates backend auth in
 `~/.config/ito/config.json` on first start if it is missing.
 
 **systemd (Linux):**
 
 ```bash
-ito serve-api --init  # one-time: generate auth tokens
+ito backend serve --init  # one-time: generate auth tokens
 cp services/ito-backend.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now ito-backend

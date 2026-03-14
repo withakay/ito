@@ -217,17 +217,6 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
         }
 
         #[cfg(feature = "backend")]
-        Some(Commands::ServeApi(args)) => {
-            return util::with_logging(
-                &rt,
-                &command_id,
-                &project_root,
-                &ito_path_for_logging,
-                || commands::handle_serve_api_clap(&rt, args),
-            );
-        }
-
-        #[cfg(feature = "backend")]
         Some(Commands::Backend(args)) => {
             return util::with_logging(
                 &rt,
@@ -236,6 +225,14 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 &ito_path_for_logging,
                 || commands::handle_backend_clap(&rt, args),
             );
+        }
+
+        #[cfg(feature = "backend")]
+        Some(Commands::ServeApiRemoved(args)) => {
+            return fail(format!(
+                "The top-level `ito serve-api` command has been removed.\nUse `{}` instead.",
+                removed_serve_api_replacement(args)
+            ));
         }
 
         Some(Commands::Agent(args)) => {
@@ -324,4 +321,37 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             Ok(())
         },
     )
+}
+
+#[cfg(feature = "backend")]
+fn removed_serve_api_replacement(args: &crate::cli::RemovedServeApiArgs) -> String {
+    let mut replacement = vec![
+        "ito".to_string(),
+        "backend".to_string(),
+        "serve".to_string(),
+    ];
+    replacement.extend(args.args.iter().cloned());
+    replacement.join(" ")
+}
+
+#[cfg(all(test, feature = "backend"))]
+mod tests {
+    use super::removed_serve_api_replacement;
+    use crate::cli::RemovedServeApiArgs;
+
+    #[test]
+    fn removed_serve_api_replacement_preserves_flags_and_args() {
+        let replacement = removed_serve_api_replacement(&RemovedServeApiArgs {
+            args: vec![
+                "--service".to_string(),
+                "--bind".to_string(),
+                "127.0.0.1".to_string(),
+            ],
+        });
+
+        assert_eq!(
+            replacement,
+            "ito backend serve --service --bind 127.0.0.1".to_string()
+        );
+    }
 }

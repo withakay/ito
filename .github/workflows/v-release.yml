@@ -338,7 +338,7 @@ jobs:
 
           service_block = """
             service do
-              run [opt_bin/"ito", "serve-api", "--service"]
+              run [opt_bin/"ito", "backend", "serve", "--service"]
               keep_alive true
               log_path var/"log/ito-backend.log"
               error_log_path var/"log/ito-backend.log"

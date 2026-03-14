@@ -4,7 +4,7 @@ use tempfile::tempdir;
 
 #[test]
 fn builds_config_with_defaults() {
-    let args = ServeApiArgs {
+    let args = BackendServeArgs {
         init: false,
         service: false,
         port: None,

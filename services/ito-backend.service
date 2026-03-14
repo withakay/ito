@@ -22,7 +22,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ito serve-api --bind 127.0.0.1 --port 9010
+ExecStart=/usr/local/bin/ito backend serve --bind 127.0.0.1 --port 9010
 Restart=on-failure
 RestartSec=5
 

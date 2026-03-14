@@ -46,4 +46,4 @@ EXPOSE 9010
 
 # Default: bind to all interfaces so the container is reachable,
 # store data in /data for easy volume mounting.
-ENTRYPOINT ["ito", "serve-api", "--bind", "0.0.0.0", "--data-dir", "/data"]
+ENTRYPOINT ["ito", "backend", "serve", "--bind", "0.0.0.0", "--data-dir", "/data"]
