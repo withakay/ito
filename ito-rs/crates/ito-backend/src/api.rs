@@ -20,6 +20,7 @@ use crate::auth::TokenScope;
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
 use ito_core::ChangeLifecycleFilter;
+use ito_core::audit::AuditEventStore;
 
 // ── Response types ──────────────────────────────────────────────────
 
@@ -770,6 +771,19 @@ pub struct IngestEventsResponse {
     pub duplicates: usize,
 }
 
+/// `GET /api/v1/projects/{org}/{repo}/events` — list backend-managed audit events.
+pub async fn list_events(
+    State(state): State<Arc<AppState>>,
+    Path((org, repo)): Path<(String, String)>,
+) -> Result<Json<Vec<ito_core::audit::AuditEvent>>, ApiErrorResponse> {
+    let ito_path = state
+        .ito_path_for(&org, &repo)
+        .map_err(|e| ApiErrorResponse::bad_request(e.to_string()))?;
+    Ok(Json(
+        ito_core::audit::FsAuditWriter::new(&ito_path).read_all(),
+    ))
+}
+
 /// `POST /api/v1/projects/{org}/{repo}/events` — ingest a batch of audit events.
 ///
 /// Accepts a JSON body with an array of events and an idempotency key.
@@ -948,7 +962,7 @@ fn project_router() -> Router<Arc<AppState>> {
         .route("/modules/{module_id}", get(get_module))
         .route("/specs", get(list_specs))
         .route("/specs/{spec_id}", get(get_spec))
-        .route("/events", post(ingest_events))
+        .route("/events", get(list_events).post(ingest_events))
 }
 
 fn parse_lifecycle_filter(

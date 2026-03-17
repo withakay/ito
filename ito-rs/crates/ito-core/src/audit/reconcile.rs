@@ -1,15 +1,17 @@
-//! Reconciliation engine: compare audit log against file-on-disk state,
-//! detect drift, and optionally emit compensating events.
+//! Reconciliation engine: compare routed audit history against file-on-disk
+//! state, detect drift, and optionally emit compensating events.
 
 use std::path::Path;
 
 use ito_domain::audit::context::resolve_context;
 use ito_domain::audit::materialize::{EntityKey, materialize_state};
 use ito_domain::audit::reconcile::{Drift, FileState, compute_drift, generate_compensating_events};
-use ito_domain::audit::writer::AuditWriter;
 use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file};
 
 use super::reader::read_audit_events;
+use super::store::default_audit_store;
+
+#[cfg(test)]
 use super::writer::FsAuditWriter;
 
 /// Result of a reconciliation run.
@@ -84,7 +86,7 @@ pub fn run_reconcile(ito_path: &Path, change_id: Option<&str>, fix: bool) -> Rec
     let events_written = if fix && !drifts.is_empty() {
         let ctx = resolve_context(ito_path);
         let compensating = generate_compensating_events(&drifts, Some(change_id), &ctx);
-        let writer = FsAuditWriter::new(ito_path);
+        let writer = default_audit_store(ito_path);
         let mut written = 0;
         for event in &compensating {
             if writer.append(event).is_ok() {

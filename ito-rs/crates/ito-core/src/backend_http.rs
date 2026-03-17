@@ -10,10 +10,12 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
+use crate::audit::AuditEvent;
 use crate::backend_client::{BackendRuntime, is_retriable_status};
 use ito_domain::backend::{
-    ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader, BackendModuleReader,
-    BackendSpecReader, BackendSyncClient, PushResult,
+    ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
+    BackendEventIngestClient, BackendModuleReader, BackendSpecReader, BackendSyncClient,
+    EventBatch, EventIngestResult, PushResult,
 };
 use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
@@ -60,6 +62,23 @@ impl BackendHttpClient {
         );
         let list: ApiTaskList = self.get_json(&url, "task", Some(change_id))?;
         Ok(task_list_to_parse_result(list))
+    }
+
+    /// Read backend-managed audit events for the current project.
+    pub fn list_audit_events(&self) -> Result<Vec<AuditEvent>, ito_domain::backend::BackendError> {
+        let url = format!("{}/events", self.inner.runtime.project_api_prefix());
+        self.backend_get_json(&url)
+    }
+
+    /// Submit audit events directly to the backend for the current project.
+    pub fn ingest_event_batch(
+        &self,
+        batch: &EventBatch,
+    ) -> Result<EventIngestResult, ito_domain::backend::BackendError> {
+        let url = format!("{}/events", self.inner.runtime.project_api_prefix());
+        let body = serde_json::to_string(batch)
+            .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+        self.backend_post_json(&url, Some(&body))
     }
 
     fn get_json<T: DeserializeOwned>(
@@ -463,6 +482,15 @@ impl BackendArchiveClient for BackendHttpClient {
             self.inner.runtime.project_api_prefix()
         );
         self.backend_post_json(&url, Some("{}"))
+    }
+}
+
+impl BackendEventIngestClient for BackendHttpClient {
+    fn ingest(
+        &self,
+        batch: &EventBatch,
+    ) -> Result<EventIngestResult, ito_domain::backend::BackendError> {
+        self.ingest_event_batch(batch)
     }
 }
 

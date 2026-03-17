@@ -174,8 +174,7 @@ pub fn install_default_templates(
     if mode == InstallMode::Init {
         ensure_repo_gitignore_ignores_session_json(project_root, &ito_dir)?;
         ensure_repo_gitignore_ignores_audit_session(project_root, &ito_dir)?;
-        // Un-ignore audit event log so it is git-tracked even if .state/ is broadly ignored.
-        ensure_repo_gitignore_unignores_audit_events(project_root, &ito_dir)?;
+        remove_repo_gitignore_unignores_audit_events(project_root, &ito_dir)?;
     }
 
     // Local (per-developer) config overlays should never be committed.
@@ -218,17 +217,13 @@ fn ensure_repo_gitignore_ignores_audit_session(
     ensure_gitignore_contains_line(project_root, &entry)
 }
 
-/// Un-ignore the audit events directory so `events.jsonl` is git-tracked.
-///
-/// If `.ito/.state/` is broadly gitignored (e.g., by a user rule or template),
-/// we add `!.ito/.state/audit/` to override the ignore and ensure the audit
-/// event log is committed alongside other project artifacts.
-fn ensure_repo_gitignore_unignores_audit_events(
+/// Remove the legacy audit events unignore so worktree audit logs stay untracked.
+fn remove_repo_gitignore_unignores_audit_events(
     project_root: &Path,
     ito_dir: &str,
 ) -> CoreResult<()> {
     let entry = format!("!{ito_dir}/.state/audit/");
-    ensure_gitignore_contains_line(project_root, &entry)
+    remove_gitignore_exact_line(project_root, &entry)
 }
 
 fn ensure_gitignore_contains_line(project_root: &Path, entry: &str) -> CoreResult<()> {
@@ -256,6 +251,31 @@ fn ensure_gitignore_contains_line(project_root: &Path, entry: &str) -> CoreResul
     s.push('\n');
 
     ito_common::io::write_std(&path, s)
+        .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
+    Ok(())
+}
+
+fn remove_gitignore_exact_line(project_root: &Path, entry: &str) -> CoreResult<()> {
+    let path = project_root.join(".gitignore");
+    let existing = match ito_common::io::read_to_string_std(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(CoreError::io(format!("reading {}", path.display()), e)),
+    };
+
+    let mut filtered = Vec::new();
+    for line in existing.lines() {
+        if line.trim() == entry {
+            continue;
+        }
+        filtered.push(line);
+    }
+    let mut updated = filtered.join("\n");
+    if !updated.is_empty() {
+        updated.push('\n');
+    }
+
+    ito_common::io::write_std(&path, updated)
         .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
     Ok(())
 }
@@ -917,23 +937,32 @@ mod tests {
     }
 
     #[test]
-    fn gitignore_audit_events_unignored() {
+    fn gitignore_legacy_audit_events_unignore_removed() {
         let td = tempfile::tempdir().unwrap();
-        ensure_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
+        std::fs::write(
+            td.path().join(".gitignore"),
+            ".ito/.state/\n!.ito/.state/audit/\n",
+        )
+        .unwrap();
+        remove_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
         let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
-        assert!(s.contains("!.ito/.state/audit/"));
+        assert_eq!(s, ".ito/.state/\n");
     }
 
     #[test]
     fn gitignore_full_audit_setup() {
         let td = tempfile::tempdir().unwrap();
         // Simulate a broad .state/ ignore
-        std::fs::write(td.path().join(".gitignore"), ".ito/.state/\n").unwrap();
+        std::fs::write(
+            td.path().join(".gitignore"),
+            ".ito/.state/\n!.ito/.state/audit/\n",
+        )
+        .unwrap();
         ensure_repo_gitignore_ignores_audit_session(td.path(), ".ito").unwrap();
-        ensure_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
+        remove_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
         let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
         assert!(s.contains(".ito/.state/audit/.session"));
-        assert!(s.contains("!.ito/.state/audit/"));
+        assert!(!s.contains("!.ito/.state/audit/"));
     }
 
     #[test]

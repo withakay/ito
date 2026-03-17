@@ -1,10 +1,10 @@
-//! Audit log reader: parse events from JSONL file with optional filtering.
+//! Routed audit log reader with optional filtering.
 
 use std::path::Path;
 
 use ito_domain::audit::event::AuditEvent;
 
-use super::writer::audit_log_path;
+use super::store::AuditEventStore;
 
 /// Filter criteria for reading audit events.
 #[derive(Debug, Default, Clone)]
@@ -40,39 +40,29 @@ impl EventFilter {
     }
 }
 
-/// Read all audit events from the project's JSONL file.
-///
-/// Malformed lines are skipped with a tracing warning. If the file does not
-/// exist, returns an empty vector.
+/// Read all audit events from the project's routed audit store.
 pub fn read_audit_events(ito_path: &Path) -> Vec<AuditEvent> {
-    let path = audit_log_path(ito_path);
-
-    let Ok(contents) = std::fs::read_to_string(&path) else {
-        return Vec::new();
-    };
-
-    let mut events = Vec::new();
-    for (line_num, line) in contents.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        match serde_json::from_str::<AuditEvent>(line) {
-            Ok(event) => events.push(event),
-            Err(e) => {
-                tracing::warn!("audit log line {}: malformed event: {e}", line_num + 1);
-            }
-        }
-    }
-
-    events
+    let store = super::store::default_audit_store(ito_path);
+    read_audit_events_from_store(store.as_ref())
 }
 
-/// Read audit events with a filter applied.
-///
-/// Only events matching all filter criteria are returned.
+/// Read all audit events from an injected audit store.
+pub fn read_audit_events_from_store(store: &dyn AuditEventStore) -> Vec<AuditEvent> {
+    store.read_all()
+}
+
+/// Read audit events with a filter applied from the routed audit store.
 pub fn read_audit_events_filtered(ito_path: &Path, filter: &EventFilter) -> Vec<AuditEvent> {
-    let all = read_audit_events(ito_path);
+    let store = super::store::default_audit_store(ito_path);
+    read_audit_events_filtered_from_store(store.as_ref(), filter)
+}
+
+/// Read audit events with a filter from an injected audit store.
+pub fn read_audit_events_filtered_from_store(
+    store: &dyn AuditEventStore,
+    filter: &EventFilter,
+) -> Vec<AuditEvent> {
+    let all = read_audit_events_from_store(store);
     let mut filtered = Vec::new();
     for event in all {
         if filter.matches(&event) {
@@ -86,8 +76,33 @@ pub fn read_audit_events_filtered(ito_path: &Path, filter: &EventFilter) -> Vec<
 mod tests {
     use super::*;
     use crate::audit::writer::FsAuditWriter;
+    use crate::audit::{AuditEventStore, AuditStorageLocation};
     use ito_domain::audit::event::{EventContext, SCHEMA_VERSION};
     use ito_domain::audit::writer::AuditWriter;
+
+    #[derive(Default)]
+    struct MemoryAuditStore {
+        events: Vec<AuditEvent>,
+    }
+
+    impl AuditWriter for MemoryAuditStore {
+        fn append(
+            &self,
+            _event: &AuditEvent,
+        ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+            Ok(())
+        }
+    }
+
+    impl AuditEventStore for MemoryAuditStore {
+        fn read_all(&self) -> Vec<AuditEvent> {
+            self.events.clone()
+        }
+
+        fn location(&self) -> AuditStorageLocation {
+            AuditStorageLocation::Other("memory")
+        }
+    }
 
     fn make_event(entity: &str, entity_id: &str, scope: Option<&str>, op: &str) -> AuditEvent {
         AuditEvent {
@@ -280,6 +295,18 @@ mod tests {
             op: Some("create".to_string()),
         };
         let events = read_audit_events_filtered(&ito_path, &filter);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].entity_id, "1.1");
+    }
+
+    #[test]
+    fn reads_events_from_injected_store() {
+        let store = MemoryAuditStore {
+            events: vec![make_event("task", "1.1", Some("ch"), "create")],
+        };
+
+        let events = read_audit_events_from_store(&store);
+
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].entity_id, "1.1");
     }

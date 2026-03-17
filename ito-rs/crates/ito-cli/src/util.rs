@@ -5,6 +5,7 @@ use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
 use ito_core::backend_client::resolve_backend_runtime;
 use ito_core::event_forwarder::{ForwarderConfig, forward_events};
+use ito_core::repository_runtime::{PersistenceMode, resolve_repository_runtime};
 use ito_logging::{Logger as ExecLogger, Outcome as LogOutcome};
 use std::path::{Path, PathBuf};
 
@@ -206,6 +207,12 @@ fn forward_events_if_backend(rt: &Runtime) {
     let Some(project_root) = ito_path.parent() else {
         return;
     };
+
+    if let Ok(runtime) = resolve_repository_runtime(ito_path, rt.ctx())
+        && runtime.mode() == PersistenceMode::Remote
+    {
+        return;
+    }
 
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
     let config: ItoConfig = match serde_json::from_value(merged) {

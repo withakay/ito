@@ -1,17 +1,17 @@
 //! Poll-based audit event streaming with multi-worktree support.
 //!
-//! Provides a simple file-watching mechanism that polls the JSONL audit log
-//! for new events at a configurable interval. Supports monitoring events
-//! across multiple git worktrees.
+//! Provides a simple polling mechanism that checks routed audit storage for
+//! new events at a configurable interval. Supports monitoring events across
+//! multiple git worktrees without assuming a tracked worktree JSONL file.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashSet;
+use std::path::Path;
 use std::time::Duration;
 
 use ito_domain::audit::event::AuditEvent;
 
-use super::reader::read_audit_events;
-use super::worktree::{discover_worktrees, worktree_audit_log_path};
-use super::writer::audit_log_path;
+use super::store::{AuditEventStore, audit_storage_location_key, default_audit_store};
+use super::worktree::discover_worktrees;
 
 /// Configuration for the event stream.
 #[derive(Debug, Clone)]
@@ -35,12 +35,11 @@ impl Default for StreamConfig {
 }
 
 /// A single stream source: either the main project or a worktree.
-#[derive(Debug)]
 pub struct StreamSource {
     /// Label for this source (e.g., "main" or worktree branch name).
     pub label: String,
-    /// Path to the audit log file.
-    log_path: PathBuf,
+    /// Routed audit store retained across polls.
+    store: Box<dyn AuditEventStore>,
     /// Number of lines previously seen.
     offset: usize,
 }
@@ -64,10 +63,12 @@ pub fn read_initial_events(
 ) -> (Vec<StreamEvent>, Vec<StreamSource>) {
     let mut sources = Vec::new();
     let mut events = Vec::new();
+    let mut seen_locations = HashSet::new();
 
     // Main project source
-    let main_events = read_audit_events(ito_path);
-    let main_log = audit_log_path(ito_path);
+    let main_store = default_audit_store(ito_path);
+    let main_key = audit_storage_location_key(&main_store.location());
+    let main_events = main_store.read_all();
     let start = main_events.len().saturating_sub(config.last);
     for event in &main_events[start..] {
         events.push(StreamEvent {
@@ -77,9 +78,10 @@ pub fn read_initial_events(
     }
     sources.push(StreamSource {
         label: "main".to_string(),
-        log_path: main_log,
+        store: main_store,
         offset: main_events.len(),
     });
+    seen_locations.insert(main_key);
 
     // Worktree sources
     if config.all_worktrees {
@@ -89,8 +91,17 @@ pub fn read_initial_events(
                 continue; // Already handled above
             }
             let wt_ito_path = wt.path.join(".ito");
-            let wt_log = worktree_audit_log_path(wt);
-            let wt_events = read_audit_events(&wt_ito_path);
+            if !wt_ito_path.exists() {
+                continue;
+            }
+
+            let wt_store = default_audit_store(&wt_ito_path);
+            let wt_key = audit_storage_location_key(&wt_store.location());
+            if !seen_locations.insert(wt_key) {
+                continue;
+            }
+
+            let wt_events = wt_store.read_all();
             let label = wt
                 .branch
                 .clone()
@@ -104,7 +115,7 @@ pub fn read_initial_events(
             }
             sources.push(StreamSource {
                 label,
-                log_path: wt_log,
+                store: wt_store,
                 offset: wt_events.len(),
             });
         }
@@ -120,29 +131,19 @@ pub fn poll_new_events(sources: &mut [StreamSource]) -> Vec<StreamEvent> {
     let mut new_events = Vec::new();
 
     for source in sources.iter_mut() {
-        let Ok(contents) = std::fs::read_to_string(&source.log_path) else {
-            continue;
-        };
-
-        let lines: Vec<&str> = contents.lines().collect();
-        if lines.len() <= source.offset {
+        let current_events = source.store.read_all();
+        if current_events.len() <= source.offset {
             continue;
         }
 
-        for line in &lines[source.offset..] {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            if let Ok(event) = serde_json::from_str::<AuditEvent>(line) {
-                new_events.push(StreamEvent {
-                    event,
-                    source: source.label.clone(),
-                });
-            }
+        for event in &current_events[source.offset..] {
+            new_events.push(StreamEvent {
+                event: event.clone(),
+                source: source.label.clone(),
+            });
         }
 
-        source.offset = lines.len();
+        source.offset = current_events.len();
     }
 
     new_events
@@ -152,7 +153,34 @@ pub fn poll_new_events(sources: &mut [StreamSource]) -> Vec<StreamEvent> {
 mod tests {
     use super::*;
     use ito_domain::audit::event::{EventContext, SCHEMA_VERSION};
-    use ito_domain::audit::writer::AuditWriter;
+    use std::path::Path;
+
+    fn run_git(repo: &Path, args: &[&str]) {
+        let output = std::process::Command::new("git")
+            .args(args)
+            .current_dir(repo)
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .output()
+            .expect("git should run");
+        assert!(
+            output.status.success(),
+            "git command failed: git {}\nstdout:\n{}\nstderr:\n{}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn init_git_repo(repo: &Path) {
+        run_git(repo, &["init"]);
+        run_git(repo, &["config", "user.email", "test@example.com"]);
+        run_git(repo, &["config", "user.name", "Test User"]);
+        run_git(repo, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(repo.join("README.md"), "hi\n").expect("write readme");
+        run_git(repo, &["add", "README.md"]);
+        run_git(repo, &["commit", "-m", "initial"]);
+    }
 
     fn test_event(entity_id: &str) -> AuditEvent {
         AuditEvent {
@@ -182,7 +210,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let ito_path = tmp.path().join(".ito");
 
-        let writer = crate::audit::writer::FsAuditWriter::new(&ito_path);
+        let writer = crate::audit::default_audit_store(&ito_path);
         for i in 0..20 {
             writer
                 .append(&test_event(&format!("1.{i}")))
@@ -207,7 +235,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let ito_path = tmp.path().join(".ito");
 
-        let writer = crate::audit::writer::FsAuditWriter::new(&ito_path);
+        let writer = crate::audit::default_audit_store(&ito_path);
         writer.append(&test_event("1.1")).expect("append");
 
         let config = StreamConfig::default();
@@ -228,7 +256,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let ito_path = tmp.path().join(".ito");
 
-        let writer = crate::audit::writer::FsAuditWriter::new(&ito_path);
+        let writer = crate::audit::default_audit_store(&ito_path);
         writer.append(&test_event("1.1")).expect("append");
 
         let config = StreamConfig::default();
@@ -236,6 +264,28 @@ mod tests {
 
         let new = poll_new_events(&mut sources);
         assert!(new.is_empty());
+    }
+
+    #[test]
+    fn poll_detects_new_events_from_routed_store() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        init_git_repo(tmp.path());
+        let ito_path = tmp.path().join(".ito");
+        std::fs::create_dir_all(&ito_path).expect("create ito dir");
+
+        let store = crate::audit::default_audit_store(&ito_path);
+        store.append(&test_event("1.1")).expect("append");
+
+        let config = StreamConfig::default();
+        let (_initial, mut sources) = read_initial_events(&ito_path, &config);
+
+        store.append(&test_event("1.2")).expect("append");
+        store.append(&test_event("1.3")).expect("append");
+
+        let new = poll_new_events(&mut sources);
+        assert_eq!(new.len(), 2);
+        assert_eq!(new[0].event.entity_id, "1.2");
+        assert_eq!(new[1].event.entity_id, "1.3");
     }
 
     #[test]

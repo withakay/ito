@@ -134,3 +134,61 @@ fn validate_module_routes_and_error_paths() {
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("is valid"));
 }
+
+#[test]
+fn validate_change_reports_audit_drift_against_routed_storage() {
+    let base = fixtures::make_repo_all_valid();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+    let legacy_event = serde_json::json!({
+        "v": 1,
+        "ts": "2026-03-16T12:00:00.000Z",
+        "entity": "task",
+        "entity_id": "1.1",
+        "scope": "000-01_test-change",
+        "op": "create",
+        "from": serde_json::Value::Null,
+        "to": "pending",
+        "actor": "cli",
+        "by": "@test",
+        "meta": serde_json::Value::Null,
+        "ctx": {
+            "session_id": "test-session",
+            "harness_session_id": serde_json::Value::Null,
+            "branch": serde_json::Value::Null,
+            "worktree": serde_json::Value::Null,
+            "commit": serde_json::Value::Null
+        }
+    });
+    fixtures::write(
+        repo.path().join(".ito/.state/audit/events.jsonl"),
+        &(serde_json::to_string(&legacy_event).expect("legacy event") + "\n"),
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["validate", "000-01_test-change", "--json"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let report: serde_json::Value = serde_json::from_str(&out.stdout).expect("validate json");
+    let issues = report["items"][0]["issues"]
+        .as_array()
+        .expect("issues array");
+    let audit_issue = issues
+        .iter()
+        .find(|issue| {
+            issue["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Audit drift")
+        })
+        .expect("audit drift warning");
+    assert_eq!(audit_issue["path"], "audit:routed-storage");
+}
