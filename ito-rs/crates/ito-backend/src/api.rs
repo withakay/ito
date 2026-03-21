@@ -20,7 +20,6 @@ use crate::auth::TokenScope;
 use crate::error::ApiErrorResponse;
 use crate::state::AppState;
 use ito_core::ChangeLifecycleFilter;
-use ito_core::audit::AuditEventStore;
 
 // ── Response types ──────────────────────────────────────────────────
 
@@ -779,9 +778,9 @@ pub async fn list_events(
     let ito_path = state
         .ito_path_for(&org, &repo)
         .map_err(|e| ApiErrorResponse::bad_request(e.to_string()))?;
-    Ok(Json(
-        ito_core::audit::FsAuditWriter::new(&ito_path).read_all(),
-    ))
+    Ok(Json(ito_core::audit::AuditEventStore::read_all(
+        &ito_core::audit::FsAuditWriter::new(&ito_path),
+    )))
 }
 
 /// `POST /api/v1/projects/{org}/{repo}/events` — ingest a batch of audit events.

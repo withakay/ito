@@ -11,9 +11,6 @@ use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file};
 use super::reader::read_audit_events;
 use super::store::default_audit_store;
 
-#[cfg(test)]
-use super::writer::FsAuditWriter;
-
 /// Result of a reconciliation run.
 #[derive(Debug)]
 pub struct ReconcileReport {
@@ -150,8 +147,6 @@ fn run_project_reconcile(ito_path: &Path, fix: bool) -> ReconcileReport {
 mod tests {
     use super::*;
     use ito_domain::audit::event::{AuditEvent, EventContext, SCHEMA_VERSION};
-    use ito_domain::audit::writer::AuditWriter;
-
     fn test_ctx() -> EventContext {
         EventContext {
             session_id: "test".to_string(),
@@ -268,7 +263,7 @@ mod tests {
         );
 
         // Write a matching audit event
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -290,7 +285,7 @@ mod tests {
             "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
         );
 
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -311,7 +306,7 @@ mod tests {
             "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
         );
 
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -349,7 +344,7 @@ mod tests {
         let ito_path = tmp.path().join(".ito");
 
         // No tasks.md but has events
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();

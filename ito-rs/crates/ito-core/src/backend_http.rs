@@ -78,7 +78,7 @@ impl BackendHttpClient {
         let url = format!("{}/events", self.inner.runtime.project_api_prefix());
         let body = serde_json::to_string(batch)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        self.backend_post_json(&url, Some(&body))
+        self.backend_post_json(&url, Some(&body), true)
     }
 
     fn get_json<T: DeserializeOwned>(
@@ -87,7 +87,7 @@ impl BackendHttpClient {
         entity: &'static str,
         id: Option<&str>,
     ) -> DomainResult<T> {
-        let response = self.request_with_retry("GET", url, None)?;
+        let response = self.request_with_retry("GET", url, None, false)?;
         let status = response.status().as_u16();
         let body = read_response_body(response)?;
         if status != 200 {
@@ -99,7 +99,7 @@ impl BackendHttpClient {
 
     fn task_get_json<T: DeserializeOwned>(&self, url: &str) -> TaskMutationServiceResult<T> {
         let response = self
-            .request_with_retry("GET", url, None)
+            .request_with_retry("GET", url, None, false)
             .map_err(task_error_from_domain)?;
         parse_task_response(response)
     }
@@ -110,7 +110,7 @@ impl BackendHttpClient {
         body: Option<&str>,
     ) -> TaskMutationServiceResult<T> {
         let response = self
-            .request_with_retry("POST", url, body)
+            .request_with_retry("POST", url, body, false)
             .map_err(task_error_from_domain)?;
         parse_task_response(response)
     }
@@ -120,7 +120,7 @@ impl BackendHttpClient {
         url: &str,
     ) -> Result<T, ito_domain::backend::BackendError> {
         let response = self
-            .request_with_retry("GET", url, None)
+            .request_with_retry("GET", url, None, false)
             .map_err(backend_error_from_domain)?;
         parse_backend_response(response)
     }
@@ -129,9 +129,10 @@ impl BackendHttpClient {
         &self,
         url: &str,
         body: Option<&str>,
+        retry_post: bool,
     ) -> Result<T, ito_domain::backend::BackendError> {
         let response = self
-            .request_with_retry("POST", url, body)
+            .request_with_retry("POST", url, body, retry_post)
             .map_err(backend_error_from_domain)?;
         parse_backend_response(response)
     }
@@ -141,9 +142,10 @@ impl BackendHttpClient {
         method: &str,
         url: &str,
         body: Option<&str>,
+        retry_post: bool,
     ) -> DomainResult<ureq::http::Response<ureq::Body>> {
         let max_retries = self.inner.runtime.max_retries;
-        let retries_enabled = retries_enabled_by_default(method);
+        let retries_enabled = request_retries_enabled(method, retry_post);
         let mut attempt = 0u32;
         loop {
             let response: Result<ureq::http::Response<ureq::Body>, ureq::Error> = match method {
@@ -217,6 +219,14 @@ fn retries_enabled_by_default(method: &str) -> bool {
         "TRACE" => false,
         _ => false,
     }
+}
+
+fn request_retries_enabled(method: &str, retry_post: bool) -> bool {
+    if method == "POST" {
+        return retry_post;
+    }
+
+    retries_enabled_by_default(method)
 }
 
 fn is_not_found_error(err: &DomainError) -> bool {
@@ -468,7 +478,7 @@ impl BackendSyncClient for BackendHttpClient {
         );
         let body = serde_json::to_string(bundle)
             .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
-        self.backend_post_json(&url, Some(&body))
+        self.backend_post_json(&url, Some(&body), false)
     }
 }
 
@@ -481,7 +491,7 @@ impl BackendArchiveClient for BackendHttpClient {
             "{}/changes/{change_id}/archive",
             self.inner.runtime.project_api_prefix()
         );
-        self.backend_post_json(&url, Some("{}"))
+        self.backend_post_json(&url, Some("{}"), false)
     }
 }
 

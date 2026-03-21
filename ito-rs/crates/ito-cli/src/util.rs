@@ -198,10 +198,13 @@ pub(crate) fn split_csv(raw: &str) -> Vec<String> {
 
 // ── Event forwarding ───────────────────────────────────────────────
 
-/// Best-effort forwarding of local audit events to the backend.
+/// Best-effort forwarding of locally buffered audit events to the backend.
 ///
-/// Called after every command completes. Returns silently when backend
-/// mode is not enabled or if any step fails. Never affects command outcome.
+/// Called after every command completes. Returns silently when backend mode is
+/// not enabled, when repository persistence is already remote, or if any step
+/// fails. In remote repository mode the command has already written to the
+/// backend-managed store directly, so there is no local backlog to forward.
+/// Never affects command outcome.
 fn forward_events_if_backend(rt: &Runtime) {
     let ito_path = rt.ito_path();
     let Some(project_root) = ito_path.parent() else {

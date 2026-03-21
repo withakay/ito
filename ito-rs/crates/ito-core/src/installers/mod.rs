@@ -264,12 +264,18 @@ fn remove_gitignore_exact_line(project_root: &Path, entry: &str) -> CoreResult<(
     };
 
     let mut filtered = Vec::new();
+    let mut removed = false;
     for line in existing.lines() {
         if line.trim() == entry {
+            removed = true;
             continue;
         }
         filtered.push(line);
     }
+    if !removed {
+        return Ok(());
+    }
+
     let mut updated = filtered.join("\n");
     if !updated.is_empty() {
         updated.push('\n');
@@ -944,6 +950,15 @@ mod tests {
             ".ito/.state/\n!.ito/.state/audit/\n",
         )
         .unwrap();
+        remove_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
+        let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
+        assert_eq!(s, ".ito/.state/\n");
+    }
+
+    #[test]
+    fn gitignore_legacy_audit_events_unignore_noop_when_absent() {
+        let td = tempfile::tempdir().unwrap();
+        std::fs::write(td.path().join(".gitignore"), ".ito/.state/\n").unwrap();
         remove_repo_gitignore_unignores_audit_events(td.path(), ".ito").unwrap();
         let s = std::fs::read_to_string(td.path().join(".gitignore")).unwrap();
         assert_eq!(s, ".ito/.state/\n");

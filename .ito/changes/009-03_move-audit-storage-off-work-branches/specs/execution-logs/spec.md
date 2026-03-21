@@ -8,7 +8,7 @@ Ito SHALL record structured execution events to a per-user central log directory
 
 - **WHEN** a user runs a supported Ito CLI entrypoint
 - **THEN** Ito appends structured JSONL execution events to the central log directory
-- **AND** events are stored under a versioned path (e.g. `<config_dir>/ito/logs/execution/v1/`)
+- **AND** events are stored under a versioned path (e.g. `<config_dir>/logs/execution/v1/`)
 - **AND** events are grouped by `project_id` and `session_id` (e.g. `projects/<project_id>/sessions/<session_id>.jsonl`)
 - **AND** the event includes at least: `timestamp`, `command_id`, `session_id`, `project_id`, and `outcome`
 

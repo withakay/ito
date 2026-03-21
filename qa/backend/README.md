@@ -206,6 +206,11 @@ The request body lives here so you can inspect it before or after sending it:
 .local/backend-qa/runtime/ingest-request.json
 ```
 
+Before ingesting, run `ito audit validate --change <change-id>` in the source
+repo or worktree if you are trying to compare backend state with local audit
+history. That catches local audit drift before you treat the backend ingest as
+the new source of truth.
+
 Raw `curl` equivalent:
 
 ```bash

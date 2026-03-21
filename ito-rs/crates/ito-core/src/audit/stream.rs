@@ -40,7 +40,11 @@ pub struct StreamSource {
     pub label: String,
     /// Routed audit store retained across polls.
     store: Box<dyn AuditEventStore>,
-    /// Number of lines previously seen.
+    /// Number of events previously seen.
+    ///
+    /// This offset assumes the store is append-only between polls. If the
+    /// underlying log is truncated or rotated, a shorter read is treated as a
+    /// reset and the next append-only growth resumes from the new length.
     offset: usize,
 }
 
@@ -127,6 +131,10 @@ pub fn read_initial_events(
 /// Poll all sources for new events since the last check.
 ///
 /// Updates the offsets in each source so subsequent polls only return new events.
+///
+/// Offsets are based on event counts, so a store that shrinks between polls is
+/// treated as having reset; the shorter snapshot advances no offset until new
+/// events extend the store again.
 pub fn poll_new_events(sources: &mut [StreamSource]) -> Vec<StreamEvent> {
     let mut new_events = Vec::new();
 
