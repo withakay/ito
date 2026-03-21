@@ -47,5 +47,17 @@ Commonly useful subagents:
 - `@documentation-police` - docs coverage/quality
 - `@code-simplifier` - refactor for clarity and maintainability
 - `@code-quality-squad` - parallel Rust quality workflows
-- `@perplexity-researcher` / `@perplexity-researcher-pro` - web research with citations
 - `@multi-agent` - explore multiple approaches and synthesize
+
+### Showboat Demo Documents
+
+This repo uses [Showboat](https://github.com/simonw/showboat) to have agents produce
+executable demo documents that prove their work. Showboat builds markdown files incrementally
+via CLI commands (`init`, `note`, `exec`, `image`, `pop`) that capture real command output --
+this prevents agents from fabricating results.
+
+- Available via `uvx showboat` (no install required)
+- Run `uvx showboat --help` for full CLI reference
+- See `.ito/user-prompts/apply.md` for detailed apply-phase usage
+- Demo docs go in `.ito/changes/<change-id>/demos/`
+- **Never edit showboat markdown directly** -- always use the CLI commands

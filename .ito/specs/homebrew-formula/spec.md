@@ -14,7 +14,7 @@ Note: the current user-facing formula name is `ito-cli` (it installs the `ito` b
 
 #### Scenario: User adds tap and installs ito
 
-- **WHEN** user runs `brew tap withakay/ito && brew install ito-cli`
+- **WHEN** user runs `brew tap withakay/ito && brew install ito`
 - **THEN** the `ito` binary is installed to the Homebrew prefix
 - **AND** running `ito --version` outputs the installed version
 
@@ -24,13 +24,13 @@ The Homebrew formula SHALL support both Intel (x86_64) and Apple Silicon (arm64)
 
 #### Scenario: Install on Apple Silicon Mac
 
-- **WHEN** user runs `brew install ito-cli` on an arm64 Mac
+- **WHEN** user runs `brew install ito` on an arm64 Mac
 - **THEN** Homebrew downloads the arm64-apple-darwin release artifact
 - **AND** the installed binary runs natively without Rosetta
 
 #### Scenario: Install on Intel Mac
 
-- **WHEN** user runs `brew install ito-cli` on an x86_64 Mac
+- **WHEN** user runs `brew install ito` on an x86_64 Mac
 - **THEN** Homebrew downloads the x86_64-apple-darwin release artifact
 - **AND** the installed binary runs natively
 
