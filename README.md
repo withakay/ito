@@ -138,7 +138,7 @@ curl http://127.0.0.1:9010/api/v1/health
 
 ```bash
 brew tap withakay/ito
-brew install ito-cli
+brew install ito
 brew services start ito-cli
 ```
 
