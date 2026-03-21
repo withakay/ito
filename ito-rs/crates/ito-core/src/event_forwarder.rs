@@ -234,12 +234,9 @@ fn write_checkpoint(ito_path: &Path, offset: usize) -> CoreResult<()> {
 
 // ── Event reading ──────────────────────────────────────────────────
 
-/// Read all audit events from the local JSONL log.
-///
-/// Returns an empty vec if the log does not exist. Malformed lines are
-/// skipped (same behavior as `audit::reader::read_audit_events`).
+/// Read all audit events from the routed local audit store.
 fn read_all_events(ito_path: &Path) -> Vec<AuditEvent> {
-    crate::audit::read_audit_events(ito_path)
+    crate::audit::default_audit_store(ito_path).read_all()
 }
 
 #[cfg(test)]
@@ -247,8 +244,36 @@ mod tests {
     use super::*;
     use ito_domain::audit::event::{EventContext, SCHEMA_VERSION};
     use ito_domain::backend::{BackendError, EventIngestResult};
+    use std::path::Path;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn run_git(repo: &Path, args: &[&str]) {
+        let output = std::process::Command::new("git")
+            .args(args)
+            .current_dir(repo)
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .output()
+            .expect("git should run");
+        assert!(
+            output.status.success(),
+            "git command failed: git {}\nstdout:\n{}\nstderr:\n{}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn init_git_repo(repo: &Path) {
+        run_git(repo, &["init"]);
+        run_git(repo, &["config", "user.email", "test@example.com"]);
+        run_git(repo, &["config", "user.name", "Test User"]);
+        run_git(repo, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(repo.join("README.md"), "hi\n").expect("write readme");
+        run_git(repo, &["add", "README.md"]);
+        run_git(repo, &["commit", "-m", "initial"]);
+    }
 
     fn make_event(id: &str) -> AuditEvent {
         AuditEvent {
@@ -315,10 +340,29 @@ mod tests {
     }
 
     fn write_events_to_log(ito_path: &Path, events: &[AuditEvent]) {
-        let writer = crate::audit::FsAuditWriter::new(ito_path);
+        let writer = crate::audit::default_audit_store(ito_path);
         for event in events {
-            crate::audit::AuditWriter::append(&writer, event).unwrap();
+            crate::audit::AuditWriter::append(writer.as_ref(), event).unwrap();
         }
+    }
+
+    #[test]
+    fn forward_reads_events_from_routed_local_store() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_git_repo(tmp.path());
+        let ito_path = tmp.path().join(".ito");
+        std::fs::create_dir_all(&ito_path).unwrap();
+
+        let store = crate::audit::default_audit_store(&ito_path);
+        crate::audit::AuditWriter::append(store.as_ref(), &make_event("1.1")).unwrap();
+
+        let client = FakeIngestClient::always_ok();
+        let config = ForwarderConfig::default();
+        let result = forward_events(&client, &ito_path, &config).unwrap();
+
+        assert_eq!(result.forwarded, 1);
+        assert_eq!(result.total_local, 1);
+        assert_eq!(client.calls(), 1);
     }
 
     #[test]

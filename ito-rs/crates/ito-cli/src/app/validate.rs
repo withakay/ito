@@ -437,7 +437,7 @@ fn validate_audit_consistency(
     for drift in &report.drifts {
         issues.push(core_validate::ValidationIssue {
             level: "warning".to_string(),
-            path: ".state/audit/events.jsonl".to_string(),
+            path: "audit:routed-storage".to_string(),
             line: None,
             column: None,
             message: format!("Audit drift: {drift}"),

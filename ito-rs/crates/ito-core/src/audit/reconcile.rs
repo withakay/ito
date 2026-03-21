@@ -1,16 +1,15 @@
-//! Reconciliation engine: compare audit log against file-on-disk state,
-//! detect drift, and optionally emit compensating events.
+//! Reconciliation engine: compare routed audit history against file-on-disk
+//! state, detect drift, and optionally emit compensating events.
 
 use std::path::Path;
 
 use ito_domain::audit::context::resolve_context;
 use ito_domain::audit::materialize::{EntityKey, materialize_state};
 use ito_domain::audit::reconcile::{Drift, FileState, compute_drift, generate_compensating_events};
-use ito_domain::audit::writer::AuditWriter;
 use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file};
 
 use super::reader::read_audit_events;
-use super::writer::FsAuditWriter;
+use super::store::default_audit_store;
 
 /// Result of a reconciliation run.
 #[derive(Debug)]
@@ -84,7 +83,7 @@ pub fn run_reconcile(ito_path: &Path, change_id: Option<&str>, fix: bool) -> Rec
     let events_written = if fix && !drifts.is_empty() {
         let ctx = resolve_context(ito_path);
         let compensating = generate_compensating_events(&drifts, Some(change_id), &ctx);
-        let writer = FsAuditWriter::new(ito_path);
+        let writer = default_audit_store(ito_path);
         let mut written = 0;
         for event in &compensating {
             if writer.append(event).is_ok() {
@@ -148,8 +147,6 @@ fn run_project_reconcile(ito_path: &Path, fix: bool) -> ReconcileReport {
 mod tests {
     use super::*;
     use ito_domain::audit::event::{AuditEvent, EventContext, SCHEMA_VERSION};
-    use ito_domain::audit::writer::AuditWriter;
-
     fn test_ctx() -> EventContext {
         EventContext {
             session_id: "test".to_string(),
@@ -266,7 +263,7 @@ mod tests {
         );
 
         // Write a matching audit event
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -288,7 +285,7 @@ mod tests {
             "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
         );
 
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -309,7 +306,7 @@ mod tests {
             "# Tasks\n\n## Wave 1\n\n### Task 1.1: Test\n- **Status**: [x] complete\n",
         );
 
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();
@@ -347,7 +344,7 @@ mod tests {
         let ito_path = tmp.path().join(".ito");
 
         // No tasks.md but has events
-        let writer = FsAuditWriter::new(&ito_path);
+        let writer = default_audit_store(&ito_path);
         writer
             .append(&make_event("1.1", "ch", "create", Some("pending")))
             .unwrap();

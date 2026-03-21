@@ -1,7 +1,8 @@
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_path;
 use ito_core::audit::{
-    AuditEvent, AuditWriter, EventContext, FsAuditWriter, resolve_context, resolve_user_identity,
+    AuditEvent, AuditEventStore, EventContext, default_audit_store, resolve_context,
+    resolve_user_identity,
 };
 use ito_core::errors::{CoreError, CoreResult};
 use ito_core::repo_index::RepoIndex;
@@ -55,7 +56,7 @@ pub(crate) struct Runtime {
     cwd: PathBuf,
     ito_path: OnceLock<PathBuf>,
     repo_index: OnceLock<RepoIndex>,
-    audit_writer: OnceLock<FsAuditWriter>,
+    audit_store: OnceLock<Box<dyn AuditEventStore>>,
     event_context: OnceLock<EventContext>,
     user_identity: OnceLock<String>,
     repository_runtime: OnceLock<RepositoryRuntime>,
@@ -68,7 +69,7 @@ impl Runtime {
             cwd: resolve_runtime_root(),
             ito_path: OnceLock::new(),
             repo_index: OnceLock::new(),
-            audit_writer: OnceLock::new(),
+            audit_store: OnceLock::new(),
             event_context: OnceLock::new(),
             user_identity: OnceLock::new(),
             repository_runtime: OnceLock::new(),
@@ -90,10 +91,11 @@ impl Runtime {
             .get_or_init(|| RepoIndex::load(self.ito_path()).unwrap_or_default())
     }
 
-    /// Returns the filesystem-backed audit writer, lazily initialized.
-    pub(crate) fn audit_writer(&self) -> &FsAuditWriter {
-        self.audit_writer
-            .get_or_init(|| FsAuditWriter::new(self.ito_path()))
+    /// Returns the routed audit store, lazily initialized.
+    pub(crate) fn audit_store(&self) -> &(dyn AuditEventStore + Send + Sync) {
+        self.audit_store
+            .get_or_init(|| default_audit_store(self.ito_path()))
+            .as_ref()
     }
 
     /// Returns the event context (session ID, git info), lazily initialized.
@@ -120,6 +122,6 @@ impl Runtime {
 
     /// Emit an audit event using the runtime's writer. Best-effort: never fails.
     pub(crate) fn emit_audit_event(&self, event: &AuditEvent) {
-        let _ = self.audit_writer().append(event);
+        let _ = self.audit_store().append(event);
     }
 }
