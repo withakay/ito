@@ -38,7 +38,7 @@ The CLI hosts the server directly. Under the hood the helper runs:
 ```bash
 ITO_BACKEND_ADMIN_TOKEN="dev-admin-token" \
 ITO_BACKEND_TOKEN_SEED="dev-token-seed" \
-ito serve-api \
+ito backend serve \
   --bind 127.0.0.1 --port 9010 \
   --data-dir .local/backend-qa/data \
   --allow-org acme --allow-org globex
@@ -394,7 +394,7 @@ All assertions passed. The backend is stopped and the QA data remains for manual
 
 | Claim | Evidence |
 |---|---|
-| `ito serve-api` starts from the CLI | `start` output shows PID and base URL |
+| `ito backend serve` starts from the CLI | `start` output shows PID and base URL |
 | Plain `curl` is enough | Every request above uses only `curl` |
 | One process serves multiple projects | `acme/widgets` and `globex/gadgets` both respond |
 | Event ingest writes real files | `events.jsonl` contains the posted event |

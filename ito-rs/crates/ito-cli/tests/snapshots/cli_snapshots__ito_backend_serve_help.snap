@@ -1,0 +1,53 @@
+---
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"backend\", \"serve\", \"--help\"])"
+---
+Start the backend state API server
+
+Starts the multi-tenant backend server using the canonical backend
+command path.
+
+Examples:
+  ito backend serve
+  ito backend serve --service
+  ito backend serve --port 8080 --bind 0.0.0.0
+  ito backend serve --admin-token my-secret
+
+Usage: ito backend serve [OPTIONS]
+
+Options:
+      --init
+          Generate auth tokens and write them to the global config file, then exit
+
+      --no-color
+          Disable color output
+
+      --help-all
+          Print the full CLI reference (equivalent to `ito help --all`)
+
+      --service
+          Ensure backend auth exists for unattended service startup, then run
+
+  -p, --port <PORT>
+          Port to listen on (default: 9010)
+
+  -b, --bind <BIND>
+          Address to bind to (default: 127.0.0.1)
+
+      --data-dir <DATA_DIR>
+          Root directory for backend-managed project data
+
+      --admin-token <ADMIN_TOKEN>
+          Admin bearer token with full access to all projects
+
+      --token-seed <TOKEN_SEED>
+          Secret seed for deriving per-project tokens via HMAC-SHA256
+
+      --allow-org <ALLOW_ORG>
+          Allow an organization (can be specified multiple times)
+
+      --config <CONFIG>
+          Path to a TOML/JSON config file for full backend server configuration
+
+  -h, --help
+          Print help (see a summary with '-h')

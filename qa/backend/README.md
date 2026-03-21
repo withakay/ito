@@ -12,7 +12,7 @@ It is meant to answer these questions clearly:
 - When I post audit events, do I get real files on disk?
 - If I retry the same event batch, does idempotency work?
 
-The walkthrough uses `qa/backend/test-backend-walkthrough.sh` to keep the setup boring and repeatable, but every meaningful step is still just `ito serve-api` plus `curl`.
+The walkthrough uses `qa/backend/test-backend-walkthrough.sh` to keep the setup boring and repeatable, but every meaningful step is still just `ito backend serve` plus `curl`.
 
 For automation, the same script also exposes a `verify` command that runs a compact non-interactive self-check and exits non-zero if anything unexpected happens.
 
@@ -65,7 +65,7 @@ qa/backend/test-backend-walkthrough.sh walk
 That command:
 
 1. Seeds sample project files.
-2. Starts `ito serve-api` against the seeded data.
+2. Starts `ito backend serve` against the seeded data.
 3. Pauses between the important API calls.
 4. Posts an event batch.
 5. Shows the audit log and idempotency marker file.
@@ -108,7 +108,7 @@ Under the hood, the helper runs the CLI directly against the sample data dir:
 ```bash
 ITO_BACKEND_ADMIN_TOKEN="dev-admin-token" \
 ITO_BACKEND_TOKEN_SEED="dev-token-seed" \
-./target/debug/ito serve-api \
+./target/debug/ito backend serve \
   --bind 127.0.0.1 \
   --port 9010 \
   --data-dir ".local/backend-qa/data" \
@@ -269,7 +269,7 @@ qa/backend/test-backend-walkthrough.sh clean
 
 ## What This Walkthrough Proves
 
-- `ito serve-api` serves filesystem-backed project state.
+- `ito backend serve` serves filesystem-backed project state.
 - One backend process can serve more than one project namespace.
 - Plain `curl` requests are enough to exercise the implemented logic.
 - Event ingest appends to the backend-managed audit log for that project.
