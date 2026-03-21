@@ -1,13 +1,14 @@
 //! Worktree discovery for audit event aggregation and streaming.
 //!
 //! Uses `git worktree list --porcelain` to enumerate all worktrees and
-//! resolves their audit event file paths.
+//! resolves their routed audit stores.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use ito_domain::audit::event::{AuditEvent, WorktreeInfo};
 
-use super::reader::read_audit_events;
+use super::store::{audit_storage_location_key, default_audit_store};
 use super::writer::audit_log_path;
 
 /// Discover all git worktrees that have an audit events file.
@@ -43,19 +44,11 @@ fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
             // Save previous worktree
             if let Some(path) = current_path.take() {
                 if !is_bare {
-                    let wt_ito_path = path.join(".ito");
-                    let log = audit_log_path(&wt_ito_path);
-                    // Only include worktrees that have an audit log or .ito dir
-                    let has_ito = wt_ito_path.exists();
                     worktrees.push(WorktreeInfo {
                         path,
                         branch: current_branch.take(),
                         is_main: worktrees.is_empty(), // First worktree is main
                     });
-                    if !has_ito {
-                        // Still include it but note the log path may not exist yet
-                        let _ = log;
-                    }
                 }
                 current_branch = None;
                 is_bare = false;
@@ -141,15 +134,21 @@ pub fn aggregate_worktree_events(
     worktrees: &[WorktreeInfo],
 ) -> Vec<(WorktreeInfo, Vec<AuditEvent>)> {
     let mut results = Vec::new();
+    let mut seen_locations = HashSet::new();
 
     for wt in worktrees {
         let wt_ito_path = wt.path.join(".ito");
-        let log_path = audit_log_path(&wt_ito_path);
-        if !log_path.exists() {
+        if !wt_ito_path.exists() {
             continue;
         }
 
-        let events = read_audit_events(&wt_ito_path);
+        let store = default_audit_store(&wt_ito_path);
+        let key = audit_storage_location_key(&store.location());
+        if !seen_locations.insert(key) {
+            continue;
+        }
+
+        let events = store.read_all();
         if !events.is_empty() {
             results.push((wt.clone(), events));
         }

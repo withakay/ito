@@ -31,7 +31,6 @@ fn audit_validate_and_log_work_with_empty_event_log() {
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
 
-    write(repo.path().join(".ito/.state/audit/events.jsonl"), "");
     write(
         repo.path().join(".ito/changes/000-01_drift/tasks.md"),
         "## 1. Implementation\n- [ ] 1.1 Todo\n",

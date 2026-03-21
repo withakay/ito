@@ -29,8 +29,23 @@ Important generated paths:
 - Seeded project state: `.local/backend-qa/data/projects/<org>/<repo>/.ito/`
 - Backend server log: `.local/backend-qa/runtime/server.log`
 - Request payload used for event ingest: `.local/backend-qa/runtime/ingest-request.json`
-- Audit log after ingest: `.local/backend-qa/data/projects/acme/widgets/.ito/.state/audit/events.jsonl`
+- Backend-managed audit log after ingest: `.local/backend-qa/data/projects/acme/widgets/.ito/.state/audit/events.jsonl`
 - Idempotency progress file: `.local/backend-qa/data/projects/acme/widgets/.ito/.state/ingest-keys/qa-key-001`
+
+## Audit Storage Model
+
+Audit commands now read from routed storage instead of assuming a tracked
+`.ito/.state/audit/events.jsonl` on the branch you are editing.
+
+- Backend mode: the backend-managed project store is authoritative, so client
+  worktrees do not need a tracked audit JSONL file.
+- Local mode: durable audit history lives on the internal `ito/internal/audit`
+  branch when Git branch storage is available.
+- Fallback mode: if internal branch writes are unavailable, Ito uses an
+  untracked local fallback store and continues to validate/reconcile against it.
+- Legacy migration: if an older tracked worktree audit log exists, routed audit
+  reads import that history into the current durable store; remove the tracked
+  worktree file from normal branches after migration so it stops creating churn.
 
 The sample data contains two allowlisted projects served by one backend instance:
 
@@ -191,6 +206,11 @@ The request body lives here so you can inspect it before or after sending it:
 .local/backend-qa/runtime/ingest-request.json
 ```
 
+Before ingesting, run `ito audit validate --change <change-id>` in the source
+repo or worktree if you are trying to compare backend state with local audit
+history. That catches local audit drift before you treat the backend ingest as
+the new source of truth.
+
 Raw `curl` equivalent:
 
 ```bash
@@ -205,6 +225,7 @@ Expected behavior:
 
 - Response shows `accepted: 1`
 - Response shows `duplicates: 0`
+- The backend-managed project audit store is authoritative; no working-branch audit log is required in the client repo.
 
 ### 7. Inspect the files the backend wrote
 
@@ -223,7 +244,7 @@ cat .local/backend-qa/data/projects/acme/widgets/.ito/.state/ingest-keys/qa-key-
 
 Expected behavior:
 
-- `events.jsonl` exists and contains one JSON object per line.
+- The backend-managed `events.jsonl` exists and contains one JSON object per line.
 - The ingest key file exists and contains `1`.
 
 ### 8. Retry the exact same request
@@ -256,7 +277,7 @@ qa/backend/test-backend-walkthrough.sh clean
 - `ito backend serve` serves filesystem-backed project state.
 - One backend process can serve more than one project namespace.
 - Plain `curl` requests are enough to exercise the implemented logic.
-- Event ingest appends to a real audit log file.
+- Event ingest appends to the backend-managed audit log for that project.
 - Idempotency is file-backed and survives request retries.
 - The generated files are easy to inspect by hand.
 

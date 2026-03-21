@@ -59,7 +59,7 @@ pub(crate) fn sync_audit_mirror_with_runner(
         worktree_path: worktree_path.clone(),
     };
 
-    let result = (|| {
+    let result = (|| -> Result<(), AuditMirrorError> {
         let fetched = fetch_branch(runner, repo_root, branch);
         match fetched {
             Ok(()) => checkout_detached_remote_branch(runner, &worktree_path, branch)?,
@@ -117,6 +117,176 @@ pub(crate) fn sync_audit_mirror_with_runner(
     result
 }
 
+pub(crate) fn append_jsonl_to_internal_branch(
+    repo_root: &Path,
+    branch: &str,
+    jsonl: &str,
+) -> Result<(), AuditMirrorError> {
+    let runner = SystemProcessRunner;
+    append_jsonl_to_internal_branch_with_runner(&runner, repo_root, branch, jsonl)
+}
+
+pub(crate) fn append_jsonl_to_internal_branch_with_runner(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+    jsonl: &str,
+) -> Result<(), AuditMirrorError> {
+    if !is_git_worktree(runner, repo_root) {
+        return Err(AuditMirrorError::new(
+            "internal audit branch unavailable outside a git worktree",
+        ));
+    }
+
+    let mut allow_retry = true;
+    loop {
+        match append_jsonl_to_internal_branch_attempt(runner, repo_root, branch, jsonl)? {
+            AppendBranchResult::Appended => return Ok(()),
+            AppendBranchResult::Conflict if allow_retry => {
+                allow_retry = false;
+            }
+            AppendBranchResult::Conflict => {
+                return Err(AuditMirrorError::new(format!(
+                    "failed to update internal audit branch '{branch}' due to concurrent writes; retry the command"
+                )));
+            }
+        }
+    }
+}
+
+enum AppendBranchResult {
+    Appended,
+    Conflict,
+}
+
+fn append_jsonl_to_internal_branch_attempt(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+    jsonl: &str,
+) -> Result<AppendBranchResult, AuditMirrorError> {
+    let expected_old = current_branch_oid(runner, repo_root, branch)?;
+
+    let worktree_path = unique_temp_worktree_path();
+    add_detached_worktree(runner, repo_root, &worktree_path)?;
+    let cleanup = WorktreeCleanup {
+        repo_root: repo_root.to_path_buf(),
+        worktree_path: worktree_path.clone(),
+    };
+
+    let result = (|| -> Result<AppendBranchResult, AuditMirrorError> {
+        if expected_old.is_some() {
+            checkout_detached_local_branch(runner, &worktree_path, branch)?;
+        } else {
+            checkout_orphan_branch(runner, &worktree_path)?;
+        }
+
+        write_merged_jsonl(&worktree_path.join(".ito/.state/audit/events.jsonl"), jsonl)?;
+        stage_audit_log(runner, &worktree_path)?;
+
+        if !has_staged_changes(runner, &worktree_path)? {
+            return Ok(AppendBranchResult::Appended);
+        }
+
+        commit_internal_audit_log(runner, &worktree_path)?;
+        match update_branch_ref(runner, &worktree_path, branch, expected_old.as_deref())? {
+            UpdateRefResult::Updated => Ok(AppendBranchResult::Appended),
+            UpdateRefResult::Conflict => Ok(AppendBranchResult::Conflict),
+        }
+    })();
+
+    let cleanup_err = cleanup.cleanup_with_runner(runner);
+    if let Err(err) = cleanup_err {
+        eprintln!(
+            "Warning: failed to remove temporary audit worktree '{}': {}",
+            cleanup.worktree_path.display(),
+            err
+        );
+    }
+    result
+}
+
+fn current_branch_oid(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<Option<String>, AuditMirrorError> {
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["rev-parse", "--verify", &format!("refs/heads/{branch}")])
+                .current_dir(repo_root),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git rev-parse failed: {e}")))?;
+    if out.success {
+        let oid = out.stdout.trim();
+        return Ok((!oid.is_empty()).then(|| oid.to_string()));
+    }
+    let detail = render_output(&out).to_ascii_lowercase();
+    if detail.contains("unknown revision") || detail.contains("needed a single revision") {
+        return Ok(None);
+    }
+    Err(AuditMirrorError::new(format!(
+        "failed to inspect internal audit branch '{branch}' ({})",
+        render_output(&out)
+    )))
+}
+
+pub(crate) fn read_internal_branch_log(
+    repo_root: &Path,
+    branch: &str,
+) -> Result<InternalBranchLogRead, AuditMirrorError> {
+    let runner = SystemProcessRunner;
+    read_internal_branch_log_with_runner(&runner, repo_root, branch)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum InternalBranchLogRead {
+    BranchMissing,
+    LogMissing,
+    Contents(String),
+}
+
+pub(crate) fn read_internal_branch_log_with_runner(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<InternalBranchLogRead, AuditMirrorError> {
+    if !is_git_worktree(runner, repo_root) {
+        return Err(AuditMirrorError::new(
+            "internal audit branch unavailable outside a git worktree",
+        ));
+    }
+
+    if !local_branch_exists(runner, repo_root, branch)? {
+        return Ok(InternalBranchLogRead::BranchMissing);
+    }
+
+    let pathspec = format!("refs/heads/{branch}:.ito/.state/audit/events.jsonl");
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["show", &pathspec])
+                .current_dir(repo_root),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git show failed: {e}")))?;
+    if out.success {
+        return Ok(InternalBranchLogRead::Contents(out.stdout));
+    }
+
+    let detail = render_output(&out).to_ascii_lowercase();
+    if detail.contains("does not exist in")
+        || detail.contains("path '.ito/.state/audit/events.jsonl' does not exist")
+    {
+        return Ok(InternalBranchLogRead::LogMissing);
+    }
+
+    Err(AuditMirrorError::new(format!(
+        "failed to read internal audit branch '{branch}' ({})",
+        render_output(&out)
+    )))
+}
+
 fn write_merged_audit_log(local_log: &Path, target_log: &Path) -> Result<(), AuditMirrorError> {
     let local = fs::read_to_string(local_log)
         .map_err(|e| AuditMirrorError::new(format!("failed to read local audit log: {e}")))?;
@@ -124,12 +294,23 @@ fn write_merged_audit_log(local_log: &Path, target_log: &Path) -> Result<(), Aud
 
     let merged = merge_jsonl_lines(&remote, &local);
 
+    write_jsonl(target_log, &merged)
+}
+
+fn write_merged_jsonl(target_log: &Path, jsonl: &str) -> Result<(), AuditMirrorError> {
+    let existing = fs::read_to_string(target_log).unwrap_or_default();
+    let merged = merge_jsonl_lines(&existing, jsonl);
+
+    write_jsonl(target_log, &merged)
+}
+
+fn write_jsonl(target_log: &Path, contents: &str) -> Result<(), AuditMirrorError> {
     if let Some(parent) = target_log.parent() {
         fs::create_dir_all(parent).map_err(|e| {
             AuditMirrorError::new(format!("failed to create audit mirror dir: {e}"))
         })?;
     }
-    fs::write(target_log, merged)
+    fs::write(target_log, contents)
         .map_err(|e| AuditMirrorError::new(format!("failed to write audit mirror log: {e}")))?;
     Ok(())
 }
@@ -242,6 +423,28 @@ fn checkout_detached_remote_branch(
     )))
 }
 
+fn checkout_detached_local_branch(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+    branch: &str,
+) -> Result<(), AuditMirrorError> {
+    let target = format!("refs/heads/{branch}");
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["checkout", "--detach", &target])
+                .current_dir(worktree_path),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git checkout failed: {e}")))?;
+    if out.success {
+        return Ok(());
+    }
+    Err(AuditMirrorError::new(format!(
+        "failed to checkout internal audit branch '{branch}' ({})",
+        render_output(&out)
+    )))
+}
+
 fn checkout_orphan_branch(
     runner: &dyn ProcessRunner,
     worktree_path: &Path,
@@ -336,6 +539,88 @@ fn commit_audit_log(
     )))
 }
 
+fn commit_internal_audit_log(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+) -> Result<(), AuditMirrorError> {
+    let message = "chore(audit): update internal log";
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["commit", "-m", message])
+                .current_dir(worktree_path),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git commit failed: {e}")))?;
+    if out.success {
+        return Ok(());
+    }
+    Err(AuditMirrorError::new(format!(
+        "failed to commit internal audit log ({})",
+        render_output(&out)
+    )))
+}
+
+enum UpdateRefResult {
+    Updated,
+    Conflict,
+}
+
+fn update_branch_ref(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+    branch: &str,
+    expected_old: Option<&str>,
+) -> Result<UpdateRefResult, AuditMirrorError> {
+    let target = format!("refs/heads/{branch}");
+    let new_oid = branch_head_oid(runner, worktree_path)?;
+    let expected = expected_old.unwrap_or("0000000000000000000000000000000000000000");
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["update-ref", &target, &new_oid, expected])
+                .current_dir(worktree_path),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git update-ref failed: {e}")))?;
+    if out.success {
+        return Ok(UpdateRefResult::Updated);
+    }
+    let detail = render_output(&out);
+    let lower = detail.to_ascii_lowercase();
+    if lower.contains("cannot lock ref")
+        || lower.contains("is at ")
+        || lower.contains("reference already exists")
+    {
+        return Ok(UpdateRefResult::Conflict);
+    }
+    Err(AuditMirrorError::new(format!(
+        "failed to update internal audit branch '{branch}' ({})",
+        detail
+    )))
+}
+
+fn branch_head_oid(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+) -> Result<String, AuditMirrorError> {
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["rev-parse", "HEAD"])
+                .current_dir(worktree_path),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git rev-parse HEAD failed: {e}")))?;
+    if out.success {
+        let oid = out.stdout.trim();
+        if !oid.is_empty() {
+            return Ok(oid.to_string());
+        }
+    }
+    Err(AuditMirrorError::new(format!(
+        "failed to resolve internal audit commit ({})",
+        render_output(&out)
+    )))
+}
+
 /// Push `HEAD` to `origin/<branch>`.
 ///
 /// Returns `Ok(true)` when push succeeded, `Ok(false)` when the push was rejected due to non-fast-forward.
@@ -363,6 +648,32 @@ fn push_branch(
 
     Err(AuditMirrorError::new(format!(
         "audit mirror push failed ({detail})"
+    )))
+}
+
+fn local_branch_exists(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<bool, AuditMirrorError> {
+    let target = format!("refs/heads/{branch}");
+    let out = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["show-ref", "--verify", "--quiet", &target])
+                .current_dir(repo_root),
+        )
+        .map_err(|e| AuditMirrorError::new(format!("git show-ref failed: {e}")))?;
+    if out.success {
+        return Ok(true);
+    }
+    if out.exit_code == 1 {
+        return Ok(false);
+    }
+
+    Err(AuditMirrorError::new(format!(
+        "failed to inspect internal audit branch '{branch}' ({})",
+        render_output(&out)
     )))
 }
 

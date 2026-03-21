@@ -272,3 +272,35 @@ async fn ingest_requires_authentication() {
 
     assert_eq!(resp.status(), 401);
 }
+
+#[tokio::test]
+async fn list_events_returns_backend_managed_audit_log() {
+    let (base_url, token, _dir) = spawn_backend().await;
+
+    let client = reqwest::Client::new();
+    let ingest = client
+        .post(events_url(&base_url))
+        .header("Authorization", format!("Bearer {token}"))
+        .json(&IngestRequest {
+            events: vec![make_event("5.1"), make_event("5.2")],
+            idempotency_key: "key-list-001".to_string(),
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(ingest.status(), 200);
+
+    let resp = client
+        .get(events_url(&base_url))
+        .header("Authorization", format!("Bearer {token}"))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+
+    let body: Vec<serde_json::Value> = resp.json().await.unwrap();
+    assert_eq!(body.len(), 2);
+    assert_eq!(body[0]["entity_id"], "5.1");
+    assert_eq!(body[1]["entity_id"], "5.2");
+}

@@ -1,5 +1,6 @@
 use super::{
-    is_not_found_error, optional_task_text_body, parse_timestamp, retries_enabled_by_default,
+    is_not_found_error, optional_task_text_body, parse_timestamp, request_retries_enabled,
+    retries_enabled_by_default,
 };
 use ito_domain::errors::DomainError;
 
@@ -17,6 +18,12 @@ fn post_requests_are_not_retried_by_default() {
     assert!(!retries_enabled_by_default("HEAD"));
     assert!(!retries_enabled_by_default("OPTIONS"));
     assert!(!retries_enabled_by_default("TRACE"));
+}
+
+#[test]
+fn audit_ingest_posts_can_opt_into_retries() {
+    assert!(request_retries_enabled("POST", true));
+    assert!(!request_retries_enabled("POST", false));
 }
 
 #[test]

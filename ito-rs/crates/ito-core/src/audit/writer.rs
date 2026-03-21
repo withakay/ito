@@ -1,7 +1,9 @@
-//! Filesystem-backed audit log writer.
+//! Filesystem-backed audit log helpers.
 //!
-//! Appends events as single-line JSON to `.ito/.state/audit/events.jsonl`.
-//! All writes are best-effort: failures are logged but never block the caller.
+//! These helpers append events as single-line JSONL at a concrete filesystem path.
+//! Routed audit storage chooses when filesystem paths are used (for example on an
+//! internal audit branch or a local fallback store); callers should prefer the
+//! routed store entrypoints over writing directly to a worktree path.
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -12,9 +14,13 @@ use ito_config::{ConfigContext, load_cascading_project_config, resolve_audit_mir
 use ito_domain::audit::event::AuditEvent;
 use ito_domain::audit::writer::AuditWriter;
 
-/// Filesystem-backed implementation of `AuditWriter`.
+use super::store::{AuditEventStore, AuditStorageLocation};
+
+/// Filesystem-backed implementation of `AuditWriter` for a specific log path.
 ///
-/// Appends events to `{ito_path}/.state/audit/events.jsonl` in JSONL format.
+/// Prefer `default_audit_store()` for normal CLI/runtime usage so audit writes
+/// follow the routed storage policy. Construct `FsAuditWriter` directly only
+/// when a caller intentionally needs a concrete filesystem log path.
 pub struct FsAuditWriter {
     log_path: PathBuf,
     ito_path: PathBuf,
@@ -76,8 +82,18 @@ impl AuditWriter for FsAuditWriter {
     }
 }
 
+impl AuditEventStore for FsAuditWriter {
+    fn read_all(&self) -> Vec<AuditEvent> {
+        read_events_from_path(&self.log_path)
+    }
+
+    fn location(&self) -> AuditStorageLocation {
+        AuditStorageLocation::Filesystem(self.log_path.clone())
+    }
+}
+
 /// Append a single event to the JSONL file at `path`.
-fn append_event_to_file(path: &Path, event: &AuditEvent) -> std::io::Result<()> {
+pub(crate) fn append_event_to_file(path: &Path, event: &AuditEvent) -> std::io::Result<()> {
     // Create parent directories if needed
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -94,7 +110,35 @@ fn append_event_to_file(path: &Path, event: &AuditEvent) -> std::io::Result<()> 
     Ok(())
 }
 
-/// Returns the canonical path for the audit log file.
+pub(crate) fn read_events_from_path(path: &Path) -> Vec<AuditEvent> {
+    let Ok(contents) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    parse_events_from_jsonl(&contents)
+}
+
+pub(crate) fn parse_events_from_jsonl(contents: &str) -> Vec<AuditEvent> {
+    let mut events = Vec::new();
+    for (line_num, line) in contents.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        match serde_json::from_str::<AuditEvent>(line) {
+            Ok(event) => events.push(event),
+            Err(e) => {
+                tracing::warn!("audit log line {}: malformed event: {e}", line_num + 1);
+            }
+        }
+    }
+
+    events
+}
+
+/// Returns the legacy worktree-relative audit log path.
+///
+/// This helper remains available for migration and compatibility code. New
+/// routed audit writes should go through `default_audit_store()` instead.
 pub fn audit_log_path(ito_path: &Path) -> PathBuf {
     ito_path.join(".state").join("audit").join("events.jsonl")
 }

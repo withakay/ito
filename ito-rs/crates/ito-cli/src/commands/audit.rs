@@ -326,42 +326,28 @@ pub(crate) fn handle_audit_clap(rt: &Runtime, args: &AuditArgs) -> CliResult<()>
             last,
             json,
         } => {
-            // For now, implement a simple one-shot tail (streaming requires a file watcher)
-            let events = read_audit_events(ito_path);
-
-            let start = events.len().saturating_sub(*last);
-            let tail = &events[start..];
+            let config = audit::StreamConfig {
+                all_worktrees: *all_worktrees,
+                last: *last,
+                ..Default::default()
+            };
+            let (events, _sources) = audit::read_initial_events(ito_path, &config);
 
             if *json {
-                for event in tail {
-                    let line = serde_json::to_string(event).map_err(to_cli_error)?;
+                for streamed in &events {
+                    let line = serde_json::to_string(&streamed.event).map_err(to_cli_error)?;
                     println!("{line}");
                 }
             } else {
-                for event in tail {
-                    print_event_line(event);
-                }
-            }
-
-            if *all_worktrees {
-                let worktrees = audit::discover_worktrees(ito_path);
-                let wt_events = audit::aggregate_worktree_events(&worktrees);
-                for (wt, events) in &wt_events {
-                    let label = wt.branch.as_deref().unwrap_or("(detached)");
-                    let start = events.len().saturating_sub(*last);
-                    let tail = &events[start..];
-                    if *json {
-                        for event in tail {
-                            let line = serde_json::to_string(event).map_err(to_cli_error)?;
-                            println!("{line}");
-                        }
-                    } else if !tail.is_empty() {
+                let mut current_source: Option<&str> = None;
+                for streamed in &events {
+                    let source = streamed.source.as_str();
+                    if *all_worktrees && source != "main" && current_source != Some(source) {
                         println!();
-                        println!("── Worktree: {label} ({}) ──", wt.path.display());
-                        for event in tail {
-                            print_event_line(event);
-                        }
+                        println!("── Worktree: {source} ──");
                     }
+                    print_event_line(&streamed.event);
+                    current_source = Some(source);
                 }
             }
 
