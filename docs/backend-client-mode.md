@@ -70,7 +70,7 @@ For long-running development on macOS, you can run the backend as a Homebrew-man
 ```bash
 # Install the tap and formula
 brew tap withakay/ito
-brew install ito-cli
+brew install ito
 
 # Start the service
 brew services start ito-cli
