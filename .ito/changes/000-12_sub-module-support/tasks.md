@@ -63,13 +63,13 @@
 
 **Verify**: End-to-end test: `ito create sub-module auth --module 024` followed by `ito list --modules` showing nested sub-module; `ito show sub-module 024.01` showing metadata.
 
-- [~] **4.1** Add `ito create sub-module <name> --module <id>` command: allocate next sub-module number, write `module.md` at correct path, print confirmation
-- [ ] **4.2** Add `--description <text>` flag to `ito create sub-module` and include it in generated `module.md`
-- [ ] **4.3** Update `ito list --modules` display to render sub-modules indented under their parent module with id, name, and change count
-- [ ] **4.4** Add `ito show sub-module <NNN.SS>` command: load sub-module, display metadata and associated change list
-- [ ] **4.5** Add error handling: unknown parent module, unknown sub-module ID, duplicate sub-module name, canonical ID output in create/show flows
-- [ ] **4.6** Update `ito validate module <id>` to also validate sub-modules under that module (correct directory layout, valid module.md)
-- [ ] **4.7** Add remote-mode guard test showing `ito create sub-module ...` exits with actionable local-mode guidance
+- [x] **4.1** Add `ito create sub-module <name> --module <id>` command: allocate next sub-module number, write `module.md` at correct path, print confirmation
+- [x] **4.2** Add `--description <text>` flag to `ito create sub-module` and include it in generated `module.md`
+- [x] **4.3** Update `ito list --modules` display to render sub-modules indented under their parent module with id, name, and change count
+- [x] **4.4** Add `ito show sub-module <NNN.SS>` command: load sub-module, display metadata and associated change list
+- [x] **4.5** Add error handling: unknown parent module, unknown sub-module ID, duplicate sub-module name, canonical ID output in create/show flows
+- [x] **4.6** Update `ito validate module <id>` to also validate sub-modules under that module (correct directory layout, valid module.md)
+- [x] **4.7** Add remote-mode guard test showing `ito create sub-module ...` exits with actionable local-mode guidance
 
 ---
 
@@ -81,7 +81,7 @@
 
 **Verify**: `cargo test -p ito-backend` passes; integration test writing/reading a sub-module change ID through each store backend.
 
-- [ ] **5.1** Update `backend_change_repository.rs` so dotted change IDs are accepted as canonical IDs and returned with populated `sub_module_id`
+- [~] **5.1** Update `backend_change_repository.rs` so dotted change IDs are accepted as canonical IDs and returned with populated `sub_module_id`
 - [ ] **5.2** Update `backend_module_repository.rs` to list and resolve sub-modules through the remote-backed repository implementation
 - [ ] **5.3** Extend backend project store schemas/serialization so module records persist sub-module metadata as canonical backend state
 - [ ] **5.4** Update backend list/show sorting and rendering paths to treat `NNN.SS-NN_name` and `NNN.SS` as valid canonical IDs

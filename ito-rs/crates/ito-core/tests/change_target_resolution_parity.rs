@@ -63,6 +63,7 @@ fn sqlite_runtime_with_changes(
                 repo: "demo",
                 change_id,
                 module_id: change_id.split('-').next(),
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),

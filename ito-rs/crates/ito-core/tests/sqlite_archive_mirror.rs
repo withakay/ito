@@ -14,6 +14,7 @@ fn sqlite_archive_promotes_specs_and_marks_change_archived() {
             repo: "widgets",
             change_id: "025-05_archive-me",
             module_id: Some("025"),
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some("- [x] done\n"),

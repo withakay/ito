@@ -12,6 +12,7 @@ use serde::de::DeserializeOwned;
 
 use crate::audit::AuditEvent;
 use crate::backend_client::{BackendRuntime, is_retriable_status};
+use ito_common::id::{ItoIdKind, classify_id};
 use ito_domain::backend::{
     ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
     BackendEventIngestClient, BackendModuleReader, BackendSpecReader, BackendSyncClient,
@@ -19,7 +20,7 @@ use ito_domain::backend::{
 };
 use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
 use ito_domain::errors::{DomainError, DomainResult};
-use ito_domain::modules::{Module, ModuleSummary};
+use ito_domain::modules::{Module, ModuleSummary, SubModule, SubModuleSummary};
 use ito_domain::specs::{SpecDocument, SpecSummary};
 use ito_domain::tasks::{
     DiagnosticLevel, ProgressInfo, TaskDiagnostic, TaskInitResult, TaskItem, TaskKind,
@@ -244,10 +245,11 @@ impl BackendChangeReader for BackendHttpClient {
         let mut out = Vec::with_capacity(summaries.len());
         for summary in summaries {
             let last_modified = parse_timestamp(&summary.last_modified)?;
+            let sub_module_id = extract_sub_module_id_from_change_id(&summary.id);
             out.push(ChangeSummary {
                 id: summary.id,
                 module_id: summary.module_id,
-                sub_module_id: None,
+                sub_module_id,
                 completed_tasks: summary.completed_tasks,
                 shelved_tasks: summary.shelved_tasks,
                 in_progress_tasks: summary.in_progress_tasks,
@@ -281,10 +283,11 @@ impl BackendChangeReader for BackendHttpClient {
             }
         };
         let last_modified = parse_timestamp(&change.last_modified)?;
+        let sub_module_id = extract_sub_module_id_from_change_id(&change.id);
         Ok(Change {
             id: change.id,
             module_id: change.module_id,
-            sub_module_id: None,
+            sub_module_id,
             path: PathBuf::new(),
             proposal: change.proposal,
             design: change.design,
@@ -310,11 +313,20 @@ impl BackendModuleReader for BackendHttpClient {
         let modules: Vec<ApiModuleSummary> = self.get_json(&url, "module", None)?;
         let mut out = Vec::with_capacity(modules.len());
         for m in modules {
+            let sub_modules = m
+                .sub_modules
+                .into_iter()
+                .map(|s| SubModuleSummary {
+                    id: s.id,
+                    name: s.name,
+                    change_count: s.change_count,
+                })
+                .collect();
             out.push(ModuleSummary {
                 id: m.id,
                 name: m.name,
                 change_count: m.change_count,
-                sub_modules: Vec::new(),
+                sub_modules,
             });
         }
         Ok(out)
@@ -326,12 +338,25 @@ impl BackendModuleReader for BackendHttpClient {
             self.inner.runtime.project_api_prefix()
         );
         let module: ApiModule = self.get_json(&url, "module", Some(module_id))?;
+        let sub_modules = module
+            .sub_modules
+            .into_iter()
+            .map(|s| SubModule {
+                id: s.id.clone(),
+                parent_module_id: module.id.clone(),
+                sub_id: s.id.split('.').nth(1).unwrap_or("").to_string(),
+                name: s.name,
+                description: s.description,
+                change_count: s.change_count,
+                path: PathBuf::new(),
+            })
+            .collect();
         Ok(Module {
             id: module.id,
             name: module.name,
             description: module.description,
             path: PathBuf::new(),
-            sub_modules: Vec::new(),
+            sub_modules,
         })
     }
 }
@@ -784,6 +809,20 @@ fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResu
     }
 }
 
+/// Extract the sub-module ID from a change ID if it is in sub-module format.
+///
+/// For `NNN.SS-NN_name` format, returns `Some("NNN.SS")`.
+/// For legacy `NNN-NN_name` format, returns `None`.
+fn extract_sub_module_id_from_change_id(change_id: &str) -> Option<String> {
+    if classify_id(change_id) != ItoIdKind::SubModuleChangeId {
+        return None;
+    }
+    // The sub-module ID is the part before the first `-` in the prefix.
+    // e.g., "005.01-03_my-change" → prefix "005.01-03" → "005.01"
+    let prefix = change_id.split('_').next().unwrap_or(change_id);
+    prefix.split('-').next().map(|s| s.to_string())
+}
+
 #[derive(Debug, Deserialize)]
 struct ApiChangeSummary {
     id: String,
@@ -902,10 +941,27 @@ struct ApiSpecDocument {
 }
 
 #[derive(Debug, Deserialize)]
+struct ApiSubModuleSummary {
+    id: String,
+    name: String,
+    change_count: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiSubModule {
+    id: String,
+    name: String,
+    description: Option<String>,
+    change_count: u32,
+}
+
+#[derive(Debug, Deserialize)]
 struct ApiModuleSummary {
     id: String,
     name: String,
     change_count: u32,
+    #[serde(default)]
+    sub_modules: Vec<ApiSubModuleSummary>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -913,6 +969,8 @@ struct ApiModule {
     id: String,
     name: String,
     description: Option<String>,
+    #[serde(default)]
+    sub_modules: Vec<ApiSubModule>,
 }
 
 #[derive(Debug, Deserialize)]

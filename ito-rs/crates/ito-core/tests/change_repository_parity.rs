@@ -208,6 +208,7 @@ fn sqlite_store_with_changes(changes: &[(&str, Option<&str>)]) -> TempSqliteStor
                 repo: "repo",
                 change_id,
                 module_id: *module_id,
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("- [ ] task"),

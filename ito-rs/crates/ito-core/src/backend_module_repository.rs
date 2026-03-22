@@ -7,7 +7,9 @@
 use ito_common::id::parse_module_id as parse_common_module_id;
 use ito_domain::backend::BackendModuleReader;
 use ito_domain::errors::{DomainError, DomainResult};
-use ito_domain::modules::{Module, ModuleRepository as DomainModuleRepository, ModuleSummary};
+use ito_domain::modules::{
+    Module, ModuleRepository as DomainModuleRepository, ModuleSummary, SubModule, SubModuleSummary,
+};
 
 /// Backend-backed module repository.
 ///
@@ -50,6 +52,46 @@ impl<R: BackendModuleReader> DomainModuleRepository for BackendModuleRepository<
         let mut modules = self.reader.list_modules()?;
         modules.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(modules)
+    }
+
+    fn list_sub_modules(&self, parent_id: &str) -> DomainResult<Vec<SubModuleSummary>> {
+        let module_id = resolve_backend_module_key(parent_id);
+        let module = match self.reader.get_module(&module_id) {
+            Ok(m) => m,
+            Err(DomainError::NotFound { .. }) => {
+                return Err(DomainError::not_found("module", parent_id));
+            }
+            Err(err) => return Err(err),
+        };
+        let mut sub_modules: Vec<SubModuleSummary> = module
+            .sub_modules
+            .into_iter()
+            .map(|s| SubModuleSummary {
+                id: s.id,
+                name: s.name,
+                change_count: s.change_count,
+            })
+            .collect();
+        sub_modules.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(sub_modules)
+    }
+
+    fn get_sub_module(&self, composite_id: &str) -> DomainResult<SubModule> {
+        // Extract the parent module ID from the composite sub-module ID (e.g., "005.01" → "005").
+        let parent_id = composite_id.split('.').next().unwrap_or(composite_id);
+        let module_id = resolve_backend_module_key(parent_id);
+        let module = match self.reader.get_module(&module_id) {
+            Ok(m) => m,
+            Err(DomainError::NotFound { .. }) => {
+                return Err(DomainError::not_found("sub-module", composite_id));
+            }
+            Err(err) => return Err(err),
+        };
+        module
+            .sub_modules
+            .into_iter()
+            .find(|s| s.id == composite_id)
+            .ok_or_else(|| DomainError::not_found("sub-module", composite_id))
     }
 }
 
