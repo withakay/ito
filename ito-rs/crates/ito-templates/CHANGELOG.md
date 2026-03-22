@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.23] - 2026-03-22
+
+### 🚀 Features
+
+- *(001-31)* Add tmux-aware proposal viewer workflow ([#175](https://github.com/withakay/ito/pull/175))
+
+### 🐛 Bug Fixes
+
+- *(ito-templates)* Branch bare-control worktrees from default branch
 ## [0.1.22] - 2026-03-21
 ## [0.1.21] - 2026-03-13
 ## [0.1.20] - 2026-03-11
