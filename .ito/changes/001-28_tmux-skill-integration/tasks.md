@@ -27,7 +27,7 @@ ______________________________________________________________________
 - **Verify**: `cat ito-rs/crates/ito-templates/assets/skills/tmux/SKILL.md | head -10` confirms frontmatter present
 - **Done When**: `SKILL.md` exists with valid frontmatter; `name: tmux` present
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Copy helper scripts into assets
 
@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **Verify**: Both script files exist under `assets/skills/tmux/scripts/`
 - **Done When**: Both scripts are present in the assets tree
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -53,7 +53,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-templates 2>&1 | grep -c error` returns 0; inspect embedded asset listing in a test or `ito agent instruction` output for tmux skill
 - **Done When**: Build passes; tmux skill directory with scripts appears in the embedded asset tree
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Write installer test for skill-with-scripts
 
@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates 2>&1 | grep -E "PASSED|ok"` for the new test
 - **Done When**: Test passes; script permissions verified
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -78,7 +78,8 @@ ______________________________________________________________________
 - **Action**: Document that skills may include a `scripts/` subdirectory alongside `SKILL.md`, and that scripts are installed with executable permissions; note the tmux skill as an example
 - **Verify**: File reads correctly; no stale references
 - **Done When**: AGENTS.md updated with script-bundling pattern guidance
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
