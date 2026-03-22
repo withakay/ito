@@ -3,7 +3,7 @@
 *2026-03-22T13:19:53Z by Showboat 0.6.1*
 <!-- showboat-id: 47fa5e30-2df1-468a-b871-a836f7baf76c -->
 
-Added the  command with , config-aware tmux filtering, and focused integration tests for help and error paths.
+Added the `ito view proposal` command with `--viewer`, config-aware tmux filtering, and focused integration tests for help and error paths.
 
 The initial demo command used backticks in the title and triggered shell interpolation, so the bad entry was removed and replaced with direct file output below.
 

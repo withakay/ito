@@ -53,6 +53,8 @@ impl ViewerRegistry {
     }
 
     /// Find a registered viewer by its stable name.
+    ///
+    /// This only checks registration; callers must still enforce config enablement.
     pub fn find_by_name(&self, name: &str) -> Option<&dyn ViewerBackend> {
         for viewer in &self.viewers {
             let viewer = viewer.as_ref();

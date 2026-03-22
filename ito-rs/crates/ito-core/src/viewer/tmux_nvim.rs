@@ -1,7 +1,7 @@
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::errors::{CoreError, CoreResult};
+use uuid::Uuid;
 
 use super::ViewerBackend;
 use super::bat::command_on_path;
@@ -39,9 +39,12 @@ impl ViewerBackend for TmuxNvimViewer {
         std::fs::write(&temp_file, content)
             .map_err(|e| CoreError::io("writing temporary viewer file", e))?;
 
-        let popup_command = format!("nvim -R {}", shell_escape(&temp_file.to_string_lossy()));
         let status = Command::new("tmux")
-            .args(["display-popup", "-E", &popup_command])
+            .arg("display-popup")
+            .arg("-E")
+            .arg("nvim")
+            .arg("-R")
+            .arg(&temp_file)
             .status();
         let _ = std::fs::remove_file(&temp_file);
         let status = status.map_err(|e| CoreError::io("spawning tmux display-popup", e))?;
@@ -57,13 +60,18 @@ impl ViewerBackend for TmuxNvimViewer {
 }
 
 fn temporary_viewer_path() -> std::path::PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-    std::env::temp_dir().join(format!("ito-viewer-{nanos}.md"))
+    std::env::temp_dir().join(format!("ito-viewer-{}.md", Uuid::new_v4()))
 }
 
-fn shell_escape(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
+#[cfg(test)]
+mod tests {
+    use super::temporary_viewer_path;
+
+    #[test]
+    fn temporary_viewer_path_is_unique() {
+        let first = temporary_viewer_path();
+        let second = temporary_viewer_path();
+
+        assert_ne!(first, second);
+    }
 }

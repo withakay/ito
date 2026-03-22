@@ -43,6 +43,10 @@ mod tests {
     use super::*;
 
     use crate::errors::CoreResult;
+    #[cfg(unix)]
+    use std::sync::mpsc;
+    #[cfg(unix)]
+    use std::time::Duration;
 
     struct DummyViewer;
 
@@ -104,6 +108,22 @@ mod tests {
         assert_eq!(BatViewer.name(), "bat");
         assert_eq!(GlowViewer.name(), "glow");
         assert_eq!(TmuxNvimViewer.name(), "tmux-nvim");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_with_stdin_closes_pipe_after_write() {
+        let (tx, rx) = mpsc::channel();
+
+        std::thread::spawn(move || {
+            let result = crate::viewer::bat::run_with_stdin("sh", &["-c", "cat >/dev/null"], "hi");
+            tx.send(result).unwrap();
+        });
+
+        let result = rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("run_with_stdin should finish after writing EOF");
+        assert!(result.is_ok(), "{result:?}");
     }
 
     struct UnavailableViewer;

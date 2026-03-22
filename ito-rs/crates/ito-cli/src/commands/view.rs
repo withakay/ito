@@ -1,5 +1,5 @@
 use crate::cli::{ViewArgs, ViewCommand, ViewProposalArgs};
-use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use dialoguer::{Select, theme::ColorfulTheme};
 use ito_config::load_cascading_project_config;
@@ -23,7 +23,22 @@ fn handle_view_proposal(rt: &Runtime, args: &ViewProposalArgs) -> CliResult<()> 
     let content =
         collect_proposal_artifacts(&resolved_change, rt.ito_path()).map_err(to_cli_error)?;
 
-    let project_root = rt.ito_path().parent().unwrap_or(rt.ito_path());
+    if args.json {
+        let output = serde_json::json!({
+            "change_id": resolved_change,
+            "content": content,
+        });
+        let rendered = serde_json::to_string_pretty(&output).map_err(to_cli_error)?;
+        println!("{rendered}");
+        return Ok(());
+    }
+
+    let project_root = rt.ito_path().parent().ok_or_else(|| {
+        CliError::msg(format!(
+            "Could not determine project root from ito path: {}",
+            rt.ito_path().display()
+        ))
+    })?;
     let merged = load_cascading_project_config(project_root, rt.ito_path(), rt.ctx());
     let tmux_enabled = merged
         .merged

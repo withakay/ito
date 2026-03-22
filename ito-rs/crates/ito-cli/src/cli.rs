@@ -804,6 +804,10 @@ pub struct ViewProposalArgs {
     /// Change id (directory name)
     pub change_id: String,
 
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
+
     /// Viewer backend to use directly
     #[arg(long)]
     pub viewer: Option<String>,

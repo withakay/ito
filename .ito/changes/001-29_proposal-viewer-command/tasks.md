@@ -121,9 +121,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/tests/`
 - **Dependencies**: None
-- **Action**: Write an integration test that sets up a temporary Ito project with a known change directory, runs `ito view proposal <id> --viewer bat` (or mocks the viewer call), and asserts correct exit code; cover error cases (missing change, missing viewer)
+- **Action**: Write integration tests that set up a temporary Ito project with a known change directory, exercise `ito view proposal <id>` help/JSON output, and cover key error paths including missing change, unknown viewer, and tmux-disabled viewer rejection
 - **Verify**: `cargo test -p ito-cli view_proposal` passes
-- **Done When**: Integration test green; error cases covered (missing change, missing viewer)
+- **Done When**: Integration tests green; error cases covered (missing change, unknown viewer, tmux-disabled viewer)
 - **Updated At**: 2026-03-22
 - **Status**: [x] complete
 

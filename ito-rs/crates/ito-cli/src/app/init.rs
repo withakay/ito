@@ -183,7 +183,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
-    let tmux_enabled = resolve_tmux_preference(is_interactive, no_tmux)?;
+    let existing_tmux_preference = load_tmux_preference(target_path, ctx)?;
+    let tmux_enabled = resolve_tmux_preference(is_interactive, no_tmux, existing_tmux_preference)?;
 
     let (worktree_result, worktree_project_config_path, should_persist_worktree) =
         resolve_worktree_config(ctx, target_path, is_interactive)?;
@@ -440,18 +441,35 @@ fn persist_tmux_preference(
     Ok(())
 }
 
-fn resolve_tmux_preference(interactive: bool, no_tmux: bool) -> CliResult<bool> {
+fn load_tmux_preference(
+    target_path: &std::path::Path,
+    ctx: &ConfigContext,
+) -> CliResult<Option<bool>> {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let config_path = ito_path.join("config.json");
+    let config = core_config::read_json_config(&config_path)
+        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
+    let parts = core_config::json_split_path("tools.tmux.enabled");
+
+    Ok(core_config::json_get_path(&config, &parts).and_then(|value| value.as_bool()))
+}
+
+fn resolve_tmux_preference(
+    interactive: bool,
+    no_tmux: bool,
+    existing_preference: Option<bool>,
+) -> CliResult<bool> {
     if no_tmux {
         return Ok(false);
     }
 
     if !interactive {
-        return Ok(true);
+        return Ok(existing_preference.unwrap_or(true));
     }
 
     dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
         .with_prompt("Do you use tmux?")
-        .default(true)
+        .default(existing_preference.unwrap_or(true))
         .interact()
         .map_err(|e| CliError::msg(format!("Failed to prompt for tmux preference: {e}")))
 }

@@ -43,8 +43,8 @@ pub(crate) fn run_with_stdin(binary: &str, args: &[&str], content: &str) -> Core
         .spawn()
         .map_err(|e| CoreError::io(format!("spawning {binary}"), e))?;
 
-    if let Some(stdin) = child.stdin.as_mut() {
-        std::io::Write::write_all(stdin, content.as_bytes())
+    if let Some(mut stdin) = child.stdin.take() {
+        std::io::Write::write_all(&mut stdin, content.as_bytes())
             .map_err(|e| CoreError::io(format!("writing to {binary} stdin"), e))?;
     }
 

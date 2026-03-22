@@ -68,6 +68,38 @@ fn init_with_no_tmux_writes_tmux_enabled_false() {
 }
 
 #[test]
+fn init_update_preserves_existing_tmux_preference() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path().join(".ito/config.json"),
+        r#"{"tools":{"tmux":{"enabled":false}}}"#,
+    );
+
+    let args = fixtures::init_minimal_args(repo.path());
+    let mut owned_args = args;
+    owned_args.push("--update".to_string());
+    let argv = fixtures::args_to_strs(&owned_args);
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "init failed: {}", out.stderr);
+
+    let config = std::fs::read_to_string(repo.path().join(".ito/config.json")).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&config).unwrap();
+    assert!(
+        json.get("tools")
+            .and_then(|v| v.get("tmux"))
+            .and_then(|v| v.get("enabled"))
+            .and_then(|v| v.as_bool())
+            == Some(false),
+        "expected existing tools.tmux.enabled=false to be preserved\nGot:\n{config}"
+    );
+}
+
+#[test]
 #[cfg(unix)]
 #[ignore = "PTY interactive test hangs in CI; run locally with --include-ignored"]
 fn init_interactive_can_disable_tmux_preference() {
