@@ -118,4 +118,4 @@
 - [x] **7.1** Review and finalize `sub-module`, `sub-module-id-format`, `cli-sub-module`, and `repo-sweep-prompt` specs against actual implementation
 - [x] **7.2** Review and finalize `flexible-id-parser`, `module-repository`, `change-repository`, `change-creation`, `backend-artifact-store`, `backend-change-sync`, and `backend-project-store` delta specs
 - [x] **7.3** Add/update rustdoc on all new and modified public API items (`SubModule`, `ParsedChangeId`, `parse_change_id`, `classify_id`, repository methods)
-- [ ] **7.4** Run `ito validate 000-12_sub-module-support --strict` and resolve any failures
+- [x] **7.4** Run `ito validate 000-12_sub-module-support --strict` and resolve any failures
