@@ -686,6 +686,7 @@ fn task_list_to_parse_result(list: ApiTaskList) -> TasksParseResult {
             done_when: None,
             kind: TaskKind::Normal,
             header_line_index: 0,
+            requirements: Vec::new(),
         });
     }
 
@@ -775,6 +776,7 @@ fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResu
                 _ => TaskKind::Normal,
             },
             header_line_index: response.task.header_line_index,
+            requirements: Vec::new(),
         },
         revision: response.revision,
     }

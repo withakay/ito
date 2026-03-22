@@ -745,6 +745,7 @@ pub(crate) fn apply_add_task(
             done_when: Some("[Success criteria]".to_string()),
             kind: TaskKind::Normal,
             header_line_index: 0,
+            requirements: Vec::new(),
         },
         updated_content: out,
     })

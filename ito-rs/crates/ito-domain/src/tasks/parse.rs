@@ -59,6 +59,9 @@ static VERIFY_RE: LazyLock<Regex> =
 static DONE_WHEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\*\*Done When\*\*:\s*(.+?)\s*$").unwrap());
 
+static REQUIREMENTS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Requirements\*\*:\s*(.+?)\s*$").unwrap());
+
 static ALL_WAVE_CAPTURE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)^all\s+wave\s+(\d+)\s+tasks$").unwrap());
 
@@ -176,6 +179,8 @@ pub struct TaskItem {
     pub kind: TaskKind,
     /// 0-based line index where the task header was found.
     pub header_line_index: usize,
+    /// Requirement IDs this task covers (traceability metadata).
+    pub requirements: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -373,6 +378,7 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             done_when: None,
             kind: TaskKind::Normal,
             header_line_index: line_idx,
+            requirements: Vec::new(),
         });
     }
     let progress = compute_progress(&tasks);
@@ -419,6 +425,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     let files_re = &*FILES_RE;
     let verify_re = &*VERIFY_RE;
     let done_when_re = &*DONE_WHEN_RE;
+    let requirements_re = &*REQUIREMENTS_RE;
 
     let mut current_wave: Option<u32> = None;
     let mut in_checkpoints = false;
@@ -447,6 +454,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         action_lines: Vec<String>,
         verify: Option<String>,
         done_when: Option<String>,
+        requirements: Vec<String>,
     }
 
     fn flush_current(
@@ -476,6 +484,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             .to_string();
         let verify = current.verify.take();
         let done_when = current.done_when.take();
+        let requirements = std::mem::take(&mut current.requirements);
 
         let status = match status_raw
             .as_deref()
@@ -570,6 +579,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             done_when,
             kind: current.kind,
             header_line_index,
+            requirements,
         });
         current.kind = TaskKind::Normal;
     }
@@ -588,6 +598,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         action_lines: Vec::new(),
         verify: None,
         done_when: None,
+        requirements: Vec::new(),
     };
 
     let mut in_action = false;
@@ -667,6 +678,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             current_task.action_lines.clear();
             current_task.verify = None;
             current_task.done_when = None;
+            current_task.requirements.clear();
             in_action = false;
 
             if current_wave.is_none() && !in_checkpoints {
@@ -720,6 +732,15 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             }
             if let Some(cap) = done_when_re.captures(line) {
                 current_task.done_when = Some(cap[1].trim().to_string());
+                continue;
+            }
+            if let Some(cap) = requirements_re.captures(line) {
+                let raw = cap[1].trim();
+                current_task.requirements = raw
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
                 continue;
             }
         }

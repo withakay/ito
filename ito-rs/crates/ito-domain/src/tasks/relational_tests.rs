@@ -23,6 +23,7 @@ fn task(
         done_when: None,
         kind: TaskKind::Normal,
         header_line_index,
+        requirements: Vec::new(),
     }
 }
 
