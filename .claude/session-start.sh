@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+# When running as a remote agent, ensure dependencies are installed
+if [ "${RUNNING_AS:-}" = "REMOTE_AGENT" ]; then
+  make -C "$(dirname "$0")/.." init >&2
+fi
+
 # Output a minimal pointer to the Ito CLI bootstrap artifact
 # This hook does NOT embed workflow content - it delegates to the CLI
 additional_context=$(cat <<'EOF'
