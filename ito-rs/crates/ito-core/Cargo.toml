@@ -31,8 +31,8 @@ grep-matcher = { workspace = true }
 grep-regex = { workspace = true }
 grep-searcher = { workspace = true }
 ureq = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
 assert-struct = "0.2"
 filetime = { workspace = true }
-tempfile = { workspace = true }
