@@ -451,6 +451,27 @@ mod tests {
     }
 
     #[test]
+    fn tmux_skill_and_scripts_are_embedded() {
+        let skill = get_skill_file("tmux/SKILL.md").expect("tmux skill should exist");
+        let skill_text = std::str::from_utf8(skill).expect("skill should be utf8");
+        assert!(skill_text.starts_with("---\nname: tmux\n"));
+
+        let files = skills_files();
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "tmux/scripts/wait-for-text.sh"),
+            "expected wait-for-text helper script to be embedded"
+        );
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "tmux/scripts/find-sessions.sh"),
+            "expected find-sessions helper script to be embedded"
+        );
+    }
+
+    #[test]
     fn normalize_ito_dir_empty_defaults_to_dot_ito() {
         assert_eq!(normalize_ito_dir(""), ".ito");
     }

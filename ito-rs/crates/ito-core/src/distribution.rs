@@ -10,6 +10,9 @@ use ito_templates::{
 };
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 #[derive(Debug, Clone)]
 /// One file to be installed from embedded assets.
 pub struct FileManifest {
@@ -291,7 +294,39 @@ pub fn install_manifests(
         }
         ito_common::io::write_std(&manifest.dest, &bytes)
             .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
+        ensure_manifest_script_is_executable(manifest)?;
     }
+    Ok(())
+}
+
+fn ensure_manifest_script_is_executable(manifest: &FileManifest) -> CoreResult<()> {
+    #[cfg(unix)]
+    {
+        let is_skill_script = manifest.asset_type == AssetType::Skill
+            && manifest.source.ends_with(".sh")
+            && manifest.source.contains("/scripts/");
+
+        if is_skill_script {
+            let metadata = std::fs::metadata(&manifest.dest).map_err(|e| {
+                CoreError::io(
+                    format!("reading metadata for {}", manifest.dest.display()),
+                    e,
+                )
+            })?;
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(permissions.mode() | 0o755);
+            std::fs::set_permissions(&manifest.dest, permissions).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "setting executable permissions on {}",
+                        manifest.dest.display()
+                    ),
+                    e,
+                )
+            })?;
+        }
+    }
+
     Ok(())
 }
 

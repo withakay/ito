@@ -60,6 +60,8 @@ None — this is a standalone crate with only external dependencies (`include_di
 2. **When adding or modifying a command/prompt**, update ALL harness versions for feature parity (each has its own frontmatter format).
 3. **Skills are shared** from `assets/skills/` and don't need per-harness maintenance.
 4. **OpenCode uses plural directory names**: `.opencode/skills/`, `.opencode/commands/`, `.opencode/plugins/`.
+5. **Skill directories may bundle helper assets** such as `scripts/` alongside `SKILL.md`; keep those files under the same skill directory in `assets/skills/` so harness distribution installs them together.
+6. **Executable helper scripts** (for example `.sh` files under `skills/*/scripts/`) must be installed with executable permissions so agents can invoke them directly after `ito init` / `ito update`.
 
 ## Verifying Changes
 

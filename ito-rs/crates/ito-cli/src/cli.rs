@@ -255,6 +255,10 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Path(PathArgs),
 
+    /// View proposal artifacts with an interactive or explicit viewer
+    #[command(verbatim_doc_comment)]
+    View(ViewArgs),
+
     /// Manage embedded template assets
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]
     Templates(TemplatesArgs),
@@ -510,6 +514,10 @@ pub struct InitArgs {
     /// Ensure coordination branch exists on origin after init
     #[arg(long = "setup-coordination-branch")]
     pub setup_coordination_branch: bool,
+
+    /// Disable tmux-backed workflow suggestions in project config
+    #[arg(long = "no-tmux")]
+    pub no_tmux: bool,
 
     /// Override HOME used for locating global Ito config (for parity/testing)
     #[arg(long, value_name = "HOME")]
@@ -773,6 +781,32 @@ pub struct ShowSpecsArgs {
     /// Output as JSON
     #[arg(long)]
     pub json: bool,
+}
+
+/// View Ito artifacts using a selected renderer.
+#[derive(Args, Debug, Clone)]
+#[command(subcommand_required = true, arg_required_else_help = true)]
+#[command(disable_help_subcommand = true)]
+pub struct ViewArgs {
+    #[command(subcommand)]
+    pub command: Option<ViewCommand>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ViewCommand {
+    /// View a change proposal package
+    Proposal(ViewProposalArgs),
+}
+
+/// View a proposal package for one change.
+#[derive(Args, Debug, Clone)]
+pub struct ViewProposalArgs {
+    /// Change id (directory name)
+    pub change_id: String,
+
+    /// Viewer backend to use directly
+    #[arg(long)]
+    pub viewer: Option<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
