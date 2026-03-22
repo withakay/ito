@@ -34,7 +34,7 @@ Existing `NNN-NN_name` IDs SHALL remain valid, parseable, and canonical. No migr
 - **WHEN** a parser receives `024-03_add-jwt`
 - **THEN** it returns `module_id = "024"`, `sub_module_id = None`, `change_num = "03"`, `name = "add-jwt"`
 
-### Requirement: The three ID types are unambiguously distinguishable
+### Requirement: The four ID types are unambiguously distinguishable
 
 A parser SHALL be able to determine from the ID string alone whether it is:
 1. A **module ID** — `NNN` (no dash, no dot)
@@ -70,4 +70,16 @@ Sub-module numbers SHALL be two-digit zero-padded (e.g., `01`, `12`), consistent
 
 - **WHEN** input contains sub-module number `1`
 - **THEN** it is normalized to `01`
+
+### Requirement: Canonical and loose sub-module references remain distinguishable
+
+The canonical sub-module ID SHALL be `NNN.SS`.
+
+Forms such as `NNN.SS_name` MAY be accepted as loose input or display labels, but SHALL normalize to the canonical `NNN.SS` identifier.
+
+#### Scenario: Loose sub-module reference normalizes to canonical ID
+
+- **WHEN** a command receives `024.01_auth` as sub-module input
+- **THEN** it resolves that input to canonical sub-module ID `024.01`
+- **AND** it does not treat `024.01_auth` as a separate canonical ID kind
 <!-- ITO:END -->

@@ -19,12 +19,6 @@ Sub-modules are one level deep only. A sub-module cannot contain another sub-mod
 - **THEN** a `module.md` file is written at `.ito/modules/024_ito-backend/sub/01_auth/module.md`
 - **AND** the file contains at minimum: id, name, optional description, and a `## Changes` checklist
 
-#### Scenario: Sub-module is listed under its parent in module listings
-
-- **WHEN** `ito list --modules` is invoked
-- **THEN** sub-modules appear nested under their parent module in display output
-- **AND** each sub-module shows its canonical ID (e.g., `024.01`), name, and change count
-
 ### Requirement: Sub-module directory layout follows a prescribed path
 
 The filesystem layout for sub-modules SHALL be deterministic and human-readable.
@@ -50,4 +44,17 @@ The domain layer SHALL provide a `SubModule` struct with the fields needed to re
 
 - **WHEN** a sub-module is loaded
 - **THEN** the resulting `SubModule` struct contains: `id` (e.g., `"024.01"`), `parent_module_id` (e.g., `"024"`), `sub_id` (e.g., `"01"`), `name` (e.g., `"auth"`), `description: Option<String>`, `change_count: u32`
+
+### Requirement: Parent modules can own direct changes alongside sub-modules
+
+A parent module SHALL be allowed to own module-level changes and sub-modules at the same time.
+
+#### Scenario: Parent module and sub-module each own changes
+
+- **GIVEN** module `024` has module-level change `024-07_health-check`
+- **AND** sub-module `024.01` has change `024.01-01_add-jwt`
+- **WHEN** module and sub-module metadata are loaded
+- **THEN** the module-level change remains associated with parent module `024`
+- **AND** the sub-module change remains associated with sub-module `024.01`
+- **AND** neither change is reassigned to the other scope
 <!-- ITO:END -->

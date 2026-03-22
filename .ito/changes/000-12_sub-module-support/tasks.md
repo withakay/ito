@@ -9,8 +9,8 @@
 - [ ] **1.1** Add `SubModule` domain struct to `ito-domain` with fields: `id`, `parent_module_id`, `sub_id`, `name`, `description: Option<String>`, `change_count: u32`
 - [ ] **1.2** Add `sub_modules: Vec<SubModule>` field to the `Module` domain struct; default empty
 - [ ] **1.3** Add `SubModuleSummary` struct (id, name, change_count) and include `sub_modules: Vec<SubModuleSummary>` in `ModuleSummary`
-- [ ] **1.4** Add `sub_module_id: Option<String>` field to `Change` and `ChangeSummary` domain structs
-- [ ] **1.5** Define `ParsedChangeId` struct: `{ module_id, sub_module_id: Option<String>, change_num, name: Option<String>, canonical }`
+- [ ] **1.4** Add `sub_module_id: Option<String>` field to `Change` and `ChangeSummary` domain structs, storing the canonical `NNN.SS` sub-module ID when present
+- [ ] **1.5** Define `ParsedChangeId` struct: `{ module_id, sub_module_id: Option<String>, change_num, name: Option<String>, canonical }`, where `sub_module_id` uses canonical `NNN.SS` form
 - [ ] **1.6** Update `parse_change_id` to return `ParsedChangeId` and handle `NNN.SS-NN_name` format; old `NNN-NN_name` sets `sub_module_id = None`
 - [ ] **1.7** Update `extract_module_id` to strip the sub-module component and return only `NNN` for both old and new formats
 - [ ] **1.8** Add `parse_sub_module_id(input: &str) -> Result<String>` function to normalize `NNN.SS` / `NNN.SS_name` inputs
@@ -19,11 +19,11 @@
 
 ---
 
-## Wave 2 — Filesystem module repository
+## Wave 2 — Filesystem repositories
 
 **Depends On**: Wave 1
 
-**Objective**: The filesystem `ModuleRepository` reads sub-module directories and exposes sub-module data.
+**Objective**: The filesystem repositories read sub-module directories, preserve sub-module-qualified change IDs, and expose the right metadata for list/show flows.
 
 **Verify**: `cargo test -p ito-core` passes; manually run `ito list --modules` on a test repo with sub-module directories.
 
@@ -32,6 +32,8 @@
 - [ ] **2.3** Implement `ModuleRepository::get_sub_module(composite_id: &str)` — parse composite id, locate directory, read `module.md`, return `SubModule`
 - [ ] **2.4** Update `ModuleRepository::list()` to populate `sub_modules` in each `ModuleSummary`
 - [ ] **2.5** Update `ModuleRepository::list_with_changes()` to include sub-module changes alongside module changes
+- [ ] **2.6** Update filesystem `ChangeRepository` list/get paths to populate `sub_module_id` for `Change` and `ChangeSummary` when a change ID uses `NNN.SS-NN_name`
+- [ ] **2.7** Add regression tests proving a parent module can retain direct change `024-07_*` while sub-module `024.01` owns `024.01-01_*`
 
 ---
 
@@ -48,7 +50,8 @@
 - [ ] **3.3** Update the allocation logic to use the sub-module composite key (`NNN.SS`) as the namespace for change numbering
 - [ ] **3.4** Update `ito create change` to write the new change ID in `NNN.SS-NN_name` canonical form when `--sub-module` is provided
 - [ ] **3.5** Update post-creation module checklist write to target the sub-module's `module.md` (not the parent) when `--sub-module` is used
-- [ ] **3.6** Ensure checklist ordering in sub-module `module.md` is ascending by canonical change ID
+- [ ] **3.6** Ensure checklist ordering in the owning `module.md` (parent module or sub-module) is ascending by canonical change ID
+- [ ] **3.7** Add remote-mode guard test showing `ito create change --sub-module ...` exits with actionable local-mode guidance when remote persistence is active
 
 ---
 
@@ -64,8 +67,9 @@
 - [ ] **4.2** Add `--description <text>` flag to `ito create sub-module` and include it in generated `module.md`
 - [ ] **4.3** Update `ito list --modules` display to render sub-modules indented under their parent module with id, name, and change count
 - [ ] **4.4** Add `ito show sub-module <NNN.SS>` command: load sub-module, display metadata and associated change list
-- [ ] **4.5** Add error handling: unknown parent module, unknown sub-module ID, duplicate sub-module name
+- [ ] **4.5** Add error handling: unknown parent module, unknown sub-module ID, duplicate sub-module name, canonical ID output in create/show flows
 - [ ] **4.6** Update `ito validate module <id>` to also validate sub-modules under that module (correct directory layout, valid module.md)
+- [ ] **4.7** Add remote-mode guard test showing `ito create sub-module ...` exits with actionable local-mode guidance
 
 ---
 
@@ -73,16 +77,18 @@
 
 **Depends On**: Wave 1
 
-**Objective**: All backend-backed repository implementations correctly handle `NNN.SS-NN_name` IDs in reads, writes, listings, and sync.
+**Objective**: All backend-backed repository implementations correctly handle sub-module IDs in reads, listings, storage, and sync.
 
 **Verify**: `cargo test -p ito-backend` passes; integration test writing/reading a sub-module change ID through each store backend.
 
-- [ ] **5.1** Audit `backend_change_repository.rs` — ensure change ID is treated as opaque string; no regex/split that would reject dot characters
-- [ ] **5.2** Audit `backend_module_repository.rs` — ensure `extract_module_id` (updated in Wave 1) is used, not inline splitting
-- [ ] **5.3** Update backend change listing/sorting to treat `NNN.SS-NN_name` IDs as valid and sort them in canonical order
-- [ ] **5.4** Update backend artifact store key generation to accept dots in change ID component (filesystem, SQLite, R2)
-- [ ] **5.5** Update `backend_change_sync.rs`: ensure sync push/pull preserves the sub-module component; use updated `extract_module_id` for module scope resolution
-- [ ] **5.6** Add integration tests: write artifact with sub-module ID, list, read back, verify round-trip across all three store backends
+- [ ] **5.1** Update `backend_change_repository.rs` so dotted change IDs are accepted as canonical IDs and returned with populated `sub_module_id`
+- [ ] **5.2** Update `backend_module_repository.rs` to list and resolve sub-modules through the remote-backed repository implementation
+- [ ] **5.3** Extend backend project store schemas/serialization so module records persist sub-module metadata as canonical backend state
+- [ ] **5.4** Update backend list/show sorting and rendering paths to treat `NNN.SS-NN_name` and `NNN.SS` as valid canonical IDs
+- [ ] **5.5** Update backend artifact store key generation to accept dots in change ID components (filesystem, SQLite, R2)
+- [ ] **5.6** Update `backend_change_sync.rs` so sync push/pull preserves the sub-module component and uses updated ID parsing for parent-module scope resolution
+- [ ] **5.7** Add integration tests: list modules with nested sub-modules in remote mode, show a sub-module, and read/write a sub-module change ID across supported backends
+- [ ] **5.8** Add remote-mode CLI tests showing `ito list --modules` and `ito show sub-module` resolve through the runtime-selected `ModuleRepository`
 
 ---
 
@@ -90,12 +96,12 @@
 
 **Depends On**: Wave 1 (for format definitions)
 
-**Objective**: An agent sweep prompt exists for detecting hardcoded old-format IDs in repo artifacts and guiding upgrades.
+**Objective**: An agent sweep prompt exists for detecting old-only ID assumptions in prompt and instruction surfaces and guiding upgrades.
 
 **Verify**: `ito agent instruction repo-sweep` outputs the sweep prompt without error; prompt contains scan targets, regex patterns, and upgrade guidance.
 
 - [ ] **6.1** Add `repo-sweep` as a supported `ito agent instruction` target (no `--change` required)
-- [ ] **6.2** Write the `repo-sweep` prompt template in `ito-templates` embedded assets, covering: scan targets (`.ito/changes/`, `.ito/modules/`, `.ito/user-prompts/`), detection patterns, reporting format, and upgrade guidance
+- [ ] **6.2** Write the `repo-sweep` prompt template in `ito-templates` embedded assets, covering: scan targets (`.ito/user-prompts/`, `AGENTS.md`, `.opencode/`, `.github/`, `.codex/`, `ito-rs/crates/ito-templates/assets/`), detection patterns for old-only assumptions, reporting format, and upgrade guidance
 - [ ] **6.3** Wire the `repo-sweep` template into `ito agent instruction` output path
 - [ ] **6.4** Verify the sweep prompt is installed by `ito init` (or accessible without install) and does not require an active change context
 
@@ -109,7 +115,7 @@
 
 **Verify**: `ito validate 000-12_sub-module-support --strict` passes with no errors or warnings.
 
-- [ ] **7.1** Review and finalize `sub-module`, `sub-module-id-format`, `cli-sub-module`, `repo-sweep-prompt` specs against actual implementation
-- [ ] **7.2** Review and finalize `flexible-id-parser`, `module-repository`, `change-creation`, `backend-artifact-store`, `backend-change-sync` delta specs
+- [ ] **7.1** Review and finalize `sub-module`, `sub-module-id-format`, `cli-sub-module`, and `repo-sweep-prompt` specs against actual implementation
+- [ ] **7.2** Review and finalize `flexible-id-parser`, `module-repository`, `change-repository`, `change-creation`, `backend-artifact-store`, `backend-change-sync`, and `backend-project-store` delta specs
 - [ ] **7.3** Add/update rustdoc on all new and modified public API items (`SubModule`, `ParsedChangeId`, `parse_change_id`, `classify_id`, repository methods)
 - [ ] **7.4** Run `ito validate 000-12_sub-module-support --strict` and resolve any failures
