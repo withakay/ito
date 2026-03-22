@@ -1,0 +1,42 @@
+# Repository Sweep: Sub-Module ID Format Awareness
+
+Scan this Ito repository for prompts, templates, regexes, and examples that assume only module-level change IDs (`NNN-NN_name`) exist. Sub-module change IDs use the format `NNN.SS-NN_name` and should also be accepted wherever change IDs are referenced.
+
+## Scan Targets
+
+Scan these directories for files containing ID format assumptions:
+
+- `.ito/user-prompts/` — user-facing guidance prompts
+- `AGENTS.md` — agent instructions (repo root and `.ito/`)
+- `.opencode/` — OpenCode skills and commands
+- `.github/` — GitHub workflows and templates
+- `.codex/` — Codex configuration
+- `ito-rs/crates/ito-templates/assets/` — embedded template sources (authoritative)
+
+## Detection Patterns
+
+Look for:
+
+1. **Hardcoded regexes** that only match `NNN-NN_name` (e.g., `\d{3}-\d{2}_` without a dot alternative)
+2. **Example IDs** that only show the old format without mentioning sub-module format (e.g., "like `001-02_my-change`" without also showing `001.02-01_sub-change`)
+3. **Prose descriptions** that say "change IDs follow the pattern `NNN-NN_name`" without noting that `NNN.SS-NN_name` is also valid
+4. **String splitting logic** in templates/prompts that splits on `-` to extract module ID without considering the dot in sub-module IDs
+5. **ID format documentation** that lists only `NNN` (module) and `NNN-NN_name` (change) without `NNN.SS` (sub-module) and `NNN.SS-NN_name` (sub-module change)
+
+## Reporting Format
+
+For each finding, report:
+
+- **File**: path to the file
+- **Line**: line number(s)
+- **Type**: `regex` | `example` | `prose` | `logic` | `docs`
+- **Current**: the current text/pattern
+- **Suggested**: a generalized version that accepts both formats
+
+## Upgrade Guidance
+
+- Existing change IDs do NOT need to be renamed
+- Only update format assumptions so they accept both `NNN-NN_name` and `NNN.SS-NN_name`
+- The four canonical ID types are: `NNN` (module), `NNN.SS` (sub-module), `NNN-NN_name` (module change), `NNN.SS-NN_name` (sub-module change)
+- When updating regexes, use a pattern like `\d{3}(?:\.\d{2})?-\d{2,}_[a-z]` to match both formats
+- When updating examples, show both: `001-02_my-change` and `001.02-01_sub-change`

@@ -81,14 +81,14 @@
 
 **Verify**: `cargo test -p ito-backend` passes; integration test writing/reading a sub-module change ID through each store backend.
 
-- [~] **5.1** Update `backend_change_repository.rs` so dotted change IDs are accepted as canonical IDs and returned with populated `sub_module_id`
-- [ ] **5.2** Update `backend_module_repository.rs` to list and resolve sub-modules through the remote-backed repository implementation
-- [ ] **5.3** Extend backend project store schemas/serialization so module records persist sub-module metadata as canonical backend state
-- [ ] **5.4** Update backend list/show sorting and rendering paths to treat `NNN.SS-NN_name` and `NNN.SS` as valid canonical IDs
-- [ ] **5.5** Update backend artifact store key generation to accept dots in change ID components (filesystem, SQLite, R2)
-- [ ] **5.6** Update `backend_change_sync.rs` so sync push/pull preserves the sub-module component and uses updated ID parsing for parent-module scope resolution
-- [ ] **5.7** Add integration tests: list modules with nested sub-modules in remote mode, show a sub-module, and read/write a sub-module change ID across supported backends
-- [ ] **5.8** Add remote-mode CLI tests showing `ito list --modules` and `ito show sub-module` resolve through the runtime-selected `ModuleRepository`
+- [x] **5.1** Update `backend_change_repository.rs` so dotted change IDs are accepted as canonical IDs and returned with populated `sub_module_id`
+- [x] **5.2** Update `backend_module_repository.rs` to list and resolve sub-modules through the remote-backed repository implementation
+- [x] **5.3** Extend backend project store schemas/serialization so module records persist sub-module metadata as canonical backend state
+- [x] **5.4** Update backend list/show sorting and rendering paths to treat `NNN.SS-NN_name` and `NNN.SS` as valid canonical IDs
+- [x] **5.5** Update backend artifact store key generation to accept dots in change ID components (filesystem, SQLite, R2)
+- [x] **5.6** Update `backend_change_sync.rs` so sync push/pull preserves the sub-module component and uses updated ID parsing for parent-module scope resolution
+- [x] **5.7** Add integration tests: list modules with nested sub-modules in remote mode, show a sub-module, and read/write a sub-module change ID across supported backends
+- [x] **5.8** Add remote-mode CLI tests showing `ito list --modules` and `ito show sub-module` resolve through the runtime-selected `ModuleRepository`
 
 ---
 
@@ -100,7 +100,7 @@
 
 **Verify**: `ito agent instruction repo-sweep` outputs the sweep prompt without error; prompt contains scan targets, regex patterns, and upgrade guidance.
 
-- [ ] **6.1** Add `repo-sweep` as a supported `ito agent instruction` target (no `--change` required)
+- [~] **6.1** Add `repo-sweep` as a supported `ito agent instruction` target (no `--change` required)
 - [ ] **6.2** Write the `repo-sweep` prompt template in `ito-templates` embedded assets, covering: scan targets (`.ito/user-prompts/`, `AGENTS.md`, `.opencode/`, `.github/`, `.codex/`, `ito-rs/crates/ito-templates/assets/`), detection patterns for old-only assumptions, reporting format, and upgrade guidance
 - [ ] **6.3** Wire the `repo-sweep` template into `ito agent instruction` output path
 - [ ] **6.4** Verify the sweep prompt is installed by `ito init` (or accessible without install) and does not require an active change context

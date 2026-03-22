@@ -534,6 +534,7 @@ Artifacts:
   project-setup  Guide for setting up a new project
   backend        Backend server and client configuration guide
   worktrees      Guide for git worktree workflow (config-driven)
+  repo-sweep     Scan for old-only ID format assumptions in prompts and templates
   proposal       Show the change proposal
   specs          Show the specification deltas
   tasks          Show the implementation task list
@@ -547,6 +548,7 @@ Examples:
   ito agent instruction project-setup
   ito agent instruction backend
   ito agent instruction worktrees
+  ito agent instruction repo-sweep
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap
