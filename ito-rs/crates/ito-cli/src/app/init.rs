@@ -446,12 +446,12 @@ fn load_tmux_preference(
     ctx: &ConfigContext,
 ) -> CliResult<Option<bool>> {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let config_path = ito_path.join("config.json");
-    let config = core_config::read_json_config(&config_path)
-        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
-    let parts = core_config::json_split_path("tools.tmux.enabled");
-
-    Ok(core_config::json_get_path(&config, &parts).and_then(|value| value.as_bool()))
+    let merged = load_cascading_project_config(target_path, &ito_path, ctx);
+    let preference = merged
+        .merged
+        .pointer("/tools/tmux/enabled")
+        .and_then(|value| value.as_bool());
+    Ok(preference)
 }
 
 fn resolve_tmux_preference(
