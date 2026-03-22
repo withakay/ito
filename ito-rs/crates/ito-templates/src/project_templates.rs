@@ -251,6 +251,12 @@ mod tests {
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
+        assert!(
+            text.contains(
+                "git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main"
+            )
+        );
+        assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
         let layout_line = text
             .lines()
             .find(|l| l.contains("# bare/control repo"))

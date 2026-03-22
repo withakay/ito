@@ -58,8 +58,10 @@ Create a worktree:
 
 ```bash
 mkdir -p "../{{ layout_dir_name }}"
-git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name>
+git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name> {{ default_branch }}
 ```
+
+Always branch new change worktrees from `{{ default_branch }}`. Never use the bare/control repo placeholder `HEAD` as the checkout source.
 {% else %}
 Use the configured strategy and directory values above.
 {% endif %}

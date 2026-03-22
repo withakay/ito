@@ -272,6 +272,10 @@ fn agents_md_bare_control_siblings() {
     assert!(text.contains("**Strategy:** `bare_control_siblings`"));
     assert!(text.contains(".bare/"));
     assert!(text.contains("ito-worktrees/"));
+    assert!(
+        text.contains("git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main")
+    );
+    assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
     let layout_line = text
@@ -348,6 +352,12 @@ fn skill_bare_control_siblings() {
 
     assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
     assert!(text.contains("ito-worktrees/"));
+    assert!(
+        text.contains("git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main")
+    );
+    assert!(
+        text.contains("Never use the bare/control repo placeholder `HEAD` as the checkout source")
+    );
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
