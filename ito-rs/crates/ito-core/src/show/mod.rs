@@ -29,6 +29,10 @@ pub struct Requirement {
     /// The normalized requirement statement.
     pub text: String,
 
+    /// Optional stable identifier for traceability (e.g. `REQ-001`).
+    #[serde(rename = "requirementId", skip_serializing_if = "Option::is_none")]
+    pub requirement_id: Option<String>,
+
     /// Scenario blocks associated with the requirement.
     pub scenarios: Vec<Scenario>,
 }
@@ -432,6 +436,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
 
     // Requirement statement: consume non-empty lines until we hit a scenario header or next requirement.
     let mut statement_lines: Vec<String> = Vec::new();
+    let mut requirement_id: Option<String> = None;
     while i < lines.len() {
         let t = lines[i].trim_end();
         if t.starts_with("#### Scenario:")
@@ -439,6 +444,18 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
             || t.starts_with("## ")
         {
             break;
+        }
+        // Detect `- **Requirement ID**: <id>` metadata line; extract id, skip from text.
+        if let Some(rest) = t
+            .trim()
+            .strip_prefix("- **Requirement ID**:")
+            .map(str::trim)
+        {
+            if !rest.is_empty() {
+                requirement_id = Some(rest.to_string());
+            }
+            i += 1;
+            continue;
         }
         if !t.trim().is_empty() {
             statement_lines.push(t.trim().to_string());
@@ -475,7 +492,15 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
         i += 1;
     }
 
-    (title, Requirement { text, scenarios }, i)
+    (
+        title,
+        Requirement {
+            text,
+            requirement_id,
+            scenarios,
+        },
+        i,
+    )
 }
 
 fn extract_section_text(markdown: &str, header: &str) -> String {

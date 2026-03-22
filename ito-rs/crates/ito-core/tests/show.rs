@@ -259,6 +259,116 @@ fn bundle_main_specs_show_json_returns_not_found_when_no_specs_exist() {
 }
 
 #[test]
+fn parse_requirement_block_extracts_requirement_id() {
+    let md = r#"
+## Requirements
+
+### Requirement: The system SHALL authenticate users
+The system SHALL authenticate users via OAuth2.
+- **Requirement ID**: REQ-AUTH-001
+
+#### Scenario: Happy path
+Given a valid token
+Then access is granted
+"#;
+
+    let json = parse_spec_show_json("auth", md);
+    assert_eq!(json.requirements.len(), 1);
+    assert_eq!(
+        json.requirements[0].requirement_id.as_deref(),
+        Some("REQ-AUTH-001")
+    );
+    // The ID line must NOT appear in the collapsed text.
+    assert!(
+        !json.requirements[0].text.contains("Requirement ID"),
+        "requirement_id line should be excluded from text, got: {}",
+        json.requirements[0].text
+    );
+}
+
+#[test]
+fn parse_requirement_block_requirement_id_absent_gives_none() {
+    let md = r#"
+## Requirements
+
+### Requirement: The system SHALL do something
+The system SHALL do something.
+
+#### Scenario: S
+Given A
+Then B
+"#;
+
+    let json = parse_spec_show_json("spec", md);
+    assert_eq!(json.requirements.len(), 1);
+    assert!(
+        json.requirements[0].requirement_id.is_none(),
+        "expected None for requirement_id when not declared"
+    );
+}
+
+#[test]
+fn parse_requirement_block_multiple_requirements_with_ids() {
+    let md = r#"
+## Requirements
+
+### Requirement: First requirement
+First requirement text.
+- **Requirement ID**: REQ-001
+
+### Requirement: Second requirement
+Second requirement text.
+- **Requirement ID**: REQ-002
+
+### Requirement: Third requirement without ID
+Third requirement text.
+"#;
+
+    let json = parse_spec_show_json("spec", md);
+    assert_eq!(json.requirements.len(), 3);
+    assert_eq!(
+        json.requirements[0].requirement_id.as_deref(),
+        Some("REQ-001")
+    );
+    assert_eq!(
+        json.requirements[1].requirement_id.as_deref(),
+        Some("REQ-002")
+    );
+    assert!(json.requirements[2].requirement_id.is_none());
+}
+
+#[test]
+fn parse_delta_spec_requirement_id_is_extracted() {
+    let files = vec![DeltaSpecFile {
+        spec: "auth".to_string(),
+        markdown: r#"
+## ADDED Requirements
+
+### Requirement: The system SHALL support SSO
+The system SHALL support SSO.
+- **Requirement ID**: REQ-SSO-001
+
+#### Scenario: SSO login
+Given an SSO provider
+Then the user is authenticated
+"#
+        .to_string(),
+    }];
+
+    let json = parse_change_show_json("001-27_demo", &files);
+    assert_eq!(json.deltas.len(), 1);
+    assert_eq!(
+        json.deltas[0].requirement.requirement_id.as_deref(),
+        Some("REQ-SSO-001")
+    );
+    // ID line must not appear in the requirement text.
+    assert!(
+        !json.deltas[0].requirement.text.contains("Requirement ID"),
+        "requirement_id line should be excluded from text"
+    );
+}
+
+#[test]
 fn bundle_main_specs_show_json_returns_io_error_when_spec_md_is_missing() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
