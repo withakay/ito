@@ -5,7 +5,7 @@
 
 The system SHALL accept both plain module change ID formats (`NNN-NN_name`) and sub-module change ID formats (`NNN.SS-NN_name`), normalizing all components to their canonical zero-padded widths.
 
-#### Scenario: Single digit module ID
+#### Scenario: Minimal change ID
 
 - **WHEN** user provides change ID `1-2_bar`
 - **THEN** system normalizes to `001-02_bar`
@@ -40,21 +40,24 @@ The system SHALL accept both plain module change ID formats (`NNN-NN_name`) and 
 - **WHEN** user provides change ID `0024.001-0003_foo`
 - **THEN** system normalizes to `024.01-03_foo`
 
-## MODIFIED Requirements
+### Requirement: Implement parser as reusable utility
 
-### Requirement: Parser returns structured result
+The parser SHALL be implemented as a standalone utility function that can be used across all CLI commands.
 
-The parser SHALL return a structured result for both plain and sub-module change IDs.
+#### Scenario: Parser exported for CLI use
 
-#### Scenario: Parser result for plain module change ID
+- **WHEN** CLI command needs to parse a module, sub-module, or change ID
+- **THEN** it can import and use reusable parse helpers instead of duplicating inline string splitting logic
 
-- **WHEN** parsing `1-2_bar`
-- **THEN** parser returns `ParsedChangeId { module_id: "001", sub_module_id: None, change_num: "02", name: Some("bar"), canonical: "001-02_bar" }`
+#### Scenario: Parser returns structured result for module change ID
 
-#### Scenario: Parser result for sub-module change ID
+- **WHEN** parsing a valid module change ID like `1-2_bar`
+- **THEN** parser returns object with `{ module_id: "001", sub_module_id: null, change_num: "02", name: "bar", canonical: "001-02_bar" }`
 
-- **WHEN** parsing `24.1-3_foo`
-- **THEN** parser returns `ParsedChangeId { module_id: "024", sub_module_id: Some("01"), change_num: "03", name: Some("foo"), canonical: "024.01-03_foo" }`
+#### Scenario: Parser returns structured result for sub-module change ID
+
+- **WHEN** parsing a valid sub-module change ID like `24.1-3_foo`
+- **THEN** parser returns object with `{ module_id: "024", sub_module_id: "024.01", change_num: "03", name: "foo", canonical: "024.01-03_foo" }`
 
 ## ADDED Requirements
 
@@ -76,4 +79,18 @@ The system SHALL accept loose sub-module ID formats (`NNN.SS` or `NNN.SS_name`) 
 
 - **WHEN** user provides sub-module ID `024.01`
 - **THEN** system returns `024.01` unchanged
+
+### Requirement: Reject invalid sub-module ID formats
+
+The system SHALL reject malformed sub-module IDs and sub-module change IDs with helpful errors.
+
+#### Scenario: Invalid sub-module ID format
+
+- **WHEN** user provides sub-module ID `024..01`
+- **THEN** system returns an error explaining the expected `NNN.SS` format
+
+#### Scenario: Invalid sub-module change ID separator
+
+- **WHEN** user provides change ID `024_01-03_foo`
+- **THEN** system returns an error explaining the expected `NNN.SS-NN_name` format
 <!-- ITO:END -->

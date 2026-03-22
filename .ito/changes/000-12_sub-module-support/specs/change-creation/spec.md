@@ -20,12 +20,22 @@ The change-allocation state file SHALL be serialized deterministically with modu
 
 ### Requirement: Deterministic module change checklist ordering
 
-Module change checklist entries SHALL be emitted in ascending canonical change ID order, with sub-module changes sorted after module-level changes of the same numeric prefix.
+Change checklist entries SHALL be emitted in ascending canonical change ID order within the metadata file that owns them.
 
-#### Scenario: Adding a change preserves sorted module checklist
+Module-level changes SHALL appear only in the parent module's `module.md`.
+
+Sub-module changes SHALL appear only in the owning sub-module's `module.md`.
+
+#### Scenario: Adding a module-level change preserves sorted module checklist
 
 - **WHEN** `ito create change` adds a new change to a module's `module.md`
 - **THEN** entries under `## Changes` are written in ascending canonical change ID order
+- **AND** existing entries are retained without duplication
+
+#### Scenario: Adding a sub-module change preserves sorted sub-module checklist
+
+- **WHEN** `ito create change` adds a new change to a sub-module's `module.md`
+- **THEN** entries under that sub-module's `## Changes` section are written in ascending canonical change ID order
 - **AND** existing entries are retained without duplication
 
 ## ADDED Requirements
@@ -53,4 +63,10 @@ When `--sub-module` is provided, the allocated change ID SHALL use the `NNN.SS-N
 
 - **WHEN** user provides both `--module 024` and `--sub-module 024.01` to `ito create change`
 - **THEN** the command exits with an error indicating the flags are mutually exclusive
+
+#### Scenario: Sub-module-scoped change creation is rejected in remote persistence mode
+
+- **GIVEN** remote persistence mode is active
+- **WHEN** user executes `ito create change my-change --sub-module 024.01`
+- **THEN** the command exits with an actionable error indicating sub-module-scoped creation currently requires local filesystem mode
 <!-- ITO:END -->
