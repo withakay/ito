@@ -1,36 +1,20 @@
 ## ADDED Requirements
 
-### Requirement: Agent instructions document multi-tenant backend usage
+### Requirement: Backend-aware agent instructions are CLI-first for active work
 
-Ito SHALL provide an agent instruction artifact that documents how to use the multi-tenant backend.
+When remote/API-backed persistence mode is active, backend-aware agent instructions SHALL direct agents to use repository-backed CLI workflows for active-work mutations instead of editing markdown artifacts directly.
 
-The instruction MUST cover, at minimum:
+#### Scenario: Active-work markdown is absent in remote mode
 
-- the required `{org}/{repo}`-scoped route prefix (`/api/v1/projects/{org}/{repo}`)
-- how to configure backend client `{org}/{repo}` (`backend.project.org` / `backend.project.repo`)
-- how to start and configure the backend server (`backendServer.*`)
-- how authentication works (admin tokens and derived per-project tokens)
+- **GIVEN** remote/API-backed persistence mode is active
+- **AND** active-work markdown is not materialized locally
+- **WHEN** an agent receives backend-aware instructions
+- **THEN** the instructions describe that absence as expected
+- **AND** direct the agent to the appropriate CLI/repository-backed workflow instead of local markdown editing
 
-#### Scenario: Agent can retrieve backend instructions
+#### Scenario: Git projections are described as scan/backup surfaces
 
-- **WHEN** an agent runs `ito agent instruction backend`
-- **THEN** the CLI prints backend usage instructions
-
-### Requirement: Bootstrap instructions link to backend instruction artifact
-
-Bootstrapped agent instructions SHALL reference the backend instruction artifact so agents can discover backend-specific guidance.
-
-#### Scenario: Bootstrap output mentions backend artifact
-
-- **WHEN** an agent runs `ito agent instruction bootstrap --tool <tool>`
-- **THEN** the output includes a reference to `ito agent instruction backend`
-
-### Requirement: Skills and commands reference backend instruction artifact when backend features are involved
-
-When skills/commands/prompts describe backend-related workflows, they SHALL direct agents to use `ito agent instruction backend` as the source of truth.
-
-#### Scenario: Workflow skill references backend instruction
-
-- **GIVEN** a skill describes the Ito workflow
-- **WHEN** backend mode is involved
-- **THEN** the skill instructs the agent to consult `ito agent instruction backend`
+- **GIVEN** promoted specs or archived changes exist as Git projections
+- **WHEN** an agent receives backend-aware instructions
+- **THEN** the instructions explain when those projections are useful for scanning
+- **AND** distinguish them from mutation paths that must go through CLI/repository-backed interfaces

@@ -1,11 +1,4 @@
-# Execution Logs Specification
-
-## Purpose
-
-Define the `execution-logs` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Ito writes structured execution logs to a central location
 
@@ -15,7 +8,7 @@ Ito SHALL record structured execution events to a per-user central log directory
 
 - **WHEN** a user runs a supported Ito CLI entrypoint
 - **THEN** Ito appends structured JSONL execution events to the central log directory
-- **AND** events are stored under a versioned path (e.g. `<config_dir>/ito/logs/execution/v1/`)
+- **AND** events are stored under a versioned path (e.g. `<config_dir>/logs/execution/v1/`)
 - **AND** events are grouped by `project_id` and `session_id` (e.g. `projects/<project_id>/sessions/<session_id>.jsonl`)
 - **AND** the event includes at least: `timestamp`, `command_id`, `session_id`, `project_id`, and `outcome`
 
@@ -49,3 +42,13 @@ Ito SHALL provide a `session_id` that remains stable across multiple commands wi
 - **WHEN** a user runs multiple Ito commands within the same project and session
 - **THEN** Ito records the same `session_id` for each event
 - **AND** a new session id is created when a new session begins
+
+### Requirement: Execution telemetry remains separate from repository audit storage
+
+Ito SHALL keep per-user execution telemetry separate from repository-scoped audit history.
+
+#### Scenario: Backend mode routes audit history but not telemetry
+
+- **WHEN** backend mode is enabled
+- **THEN** execution telemetry SHALL still write to the central per-user execution log location
+- **AND** repository-scoped audit history SHALL be routed through backend-managed audit storage instead

@@ -1,13 +1,13 @@
 ## ADDED Requirements
 
-### Requirement: Archive syncs from backend and marks archived in backend mode
+### Requirement: Archive and promotion update backend-managed history mirrors
 
-When backend mode is enabled, the archive command SHALL pull the canonical backend artifacts for the change, perform the normal local archive flow (validation, spec updates, and move), and then mark the change archived on the backend.
+When archive/promotion succeeds, Ito SHALL update backend-managed history mirrors for archived changes and promoted specs in addition to producing the Git projection.
 
-#### Scenario: Backend-mode archive produces committable repo state
+#### Scenario: Archive mirrors archived change and promoted specs to backend-managed state
 
-- **GIVEN** backend mode is enabled
-- **WHEN** the user runs `ito archive <change-id>`
-- **THEN** Ito updates `.ito/specs/` as in filesystem mode
-- **AND** archives the change under `.ito/changes/archive/`
-- **AND** prints an explicit reminder to commit the archived change and updated specs
+- **GIVEN** remote persistence mode is active
+- **WHEN** the user runs `ito archive <change-id>` successfully
+- **THEN** Ito updates the backend-managed archived-change history
+- **AND** Ito updates the backend-managed promoted-spec state corresponding to the new Git projection
+- **AND** Ito still produces the committable Git archive/spec output
