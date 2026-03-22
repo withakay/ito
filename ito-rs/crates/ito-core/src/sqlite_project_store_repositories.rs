@@ -323,6 +323,7 @@ impl ChangeRepository for SqliteChangeRepository {
         Ok(Change {
             id: row.change_id.clone(),
             module_id: row.module_id.clone(),
+            sub_module_id: None,
             path: PathBuf::new(),
             proposal: row.proposal.clone(),
             design: row.design.clone(),
@@ -358,6 +359,7 @@ impl ChangeRepository for SqliteChangeRepository {
             summaries.push(ChangeSummary {
                 id: row.change_id.clone(),
                 module_id: row.module_id.clone(),
+                sub_module_id: None,
                 completed_tasks: tasks.progress.complete as u32,
                 shelved_tasks: tasks.progress.shelved as u32,
                 in_progress_tasks: tasks.progress.in_progress as u32,
@@ -446,6 +448,7 @@ impl ModuleRepository for SqliteModuleRepository {
             name: row.name.clone(),
             description: row.description.clone(),
             path: PathBuf::new(),
+            sub_modules: Vec::new(),
         })
     }
 
@@ -457,6 +460,7 @@ impl ModuleRepository for SqliteModuleRepository {
                 id: m.module_id.clone(),
                 name: m.name.clone(),
                 change_count: 0, // No cross-reference in PoC
+                sub_modules: Vec::new(),
             })
             .collect())
     }

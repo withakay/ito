@@ -247,6 +247,7 @@ impl BackendChangeReader for BackendHttpClient {
             out.push(ChangeSummary {
                 id: summary.id,
                 module_id: summary.module_id,
+                sub_module_id: None,
                 completed_tasks: summary.completed_tasks,
                 shelved_tasks: summary.shelved_tasks,
                 in_progress_tasks: summary.in_progress_tasks,
@@ -283,6 +284,7 @@ impl BackendChangeReader for BackendHttpClient {
         Ok(Change {
             id: change.id,
             module_id: change.module_id,
+            sub_module_id: None,
             path: PathBuf::new(),
             proposal: change.proposal,
             design: change.design,
@@ -312,6 +314,7 @@ impl BackendModuleReader for BackendHttpClient {
                 id: m.id,
                 name: m.name,
                 change_count: m.change_count,
+                sub_modules: Vec::new(),
             });
         }
         Ok(out)
@@ -328,6 +331,7 @@ impl BackendModuleReader for BackendHttpClient {
             name: module.name,
             description: module.description,
             path: PathBuf::new(),
+            sub_modules: Vec::new(),
         })
     }
 }

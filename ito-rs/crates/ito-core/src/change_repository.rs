@@ -470,6 +470,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         Ok(ChangeSummary {
             id: location.id.clone(),
             module_id,
+            sub_module_id: None,
             completed_tasks,
             shelved_tasks,
             in_progress_tasks,
@@ -719,6 +720,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         Ok(Change {
             id: actual_id.clone(),
             module_id: extract_module_id(&actual_id),
+            sub_module_id: None,
             path,
             proposal,
             design,

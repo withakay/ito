@@ -74,6 +74,7 @@ impl MockChangeRepository {
         let summary = ChangeSummary {
             id: change.id.clone(),
             module_id: change.module_id.clone(),
+            sub_module_id: change.sub_module_id.clone(),
             completed_tasks: progress.complete as u32,
             shelved_tasks: progress.shelved as u32,
             in_progress_tasks: progress.in_progress as u32,
@@ -250,6 +251,7 @@ impl MockModuleRepository {
             id: module.id.clone(),
             name: module.name.clone(),
             change_count: 0,
+            sub_modules: Vec::new(),
         };
         self.summaries.push(summary);
         self.modules.insert(module.id.clone(), module);
@@ -262,6 +264,7 @@ impl MockModuleRepository {
             id: module.id.clone(),
             name: module.name.clone(),
             change_count,
+            sub_modules: Vec::new(),
         };
         self.summaries.push(summary);
         self.modules.insert(module.id.clone(), module);
@@ -301,6 +304,7 @@ pub fn make_change(id: &str) -> Change {
     Change {
         id: id.to_string(),
         module_id: None,
+        sub_module_id: None,
         path: std::path::PathBuf::from(format!("/tmp/test/{id}")),
         proposal: None,
         design: None,
@@ -341,6 +345,7 @@ pub fn make_change_summary(id: &str) -> ChangeSummary {
     ChangeSummary {
         id: id.to_string(),
         module_id: None,
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -361,6 +366,7 @@ pub fn make_module(id: &str, name: &str) -> Module {
         name: name.to_string(),
         description: None,
         path: std::path::PathBuf::from(format!("/tmp/test/modules/{id}")),
+        sub_modules: Vec::new(),
     }
 }
 

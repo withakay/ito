@@ -151,6 +151,7 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
             name,
             description,
             path,
+            sub_modules: Vec::new(),
         })
     }
 
@@ -183,6 +184,7 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
                 id: id.to_string(),
                 name: name.to_string(),
                 change_count: change_counts.get(id).copied().unwrap_or(0),
+                sub_modules: Vec::new(),
             });
         }
 

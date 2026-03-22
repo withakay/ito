@@ -6,7 +6,7 @@
 
 **Verify**: `cargo test -p ito-domain` passes with all new ID parsing tests green.
 
-- [ ] **1.1** Add `SubModule` domain struct to `ito-domain` with fields: `id`, `parent_module_id`, `sub_id`, `name`, `description: Option<String>`, `change_count: u32`
+- [~] **1.1** Add `SubModule` domain struct to `ito-domain` with fields: `id`, `parent_module_id`, `sub_id`, `name`, `description: Option<String>`, `change_count: u32`
 - [ ] **1.2** Add `sub_modules: Vec<SubModule>` field to the `Module` domain struct; default empty
 - [ ] **1.3** Add `SubModuleSummary` struct (id, name, change_count) and include `sub_modules: Vec<SubModuleSummary>` in `ModuleSummary`
 - [ ] **1.4** Add `sub_module_id: Option<String>` field to `Change` and `ChangeSummary` domain structs, storing the canonical `NNN.SS` sub-module ID when present
