@@ -22,54 +22,20 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check \
 	hooks-install
 
-init: ## Initialize development environment (check rust, install prek hooks)
+init: ## Initialize development environment (mise install + prek hooks)
 	@set -e; \
-	echo "Checking development dependencies..."; \
-	echo ""; \
-	MISSING=""; \
-	if rustc --version >/dev/null 2>&1; then \
-		echo "✓ Rust: $$(rustc --version)"; \
+	echo "Installing tools via mise..."; \
+	if mise --version >/dev/null 2>&1; then \
+		mise install; \
+		echo "✓ mise tools installed"; \
 	else \
-		echo "✗ Rust: not installed"; \
-		echo "  Install: https://rustup.rs/"; \
-		MISSING="$$MISSING rust"; \
-	fi; \
-	if cargo --version >/dev/null 2>&1; then \
-		echo "✓ Cargo: $$(cargo --version)"; \
-	else \
-		echo "✗ Cargo: not installed (comes with Rust)"; \
-		MISSING="$$MISSING cargo"; \
-	fi; \
-	if prek --version >/dev/null 2>&1; then \
-		echo "✓ prek: $$(prek --version)"; \
-	else \
-		echo "✗ prek: not installed"; \
-		echo "  Install: cargo install prek"; \
-		MISSING="$$MISSING prek"; \
-	fi; \
-	if python3 --version >/dev/null 2>&1; then \
-		echo "✓ Python: $$(python3 --version)"; \
-	else \
-		echo "✗ Python 3: not installed"; \
-		MISSING="$$MISSING python3"; \
-	fi; \
-	echo ""; \
-	if [ -n "$$MISSING" ]; then \
-		echo "Missing dependencies:$$MISSING"; \
-		echo "Please install them and re-run 'make init'"; \
+		echo "✗ mise is not installed."; \
+		echo "  Install: https://mise.jdx.dev/getting-started.html"; \
 		exit 1; \
 	fi; \
-	echo "Installing git hooks via prek..."; \
-	prek install -t commit-msg; \
-	prek install -t pre-push; \
-	echo "Installing custom hook wrappers..."; \
-	$(MAKE) hooks-install; \
 	echo ""; \
-	echo "✓ Development environment ready!"; \
-	echo ""; \
-	echo "Optional tools (install for full functionality):"; \
+	echo "Ensuring Rust components (rustfmt, clippy, rust-docs)..."; \
 	if rustup --version >/dev/null 2>&1; then \
-		echo "Ensuring Rust components (rustfmt, clippy, rust-docs)..."; \
 		if rustup component add rustfmt clippy rust-docs; then \
 			echo "  ✓ Rust components ready"; \
 		else \
@@ -78,66 +44,14 @@ init: ## Initialize development environment (check rust, install prek hooks)
 	else \
 		echo "  ○ rustup not found: cannot auto-install rust-docs/rustfmt/clippy"; \
 	fi; \
-	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		echo "  ✓ cargo-llvm-cov (test coverage)"; \
-	else \
-		echo "Installing cargo-llvm-cov (test coverage)..."; \
-		if cargo install cargo-llvm-cov; then \
-			echo "  ✓ cargo-llvm-cov installed"; \
-		else \
-			echo "  ○ cargo-llvm-cov install failed: cargo install cargo-llvm-cov"; \
-		fi; \
-	fi; \
-	if sccache --version >/dev/null 2>&1; then \
-		echo "  ✓ sccache (Rust compiler cache)"; \
-	else \
-		echo "Installing sccache (Rust compiler cache)..."; \
-		if cargo install sccache; then \
-			echo "  ✓ sccache installed"; \
-		else \
-			echo "  ○ sccache install failed: cargo install sccache"; \
-		fi; \
-	fi; \
-	if cargo deny --version >/dev/null 2>&1; then \
-		echo "  ✓ cargo-deny (license/advisory checks)"; \
-	else \
-		echo "Installing cargo-deny (license/advisory checks)..."; \
-		if cargo install cargo-deny; then \
-			echo "  ✓ cargo-deny installed"; \
-		else \
-			echo "  ○ cargo-deny install failed: cargo install cargo-deny"; \
-		fi; \
-	fi; \
-	if cargo watch --version >/dev/null 2>&1; then \
-		echo "  ✓ cargo-watch (test watch mode)"; \
-	else \
-		echo "Installing cargo-watch (test watch mode)..."; \
-		if cargo install cargo-watch; then \
-			echo "  ✓ cargo-watch installed"; \
-		else \
-			echo "  ○ cargo-watch install failed: cargo install cargo-watch"; \
-		fi; \
-	fi; \
-	if bacon --version >/dev/null 2>&1; then \
-		echo "  ✓ bacon (background Rust checker)"; \
-	else \
-		echo "  ○ bacon: cargo install --locked bacon"; \
-	fi; \
-	if release-plz --version >/dev/null 2>&1; then \
-		echo "  ✓ release-plz (release management)"; \
-	else \
-		echo "Installing release-plz (release management)..."; \
-		if cargo install release-plz; then \
-			echo "  ✓ release-plz installed"; \
-		else \
-			echo "  ○ release-plz install failed: cargo install release-plz"; \
-		fi; \
-	fi; \
-	if gh --version >/dev/null 2>&1; then \
-		echo "  ✓ gh CLI (GitHub integration)"; \
-	else \
-		echo "  ○ gh CLI: https://cli.github.com/"; \
-	fi
+	echo ""; \
+	echo "Installing git hooks via prek..."; \
+	prek install -t commit-msg; \
+	prek install -t pre-push; \
+	echo "Installing custom hook wrappers..."; \
+	$(MAKE) hooks-install; \
+	echo ""; \
+	echo "✓ Development environment ready!"
 
 build: ## Build the project
 	$(MAKE) rust-build
