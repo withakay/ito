@@ -40,3 +40,6 @@ pub mod audit;
 ///
 /// Re-exported from the former `ito-schemas` crate.
 pub mod schemas;
+
+/// Requirement traceability computation for change-local coverage analysis.
+pub mod traceability;
