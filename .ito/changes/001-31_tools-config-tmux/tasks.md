@@ -79,7 +79,7 @@ ______________________________________________________________________
 - **Verify**: Unit test: with config `tools.tmux.enabled = false`, `available_viewers()` does not include tmux-nvim; `--viewer tmux-nvim` returns the expected error
 - **Done When**: Tests pass; viewer prompt never shows tmux option when disabled
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Add self-governance note to tmux skill SKILL.md
 
@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Verify**: SKILL.md contains the self-governance section; text is clear and actionable for an agent reading it
 - **Done When**: Section written and reviewed
 - **Updated At**: 2026-03-22
-- **Status**: [-] shelved
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -105,7 +105,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli init_tmux` passes
 - **Done When**: Both tests green
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 4.2: Validate change package
 
@@ -115,7 +115,7 @@ ______________________________________________________________________
 - **Verify**: Exits 0 with no errors
 - **Done When**: Validation passes
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

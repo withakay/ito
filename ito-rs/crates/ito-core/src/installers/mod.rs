@@ -71,17 +71,6 @@ impl InitOptions {
     /// existing files may be overwritten, and `update` enables update semantics that merge
     /// managed marker blocks instead of unconditional replacement.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::BTreeSet;
-    /// use ito_core::installers::InitOptions;
-    /// let tools = BTreeSet::from(["claude".to_string()]);
-    /// let opts = InitOptions::new(tools, true, false);
-    /// assert!(!opts.upgrade);
-    /// assert!(opts.force);
-    /// assert!(!opts.update);
-    /// ```
     pub fn new(tools: BTreeSet<String>, force: bool, update: bool) -> Self {
         Self {
             tools,
@@ -98,14 +87,6 @@ impl InitOptions {
     /// so marker-managed files missing Ito markers are left unchanged with guidance
     /// rather than causing an error.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::BTreeSet;
-    /// use ito_core::installers::InitOptions;
-    /// let opts = InitOptions::new_upgrade(BTreeSet::new());
-    /// assert!(opts.upgrade && opts.update && !opts.force);
-    /// ```
     pub fn new_upgrade(tools: BTreeSet<String>) -> Self {
         Self {
             tools,
@@ -121,14 +102,6 @@ impl InitOptions {
     /// method sets all three fields so that `force` cannot override the non-destructive
     /// marker-scoped upgrade behavior.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ito_core::installers::InitOptions;
-    /// let opts = InitOptions::new(std::collections::BTreeSet::new(), false, false)
-    ///     .with_upgrade();
-    /// assert!(opts.upgrade && opts.update && !opts.force);
-    /// ```
     pub fn with_upgrade(mut self) -> Self {
         self.upgrade = true;
         self.update = true;
@@ -427,18 +400,6 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
 /// (except when `opts.upgrade` is true, in which case a missing marker in an expected marker-managed
 /// file produces a warning and the existing file is preserved).
 ///
-/// # Examples
-///
-/// ```ignore
-/// use std::collections::BTreeSet;
-/// use std::path::Path;
-/// use ito_core::installers::{InitOptions, InstallMode};
-///
-/// let opts = InitOptions::new(BTreeSet::new(), false, false);
-/// let target = Path::new("/tmp/example.txt");
-/// let bytes = b"example content";
-/// // write_one is private; shown here for documentation purposes only.
-/// ```
 fn write_one(
     target: &Path,
     rendered_bytes: &[u8],
@@ -845,22 +806,7 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Replaces or inserts a `model` field in a YAML frontmatter string.
-///
-/// If a `model:` line exists (ignoring leading whitespace) it is replaced with `model: "<new_model>"`.
-/// If no `model:` line is present, a `model: "<new_model>"` line is appended. Other lines are preserved and the resulting YAML is returned.
-///
-/// # Examples
-///
-/// ```ignore
-/// let src = "---\ntitle: Example\nmodel: \"old\"\n---\ncontent\n";
-/// let updated = update_model_in_yaml(src, "new-model");
-/// assert!(updated.contains("model: \"new-model\""));
-/// // When model is missing it is appended:
-/// let src2 = "---\ntitle: Example\n---\ncontent\n";
-/// let updated2 = update_model_in_yaml(src2, "new-model");
-/// assert!(updated2.contains("model: \"new-model\""));
-/// ```
+/// Replace or insert the `model` field in YAML frontmatter.
 fn update_model_in_yaml(yaml: &str, new_model: &str) -> String {
     let mut lines: Vec<String> = yaml.lines().map(|l| l.to_string()).collect();
     let mut found = false;

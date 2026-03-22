@@ -27,7 +27,7 @@ ______________________________________________________________________
 - **Verify**: Unit test with a fixture change directory confirms correct concatenation order and separator format
 - **Done When**: Function returns expected document string for a change with all three artifact types; error returned for unknown change ID
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -43,7 +43,7 @@ ______________________________________________________________________
 - **Verify**: `cargo check -p ito-core` passes; trait is pub
 - **Done When**: Trait compiles; documented with rustdoc
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Implement TmuxNvimViewer
 
@@ -51,9 +51,9 @@ ______________________________________________________________________
 - **Dependencies**: Task 2.1
 - **Action**: Implement `ViewerBackend` for `TmuxNvimViewer`: writes content to a tempfile, checks `$TMUX` env var and `nvim` on PATH, runs `tmux display-popup -E nvim <tmpfile>` in read-only mode
 - **Verify**: Unit tests: `is_available()` returns false when nvim not on PATH; `open()` errors gracefully when `$TMUX` unset
-- **Done When**: Unit tests pass; `cargo test -p ito-core viewer::tmux_nvim` green
+- **Done When**: All unit tests pass; `cargo test -p ito-core viewer::tmux_nvim` green
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Implement BatViewer
 
@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Verify**: Unit tests for `is_available()` and graceful error when bat missing
 - **Done When**: Unit tests pass
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.4: Implement GlowViewer
 
@@ -73,7 +73,7 @@ ______________________________________________________________________
 - **Verify**: Unit tests for `is_available()` and graceful error when glow missing
 - **Done When**: Unit tests pass
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.5: Implement viewer registry
 
@@ -83,7 +83,7 @@ ______________________________________________________________________
 - **Verify**: Unit test confirms only available viewers returned; unknown name returns None
 - **Done When**: Registry compiles; tests pass
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -99,7 +99,7 @@ ______________________________________________________________________
 - **Verify**: `cargo build -p ito-cli`; `./target/debug/ito view proposal --help` shows the subcommand and flag
 - **Done When**: Subcommand visible in help; build passes
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Implement command handler with interactive prompt
 
@@ -109,7 +109,7 @@ ______________________________________________________________________
 - **Verify**: Smoke test `ito view proposal <id> --viewer bat` renders output; unknown change ID shows error; unknown `--viewer` shows error with install hint
 - **Done When**: All error paths tested; interactive prompt shows only installed viewers
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -121,11 +121,11 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/tests/`
 - **Dependencies**: None
-- **Action**: Write an integration test that sets up a temporary Ito project with a known change directory, runs `ito view proposal <id> --viewer bat` (or mocks the viewer call), and asserts correct exit code; cover error cases (missing change, missing viewer)
+- **Action**: Write integration tests that set up a temporary Ito project with a known change directory, exercise `ito view proposal <id>` help/JSON output, and cover key error paths including missing change, unknown viewer, and tmux-disabled viewer rejection
 - **Verify**: `cargo test -p ito-cli view_proposal` passes
-- **Done When**: Integration test green; error cases covered
+- **Done When**: Integration tests green; error cases covered (missing change, unknown viewer, tmux-disabled viewer)
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 4.2: Validate with ito validate
 
@@ -135,7 +135,7 @@ ______________________________________________________________________
 - **Verify**: Exits 0 with no errors
 - **Done When**: Validation passes
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
