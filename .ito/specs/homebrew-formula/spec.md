@@ -1,16 +1,10 @@
-# Spec: homebrew-formula
-
-## Purpose
-
-Define the `homebrew-formula` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Homebrew tap repository).
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Homebrew tap repository
 
 A Homebrew tap repository SHALL exist at `withakay/homebrew-ito` containing the formula for installing the `ito` CLI.
 
-Note: the current user-facing formula name is `ito-cli` (it installs the `ito` binary).
+The user-facing formula name MUST be `ito`.
 
 #### Scenario: User adds tap and installs ito
 
@@ -18,29 +12,15 @@ Note: the current user-facing formula name is `ito-cli` (it installs the `ito` b
 - **THEN** the `ito` binary is installed to the Homebrew prefix
 - **AND** running `ito --version` outputs the installed version
 
-### Requirement: Formula supports macOS architectures
-
-The Homebrew formula SHALL support both Intel (x86_64) and Apple Silicon (arm64) macOS architectures using architecture-specific binary URLs.
-
-#### Scenario: Install on Apple Silicon Mac
-
-- **WHEN** user runs `brew install ito` on an arm64 Mac
-- **THEN** Homebrew downloads the arm64-apple-darwin release artifact
-- **AND** the installed binary runs natively without Rosetta
-
-#### Scenario: Install on Intel Mac
-
-- **WHEN** user runs `brew install ito` on an x86_64 Mac
-- **THEN** Homebrew downloads the x86_64-apple-darwin release artifact
-- **AND** the installed binary runs natively
-
 ### Requirement: Formula uses release artifacts
 
 The formula SHALL download pre-built binaries from GitHub Releases rather than building from source.
 
+The release workflow MAY patch the dist-generated formula before committing it to the tap, but the published formula MUST continue to reference dist-produced release artifacts and checksums.
+
 #### Scenario: Formula downloads release binary
 
-- **WHEN** Homebrew installs ito-cli
+- **WHEN** Homebrew installs `ito`
 - **THEN** it downloads the tarball from `https://github.com/withakay/ito/releases/download/vX.Y.Z/ito-*-apple-darwin.tar.gz`
 - **AND** verifies the SHA256 checksum matches the formula
 
@@ -50,22 +30,12 @@ A GitHub Actions workflow SHALL automatically update the formula when a new vers
 
 #### Scenario: New release triggers formula update
 
-- **WHEN** a new release tag (e.g., `v0.5.0`) is pushed to the ito repository
-- **THEN** a workflow updates the formula version and SHA256 checksums in the tap repository
+- **WHEN** a new release tag (for example `v0.5.0`) is pushed to the ito repository
+- **THEN** the release workflow updates the generated Homebrew formula in the tap repository
 - **AND** commits and pushes the changes to the tap repository
 
-#### Scenario: Formula update includes both architectures
+#### Scenario: Formula update injects service metadata
 
-- **WHEN** the formula update workflow runs
-- **THEN** it updates SHA256 checksums for both x86_64 and arm64 artifacts
-- **AND** updates the version string to match the release tag
-
-### Requirement: Formula validates installation
-
-The formula SHALL include a test block that verifies the installation succeeded.
-
-#### Scenario: Homebrew test passes after install
-
-- **WHEN** user runs `brew test ito-cli`
-- **THEN** Homebrew executes the test block
-- **AND** the test verifies `ito --version` runs successfully
+- **WHEN** the formula update workflow publishes `Formula/ito.rb`
+- **THEN** it adds a Homebrew `service do` block that runs `ito serve-api --service`
+- **AND** the workflow fails instead of silently publishing if the generated formula cannot be patched safely

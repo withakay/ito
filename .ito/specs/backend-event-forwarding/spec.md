@@ -1,8 +1,8 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Clients forward local events to backend in backend mode
 
-When backend mode is enabled, Ito clients SHALL be able to forward locally produced events to the backend event ingest endpoint.
+When backend mode is enabled, Ito clients SHALL be able to forward locally produced events to the backend event ingest endpoint. Forwarding failures MUST produce visible warnings, not silent fallback.
 
 #### Scenario: Forwarder sends a batch successfully
 
@@ -24,3 +24,11 @@ When backend mode is enabled, Ito clients SHALL be able to forward locally produ
 - **WHEN** the forwarder attempts submission
 - **THEN** Ito reports the validation failure
 - **AND** does not mark the batch as forwarded
+
+#### Scenario: Forwarding failure emits visible warning
+
+- **GIVEN** backend mode is enabled and runtime resolves successfully
+- **WHEN** event forwarding fails due to network error, auth error, or server error
+- **THEN** Ito emits a visible warning to stderr indicating the failure
+- **AND** includes the error detail so users can diagnose the problem
+- **AND** the primary CLI command continues (forwarding is best-effort)

@@ -1,23 +1,31 @@
 ## ADDED Requirements
 
-### Requirement: Repository export source includes complete lifecycle coverage
+### Requirement: ChangeRepository provides lifecycle-aware canonical access
 
-For backend export operations, `ChangeRepository` SHALL provide access to all changes needed for a full-history archive, including active and archived lifecycle states.
+`ChangeRepository` SHALL provide a canonical view of change data across both active and archived lifecycle states, independent of whether the underlying implementation is filesystem-backed or remote-backed.
 
-#### Scenario: Export enumerates active changes from backend
+#### Scenario: List active changes through selected implementation
 
-- **GIVEN** backend mode is enabled
-- **WHEN** export orchestration requests active changes
-- **THEN** `ChangeRepository` returns active change summaries and artifacts from backend state
+- **GIVEN** Ito resolves a repository implementation for the current persistence mode
+- **WHEN** a caller requests active changes
+- **THEN** `ChangeRepository` returns only active changes from that implementation
 
-#### Scenario: Export enumerates archived changes from backend
+#### Scenario: List archived changes through the same repository
 
-- **GIVEN** backend mode is enabled
-- **WHEN** export orchestration requests archived changes
-- **THEN** `ChangeRepository` returns archived change summaries and artifacts from backend state
+- **GIVEN** archived changes exist in the selected persistence implementation
+- **WHEN** a caller requests archived changes
+- **THEN** `ChangeRepository` returns those archived changes without requiring a separate archive repository type
 
-#### Scenario: Export enumeration is stable for deterministic packaging
+#### Scenario: Resolve a change by canonical ID regardless of lifecycle
 
-- **WHEN** export orchestration requests all changes for packaging
-- **THEN** `ChangeRepository` returns changes in deterministic ID order
-- **AND** repeated exports over unchanged state produce the same file set in the archive
+- **GIVEN** a canonical change ID exists in either active or archived state
+- **WHEN** a caller resolves or loads that change through `ChangeRepository`
+- **THEN** the repository returns the matching change from the selected persistence implementation
+
+#### Scenario: Remote mode ignores stray local active-change markdown
+
+- **GIVEN** remote persistence mode is active
+- **AND** stale or stray markdown exists under local `.ito/changes/`
+- **WHEN** `ChangeRepository` serves change reads
+- **THEN** it uses the remote-backed implementation as the canonical source
+- **AND** it does not merge in local active-change markdown implicitly

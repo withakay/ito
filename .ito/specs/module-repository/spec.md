@@ -1,30 +1,18 @@
-# Spec: module-repository
+## ADDED Requirements
 
-## Purpose
+### Requirement: ModuleRepository supports runtime-selected implementations
 
-Define the `module-repository` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: ModuleRepository provides centralized module access).
+`ModuleRepository` SHALL support both filesystem-backed and remote-backed implementations, with callers resolving module data through the selected implementation for the current persistence mode.
 
-## Requirements
+#### Scenario: Remote mode lists modules through selected repository
 
-### Requirement: ModuleRepository provides centralized module access
+- **GIVEN** remote persistence mode is active
+- **WHEN** a caller requests modules through `ModuleRepository`
+- **THEN** the repository returns module summaries from the selected remote-backed implementation
 
-A `ModuleRepository` interface SHALL exist in `ito-domain` that provides methods for loading and querying module data.
+#### Scenario: Remote mode resolves a module without local markdown
 
-`ito-core` SHALL provide a filesystem-backed implementation of this interface for production use.
-
-#### Scenario: Get a module by ID
-
-- **GIVEN** a module with ID "005" and name "dev-tooling" exists
-- **WHEN** calling `module_repo.get("005")`
-- **THEN** it returns a `Module` object with id, name, and description
-
-#### Scenario: List all modules
-
-- **WHEN** calling `module_repo.list()`
-- **THEN** it returns a `Vec<ModuleSummary>` with all modules
-- **AND** each summary includes id, name, and change count
-
-#### Scenario: List modules with changes
-
-- **WHEN** calling `module_repo.list_with_changes()`
-- **THEN** it returns modules along with their associated changes
+- **GIVEN** remote persistence mode is active
+- **AND** local `.ito/modules/` markdown is absent
+- **WHEN** a caller loads a module by ID or name through `ModuleRepository`
+- **THEN** the repository returns the module from the selected remote-backed implementation

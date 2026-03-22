@@ -1,39 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: Backend runtime configuration resolves from config plus environment
+### Requirement: Configuration can select local SQLite persistence mode
 
-When backend mode is enabled, Ito SHALL resolve backend connection values from config and token value from the configured environment variable.
+Ito configuration SHALL allow selecting `sqlite` as a client-side persistence mode and SHALL provide the local SQLite runtime settings needed to initialize that mode.
 
-#### Scenario: Backend token is resolved from configured env var
+#### Scenario: SQLite mode requires database path configuration
 
-- **GIVEN** `backend.token_env_var` is configured
-- **WHEN** Ito initializes backend client runtime
-- **THEN** Ito reads the bearer token from that environment variable
+- **GIVEN** the user selects local SQLite persistence mode
+- **WHEN** Ito resolves repository runtime configuration
+- **THEN** it requires a configured local SQLite database path or equivalent runtime setting
 
-#### Scenario: Missing token fails backend runtime initialization
+#### Scenario: SQLite mode fails fast on invalid local database configuration
 
-- **GIVEN** backend mode is enabled
-- **AND** configured token environment variable is unset
-- **WHEN** Ito initializes backend client runtime
-- **THEN** Ito fails fast with an actionable backend-auth configuration error
-
-#### Scenario: Backend disabled does not require token env var
-
-- **GIVEN** backend mode is disabled
-- **WHEN** Ito runs commands
-- **THEN** Ito does not require backend token environment variables
-
-### Requirement: Backend backups use a per-user directory outside the repo
-
-When backend mode is enabled, Ito SHALL support configuring a per-user backup directory for change artifact snapshots.
-
-#### Scenario: Backup directory is configurable
-
-- **WHEN** the project config sets `backend.backup_dir`
-- **THEN** Ito uses that directory for artifact backup snapshots
-
-#### Scenario: Backup directory inside project root is rejected
-
-- **GIVEN** `backend.backup_dir` resolves under the project root
-- **WHEN** Ito initializes backend client runtime
-- **THEN** Ito fails fast with an actionable configuration error requiring a path outside the repo
+- **GIVEN** local SQLite persistence mode is selected
+- **AND** the SQLite runtime configuration is missing or invalid
+- **WHEN** Ito resolves the repository runtime
+- **THEN** Ito fails fast with an actionable configuration error

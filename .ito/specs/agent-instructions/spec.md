@@ -1,28 +1,12 @@
-<!-- ITO:START -->
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Instruction dispatcher supports standard instruction types
+### Requirement: Generated agent instructions are persistence-mode aware
 
-The instruction dispatcher SHALL support the following special-cased instruction types: `bootstrap`, `project-setup`, `schemas`, `new-proposal` (proposal without --change), `apply`, and `review`. Each type SHALL have its own handler and template. Unknown instruction types SHALL fall through to schema-based artifact resolution.
+Generated agent instructions SHALL adapt their tooling guidance to the selected persistence mode.
 
-#### Scenario: Schemas instruction dispatched
+#### Scenario: Remote mode guidance avoids markdown-edit recommendations
 
-- **WHEN** an agent runs `ito agent instruction schemas`
-- **THEN** the dispatcher SHALL route to the `schemas` handler, NOT to the generic artifact resolver
-
-#### Scenario: Schemas instruction supports JSON output
-
-- **WHEN** an agent runs `ito agent instruction schemas --json`
-- **THEN** the system SHALL return machine-readable JSON
-- **AND** it SHALL include all embedded schema names and descriptions
-
-#### Scenario: Review instruction dispatched
-
-- **WHEN** an agent runs `ito agent instruction review --change <id>`
-- **THEN** the dispatcher SHALL route to the `review` handler, NOT to the generic artifact resolver
-
-#### Scenario: Review instruction requires change flag
-
-- **WHEN** an agent runs `ito agent instruction review` without `--change`
-- **THEN** the system SHALL return an error indicating that `--change` is required for review instructions
-<!-- ITO:END -->
+- **GIVEN** remote/API-backed persistence mode is active
+- **WHEN** Ito generates instructions for an agent workflow
+- **THEN** the guidance does not recommend editing active-work markdown files directly
+- **AND** it recommends the repository-backed CLI interfaces that correspond to the requested workflow

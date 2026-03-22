@@ -1,32 +1,32 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Audit events can be mirrored to a dedicated remote branch
+### Requirement: Audit events use a dedicated internal branch for local durable storage
 
-The system SHALL support optional mirroring of locally persisted audit events to a dedicated internal git branch.
+The system SHALL store local durable audit history on a dedicated internal git branch rather than on user-facing working branches.
 
-#### Scenario: Mirror branch defaults are applied
+#### Scenario: Internal branch defaults are applied
 
-- **WHEN** audit mirroring is enabled without explicit branch override
-- **THEN** the system mirrors audit events to `ito/internal/audit`
+- **WHEN** local durable audit storage is enabled without explicit branch override
+- **THEN** the system stores audit events on `ito/internal/audit`
 
-#### Scenario: Mirror uses dedicated branch independent of change coordination
+#### Scenario: Internal audit branch is independent of change coordination
 
-- **WHEN** both change coordination and audit mirroring are enabled
-- **THEN** audit mirroring writes only to the configured audit mirror branch
+- **WHEN** both change coordination and local audit storage are enabled
+- **THEN** audit history writes only to the configured internal audit branch
 - **AND** change coordination continues to use its own configured branch
 
-### Requirement: Audit mirroring is best-effort
+### Requirement: Internal audit branch failures are best-effort
 
-Audit mirror failures MUST NOT cause core CLI commands to fail.
+Failures writing or syncing the internal audit branch MUST NOT cause core CLI commands to fail.
 
-#### Scenario: Mirror push fails due to remote conflict
+#### Scenario: Internal branch update fails due to git conflict
 
-- **WHEN** a mirror push encounters non-fast-forward conflict
+- **WHEN** an internal audit branch write encounters a non-fast-forward or similar git conflict
 - **THEN** the command still completes with its normal outcome
 - **AND** the system emits a warning with remediation guidance
 
-#### Scenario: Mirror push fails while offline
+#### Scenario: Internal branch storage is unavailable
 
-- **WHEN** remote connectivity is unavailable
-- **THEN** audit events remain locally persisted
+- **WHEN** local internal audit storage is unavailable
+- **THEN** audit events are routed to the configured fallback local store
 - **AND** the command still completes with its normal outcome

@@ -1,23 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: TaskRepository supports backend-backed task access
+### Requirement: Task persistence is runtime-selected for reads and mutations
 
-`TaskRepository` SHALL support backend-backed task access when backend mode is enabled.
+Task state SHALL be resolved through the selected task persistence implementation for the current runtime mode, and task mutations SHALL persist through that same selected implementation.
 
-#### Scenario: Task counts resolve from backend tasks artifact in backend mode
+#### Scenario: Remote mode reads task state without local tasks markdown
 
-- **GIVEN** backend mode is enabled and backend provides tasks markdown for a change
-- **WHEN** calling `task_repo.get_task_counts(change_id)`
-- **THEN** Ito computes counts from backend-sourced task content
+- **GIVEN** remote persistence mode is active
+- **AND** task state exists in the selected remote-backed implementation
+- **WHEN** a caller loads task state for a change
+- **THEN** the task persistence layer returns that task state without requiring local `tasks.md`
 
-#### Scenario: Missing backend tasks artifact returns zero counts
+#### Scenario: Remote mode mutations do not edit tasks markdown directly
 
-- **GIVEN** backend mode is enabled and no tasks artifact exists for a change
-- **WHEN** calling `task_repo.get_task_counts(change_id)`
-- **THEN** it returns `(0, 0)`
-
-#### Scenario: Filesystem path is used when backend mode is disabled
-
-- **GIVEN** backend mode is disabled
-- **WHEN** calling `task_repo.get_task_counts(change_id)`
-- **THEN** Ito uses existing filesystem-backed behavior
+- **GIVEN** remote persistence mode is active
+- **WHEN** a task mutation is performed
+- **THEN** Ito persists the mutation through the selected remote-backed task persistence path
+- **AND** it does not require direct local markdown editing as the primary write path

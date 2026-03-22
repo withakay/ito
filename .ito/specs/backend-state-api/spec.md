@@ -1,41 +1,34 @@
 ## ADDED Requirements
 
-### Requirement: Backend supports Homebrew-managed service runtime
+### Requirement: REST transport uses safe reads and explicit mutation verbs
 
-The project SHALL provide a Homebrew service workflow that runs the Ito backend API as a managed service process on supported macOS hosts.
+When the remote persistence implementation uses HTTP, the backend API SHALL use read-only `GET` endpoints for retrieval and SHALL use explicit non-`GET` verbs for state-changing operations.
 
-#### Scenario: Start backend service via Homebrew
+#### Scenario: Read endpoint does not mutate state
 
-- **WHEN** a developer executes the documented Homebrew service start workflow for Ito backend
-- **THEN** the backend service starts successfully
-- **AND** the backend API becomes reachable on the documented endpoint
+- **WHEN** a client performs a `GET` request against a backend read endpoint
+- **THEN** the backend returns the requested representation
+- **AND** the backend does not mutate project state as a side effect of servicing that `GET`
 
-#### Scenario: Stop backend service via Homebrew
+#### Scenario: Mutation endpoint does not use GET
 
-- **WHEN** a developer executes the documented Homebrew service stop workflow for Ito backend
-- **THEN** the backend service stops cleanly
+- **WHEN** the backend exposes an operation that creates, updates, archives, claims, releases, or deletes state
+- **THEN** that operation is exposed through `POST`, `PUT`, `PATCH`, or `DELETE` as appropriate
+- **AND** it is not exposed as a state-changing `GET`
 
-### Requirement: Backend supports systemd-managed service runtime
+### Requirement: Retryable REST mutations are idempotent
 
-The project MUST provide a systemd service workflow that runs the Ito backend API as a managed service process on supported Linux hosts.
+When the remote persistence implementation uses HTTP, mutation endpoints that may be retried by clients MUST be safe to retry through inherent verb semantics or an explicit idempotency mechanism.
 
-#### Scenario: Start backend service via systemd
+#### Scenario: Idempotent mutation retry does not duplicate side effects
 
-- **WHEN** a developer or operator executes the documented systemd start workflow for Ito backend
-- **THEN** the service enters an active state
-- **AND** the backend API becomes reachable on the documented endpoint
+- **GIVEN** a client retries the same mutation request due to a transient failure
+- **WHEN** the backend receives that retried request
+- **THEN** the backend applies the mutation at most once
+- **AND** returns a response that allows the client to treat the retry as safe
 
-#### Scenario: Stop backend service via systemd
+#### Scenario: Repository client can rely on safe retries
 
-- **WHEN** a developer or operator executes the documented systemd stop workflow for Ito backend
-- **THEN** the backend service stops cleanly
-
-### Requirement: Service manager runtimes expose operational verification steps
-
-Homebrew and systemd backend runtime documentation MUST include status and logs verification commands so users can confirm service health and diagnose startup failures.
-
-#### Scenario: User verifies service health and logs
-
-- **GIVEN** the backend is managed by Homebrew or systemd
-- **WHEN** the user runs documented status and logs commands
-- **THEN** the commands provide sufficient evidence to determine whether backend startup succeeded
+- **GIVEN** a remote-backed repository adapter is configured with bounded retry behavior
+- **WHEN** it retries a mutation request after a transient transport failure
+- **THEN** the backend contract preserves correctness by providing idempotent mutation semantics

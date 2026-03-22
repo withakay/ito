@@ -12,8 +12,15 @@ The endpoint MUST be project-scoped:
 
 - **GIVEN** project `{org}/{repo}` is allowed
 - **WHEN** a client sends `POST /api/v1/projects/{org}/{repo}/events` with an event batch
-- **THEN** the backend appends the events to the audit log for `{org}/{repo}`
+- **THEN** the backend appends the events to the authoritative audit log for `{org}/{repo}`
 - **AND** the backend returns the number of accepted events and duplicates
+
+#### Scenario: Backend mode does not require tracked local audit JSONL
+
+- **GIVEN** backend mode is enabled for a project
+- **WHEN** Ito records or validates audit events for that project
+- **THEN** backend-managed audit storage SHALL be treated as authoritative
+- **AND** Ito SHALL NOT require a tracked working-branch `.ito/.state/audit/events.jsonl` file
 
 #### Scenario: Idempotency key prevents duplicate appends
 
