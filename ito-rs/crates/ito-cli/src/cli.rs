@@ -696,9 +696,13 @@ pub enum CreateAction {
         #[arg(long)]
         schema: Option<String>,
 
-        /// Module id (default: 000)
-        #[arg(short = 'm', long)]
+        /// Module id (default: 000); mutually exclusive with --sub-module
+        #[arg(short = 'm', long, conflicts_with = "sub_module")]
         module: Option<String>,
+
+        /// Sub-module id in NNN.SS form (e.g. 024.01); mutually exclusive with --module
+        #[arg(long = "sub-module", conflicts_with = "module")]
+        sub_module: Option<String>,
 
         /// Description (writes README.md)
         #[arg(long)]

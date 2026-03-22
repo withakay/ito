@@ -27,13 +27,13 @@
 
 **Verify**: `cargo test -p ito-core` passes; manually run `ito list --modules` on a test repo with sub-module directories.
 
-- [~] **2.1** Update `ito-core` filesystem `ModuleRepository::get` to scan `.ito/modules/NNN_*/sub/` for sub-module directories and populate `module.sub_modules`
-- [ ] **2.2** Implement `ModuleRepository::list_sub_modules(parent_id: &str)` in filesystem backend: enumerate `sub/SS_name/` dirs, read each `module.md`
-- [ ] **2.3** Implement `ModuleRepository::get_sub_module(composite_id: &str)` — parse composite id, locate directory, read `module.md`, return `SubModule`
-- [ ] **2.4** Update `ModuleRepository::list()` to populate `sub_modules` in each `ModuleSummary`
-- [ ] **2.5** Update `ModuleRepository::list_with_changes()` to include sub-module changes alongside module changes
-- [ ] **2.6** Update filesystem `ChangeRepository` list/get paths to populate `sub_module_id` for `Change` and `ChangeSummary` when a change ID uses `NNN.SS-NN_name`
-- [ ] **2.7** Add regression tests proving a parent module can retain direct change `024-07_*` while sub-module `024.01` owns `024.01-01_*`
+- [x] **2.1** Update `ito-core` filesystem `ModuleRepository::get` to scan `.ito/modules/NNN_*/sub/` for sub-module directories and populate `module.sub_modules`
+- [x] **2.2** Implement `ModuleRepository::list_sub_modules(parent_id: &str)` in filesystem backend: enumerate `sub/SS_name/` dirs, read each `module.md`
+- [x] **2.3** Implement `ModuleRepository::get_sub_module(composite_id: &str)` — parse composite id, locate directory, read `module.md`, return `SubModule`
+- [x] **2.4** Update `ModuleRepository::list()` to populate `sub_modules` in each `ModuleSummary`
+- [x] **2.5** Update `ModuleRepository::list_with_changes()` to include sub-module changes alongside module changes
+- [x] **2.6** Update filesystem `ChangeRepository` list/get paths to populate `sub_module_id` for `Change` and `ChangeSummary` when a change ID uses `NNN.SS-NN_name`
+- [x] **2.7** Add regression tests proving a parent module can retain direct change `024-07_*` while sub-module `024.01` owns `024.01-01_*`
 
 ---
 
@@ -45,7 +45,7 @@
 
 **Verify**: `cargo test -p ito-core -- create` passes; `ito create change my-test --sub-module 024.01` produces `024.01-01_my-test/` directory.
 
-- [ ] **3.1** Update change allocation state serialization to handle `NNN.SS` keys alongside plain `NNN` keys, maintaining deterministic sort order (sub-module keys sort after their parent)
+- [~] **3.1** Update change allocation state serialization to handle `NNN.SS` keys alongside plain `NNN` keys, maintaining deterministic sort order (sub-module keys sort after their parent)
 - [ ] **3.2** Add `--sub-module <id>` flag to `ito create change` CLI handler; validate it is mutually exclusive with `--module`
 - [ ] **3.3** Update the allocation logic to use the sub-module composite key (`NNN.SS`) as the namespace for change numbering
 - [ ] **3.4** Update `ito create change` to write the new change ID in `NNN.SS-NN_name` canonical form when `--sub-module` is provided
