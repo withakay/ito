@@ -47,6 +47,10 @@ pub enum CreateError {
     #[error("Change '{0}' already exists")]
     ChangeAlreadyExists(String),
 
+    /// A sub-module with the same name already exists under the parent module.
+    #[error("Sub-module '{0}' already exists under module '{1}'")]
+    DuplicateSubModuleName(String, String),
+
     /// Underlying I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
@@ -80,6 +84,19 @@ pub struct CreateChangeResult {
     pub change_id: String,
     /// Path to the change directory.
     pub change_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+/// Result of creating a sub-module.
+pub struct CreateSubModuleResult {
+    /// Canonical sub-module id (e.g., `"024.01"`).
+    pub sub_module_id: String,
+    /// Sub-module name (slug).
+    pub sub_module_name: String,
+    /// Parent module id (e.g., `"024"`).
+    pub parent_module_id: String,
+    /// Path to the sub-module directory.
+    pub sub_module_dir: PathBuf,
 }
 
 /// Create (or resolve) a module by name.
@@ -176,6 +193,100 @@ pub fn create_change_in_sub_module(
     description: Option<&str>,
 ) -> Result<CreateChangeResult, CreateError> {
     create_change_inner(ito_path, name, schema, None, Some(sub_module), description)
+}
+
+/// Create a new sub-module directory under an existing parent module.
+///
+/// Allocates the next available sub-module number, creates the `sub/SS_name/`
+/// directory, and writes a `module.md` with the given title and optional
+/// description.
+///
+/// Returns [`CreateError::ModuleNotFound`] when the parent module does not
+/// exist, and [`CreateError::DuplicateSubModuleName`] when a sub-module with
+/// the same name already exists under that parent.
+pub fn create_sub_module(
+    ito_path: &Path,
+    name: &str,
+    parent_module: &str,
+    description: Option<&str>,
+) -> Result<CreateSubModuleResult, CreateError> {
+    let name = name.trim();
+    // Reuse change-name validation rules: lowercase kebab-case, no underscores.
+    validate_change_name(name)?;
+
+    let modules_dir = paths::modules_dir(ito_path);
+
+    // Resolve the parent module id.
+    let parent_id = parse_module_id(parent_module)
+        .ok()
+        .map(|p| p.module_id.to_string())
+        .unwrap_or_else(|| parent_module.to_string());
+
+    // Parent module must exist.
+    let parent_folder = find_module_by_id(&modules_dir, &parent_id)
+        .ok_or_else(|| CreateError::ModuleNotFound(parent_id.clone()))?;
+
+    let parent_dir = modules_dir.join(&parent_folder);
+    let sub_dir = parent_dir.join("sub");
+    ito_common::io::create_dir_all_std(&sub_dir)?;
+
+    // Check for duplicate name.
+    let fs = ito_common::fs::StdFs;
+    if let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, &sub_dir) {
+        for entry in &entries {
+            if let Some((_, entry_name)) = entry.split_once('_')
+                && entry_name == name
+            {
+                return Err(CreateError::DuplicateSubModuleName(
+                    name.to_string(),
+                    parent_id.clone(),
+                ));
+            }
+        }
+    }
+
+    // Allocate the next sub-module number.
+    let next_sub_num = next_sub_module_num(&sub_dir)?;
+    let folder_name = format!("{next_sub_num:02}_{name}");
+    let sub_module_dir = sub_dir.join(&folder_name);
+    ito_common::io::create_dir_all_std(&sub_module_dir)?;
+
+    // Canonical composite id: "NNN.SS"
+    let sub_module_id = format!("{parent_id}.{next_sub_num:02}");
+
+    // Write module.md.
+    let title = to_title_case(name);
+    let md = generate_module_content(
+        &title,
+        description.or(Some("<!-- Describe the purpose of this sub-module -->")),
+        &["*"],
+        &[] as &[&str],
+        &[],
+    );
+    ito_common::io::write_std(&sub_module_dir.join("module.md"), md)?;
+
+    Ok(CreateSubModuleResult {
+        sub_module_id,
+        sub_module_name: name.to_string(),
+        parent_module_id: parent_id,
+        sub_module_dir,
+    })
+}
+
+/// Scan a `sub/` directory and return the next available sub-module number.
+fn next_sub_module_num(sub_dir: &Path) -> Result<u32, CreateError> {
+    let mut max_seen: u32 = 0;
+    let fs = ito_common::fs::StdFs;
+    if let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, sub_dir) {
+        for entry in entries {
+            if let Some((num_str, _)) = entry.split_once('_')
+                && let Ok(n) = num_str.parse::<u32>()
+            {
+                max_seen = max_seen.max(n);
+            }
+        }
+    }
+    Ok(max_seen + 1)
 }
 
 fn create_change_inner(
@@ -949,6 +1060,119 @@ fn generate_module_content<T: AsRef<str>>(
     out.push_str(&changes_section);
     out.push('\n');
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn setup_ito(tmp: &TempDir) -> std::path::PathBuf {
+        let ito_path = tmp.path().join(".ito");
+        std::fs::create_dir_all(ito_path.join("modules")).unwrap();
+        std::fs::create_dir_all(ito_path.join("changes")).unwrap();
+        ito_path
+    }
+
+    fn make_module(ito_path: &Path, id: &str, name: &str) {
+        let dir = ito_path.join("modules").join(format!("{id}_{name}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let md = format!("# {name}\n\n## Purpose\nTest module purpose text that is long enough.\n\n## Scope\n- *\n\n## Changes\n<!-- none -->\n");
+        std::fs::write(dir.join("module.md"), md).unwrap();
+    }
+
+    // ── Task 4.1 + 4.2: create_sub_module ─────────────────────────────────
+
+    #[test]
+    fn create_sub_module_creates_directory_and_module_md() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        let result = create_sub_module(&ito_path, "auth", "024", None).unwrap();
+
+        assert_eq!(result.sub_module_id, "024.01");
+        assert_eq!(result.sub_module_name, "auth");
+        assert_eq!(result.parent_module_id, "024");
+        assert!(result.sub_module_dir.exists());
+        assert!(result.sub_module_dir.join("module.md").exists());
+    }
+
+    #[test]
+    fn create_sub_module_with_description_writes_purpose() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        let result = create_sub_module(&ito_path, "sync", "024", Some("Sync subsystem")).unwrap();
+
+        let md = std::fs::read_to_string(result.sub_module_dir.join("module.md")).unwrap();
+        assert!(md.contains("Sync subsystem"), "description should appear in module.md");
+    }
+
+    #[test]
+    fn create_sub_module_allocates_sequential_numbers() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        let r1 = create_sub_module(&ito_path, "auth", "024", None).unwrap();
+        let r2 = create_sub_module(&ito_path, "sync", "024", None).unwrap();
+
+        assert_eq!(r1.sub_module_id, "024.01");
+        assert_eq!(r2.sub_module_id, "024.02");
+    }
+
+    #[test]
+    fn create_sub_module_errors_on_unknown_parent_module() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+
+        let err = create_sub_module(&ito_path, "auth", "999", None).unwrap_err();
+        assert!(
+            matches!(err, CreateError::ModuleNotFound(_)),
+            "expected ModuleNotFound, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn create_sub_module_errors_on_duplicate_name() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        create_sub_module(&ito_path, "auth", "024", None).unwrap();
+        let err = create_sub_module(&ito_path, "auth", "024", None).unwrap_err();
+        assert!(
+            matches!(err, CreateError::DuplicateSubModuleName(_, _)),
+            "expected DuplicateSubModuleName, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn create_sub_module_rejects_invalid_name() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        let err = create_sub_module(&ito_path, "Auth_Module", "024", None).unwrap_err();
+        assert!(
+            matches!(err, CreateError::InvalidChangeName(_)),
+            "expected InvalidChangeName, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn create_sub_module_accepts_full_module_folder_name() {
+        let tmp = TempDir::new().unwrap();
+        let ito_path = setup_ito(&tmp);
+        make_module(&ito_path, "024", "ito-backend");
+
+        // Should resolve "024_ito-backend" to parent id "024".
+        let result = create_sub_module(&ito_path, "auth", "024_ito-backend", None).unwrap();
+        assert_eq!(result.parent_module_id, "024");
+        assert_eq!(result.sub_module_id, "024.01");
+    }
 }
 
 fn create_ungrouped_module(ito_path: &Path) -> Result<(), CreateError> {

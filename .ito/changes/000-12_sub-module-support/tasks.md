@@ -45,13 +45,13 @@
 
 **Verify**: `cargo test -p ito-core -- create` passes; `ito create change my-test --sub-module 024.01` produces `024.01-01_my-test/` directory.
 
-- [~] **3.1** Update change allocation state serialization to handle `NNN.SS` keys alongside plain `NNN` keys, maintaining deterministic sort order (sub-module keys sort after their parent)
-- [ ] **3.2** Add `--sub-module <id>` flag to `ito create change` CLI handler; validate it is mutually exclusive with `--module`
-- [ ] **3.3** Update the allocation logic to use the sub-module composite key (`NNN.SS`) as the namespace for change numbering
-- [ ] **3.4** Update `ito create change` to write the new change ID in `NNN.SS-NN_name` canonical form when `--sub-module` is provided
-- [ ] **3.5** Update post-creation module checklist write to target the sub-module's `module.md` (not the parent) when `--sub-module` is used
-- [ ] **3.6** Ensure checklist ordering in the owning `module.md` (parent module or sub-module) is ascending by canonical change ID
-- [ ] **3.7** Add remote-mode guard test showing `ito create change --sub-module ...` exits with actionable local-mode guidance when remote persistence is active
+- [x] **3.1** Update change allocation state serialization to handle `NNN.SS` keys alongside plain `NNN` keys, maintaining deterministic sort order (sub-module keys sort after their parent)
+- [x] **3.2** Add `--sub-module <id>` flag to `ito create change` CLI handler; validate it is mutually exclusive with `--module`
+- [x] **3.3** Update the allocation logic to use the sub-module composite key (`NNN.SS`) as the namespace for change numbering
+- [x] **3.4** Update `ito create change` to write the new change ID in `NNN.SS-NN_name` canonical form when `--sub-module` is provided
+- [x] **3.5** Update post-creation module checklist write to target the sub-module's `module.md` (not the parent) when `--sub-module` is used
+- [x] **3.6** Ensure checklist ordering in the owning `module.md` (parent module or sub-module) is ascending by canonical change ID
+- [x] **3.7** Add remote-mode guard test showing `ito create change --sub-module ...` exits with actionable local-mode guidance when remote persistence is active
 
 ---
 
@@ -63,7 +63,7 @@
 
 **Verify**: End-to-end test: `ito create sub-module auth --module 024` followed by `ito list --modules` showing nested sub-module; `ito show sub-module 024.01` showing metadata.
 
-- [ ] **4.1** Add `ito create sub-module <name> --module <id>` command: allocate next sub-module number, write `module.md` at correct path, print confirmation
+- [~] **4.1** Add `ito create sub-module <name> --module <id>` command: allocate next sub-module number, write `module.md` at correct path, print confirmation
 - [ ] **4.2** Add `--description <text>` flag to `ito create sub-module` and include it in generated `module.md`
 - [ ] **4.3** Update `ito list --modules` display to render sub-modules indented under their parent module with id, name, and change count
 - [ ] **4.4** Add `ito show sub-module <NNN.SS>` command: load sub-module, display metadata and associated change list

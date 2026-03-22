@@ -1,5 +1,5 @@
 use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
-use ito_core::create::create_change_in_sub_module;
+use ito_core::create::{create_change_in_sub_module, create_sub_module};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
@@ -140,6 +140,25 @@ pub(crate) fn handle_create_clap(rt: &Runtime, args: &CreateArgs) -> CliResult<(
             if let Some(sub_module) = sub_module {
                 out.push("--sub-module".to_string());
                 out.push(sub_module.clone());
+            }
+            if let Some(description) = description {
+                out.push("--description".to_string());
+                out.push(description.clone());
+            }
+            out
+        }
+        CreateAction::SubModule {
+            name,
+            module,
+            description,
+        } => {
+            let mut out = vec!["sub-module".to_string()];
+            if let Some(name) = name {
+                out.push(name.clone());
+            }
+            if let Some(module) = module {
+                out.push("--module".to_string());
+                out.push(module.clone());
             }
             if let Some(description) = description {
                 out.push("--description".to_string());
@@ -365,6 +384,64 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         }
                     }
 
+                    Ok(())
+                }
+                Err(e) => Err(to_cli_error(e)),
+            }
+        }
+        "sub-module" => {
+            let name = args.get(1).map(|s| s.as_str()).unwrap_or("");
+            if name.is_empty() || name.starts_with('-') {
+                return fail("Missing required argument <name>");
+            }
+            let module = parse_string_flag(args, "--module");
+            let description = parse_string_flag(args, "--description");
+
+            if module.is_none() {
+                return fail("Missing required flag --module <id>");
+            }
+            let parent_module = module.as_deref().unwrap();
+
+            // sub-module creation is a local-only operation.
+            {
+                use ito_core::repository_runtime::PersistenceMode;
+                if let Ok(repo_rt) = rt.repository_runtime()
+                    && repo_rt.mode() == PersistenceMode::Remote
+                {
+                    return fail(
+                        "ito create sub-module is a local-only operation and cannot be \
+                         used when remote persistence is active.\n\
+                         To create a sub-module locally, disable backend mode by removing \
+                         'backend.enabled' from your .ito/config.json.",
+                    );
+                }
+            }
+
+            eprintln!(
+                "- Creating sub-module '{}' under module {}...",
+                name, parent_module
+            );
+
+            match create_sub_module(ito_path, name, parent_module, description.as_deref()) {
+                Ok(r) => {
+                    eprintln!(
+                        "✔ Created sub-module '{}' ({}) under module {}",
+                        r.sub_module_id, r.sub_module_name, r.parent_module_id
+                    );
+                    eprintln!("  Path: {}", r.sub_module_dir.display());
+                    eprintln!(
+                        "  Edit: {}",
+                        r.sub_module_dir.join("module.md").display()
+                    );
+                    eprintln!("  Next steps:");
+                    eprintln!(
+                        "    1) ito create change <name> --sub-module {}",
+                        r.sub_module_id
+                    );
+                    eprintln!(
+                        "    2) ito show sub-module {}",
+                        r.sub_module_id
+                    );
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),

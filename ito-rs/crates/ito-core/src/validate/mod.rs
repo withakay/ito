@@ -716,6 +716,9 @@ pub fn resolve_module(
 
 /// Validate a module's `module.md` for minimal required sections.
 ///
+/// Also validates all sub-modules under the module: each `sub/SS_name/`
+/// directory must have a valid `module.md` with a Purpose section.
+///
 /// Returns the resolved module directory name along with the report.
 pub fn validate_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
@@ -757,7 +760,99 @@ pub fn validate_module(
         ));
     }
 
+    // Validate sub-modules.
+    validate_sub_modules_under_module(&mut rep, &r.module_dir, strict);
+
     Ok((r.full_name, rep.finish()))
+}
+
+/// Validate all sub-modules under a module directory.
+///
+/// Checks that each `sub/SS_name/` directory:
+/// - Follows the `SS_name` naming convention (numeric prefix + underscore + name).
+/// - Has a `module.md` file.
+/// - The `module.md` has a non-empty Purpose section.
+fn validate_sub_modules_under_module(rep: &mut ReportBuilder, module_dir: &Path, strict: bool) {
+    let sub_dir = module_dir.join("sub");
+    if !sub_dir.exists() {
+        return;
+    }
+
+    let entries = match std::fs::read_dir(&sub_dir) {
+        Ok(e) => e,
+        Err(err) => {
+            rep.push(warning(
+                "sub-modules",
+                format!("Failed to read sub/ directory: {err}"),
+            ));
+            return;
+        }
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+
+        // Validate naming convention: must be `SS_name`.
+        let valid_name = dir_name.split_once('_').is_some_and(|(num, name)| {
+            !num.is_empty()
+                && num.chars().all(|c| c.is_ascii_digit())
+                && !name.is_empty()
+        });
+        if !valid_name {
+            rep.push(error(
+                format!("sub-modules/{dir_name}"),
+                format!(
+                    "Sub-module directory '{dir_name}' does not follow the SS_name convention"
+                ),
+            ));
+            continue;
+        }
+
+        // Validate module.md presence.
+        let module_md = path.join("module.md");
+        if !module_md.exists() {
+            let level = if strict { LEVEL_ERROR } else { LEVEL_WARNING };
+            rep.push(issue(
+                level,
+                format!("sub-modules/{dir_name}"),
+                format!("Sub-module '{dir_name}' is missing module.md"),
+            ));
+            continue;
+        }
+
+        // Validate module.md content.
+        let content = match ito_common::io::read_to_string_std(&module_md) {
+            Ok(c) => c,
+            Err(err) => {
+                rep.push(error(
+                    format!("sub-modules/{dir_name}/module.md"),
+                    format!("Failed to read module.md: {err}"),
+                ));
+                continue;
+            }
+        };
+
+        let purpose = extract_section(&content, "Purpose");
+        if purpose.trim().is_empty() {
+            rep.push(error(
+                format!("sub-modules/{dir_name}/purpose"),
+                format!("Sub-module '{dir_name}' module.md must have a Purpose section"),
+            ));
+        } else if purpose.trim().len() < MIN_MODULE_PURPOSE_LENGTH {
+            rep.push(warning(
+                format!("sub-modules/{dir_name}/purpose"),
+                format!(
+                    "Sub-module '{dir_name}' purpose is too brief (less than {MIN_MODULE_PURPOSE_LENGTH} characters)"
+                ),
+            ));
+        }
+    }
 }
 
 fn extract_section(markdown: &str, header: &str) -> String {

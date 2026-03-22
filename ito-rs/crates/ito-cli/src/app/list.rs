@@ -77,16 +77,33 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             println!("Modules:\n");
             for m in &modules {
-                if m.change_count == 0 {
+                if m.change_count == 0 && m.sub_modules.is_empty() {
                     println!("  {}", m.full_name);
-                    continue;
-                }
-                let suffix = if m.change_count == 1 {
-                    "change"
+                } else if m.change_count == 0 {
+                    println!("  {}", m.full_name);
                 } else {
-                    "changes"
-                };
-                println!("  {} ({} {suffix})", m.full_name, m.change_count);
+                    let suffix = if m.change_count == 1 {
+                        "change"
+                    } else {
+                        "changes"
+                    };
+                    println!("  {} ({} {suffix})", m.full_name, m.change_count);
+                }
+                for sm in &m.sub_modules {
+                    let sm_suffix = if sm.change_count == 1 {
+                        "change"
+                    } else {
+                        "changes"
+                    };
+                    if sm.change_count == 0 {
+                        println!("    {}  {}", sm.id, sm.name);
+                    } else {
+                        println!(
+                            "    {}  {} ({} {sm_suffix})",
+                            sm.id, sm.name, sm.change_count
+                        );
+                    }
+                }
             }
             println!();
         }
