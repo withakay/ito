@@ -1,10 +1,10 @@
 use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
-use ito_core::create::{create_change_in_sub_module, create_sub_module};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+use ito_core::create::{create_change_in_sub_module, create_sub_module};
 use ito_core::git::{
     CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
 };
@@ -306,13 +306,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
 
             let create_result = if let Some(ref sm) = sub_module {
-                create_change_in_sub_module(
-                    ito_path,
-                    name,
-                    &schema,
-                    sm,
-                    description.as_deref(),
-                )
+                create_change_in_sub_module(ito_path, name, &schema, sm, description.as_deref())
             } else {
                 core_create::create_change(
                     ito_path,
@@ -428,19 +422,13 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         r.sub_module_id, r.sub_module_name, r.parent_module_id
                     );
                     eprintln!("  Path: {}", r.sub_module_dir.display());
-                    eprintln!(
-                        "  Edit: {}",
-                        r.sub_module_dir.join("module.md").display()
-                    );
+                    eprintln!("  Edit: {}", r.sub_module_dir.join("module.md").display());
                     eprintln!("  Next steps:");
                     eprintln!(
                         "    1) ito create change <name> --sub-module {}",
                         r.sub_module_id
                     );
-                    eprintln!(
-                        "    2) ito show sub-module {}",
-                        r.sub_module_id
-                    );
+                    eprintln!("    2) ito show sub-module {}", r.sub_module_id);
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),

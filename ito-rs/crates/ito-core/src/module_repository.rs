@@ -149,9 +149,7 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
                 // Extract the NNN.SS prefix (everything before the first `-`).
                 if let Some(sub_module_key) = name.split('-').next() {
                     // Normalize: parse the NNN.SS part.
-                    if let Ok(parsed) =
-                        ito_common::id::parse_sub_module_id(sub_module_key)
-                    {
+                    if let Ok(parsed) = ito_common::id::parse_sub_module_id(sub_module_key) {
                         *counts
                             .entry(parsed.sub_module_id.as_str().to_string())
                             .or_insert(0) += 1;
@@ -560,8 +558,16 @@ mod tests {
     // ── Task 2.7: Regression tests for sub-module support ─────────────────
 
     /// Set up a sub-module directory under a parent module.
-    fn create_sub_module(ito_path: &Path, parent_id: &str, parent_name: &str, sub_num: &str, sub_name: &str) {
-        let module_dir = ito_path.join("modules").join(format!("{parent_id}_{parent_name}"));
+    fn create_sub_module(
+        ito_path: &Path,
+        parent_id: &str,
+        parent_name: &str,
+        sub_num: &str,
+        sub_name: &str,
+    ) {
+        let module_dir = ito_path
+            .join("modules")
+            .join(format!("{parent_id}_{parent_name}"));
         let sub_dir = module_dir.join("sub").join(format!("{sub_num}_{sub_name}"));
         fs::create_dir_all(&sub_dir).unwrap();
         fs::write(
@@ -597,12 +603,18 @@ mod tests {
         // The parent module's change_count should include only the direct change
         // (024-07_health-check). The sub-module change (024.01-01_add-jwt) is
         // attributed to the sub-module, not the parent.
-        assert_eq!(m.change_count, 1, "parent module should count only direct changes");
+        assert_eq!(
+            m.change_count, 1,
+            "parent module should count only direct changes"
+        );
         // Sub-module summary should be populated.
         assert_eq!(m.sub_modules.len(), 1);
         assert_eq!(m.sub_modules[0].id, "024.01");
         assert_eq!(m.sub_modules[0].name, "auth");
-        assert_eq!(m.sub_modules[0].change_count, 1, "sub-module should count its own change");
+        assert_eq!(
+            m.sub_modules[0].change_count, 1,
+            "sub-module should count its own change"
+        );
 
         // --- Module get ---
         let module = repo.get("024").unwrap();
@@ -648,11 +660,20 @@ mod tests {
         let change_repo = FsChangeRepository::new(&ito_path);
         let summaries = change_repo.list().unwrap();
 
-        let direct = summaries.iter().find(|s| s.id == "024-07_health-check").unwrap();
+        let direct = summaries
+            .iter()
+            .find(|s| s.id == "024-07_health-check")
+            .unwrap();
         assert_eq!(direct.module_id.as_deref(), Some("024"));
-        assert_eq!(direct.sub_module_id, None, "direct change should have no sub_module_id");
+        assert_eq!(
+            direct.sub_module_id, None,
+            "direct change should have no sub_module_id"
+        );
 
-        let sub_change = summaries.iter().find(|s| s.id == "024.01-01_add-jwt").unwrap();
+        let sub_change = summaries
+            .iter()
+            .find(|s| s.id == "024.01-01_add-jwt")
+            .unwrap();
         assert_eq!(sub_change.module_id.as_deref(), Some("024"));
         assert_eq!(
             sub_change.sub_module_id.as_deref(),

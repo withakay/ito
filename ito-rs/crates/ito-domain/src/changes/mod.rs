@@ -395,14 +395,8 @@ mod tests {
         assert_eq!(extract_module_id("5-1_foo"), Some("005".to_string()));
         assert_eq!(extract_module_id("invalid"), None);
         // Sub-module format: strip sub-module component
-        assert_eq!(
-            extract_module_id("024.01-03_foo"),
-            Some("024".to_string())
-        );
-        assert_eq!(
-            extract_module_id("5.1-2_bar"),
-            Some("005".to_string())
-        );
+        assert_eq!(extract_module_id("024.01-03_foo"), Some("024".to_string()));
+        assert_eq!(extract_module_id("5.1-2_bar"), Some("005".to_string()));
     }
 
     #[test]

@@ -800,16 +800,12 @@ fn validate_sub_modules_under_module(rep: &mut ReportBuilder, module_dir: &Path,
 
         // Validate naming convention: must be `SS_name`.
         let valid_name = dir_name.split_once('_').is_some_and(|(num, name)| {
-            !num.is_empty()
-                && num.chars().all(|c| c.is_ascii_digit())
-                && !name.is_empty()
+            !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) && !name.is_empty()
         });
         if !valid_name {
             rep.push(error(
                 format!("sub-modules/{dir_name}"),
-                format!(
-                    "Sub-module directory '{dir_name}' does not follow the SS_name convention"
-                ),
+                format!("Sub-module directory '{dir_name}' does not follow the SS_name convention"),
             ));
             continue;
         }

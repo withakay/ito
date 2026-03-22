@@ -6,9 +6,9 @@
 
 use std::path::PathBuf;
 
+use ito_core::ModuleRepository;
 use ito_core::backend_module_repository::BackendModuleRepository;
 use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};
-use ito_core::ModuleRepository;
 use ito_domain::backend::{BackendModuleReader, BackendProjectStore};
 use ito_domain::changes::ChangeLifecycleFilter;
 use ito_domain::errors::{DomainError, DomainResult};
@@ -62,9 +62,7 @@ fn sqlite_store_persists_sub_module_id_on_change() {
         })
         .expect("upsert sub-module change");
 
-    let change_repo = store
-        .change_repository("org", "repo")
-        .expect("change repo");
+    let change_repo = store.change_repository("org", "repo").expect("change repo");
 
     // List returns the change with sub_module_id populated.
     let changes = change_repo.list().expect("list changes");
@@ -128,9 +126,7 @@ fn sqlite_store_legacy_change_has_no_sub_module_id() {
         })
         .expect("upsert legacy change");
 
-    let change_repo = store
-        .change_repository("org", "repo")
-        .expect("change repo");
+    let change_repo = store.change_repository("org", "repo").expect("change repo");
     let changes = change_repo.list().expect("list changes");
     assert_eq!(changes.len(), 1);
     assert_eq!(changes[0].id, "005-01_legacy-change");
@@ -186,10 +182,7 @@ fn backend_module_repository_list_sub_modules_returns_sorted_summaries() {
         ],
     };
 
-    let repo = BackendModuleRepository::new(FakeModuleReader::new(
-        vec![summary],
-        vec![module],
-    ));
+    let repo = BackendModuleRepository::new(FakeModuleReader::new(vec![summary], vec![module]));
 
     let sub_modules = repo.list_sub_modules("005").expect("list sub-modules");
     assert_eq!(sub_modules.len(), 2);
@@ -236,10 +229,7 @@ fn backend_module_repository_get_sub_module_by_composite_id() {
         sub_modules: vec![],
     };
 
-    let repo = BackendModuleRepository::new(FakeModuleReader::new(
-        vec![summary],
-        vec![module],
-    ));
+    let repo = BackendModuleRepository::new(FakeModuleReader::new(vec![summary], vec![module]));
 
     let sub = repo.get_sub_module("024.01").expect("get sub-module");
     assert_eq!(sub.id, "024.01");
@@ -274,10 +264,7 @@ fn backend_module_repository_get_sub_module_not_found_returns_error() {
         sub_modules: vec![],
     };
 
-    let repo = BackendModuleRepository::new(FakeModuleReader::new(
-        vec![summary],
-        vec![module],
-    ));
+    let repo = BackendModuleRepository::new(FakeModuleReader::new(vec![summary], vec![module]));
 
     let err = repo.get_sub_module("024.99").expect_err("should not find");
     assert!(
@@ -374,9 +361,7 @@ fn sqlite_store_list_changes_filters_by_sub_module_id() {
         })
         .expect("upsert direct change");
 
-    let change_repo = store
-        .change_repository("org", "repo")
-        .expect("change repo");
+    let change_repo = store.change_repository("org", "repo").expect("change repo");
     let all = change_repo
         .list_with_filter(ChangeLifecycleFilter::Active)
         .expect("list all");

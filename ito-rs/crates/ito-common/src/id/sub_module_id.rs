@@ -86,14 +86,18 @@ pub fn parse_sub_module_id(input: &str) -> Result<ParsedSubModuleId, IdParseErro
     let Some((module_str, sub_str)) = id_part.split_once('.') else {
         return Err(IdParseError::new(
             format!("Invalid sub-module ID format: \"{input}\""),
-            Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),
+            Some(
+                "Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")",
+            ),
         ));
     };
 
     if !is_all_ascii_digits(module_str) || !is_all_ascii_digits(sub_str) {
         return Err(IdParseError::new(
             format!("Invalid sub-module ID format: \"{input}\""),
-            Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),
+            Some(
+                "Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")",
+            ),
         ));
     }
 
@@ -132,7 +136,9 @@ pub fn parse_sub_module_id(input: &str) -> Result<ParsedSubModuleId, IdParseErro
             if name.is_empty() {
                 return Err(IdParseError::new(
                     format!("Invalid sub-module ID format: \"{input}\""),
-                    Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),
+                    Some(
+                        "Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")",
+                    ),
                 ));
             }
 
@@ -141,14 +147,18 @@ pub fn parse_sub_module_id(input: &str) -> Result<ParsedSubModuleId, IdParseErro
             if !first.is_ascii_alphabetic() {
                 return Err(IdParseError::new(
                     format!("Invalid sub-module ID format: \"{input}\""),
-                    Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),
+                    Some(
+                        "Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")",
+                    ),
                 ));
             }
             for c in chars {
                 if !(c.is_ascii_alphanumeric() || c == '-') {
                     return Err(IdParseError::new(
                         format!("Invalid sub-module ID format: \"{input}\""),
-                        Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),
+                        Some(
+                            "Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")",
+                        ),
                     ));
                 }
             }

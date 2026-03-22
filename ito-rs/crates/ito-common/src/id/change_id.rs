@@ -2,10 +2,10 @@
 
 use std::fmt;
 
-use super::is_all_ascii_digits;
-use super::sub_module_id::SubModuleId;
 use super::IdParseError;
 use super::ModuleId;
+use super::is_all_ascii_digits;
+use super::sub_module_id::SubModuleId;
 
 /// A change identifier in canonical form.
 ///
@@ -125,18 +125,14 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         let Some((module_sub_part, change_str)) = left.split_once('-') else {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
-                Some(
-                    "Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")",
-                ),
+                Some("Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")"),
             ));
         };
 
         let Some((module_str, sub_str)) = module_sub_part.split_once('.') else {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
-                Some(
-                    "Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")",
-                ),
+                Some("Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")"),
             ));
         };
 
@@ -147,9 +143,7 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
-                Some(
-                    "Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")",
-                ),
+                Some("Expected format: \"NNN.SS-NN_name\" (e.g., \"005.01-02_my-change\")"),
             ));
         }
 
@@ -382,6 +376,8 @@ mod tests {
     #[test]
     fn parse_change_id_sub_module_missing_name_is_error() {
         let err = parse_change_id("005.01-03").unwrap_err();
-        assert!(err.error.contains("Invalid change ID format") || err.error.contains("missing name"));
+        assert!(
+            err.error.contains("Invalid change ID format") || err.error.contains("missing name")
+        );
     }
 }

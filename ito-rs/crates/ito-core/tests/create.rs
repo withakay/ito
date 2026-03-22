@@ -232,7 +232,10 @@ fn allocation_state_sub_module_keys_sort_after_parent() {
 
     let mut sorted = keys.clone();
     sorted.sort();
-    assert_eq!(keys, sorted, "allocation keys must be in ascending sort order");
+    assert_eq!(
+        keys, sorted,
+        "allocation keys must be in ascending sort order"
+    );
 
     // Verify that "024" appears before "024.01".
     let pos_024 = keys.iter().position(|k| k == "024").expect("024 key");

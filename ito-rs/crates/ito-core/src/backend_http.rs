@@ -17,7 +17,9 @@ use ito_domain::backend::{
     BackendEventIngestClient, BackendModuleReader, BackendSpecReader, BackendSyncClient,
     EventBatch, EventIngestResult, PushResult,
 };
-use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec, extract_sub_module_id};
+use ito_domain::changes::{
+    Change, ChangeLifecycleFilter, ChangeSummary, Spec, extract_sub_module_id,
+};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary, SubModule, SubModuleSummary};
 use ito_domain::specs::{SpecDocument, SpecSummary};

@@ -327,7 +327,11 @@ fn create_change_inner(
             return Err(CreateError::SubModuleNotFound(sub_id.clone()));
         }
 
-        (sub_id.clone(), sub_id, ChecklistTarget::SubModule(sm.to_string()))
+        (
+            sub_id.clone(),
+            sub_id,
+            ChecklistTarget::SubModule(sm.to_string()),
+        )
     } else {
         let module_id = module
             .and_then(|m| parse_module_id(m).ok().map(|p| p.module_id.to_string()))
@@ -341,7 +345,11 @@ fn create_change_inner(
             }
         }
 
-        (module_id.clone(), module_id.clone(), ChecklistTarget::Module(module_id))
+        (
+            module_id.clone(),
+            module_id.clone(),
+            ChecklistTarget::Module(module_id),
+        )
     };
 
     let next_num = allocate_next_change_number(ito_path, &namespace_key)?;
@@ -485,7 +493,10 @@ struct ModuleAllocationState {
 ///   where `module_id == "024"` and there is no sub-module component.
 /// - For a sub-module namespace (`"024.01"`): matches sub-module changes where
 ///   `sub_module_id == "024.01"`.
-fn change_belongs_to_namespace(parsed: &ito_common::id::ParsedChangeId, namespace_key: &str) -> bool {
+fn change_belongs_to_namespace(
+    parsed: &ito_common::id::ParsedChangeId,
+    namespace_key: &str,
+) -> bool {
     if namespace_key.contains('.') {
         // Sub-module namespace: match on sub_module_id.
         parsed
@@ -633,12 +644,7 @@ fn add_change_to_sub_module(
                 e.error
             ))
         })?;
-        let title = to_title_case(
-            parsed
-                .sub_name
-                .as_deref()
-                .unwrap_or(sub_module_id),
-        );
+        let title = to_title_case(parsed.sub_name.as_deref().unwrap_or(sub_module_id));
         generate_module_content(&title, None, &["*"], &[] as &[&str], &[])
     };
 
@@ -871,9 +877,11 @@ fn max_change_num_in_module_md(ito_path: &Path, module_id: &str) -> Result<u32, 
     let content = ito_common::io::read_to_string_or_default(&module_md);
     let mut max_seen: u32 = 0;
     for token in content.split_whitespace() {
-        if let Ok(parsed) = parse_change_id(
-            token.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'),
-        ) && change_belongs_to_namespace(&parsed, module_id)
+        if let Ok(parsed) =
+            parse_change_id(token.trim_matches(|c: char| {
+                !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'
+            }))
+            && change_belongs_to_namespace(&parsed, module_id)
             && let Ok(n) = parsed.change_num.parse::<u32>()
         {
             max_seen = max_seen.max(n);
@@ -897,9 +905,11 @@ fn max_change_num_in_sub_module_md(
     let content = ito_common::io::read_to_string_or_default(&module_md);
     let mut max_seen: u32 = 0;
     for token in content.split_whitespace() {
-        if let Ok(parsed) = parse_change_id(
-            token.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'),
-        ) && change_belongs_to_namespace(&parsed, sub_module_id)
+        if let Ok(parsed) =
+            parse_change_id(token.trim_matches(|c: char| {
+                !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'
+            }))
+            && change_belongs_to_namespace(&parsed, sub_module_id)
             && let Ok(n) = parsed.change_num.parse::<u32>()
         {
             max_seen = max_seen.max(n);
@@ -1062,6 +1072,23 @@ fn generate_module_content<T: AsRef<str>>(
     out
 }
 
+fn create_ungrouped_module(ito_path: &Path) -> Result<(), CreateError> {
+    let modules_dir = paths::modules_dir(ito_path);
+    ito_common::io::create_dir_all_std(&modules_dir)?;
+    let dir = modules_dir.join("000_ungrouped");
+    ito_common::io::create_dir_all_std(&dir)?;
+    let empty: [&str; 0] = [];
+    let md = generate_module_content(
+        "Ungrouped",
+        Some("Changes that do not belong to a specific module."),
+        &["*"],
+        &empty,
+        &[],
+    );
+    ito_common::io::write_std(&dir.join("module.md"), md)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1077,7 +1104,9 @@ mod tests {
     fn make_module(ito_path: &Path, id: &str, name: &str) {
         let dir = ito_path.join("modules").join(format!("{id}_{name}"));
         std::fs::create_dir_all(&dir).unwrap();
-        let md = format!("# {name}\n\n## Purpose\nTest module purpose text that is long enough.\n\n## Scope\n- *\n\n## Changes\n<!-- none -->\n");
+        let md = format!(
+            "# {name}\n\n## Purpose\nTest module purpose text that is long enough.\n\n## Scope\n- *\n\n## Changes\n<!-- none -->\n"
+        );
         std::fs::write(dir.join("module.md"), md).unwrap();
     }
 
@@ -1107,7 +1136,10 @@ mod tests {
         let result = create_sub_module(&ito_path, "sync", "024", Some("Sync subsystem")).unwrap();
 
         let md = std::fs::read_to_string(result.sub_module_dir.join("module.md")).unwrap();
-        assert!(md.contains("Sync subsystem"), "description should appear in module.md");
+        assert!(
+            md.contains("Sync subsystem"),
+            "description should appear in module.md"
+        );
     }
 
     #[test]
@@ -1173,21 +1205,4 @@ mod tests {
         assert_eq!(result.parent_module_id, "024");
         assert_eq!(result.sub_module_id, "024.01");
     }
-}
-
-fn create_ungrouped_module(ito_path: &Path) -> Result<(), CreateError> {
-    let modules_dir = paths::modules_dir(ito_path);
-    ito_common::io::create_dir_all_std(&modules_dir)?;
-    let dir = modules_dir.join("000_ungrouped");
-    ito_common::io::create_dir_all_std(&dir)?;
-    let empty: [&str; 0] = [];
-    let md = generate_module_content(
-        "Ungrouped",
-        Some("Changes that do not belong to a specific module."),
-        &["*"],
-        &empty,
-        &[],
-    );
-    ito_common::io::write_std(&dir.join("module.md"), md)?;
-    Ok(())
 }

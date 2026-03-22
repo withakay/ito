@@ -134,7 +134,10 @@ fn create_change_sub_module_and_module_are_mutually_exclusive() {
         repo.path(),
         home.path(),
     );
-    assert_ne!(out.code, 0, "should fail when both --module and --sub-module are given");
+    assert_ne!(
+        out.code, 0,
+        "should fail when both --module and --sub-module are given"
+    );
     // Clap enforces conflicts_with, so the error comes from clap.
     let combined = format!("{}{}", out.stdout, out.stderr);
     assert!(
@@ -160,7 +163,8 @@ fn create_change_with_sub_module_flag_creates_composite_id_change() {
         "# Backend\n\n## Purpose\nBackend module\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
     );
     fixtures::write(
-        repo.path().join(".ito/modules/024_backend/sub/01_auth/module.md"),
+        repo.path()
+            .join(".ito/modules/024_backend/sub/01_auth/module.md"),
         "# Auth\n\n## Purpose\nAuth sub-module\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
     );
 
@@ -180,11 +184,15 @@ fn create_change_with_sub_module_flag_creates_composite_id_change() {
     // The change directory should exist with the composite id.
     let change_dir = repo.path().join(".ito/changes/024.01-01_add-jwt");
     assert!(change_dir.exists(), "change directory should exist");
-    assert!(change_dir.join(".ito.yaml").exists(), ".ito.yaml should exist");
+    assert!(
+        change_dir.join(".ito.yaml").exists(),
+        ".ito.yaml should exist"
+    );
 
     // The sub-module's module.md should contain the new change entry.
     let sub_md = std::fs::read_to_string(
-        repo.path().join(".ito/modules/024_backend/sub/01_auth/module.md"),
+        repo.path()
+            .join(".ito/modules/024_backend/sub/01_auth/module.md"),
     )
     .expect("read sub module.md");
     assert!(
@@ -193,9 +201,8 @@ fn create_change_with_sub_module_flag_creates_composite_id_change() {
     );
 
     // The parent module.md should NOT contain the sub-module change.
-    let parent_md =
-        std::fs::read_to_string(repo.path().join(".ito/modules/024_backend/module.md"))
-            .expect("read parent module.md");
+    let parent_md = std::fs::read_to_string(repo.path().join(".ito/modules/024_backend/module.md"))
+        .expect("read parent module.md");
     assert!(
         !parent_md.contains("024.01-01_add-jwt"),
         "parent module.md should not contain sub-module change; got:\n{parent_md}"

@@ -314,14 +314,12 @@ fn handle_show_sub_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let module_repo = runtime.repositories().modules.as_ref();
 
-    let sub_module = module_repo
-        .get_sub_module(&sub_module_id)
-        .map_err(|_| {
-            CliError::msg(format!(
-                "Sub-module '{}' not found.\nUse 'ito list --modules' to see available sub-modules.",
-                sub_module_id
-            ))
-        })?;
+    let sub_module = module_repo.get_sub_module(&sub_module_id).map_err(|_| {
+        CliError::msg(format!(
+            "Sub-module '{}' not found.\nUse 'ito list --modules' to see available sub-modules.",
+            sub_module_id
+        ))
+    })?;
 
     if want_json {
         #[derive(serde::Serialize)]
