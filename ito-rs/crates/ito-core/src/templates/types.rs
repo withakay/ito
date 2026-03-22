@@ -282,6 +282,43 @@ pub struct ReviewTestingPolicy {
     pub coverage_target_percent: u64,
 }
 
+/// A requirement covered by at least one active task, for review context.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewCoveredRequirement {
+    /// The stable requirement ID.
+    pub requirement_id: String,
+    /// IDs of tasks that reference this requirement.
+    pub covering_tasks: Vec<String>,
+}
+
+/// A task reference to an unknown requirement ID, for review context.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewUnresolvedReference {
+    /// The task that contains the dangling reference.
+    pub task_id: String,
+    /// The requirement ID that could not be resolved.
+    pub requirement_id: String,
+}
+
+/// Traceability summary for the peer-review context.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReviewTraceabilityInfo {
+    /// Overall status: `"ready"`, `"invalid"`, or `"unavailable"`.
+    pub status: String,
+    /// Human-readable reason (present for `invalid` and `unavailable`).
+    pub reason: Option<String>,
+    /// All requirement IDs declared in delta specs.
+    pub declared_requirements: Vec<String>,
+    /// Requirements covered by at least one active task.
+    pub covered_requirements: Vec<ReviewCoveredRequirement>,
+    /// Requirement IDs not covered by any active task.
+    pub uncovered_requirements: Vec<String>,
+    /// Task references to unknown requirement IDs.
+    pub unresolved_references: Vec<ReviewUnresolvedReference>,
+    /// Informational diagnostics (e.g. duplicate IDs).
+    pub diagnostics: Vec<String>,
+}
+
 /// Complete context payload for rendering peer-review instructions.
 #[derive(Debug, Clone, Serialize)]
 pub struct PeerReviewContext {
@@ -311,6 +348,8 @@ pub struct PeerReviewContext {
     pub testing_policy: ReviewTestingPolicy,
     /// RFC3339 UTC generation timestamp.
     pub generated_at: String,
+    /// Optional requirement traceability summary.
+    pub traceability: Option<ReviewTraceabilityInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
