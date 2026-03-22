@@ -326,6 +326,17 @@ pub enum Commands {
     #[command(verbatim_doc_comment, visible_alias = "u")]
     Util(UtilArgs),
 
+    /// Show requirement traceability for a change
+    ///
+    /// Computes how well the change's tasks cover its declared requirements.
+    /// Requires requirement IDs in delta specs (e.g. `- **Requirement ID**: REQ-001`).
+    ///
+    /// Examples:
+    ///   ito trace 005-01_add-auth
+    ///   ito trace --change 005-01_add-auth --json
+    #[command(verbatim_doc_comment, visible_alias = "tr")]
+    Trace(TraceArgs),
+
     /// Display an interactive dashboard [not implemented]
     #[command(hide = true)]
     Dashboard(DashboardArgs),
@@ -1125,6 +1136,22 @@ pub struct ValidateArgs {
     /// Item name (change id or spec id)
     #[arg(value_name = "ITEM")]
     pub item: Option<String>,
+}
+
+/// Show requirement traceability for a change.
+#[derive(Args, Debug, Clone)]
+pub struct TraceArgs {
+    /// Change id (positional or via --change flag)
+    #[arg(value_name = "CHANGE", conflicts_with = "change_flag")]
+    pub change: Option<String>,
+
+    /// Change id (flag form)
+    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with = "change")]
+    pub change_flag: Option<String>,
+
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
 }
 
 // Ralph / validate / split args live in submodules to keep this file under the max-lines gate.
