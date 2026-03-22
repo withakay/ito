@@ -232,7 +232,7 @@ pub fn validate_change(
         }
 
         if is_legacy_delta_schema(&resolved.schema.name) {
-            validate_change_delta_specs(&mut rep, change_repo, change_id)?;
+            validate_change_delta_specs(&mut rep, change_repo, change_id, strict)?;
 
             let tracks_rel = resolved
                 .schema
@@ -267,7 +267,7 @@ pub fn validate_change(
         return Ok(rep.finish());
     }
 
-    validate_change_delta_specs(&mut rep, change_repo, change_id)?;
+    validate_change_delta_specs(&mut rep, change_repo, change_id, strict)?;
     Ok(rep.finish())
 }
 
@@ -492,7 +492,7 @@ fn run_validator_for_artifact(
 ) -> CoreResult<()> {
     match validator_id {
         ValidatorId::DeltaSpecsV1 => {
-            validate_change_delta_specs(rep, change_repo, ctx.change_id)?;
+            validate_change_delta_specs(rep, change_repo, ctx.change_id, ctx.strict)?;
         }
         ValidatorId::TasksTrackingV1 => {
             use format_specs::TASKS_TRACKING_V1;
@@ -584,6 +584,7 @@ fn validate_change_delta_specs(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: &str,
+    strict: bool,
 ) -> CoreResult<()> {
     use format_specs::DELTA_SPECS_V1;
 
@@ -659,6 +660,90 @@ fn validate_change_delta_specs(
             }
         }
     }
+
+    // --- Traceability validation ---
+    // Collect (title, id) pairs from all delta requirements.
+    let mut delta_requirements: Vec<(String, Option<String>)> = Vec::new();
+    for d in &show.deltas {
+        for req in &d.requirements {
+            delta_requirements.push((req.text.clone(), req.requirement_id.clone()));
+        }
+    }
+
+    // Only run traceability if at least one requirement has an ID.
+    let has_any_id = delta_requirements.iter().any(|(_, id)| id.is_some());
+    if has_any_id {
+        let change_data = change_repo.get(change_id).into_core()?;
+        let trace_result =
+            ito_domain::traceability::compute_traceability(&delta_requirements, &change_data.tasks);
+
+        match &trace_result.status {
+            ito_domain::traceability::TraceStatus::Invalid { missing_ids } => {
+                for title in missing_ids {
+                    rep.push(with_format_spec(
+                        error(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' has no Requirement ID; all requirements must have IDs for traceability",
+                                title
+                            ),
+                        ),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+            }
+            ito_domain::traceability::TraceStatus::Unavailable { reason } => {
+                rep.push(with_format_spec(
+                    info(
+                        "traceability",
+                        format!("Traceability unavailable: {reason}"),
+                    ),
+                    DELTA_SPECS_V1,
+                ));
+            }
+            ito_domain::traceability::TraceStatus::Ready => {
+                for diag in &trace_result.diagnostics {
+                    rep.push(with_format_spec(
+                        error("traceability", diag.clone()),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+                for unresolved in &trace_result.unresolved_references {
+                    rep.push(with_format_spec(
+                        error(
+                            "traceability",
+                            format!(
+                                "Task '{}' references unknown requirement ID '{}'",
+                                unresolved.task_id, unresolved.requirement_id
+                            ),
+                        ),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+                for uncovered in &trace_result.uncovered_requirements {
+                    let i = if strict {
+                        error(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' is not covered by any active task",
+                                uncovered
+                            ),
+                        )
+                    } else {
+                        warning(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' is not covered by any active task",
+                                uncovered
+                            ),
+                        )
+                    };
+                    rep.push(with_format_spec(i, DELTA_SPECS_V1));
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
