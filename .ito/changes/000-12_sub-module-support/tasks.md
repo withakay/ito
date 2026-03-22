@@ -6,16 +6,16 @@
 
 **Verify**: `cargo test -p ito-domain` passes with all new ID parsing tests green.
 
-- [~] **1.1** Add `SubModule` domain struct to `ito-domain` with fields: `id`, `parent_module_id`, `sub_id`, `name`, `description: Option<String>`, `change_count: u32`
-- [ ] **1.2** Add `sub_modules: Vec<SubModule>` field to the `Module` domain struct; default empty
-- [ ] **1.3** Add `SubModuleSummary` struct (id, name, change_count) and include `sub_modules: Vec<SubModuleSummary>` in `ModuleSummary`
-- [ ] **1.4** Add `sub_module_id: Option<String>` field to `Change` and `ChangeSummary` domain structs, storing the canonical `NNN.SS` sub-module ID when present
-- [ ] **1.5** Define `ParsedChangeId` struct: `{ module_id, sub_module_id: Option<String>, change_num, name: Option<String>, canonical }`, where `sub_module_id` uses canonical `NNN.SS` form
-- [ ] **1.6** Update `parse_change_id` to return `ParsedChangeId` and handle `NNN.SS-NN_name` format; old `NNN-NN_name` sets `sub_module_id = None`
-- [ ] **1.7** Update `extract_module_id` to strip the sub-module component and return only `NNN` for both old and new formats
-- [ ] **1.8** Add `parse_sub_module_id(input: &str) -> Result<String>` function to normalize `NNN.SS` / `NNN.SS_name` inputs
-- [ ] **1.9** Add `ItoIdKind` enum (`ModuleId`, `SubModuleId`, `ModuleChangeId`, `SubModuleChangeId`) and `classify_id` function
-- [ ] **1.10** Update `flexible-id-parser` spec scenarios to match new `ParsedChangeId` return type (ensure tests cover all 4 ID kinds)
+- [x] **1.1** Add `SubModule` domain struct to `ito-domain` with fields: `id`, `parent_module_id`, `sub_id`, `name`, `description: Option<String>`, `change_count: u32`
+- [x] **1.2** Add `sub_modules: Vec<SubModule>` field to the `Module` domain struct; default empty
+- [x] **1.3** Add `SubModuleSummary` struct (id, name, change_count) and include `sub_modules: Vec<SubModuleSummary>` in `ModuleSummary`
+- [x] **1.4** Add `sub_module_id: Option<String>` field to `Change` and `ChangeSummary` domain structs, storing the canonical `NNN.SS` sub-module ID when present
+- [x] **1.5** Define `ParsedChangeId` struct: `{ module_id, sub_module_id: Option<String>, change_num, name: Option<String>, canonical }`, where `sub_module_id` uses canonical `NNN.SS` form
+- [x] **1.6** Update `parse_change_id` to return `ParsedChangeId` and handle `NNN.SS-NN_name` format; old `NNN-NN_name` sets `sub_module_id = None`
+- [x] **1.7** Update `extract_module_id` to strip the sub-module component and return only `NNN` for both old and new formats
+- [x] **1.8** Add `parse_sub_module_id(input: &str) -> Result<String>` function to normalize `NNN.SS` / `NNN.SS_name` inputs
+- [x] **1.9** Add `ItoIdKind` enum (`ModuleId`, `SubModuleId`, `ModuleChangeId`, `SubModuleChangeId`) and `classify_id` function
+- [x] **1.10** Update `flexible-id-parser` spec scenarios to match new `ParsedChangeId` return type (ensure tests cover all 4 ID kinds)
 
 ---
 
@@ -27,7 +27,7 @@
 
 **Verify**: `cargo test -p ito-core` passes; manually run `ito list --modules` on a test repo with sub-module directories.
 
-- [ ] **2.1** Update `ito-core` filesystem `ModuleRepository::get` to scan `.ito/modules/NNN_*/sub/` for sub-module directories and populate `module.sub_modules`
+- [~] **2.1** Update `ito-core` filesystem `ModuleRepository::get` to scan `.ito/modules/NNN_*/sub/` for sub-module directories and populate `module.sub_modules`
 - [ ] **2.2** Implement `ModuleRepository::list_sub_modules(parent_id: &str)` in filesystem backend: enumerate `sub/SS_name/` dirs, read each `module.md`
 - [ ] **2.3** Implement `ModuleRepository::get_sub_module(composite_id: &str)` — parse composite id, locate directory, read `module.md`, return `SubModule`
 - [ ] **2.4** Update `ModuleRepository::list()` to populate `sub_modules` in each `ModuleSummary`

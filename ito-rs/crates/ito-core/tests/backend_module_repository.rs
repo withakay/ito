@@ -40,11 +40,13 @@ fn backend_module_repository_normalizes_full_name_inputs() {
         name: "demo".to_string(),
         description: Some("Remote module".to_string()),
         path: PathBuf::new(),
+        sub_modules: Vec::new(),
     };
     let summary = ModuleSummary {
         id: "005".to_string(),
         name: "demo".to_string(),
         change_count: 2,
+        sub_modules: Vec::new(),
     };
     let repo =
         BackendModuleRepository::new(FakeBackendModuleReader::new(vec![summary], vec![module]));
@@ -61,11 +63,13 @@ fn backend_module_repository_accepts_name_inputs() {
         name: "dev-tooling".to_string(),
         description: None,
         path: PathBuf::new(),
+        sub_modules: Vec::new(),
     };
     let summary = ModuleSummary {
         id: "013".to_string(),
         name: "dev-tooling".to_string(),
         change_count: 1,
+        sub_modules: Vec::new(),
     };
     let repo =
         BackendModuleRepository::new(FakeBackendModuleReader::new(vec![summary], vec![module]));
@@ -83,11 +87,13 @@ fn backend_module_repository_list_sorts_by_id() {
                 id: "010".to_string(),
                 name: "zeta".to_string(),
                 change_count: 1,
+                sub_modules: Vec::new(),
             },
             ModuleSummary {
                 id: "002".to_string(),
                 name: "alpha".to_string(),
                 change_count: 3,
+                sub_modules: Vec::new(),
             },
         ],
         vec![],
@@ -107,11 +113,13 @@ fn backend_module_repository_list_sorts_deterministically() {
                 id: "010".to_string(),
                 name: "zeta".to_string(),
                 change_count: 1,
+                sub_modules: Vec::new(),
             },
             ModuleSummary {
                 id: "002".to_string(),
                 name: "alpha".to_string(),
                 change_count: 3,
+                sub_modules: Vec::new(),
             },
         ],
         vec![
@@ -120,12 +128,14 @@ fn backend_module_repository_list_sorts_deterministically() {
                 name: "zeta".to_string(),
                 description: None,
                 path: PathBuf::new(),
+                sub_modules: Vec::new(),
             },
             Module {
                 id: "002".to_string(),
                 name: "alpha".to_string(),
                 description: None,
                 path: PathBuf::new(),
+                sub_modules: Vec::new(),
             },
         ],
     ));
@@ -143,11 +153,13 @@ fn read_module_markdown_falls_back_without_local_file() {
         name: "repository-backends".to_string(),
         description: Some("Remote-only module".to_string()),
         path: PathBuf::new(),
+        sub_modules: Vec::new(),
     };
     let summary = ModuleSummary {
         id: "025".to_string(),
         name: "repository-backends".to_string(),
         change_count: 4,
+        sub_modules: Vec::new(),
     };
     let repo =
         BackendModuleRepository::new(FakeBackendModuleReader::new(vec![summary], vec![module]));

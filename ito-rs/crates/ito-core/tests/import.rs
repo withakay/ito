@@ -220,6 +220,7 @@ fn summary(id: &str) -> ChangeSummary {
     ChangeSummary {
         id: id.to_string(),
         module_id: Some("024".to_string()),
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -237,6 +238,7 @@ fn change(id: &str) -> Change {
     Change {
         id: id.to_string(),
         module_id: Some("024".to_string()),
+        sub_module_id: None,
         path: std::path::PathBuf::new(),
         proposal: Some("# Proposal\n".to_string()),
         design: None,
