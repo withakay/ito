@@ -338,7 +338,7 @@ Usage: ito create [COMMAND]
 Commands:
   module      Create a module [aliases: mo]
   change      Create a change [aliases: ch]
-  sub-module  Create a sub-module under an existing module [aliases: sm]
+  sub-module  Create a sub-module under an existing module (e.g. `ito create sub-module auth --module 024`) [aliases: sm]
   help        Print this message or the help of the given subcommand(s)
 
 Options:

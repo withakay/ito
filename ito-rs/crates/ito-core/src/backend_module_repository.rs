@@ -63,21 +63,20 @@ impl<R: BackendModuleReader> DomainModuleRepository for BackendModuleRepository<
             }
             Err(err) => return Err(err),
         };
-        let mut sub_modules: Vec<SubModuleSummary> = module
-            .sub_modules
-            .into_iter()
-            .map(|s| SubModuleSummary {
+        let mut sub_modules = Vec::with_capacity(module.sub_modules.len());
+        for s in module.sub_modules {
+            sub_modules.push(SubModuleSummary {
                 id: s.id,
                 name: s.name,
                 change_count: s.change_count,
-            })
-            .collect();
+            });
+        }
         sub_modules.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(sub_modules)
     }
 
     fn get_sub_module(&self, composite_id: &str) -> DomainResult<SubModule> {
-        // Extract the parent module ID from the composite sub-module ID (e.g., "005.01" → "005").
+        // Extract the parent module ID from the composite sub-module ID (e.g., "005.01" -> "005").
         let parent_id = composite_id.split('.').next().unwrap_or(composite_id);
         let module_id = resolve_backend_module_key(parent_id);
         let module = match self.reader.get_module(&module_id) {
@@ -87,11 +86,12 @@ impl<R: BackendModuleReader> DomainModuleRepository for BackendModuleRepository<
             }
             Err(err) => return Err(err),
         };
-        module
-            .sub_modules
-            .into_iter()
-            .find(|s| s.id == composite_id)
-            .ok_or_else(|| DomainError::not_found("sub-module", composite_id))
+        for sub in module.sub_modules {
+            if sub.id == composite_id {
+                return Ok(sub);
+            }
+        }
+        Err(DomainError::not_found("sub-module", composite_id))
     }
 }
 

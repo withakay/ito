@@ -709,15 +709,8 @@ pub enum CreateAction {
         description: Option<String>,
     },
 
-    /// Create a sub-module under an existing module
-    ///
-    /// Allocates the next sub-module number and writes a module.md at the
-    /// correct path under the parent module's sub/ directory.
-    ///
-    /// Examples:
-    ///   ito create sub-module auth --module 024
-    ///   ito create sub-module sync --module 024 --description "Sync subsystem"
-    #[command(name = "sub-module", verbatim_doc_comment, visible_alias = "sm")]
+    /// Create a sub-module under an existing module (e.g. `ito create sub-module auth --module 024`)
+    #[command(name = "sub-module", visible_alias = "sm")]
     SubModule {
         /// Sub-module name (kebab-case)
         name: Option<String>,
@@ -801,7 +794,6 @@ pub struct ShowSubModuleArgs {
     /// Output as JSON
     #[arg(long)]
     pub json: bool,
-
     /// Sub-module composite id (e.g. 024.01)
     pub sub_module_id: String,
 }

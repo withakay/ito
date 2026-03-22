@@ -2,13 +2,12 @@
 
 use chrono::{DateTime, TimeZone, Utc};
 use ito_common::fs::{FileSystem, StdFs};
-use ito_common::id::{ItoIdKind, classify_id};
 use ito_common::match_::nearest_matches;
 use ito_common::paths;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeStatus,
     ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec, extract_module_id,
-    parse_change_id, parse_module_id,
+    extract_sub_module_id, parse_change_id, parse_module_id,
 };
 use ito_domain::discovery;
 use ito_domain::errors::{DomainError, DomainResult};
@@ -452,25 +451,6 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         }
     }
 
-    /// Extract the sub-module ID from a change ID when the change uses the
-    /// `NNN.SS-NN_name` format.
-    ///
-    /// Returns `Some("NNN.SS")` for sub-module changes, `None` for legacy
-    /// `NNN-NN_name` changes.
-    fn extract_sub_module_id(change_id: &str) -> Option<String> {
-        if classify_id(change_id) == ItoIdKind::SubModuleChangeId {
-            // The sub-module key is everything before the first `-`.
-            change_id.split('-').next().map(|s| {
-                // Normalize via parse to get canonical NNN.SS form.
-                ito_common::id::parse_sub_module_id(s)
-                    .map(|p| p.sub_module_id.as_str().to_string())
-                    .unwrap_or_else(|_| s.to_string())
-            })
-        } else {
-            None
-        }
-    }
-
     fn build_summary_for_location(&self, location: &ChangeLocation) -> DomainResult<ChangeSummary> {
         let tasks = self.load_tasks_for_location(location)?;
         let progress = tasks.progress;
@@ -486,7 +466,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         let has_specs = self.has_specs(&location.path);
         let has_tasks = total_tasks > 0;
         let module_id = extract_module_id(&location.id);
-        let sub_module_id = Self::extract_sub_module_id(&location.id);
+        let sub_module_id = extract_sub_module_id(&location.id);
 
         Ok(ChangeSummary {
             id: location.id.clone(),
@@ -738,7 +718,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         let last_modified = self.get_last_modified(&location.path)?;
         let path = location.path;
 
-        let sub_module_id = Self::extract_sub_module_id(&actual_id);
+        let sub_module_id = extract_sub_module_id(&actual_id);
 
         Ok(Change {
             id: actual_id.clone(),

@@ -12,13 +12,12 @@ use serde::de::DeserializeOwned;
 
 use crate::audit::AuditEvent;
 use crate::backend_client::{BackendRuntime, is_retriable_status};
-use ito_common::id::{ItoIdKind, classify_id};
 use ito_domain::backend::{
     ArchiveResult, ArtifactBundle, BackendArchiveClient, BackendChangeReader,
     BackendEventIngestClient, BackendModuleReader, BackendSpecReader, BackendSyncClient,
     EventBatch, EventIngestResult, PushResult,
 };
-use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec};
+use ito_domain::changes::{Change, ChangeLifecycleFilter, ChangeSummary, Spec, extract_sub_module_id};
 use ito_domain::errors::{DomainError, DomainResult};
 use ito_domain::modules::{Module, ModuleSummary, SubModule, SubModuleSummary};
 use ito_domain::specs::{SpecDocument, SpecSummary};
@@ -245,7 +244,7 @@ impl BackendChangeReader for BackendHttpClient {
         let mut out = Vec::with_capacity(summaries.len());
         for summary in summaries {
             let last_modified = parse_timestamp(&summary.last_modified)?;
-            let sub_module_id = extract_sub_module_id_from_change_id(&summary.id);
+            let sub_module_id = extract_sub_module_id(&summary.id);
             out.push(ChangeSummary {
                 id: summary.id,
                 module_id: summary.module_id,
@@ -283,7 +282,7 @@ impl BackendChangeReader for BackendHttpClient {
             }
         };
         let last_modified = parse_timestamp(&change.last_modified)?;
-        let sub_module_id = extract_sub_module_id_from_change_id(&change.id);
+        let sub_module_id = extract_sub_module_id(&change.id);
         Ok(Change {
             id: change.id,
             module_id: change.module_id,
@@ -313,15 +312,14 @@ impl BackendModuleReader for BackendHttpClient {
         let modules: Vec<ApiModuleSummary> = self.get_json(&url, "module", None)?;
         let mut out = Vec::with_capacity(modules.len());
         for m in modules {
-            let sub_modules = m
-                .sub_modules
-                .into_iter()
-                .map(|s| SubModuleSummary {
+            let mut sub_modules = Vec::with_capacity(m.sub_modules.len());
+            for s in m.sub_modules {
+                sub_modules.push(SubModuleSummary {
                     id: s.id,
                     name: s.name,
                     change_count: s.change_count,
-                })
-                .collect();
+                });
+            }
             out.push(ModuleSummary {
                 id: m.id,
                 name: m.name,
@@ -338,19 +336,19 @@ impl BackendModuleReader for BackendHttpClient {
             self.inner.runtime.project_api_prefix()
         );
         let module: ApiModule = self.get_json(&url, "module", Some(module_id))?;
-        let sub_modules = module
-            .sub_modules
-            .into_iter()
-            .map(|s| SubModule {
-                id: s.id.clone(),
+        let mut sub_modules = Vec::with_capacity(module.sub_modules.len());
+        for s in module.sub_modules {
+            let sub_id = s.id.split('.').nth(1).unwrap_or("").to_string();
+            sub_modules.push(SubModule {
+                id: s.id,
                 parent_module_id: module.id.clone(),
-                sub_id: s.id.split('.').nth(1).unwrap_or("").to_string(),
+                sub_id,
                 name: s.name,
                 description: s.description,
                 change_count: s.change_count,
                 path: PathBuf::new(),
-            })
-            .collect();
+            });
+        }
         Ok(Module {
             id: module.id,
             name: module.name,
@@ -807,20 +805,6 @@ fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResu
         },
         revision: response.revision,
     }
-}
-
-/// Extract the sub-module ID from a change ID if it is in sub-module format.
-///
-/// For `NNN.SS-NN_name` format, returns `Some("NNN.SS")`.
-/// For legacy `NNN-NN_name` format, returns `None`.
-fn extract_sub_module_id_from_change_id(change_id: &str) -> Option<String> {
-    if classify_id(change_id) != ItoIdKind::SubModuleChangeId {
-        return None;
-    }
-    // The sub-module ID is the part before the first `-` in the prefix.
-    // e.g., "005.01-03_my-change" → prefix "005.01-03" → "005.01"
-    let prefix = change_id.split('_').next().unwrap_or(change_id);
-    prefix.split('-').next().map(|s| s.to_string())
 }
 
 #[derive(Debug, Deserialize)]

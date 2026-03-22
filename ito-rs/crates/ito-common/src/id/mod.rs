@@ -16,6 +16,21 @@ pub use spec_id::{ParsedSpecId, SpecId};
 pub use sub_module_id::parse_sub_module_id;
 pub use sub_module_id::{ParsedSubModuleId, SubModuleId};
 
+/// Returns `true` when `s` is non-empty and contains only ASCII digits.
+///
+/// Used by the ID parsers to validate numeric segments without allocating.
+pub(crate) fn is_all_ascii_digits(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    for c in s.chars() {
+        if !c.is_ascii_digit() {
+            return false;
+        }
+    }
+    true
+}
+
 /// The kind of an Ito identifier, as determined by [`classify_id`].
 ///
 /// Use this when you need to route an opaque user-supplied string to the

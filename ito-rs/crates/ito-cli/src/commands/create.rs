@@ -397,10 +397,9 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             let module = parse_string_flag(args, "--module");
             let description = parse_string_flag(args, "--description");
 
-            if module.is_none() {
+            let Some(parent_module) = module.as_deref() else {
                 return fail("Missing required flag --module <id>");
-            }
-            let parent_module = module.as_deref().unwrap();
+            };
 
             // sub-module creation is a local-only operation.
             {

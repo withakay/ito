@@ -259,19 +259,38 @@ impl ChangeSummary {
 /// Handles both the legacy `NNN-NN_name` format and the sub-module
 /// `NNN.SS-NN_name` format. Always returns only the parent module number.
 ///
-/// - `005-01_my-change` → `005`
-/// - `5-1_whatever` → `005`
-/// - `1-000002` → `001`
-/// - `024.01-03_foo` → `024`
+/// - `005-01_my-change` -> `005`
+/// - `5-1_whatever` -> `005`
+/// - `1-000002` -> `001`
+/// - `024.01-03_foo` -> `024`
 pub fn extract_module_id(change_id: &str) -> Option<String> {
     let parts: Vec<&str> = change_id.split('-').collect();
     if parts.len() >= 2 {
-        // Strip any sub-module component (e.g., "024.01" → "024").
+        // Strip any sub-module component (e.g., "024.01" -> "024").
         let module_part = parts[0].split('.').next().unwrap_or(parts[0]);
         Some(normalize_id(module_part, 3))
     } else {
         None
     }
+}
+
+/// Extract the sub-module ID from a change ID in `NNN.SS-NN_name` format.
+///
+/// Returns `Some("NNN.SS")` for sub-module changes, `None` for legacy
+/// `NNN-NN_name` changes.
+///
+/// - `024.01-03_foo` -> `Some("024.01")`
+/// - `005-01_my-change` -> `None`
+pub fn extract_sub_module_id(change_id: &str) -> Option<String> {
+    // A sub-module change has a dot before the first hyphen.
+    let prefix = change_id.split('-').next()?;
+    if !prefix.contains('.') {
+        return None;
+    }
+    // Normalize: "24.1" -> "024.01" via the common parser.
+    ito_common::id::parse_sub_module_id(prefix)
+        .map(|p| p.sub_module_id.as_str().to_string())
+        .ok()
 }
 
 /// Normalize an ID to a fixed width with zero-padding.
@@ -384,6 +403,20 @@ mod tests {
             extract_module_id("5.1-2_bar"),
             Some("005".to_string())
         );
+    }
+
+    #[test]
+    fn test_extract_sub_module_id() {
+        assert_eq!(
+            extract_sub_module_id("024.01-03_foo"),
+            Some("024.01".to_string())
+        );
+        assert_eq!(
+            extract_sub_module_id("5.1-2_bar"),
+            Some("005.01".to_string())
+        );
+        assert_eq!(extract_sub_module_id("005-01_my-change"), None);
+        assert_eq!(extract_sub_module_id("invalid"), None);
     }
 
     #[test]

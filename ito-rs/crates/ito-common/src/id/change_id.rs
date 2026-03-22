@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use super::is_all_ascii_digits;
 use super::sub_module_id::SubModuleId;
 use super::IdParseError;
 use super::ModuleId;
@@ -87,23 +88,8 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         let a = parts.next().unwrap_or("");
         let b = parts.next().unwrap_or("");
         let c = parts.next().unwrap_or("");
-        let mut a_all_digits = true;
-        for ch in a.chars() {
-            if !ch.is_ascii_digit() {
-                a_all_digits = false;
-                break;
-            }
-        }
 
-        let mut b_all_digits = true;
-        for ch in b.chars() {
-            if !ch.is_ascii_digit() {
-                b_all_digits = false;
-                break;
-            }
-        }
-
-        if !a.is_empty() && !b.is_empty() && !c.is_empty() && a_all_digits && b_all_digits {
+        if is_all_ascii_digits(a) && is_all_ascii_digits(b) && !c.is_empty() {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
                 Some(
@@ -115,29 +101,14 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
 
     // Split off the name suffix (everything after the first `_`).
     let Some((left, name_part)) = trimmed.split_once('_') else {
-        if let Some((a, b)) = trimmed.split_once('-') {
-            let mut a_all_digits = true;
-            for c in a.chars() {
-                if !c.is_ascii_digit() {
-                    a_all_digits = false;
-                    break;
-                }
-            }
-
-            let mut b_all_digits = true;
-            for c in b.chars() {
-                if !c.is_ascii_digit() {
-                    b_all_digits = false;
-                    break;
-                }
-            }
-
-            if !a.is_empty() && !b.is_empty() && a_all_digits && b_all_digits {
-                return Err(IdParseError::new(
-                    format!("Change ID missing name: \"{input}\""),
-                    Some("Change IDs require a name suffix (e.g., \"001-02_my-change\")"),
-                ));
-            }
+        if let Some((a, b)) = trimmed.split_once('-')
+            && is_all_ascii_digits(a)
+            && is_all_ascii_digits(b)
+        {
+            return Err(IdParseError::new(
+                format!("Change ID missing name: \"{input}\""),
+                Some("Change IDs require a name suffix (e.g., \"001-02_my-change\")"),
+            ));
         }
         return Err(IdParseError::new(
             format!("Invalid change ID format: \"{input}\""),
@@ -170,36 +141,9 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
         };
 
         // Validate all three numeric parts.
-        let mut module_all_digits = true;
-        for c in module_str.chars() {
-            if !c.is_ascii_digit() {
-                module_all_digits = false;
-                break;
-            }
-        }
-
-        let mut sub_all_digits = true;
-        for c in sub_str.chars() {
-            if !c.is_ascii_digit() {
-                sub_all_digits = false;
-                break;
-            }
-        }
-
-        let mut change_all_digits = true;
-        for c in change_str.chars() {
-            if !c.is_ascii_digit() {
-                change_all_digits = false;
-                break;
-            }
-        }
-
-        if module_str.is_empty()
-            || !module_all_digits
-            || sub_str.is_empty()
-            || !sub_all_digits
-            || change_str.is_empty()
-            || !change_all_digits
+        if !is_all_ascii_digits(module_str)
+            || !is_all_ascii_digits(sub_str)
+            || !is_all_ascii_digits(change_str)
         {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
@@ -250,27 +194,7 @@ pub fn parse_change_id(input: &str) -> Result<ParsedChangeId, IdParseError> {
             ));
         };
 
-        let mut module_all_digits = true;
-        for c in module_str.chars() {
-            if !c.is_ascii_digit() {
-                module_all_digits = false;
-                break;
-            }
-        }
-
-        let mut change_all_digits = true;
-        for c in change_str.chars() {
-            if !c.is_ascii_digit() {
-                change_all_digits = false;
-                break;
-            }
-        }
-
-        if module_str.is_empty()
-            || change_str.is_empty()
-            || !module_all_digits
-            || !change_all_digits
-        {
+        if !is_all_ascii_digits(module_str) || !is_all_ascii_digits(change_str) {
             return Err(IdParseError::new(
                 format!("Invalid change ID format: \"{input}\""),
                 Some(

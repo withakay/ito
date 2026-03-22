@@ -16,7 +16,7 @@ Usage: ito create [OPTIONS] [COMMAND]
 Commands:
   module      Create a module [aliases: mo]
   change      Create a change [aliases: ch]
-  sub-module  Create a sub-module under an existing module [aliases: sm]
+  sub-module  Create a sub-module under an existing module (e.g. `ito create sub-module auth --module 024`) [aliases: sm]
 
 Options:
       --no-color

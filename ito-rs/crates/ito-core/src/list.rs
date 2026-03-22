@@ -161,15 +161,14 @@ pub fn list_modules(module_repo: &dyn DomainModuleRepository) -> CoreResult<Vec<
 
     for module in module_repo.list().into_core()? {
         let full_name = format!("{}_{}", module.id, module.name);
-        let sub_modules = module
-            .sub_modules
-            .iter()
-            .map(|sm| SubModuleListItem {
+        let mut sub_modules = Vec::with_capacity(module.sub_modules.len());
+        for sm in &module.sub_modules {
+            sub_modules.push(SubModuleListItem {
                 id: sm.id.clone(),
                 name: sm.name.clone(),
                 change_count: sm.change_count as usize,
-            })
-            .collect();
+            });
+        }
         modules.push(ModuleListItem {
             id: module.id,
             name: module.name,

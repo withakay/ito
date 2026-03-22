@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::{IdParseError, ModuleId};
+use super::{IdParseError, ModuleId, is_all_ascii_digits};
 
 /// A sub-module identifier in canonical `NNN.SS` form.
 ///
@@ -90,25 +90,7 @@ pub fn parse_sub_module_id(input: &str) -> Result<ParsedSubModuleId, IdParseErro
         ));
     };
 
-    // Validate module part is all digits.
-    let mut module_all_digits = true;
-    for c in module_str.chars() {
-        if !c.is_ascii_digit() {
-            module_all_digits = false;
-            break;
-        }
-    }
-
-    // Validate sub part is all digits.
-    let mut sub_all_digits = true;
-    for c in sub_str.chars() {
-        if !c.is_ascii_digit() {
-            sub_all_digits = false;
-            break;
-        }
-    }
-
-    if module_str.is_empty() || !module_all_digits || sub_str.is_empty() || !sub_all_digits {
+    if !is_all_ascii_digits(module_str) || !is_all_ascii_digits(sub_str) {
         return Err(IdParseError::new(
             format!("Invalid sub-module ID format: \"{input}\""),
             Some("Expected format: \"NNN.SS\" or \"NNN.SS_name\" (e.g., \"005.01\", \"005.01_core-api\")"),

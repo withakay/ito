@@ -47,17 +47,17 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
         let normalized_id = parse_module_id(id_or_name);
         let prefix = format!("{normalized_id}_");
 
-        self.fs
-            .read_dir(&modules_dir)
-            .ok()?
-            .into_iter()
-            .find(|entry| {
-                entry
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.starts_with(&prefix))
-                    .unwrap_or(false)
-            })
+        let entries = self.fs.read_dir(&modules_dir).ok()?;
+        for entry in entries {
+            let matches = entry
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(&prefix));
+            if matches {
+                return Some(entry);
+            }
+        }
+        None
     }
 
     fn load_module_description(&self, module_path: &Path) -> DomainResult<Option<String>> {
@@ -235,14 +235,15 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
         parent_module_id: &str,
     ) -> DomainResult<Vec<SubModuleSummary>> {
         let sub_modules = self.scan_sub_modules(module_dir, parent_module_id)?;
-        Ok(sub_modules
-            .into_iter()
-            .map(|sm| SubModuleSummary {
+        let mut summaries = Vec::with_capacity(sub_modules.len());
+        for sm in sub_modules {
+            summaries.push(SubModuleSummary {
                 id: sm.id,
                 name: sm.name,
                 change_count: sm.change_count,
-            })
-            .collect())
+            });
+        }
+        Ok(summaries)
     }
 
     /// Load an optional description from a sub-module's `module.md`.
@@ -398,19 +399,24 @@ impl<F: FileSystem> DomainModuleRepository for FsModuleRepository<'_, F> {
 
         // Find the sub-module directory matching the sub number prefix.
         let prefix = format!("{sub_num}_");
-        let sub_module_path = self
+        let entries = self
             .fs
             .read_dir(&sub_dir)
-            .map_err(|source| DomainError::io("listing sub-module directories", source))?
-            .into_iter()
-            .find(|entry| {
-                entry
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.starts_with(&prefix))
-                    .unwrap_or(false)
-            })
-            .ok_or_else(|| DomainError::not_found("sub-module", composite_id))?;
+            .map_err(|source| DomainError::io("listing sub-module directories", source))?;
+        let mut sub_module_path = None;
+        for entry in entries {
+            let matches = entry
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(&prefix));
+            if matches {
+                sub_module_path = Some(entry);
+                break;
+            }
+        }
+        let Some(sub_module_path) = sub_module_path else {
+            return Err(DomainError::not_found("sub-module", composite_id));
+        };
 
         let Some(dir_name) = sub_module_path.file_name().and_then(|n| n.to_str()) else {
             return Err(DomainError::not_found("sub-module", composite_id));

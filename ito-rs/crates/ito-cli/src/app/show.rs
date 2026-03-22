@@ -288,13 +288,11 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if want_json {
         return fail("Module JSON output is not implemented");
     }
-    let module_id = super::common::last_positional(args);
-    if module_id.is_none() {
+    let Some(module_id) = super::common::last_positional(args) else {
         return fail(
             "Nothing to show. Try one of:\n  ito show module <module-id>\nOr run in an interactive terminal.",
         );
-    }
-    let module_id = module_id.expect("checked");
+    };
 
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let module_repo = runtime.repositories().modules.as_ref();
@@ -307,13 +305,11 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
 fn handle_show_sub_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let want_json = args.iter().any(|a| a == "--json");
-    let sub_module_id = super::common::last_positional(args);
-    if sub_module_id.is_none() {
+    let Some(sub_module_id) = super::common::last_positional(args) else {
         return fail(
             "Nothing to show. Try one of:\n  ito show sub-module <NNN.SS>\nOr run in an interactive terminal.",
         );
-    }
-    let sub_module_id = sub_module_id.expect("checked");
+    };
 
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let module_repo = runtime.repositories().modules.as_ref();
