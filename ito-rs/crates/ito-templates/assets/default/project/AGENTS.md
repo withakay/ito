@@ -84,8 +84,10 @@ To create a worktree for a change:
 
 ```bash
 mkdir -p "../{{ layout_dir_name }}"
-git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name>
+git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name> {{ default_branch }}
 ```
+
+Always branch new change worktrees from `{{ default_branch }}`. Do not create them from the bare/control repo placeholder `HEAD`.
 {% else %}
 This project uses a custom worktree strategy. Use the configured values above.
 {% endif %}

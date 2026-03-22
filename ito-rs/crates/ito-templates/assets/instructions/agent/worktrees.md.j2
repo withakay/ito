@@ -108,7 +108,7 @@ Bare repo root: `{{ worktree.project_root }}`
 Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
-Run git worktree commands against the bare/control root.
+Run git worktree commands against the bare/control root, but create each change worktree from `{{ worktree.default_branch }}` rather than the bare placeholder `HEAD`.
 
 ```bash
 BRANCH_NAME="<change-name>"
@@ -116,7 +116,7 @@ PROJECT_ROOT="$(ito path project-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
 mkdir -p "$WORKTREES_ROOT"
 
-git -C "$PROJECT_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+git -C "$PROJECT_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}" "{{ worktree.default_branch }}"
 ```
 {% endif %}
 
