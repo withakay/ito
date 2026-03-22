@@ -628,6 +628,19 @@ mod tests {
     }
 
     #[test]
+    fn tools_tmux_enabled_defaults_to_true_in_cascading_config() {
+        let repo = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let tools = r.merged.get("tools").expect("tools key should exist");
+        let tmux = tools.get("tmux").expect("tools.tmux key should exist");
+
+        assert_eq!(tmux.get("enabled").and_then(|v| v.as_bool()), Some(true));
+    }
+
+    #[test]
     fn legacy_worktree_default_branch_key_migrates() {
         let repo = tempfile::tempdir().unwrap();
         std::fs::write(

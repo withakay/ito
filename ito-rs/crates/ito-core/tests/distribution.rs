@@ -5,6 +5,9 @@ use ito_core::distribution::{
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 #[test]
 fn opencode_manifests_includes_plugin_and_skills() {
     let config_dir = Path::new("/tmp/test/.opencode");
@@ -212,6 +215,42 @@ fn install_manifests_writes_files_to_disk() {
             .join("SKILL.md")
             .exists(),
         "brainstorming skill should be installed"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn install_manifests_make_tmux_skill_scripts_executable() {
+    let td = tempfile::tempdir().unwrap();
+    let config_dir = td.path().join(".opencode");
+
+    let manifests = opencode_manifests(&config_dir);
+    install_manifests(&manifests, None).unwrap();
+
+    let wait_for_text = config_dir.join("skills/ito-tmux/scripts/wait-for-text.sh");
+    let find_sessions = config_dir.join("skills/ito-tmux/scripts/find-sessions.sh");
+
+    assert!(wait_for_text.exists());
+    assert!(find_sessions.exists());
+
+    let wait_mode = std::fs::metadata(&wait_for_text)
+        .unwrap()
+        .permissions()
+        .mode();
+    let find_mode = std::fs::metadata(&find_sessions)
+        .unwrap()
+        .permissions()
+        .mode();
+
+    assert_ne!(
+        wait_mode & 0o111,
+        0,
+        "wait-for-text.sh should be executable"
+    );
+    assert_ne!(
+        find_mode & 0o111,
+        0,
+        "find-sessions.sh should be executable"
     );
 }
 

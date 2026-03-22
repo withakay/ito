@@ -134,6 +134,9 @@ pub mod repo_index;
 /// Display and inspection commands.
 pub mod show;
 
+/// Proposal viewer artifact collection and backend dispatch.
+pub mod viewer;
+
 /// Repository runtime selection and composition.
 pub mod repository_runtime;
 
