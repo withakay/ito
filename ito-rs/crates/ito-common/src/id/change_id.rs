@@ -6,10 +6,15 @@ use super::sub_module_id::SubModuleId;
 use super::IdParseError;
 use super::ModuleId;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-/// A change identifier.
+/// A change identifier in canonical form.
 ///
-/// Changes are tracked as `NNN-NN_name` (e.g. `014-01_add-rust-crate-documentation`).
+/// Supports both the legacy module format (`NNN-NN_name`, e.g.
+/// `014-01_add-rust-crate-documentation`) and the sub-module format
+/// (`NNN.SS-NN_name`, e.g. `014.01-03_add-jwt`).
+///
+/// Canonical strings are produced by [`parse_change_id`] and are always
+/// zero-padded to the minimum widths (`NNN`, `SS`, `NN`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChangeId(String);
 
 impl ChangeId {

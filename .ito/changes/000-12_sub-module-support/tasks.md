@@ -100,10 +100,10 @@
 
 **Verify**: `ito agent instruction repo-sweep` outputs the sweep prompt without error; prompt contains scan targets, regex patterns, and upgrade guidance.
 
-- [~] **6.1** Add `repo-sweep` as a supported `ito agent instruction` target (no `--change` required)
-- [ ] **6.2** Write the `repo-sweep` prompt template in `ito-templates` embedded assets, covering: scan targets (`.ito/user-prompts/`, `AGENTS.md`, `.opencode/`, `.github/`, `.codex/`, `ito-rs/crates/ito-templates/assets/`), detection patterns for old-only assumptions, reporting format, and upgrade guidance
-- [ ] **6.3** Wire the `repo-sweep` template into `ito agent instruction` output path
-- [ ] **6.4** Verify the sweep prompt is installed by `ito init` (or accessible without install) and does not require an active change context
+- [x] **6.1** Add `repo-sweep` as a supported `ito agent instruction` target (no `--change` required)
+- [x] **6.2** Write the `repo-sweep` prompt template in `ito-templates` embedded assets, covering: scan targets (`.ito/user-prompts/`, `AGENTS.md`, `.opencode/`, `.github/`, `.codex/`, `ito-rs/crates/ito-templates/assets/`), detection patterns for old-only assumptions, reporting format, and upgrade guidance
+- [x] **6.3** Wire the `repo-sweep` template into `ito agent instruction` output path
+- [x] **6.4** Verify the sweep prompt is installed by `ito init` (or accessible without install) and does not require an active change context
 
 ---
 
@@ -115,7 +115,7 @@
 
 **Verify**: `ito validate 000-12_sub-module-support --strict` passes with no errors or warnings.
 
-- [ ] **7.1** Review and finalize `sub-module`, `sub-module-id-format`, `cli-sub-module`, and `repo-sweep-prompt` specs against actual implementation
-- [ ] **7.2** Review and finalize `flexible-id-parser`, `module-repository`, `change-repository`, `change-creation`, `backend-artifact-store`, `backend-change-sync`, and `backend-project-store` delta specs
-- [ ] **7.3** Add/update rustdoc on all new and modified public API items (`SubModule`, `ParsedChangeId`, `parse_change_id`, `classify_id`, repository methods)
+- [x] **7.1** Review and finalize `sub-module`, `sub-module-id-format`, `cli-sub-module`, and `repo-sweep-prompt` specs against actual implementation
+- [x] **7.2** Review and finalize `flexible-id-parser`, `module-repository`, `change-repository`, `change-creation`, `backend-artifact-store`, `backend-change-sync`, and `backend-project-store` delta specs
+- [x] **7.3** Add/update rustdoc on all new and modified public API items (`SubModule`, `ParsedChangeId`, `parse_change_id`, `classify_id`, repository methods)
 - [ ] **7.4** Run `ito validate 000-12_sub-module-support --strict` and resolve any failures

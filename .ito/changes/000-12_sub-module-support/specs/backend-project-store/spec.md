@@ -11,9 +11,11 @@ Backend-managed project stores SHALL persist sub-module metadata as part of modu
 - **WHEN** the filesystem-backed project store serves module reads through `ModuleRepository`
 - **THEN** the returned module includes sub-module metadata sufficient for `ito list --modules` and `ito show sub-module`
 
-#### Scenario: SQLite-backed project store round-trips sub-module metadata
+#### Scenario: SQLite-backed project store returns modules with empty sub-module list (PoC)
 
 - **GIVEN** equivalent backend-managed project state exists in SQLite storage
 - **WHEN** the SQLite-backed project store serves module reads through `ModuleRepository`
-- **THEN** the returned module includes the same sub-module metadata as the filesystem-backed project store
+- **THEN** the returned module list is populated but `sub_modules` is empty (cross-referencing sub-module data is not yet implemented in the SQLite PoC store)
+
+> **Note:** Full sub-module metadata round-tripping in the SQLite-backed project store is deferred. The current implementation returns `sub_modules: Vec::new()` for all modules. Sub-module data is available through the filesystem-backed store and the remote HTTP-backed `ModuleRepository`.
 <!-- ITO:END -->
