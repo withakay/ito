@@ -25,3 +25,4 @@
 - [ ] 001-28_tmux-skill-integration
 - [ ] 001-29_proposal-viewer-command
 - [ ] 001-30_proposal-viewer-html
+- [ ] 001-31_tools-config-tmux
