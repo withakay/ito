@@ -1,29 +1,37 @@
 <!-- ITO:START -->
 ## MODIFIED Requirements
 
-### Requirement: ModuleRepository provides centralized module access
+### Requirement: ModuleRepository supports runtime-selected implementations
 
-A `ModuleRepository` interface SHALL exist in `ito-domain` that provides methods for loading and querying module data, including sub-modules.
+`ModuleRepository` SHALL support both filesystem-backed and remote-backed implementations, with callers resolving module and sub-module data through the selected implementation for the current persistence mode.
 
-`ito-core` SHALL provide a filesystem-backed implementation of this interface for production use.
+#### Scenario: Remote mode lists modules through selected repository
 
-#### Scenario: Get a module by ID
+- **GIVEN** remote persistence mode is active
+- **WHEN** a caller requests modules through `ModuleRepository`
+- **THEN** the repository returns module summaries from the selected remote-backed implementation
+- **AND** each summary includes any nested sub-module summaries available for that module
 
-- **GIVEN** a module with ID "005" and name "dev-tooling" exists
-- **WHEN** calling `module_repo.get("005")`
-- **THEN** it returns a `Module` object with id, name, description, and `sub_modules` (empty vec if none)
+#### Scenario: Remote mode resolves a module without local markdown
 
-#### Scenario: List all modules
+- **GIVEN** remote persistence mode is active
+- **AND** local `.ito/modules/` markdown is absent
+- **WHEN** a caller loads a module by ID or name through `ModuleRepository`
+- **THEN** the repository returns the module from the selected remote-backed implementation
+- **AND** the returned module includes any nested `sub_modules`
 
-- **WHEN** calling `module_repo.list()`
-- **THEN** it returns a `Vec<ModuleSummary>` with all modules
-- **AND** each summary includes id, name, change count, and a `sub_modules: Vec<SubModuleSummary>` (empty if none)
+#### Scenario: Get module by ID includes nested sub-modules
 
-#### Scenario: List modules with changes
+- **GIVEN** module `024` has sub-modules `024.01` and `024.02`
+- **WHEN** calling `module_repo.get("024")`
+- **THEN** the returned `Module` includes `sub_modules` populated with those canonical sub-module IDs
 
-- **WHEN** calling `module_repo.list_with_changes()`
-- **THEN** it returns modules along with their associated changes
-- **AND** each module entry also includes its sub-modules and their associated changes
+#### Scenario: Remote mode resolves a sub-module without local markdown
+
+- **GIVEN** remote persistence mode is active
+- **AND** local `.ito/modules/` markdown is absent
+- **WHEN** a caller loads sub-module `024.01` through `ModuleRepository`
+- **THEN** the repository returns the sub-module from the selected remote-backed implementation
 
 ## ADDED Requirements
 
@@ -35,9 +43,9 @@ A `ModuleRepository` interface SHALL exist in `ito-domain` that provides methods
 
 - **GIVEN** module `024_ito-backend` has sub-module directories under `.ito/modules/024_ito-backend/sub/`
 - **WHEN** calling `module_repo.list_sub_modules("024")`
-- **THEN** it returns a `Vec<SubModuleSummary>` with id, name, description, and change count for each
+- **THEN** it returns a `Vec<SubModuleSummary>` with id, name, and change count for each
 
-#### Scenario: Get a specific sub-module by composite ID
+#### Scenario: Get a specific sub-module by canonical ID
 
 - **GIVEN** sub-module `024.01_auth` exists
 - **WHEN** calling `module_repo.get_sub_module("024.01")`
@@ -54,4 +62,11 @@ A `ModuleRepository` interface SHALL exist in `ito-domain` that provides methods
 - **GIVEN** a sub-module directory exists at `.ito/modules/024_ito-backend/sub/01_auth/`
 - **WHEN** the filesystem module repository lists or gets this sub-module
 - **THEN** it reads `module.md` from that path to obtain name and description
+
+#### Scenario: Remote-backed implementation lists sub-modules
+
+- **GIVEN** remote persistence mode is active
+- **AND** the selected remote-backed implementation stores sub-module data for module `024`
+- **WHEN** calling `module_repo.list_sub_modules("024")`
+- **THEN** it returns those sub-modules without requiring local `.ito/modules/` markdown
 <!-- ITO:END -->

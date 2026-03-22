@@ -11,7 +11,7 @@ The CLI SHALL support creating a sub-module under an existing parent module.
 - **THEN** a new sub-module is created under the specified parent module
 - **AND** the sub-module number is auto-allocated (next available two-digit number under that parent)
 - **AND** a `module.md` is written at `.ito/modules/NNN_<parent>/sub/SS_<name>/module.md`
-- **AND** the command prints the new sub-module ID (e.g., `Created sub-module '024.01_auth'`)
+- **AND** the command prints the canonical sub-module ID (for example `024.01`) together with the sub-module name
 
 #### Scenario: Create sub-module with optional description
 
@@ -23,6 +23,18 @@ The CLI SHALL support creating a sub-module under an existing parent module.
 - **WHEN** user executes `ito create sub-module <name> --module <id>` and the parent module does not exist
 - **THEN** the command exits with an error indicating the parent module was not found
 
+#### Scenario: Duplicate sub-module name under the same parent is rejected
+
+- **WHEN** user executes `ito create sub-module auth --module 024`
+- **AND** sub-module `024.01_auth` or any other `*_auth` sub-module already exists under parent module `024`
+- **THEN** the command exits with an error indicating the sub-module name is already in use for that parent module
+
+#### Scenario: Create sub-module is rejected in remote persistence mode
+
+- **GIVEN** remote persistence mode is active
+- **WHEN** user executes `ito create sub-module auth --module 024`
+- **THEN** the command exits with an actionable error indicating sub-module creation currently requires local filesystem mode
+
 ### Requirement: Sub-modules appear nested in module listings
 
 The `ito list --modules` command SHALL display sub-modules nested under their parent module.
@@ -30,9 +42,9 @@ The `ito list --modules` command SHALL display sub-modules nested under their pa
 #### Scenario: Listing shows nested sub-modules
 
 - **WHEN** user executes `ito list --modules`
-- **AND** module `024_ito-backend` has sub-modules `024.01_auth` and `024.02_sync`
+- **AND** module `024_ito-backend` has sub-modules `024.01` and `024.02`
 - **THEN** the output shows `024_ito-backend` with indented sub-module entries beneath it
-- **AND** each sub-module entry shows its ID, name, and change count
+- **AND** each sub-module entry shows its canonical ID, name, and change count
 
 #### Scenario: Modules without sub-modules display unchanged
 
@@ -54,19 +66,20 @@ The CLI SHALL support inspecting a sub-module by its canonical ID.
 - **WHEN** user executes `ito show sub-module 999.99`
 - **THEN** the command exits with a clear error: sub-module not found
 
-### Requirement: Changes can be created under a sub-module
+### Requirement: Sub-module listing and show commands use runtime-selected ModuleRepository
 
-`ito create change` SHALL accept an optional `--sub-module <id>` flag.
+When remote persistence mode is active, read-only sub-module CLI commands SHALL resolve data through the selected `ModuleRepository` implementation.
 
-#### Scenario: Create change under sub-module
+#### Scenario: List modules with sub-modules in remote mode
 
-- **WHEN** user executes `ito create change <name> --sub-module 024.01`
-- **THEN** the change is allocated using the `NNN.SS-NN_name` format (e.g., `024.01-01_name`)
-- **AND** the change is added to the sub-module's `module.md` checklist
-- **AND** the parent module's `module.md` checklist is NOT modified
+- **GIVEN** remote persistence mode is active
+- **WHEN** user executes `ito list --modules`
+- **THEN** Ito renders parent modules and nested sub-modules from the selected remote-backed `ModuleRepository`
+- **AND** the command does not require local `.ito/modules/` markdown to exist
 
-#### Scenario: --sub-module and --module are mutually exclusive
+#### Scenario: Show sub-module in remote mode
 
-- **WHEN** user provides both `--module` and `--sub-module` to `ito create change`
-- **THEN** the command exits with an error explaining they are mutually exclusive
+- **GIVEN** remote persistence mode is active
+- **WHEN** user executes `ito show sub-module 024.01`
+- **THEN** Ito renders the sub-module from the selected remote-backed `ModuleRepository`
 <!-- ITO:END -->

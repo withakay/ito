@@ -1,40 +1,40 @@
 {
-	"tools": {},
-	"agents": {},
-	"worktrees": {
-		"apply": {
-			"integration_mode": "commit_pr"
-		},
-		"enabled": true,
-		"strategy": "bare_control_siblings"
-	},
-	"defaults": {
-		"testing": {
-			"tdd": {
-				"workflow": "red-green-refactor"
-			},
-			"coverage": {
-				"target_percent": 100,
-				"minimum_percent": 80
-			},
-			"mocking": {
-				"policy": "avoid"
-			}
-		}
-	},
-	"ralph": {
-		"validationCommands": [
-			"DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo fmt --all -- --check",
-			"DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented",
-			"DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo test --workspace --exclude ito-web"
-		]
-	},
-	"backend": {
-		"enabled": false,
-		"url": "http://127.0.0.1:9010",
-		"project": {
-			"org": "withakay",
-			"repo": "ito"
-		}
-	}
+  "tools": {},
+  "agents": {},
+  "worktrees": {
+    "apply": {
+      "integration_mode": "commit_pr"
+    },
+    "enabled": true,
+    "strategy": "bare_control_siblings"
+  },
+  "defaults": {
+    "testing": {
+      "tdd": {
+        "workflow": "red-green-refactor"
+      },
+      "coverage": {
+        "target_percent": 100,
+        "minimum_percent": 80
+      },
+      "mocking": {
+        "policy": "avoid"
+      }
+    }
+  },
+  "ralph": {
+    "validationCommands": [
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo fmt --all -- --check",
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented",
+      "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo test --workspace --exclude ito-web"
+    ]
+  },
+  "backend": {
+    "enabled": false,
+    "url": "http://127.0.0.1:9010",
+    "project": {
+      "org": "withakay",
+      "repo": "ito"
+    }
+  }
 }

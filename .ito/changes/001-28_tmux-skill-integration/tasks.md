@@ -17,6 +17,8 @@ ______________________________________________________________________
 
 ## Wave 1: Embed tmux skill assets
 
+- **Depends On**: None
+
 ### Task 1.1: Copy SKILL.md into ito-templates assets
 
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/tmux/SKILL.md`
@@ -24,7 +26,8 @@ ______________________________________________________________________
 - **Action**: Create the `tmux/` skill directory under `assets/skills/` and write the SKILL.md, adapting frontmatter to include `name`, `description`, and `metadata.upstream` fields referencing the OpenCode tmux skill origin
 - **Verify**: `cat ito-rs/crates/ito-templates/assets/skills/tmux/SKILL.md | head -10` confirms frontmatter present
 - **Done When**: `SKILL.md` exists with valid frontmatter; `name: tmux` present
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ### Task 1.2: Copy helper scripts into assets
 
@@ -33,7 +36,8 @@ ______________________________________________________________________
 - **Action**: Copy `wait-for-text.sh` and `find-sessions.sh` from the global OpenCode tmux skill (`~/.config/opencode/skills/tmux/scripts/`) into the assets directory
 - **Verify**: Both script files exist under `assets/skills/tmux/scripts/`
 - **Done When**: Both scripts are present in the assets tree
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -48,7 +52,8 @@ ______________________________________________________________________
 - **Action**: Verify that the existing `include_dir!` macro in `lib.rs` recursively embeds subdirectories (including `scripts/`); add or update any install logic if scripts need executable permissions set at write time
 - **Verify**: `cargo build -p ito-templates 2>&1 | grep -c error` returns 0; inspect embedded asset listing in a test or `ito agent instruction` output for tmux skill
 - **Done When**: Build passes; tmux skill directory with scripts appears in the embedded asset tree
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ### Task 2.2: Write installer test for skill-with-scripts
 
@@ -57,7 +62,8 @@ ______________________________________________________________________
 - **Action**: Add a test asserting that after `ito init` (or the installer function), the tmux skill directory contains both `SKILL.md` and `scripts/wait-for-text.sh` with executable permissions
 - **Verify**: `cargo test -p ito-templates 2>&1 | grep -E "PASSED|ok"` for the new test
 - **Done When**: Test passes; script permissions verified
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -72,7 +78,8 @@ ______________________________________________________________________
 - **Action**: Document that skills may include a `scripts/` subdirectory alongside `SKILL.md`, and that scripts are installed with executable permissions; note the tmux skill as an example
 - **Verify**: File reads correctly; no stale references
 - **Done When**: AGENTS.md updated with script-bundling pattern guidance
-- **Status**: [ ] pending
+- **Updated At**: 2026-03-22
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
