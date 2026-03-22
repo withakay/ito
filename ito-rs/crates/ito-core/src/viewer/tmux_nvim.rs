@@ -1,7 +1,6 @@
 use std::process::Command;
 
 use crate::errors::{CoreError, CoreResult};
-use uuid::Uuid;
 
 use super::ViewerBackend;
 use super::bat::command_on_path;
@@ -35,19 +34,24 @@ impl ViewerBackend for TmuxNvimViewer {
             return Err(CoreError::not_found("tmux is not installed or not on PATH"));
         }
 
-        let temp_file = temporary_viewer_path();
-        std::fs::write(&temp_file, content)
+        let mut temp_file = tempfile::Builder::new()
+            .prefix("ito-viewer-")
+            .suffix(".md")
+            .tempfile()
+            .map_err(|e| CoreError::io("creating temporary viewer file", e))?;
+        std::io::Write::write_all(&mut temp_file, content.as_bytes())
             .map_err(|e| CoreError::io("writing temporary viewer file", e))?;
 
+        // temp_file is deleted when it goes out of scope; `status()` waits for
+        // nvim to exit, so the file remains valid for the entire nvim session.
         let status = Command::new("tmux")
             .arg("display-popup")
             .arg("-E")
             .arg("nvim")
             .arg("-R")
-            .arg(&temp_file)
-            .status();
-        let _ = std::fs::remove_file(&temp_file);
-        let status = status.map_err(|e| CoreError::io("spawning tmux display-popup", e))?;
+            .arg(temp_file.path())
+            .status()
+            .map_err(|e| CoreError::io("spawning tmux display-popup", e))?;
 
         if status.success() {
             Ok(())
@@ -56,22 +60,5 @@ impl ViewerBackend for TmuxNvimViewer {
                 "tmux display-popup exited with status {status}"
             )))
         }
-    }
-}
-
-fn temporary_viewer_path() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("ito-viewer-{}.md", Uuid::new_v4()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::temporary_viewer_path;
-
-    #[test]
-    fn temporary_viewer_path_is_unique() {
-        let first = temporary_viewer_path();
-        let second = temporary_viewer_path();
-
-        assert_ne!(first, second);
     }
 }
