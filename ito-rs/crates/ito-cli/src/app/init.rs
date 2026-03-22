@@ -447,11 +447,10 @@ fn load_tmux_preference(
 ) -> CliResult<Option<bool>> {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
     let merged = load_cascading_project_config(target_path, &ito_path, ctx);
-    let preference = merged
+    Ok(merged
         .merged
         .pointer("/tools/tmux/enabled")
-        .and_then(|value| value.as_bool());
-    Ok(preference)
+        .and_then(|value| value.as_bool()))
 }
 
 fn resolve_tmux_preference(

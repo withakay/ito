@@ -285,12 +285,14 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; fini
 
      Running tests/view_proposal.rs (target/debug/deps/view_proposal-6dfc4ceb5747b104)
 
-running 3 tests
+running 5 tests
+test view_proposal_json_outputs_bundle ... ok
 test view_proposal_help_shows_viewer_flag ... ok
-test view_proposal_unknown_change_fails ... ok
 test view_proposal_disabled_tmux_is_rejected ... ok
+test view_proposal_unknown_change_fails ... ok
+test view_proposal_unknown_viewer_is_rejected ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
 
 ```
 
