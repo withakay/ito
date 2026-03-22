@@ -319,18 +319,18 @@ PY
 
 ```output
 1: use std::path::{Path, PathBuf};
-2: 
+2:
 3: use crate::errors::{CoreError, CoreResult};
-4: 
+4:
 5: /// Collect proposal artifacts for a change into a single markdown document.
 6: pub fn collect_proposal_artifacts(change_id: &str, ito_root: &Path) -> CoreResult<String> {
 7:     let change_dir = ito_common::paths::change_dir(ito_root, change_id);
 8:     if !change_dir.is_dir() {
 9:         return Err(CoreError::not_found(format!("Change '{change_id}' not found")));
 10:     }
-11: 
+11:
 12:     let mut sections = Vec::new();
-13: 
+13:
 14:     for relative_path in artifact_paths(&change_dir)? {
 15:         let absolute_path = change_dir.join(&relative_path);
 16:         let content = ito_common::io::read_to_string(&absolute_path).map_err(|e| {
@@ -341,20 +341,20 @@ PY
 21:         })?;
 22:         sections.push(render_section(&relative_path, &content));
 23:     }
-24: 
+24:
 25:     Ok(sections.join("\n\n"))
 26: }
-27: 
+27:
 28: fn artifact_paths(change_dir: &Path) -> CoreResult<Vec<PathBuf>> {
 29:     let mut paths = Vec::new();
-30: 
+30:
 31:     for file_name in ["proposal.md", "tasks.md"] {
 32:         let path = change_dir.join(file_name);
 33:         if path.is_file() {
 34:             paths.push(PathBuf::from(file_name));
 35:         }
 36:     }
-37: 
+37:
 38:     let specs_dir = change_dir.join("specs");
 39:     if specs_dir.is_dir() {
 40:         let mut spec_dirs: Vec<_> = std::fs::read_dir(&specs_dir)
@@ -363,7 +363,7 @@ PY
 43:             .filter(|entry| entry.path().is_dir())
 44:             .collect();
 45:         spec_dirs.sort_by_key(|entry| entry.file_name());
-46: 
+46:
 47:         for entry in spec_dirs {
 48:             let relative_path = PathBuf::from("specs")
 49:                 .join(entry.file_name())
@@ -374,10 +374,10 @@ PY
 54:             }
 55:         }
 56:     }
-57: 
+57:
 58:     Ok(paths)
 59: }
-60: 
+60:
 61: fn render_section(relative_path: &Path, content: &str) -> String {
 62:     format!(
 63:         "---\n# {}\n\n{}",
@@ -385,12 +385,12 @@ PY
 65:         content.trim_end()
 66:     )
 67: }
-68: 
+68:
 69: #[cfg(test)]
 70: mod tests {
 71:     use super::*;
 72:     use tempfile::TempDir;
-73: 
+73:
 74:     #[test]
 75:     fn collect_proposal_artifacts_orders_sections_and_preserves_content() {
 76:         let temp_dir = TempDir::new().unwrap();

@@ -306,55 +306,55 @@ PY
 
 ```output
 1: //! Proposal viewer support.
-2: 
+2:
 3: use crate::errors::CoreResult;
-4: 
+4:
 5: /// Artifact collection helpers for proposal viewing.
 6: pub mod collector;
-7: 
+7:
 8: pub use collector::collect_proposal_artifacts;
-9: 
+9:
 10: /// A pluggable backend that can render collected proposal artifacts.
 11: pub trait ViewerBackend {
 12:     /// Stable CLI/backend identifier.
 13:     fn name(&self) -> &str;
-14: 
+14:
 15:     /// Human-readable summary shown in prompts and help.
 16:     fn description(&self) -> &str;
-17: 
+17:
 18:     /// Whether the viewer can run in the current environment.
 19:     fn is_available(&self) -> bool;
-20: 
+20:
 21:     /// Open or render the provided proposal content.
 22:     fn open(&self, content: &str) -> CoreResult<()>;
 23: }
-24: 
+24:
 25: #[cfg(test)]
 26: mod tests {
 27:     use super::*;
-28: 
+28:
 29:     use crate::errors::CoreResult;
-30: 
+30:
 31:     struct DummyViewer;
-32: 
+32:
 33:     impl ViewerBackend for DummyViewer {
 34:         fn name(&self) -> &str {
 35:             "dummy"
 36:         }
-37: 
+37:
 38:         fn description(&self) -> &str {
 39:             "Dummy viewer for tests"
 40:         }
-41: 
+41:
 42:         fn is_available(&self) -> bool {
 43:             true
 44:         }
-45: 
+45:
 46:         fn open(&self, _content: &str) -> CoreResult<()> {
 47:             Ok(())
 48:         }
 49:     }
-50: 
+50:
 51:     #[test]
 52:     fn viewer_backend_trait_exposes_required_methods() {
 53:         let viewer = DummyViewer;

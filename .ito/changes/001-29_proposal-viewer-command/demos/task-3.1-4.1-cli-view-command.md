@@ -314,24 +314,24 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 4: use dialoguer::{Select, theme::ColorfulTheme};
 5: use ito_config::load_cascading_project_config;
 6: use ito_core::viewer::{ViewerBackend, ViewerRegistry, collect_proposal_artifacts};
-7: 
+7:
 8: pub(crate) fn handle_view_clap(rt: &Runtime, args: &ViewArgs) -> CliResult<()> {
 9:     let Some(command) = &args.command else {
 10:         return fail("Missing required subcommand");
 11:     };
-12: 
+12:
 13:     match command {
 14:         ViewCommand::Proposal(args) => handle_view_proposal(rt, args),
 15:     }
 16: }
-17: 
+17:
 18: fn handle_view_proposal(rt: &Runtime, args: &ViewProposalArgs) -> CliResult<()> {
 19:     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
 20:     let change_repo = runtime.repositories().changes.as_ref();
 21:     let resolved_change = crate::app::common::resolve_change_target(change_repo, &args.change_id)
 22:         .map_err(crate::cli_error::CliError::msg)?;
 23:     let content = collect_proposal_artifacts(&resolved_change, rt.ito_path()).map_err(to_cli_error)?;
-24: 
+24:
 25:     let project_root = rt.ito_path().parent().unwrap_or(rt.ito_path());
 26:     let merged = load_cascading_project_config(project_root, rt.ito_path(), rt.ctx());
 27:     let tmux_enabled = merged
@@ -339,16 +339,16 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 29:         .pointer("/tools/tmux/enabled")
 30:         .and_then(|value| value.as_bool())
 31:         .unwrap_or(true);
-32: 
+32:
 33:     let registry = ViewerRegistry::for_proposals(tmux_enabled);
 34:     let viewer = match &args.viewer {
 35:         Some(name) => resolve_named_viewer(&registry, name)?,
 36:         None => prompt_for_viewer(&registry)?,
 37:     };
-38: 
+38:
 39:     viewer.open(&content).map_err(to_cli_error)
 40: }
-41: 
+41:
 42: fn resolve_named_viewer<'a>(
 43:     registry: &'a ViewerRegistry,
 44:     name: &str,
@@ -364,7 +364,7 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 54:     }
 55:     Ok(viewer)
 56: }
-57: 
+57:
 58: fn prompt_for_viewer(registry: &ViewerRegistry) -> CliResult<&dyn ViewerBackend> {
 59:     let available = registry.available_viewers();
 60:     if available.is_empty() {
@@ -372,7 +372,7 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 62:             "No proposal viewers are available. Install one of: bat, glow, tmux+nvim.",
 63:         );
 64:     }
-65: 
+65:
 66:     let items: Vec<String> = available
 67:         .iter()
 68:         .map(|viewer| format!("{} - {}", viewer.name(), viewer.description()))
@@ -388,38 +388,38 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 
 == ito-rs/crates/ito-cli/tests/view_proposal.rs ==
 1: mod support;
-2: 
+2:
 3: use assert_cmd::Command;
 4: use support::write;
-5: 
+5:
 6: #[test]
 7: fn view_proposal_help_shows_viewer_flag() {
 8:     let mut command = Command::cargo_bin("ito").unwrap();
 9:     command.args(["view", "proposal", "--help"]);
-10: 
+10:
 11:     command
 12:         .assert()
 13:         .success()
 14:         .stdout(predicates::str::contains("--viewer <VIEWER>"))
 15:         .stdout(predicates::str::contains("Change id (directory name)"));
 16: }
-17: 
+17:
 18: #[test]
 19: fn view_proposal_unknown_change_fails() {
 20:     let repo = tempfile::tempdir().expect("repo");
 21:     write(repo.path().join("README.md"), "# temp\n");
 22:     std::fs::create_dir_all(repo.path().join(".ito/changes")).unwrap();
-23: 
+23:
 24:     let mut command = Command::cargo_bin("ito").unwrap();
 25:     command.current_dir(repo.path());
 26:     command.args(["view", "proposal", "001-99_missing", "--viewer", "bat"]);
-27: 
+27:
 28:     command
 29:         .assert()
 30:         .failure()
 31:         .stderr(predicates::str::contains("Change '001-99_missing' not found"));
 32: }
-33: 
+33:
 34: #[test]
 35: fn view_proposal_disabled_tmux_is_rejected() {
 36:     let repo = tempfile::tempdir().expect("repo");
@@ -432,11 +432,11 @@ for rel in ['ito-rs/crates/ito-cli/src/commands/view.rs', 'ito-rs/crates/ito-cli
 43:         repo.path().join(".ito/changes/001-29_demo/proposal.md"),
 44:         "## Why\nDemo\n",
 45:     );
-46: 
+46:
 47:     let mut command = Command::cargo_bin("ito").unwrap();
 48:     command.current_dir(repo.path());
 49:     command.args(["view", "proposal", "001-29_demo", "--viewer", "tmux-nvim"]);
-50: 
+50:
 51:     command
 52:         .assert()
 53:         .failure()
