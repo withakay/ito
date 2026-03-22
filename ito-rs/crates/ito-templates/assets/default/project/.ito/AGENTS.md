@@ -160,6 +160,7 @@ ito list --specs          # List specifications
 ito show [item]           # Display change or spec
 ito validate [item]       # Validate changes or specs
 ito archive <change-id> [--yes|-y]   # Archive after deployment (add --yes for non-interactive runs)
+ito trace <change-id>     # Show requirement traceability coverage (--json for machine-readable)
 
 # Task tracking (enhanced tasks.md)
 ito tasks status <change-id>         # Show progress summary
@@ -285,6 +286,8 @@ New request?
 ### Requirement: New Feature
 The system SHALL provide...
 
+- **Requirement ID**: capability:new-feature
+
 #### Scenario: Success case
 - **WHEN** user performs action
 - **THEN** expected result
@@ -293,11 +296,17 @@ The system SHALL provide...
 ### Requirement: Existing Feature
 [Complete modified requirement]
 
+- **Requirement ID**: capability:existing-feature
+
 ## REMOVED Requirements
 ### Requirement: Old Feature
 **Reason**: [Why removing]
 **Migration**: [How to handle]
 ```
+
+**Requirement ID** is optional metadata for traceability. Format: `<capability>:<requirement-name>`.
+When any requirement in a change includes a Requirement ID, **all** requirements in that change must include one.
+Omit the field entirely if you do not need traceability for this change.
 
 If multiple capabilities are affected, create multiple delta files under `changes/[change-id]/specs/<capability>/spec.md`—one per capability.
 
@@ -310,6 +319,23 @@ If multiple capabilities are affected, create multiple delta files under `change
 - [ ] 1.3 Add frontend component
 - [ ] 1.4 Write tests
 ```
+
+For enhanced task format with traceability, add `- **Requirements**: <id>, <id>` to each task:
+
+```markdown
+### Task 1.1: Create database schema
+
+- **Files**: `db/schema.sql`
+- **Dependencies**: None
+- **Action**: Create the schema
+- **Verify**: `cargo test`
+- **Done When**: Schema exists
+- **Requirements**: capability:new-feature
+- **Status**: [ ] pending
+```
+
+**Requirements** links a task to one or more Requirement IDs declared in delta specs.
+Use `ito trace <change-id>` to check coverage after adding IDs.
 
 5. **Create design.md when needed:**
    Create `design.md` if any of the following apply; otherwise omit it:
