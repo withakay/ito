@@ -100,9 +100,7 @@ pub fn compute_trace_output(
             let reason = format!("Requirements missing IDs: {}", missing_ids.join(", "));
             ("invalid".to_string(), Some(reason))
         }
-        TraceStatus::Unavailable { reason } => {
-            ("unavailable".to_string(), Some(reason.clone()))
-        }
+        TraceStatus::Unavailable { reason } => ("unavailable".to_string(), Some(reason.clone())),
     };
 
     let mut covered = Vec::new();

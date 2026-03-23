@@ -135,7 +135,11 @@ fn traced_change_all_covered_validate_passes() {
     let change_id = "001-01_traced-happy";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -147,7 +151,11 @@ fn traced_change_all_covered_validate_passes() {
     let r = validate_change(&repo, &ito, change_id, false).unwrap();
 
     // No traceability errors or warnings.
-    let trace_issues: Vec<_> = r.issues.iter().filter(|i| i.path == "traceability").collect();
+    let trace_issues: Vec<_> = r
+        .issues
+        .iter()
+        .filter(|i| i.path == "traceability")
+        .collect();
     assert!(
         trace_issues.iter().all(|i| i.level == "INFO"),
         "expected no traceability errors/warnings, got: {trace_issues:?}"
@@ -161,7 +169,11 @@ fn traced_change_all_covered_trace_output_is_ready() {
     let change_id = "001-01_traced-happy";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -174,8 +186,16 @@ fn traced_change_all_covered_trace_output_is_ready() {
 
     assert_eq!(out.status, "ready");
     assert_eq!(out.declared_requirements.len(), 2);
-    assert!(out.uncovered.is_empty(), "expected no uncovered, got: {:?}", out.uncovered);
-    assert!(out.unresolved.is_empty(), "expected no unresolved, got: {:?}", out.unresolved);
+    assert!(
+        out.uncovered.is_empty(),
+        "expected no uncovered, got: {:?}",
+        out.uncovered
+    );
+    assert!(
+        out.unresolved.is_empty(),
+        "expected no unresolved, got: {:?}",
+        out.unresolved
+    );
     assert_eq!(out.covered.len(), 2);
 }
 
@@ -190,7 +210,11 @@ fn traced_change_uncovered_req_is_warning_in_non_strict() {
     let change_id = "001-02_traced-uncovered";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -224,7 +248,11 @@ fn traced_change_uncovered_req_is_error_in_strict() {
     let change_id = "001-02_traced-uncovered";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -258,7 +286,11 @@ fn traced_change_uncovered_req_trace_output_shows_uncovered() {
     let change_id = "001-02_traced-uncovered";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -286,7 +318,11 @@ fn traced_change_unresolved_ref_is_error_in_validate() {
     let change_id = "001-03_traced-unresolved";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -320,7 +356,11 @@ fn traced_change_unresolved_ref_trace_output_shows_unresolved() {
     let change_id = "001-03_traced-unresolved";
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         traced_spec(),
     );
     write(
@@ -368,7 +408,11 @@ The system SHALL provide feature beta.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         partial_spec,
     );
     write(
@@ -421,7 +465,11 @@ The system SHALL provide feature beta.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         partial_spec,
     );
     write(
@@ -435,7 +483,11 @@ The system SHALL provide feature beta.
     assert_eq!(out.status, "invalid");
     // The reason contains the requirement text (which includes "feature beta").
     assert!(
-        out.reason.as_deref().unwrap_or("").to_lowercase().contains("feature beta")
+        out.reason
+            .as_deref()
+            .unwrap_or("")
+            .to_lowercase()
+            .contains("feature beta")
             || out.reason.as_deref().unwrap_or("").contains("missing"),
         "reason should mention the requirement missing an ID, got: {:?}",
         out.reason
@@ -464,7 +516,11 @@ The system SHALL provide feature alpha.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         legacy_spec,
     );
     // Checkbox-format tasks.md.
@@ -505,7 +561,11 @@ The system SHALL provide feature alpha.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         legacy_spec,
     );
     write(
@@ -543,7 +603,11 @@ The system SHALL provide feature alpha.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         single_req_spec,
     );
     write(
@@ -582,7 +646,11 @@ The system SHALL provide feature alpha.
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         single_req_spec,
     );
     write(
@@ -642,7 +710,11 @@ The system SHALL also provide feature alpha (duplicate ID).
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         dup_spec,
     );
     write(
@@ -697,7 +769,11 @@ The system SHALL also provide feature alpha (duplicate ID).
 "#;
 
     write(
-        &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
         dup_spec,
     );
     write(
@@ -710,7 +786,9 @@ The system SHALL also provide feature alpha (duplicate ID).
 
     assert_eq!(out.status, "ready");
     assert!(
-        out.diagnostics.iter().any(|d| d.contains("auth:feature-alpha")),
+        out.diagnostics
+            .iter()
+            .any(|d| d.contains("auth:feature-alpha")),
         "expected duplicate diagnostic, got: {:?}",
         out.diagnostics
     );

@@ -1146,7 +1146,12 @@ pub struct TraceArgs {
     pub change: Option<String>,
 
     /// Change id (flag form)
-    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with = "change")]
+    #[arg(
+        short = 'c',
+        long = "change",
+        value_name = "CHANGE",
+        conflicts_with = "change"
+    )]
     pub change_flag: Option<String>,
 
     /// Output as JSON

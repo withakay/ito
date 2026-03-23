@@ -96,10 +96,7 @@ fn partial_ids_gives_invalid_with_missing_titles() {
 
 #[test]
 fn all_requirements_covered_by_tasks() {
-    let reqs = vec![
-        req("REQ A", Some("REQ-001")),
-        req("REQ B", Some("REQ-002")),
-    ];
+    let reqs = vec![req("REQ A", Some("REQ-001")), req("REQ B", Some("REQ-002"))];
     let tasks_md = format!(
         "{}{}",
         task_block("1.1", "pending", &["REQ-001"]),
@@ -116,10 +113,7 @@ fn all_requirements_covered_by_tasks() {
 
 #[test]
 fn uncovered_requirement_appears_in_uncovered_list() {
-    let reqs = vec![
-        req("REQ A", Some("REQ-001")),
-        req("REQ B", Some("REQ-002")),
-    ];
+    let reqs = vec![req("REQ A", Some("REQ-001")), req("REQ B", Some("REQ-002"))];
     let tasks_md = task_block("1.1", "pending", &["REQ-001"]);
     let tasks = make_tasks(&tasks_md);
     let result = compute_traceability(&reqs, &tasks);
@@ -137,10 +131,7 @@ fn unresolved_task_reference_is_reported() {
     assert_eq!(result.status, TraceStatus::Ready);
     assert_eq!(result.unresolved_references.len(), 1);
     assert_eq!(result.unresolved_references[0].task_id, "1.1");
-    assert_eq!(
-        result.unresolved_references[0].requirement_id,
-        "REQ-GHOST"
-    );
+    assert_eq!(result.unresolved_references[0].requirement_id, "REQ-GHOST");
 }
 
 #[test]
@@ -173,7 +164,11 @@ fn duplicate_requirement_ids_flagged_in_diagnostics() {
     );
     // After dedup, declared_requirements should have REQ-001 only once.
     assert_eq!(
-        result.declared_requirements.iter().filter(|id| *id == "REQ-001").count(),
+        result
+            .declared_requirements
+            .iter()
+            .filter(|id| *id == "REQ-001")
+            .count(),
         1
     );
 }
@@ -232,6 +227,10 @@ fn declared_requirements_are_sorted_and_deduplicated() {
     let result = compute_traceability(&reqs, &tasks);
     assert_eq!(
         result.declared_requirements,
-        vec!["REQ-001".to_string(), "REQ-002".to_string(), "REQ-003".to_string()]
+        vec![
+            "REQ-001".to_string(),
+            "REQ-002".to_string(),
+            "REQ-003".to_string()
+        ]
     );
 }

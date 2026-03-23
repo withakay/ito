@@ -146,14 +146,9 @@ pub fn compute_review_context(
             );
 
             let (status, reason) = match &trace_result.status {
-                ito_domain::traceability::TraceStatus::Ready => {
-                    ("ready".to_string(), None)
-                }
+                ito_domain::traceability::TraceStatus::Ready => ("ready".to_string(), None),
                 ito_domain::traceability::TraceStatus::Invalid { missing_ids } => {
-                    let reason = format!(
-                        "Requirements missing IDs: {}",
-                        missing_ids.join(", ")
-                    );
+                    let reason = format!("Requirements missing IDs: {}", missing_ids.join(", "));
                     ("invalid".to_string(), Some(reason))
                 }
                 ito_domain::traceability::TraceStatus::Unavailable { reason } => {

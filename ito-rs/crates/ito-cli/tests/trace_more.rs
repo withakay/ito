@@ -87,7 +87,11 @@ fn trace_fully_covered_exits_zero() {
     );
 
     let out = run_rust_candidate(rust_path, &["trace", change_id], repo.path(), home.path());
-    assert_eq!(out.code, 0, "trace should exit 0 for fully covered change, stderr: {}", out.stderr);
+    assert_eq!(
+        out.code, 0,
+        "trace should exit 0 for fully covered change, stderr: {}",
+        out.stderr
+    );
     assert!(
         out.stdout.contains("ready") || out.stdout.contains("covered"),
         "output should indicate ready/covered status, got: {}",
@@ -123,13 +127,20 @@ fn trace_fully_covered_json_has_ready_status() {
         repo.path(),
         home.path(),
     );
-    assert_eq!(out.code, 0, "trace --json should exit 0, stderr: {}", out.stderr);
+    assert_eq!(
+        out.code, 0,
+        "trace --json should exit 0, stderr: {}",
+        out.stderr
+    );
     let json: serde_json::Value =
         serde_json::from_str(&out.stdout).expect("output should be valid JSON");
     assert_eq!(json["status"], "ready");
     assert_eq!(json["change_id"], change_id);
     assert!(
-        json["uncovered"].as_array().map(|a| a.is_empty()).unwrap_or(false),
+        json["uncovered"]
+            .as_array()
+            .map(|a| a.is_empty())
+            .unwrap_or(false),
         "uncovered should be empty, got: {}",
         json["uncovered"]
     );
@@ -178,7 +189,11 @@ fn trace_uncovered_requirement_shows_uncovered_in_output() {
 
     // `ito trace` is informational — it always exits 0 and reports the coverage.
     let out = run_rust_candidate(rust_path, &["trace", change_id], repo.path(), home.path());
-    assert_eq!(out.code, 0, "trace exits 0 (informational command), stderr: {}", out.stderr);
+    assert_eq!(
+        out.code, 0,
+        "trace exits 0 (informational command), stderr: {}",
+        out.stderr
+    );
     assert!(
         out.stdout.contains("auth:feature-beta"),
         "output should mention the uncovered requirement, got: {}",
@@ -236,7 +251,9 @@ fn trace_uncovered_requirement_json_shows_uncovered_list() {
     let json: serde_json::Value =
         serde_json::from_str(&out.stdout).expect("output should be valid JSON");
     assert_eq!(json["status"], "ready");
-    let uncovered = json["uncovered"].as_array().expect("uncovered should be array");
+    let uncovered = json["uncovered"]
+        .as_array()
+        .expect("uncovered should be array");
     assert!(
         uncovered.iter().any(|v| v == "auth:feature-beta"),
         "uncovered should contain auth:feature-beta, got: {uncovered:?}"
@@ -293,7 +310,11 @@ The system SHALL provide feature alpha.\n\n\
 
     // `ito trace` is informational — it always exits 0 and reports the coverage.
     let out = run_rust_candidate(rust_path, &["trace", change_id], repo.path(), home.path());
-    assert_eq!(out.code, 0, "trace exits 0 (informational command), stderr: {}", out.stderr);
+    assert_eq!(
+        out.code, 0,
+        "trace exits 0 (informational command), stderr: {}",
+        out.stderr
+    );
     assert!(
         out.stdout.contains("auth:ghost-requirement"),
         "output should mention the unresolved requirement, got: {}",

@@ -40,7 +40,10 @@ pub(crate) fn handle_trace_clap(rt: &Runtime, args: &TraceArgs) -> CliResult<()>
     } else {
         ""
     };
-    println!("Trace: {} ({}{})", output.change_id, output.lifecycle, lifecycle_label);
+    println!(
+        "Trace: {} ({}{})",
+        output.change_id, output.lifecycle, lifecycle_label
+    );
 
     match output.status.as_str() {
         "unavailable" => {

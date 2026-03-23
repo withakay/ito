@@ -112,10 +112,7 @@ pub fn compute_traceability(
     }
 
     if !without_id.is_empty() {
-        let missing_ids: Vec<String> = without_id
-            .iter()
-            .map(|(title, _)| title.clone())
-            .collect();
+        let missing_ids: Vec<String> = without_id.iter().map(|(title, _)| title.clone()).collect();
         return TraceabilityResult {
             status: TraceStatus::Invalid {
                 missing_ids: missing_ids.clone(),
@@ -219,9 +216,7 @@ mod tests {
     }
 
     fn make_tasks(tasks_md: &str) -> TasksParseResult {
-        let full = format!(
-            "## Wave 1\n- **Depends On**: None\n\n{tasks_md}"
-        );
+        let full = format!("## Wave 1\n- **Depends On**: None\n\n{tasks_md}");
         parse_tasks_tracking_file(&full)
     }
 

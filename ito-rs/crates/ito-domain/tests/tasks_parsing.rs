@@ -61,7 +61,10 @@ fn parse_enhanced_tasks_requirements_single_entry() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert_eq!(parsed.tasks[0].requirements, vec!["REQ-AUTH-001".to_string()]);
+    assert_eq!(
+        parsed.tasks[0].requirements,
+        vec!["REQ-AUTH-001".to_string()]
+    );
 }
 
 #[test]
