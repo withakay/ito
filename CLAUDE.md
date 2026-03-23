@@ -25,7 +25,7 @@ To refresh only the Ito-managed content in this file, run: `ito init --upgrade`
 
 When working in the Rust codebase, follow the project's style guide at `.ito/user-rust-style.md`. Key conventions:
 
-- Control flow: for loops over iterators, let-else for early returns
+- Control flow: let-else for early returns
 - Pattern matching: if-let chains, explicit matching, no wildcards
 - Variable naming: shadowing over renaming
 - Type safety: newtypes, enums over bools

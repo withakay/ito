@@ -26,23 +26,6 @@ Review recently modified Rust code and simplify it according to the project's st
 
 ## Simplification Priorities
 
-### Control Flow (High Priority)
-
-Convert iterator chains to `for` loops with mutable accumulators:
-
-```rust
-// BEFORE
-let results: Vec<_> = items.iter().filter(|x| x.valid).map(|x| x.process()).collect();
-
-// AFTER
-let mut results = Vec::new();
-for item in items {
-    if item.valid {
-        results.push(item.process());
-    }
-}
-```
-
 ### Early Returns (High Priority)
 
 Convert nested `if let` to `let ... else`:
@@ -118,7 +101,6 @@ After making changes, provide a summary:
 ## Code Simplification Summary
 
 ### Changes Made
-- `src/foo.rs:42` - Converted iterator chain to for loop
 - `src/bar.rs:88` - Flattened nested if-let using let-else
 - `src/baz.rs:15` - Applied variable shadowing
 

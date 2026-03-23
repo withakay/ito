@@ -2,52 +2,6 @@
 
 Apply these rules when writing or modifying Rust code in this project.
 
-## Control Flow: Use `for` Loops, Not Iterator Chains
-
-Write `for` loops with mutable accumulators instead of iterator combinators.
-
-```rust
-// DO
-let mut results = Vec::new();
-for item in items {
-    if item.is_valid() {
-        results.push(item.process());
-    }
-}
-
-// DON'T
-let results: Vec<_> = items
-    .iter()
-    .filter(|item| item.is_valid())
-    .map(|item| item.process())
-    .collect();
-```
-
-```rust
-// DO
-let mut total = 0;
-for value in values {
-    total += value.amount();
-}
-
-// DON'T
-let total: i64 = values.iter().map(|v| v.amount()).sum();
-```
-
-```rust
-// DO
-let mut found = None;
-for item in items {
-    if item.matches(query) {
-        found = Some(item);
-        break;
-    }
-}
-
-// DON'T
-let found = items.iter().find(|item| item.matches(query));
-```
-
 ## Early Returns: Use `let ... else`
 
 Use `let ... else` to extract values and exit early on failure. This keeps the happy path unindented.
