@@ -51,7 +51,6 @@ See [`.ito/architecture.md`](../.ito/architecture.md#crate-structure) for the fu
 
 Follow the Rust style guide at [`.ito/user-rust-style.md`](../.ito/user-rust-style.md). Key rules:
 
-- **For loops** over iterator chains (`.filter().map().collect()`)
 - **`let-else`** for early returns, keeping the happy path unindented
 - **`if let` chains** to flatten nested conditions
 - **Variable shadowing** over renaming (`let input = input.trim()`)
