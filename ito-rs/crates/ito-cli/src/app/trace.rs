@@ -1,9 +1,24 @@
 //! CLI adapter for the `ito trace` command.
 
-use crate::cli::TraceArgs;
+use clap::Args;
+
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::trace::compute_trace_output;
+
+/// Show requirement traceability for a change.
+#[derive(Args, Debug, Clone)]
+pub struct TraceArgs {
+    /// Change id (positional or via --change flag)
+    #[arg(value_name = "CHANGE", required_unless_present = "change_flag", conflicts_with = "change_flag")]
+    pub change: Option<String>,
+    /// Change id (flag form)
+    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with = "change")]
+    pub change_flag: Option<String>,
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
+}
 
 /// Handles the `ito trace` CLI subcommand.
 ///

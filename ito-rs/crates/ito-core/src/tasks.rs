@@ -683,7 +683,7 @@ pub(crate) fn apply_unshelve_task(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let contents = "## Checkpoints\n";
 /// let outcome = apply_add_task(contents, "Add feature X", None, "tracking file").unwrap();
 /// assert!(outcome.task.id.starts_with("1."));

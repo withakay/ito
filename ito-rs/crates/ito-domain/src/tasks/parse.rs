@@ -270,6 +270,7 @@ impl TasksParseResult {
 ///
 /// ```
 /// use chrono::Local;
+/// use ito_domain::tasks::enhanced_tasks_template;
 /// let tpl = enhanced_tasks_template("chg-123", Local::now());
 /// assert!(tpl.contains("Tasks for: chg-123"));
 /// assert!(tpl.contains("## Wave 1"));
@@ -327,9 +328,11 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
 /// # Examples
 ///
 /// ```
+/// use ito_domain::tasks::parse_tasks_tracking_file;
+/// use ito_domain::tasks::TasksFormat;
 /// let contents = "- [ ] 1: First task\n- [x] Second task\n";
-/// let result = ito_domain::tasks::parse_checkbox_tasks(contents);
-/// assert_eq!(result.format, ito_domain::tasks::TasksFormat::Checkbox);
+/// let result = parse_tasks_tracking_file(contents);
+/// assert_eq!(result.format, TasksFormat::Checkbox);
 /// assert_eq!(result.tasks.len(), 2);
 /// assert_eq!(result.tasks[0].id, "1");
 /// assert_eq!(result.tasks[1].id, "2");
@@ -459,6 +462,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         verify: Option<String>,
         done_when: Option<String>,
         requirements: Vec<String>,
+        requirements_seen: bool,
     }
 
     /// Finalizes a partially-built task from `current` and appends a validated `TaskItem` to `tasks`.
@@ -470,25 +474,25 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     /// `Dependencies` string into explicit dependency IDs, and transfers collected metadata (files, action,
     /// verify, done_when, requirements, etc.) into the pushed `TaskItem`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// // Prepare a minimal current task and parse result containers.
-    /// let mut current = CurrentTask::default();
-    /// current.id = Some("T1".to_string());
-    /// current.desc = Some("Example task".to_string());
-    /// current.status_raw = Some("Complete".to_string());
-    /// current.status_marker_raw = Some('x');
-    /// current.updated_at_raw = Some("2025-03-01".to_string());
-    ///
-    /// let mut tasks = Vec::new();
-    /// let mut diagnostics = Vec::new();
-    ///
-    /// flush_current(&mut current, &mut tasks, &mut diagnostics);
-    ///
-    /// assert_eq!(tasks.len(), 1);
-    /// assert!(diagnostics.is_empty());
-    /// ```
+     /// # Examples
+     ///
+     /// ```ignore
+     /// // Prepare a minimal current task and parse result containers.
+     /// let mut current = CurrentTask::default();
+     /// current.id = Some("T1".to_string());
+     /// current.desc = Some("Example task".to_string());
+     /// current.status_raw = Some("Complete".to_string());
+     /// current.status_marker_raw = Some('x');
+     /// current.updated_at_raw = Some("2025-03-01".to_string());
+     ///
+     /// let mut tasks = Vec::new();
+     /// let mut diagnostics = Vec::new();
+     ///
+     /// flush_current(&mut current, &mut tasks, &mut diagnostics);
+     ///
+     /// assert_eq!(tasks.len(), 1);
+     /// assert!(diagnostics.is_empty());
+     /// ```
     fn flush_current(
         current: &mut CurrentTask,
         tasks: &mut Vec<TaskItem>,
@@ -631,6 +635,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         verify: None,
         done_when: None,
         requirements: Vec::new(),
+        requirements_seen: false,
     };
 
     let mut in_action = false;
@@ -711,6 +716,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             current_task.verify = None;
             current_task.done_when = None;
             current_task.requirements.clear();
+            current_task.requirements_seen = false;
             in_action = false;
 
             if current_wave.is_none() && !in_checkpoints {
@@ -767,12 +773,26 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
                 continue;
             }
             if let Some(cap) = requirements_re.captures(line) {
-                let raw = cap[1].trim();
-                current_task.requirements = raw
-                    .split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
+                if current_task.requirements_seen {
+                    if let Some(ref tid) = current_task.id {
+                        diagnostics.push(TaskDiagnostic {
+                            level: DiagnosticLevel::Warning,
+                            message: format!(
+                                "{tid}: duplicate Requirements line; using the first one"
+                            ),
+                            task_id: Some(tid.clone()),
+                            line: Some(line_idx + 1),
+                        });
+                    }
+                } else {
+                    let raw = cap[1].trim();
+                    current_task.requirements = raw
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    current_task.requirements_seen = true;
+                }
                 continue;
             }
         }

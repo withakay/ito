@@ -508,6 +508,7 @@ The system SHALL provide feature alpha.\n\n\
 /// );
 /// assert_ne!(out.code, 0);
 /// ```
+#[test]
 fn trace_missing_change_exits_nonzero() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");

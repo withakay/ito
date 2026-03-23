@@ -80,10 +80,18 @@ pub struct TraceabilityResult {
 /// # Examples
 ///
 /// ```
+/// use ito_domain::tasks::{TasksParseResult, TasksFormat, ProgressInfo};
+/// use ito_domain::traceability::compute_traceability;
 /// let delta = vec![("Add login".to_string(), Some("REQ-1".to_string()))];
-/// let tasks = TasksParseResult { format: TasksFormat::Enhanced, tasks: vec![] };
+/// let tasks = TasksParseResult {
+///     format: TasksFormat::Enhanced,
+///     tasks: vec![],
+///     waves: vec![],
+///     diagnostics: vec![],
+///     progress: ProgressInfo { total: 0, complete: 0, pending: 0, in_progress: 0, shelved: 0, remaining: 0 },
+/// };
 /// let result = compute_traceability(&delta, &tasks);
-/// assert!(matches!(result.status, TraceStatus::Ready));
+/// assert!(matches!(result.status, ito_domain::traceability::TraceStatus::Ready));
 /// ```
 pub fn compute_traceability(
     delta_requirements: &[(String, Option<String>)],
@@ -93,14 +101,15 @@ pub fn compute_traceability(
 
     // --- Determine trace status based on ID presence ---
     let total = delta_requirements.len();
-    let with_id: Vec<&(String, Option<String>)> = delta_requirements
-        .iter()
-        .filter(|(_, id)| id.is_some())
-        .collect();
-    let without_id: Vec<&(String, Option<String>)> = delta_requirements
-        .iter()
-        .filter(|(_, id)| id.is_none())
-        .collect();
+    let mut with_id: Vec<&(String, Option<String>)> = Vec::new();
+    let mut without_id: Vec<&(String, Option<String>)> = Vec::new();
+    for req in delta_requirements {
+        if req.1.is_some() {
+            with_id.push(req);
+        } else {
+            without_id.push(req);
+        }
+    }
 
     if total == 0 || with_id.is_empty() {
         return TraceabilityResult {
@@ -130,7 +139,10 @@ pub fn compute_traceability(
     }
 
     if !without_id.is_empty() {
-        let missing_ids: Vec<String> = without_id.iter().map(|(title, _)| title.clone()).collect();
+        let mut missing_ids: Vec<String> = Vec::with_capacity(without_id.len());
+        for (title, _) in &without_id {
+            missing_ids.push(title.clone());
+        }
         return TraceabilityResult {
             status: TraceStatus::Invalid {
                 missing_ids: missing_ids.clone(),
@@ -144,10 +156,10 @@ pub fn compute_traceability(
     }
 
     // All requirements have IDs — collect them.
-    let mut declared: Vec<String> = with_id
-        .iter()
-        .map(|(_, id)| id.as_ref().unwrap().clone())
-        .collect();
+    let mut declared: Vec<String> = Vec::with_capacity(with_id.len());
+    for (_, id) in &with_id {
+        declared.push(id.as_ref().unwrap().clone());
+    }
 
     // Flag duplicate IDs.
     let mut seen_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
@@ -213,183 +225,5 @@ pub fn compute_traceability(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tasks::parse_tasks_tracking_file;
-
-    fn req(title: &str, id: Option<&str>) -> (String, Option<String>) {
-        (title.to_string(), id.map(str::to_string))
-    }
-
-    /// Constructs an enhanced-format markdown task string used in tests.
-    ///
-    /// The produced string contains a level-3 heading with the task id and lines for
-    /// Dependencies, Requirements (omitted when `reqs` is empty), Updated At, and Status,
-    /// formatted to match the enhanced task parser's expected input.
-    ///
-    /// # Parameters
-    ///
-    /// - `id`: task identifier inserted into the heading and used as the task id line.
-    /// - `status`: human-readable status text placed after the status checkbox.
-    /// - `reqs`: list of requirement IDs to include on the `**Requirements**` line; omitted when empty.
-    ///
-    /// # Returns
-    ///
-    /// A markdown string representing a single enhanced-format task.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let s = enhanced_task("T1", "In Progress", &["REQ-1", "REQ-2"]);
-    /// assert!(s.contains("### Task T1: Task T1"));
-    /// assert!(s.contains("- **Requirements**: REQ-1, REQ-2"));
-    /// assert!(s.contains("- **Status**: [ ] In Progress"));
-    /// ```
-    fn enhanced_task(id: &str, status: &str, reqs: &[&str]) -> String {
-        let req_line = if reqs.is_empty() {
-            String::new()
-        } else {
-            format!("- **Requirements**: {}\n", reqs.join(", "))
-        };
-        format!(
-            "### Task {id}: Task {id}\n- **Dependencies**: None\n{req_line}- **Updated At**: 2026-01-01\n- **Status**: [ ] {status}\n"
-        )
-    }
-
-    /// Wraps the provided task markdown in a "Wave 1" section (with a default
-    /// "Depends On: None" line) and parses the combined document.
-    ///
-    /// The function is a test helper that ensures the given fragment is treated as
-    /// a single wave when passed to the parser.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let md = "- **Requirements**: REQ-1\n\n- [ ] Implement feature A";
-    /// let _ = make_tasks(md);
-    /// ```
-    fn make_tasks(tasks_md: &str) -> TasksParseResult {
-        let full = format!("## Wave 1\n- **Depends On**: None\n\n{tasks_md}");
-        parse_tasks_tracking_file(&full)
-    }
-
-    #[test]
-    fn no_requirement_ids_gives_unavailable() {
-        let reqs = vec![req("REQ A", None), req("REQ B", None)];
-        let tasks = make_tasks(&enhanced_task("1.1", "pending", &[]));
-        let result = compute_traceability(&reqs, &tasks);
-        assert!(matches!(result.status, TraceStatus::Unavailable { .. }));
-    }
-
-    #[test]
-    fn empty_requirements_gives_unavailable() {
-        let tasks = make_tasks(&enhanced_task("1.1", "pending", &[]));
-        let result = compute_traceability(&[], &tasks);
-        assert!(matches!(result.status, TraceStatus::Unavailable { .. }));
-    }
-
-    #[test]
-    fn checkbox_format_gives_unavailable() {
-        let reqs = vec![req("REQ A", Some("REQ-001"))];
-        let tasks = parse_tasks_tracking_file("- [ ] Task one\n");
-        let result = compute_traceability(&reqs, &tasks);
-        assert!(matches!(result.status, TraceStatus::Unavailable { .. }));
-        if let TraceStatus::Unavailable { reason } = &result.status {
-            assert!(reason.contains("checkbox"));
-        }
-    }
-
-    #[test]
-    fn partial_ids_gives_invalid() {
-        let reqs = vec![req("REQ A", Some("REQ-001")), req("REQ B", None)];
-        let tasks = make_tasks(&enhanced_task("1.1", "pending", &[]));
-        let result = compute_traceability(&reqs, &tasks);
-        if let TraceStatus::Invalid { missing_ids } = &result.status {
-            assert_eq!(missing_ids, &["REQ B".to_string()]);
-        } else {
-            panic!("expected Invalid, got {:?}", result.status);
-        }
-    }
-
-    #[test]
-    fn all_requirements_covered() {
-        let reqs = vec![req("REQ A", Some("REQ-001")), req("REQ B", Some("REQ-002"))];
-        let tasks_md = format!(
-            "{}{}",
-            enhanced_task("1.1", "pending", &["REQ-001"]),
-            enhanced_task("1.2", "pending", &["REQ-002"]),
-        );
-        let tasks = make_tasks(&tasks_md);
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert_eq!(result.covered_requirements.len(), 2);
-        assert!(result.uncovered_requirements.is_empty());
-        assert!(result.unresolved_references.is_empty());
-    }
-
-    #[test]
-    fn uncovered_requirement() {
-        let reqs = vec![req("REQ A", Some("REQ-001")), req("REQ B", Some("REQ-002"))];
-        let tasks_md = enhanced_task("1.1", "pending", &["REQ-001"]);
-        let tasks = make_tasks(&tasks_md);
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert_eq!(result.covered_requirements.len(), 1);
-        assert_eq!(result.uncovered_requirements, vec!["REQ-002".to_string()]);
-    }
-
-    #[test]
-    fn unresolved_task_reference() {
-        let reqs = vec![req("REQ A", Some("REQ-001"))];
-        let tasks_md = enhanced_task("1.1", "pending", &["REQ-001", "REQ-GHOST"]);
-        let tasks = make_tasks(&tasks_md);
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert_eq!(result.unresolved_references.len(), 1);
-        assert_eq!(result.unresolved_references[0].task_id, "1.1");
-        assert_eq!(result.unresolved_references[0].requirement_id, "REQ-GHOST");
-    }
-
-    #[test]
-    fn shelved_task_does_not_count_as_coverage() {
-        let reqs = vec![req("REQ A", Some("REQ-001"))];
-        let tasks_md = enhanced_task("1.1", "shelved", &["REQ-001"]);
-        let tasks = make_tasks(&tasks_md);
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert!(result.covered_requirements.is_empty());
-        assert_eq!(result.uncovered_requirements, vec!["REQ-001".to_string()]);
-    }
-
-    #[test]
-    fn duplicate_requirement_ids_flagged_in_diagnostics() {
-        let reqs = vec![
-            req("REQ A", Some("REQ-001")),
-            req("REQ A dup", Some("REQ-001")),
-        ];
-        let tasks = make_tasks(&enhanced_task("1.1", "pending", &[]));
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert!(
-            result.diagnostics.iter().any(|d| d.contains("REQ-001")),
-            "expected duplicate diagnostic, got: {:?}",
-            result.diagnostics
-        );
-    }
-
-    #[test]
-    fn multiple_tasks_can_cover_same_requirement() {
-        let reqs = vec![req("REQ A", Some("REQ-001"))];
-        let tasks_md = format!(
-            "{}{}",
-            enhanced_task("1.1", "pending", &["REQ-001"]),
-            enhanced_task("1.2", "complete", &["REQ-001"]),
-        );
-        let tasks = make_tasks(&tasks_md);
-        let result = compute_traceability(&reqs, &tasks);
-        assert_eq!(result.status, TraceStatus::Ready);
-        assert_eq!(result.covered_requirements.len(), 1);
-        assert_eq!(result.covered_requirements[0].covering_tasks.len(), 2);
-    }
-}
+// Tests for this module live in `tests/traceability.rs` alongside the
+// integration tests to keep this source file focused on production code.

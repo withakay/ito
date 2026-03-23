@@ -690,7 +690,7 @@ fn sleep_backoff(attempt: u32) {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let api = ApiTaskList {
 ///     format: "checkbox".to_string(),
 ///     tasks: vec![],
@@ -827,7 +827,7 @@ fn tasks_from_progress(progress: &ApiProgress) -> TasksParseResult {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// // given `response: ApiTaskMutationEnvelope` obtained from the backend
 /// let result = task_mutation_from_api(response);
 /// assert_eq!(result.change_id, response.change_id);

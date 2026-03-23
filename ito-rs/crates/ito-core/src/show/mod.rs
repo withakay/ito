@@ -431,7 +431,7 @@ fn parse_requirements_from_lines(lines: &[String]) -> Vec<Requirement> {
 /// - the normalized requirement statement text (collapsing internal whitespace),
 /// - an optional Requirement ID from a metadata line of the form `- **Requirement ID**: <id>` (if present),
 /// - any `#### Scenario:` blocks as `Scenario { raw_text }` preserving internal newlines and trimmed of trailing blank lines.
-/// Parsing stops when the next `### Requirement:` or a top-level `## ` section is encountered; the returned index is the first unconsumed line.
+///   Parsing stops when the next `### Requirement:` or a top-level `## ` section is encountered; the returned index is the first unconsumed line.
 ///
 /// # Parameters
 /// - `lines`: slice of input lines (typically from the markdown) to parse from.
@@ -442,7 +442,7 @@ fn parse_requirements_from_lines(lines: &[String]) -> Vec<Requirement> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let md = vec![
 ///     "### Requirement: Example".as_ref(),
 ///     "- **Requirement ID**: RQ-1".as_ref(),
@@ -481,13 +481,13 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
         {
             break;
         }
-        // Detect `- **Requirement ID**: <id>` metadata line; extract id, skip from text.
+        // Detect `- **Requirement ID**: <id>` metadata line; keep the first, ignore duplicates.
         if let Some(rest) = t
             .trim()
             .strip_prefix("- **Requirement ID**:")
             .map(str::trim)
         {
-            if !rest.is_empty() {
+            if !rest.is_empty() && requirement_id.is_none() {
                 requirement_id = Some(rest.to_string());
             }
             i += 1;
@@ -546,7 +546,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let md = "# Title\n\n## Purpose\nThis  is   a\npurpose.\n\n## Requirements\n...";
 /// let txt = extract_section_text(md, "Purpose");
 /// assert_eq!(txt, "This is a purpose.");

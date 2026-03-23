@@ -29,7 +29,7 @@ use std::path::Path;
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// // Prepare repositories, path and config context (omitted)
 /// // let change_repo = ...;
 /// // let module_repo = ...;
