@@ -14,6 +14,7 @@ fn sqlite_task_mutation_service_initializes_missing_tasks() {
             repo: "widgets",
             change_id: "025-02_demo",
             module_id: Some("025"),
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: None,
@@ -54,6 +55,7 @@ fn sqlite_task_mutation_service_updates_existing_markdown() {
             repo: "widgets",
             change_id: "025-02_demo",
             module_id: Some("025"),
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some(
@@ -97,6 +99,7 @@ fn sqlite_task_mutation_service_returns_not_found_for_missing_tasks() {
             repo: "widgets",
             change_id: "025-02_no-tasks",
             module_id: None,
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: None,

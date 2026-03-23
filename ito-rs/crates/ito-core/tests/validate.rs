@@ -885,3 +885,126 @@ apply:
         "apply.tracks should override tasks.md validation, got: {issues:?}"
     );
 }
+
+// ── Task 4.6: validate_module validates sub-modules ────────────────────────
+
+#[test]
+fn validate_module_passes_when_sub_modules_have_valid_module_md() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let module_repo = FsModuleRepository::new(&ito);
+
+    // Parent module.
+    write(
+        &ito.join("modules").join("024_backend").join("module.md"),
+        "# Backend\n\n## Purpose\nBackend module for the application.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    // Sub-module with valid module.md.
+    write(
+        &ito.join("modules")
+            .join("024_backend")
+            .join("sub")
+            .join("01_auth")
+            .join("module.md"),
+        "# Auth\n\n## Purpose\nAuthentication sub-module for the backend.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    let (_name, r) = validate_module(&module_repo, &ito, "024", false).unwrap();
+    assert!(r.valid, "should be valid; issues: {:?}", r.issues);
+}
+
+#[test]
+fn validate_module_errors_when_sub_module_missing_module_md() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let module_repo = FsModuleRepository::new(&ito);
+
+    // Parent module.
+    write(
+        &ito.join("modules").join("024_backend").join("module.md"),
+        "# Backend\n\n## Purpose\nBackend module for the application.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    // Sub-module directory without module.md.
+    std::fs::create_dir_all(
+        ito.join("modules")
+            .join("024_backend")
+            .join("sub")
+            .join("01_auth"),
+    )
+    .unwrap();
+
+    let (_name, r) = validate_module(&module_repo, &ito, "024", false).unwrap();
+    // In non-strict mode, missing module.md is a warning.
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("missing module.md")),
+        "expected missing module.md warning; issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_module_errors_when_sub_module_has_invalid_naming() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let module_repo = FsModuleRepository::new(&ito);
+
+    // Parent module.
+    write(
+        &ito.join("modules").join("024_backend").join("module.md"),
+        "# Backend\n\n## Purpose\nBackend module for the application.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    // Sub-module with invalid naming (no underscore separator).
+    std::fs::create_dir_all(
+        ito.join("modules")
+            .join("024_backend")
+            .join("sub")
+            .join("badname"),
+    )
+    .unwrap();
+
+    let (_name, r) = validate_module(&module_repo, &ito, "024", false).unwrap();
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.message.contains("SS_name convention")),
+        "expected naming convention error; issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
+fn validate_module_warns_when_sub_module_purpose_too_short() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let module_repo = FsModuleRepository::new(&ito);
+
+    // Parent module.
+    write(
+        &ito.join("modules").join("024_backend").join("module.md"),
+        "# Backend\n\n## Purpose\nBackend module for the application.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    // Sub-module with too-short purpose.
+    write(
+        &ito.join("modules")
+            .join("024_backend")
+            .join("sub")
+            .join("01_auth")
+            .join("module.md"),
+        "# Auth\n\n## Purpose\nShort.\n\n## Scope\n- *\n\n## Changes\n",
+    );
+
+    let (_name, r) = validate_module(&module_repo, &ito, "024", false).unwrap();
+    assert!(
+        r.issues
+            .iter()
+            .any(|i| i.level == "WARNING" && i.message.contains("too brief")),
+        "expected too-brief purpose warning; issues: {:?}",
+        r.issues
+    );
+}

@@ -291,6 +291,7 @@ fn remote_runtime_ignores_local_change_dirs() {
     let summary = ChangeSummary {
         id: "090-01_remote".to_string(),
         module_id: Some("090".to_string()),
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,

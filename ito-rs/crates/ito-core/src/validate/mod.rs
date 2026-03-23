@@ -716,6 +716,9 @@ pub fn resolve_module(
 
 /// Validate a module's `module.md` for minimal required sections.
 ///
+/// Also validates all sub-modules under the module: each `sub/SS_name/`
+/// directory must have a valid `module.md` with a Purpose section.
+///
 /// Returns the resolved module directory name along with the report.
 pub fn validate_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
@@ -757,7 +760,121 @@ pub fn validate_module(
         ));
     }
 
+    // Validate sub-modules.
+    validate_sub_modules_under_module(&mut rep, module_repo, &r.module_dir, &r.id, strict);
+
     Ok((r.full_name, rep.finish()))
+}
+
+/// Validate all sub-modules belonging to a parent module.
+///
+/// Uses the repository to iterate recognized sub-modules and validates their
+/// `module.md` (presence and Purpose section). Additionally scans `sub/`
+/// for any directories that the repository did not recognize — those have
+/// invalid naming and are reported as errors.
+fn validate_sub_modules_under_module(
+    rep: &mut ReportBuilder,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
+    module_dir: &Path,
+    parent_id: &str,
+    strict: bool,
+) {
+    let sub_dir = module_dir.join("sub");
+    if !sub_dir.exists() {
+        return;
+    }
+
+    // Retrieve sub-modules through the repository to avoid re-discovering
+    // the same filesystem layout the repository already parsed.
+    let module = match module_repo.get(parent_id) {
+        Ok(m) => m,
+        Err(_) => return, // Parent module not found; outer validation already handles this.
+    };
+
+    // Track which directory names the repository recognized as valid so we
+    // can later flag any unrecognized entries.
+    let mut recognized_dirs: std::collections::HashSet<String> =
+        std::collections::HashSet::with_capacity(module.sub_modules.len());
+
+    for sm in &module.sub_modules {
+        let dir_name = sm
+            .path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&sm.name)
+            .to_string();
+        recognized_dirs.insert(dir_name.clone());
+
+        // Validate naming convention: sub_id must be exactly two ASCII digits.
+        if sm.sub_id.len() != 2 || !sm.sub_id.bytes().all(|b| b.is_ascii_digit()) {
+            rep.push(error(
+                format!("sub-modules/{dir_name}"),
+                format!("Sub-module directory '{dir_name}' does not follow the SS_name convention"),
+            ));
+            continue;
+        }
+
+        // Validate module.md presence.
+        let module_md = sm.path.join("module.md");
+        if !module_md.exists() {
+            let level = if strict { LEVEL_ERROR } else { LEVEL_WARNING };
+            rep.push(issue(
+                level,
+                format!("sub-modules/{dir_name}"),
+                format!("Sub-module '{dir_name}' is missing module.md"),
+            ));
+            continue;
+        }
+
+        // Validate module.md content.
+        let content = match ito_common::io::read_to_string_std(&module_md) {
+            Ok(c) => c,
+            Err(err) => {
+                rep.push(error(
+                    format!("sub-modules/{dir_name}/module.md"),
+                    format!("Failed to read module.md: {err}"),
+                ));
+                continue;
+            }
+        };
+
+        let purpose = extract_section(&content, "Purpose");
+        if purpose.trim().is_empty() {
+            rep.push(error(
+                format!("sub-modules/{dir_name}/purpose"),
+                format!("Sub-module '{dir_name}' module.md must have a Purpose section"),
+            ));
+        } else if purpose.trim().len() < MIN_MODULE_PURPOSE_LENGTH {
+            rep.push(warning(
+                format!("sub-modules/{dir_name}/purpose"),
+                format!(
+                    "Sub-module '{dir_name}' purpose is too brief (less than {MIN_MODULE_PURPOSE_LENGTH} characters)"
+                ),
+            ));
+        }
+    }
+
+    // Report any sub/ entries that the repository silently skipped because
+    // they do not follow the required naming convention.
+    if let Ok(entries) = std::fs::read_dir(&sub_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !recognized_dirs.contains(dir_name) {
+                rep.push(error(
+                    format!("sub-modules/{dir_name}"),
+                    format!(
+                        "Sub-module directory '{dir_name}' does not follow the SS_name convention"
+                    ),
+                ));
+            }
+        }
+    }
 }
 
 fn extract_section(markdown: &str, header: &str) -> String {

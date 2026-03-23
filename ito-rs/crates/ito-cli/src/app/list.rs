@@ -63,8 +63,8 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             if want_json {
                 let payload = ModulesResponse { modules };
-                let rendered =
-                    serde_json::to_string_pretty(&payload).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&payload)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
                 return Ok(());
             }
@@ -77,16 +77,15 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             println!("Modules:\n");
             for m in &modules {
-                if m.change_count == 0 {
-                    println!("  {}", m.full_name);
-                    continue;
+                println!("  {}{}", m.full_name, format_change_count(m.change_count));
+                for sm in &m.sub_modules {
+                    println!(
+                        "    {}  {}{}",
+                        sm.id,
+                        sm.name,
+                        format_change_count(sm.change_count)
+                    );
                 }
-                let suffix = if m.change_count == 1 {
-                    "change"
-                } else {
-                    "changes"
-                };
-                println!("  {} ({} {suffix})", m.full_name, m.change_count);
             }
             println!();
         }
@@ -100,8 +99,8 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             if want_json {
                 let payload = SpecsResponse { specs };
-                let rendered =
-                    serde_json::to_string_pretty(&payload).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&payload)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
                 return Ok(());
             }
@@ -157,7 +156,7 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 if want_json {
                     let rendered =
                         serde_json::to_string_pretty(&serde_json::json!({ "changes": [] }))
-                            .expect("json should serialize");
+                            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                     println!("{rendered}");
                 } else if want_completed {
                     println!("No completed changes found.");
@@ -191,8 +190,8 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     })
                     .collect();
                 let payload = ChangesResponse { changes };
-                let rendered =
-                    serde_json::to_string_pretty(&payload).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&payload)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
                 return Ok(());
             }
@@ -246,6 +245,15 @@ pub(crate) fn handle_list_clap(rt: &Runtime, args: &ListArgs) -> CliResult<()> {
     argv.push(sort.to_string());
 
     handle_list(rt, &argv)
+}
+
+fn format_change_count(count: usize) -> String {
+    if count == 0 {
+        String::new()
+    } else {
+        let suffix = if count == 1 { "change" } else { "changes" };
+        format!(" ({count} {suffix})")
+    }
 }
 
 fn parse_sort_order(args: &[String]) -> Option<&str> {

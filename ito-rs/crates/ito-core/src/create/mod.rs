@@ -16,7 +16,7 @@ use std::thread;
 use std::time::Duration;
 
 use ito_common::fs::StdFs;
-use ito_common::id::{parse_change_id, parse_module_id};
+use ito_common::id::{parse_change_id, parse_module_id, parse_sub_module_id};
 use ito_common::paths;
 
 #[derive(Debug, thiserror::Error)]
@@ -35,9 +35,25 @@ pub enum CreateError {
     #[error("Module '{0}' not found")]
     ModuleNotFound(String),
 
+    /// The requested sub-module id does not exist.
+    #[error("Sub-module '{0}' not found")]
+    SubModuleNotFound(String),
+
+    /// Mutually exclusive flags were both provided.
+    #[error("{0}")]
+    MutuallyExclusive(String),
+
     /// A change with the same id already exists.
     #[error("Change '{0}' already exists")]
     ChangeAlreadyExists(String),
+
+    /// A sub-module with the same name already exists under the parent module.
+    #[error("Sub-module '{0}' already exists under module '{1}'")]
+    DuplicateSubModuleName(String, String),
+
+    /// All sub-module number slots (01–99) under the parent module are exhausted.
+    #[error("Sub-module number exhausted under module '{0}'; maximum of 99 sub-modules allowed")]
+    SubModuleNumberExhausted(String),
 
     /// Underlying I/O error.
     #[error("I/O error: {0}")]
@@ -72,6 +88,19 @@ pub struct CreateChangeResult {
     pub change_id: String,
     /// Path to the change directory.
     pub change_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+/// Result of creating a sub-module.
+pub struct CreateSubModuleResult {
+    /// Canonical sub-module id (e.g., `"024.01"`).
+    pub sub_module_id: String,
+    /// Sub-module name (slug).
+    pub sub_module_name: String,
+    /// Parent module id (e.g., `"024"`).
+    pub parent_module_id: String,
+    /// Path to the sub-module directory.
+    pub sub_module_dir: PathBuf,
 }
 
 /// Create (or resolve) a module by name.
@@ -137,6 +166,13 @@ pub fn create_module(
 }
 
 /// Create a new change directory and update the module's `module.md` checklist.
+///
+/// When `module` is `Some`, the change is scoped to that module:
+/// - The allocation namespace is the module's `NNN` identifier.
+/// - The folder name uses the `NNN-NN_name` canonical form.
+/// - The checklist entry is written to the module's `module.md`.
+///
+/// When `module` is `None`, the change is placed in the default `000` namespace.
 pub fn create_change(
     ito_path: &Path,
     name: &str,
@@ -144,28 +180,186 @@ pub fn create_change(
     module: Option<&str>,
     description: Option<&str>,
 ) -> Result<CreateChangeResult, CreateError> {
+    create_change_inner(ito_path, name, schema, module, None, description)
+}
+
+/// Create a new change scoped to a sub-module.
+///
+/// `sub_module` must be a valid `NNN.SS` (or `NNN.SS_name`) identifier.
+/// The parent module must already exist; the sub-module directory must exist
+/// under `modules/NNN_<name>/sub/SS_<name>/`.
+pub fn create_change_in_sub_module(
+    ito_path: &Path,
+    name: &str,
+    schema: &str,
+    sub_module: &str,
+    description: Option<&str>,
+) -> Result<CreateChangeResult, CreateError> {
+    create_change_inner(ito_path, name, schema, None, Some(sub_module), description)
+}
+
+/// Create a new sub-module directory under an existing parent module.
+///
+/// Allocates the next available sub-module number, creates the `sub/SS_name/`
+/// directory, and writes a `module.md` with the given title and optional
+/// description.
+///
+/// Returns [`CreateError::ModuleNotFound`] when the parent module does not
+/// exist, and [`CreateError::DuplicateSubModuleName`] when a sub-module with
+/// the same name already exists under that parent.
+pub fn create_sub_module(
+    ito_path: &Path,
+    name: &str,
+    parent_module: &str,
+    description: Option<&str>,
+) -> Result<CreateSubModuleResult, CreateError> {
+    let name = name.trim();
+    // Reuse change-name validation rules: lowercase kebab-case, no underscores.
+    validate_change_name(name)?;
+
+    let modules_dir = paths::modules_dir(ito_path);
+
+    // Resolve the parent module id.
+    let parent_id = parse_module_id(parent_module)
+        .ok()
+        .map(|p| p.module_id.to_string())
+        .unwrap_or_else(|| parent_module.to_string());
+
+    // Parent module must exist.
+    let parent_folder = find_module_by_id(&modules_dir, &parent_id)
+        .ok_or_else(|| CreateError::ModuleNotFound(parent_id.clone()))?;
+
+    let parent_dir = modules_dir.join(&parent_folder);
+    let sub_dir = parent_dir.join("sub");
+    ito_common::io::create_dir_all_std(&sub_dir)?;
+
+    // Check for duplicate name.
+    let fs = ito_common::fs::StdFs;
+    if let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, &sub_dir) {
+        for entry in &entries {
+            if let Some((_, entry_name)) = entry.split_once('_')
+                && entry_name == name
+            {
+                return Err(CreateError::DuplicateSubModuleName(
+                    name.to_string(),
+                    parent_id.clone(),
+                ));
+            }
+        }
+    }
+
+    // Allocate the next sub-module number.
+    let next_sub_num = next_sub_module_num(&sub_dir)?;
+    if next_sub_num >= 100 {
+        return Err(CreateError::SubModuleNumberExhausted(parent_id));
+    }
+    let folder_name = format!("{next_sub_num:02}_{name}");
+    let sub_module_dir = sub_dir.join(&folder_name);
+    ito_common::io::create_dir_all_std(&sub_module_dir)?;
+
+    // Canonical composite id: "NNN.SS"
+    let sub_module_id = format!("{parent_id}.{next_sub_num:02}");
+
+    // Write module.md.
+    let title = to_title_case(name);
+    let md = generate_module_content(
+        &title,
+        description.or(Some("<!-- Describe the purpose of this sub-module -->")),
+        &["*"],
+        &[] as &[&str],
+        &[],
+    );
+    ito_common::io::write_std(&sub_module_dir.join("module.md"), md)?;
+
+    Ok(CreateSubModuleResult {
+        sub_module_id,
+        sub_module_name: name.to_string(),
+        parent_module_id: parent_id,
+        sub_module_dir,
+    })
+}
+
+/// Scan a `sub/` directory and return the next available sub-module number.
+fn next_sub_module_num(sub_dir: &Path) -> Result<u32, CreateError> {
+    let mut max_seen: u32 = 0;
+    let fs = ito_common::fs::StdFs;
+    if let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, sub_dir) {
+        for entry in entries {
+            if let Some((num_str, _)) = entry.split_once('_')
+                && let Ok(n) = num_str.parse::<u32>()
+            {
+                max_seen = max_seen.max(n);
+            }
+        }
+    }
+    Ok(max_seen + 1)
+}
+
+fn create_change_inner(
+    ito_path: &Path,
+    name: &str,
+    schema: &str,
+    module: Option<&str>,
+    sub_module: Option<&str>,
+    description: Option<&str>,
+) -> Result<CreateChangeResult, CreateError> {
     let name = name.trim();
     validate_change_name(name)?;
 
     let modules_dir = paths::modules_dir(ito_path);
-    let module_id = module
-        .and_then(|m| parse_module_id(m).ok().map(|p| p.module_id.to_string()))
-        .unwrap_or_else(|| "000".to_string());
 
-    // Ensure module exists (create ungrouped if missing).
+    // Ensure modules dir exists.
     if !modules_dir.exists() {
         ito_common::io::create_dir_all_std(&modules_dir)?;
     }
-    if !module_exists(&modules_dir, &module_id) {
-        if module_id == "000" {
-            create_ungrouped_module(ito_path)?;
-        } else {
-            return Err(CreateError::ModuleNotFound(module_id));
-        }
-    }
 
-    let next_num = allocate_next_change_number(ito_path, &module_id)?;
-    let folder = format!("{module_id}-{next_num:02}_{name}");
+    // Resolve the allocation namespace key and folder prefix.
+    // When sub_module is provided, the namespace is "NNN.SS" and the folder
+    // prefix is "NNN.SS". Otherwise the namespace is the parent module id.
+    let (namespace_key, folder_prefix, checklist_target) = if let Some(sm) = sub_module {
+        let parsed = parse_sub_module_id(sm).map_err(|e| {
+            CreateError::InvalidChangeName(format!("Invalid sub-module id '{sm}': {}", e.error))
+        })?;
+        let parent_id = parsed.parent_module_id.as_str().to_string();
+        let sub_id = parsed.sub_module_id.as_str().to_string();
+
+        // Parent module must exist.
+        if !module_exists(&modules_dir, &parent_id) {
+            return Err(CreateError::ModuleNotFound(parent_id));
+        }
+
+        // Sub-module directory must exist.
+        if !sub_module_exists(&modules_dir, &parent_id, &parsed.sub_num) {
+            return Err(CreateError::SubModuleNotFound(sub_id.clone()));
+        }
+
+        (
+            sub_id.clone(),
+            sub_id,
+            ChecklistTarget::SubModule(sm.to_string()),
+        )
+    } else {
+        let module_id = module
+            .and_then(|m| parse_module_id(m).ok().map(|p| p.module_id.to_string()))
+            .unwrap_or_else(|| "000".to_string());
+
+        if !module_exists(&modules_dir, &module_id) {
+            if module_id == "000" {
+                create_ungrouped_module(ito_path)?;
+            } else {
+                return Err(CreateError::ModuleNotFound(module_id.clone()));
+            }
+        }
+
+        (
+            module_id.clone(),
+            module_id.clone(),
+            ChecklistTarget::Module(module_id),
+        )
+    };
+
+    let next_num = allocate_next_change_number(ito_path, &namespace_key)?;
+    let folder = format!("{folder_prefix}-{next_num:02}_{name}");
 
     let changes_dir = paths::changes_dir(ito_path);
     ito_common::io::create_dir_all_std(&changes_dir)?;
@@ -183,12 +377,27 @@ pub fn create_change(
         ito_common::io::write_std(&change_dir.join("README.md"), readme)?;
     }
 
-    add_change_to_module(ito_path, &module_id, &folder)?;
+    match checklist_target {
+        ChecklistTarget::Module(module_id) => {
+            add_change_to_module(ito_path, &module_id, &folder)?;
+        }
+        ChecklistTarget::SubModule(sub_module_id) => {
+            add_change_to_sub_module(ito_path, &sub_module_id, &folder)?;
+        }
+    }
 
     Ok(CreateChangeResult {
         change_id: folder,
         change_dir,
     })
+}
+
+/// Identifies where the checklist entry for a new change should be written.
+enum ChecklistTarget {
+    /// Write to the parent module's `module.md`.
+    Module(String),
+    /// Write to the sub-module's `module.md` (composite id like `"024.01"`).
+    SubModule(String),
 }
 
 fn write_change_metadata(change_dir: &Path, schema: &str) -> Result<(), CreateError> {
@@ -198,7 +407,7 @@ fn write_change_metadata(change_dir: &Path, schema: &str) -> Result<(), CreateEr
     Ok(())
 }
 
-fn allocate_next_change_number(ito_path: &Path, module_id: &str) -> Result<u32, CreateError> {
+fn allocate_next_change_number(ito_path: &Path, namespace_key: &str) -> Result<u32, CreateError> {
     // Lock file + JSON state mirrors TS implementation.
     let state_dir = ito_path.join("workflows").join(".state");
     ito_common::io::create_dir_all_std(&state_dir)?;
@@ -214,25 +423,31 @@ fn allocate_next_change_number(ito_path: &Path, module_id: &str) -> Result<u32, 
 
     let mut max_seen: u32 = 0;
     let changes_dir = paths::changes_dir(ito_path);
-    max_seen = max_seen.max(max_change_num_in_dir(&changes_dir, module_id));
+    max_seen = max_seen.max(max_change_num_in_dir(&changes_dir, namespace_key));
     max_seen = max_seen.max(max_change_num_in_archived_change_dirs(
         &paths::changes_archive_dir(ito_path),
-        module_id,
+        namespace_key,
     ));
     max_seen = max_seen.max(max_change_num_in_archived_change_dirs(
         &paths::archive_changes_dir(ito_path),
-        module_id,
+        namespace_key,
     ));
 
-    max_seen = max_seen.max(max_change_num_in_module_md(ito_path, module_id)?);
-    if let Some(ms) = state.modules.get(module_id) {
+    // For sub-module namespaces (NNN.SS), also scan the sub-module's module.md.
+    // For plain module namespaces (NNN), scan the parent module's module.md.
+    if namespace_key.contains('.') {
+        max_seen = max_seen.max(max_change_num_in_sub_module_md(ito_path, namespace_key)?);
+    } else {
+        max_seen = max_seen.max(max_change_num_in_module_md(ito_path, namespace_key)?);
+    }
+    if let Some(ms) = state.modules.get(namespace_key) {
         max_seen = max_seen.max(ms.last_change_num);
     }
 
     let next = max_seen + 1;
     let updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     state.modules.insert(
-        module_id.to_string(),
+        namespace_key.to_string(),
         ModuleAllocationState {
             last_change_num: next,
             updated_at,
@@ -278,7 +493,30 @@ struct ModuleAllocationState {
     updated_at: String,
 }
 
-fn max_change_num_in_dir(dir: &Path, module_id: &str) -> u32 {
+/// Returns `true` when a parsed change id belongs to the given namespace key.
+///
+/// - For a plain module namespace (`"024"`): matches legacy `NNN-NN_name` changes
+///   where `module_id == "024"` and there is no sub-module component.
+/// - For a sub-module namespace (`"024.01"`): matches sub-module changes where
+///   `sub_module_id == "024.01"`.
+fn change_belongs_to_namespace(
+    parsed: &ito_common::id::ParsedChangeId,
+    namespace_key: &str,
+) -> bool {
+    if namespace_key.contains('.') {
+        // Sub-module namespace: match on sub_module_id.
+        parsed
+            .sub_module_id
+            .as_ref()
+            .map(|s| s.as_str() == namespace_key)
+            .unwrap_or(false)
+    } else {
+        // Plain module namespace: match on module_id with no sub-module component.
+        parsed.module_id.as_str() == namespace_key && parsed.sub_module_id.is_none()
+    }
+}
+
+fn max_change_num_in_dir(dir: &Path, namespace_key: &str) -> u32 {
     let mut max_seen = 0;
     let fs = StdFs;
     let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, dir) else {
@@ -289,7 +527,7 @@ fn max_change_num_in_dir(dir: &Path, module_id: &str) -> u32 {
             continue;
         }
         if let Ok(parsed) = parse_change_id(&name)
-            && parsed.module_id.as_str() == module_id
+            && change_belongs_to_namespace(&parsed, namespace_key)
             && let Ok(n) = parsed.change_num.parse::<u32>()
         {
             max_seen = max_seen.max(n);
@@ -298,7 +536,7 @@ fn max_change_num_in_dir(dir: &Path, module_id: &str) -> u32 {
     max_seen
 }
 
-fn max_change_num_in_archived_change_dirs(archive_dir: &Path, module_id: &str) -> u32 {
+fn max_change_num_in_archived_change_dirs(archive_dir: &Path, namespace_key: &str) -> u32 {
     let mut max_seen = 0;
     let fs = StdFs;
     let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, archive_dir) else {
@@ -312,7 +550,7 @@ fn max_change_num_in_archived_change_dirs(archive_dir: &Path, module_id: &str) -
         // Find substring after first 11 chars date + dash
         let change_part = &name[11..];
         if let Ok(parsed) = parse_change_id(change_part)
-            && parsed.module_id.as_str() == module_id
+            && change_belongs_to_namespace(&parsed, namespace_key)
             && let Ok(n) = parsed.change_num.parse::<u32>()
         {
             max_seen = max_seen.max(n);
@@ -349,6 +587,100 @@ fn module_exists(modules_dir: &Path, module_id: &str) -> bool {
         }
     }
     false
+}
+
+/// Check whether a sub-module directory exists under `modules/NNN_<name>/sub/SS_<name>/`.
+fn sub_module_exists(modules_dir: &Path, parent_module_id: &str, sub_num: &str) -> bool {
+    let Some(parent_folder) = find_module_by_id(modules_dir, parent_module_id) else {
+        return false;
+    };
+    let sub_dir = modules_dir.join(&parent_folder).join("sub");
+    if !sub_dir.exists() {
+        return false;
+    }
+    let fs = StdFs;
+    let Ok(entries) = ito_domain::discovery::list_dir_names(&fs, &sub_dir) else {
+        return false;
+    };
+    let prefix = format!("{sub_num}_");
+    entries.iter().any(|e| e.starts_with(&prefix))
+}
+
+/// Find the sub-module directory path for a given composite id (e.g., `"024.01"`).
+///
+/// Returns the path to the sub-module directory (e.g.,
+/// `.ito/modules/024_backend/sub/01_auth`) if it exists.
+fn find_sub_module_dir(modules_dir: &Path, sub_module_id: &str) -> Option<std::path::PathBuf> {
+    let parsed = parse_sub_module_id(sub_module_id).ok()?;
+    let parent_id = parsed.parent_module_id.as_str();
+    let sub_num = &parsed.sub_num;
+
+    let parent_folder = find_module_by_id(modules_dir, parent_id)?;
+    let sub_dir = modules_dir.join(&parent_folder).join("sub");
+
+    let fs = StdFs;
+    let entries = ito_domain::discovery::list_dir_names(&fs, &sub_dir).ok()?;
+    let prefix = format!("{sub_num}_");
+    let sub_folder = entries.into_iter().find(|e| e.starts_with(&prefix))?;
+    Some(sub_dir.join(sub_folder))
+}
+
+/// Add a change entry to a sub-module's `module.md` checklist.
+///
+/// Mirrors [`add_change_to_module`] but targets the sub-module's own
+/// `module.md` at `.ito/modules/NNN_<parent>/sub/SS_<name>/module.md`.
+fn add_change_to_sub_module(
+    ito_path: &Path,
+    sub_module_id: &str,
+    change_id: &str,
+) -> Result<(), CreateError> {
+    let modules_dir = paths::modules_dir(ito_path);
+    let sub_module_dir = find_sub_module_dir(&modules_dir, sub_module_id)
+        .ok_or_else(|| CreateError::SubModuleNotFound(sub_module_id.to_string()))?;
+
+    let module_md = sub_module_dir.join("module.md");
+
+    // If the sub-module doesn't have a module.md yet, create a minimal one.
+    let existing = if module_md.exists() {
+        ito_common::io::read_to_string_std(&module_md)?
+    } else {
+        let parsed = parse_sub_module_id(sub_module_id).map_err(|e| {
+            CreateError::InvalidChangeName(format!(
+                "Invalid sub-module id '{sub_module_id}': {}",
+                e.error
+            ))
+        })?;
+        let title = to_title_case(parsed.sub_name.as_deref().unwrap_or(sub_module_id));
+        generate_module_content(&title, None, &["*"], &[] as &[&str], &[])
+    };
+
+    let title = extract_title(&existing)
+        .or_else(|| {
+            sub_module_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .and_then(|n| n.split_once('_').map(|(_, name)| to_title_case(name)))
+        })
+        .unwrap_or_else(|| "Sub-module".to_string());
+    let purpose = extract_section(&existing, "Purpose")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let scope = parse_bullets(&extract_section(&existing, "Scope").unwrap_or_default());
+    let depends_on = parse_bullets(&extract_section(&existing, "Depends On").unwrap_or_default());
+    let mut changes = parse_changes(&extract_section(&existing, "Changes").unwrap_or_default());
+
+    if !changes.iter().any(|c| c.id == change_id) {
+        changes.push(ModuleChange {
+            id: change_id.to_string(),
+            completed: false,
+            planned: false,
+        });
+    }
+    changes.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let md = generate_module_content(&title, purpose.as_deref(), &scope, &depends_on, &changes);
+    ito_common::io::write_std(&module_md, md)?;
+    Ok(())
 }
 
 fn next_module_id(modules_dir: &Path) -> Result<String, CreateError> {
@@ -551,9 +883,39 @@ fn max_change_num_in_module_md(ito_path: &Path, module_id: &str) -> Result<u32, 
     let content = ito_common::io::read_to_string_or_default(&module_md);
     let mut max_seen: u32 = 0;
     for token in content.split_whitespace() {
-        if let Ok(parsed) = parse_change_id(
-            token.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_'),
-        ) && parsed.module_id.as_str() == module_id
+        if let Ok(parsed) =
+            parse_change_id(token.trim_matches(|c: char| {
+                !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'
+            }))
+            && change_belongs_to_namespace(&parsed, module_id)
+            && let Ok(n) = parsed.change_num.parse::<u32>()
+        {
+            max_seen = max_seen.max(n);
+        }
+    }
+    Ok(max_seen)
+}
+
+/// Scan a sub-module's `module.md` for the maximum change number seen.
+///
+/// `sub_module_id` is the composite `NNN.SS` key (e.g., `"024.01"`).
+fn max_change_num_in_sub_module_md(
+    ito_path: &Path,
+    sub_module_id: &str,
+) -> Result<u32, CreateError> {
+    let modules_dir = paths::modules_dir(ito_path);
+    let Some(sub_module_dir) = find_sub_module_dir(&modules_dir, sub_module_id) else {
+        return Ok(0);
+    };
+    let module_md = sub_module_dir.join("module.md");
+    let content = ito_common::io::read_to_string_or_default(&module_md);
+    let mut max_seen: u32 = 0;
+    for token in content.split_whitespace() {
+        if let Ok(parsed) =
+            parse_change_id(token.trim_matches(|c: char| {
+                !c.is_ascii_alphanumeric() && c != '-' && c != '_' && c != '.'
+            }))
+            && change_belongs_to_namespace(&parsed, sub_module_id)
             && let Ok(n) = parsed.change_num.parse::<u32>()
         {
             max_seen = max_seen.max(n);
@@ -732,3 +1094,6 @@ fn create_ungrouped_module(ito_path: &Path) -> Result<(), CreateError> {
     ito_common::io::write_std(&dir.join("module.md"), md)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod create_sub_module_tests;

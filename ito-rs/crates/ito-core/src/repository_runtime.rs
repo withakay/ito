@@ -475,6 +475,20 @@ impl ModuleRepository for OwnedFsModuleRepository {
     fn list(&self) -> ito_domain::errors::DomainResult<Vec<ito_domain::modules::ModuleSummary>> {
         self.inner().list()
     }
+
+    fn list_sub_modules(
+        &self,
+        parent_id: &str,
+    ) -> ito_domain::errors::DomainResult<Vec<ito_domain::modules::SubModuleSummary>> {
+        self.inner().list_sub_modules(parent_id)
+    }
+
+    fn get_sub_module(
+        &self,
+        composite_id: &str,
+    ) -> ito_domain::errors::DomainResult<ito_domain::modules::SubModule> {
+        self.inner().get_sub_module(composite_id)
+    }
 }
 
 #[derive(Debug, Clone)]

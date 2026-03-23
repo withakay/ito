@@ -358,3 +358,13 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
 }
+
+#[test]
+fn repo_sweep_template_renders() {
+    #[derive(Serialize)]
+    struct Ctx {}
+
+    let rendered = render_instruction_template("agent/repo-sweep.md.j2", &Ctx {}).unwrap();
+    assert!(rendered.contains("Sub-Module"));
+    assert!(rendered.contains("NNN.SS-NN_name"));
+}
