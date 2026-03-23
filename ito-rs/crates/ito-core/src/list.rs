@@ -17,6 +17,18 @@ use ito_domain::changes::{
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// Sub-module entry nested inside a [`ModuleListItem`].
+pub struct SubModuleListItem {
+    /// Canonical sub-module id (e.g., `"024.01"`).
+    pub id: String,
+    /// Sub-module name (slug).
+    pub name: String,
+    #[serde(rename = "changeCount")]
+    /// Number of changes in this sub-module.
+    pub change_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 /// Module entry returned by `ito list modules`.
 pub struct ModuleListItem {
     /// 3-digit module id.
@@ -29,6 +41,9 @@ pub struct ModuleListItem {
     #[serde(rename = "changeCount")]
     /// Number of changes currently associated with the module.
     pub change_count: usize,
+    /// Sub-modules belonging to this module.
+    #[serde(rename = "subModules")]
+    pub sub_modules: Vec<SubModuleListItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -146,11 +161,21 @@ pub fn list_modules(module_repo: &dyn DomainModuleRepository) -> CoreResult<Vec<
 
     for module in module_repo.list().into_core()? {
         let full_name = format!("{}_{}", module.id, module.name);
+        let mut sub_modules = Vec::with_capacity(module.sub_modules.len());
+        for sm in &module.sub_modules {
+            sub_modules.push(SubModuleListItem {
+                id: sm.id.clone(),
+                name: sm.name.clone(),
+                change_count: sm.change_count as usize,
+            });
+        }
+        sub_modules.sort_by(|a, b| a.id.cmp(&b.id));
         modules.push(ModuleListItem {
             id: module.id,
             name: module.name,
             full_name,
             change_count: module.change_count as usize,
+            sub_modules,
         });
     }
 

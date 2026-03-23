@@ -39,6 +39,7 @@ impl BackendChangeReader for FakeReader {
                 return Ok(Change {
                     id: s.id.clone(),
                     module_id: s.module_id.clone(),
+                    sub_module_id: s.sub_module_id.clone(),
                     path: std::path::PathBuf::new(),
                     proposal: None,
                     design: None,
@@ -56,6 +57,7 @@ fn make_summary(id: &str, module_id: Option<&str>) -> ChangeSummary {
     ChangeSummary {
         id: id.to_string(),
         module_id: module_id.map(|s| s.to_string()),
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -206,6 +208,7 @@ fn sqlite_store_with_changes(changes: &[(&str, Option<&str>)]) -> TempSqliteStor
                 repo: "repo",
                 change_id,
                 module_id: *module_id,
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("- [ ] task"),

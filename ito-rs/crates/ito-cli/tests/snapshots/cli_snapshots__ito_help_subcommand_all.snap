@@ -28,6 +28,7 @@ Commands:
   update       Refresh Ito instruction files and AI tool configs [aliases: up]
   config       Read and write global Ito settings [aliases: co]
   path         Print resolved project and worktree paths
+  view         View proposal artifacts with an interactive or explicit viewer
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   backend      Manage backend client configuration and connectivity [aliases: be]
   audit        Query, validate, and manage the audit event log [aliases: au]
@@ -89,6 +90,9 @@ Options:
 
       --setup-coordination-branch
           Ensure coordination branch exists on origin after init
+
+      --no-tmux
+          Disable tmux-backed workflow suggestions in project config
 
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
@@ -333,9 +337,10 @@ Examples:
 Usage: ito create [COMMAND]
 
 Commands:
-  module  Create a module [aliases: mo]
-  change  Create a change [aliases: ch]
-  help    Print this message or the help of the given subcommand(s)
+  module      Create a module [aliases: mo]
+  change      Create a change [aliases: ch]
+  sub-module  Create a sub-module under an existing module (e.g. `ito create sub-module auth --module 024`) [aliases: sm]
+  help        Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help
@@ -432,9 +437,10 @@ ito show module <MODULE_ID>
 ito show specs [--json]
 
 Commands:
-  module  Show a module
-  specs   Show all specs as one bundled prompt
-  help    Print this message or the help of the given subcommand(s)
+  module      Show a module
+  sub-module  Show a sub-module by composite id (e.g. 024.01) [aliases: sm]
+  specs       Show all specs as one bundled prompt
+  help        Print this message or the help of the given subcommand(s)
 
 Arguments:
   [ITEM]
@@ -529,6 +535,7 @@ Artifacts:
   project-setup  Guide for setting up a new project
   backend        Backend server and client configuration guide
   worktrees      Guide for git worktree workflow (config-driven)
+  repo-sweep     Scan for old-only ID format assumptions in prompts and templates
   proposal       Show the change proposal
   specs          Show the specification deltas
   tasks          Show the implementation task list
@@ -542,6 +549,7 @@ Examples:
   ito agent instruction project-setup
   ito agent instruction backend
   ito agent instruction worktrees
+  ito agent instruction repo-sweep
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap

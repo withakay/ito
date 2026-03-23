@@ -47,6 +47,11 @@ pub struct ItoConfig {
     pub worktrees: WorktreesConfig,
 
     #[serde(default)]
+    #[schemars(default, description = "Per-tool preferences")]
+    /// Per-tool preferences.
+    pub tools: ToolsConfig,
+
+    #[serde(default)]
     #[schemars(default, description = "Change coordination configuration")]
     /// Change coordination configuration.
     pub changes: ChangesConfig,
@@ -300,6 +305,43 @@ pub struct ChangesConfig {
     #[schemars(default, description = "Coordination branch settings")]
     /// Coordination branch settings.
     pub coordination_branch: CoordinationBranchConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Per-tool preferences")]
+/// Configuration for external tool preferences used by Ito workflows.
+pub struct ToolsConfig {
+    #[serde(default)]
+    #[schemars(default, description = "tmux preferences")]
+    /// tmux preferences.
+    pub tmux: TmuxConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "tmux preferences")]
+/// Configuration for tmux-backed workflow integrations.
+pub struct TmuxConfig {
+    #[serde(default = "TmuxConfig::default_enabled")]
+    #[schemars(
+        default = "TmuxConfig::default_enabled",
+        description = "Whether tmux is enabled"
+    )]
+    /// Whether tmux-backed workflows should be suggested.
+    pub enabled: bool,
+}
+
+impl TmuxConfig {
+    fn default_enabled() -> bool {
+        true
+    }
+}
+
+impl Default for TmuxConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

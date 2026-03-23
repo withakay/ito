@@ -255,6 +255,10 @@ pub enum Commands {
     #[command(verbatim_doc_comment)]
     Path(PathArgs),
 
+    /// View proposal artifacts with an interactive or explicit viewer
+    #[command(verbatim_doc_comment)]
+    View(ViewArgs),
+
     /// Manage embedded template assets
     #[command(name = "x-templates", visible_alias = "templates", hide = true)]
     Templates(TemplatesArgs),
@@ -522,6 +526,10 @@ pub struct InitArgs {
     #[arg(long = "setup-coordination-branch")]
     pub setup_coordination_branch: bool,
 
+    /// Disable tmux-backed workflow suggestions in project config
+    #[arg(long = "no-tmux")]
+    pub no_tmux: bool,
+
     /// Override HOME used for locating global Ito config (for parity/testing)
     #[arg(long, value_name = "HOME")]
     pub home: Option<std::path::PathBuf>,
@@ -567,7 +575,7 @@ pub enum AgentCommand {
 
 #[derive(Args, Debug, Clone)]
 #[command(
-    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  backend        Backend server and client configuration guide\n  worktrees      Guide for git worktree workflow (config-driven)\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n  finish         Cleanup worktrees and branches after merge\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n  ito agent instruction finish --change 005-08_migrate-cli-to-clap"
+    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  backend        Backend server and client configuration guide\n  worktrees      Guide for git worktree workflow (config-driven)\n  repo-sweep     Scan for old-only ID format assumptions in prompts and templates\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n  finish         Cleanup worktrees and branches after merge\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction repo-sweep\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n  ito agent instruction finish --change 005-08_migrate-cli-to-clap"
 )]
 pub struct AgentInstructionArgs {
     /// Artifact id (e.g. bootstrap, apply, proposal)
@@ -699,11 +707,30 @@ pub enum CreateAction {
         #[arg(long)]
         schema: Option<String>,
 
-        /// Module id (default: 000)
+        /// Module id (default: 000); mutually exclusive with --sub-module
+        #[arg(short = 'm', long, conflicts_with = "sub_module")]
+        module: Option<String>,
+
+        /// Sub-module id in NNN.SS form (e.g. 024.01); mutually exclusive with --module
+        #[arg(long = "sub-module", conflicts_with = "module")]
+        sub_module: Option<String>,
+
+        /// Description (writes README.md)
+        #[arg(long)]
+        description: Option<String>,
+    },
+
+    /// Create a sub-module under an existing module (e.g. `ito create sub-module auth --module 024`)
+    #[command(name = "sub-module", visible_alias = "sm")]
+    SubModule {
+        /// Sub-module name (kebab-case)
+        name: Option<String>,
+
+        /// Parent module id (e.g. 024)
         #[arg(short = 'm', long)]
         module: Option<String>,
 
-        /// Description (writes README.md)
+        /// Description (written to module.md Purpose section)
         #[arg(long)]
         description: Option<String>,
     },
@@ -765,8 +792,21 @@ pub enum ShowCommand {
     /// Show a module
     Module(ShowModuleArgs),
 
+    /// Show a sub-module by composite id (e.g. 024.01)
+    #[command(name = "sub-module", visible_alias = "sm")]
+    SubModule(ShowSubModuleArgs),
+
     /// Show all specs as one bundled prompt
     Specs(ShowSpecsArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct ShowSubModuleArgs {
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
+    /// Sub-module composite id (e.g. 024.01)
+    pub sub_module_id: String,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -784,6 +824,36 @@ pub struct ShowSpecsArgs {
     /// Output as JSON
     #[arg(long)]
     pub json: bool,
+}
+
+/// View Ito artifacts using a selected renderer.
+#[derive(Args, Debug, Clone)]
+#[command(subcommand_required = true, arg_required_else_help = true)]
+#[command(disable_help_subcommand = true)]
+pub struct ViewArgs {
+    #[command(subcommand)]
+    pub command: Option<ViewCommand>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ViewCommand {
+    /// View a change proposal package
+    Proposal(ViewProposalArgs),
+}
+
+/// View a proposal package for one change.
+#[derive(Args, Debug, Clone)]
+pub struct ViewProposalArgs {
+    /// Change id (directory name)
+    pub change_id: String,
+
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
+
+    /// Viewer backend to use directly
+    #[arg(long)]
+    pub viewer: Option<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]

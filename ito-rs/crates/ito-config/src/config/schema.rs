@@ -37,6 +37,7 @@ mod tests {
         assert!(props.contains_key("harnesses"));
         assert!(props.contains_key("cache"));
         assert!(props.contains_key("defaults"));
+        assert!(props.contains_key("tools"));
         assert!(props.contains_key("$schema"));
     }
 }

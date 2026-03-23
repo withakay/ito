@@ -1,4 +1,4 @@
-use ito_core::create::{CreateError, create_change, create_module};
+use ito_core::create::{CreateError, create_change, create_change_in_sub_module, create_module};
 
 fn write(path: impl AsRef<std::path::Path>, contents: &str) {
     let path = path.as_ref();
@@ -194,5 +194,198 @@ fn create_change_rewrites_module_changes_in_ascending_change_id_order() {
     assert!(
         idx_01 < idx_03 && idx_03 < idx_04,
         "module change list should be sorted ascending by change ID"
+    );
+}
+
+// ── Task 3.1: Allocation state sort order ────────────────────────────────────
+
+#[test]
+fn allocation_state_sub_module_keys_sort_after_parent() {
+    // BTreeMap sorts lexicographically. '.' (0x2E) < '0' (0x30), so "024"
+    // sorts before "024.01" which sorts before "024.02".
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    // Create parent module 024.
+    create_module_fixture(&ito, "024", "backend");
+    // Create sub-module 024/sub/01_auth.
+    let sub_dir = ito.join("modules/024_backend/sub/01_auth");
+    std::fs::create_dir_all(&sub_dir).expect("create sub dir");
+    write(
+        sub_dir.join("module.md"),
+        "# Auth\n\n## Purpose\nAuth sub-module\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
+    );
+
+    // Create a direct module change (namespace "024").
+    create_change(&ito, "direct-change", "spec-driven", Some("024"), None)
+        .expect("create direct change");
+
+    // Create a sub-module change (namespace "024.01").
+    create_change_in_sub_module(&ito, "sub-change", "spec-driven", "024.01", None)
+        .expect("create sub-module change");
+
+    let state = std::fs::read_to_string(ito.join("workflows/.state/change-allocations.json"))
+        .expect("read allocation state");
+    let value: serde_json::Value = serde_json::from_str(&state).expect("parse json");
+    let modules = value["modules"].as_object().expect("modules object");
+    let keys: Vec<String> = modules.keys().cloned().collect();
+
+    let mut sorted = keys.clone();
+    sorted.sort();
+    assert_eq!(
+        keys, sorted,
+        "allocation keys must be in ascending sort order"
+    );
+
+    // Verify that "024" appears before "024.01".
+    let pos_024 = keys.iter().position(|k| k == "024").expect("024 key");
+    let pos_024_01 = keys.iter().position(|k| k == "024.01").expect("024.01 key");
+    assert!(pos_024 < pos_024_01, "\"024\" must sort before \"024.01\"");
+}
+
+// ── Task 3.3 + 3.4: Sub-module change creation ───────────────────────────────
+
+#[test]
+fn create_change_in_sub_module_uses_composite_id_format() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    create_module_fixture(&ito, "024", "backend");
+    let sub_dir = ito.join("modules/024_backend/sub/01_auth");
+    std::fs::create_dir_all(&sub_dir).expect("create sub dir");
+    write(
+        sub_dir.join("module.md"),
+        "# Auth\n\n## Purpose\nAuth sub-module\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
+    );
+
+    let r = create_change_in_sub_module(&ito, "add-jwt", "spec-driven", "024.01", None)
+        .expect("create sub-module change");
+
+    // Change id must use NNN.SS-NN_name canonical form.
+    assert_eq!(r.change_id, "024.01-01_add-jwt");
+    assert!(r.change_dir.exists());
+    assert!(r.change_dir.join(".ito.yaml").exists());
+}
+
+#[test]
+fn create_change_in_sub_module_allocates_independent_sequence() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    create_module_fixture(&ito, "024", "backend");
+    let sub_dir = ito.join("modules/024_backend/sub/01_auth");
+    std::fs::create_dir_all(&sub_dir).expect("create sub dir");
+    write(
+        sub_dir.join("module.md"),
+        "# Auth\n\n## Purpose\nAuth\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
+    );
+
+    // Create two direct module changes (namespace "024").
+    create_change(&ito, "direct-one", "spec-driven", Some("024"), None).expect("direct 1");
+    create_change(&ito, "direct-two", "spec-driven", Some("024"), None).expect("direct 2");
+
+    // Sub-module sequence starts at 01, independent of the parent.
+    let r = create_change_in_sub_module(&ito, "sub-one", "spec-driven", "024.01", None)
+        .expect("sub-module change");
+    assert_eq!(r.change_id, "024.01-01_sub-one");
+
+    let r2 = create_change_in_sub_module(&ito, "sub-two", "spec-driven", "024.01", None)
+        .expect("sub-module change 2");
+    assert_eq!(r2.change_id, "024.01-02_sub-two");
+}
+
+// ── Task 3.5: Checklist targets sub-module's module.md ───────────────────────
+
+#[test]
+fn create_change_in_sub_module_writes_checklist_to_sub_module_md() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    create_module_fixture(&ito, "024", "backend");
+    let sub_dir = ito.join("modules/024_backend/sub/01_auth");
+    std::fs::create_dir_all(&sub_dir).expect("create sub dir");
+    write(
+        sub_dir.join("module.md"),
+        "# Auth\n\n## Purpose\nAuth sub-module\n\n## Scope\n- *\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
+    );
+
+    create_change_in_sub_module(&ito, "add-jwt", "spec-driven", "024.01", None)
+        .expect("create sub-module change");
+
+    // The sub-module's module.md should contain the new change entry.
+    let sub_md = std::fs::read_to_string(sub_dir.join("module.md")).expect("read sub module.md");
+    assert!(
+        sub_md.contains("- [ ] 024.01-01_add-jwt"),
+        "sub-module module.md should contain the new change entry; got:\n{sub_md}"
+    );
+
+    // The parent module's module.md should NOT contain the sub-module change.
+    let parent_md =
+        std::fs::read_to_string(ito.join("modules/024_backend/module.md")).expect("read parent");
+    assert!(
+        !parent_md.contains("024.01-01_add-jwt"),
+        "parent module.md should not contain sub-module change; got:\n{parent_md}"
+    );
+}
+
+// ── Task 3.6: Checklist ordering ─────────────────────────────────────────────
+
+#[test]
+fn create_change_in_sub_module_checklist_is_sorted_ascending() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    create_module_fixture(&ito, "024", "backend");
+    let sub_dir = ito.join("modules/024_backend/sub/01_auth");
+    std::fs::create_dir_all(&sub_dir).expect("create sub dir");
+    // Pre-populate with an out-of-order checklist.
+    write(
+        sub_dir.join("module.md"),
+        "# Auth\n\n## Purpose\nAuth\n\n## Scope\n- *\n\n## Changes\n- [ ] 024.01-03_third\n- [ ] 024.01-01_first\n",
+    );
+
+    let r = create_change_in_sub_module(&ito, "second", "spec-driven", "024.01", None)
+        .expect("create change");
+    // Allocation sees max=3 from existing entries, so next is 4.
+    assert_eq!(r.change_id, "024.01-04_second");
+
+    let sub_md = std::fs::read_to_string(sub_dir.join("module.md")).expect("read sub module.md");
+    let idx_01 = sub_md.find("024.01-01_first").expect("first entry");
+    let idx_03 = sub_md.find("024.01-03_third").expect("third entry");
+    let idx_04 = sub_md.find("024.01-04_second").expect("fourth entry");
+    assert!(
+        idx_01 < idx_03 && idx_03 < idx_04,
+        "sub-module checklist should be sorted ascending by change ID"
+    );
+}
+
+// ── Error cases ───────────────────────────────────────────────────────────────
+
+#[test]
+fn create_change_in_sub_module_rejects_missing_parent_module() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    let err = create_change_in_sub_module(&ito, "my-change", "spec-driven", "099.01", None)
+        .expect_err("should fail when parent module missing");
+    assert!(
+        matches!(err, CreateError::ModuleNotFound(_)),
+        "expected ModuleNotFound, got {err:?}"
+    );
+}
+
+#[test]
+fn create_change_in_sub_module_rejects_missing_sub_module_dir() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+
+    // Parent module exists but sub-module directory does not.
+    create_module_fixture(&ito, "024", "backend");
+
+    let err = create_change_in_sub_module(&ito, "my-change", "spec-driven", "024.01", None)
+        .expect_err("should fail when sub-module dir missing");
+    assert!(
+        matches!(err, CreateError::SubModuleNotFound(_)),
+        "expected SubModuleNotFound, got {err:?}"
     );
 }

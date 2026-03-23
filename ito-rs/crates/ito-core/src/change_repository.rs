@@ -7,7 +7,7 @@ use ito_common::paths;
 use ito_domain::changes::{
     Change, ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeStatus,
     ChangeSummary, ChangeTargetResolution, ResolveTargetOptions, Spec, extract_module_id,
-    parse_change_id, parse_module_id,
+    extract_sub_module_id, parse_change_id, parse_module_id,
 };
 use ito_domain::discovery;
 use ito_domain::errors::{DomainError, DomainResult};
@@ -466,10 +466,12 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         let has_specs = self.has_specs(&location.path);
         let has_tasks = total_tasks > 0;
         let module_id = extract_module_id(&location.id);
+        let sub_module_id = extract_sub_module_id(&location.id);
 
         Ok(ChangeSummary {
             id: location.id.clone(),
             module_id,
+            sub_module_id,
             completed_tasks,
             shelved_tasks,
             in_progress_tasks,
@@ -716,9 +718,12 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         let last_modified = self.get_last_modified(&location.path)?;
         let path = location.path;
 
+        let sub_module_id = extract_sub_module_id(&actual_id);
+
         Ok(Change {
             id: actual_id.clone(),
             module_id: extract_module_id(&actual_id),
+            sub_module_id,
             path,
             proposal,
             design,

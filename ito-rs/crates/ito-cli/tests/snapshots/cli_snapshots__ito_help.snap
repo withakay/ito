@@ -22,6 +22,7 @@ Commands:
   update       Refresh Ito instruction files and AI tool configs [aliases: up]
   config       Read and write global Ito settings [aliases: co]
   path         Print resolved project and worktree paths
+  view         View proposal artifacts with an interactive or explicit viewer
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   backend      Manage backend client configuration and connectivity [aliases: be]
   audit        Query, validate, and manage the audit event log [aliases: au]
