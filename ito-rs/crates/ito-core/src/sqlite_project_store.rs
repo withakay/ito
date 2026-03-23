@@ -169,7 +169,25 @@ impl SqliteBackendProjectStore {
                 FOREIGN KEY (org, repo) REFERENCES projects(org, repo)
             );",
         )
-        .map_err(|e| CoreError::sqlite(format!("initializing schema: {e}")))
+        .map_err(|e| CoreError::sqlite(format!("initializing schema: {e}")))?;
+
+        // Migrate pre-existing databases that were created before the sub_module_id column
+        // was added.  SQLite does not support IF NOT EXISTS in ALTER TABLE, so we probe
+        // pragma_table_info first and only run the migration when the column is absent.
+        let has_col = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('changes') WHERE name = 'sub_module_id'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| CoreError::sqlite(format!("checking schema migration: {e}")))?
+            > 0;
+        if !has_col {
+            conn.execute_batch("ALTER TABLE changes ADD COLUMN sub_module_id TEXT")
+                .map_err(|e| CoreError::sqlite(format!("migrating schema (sub_module_id): {e}")))?;
+        }
+
+        Ok(())
     }
 
     /// Insert or update a change in the store (for seeding test data).

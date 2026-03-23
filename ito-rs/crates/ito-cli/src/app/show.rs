@@ -4,6 +4,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_common::io::read_to_string_or_default;
 use ito_config::output;
+use ito_core::DomainError;
 use ito_core::nearest_matches;
 use ito_core::show as core_show;
 
@@ -13,7 +14,8 @@ fn handle_show_specs(rt: &Runtime, want_json: bool) -> CliResult<()> {
     if want_json {
         let json =
             core_show::bundle_specs_show_json_from_repository(spec_repo).map_err(to_cli_error)?;
-        let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+        let rendered = serde_json::to_string_pretty(&json)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
         println!("{rendered}");
     } else {
         let md =
@@ -153,7 +155,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     json.requirements = vec![json.requirements[one_based - 1].clone()];
                     json.requirement_count = json.requirements.len() as u32;
                 }
-                let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&json)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
             } else {
                 print!("{md}");
@@ -169,7 +172,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 let files = core_show::read_change_delta_spec_files(change_repo, &resolved_change)
                     .unwrap_or_default();
                 let json = core_show::parse_change_show_json(&resolved_change, &files);
-                let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&json)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
             } else {
                 let md = core_show::read_change_proposal_markdown(change_repo, &resolved_change)
@@ -314,12 +318,15 @@ fn handle_show_sub_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let module_repo = runtime.repositories().modules.as_ref();
 
-    let sub_module = module_repo.get_sub_module(&sub_module_id).map_err(|_| {
-        CliError::msg(format!(
-            "Sub-module '{}' not found.\nUse 'ito list --modules' to see available sub-modules.",
-            sub_module_id
-        ))
-    })?;
+    let sub_module = module_repo
+        .get_sub_module(&sub_module_id)
+        .map_err(|e| match e {
+            DomainError::NotFound { .. } => CliError::msg(format!(
+                "Sub-module '{sub_module_id}' not found.\n\
+                 Use 'ito list --modules' to see available sub-modules."
+            )),
+            other => to_cli_error(other),
+        })?;
 
     if want_json {
         #[derive(serde::Serialize)]
@@ -342,7 +349,8 @@ fn handle_show_sub_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
             description: sub_module.description.as_deref(),
             change_count: sub_module.change_count,
         };
-        let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+        let rendered = serde_json::to_string_pretty(&json)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
         println!("{rendered}");
         return Ok(());
     }

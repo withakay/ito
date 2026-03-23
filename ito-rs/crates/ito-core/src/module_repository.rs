@@ -271,7 +271,9 @@ impl<'a, F: FileSystem> FsModuleRepository<'a, F> {
                     // Reached the next heading — stop.
                     break;
                 }
-                if !trimmed.is_empty() {
+                // Skip HTML comment placeholder lines (single-line `<!-- ... -->`).
+                // Multi-line HTML comments are not expected in generated module.md files.
+                if !trimmed.is_empty() && !trimmed.starts_with("<!--") {
                     return Ok(Some(trimmed.to_string()));
                 }
             }
