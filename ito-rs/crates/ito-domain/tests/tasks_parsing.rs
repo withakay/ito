@@ -1,6 +1,32 @@
 use chrono::TimeZone;
 use ito_domain::tasks;
 
+/// Verifies that an Enhanced-format tasks file with a `- **Requirements**:` line
+/// parses the comma-separated requirements into `task.requirements` and produces no diagnostics.
+///
+/// # Examples
+///
+/// ```
+/// let md = r#"
+/// ## Wave 1
+/// - **Depends On**: None
+///
+/// ### Task 1.1: Implement auth
+/// - **Files**: `auth.rs`
+/// - **Dependencies**: None
+/// - **Requirements**: REQ-001, REQ-002
+/// - **Action**:
+///   Implement the auth module
+/// - **Updated At**: 2026-01-28
+/// - **Status**: [ ] pending
+/// "#;
+///
+/// let parsed = ito_domain::tasks::parse_tasks_tracking_file(md);
+/// assert_eq!(parsed.format, ito_domain::tasks::TasksFormat::Enhanced);
+/// assert_eq!(parsed.tasks.len(), 1);
+/// assert!(parsed.diagnostics.is_empty());
+/// assert_eq!(parsed.tasks[0].requirements, vec!["REQ-001".to_string(), "REQ-002".to_string()]);
+/// ```
 #[test]
 fn parse_enhanced_tasks_extracts_requirements_field() {
     let md = r#"

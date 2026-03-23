@@ -58,15 +58,33 @@ pub struct TraceabilityResult {
     pub diagnostics: Vec<String>,
 }
 
-/// Compute traceability for a change.
+/// Compute requirement coverage for a change from parsed delta specifications and tasks.
 ///
-/// # Parameters
-/// - `delta_requirements`: pairs of `(requirement_title, requirement_id)` from parsed delta specs.
-///   The title is used only for diagnostics when an ID is absent.
-/// - `tasks`: the parsed `tasks.md` for the change.
+/// The function evaluates whether traceability can be computed and, if so, returns declared
+/// requirement IDs (deduplicated and sorted), which declared requirements are covered by
+/// non-shelved tasks (with the covering task IDs), which declared requirements are uncovered,
+/// any dangling requirement references found in non-shelved tasks, and human-readable diagnostics.
+///
+/// Parameters:
+/// - `delta_requirements`: pairs of `(requirement_title, requirement_id)` parsed from delta specs;
+///   the `requirement_title` is used in diagnostics when an ID is missing.
+/// - `tasks`: parsed tasks for the change; certain task formats (e.g., checkbox format) make
+///   traceability unavailable.
 ///
 /// # Returns
-/// A [`TraceabilityResult`] describing coverage status, gaps, and any diagnostics.
+///
+/// A `TraceabilityResult` describing the overall `TraceStatus` (Ready, Invalid with missing titles,
+/// or Unavailable with a reason), the stabilized list of declared requirement IDs, covered and
+/// uncovered requirements, unresolved task references, and any diagnostics such as duplicate IDs.
+///
+/// # Examples
+///
+/// ```
+/// let delta = vec![("Add login".to_string(), Some("REQ-1".to_string()))];
+/// let tasks = TasksParseResult { format: TasksFormat::Enhanced, tasks: vec![] };
+/// let result = compute_traceability(&delta, &tasks);
+/// assert!(matches!(result.status, TraceStatus::Ready));
+/// ```
 pub fn compute_traceability(
     delta_requirements: &[(String, Option<String>)],
     tasks: &TasksParseResult,
@@ -204,6 +222,30 @@ mod tests {
         (title.to_string(), id.map(str::to_string))
     }
 
+    /// Constructs an enhanced-format markdown task string used in tests.
+    ///
+    /// The produced string contains a level-3 heading with the task id and lines for
+    /// Dependencies, Requirements (omitted when `reqs` is empty), Updated At, and Status,
+    /// formatted to match the enhanced task parser's expected input.
+    ///
+    /// # Parameters
+    ///
+    /// - `id`: task identifier inserted into the heading and used as the task id line.
+    /// - `status`: human-readable status text placed after the status checkbox.
+    /// - `reqs`: list of requirement IDs to include on the `**Requirements**` line; omitted when empty.
+    ///
+    /// # Returns
+    ///
+    /// A markdown string representing a single enhanced-format task.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let s = enhanced_task("T1", "In Progress", &["REQ-1", "REQ-2"]);
+    /// assert!(s.contains("### Task T1: Task T1"));
+    /// assert!(s.contains("- **Requirements**: REQ-1, REQ-2"));
+    /// assert!(s.contains("- **Status**: [ ] In Progress"));
+    /// ```
     fn enhanced_task(id: &str, status: &str, reqs: &[&str]) -> String {
         let req_line = if reqs.is_empty() {
             String::new()
@@ -215,6 +257,18 @@ mod tests {
         )
     }
 
+    /// Wraps the provided task markdown in a "Wave 1" section (with a default
+    /// "Depends On: None" line) and parses the combined document.
+    ///
+    /// The function is a test helper that ensures the given fragment is treated as
+    /// a single wave when passed to the parser.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let md = "- **Requirements**: REQ-1\n\n- [ ] Implement feature A";
+    /// let _ = make_tasks(md);
+    /// ```
     fn make_tasks(tasks_md: &str) -> TasksParseResult {
         let full = format!("## Wave 1\n- **Depends On**: None\n\n{tasks_md}");
         parse_tasks_tracking_file(&full)

@@ -424,6 +424,42 @@ fn parse_requirements_from_lines(lines: &[String]) -> Vec<Requirement> {
     out
 }
 
+/// Parses a requirement block beginning at `lines[start]` (which must be a `### Requirement:` header).
+///
+/// The function extracts:
+/// - the requirement title from the header,
+/// - the normalized requirement statement text (collapsing internal whitespace),
+/// - an optional Requirement ID from a metadata line of the form `- **Requirement ID**: <id>` (if present),
+/// - any `#### Scenario:` blocks as `Scenario { raw_text }` preserving internal newlines and trimmed of trailing blank lines.
+/// Parsing stops when the next `### Requirement:` or a top-level `## ` section is encountered; the returned index is the first unconsumed line.
+///
+/// # Parameters
+/// - `lines`: slice of input lines (typically from the markdown) to parse from.
+/// - `start`: index of the line that contains the `### Requirement:` header to begin parsing.
+///
+/// # Returns
+/// A tuple `(title, requirement, next_index)` where `title` is the requirement header title, `requirement` is a `Requirement` with `text`, optional `requirement_id`, and collected `scenarios`, and `next_index` is the index of the first line not consumed by this requirement.
+///
+/// # Examples
+///
+/// ```
+/// let md = vec![
+///     "### Requirement: Example".as_ref(),
+///     "- **Requirement ID**: RQ-1".as_ref(),
+///     "This is the requirement statement.".as_ref(),
+///     "#### Scenario: happy path".as_ref(),
+///     "Step 1".as_ref(),
+///     "".as_ref(),
+///     "Step 2".as_ref(),
+///     "### Requirement: Next".as_ref(),
+/// ];
+/// let (title, req, next) = parse_requirement_block(&md, 0);
+/// assert_eq!(title, "Example");
+/// assert_eq!(req.requirement_id.as_deref(), Some("RQ-1"));
+/// assert_eq!(req.text, "This is the requirement statement.");
+/// assert_eq!(req.scenarios.len(), 1);
+/// assert!(next >= 6);
+/// ```
 fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement, usize) {
     let header = lines[start].trim_end();
     let title = header
@@ -503,6 +539,18 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
     )
 }
 
+/// Extracts the text of the named top-level section and collapses internal whitespace.
+///
+/// The returned string is the content of the first H2 section whose title matches `header` (case-insensitive),
+/// joined into a single line with runs of whitespace replaced by a single space and trimmed.
+///
+/// # Examples
+///
+/// ```
+/// let md = "# Title\n\n## Purpose\nThis  is   a\npurpose.\n\n## Requirements\n...";
+/// let txt = extract_section_text(md, "Purpose");
+/// assert_eq!(txt, "This is a purpose.");
+/// ```
 fn extract_section_text(markdown: &str, header: &str) -> String {
     let lines = extract_section_lines(markdown, header);
     let joined = lines.join(" ");

@@ -14,7 +14,33 @@ use ito_domain::modules::ModuleRepository;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// Build the context payload used by `agent/review.md.j2`.
+/// Builds the PeerReviewContext used to render the agent review template.
+///
+/// The returned context aggregates change metadata, resolved schema artifacts,
+/// validation issues, task progress summary, affected spec deltas and — when
+/// requirement IDs are present — computed traceability information. Returns an
+/// error when the change name is invalid, the change cannot be found, schema
+/// resolution fails, or other template-preparation steps fail.
+///
+/// # Returns
+///
+/// `Ok(PeerReviewContext)` with the assembled review context on success, or
+/// `Err(TemplatesError)` describing why the context could not be produced.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Prepare repositories, path and config context (omitted)
+/// // let change_repo = ...;
+/// // let module_repo = ...;
+/// // let ito_path = std::path::Path::new("/path/to/ito");
+/// // let ctx = ConfigContext::default();
+/// let result = compute_review_context(&change_repo, &module_repo, ito_path, "changename", None, &ctx);
+/// match result {
+///     Ok(ctx) => println!("Generated review context for {}", ctx.change_name),
+///     Err(err) => eprintln!("Failed to build review context: {:?}", err),
+/// }
+/// ```
 pub fn compute_review_context(
     change_repo: &(impl ChangeRepository + ?Sized),
     module_repo: &(impl ModuleRepository + ?Sized),

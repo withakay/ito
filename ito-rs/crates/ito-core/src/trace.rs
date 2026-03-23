@@ -54,11 +54,20 @@ pub struct TraceOutput {
 
 /// Compute requirement traceability for a change.
 ///
-/// Loads the change from `change_repo`, reads its delta specs, extracts
-/// requirement IDs, and delegates to [`compute_traceability`].
+/// Loads the change, reads its delta specification files, extracts requirement
+/// identifiers from the parsed deltas, determines the change lifecycle
+/// ("archived" when the change path contains `/archive/` or `/archived/`,
+/// otherwise "active"), and returns a structured `TraceOutput` describing
+/// declared, covered, uncovered, and unresolved requirements along with
+/// diagnostics and a status/reason.
 ///
-/// The `lifecycle` field in the returned [`TraceOutput`] is determined by
-/// checking whether the change path contains an archive segment.
+/// # Examples
+///
+/// ```ignore
+/// // Given a ChangeRepository `repo` and a change id:
+/// let output = compute_trace_output(&repo, "CH-123").unwrap();
+/// println!("{}", output.status);
+/// ```
 pub fn compute_trace_output(
     change_repo: &(impl ChangeRepository + ?Sized),
     change_id: &str,

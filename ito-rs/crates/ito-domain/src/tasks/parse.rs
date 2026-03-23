@@ -258,12 +258,22 @@ impl TasksParseResult {
     }
 }
 
-/// Generate the default template for an enhanced-format `tasks.md`.
+/// Builds a default enhanced-format `tasks.md` template for a given change.
 ///
-/// The template includes:
-/// - A header with execution notes and CLI hints.
-/// - A sample Wave 1 with a placeholder task.
-/// - A sample Checkpoint for review.
+/// The generated template contains a top-level header with execution notes and CLI hints,
+/// a sample "Wave 1" section with one placeholder task (including metadata fields such as
+/// Files, Dependencies, Action, Verify, Done When, Requirements, Updated At, and Status),
+/// and a "Checkpoints" section with a sample checkpoint task. The `now` timestamp is used
+/// to populate the `**Updated At**` date in YYYY-MM-DD format.
+///
+/// # Examples
+///
+/// ```
+/// use chrono::Local;
+/// let tpl = enhanced_tasks_template("chg-123", Local::now());
+/// assert!(tpl.contains("Tasks for: chg-123"));
+/// assert!(tpl.contains("## Wave 1"));
+/// ```
 pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String {
     let date = now.format("%Y-%m-%d").to_string();
     format!(
@@ -306,26 +316,20 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     }
 }
 
-/// Parses a legacy checkbox-style tasks.md into a normalized TasksParseResult.
+/// Parses legacy checkbox-style tasks content into a normalized TasksParseResult.
 ///
-/// This recognizes list items that start with `- ` or `* ` followed by a status checkbox
-/// (`[ ]`, `[x]`, `[~]`, `[>]`) and an optional label of the form `ID: Name`. Each matched
-/// line produces a TaskItem with a sequential numeric id if no explicit id is present.
-/// The returned result uses the Checkbox format, contains no wave metadata, and includes
-/// computed progress information.
-///
-/// # Returns
-///
-/// A TasksParseResult containing all parsed TaskItem entries, no waves, no diagnostics,
-/// and computed ProgressInfo.
+/// Recognizes list items starting with `- ` or `* ` followed by a status checkbox
+/// (`[ ]`, `[x]`, `[~]`, `[>]`) and an optional label of the form `ID: Name`.
+/// Each matched line produces a TaskItem; when an explicit ID is absent a sequential
+/// numeric ID is assigned. The result uses the Checkbox format and contains no wave
+/// metadata or diagnostics; progress is computed from the parsed tasks.
 ///
 /// # Examples
 ///
 /// ```
-/// use ito_domain::tasks::{parse_tasks_tracking_file, TasksFormat};
 /// let contents = "- [ ] 1: First task\n- [x] Second task\n";
-/// let result = parse_tasks_tracking_file(contents);
-/// assert_eq!(result.format, TasksFormat::Checkbox);
+/// let result = ito_domain::tasks::parse_checkbox_tasks(contents);
+/// assert_eq!(result.format, ito_domain::tasks::TasksFormat::Checkbox);
 /// assert_eq!(result.tasks.len(), 2);
 /// assert_eq!(result.tasks[0].id, "1");
 /// assert_eq!(result.tasks[1].id, "2");
@@ -457,6 +461,34 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         requirements: Vec<String>,
     }
 
+    /// Finalizes a partially-built task from `current` and appends a validated `TaskItem` to `tasks`.
+    ///
+    /// Consumes and clears the per-task fields stored in `current`; if `current.id` is missing the function
+    /// clears task buffers, resets `current.kind` to `Normal`, and returns without creating a task. When a task
+    /// is produced it validates the enhanced-format `Status` and `Updated At` fields (adding error diagnostics for
+    /// missing/invalid values), checks checkbox marker conventions (adding warnings on mismatches), parses the
+    /// `Dependencies` string into explicit dependency IDs, and transfers collected metadata (files, action,
+    /// verify, done_when, requirements, etc.) into the pushed `TaskItem`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Prepare a minimal current task and parse result containers.
+    /// let mut current = CurrentTask::default();
+    /// current.id = Some("T1".to_string());
+    /// current.desc = Some("Example task".to_string());
+    /// current.status_raw = Some("Complete".to_string());
+    /// current.status_marker_raw = Some('x');
+    /// current.updated_at_raw = Some("2025-03-01".to_string());
+    ///
+    /// let mut tasks = Vec::new();
+    /// let mut diagnostics = Vec::new();
+    ///
+    /// flush_current(&mut current, &mut tasks, &mut diagnostics);
+    ///
+    /// assert_eq!(tasks.len(), 1);
+    /// assert!(diagnostics.is_empty());
+    /// ```
     fn flush_current(
         current: &mut CurrentTask,
         tasks: &mut Vec<TaskItem>,

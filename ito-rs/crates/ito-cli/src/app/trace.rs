@@ -5,6 +5,19 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_core::trace::compute_trace_output;
 
+/// Handles the `ito trace` CLI subcommand.
+///
+/// Validates and resolves the requested change target, computes the trace output for that
+/// change, and prints either pretty JSON (when `args.json` is true) or a human-readable report
+/// describing lifecycle, status, coverage, declared requirements, covered/uncovered items,
+/// unresolved task references, and diagnostics.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a Runtime and TraceArgs appropriate for your environment, then:
+/// // handle_trace_clap(&runtime, &args).unwrap();
+/// ```
 pub(crate) fn handle_trace_clap(rt: &Runtime, args: &TraceArgs) -> CliResult<()> {
     let change_input = args
         .change

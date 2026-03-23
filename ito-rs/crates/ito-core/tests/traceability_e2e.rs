@@ -11,6 +11,20 @@ use ito_core::trace::compute_trace_output;
 use ito_core::validate::validate_change;
 use std::path::Path;
 
+/// Writes `contents` to `path`, creating any missing parent directories.
+///
+/// Panics if `path` has no parent or if filesystem operations fail.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use std::fs;
+/// let tmp = tempfile::tempdir().unwrap();
+/// let p = tmp.path().join("sub/dir/file.txt");
+/// write(&p, "hello");
+/// assert_eq!(fs::read_to_string(&p).unwrap(), "hello");
+/// ```
 fn write(path: &Path, contents: &str) {
     let Some(parent) = path.parent() else {
         panic!("path has no parent: {}", path.display());
@@ -19,7 +33,18 @@ fn write(path: &Path, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
-/// A valid delta spec with requirement IDs on all requirements.
+/// Hard-coded delta spec containing two requirements that declare Requirement IDs.
+///
+/// The returned markdown includes two requirements, `auth:feature-alpha` and
+/// `auth:feature-beta`, each with a single scenario (WHEN/THEN).
+///
+/// # Examples
+///
+/// ```rust
+/// let s = traced_spec();
+/// assert!(s.contains("auth:feature-alpha"));
+/// assert!(s.contains("auth:feature-beta"));
+/// ```
 fn traced_spec() -> &'static str {
     r#"## ADDED Requirements
 
@@ -43,7 +68,15 @@ The system SHALL provide feature beta.
 "#
 }
 
-/// An enhanced tasks.md where all requirements are covered.
+/// Generate a tasks.md document for a change where every declared requirement is referenced by a task.
+///
+/// # Examples
+///
+/// ```rust
+/// let md = fully_covered_tasks("change-1");
+/// assert!(md.contains("Requirements: auth:feature-alpha"));
+/// assert!(md.contains("Requirements: auth:feature-beta"));
+/// ```
 fn fully_covered_tasks(change_id: &str) -> String {
     format!(
         "# Tasks for: {change_id}\n\n\
@@ -70,7 +103,15 @@ fn fully_covered_tasks(change_id: &str) -> String {
     )
 }
 
-/// An enhanced tasks.md where only alpha is covered (beta is uncovered).
+/// Produces a tasks.md document that references only `auth:feature-alpha`, leaving `auth:feature-beta` uncovered.
+///
+/// # Examples
+///
+/// ```
+/// let txt = partially_covered_tasks("change-1");
+/// assert!(txt.contains("auth:feature-alpha"));
+/// assert!(!txt.contains("auth:feature-beta"));
+/// ```
 fn partially_covered_tasks(change_id: &str) -> String {
     format!(
         "# Tasks for: {change_id}\n\n\
@@ -88,7 +129,17 @@ fn partially_covered_tasks(change_id: &str) -> String {
     )
 }
 
-/// An enhanced tasks.md with a task referencing a non-existent requirement ID.
+/// Produces a tasks.md string for the given change that includes a task referencing a non-existent requirement ID.
+///
+/// The returned content contains a single task (Task 1.1) whose Requirements line lists both `auth:feature-alpha` and `auth:does-not-exist`.
+///
+/// # Examples
+///
+/// ```
+/// let txt = tasks_with_unresolved_ref("change-1");
+/// assert!(txt.contains("auth:does-not-exist"));
+/// assert!(txt.contains("Task 1.1"));
+/// ```
 fn tasks_with_unresolved_ref(change_id: &str) -> String {
     format!(
         "# Tasks for: {change_id}\n\n\
@@ -106,7 +157,18 @@ fn tasks_with_unresolved_ref(change_id: &str) -> String {
     )
 }
 
-/// An enhanced tasks.md where the only covering task is shelved.
+/// Produces a `tasks.md` string where the only covering task is present and marked shelved.
+///
+/// The returned string is a ready-to-write tasks document for a change, containing a single task
+/// that references `auth:feature-alpha` and has status `[-] shelved`.
+///
+/// # Examples
+///
+/// ```
+/// let md = shelved_covering_tasks("change-123");
+/// assert!(md.contains("Requirements: auth:feature-alpha"));
+/// assert!(md.contains("Status: [-] shelved"));
+/// ```
 fn shelved_covering_tasks(change_id: &str) -> String {
     format!(
         "# Tasks for: {change_id}\n\n\
@@ -162,6 +224,35 @@ fn traced_change_all_covered_validate_passes() {
     );
 }
 
+/// Verifies that a traced change where every declared requirement is referenced by tasks produces a `ready` trace output.
+///
+/// The test creates a minimal `.ito/` change containing a traced spec with two requirements and a `tasks.md` that covers both,
+/// then computes trace output and asserts the output status and coverage fields.
+///
+/// # Examples
+///
+/// ```
+/// // Arrange: create a traced change with fully covered requirements (see helpers in this test module)
+/// let td = tempfile::tempdir().unwrap();
+/// let ito = td.path().join(".ito");
+/// let change_id = "001-01_traced-happy";
+/// write(
+///     &ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"),
+///     traced_spec(),
+/// );
+/// write(&ito.join("changes").join(change_id).join("tasks.md"), &fully_covered_tasks(change_id));
+///
+/// // Act: compute trace output
+/// let repo = FsChangeRepository::new(&ito);
+/// let out = compute_trace_output(&repo, change_id).unwrap();
+///
+/// // Assert: trace output is ready and all requirements are covered
+/// assert_eq!(out.status, "ready");
+/// assert_eq!(out.declared_requirements.len(), 2);
+/// assert!(out.uncovered.is_empty());
+/// assert!(out.unresolved.is_empty());
+/// assert_eq!(out.covered.len(), 2);
+/// ```
 #[test]
 fn traced_change_all_covered_trace_output_is_ready() {
     let td = tempfile::tempdir().unwrap();
@@ -241,6 +332,15 @@ fn traced_change_uncovered_req_is_warning_in_non_strict() {
     );
 }
 
+/// Ensures that an uncovered requirement is reported as an ERROR when validation is run in strict mode.
+///
+/// # Examples
+///
+/// ```
+/// // Prepare a change with a spec that declares requirements and tasks that intentionally omit coverage
+/// // for at least one requirement, then run `validate_change(..., true)` and assert that a traceability
+/// // issue mentioning "not covered" exists with level "ERROR".
+/// ```
 #[test]
 fn traced_change_uncovered_req_is_error_in_strict() {
     let td = tempfile::tempdir().unwrap();
@@ -311,6 +411,20 @@ fn traced_change_uncovered_req_trace_output_shows_uncovered() {
 // Scenario 3: Traced change with unresolved task reference
 // ---------------------------------------------------------------------------
 
+/// Verifies that validation treats unresolved requirement references as errors.
+///
+/// Creates a change containing a task that references a non-existent requirement ID,
+/// runs `validate_change` in non-strict mode, and asserts that at least one traceability
+/// issue mentions "unknown requirement ID" and that all such issues have level `ERROR`.
+///
+/// # Examples
+///
+/// ```
+/// // Setup a change with a task referencing a missing requirement ID, then:
+/// // let r = validate_change(&repo, &ito, change_id, false).unwrap();
+/// // assert!(r.issues.iter().any(|i| i.path == "traceability" && i.message.contains("unknown requirement ID")));
+/// // assert!(r.issues.iter().filter(|i| i.path == "traceability" && i.message.contains("unknown requirement ID")).all(|i| i.level == "ERROR"));
+/// ```
 #[test]
 fn traced_change_unresolved_ref_is_error_in_validate() {
     let td = tempfile::tempdir().unwrap();
@@ -439,6 +553,20 @@ The system SHALL provide feature beta.
     );
 }
 
+/// Verifies that trace output is marked invalid when a requirement in the spec is missing a Requirement ID.
+///
+/// This test writes a spec where one requirement declares an ID and another does not, then computes trace output
+/// for the change and asserts the output `status` is `"invalid"` and the `reason` mentions the missing requirement
+/// text (for example, contains `"feature beta"` or the word `"missing"`).
+///
+/// # Examples
+///
+/// ```
+/// // After writing a spec with a missing Requirement ID and tasks covering both features:
+/// // let out = compute_trace_output(&repo, change_id).unwrap();
+/// // assert_eq!(out.status, "invalid");
+/// // assert!(out.reason.unwrap().to_lowercase().contains("feature beta") || out.reason.unwrap().contains("missing"));
+/// ```
 #[test]
 fn partial_ids_trace_output_is_invalid() {
     let td = tempfile::tempdir().unwrap();
@@ -498,6 +626,43 @@ The system SHALL provide feature beta.
 // Scenario 5: Legacy checkbox change (no traceability)
 // ---------------------------------------------------------------------------
 
+/// Verifies that a legacy checkbox-style change (no Requirement IDs) does not produce traceability
+/// warnings or errors and only yields at most INFO-level traceability issues.
+///
+/// # Examples
+///
+/// ```
+/// use tempfile::tempdir;
+/// // Prepare a minimal .ito change with a spec that has no Requirement IDs and a checkbox tasks.md.
+/// let td = tempdir().unwrap();
+/// let ito = td.path().join(".ito");
+/// let change_id = "001-05_legacy-checkbox";
+///
+/// let legacy_spec = r#"## ADDED Requirements
+///
+/// ### Requirement: Feature Alpha
+/// The system SHALL provide feature alpha.
+///
+/// #### Scenario: Alpha works
+/// - **WHEN** the user triggers alpha
+/// - **THEN** the system performs alpha
+/// "#;
+///
+/// std::fs::create_dir_all(ito.join("changes").join(change_id).join("specs").join("auth")).unwrap();
+/// std::fs::write(ito.join("changes").join(change_id).join("specs").join("auth").join("spec.md"), legacy_spec).unwrap();
+/// std::fs::create_dir_all(ito.join("changes").join(change_id)).unwrap();
+/// std::fs::write(ito.join("changes").join(change_id).join("tasks.md"), "## 1. Implementation\n- [ ] 1.1 Implement alpha\n").unwrap();
+///
+/// let repo = ito_core::FsChangeRepository::new(&ito);
+/// let r = ito_core::validate_change(&repo, &ito, change_id, false).unwrap();
+///
+/// let trace_errors: Vec<_> = r
+///     .issues
+///     .iter()
+///     .filter(|i| i.path == "traceability" && (i.level == "ERROR" || i.level == "WARNING"))
+///     .collect();
+/// assert!(trace_errors.is_empty());
+/// ```
 #[test]
 fn legacy_checkbox_change_validate_passes_without_traceability_checks() {
     let td = tempfile::tempdir().unwrap();

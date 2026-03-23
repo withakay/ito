@@ -678,6 +678,36 @@ fn sleep_backoff(attempt: u32) {
     std::thread::sleep(Duration::from_millis(delay_ms));
 }
 
+/// Converts a backend `ApiTaskList` into a `TasksParseResult`, mapping task fields,
+/// inferring the tasks format, building progress and wave lists, and emitting a
+/// diagnostic when enhanced-format tasks are missing dependency information.
+///
+/// The function:
+/// - interprets `list.format` ("enhanced" or "checkbox", falling back to checkbox on unknown),
+/// - converts each `ApiTaskItem` into a `TaskItem` (missing dependencies produce an empty list and a diagnostic),
+/// - constructs `ProgressInfo` from `list.progress`,
+/// - builds `WaveInfo` entries only for the enhanced format from distinct task wave values.
+///
+/// # Examples
+///
+/// ```
+/// let api = ApiTaskList {
+///     format: "checkbox".to_string(),
+///     tasks: vec![],
+///     progress: ApiProgress {
+///         total: 0,
+///         complete: 0,
+///         shelved: 0,
+///         in_progress: 0,
+///         pending: 0,
+///         remaining: 0,
+///     },
+/// };
+/// let result = task_list_to_parse_result(api);
+/// assert_eq!(result.format, TasksFormat::Checkbox);
+/// assert!(result.tasks.is_empty());
+/// assert_eq!(result.progress.total, 0);
+/// ```
 fn task_list_to_parse_result(list: ApiTaskList) -> TasksParseResult {
     let format = match list.format.as_str() {
         "enhanced" => TasksFormat::Enhanced,
@@ -785,6 +815,24 @@ fn tasks_from_progress(progress: &ApiProgress) -> TasksParseResult {
     }
 }
 
+/// Converts an `ApiTaskMutationEnvelope` (backend response) into a domain `TaskMutationResult`.
+///
+/// The returned `TaskMutationResult` contains the mapped `TaskItem` (with status, kind,
+/// dependencies, files, action, verify, done_when, and an empty `requirements` list),
+/// the `change_id`, and the `revision`.
+///
+/// # Returns
+///
+/// `TaskMutationResult` containing the converted task and associated revision.
+///
+/// # Examples
+///
+/// ```
+/// // given `response: ApiTaskMutationEnvelope` obtained from the backend
+/// let result = task_mutation_from_api(response);
+/// assert_eq!(result.change_id, response.change_id);
+/// assert_eq!(result.revision, response.revision);
+/// ```
 fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResult {
     TaskMutationResult {
         change_id: response.change_id,

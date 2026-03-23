@@ -8,6 +8,22 @@ mod fixtures;
 
 use ito_test_support::run_rust_candidate;
 
+/// Writes `contents` to `path`, creating parent directories if necessary.
+///
+/// Panics if creating parent directories or writing the file fails.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// let mut p = std::env::temp_dir();
+/// p.push("ito_write_example");
+/// p.push("example.txt");
+///
+/// write(&p, "hello");
+/// assert_eq!(std::fs::read_to_string(p).unwrap(), "hello");
+/// ```
 fn write(path: impl AsRef<std::path::Path>, contents: &str) {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -16,7 +32,15 @@ fn write(path: impl AsRef<std::path::Path>, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
-/// A valid delta spec with requirement IDs on all requirements.
+/// Hard-coded delta spec markdown containing two requirements (auth:feature-alpha and auth:feature-beta), each with a `Requirement ID` and a scenario.
+///
+/// # Examples
+///
+/// ```
+/// let spec = traced_spec();
+/// assert!(spec.contains("auth:feature-alpha"));
+/// assert!(spec.contains("auth:feature-beta"));
+/// ```
 fn traced_spec() -> &'static str {
     "## ADDED Requirements\n\n\
 ### Requirement: Feature Alpha\n\
@@ -33,7 +57,20 @@ The system SHALL provide feature beta.\n\n\
 - **THEN** the system performs beta\n"
 }
 
-/// An enhanced tasks.md where all requirements are covered.
+/// Produce a tasks.md document for a change where each requirement is covered by a task.
+///
+/// The returned string is a markdown-formatted "tasks.md" containing two tasks (Alpha and Beta)
+/// whose Requirements lines reference `auth:feature-alpha` and `auth:feature-beta`, with the
+/// provided `change_id` placed in the header.
+///
+/// # Examples
+///
+/// ```
+/// let md = fully_covered_tasks("123-change");
+/// assert!(md.contains("Tasks for: 123-change"));
+/// assert!(md.contains("auth:feature-alpha"));
+/// assert!(md.contains("auth:feature-beta"));
+/// ```
 fn fully_covered_tasks(change_id: &str) -> String {
     format!(
         "# Tasks for: {change_id}\n\n\
@@ -331,6 +368,17 @@ The system SHALL provide feature alpha.\n\n\
 // Scenario 4: Partial IDs (invalid)
 // ---------------------------------------------------------------------------
 
+/// Verifies that tracing a change whose spec contains some requirements without a `Requirement ID` yields a JSON `status` of `"invalid"`.
+///
+/// The test creates a change with one requirement that includes `Requirement ID` and another that does not, runs `ito trace <change_id> --json`, parses the JSON output, and asserts that `json["status"] == "invalid"`.
+///
+/// # Examples
+///
+/// ```rust
+/// // Prepare a spec where one requirement is missing `Requirement ID`,
+/// // run `ito trace <change_id> --json`, parse the output,
+/// // and assert `json["status"] == "invalid"`.
+/// ```
 #[test]
 fn trace_partial_ids_json_shows_invalid_status() {
     let repo = tempfile::tempdir().expect("repo");
@@ -382,6 +430,18 @@ The system SHALL provide feature beta.\n\n\
 // Scenario 5: Legacy checkbox change (no traceability)
 // ---------------------------------------------------------------------------
 
+/// Verifies that tracing a legacy checkbox–style change reports `unavailable`.
+///
+/// Creates a spec that has no `Requirement ID` lines and a `tasks.md` that uses legacy
+/// checkbox formatting, runs `ito trace <change_id> --json`, and asserts the produced JSON
+/// has `"status": "unavailable"`.
+///
+/// # Examples
+///
+/// ```
+/// let json: serde_json::Value = serde_json::from_str(r#"{"status":"unavailable"}"#).unwrap();
+/// assert_eq!(json["status"], "unavailable");
+/// ```
 #[test]
 fn trace_legacy_checkbox_change_shows_unavailable() {
     let repo = tempfile::tempdir().expect("repo");
@@ -427,7 +487,27 @@ The system SHALL provide feature alpha.\n\n\
 // Scenario 6: Missing change — error
 // ---------------------------------------------------------------------------
 
-#[test]
+/// Verifies that tracing a non-existent change returns a non-zero exit code.
+///
+/// Creates a repository with a `.ito/changes` directory but without the requested
+/// change, runs `ito trace <change_id>`, and expects the process to exit with a
+/// non-zero status indicating the change was not found.
+///
+/// # Examples
+///
+/// ```no_run
+/// let repo = tempfile::tempdir().unwrap();
+/// let home = tempfile::tempdir().unwrap();
+/// std::fs::create_dir_all(repo.path().join(".ito/changes")).unwrap();
+///
+/// let out = ito_test_support::run_rust_candidate(
+///     assert_cmd::cargo::cargo_bin!("ito"),
+///     &["trace", "999-99_does-not-exist"],
+///     repo.path(),
+///     home.path(),
+/// );
+/// assert_ne!(out.code, 0);
+/// ```
 fn trace_missing_change_exits_nonzero() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");
