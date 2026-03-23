@@ -73,71 +73,31 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             ));
         }
 
-        let instruction = generate_bootstrap_instruction(&tool);
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: "bootstrap".to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-
-        print!("{instruction}");
-        return Ok(());
+        let instruction = generate_bootstrap_instruction(&tool)?;
+        return emit_instruction(want_json, "bootstrap", instruction);
     }
 
     if artifact == "project-setup" {
-        let instruction = generate_project_setup_instruction();
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: "project-setup".to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-        print!("{instruction}");
-        return Ok(());
+        let instruction = generate_project_setup_instruction()?;
+        return emit_instruction(want_json, "project-setup", instruction);
     }
 
     if artifact == "backend" {
-        let instruction = generate_backend_instruction();
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: "backend".to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-        print!("{instruction}");
-        return Ok(());
+        let instruction = generate_backend_instruction()?;
+        return emit_instruction(want_json, "backend", instruction);
     }
     if artifact == "repo-sweep" {
         eprintln!("- Generating repo-sweep instructions...");
-        let instruction = generate_repo_sweep_instruction();
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: "repo-sweep".to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-        print!("{instruction}");
-        return Ok(());
+        let instruction = generate_repo_sweep_instruction()?;
+        return emit_instruction(want_json, "repo-sweep", instruction);
     }
     if artifact == "context" {
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let inferred = harness_context::infer_context_from_cwd(&cwd).map_err(to_cli_error)?;
 
         if want_json {
-            let rendered = serde_json::to_string_pretty(&inferred).expect("json should serialize");
+            let rendered = serde_json::to_string_pretty(&inferred)
+                .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
             println!("{rendered}");
             return Ok(());
         }
@@ -167,7 +127,8 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let response = core_templates::list_schemas_detail(ctx);
 
         if want_json {
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
+            let rendered = serde_json::to_string_pretty(&response)
+                .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
             println!("{rendered}");
             return Ok(());
         }
@@ -216,18 +177,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         )
         .map_err(|e| to_cli_error(format!("failed to render worktrees instruction: {e}")))?;
 
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: artifact.to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-
-        print!("{instruction}");
-        return Ok(());
+        return emit_instruction(want_json, artifact, instruction);
     }
 
     if artifact == "finish" {
@@ -252,18 +202,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         )
         .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
 
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: artifact.to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-
-        print!("{instruction}");
-        return Ok(());
+        return emit_instruction(want_json, artifact, instruction);
     }
 
     let change = parse_string_flag(args, "--change");
@@ -350,7 +289,8 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         };
 
         if want_json {
-            let rendered = serde_json::to_string_pretty(&apply).expect("json should serialize");
+            let rendered = serde_json::to_string_pretty(&apply)
+                .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
             println!("{rendered}");
             return Ok(());
         }
@@ -391,18 +331,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             ito_templates::instructions::render_instruction_template("agent/review.md.j2", &review)
                 .map_err(to_cli_error)?;
 
-        if want_json {
-            let response = core_templates::AgentInstructionResponse {
-                artifact_id: artifact.to_string(),
-                instruction,
-            };
-            let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-            println!("{rendered}");
-            return Ok(());
-        }
-
-        print!("{instruction}");
-        return Ok(());
+        return emit_instruction(want_json, artifact, instruction);
     }
 
     let resolved = match core_templates::resolve_instructions(
@@ -426,7 +355,8 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
     };
 
     if want_json {
-        let rendered = serde_json::to_string_pretty(&resolved).expect("json should serialize");
+        let rendered = serde_json::to_string_pretty(&resolved)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
         println!("{rendered}");
         return Ok(());
     }
@@ -529,37 +459,53 @@ fn handle_agent_instruction_clap(rt: &Runtime, args: &AgentInstructionArgs) -> C
     handle_agent_instruction(rt, &argv)
 }
 
-fn generate_bootstrap_instruction(tool: &str) -> String {
+/// Emit an agent instruction as either a JSON `AgentInstructionResponse` or plain text.
+fn emit_instruction(want_json: bool, artifact_id: &str, instruction: String) -> CliResult<()> {
+    if want_json {
+        let response = core_templates::AgentInstructionResponse {
+            artifact_id: artifact_id.to_string(),
+            instruction,
+        };
+        let rendered = serde_json::to_string_pretty(&response)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
+        println!("{rendered}");
+    } else {
+        print!("{instruction}");
+    }
+    Ok(())
+}
+
+fn generate_bootstrap_instruction(tool: &str) -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx<'a> {
         tool: &'a str,
     }
 
     ito_templates::instructions::render_instruction_template("agent/bootstrap.md.j2", &Ctx { tool })
-        .expect("bootstrap instruction template should render")
+        .map_err(|e| to_cli_error(format!("rendering bootstrap instruction: {e}")))
 }
 
-fn generate_project_setup_instruction() -> String {
+fn generate_project_setup_instruction() -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx {}
 
     ito_templates::instructions::render_instruction_template("agent/project-setup.md.j2", &Ctx {})
-        .expect("project-setup instruction template should render")
+        .map_err(|e| to_cli_error(format!("rendering project-setup instruction: {e}")))
 }
 
-fn generate_backend_instruction() -> String {
+fn generate_backend_instruction() -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx {}
 
     ito_templates::instructions::render_instruction_template("agent/backend.md.j2", &Ctx {})
-        .expect("backend instruction template should render")
+        .map_err(|e| to_cli_error(format!("rendering backend instruction: {e}")))
 }
 
-fn generate_repo_sweep_instruction() -> String {
+fn generate_repo_sweep_instruction() -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx {}
     ito_templates::instructions::render_instruction_template("agent/repo-sweep.md.j2", &Ctx {})
-        .expect("repo-sweep instruction template should render")
+        .map_err(|e| to_cli_error(format!("rendering repo-sweep instruction: {e}")))
 }
 
 fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
@@ -588,20 +534,9 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
 
     let instruction =
         ito_templates::instructions::render_instruction_template("agent/new-proposal.md.j2", &ctx)
-            .expect("new-proposal instruction template should render");
+            .map_err(|e| to_cli_error(format!("rendering new-proposal instruction: {e}")))?;
 
-    if want_json {
-        let response = core_templates::AgentInstructionResponse {
-            artifact_id: "new-proposal".to_string(),
-            instruction,
-        };
-        let rendered = serde_json::to_string_pretty(&response).expect("json should serialize");
-        println!("{rendered}");
-        return Ok(());
-    }
-
-    print!("{instruction}");
-    Ok(())
+    emit_instruction(want_json, "new-proposal", instruction)
 }
 
 fn print_artifact_instructions_text(
@@ -1189,7 +1124,7 @@ mod tests {
 
     #[test]
     fn backend_instruction_is_cli_first_for_remote_mode() {
-        let instruction = generate_backend_instruction();
+        let instruction = generate_backend_instruction().expect("backend template should render");
 
         assert!(instruction.contains("do not create markdown manually"));
         assert!(instruction.contains("ito show specs"));

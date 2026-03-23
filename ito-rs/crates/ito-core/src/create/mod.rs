@@ -51,6 +51,10 @@ pub enum CreateError {
     #[error("Sub-module '{0}' already exists under module '{1}'")]
     DuplicateSubModuleName(String, String),
 
+    /// All sub-module number slots (01–99) under the parent module are exhausted.
+    #[error("Sub-module number exhausted under module '{0}'; maximum of 99 sub-modules allowed")]
+    SubModuleNumberExhausted(String),
+
     /// Underlying I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
@@ -163,13 +167,12 @@ pub fn create_module(
 
 /// Create a new change directory and update the module's `module.md` checklist.
 ///
-/// When `sub_module` is `Some`, the change is scoped to that sub-module:
-/// - The allocation namespace is the composite `NNN.SS` key.
-/// - The folder name uses the `NNN.SS-NN_name` canonical form.
-/// - The checklist entry is written to the sub-module's `module.md`.
+/// When `module` is `Some`, the change is scoped to that module:
+/// - The allocation namespace is the module's `NNN` identifier.
+/// - The folder name uses the `NNN-NN_name` canonical form.
+/// - The checklist entry is written to the module's `module.md`.
 ///
-/// `module` and `sub_module` are mutually exclusive; passing both returns
-/// [`CreateError::MutuallyExclusive`].
+/// When `module` is `None`, the change is placed in the default `000` namespace.
 pub fn create_change(
     ito_path: &Path,
     name: &str,
@@ -247,6 +250,9 @@ pub fn create_sub_module(
 
     // Allocate the next sub-module number.
     let next_sub_num = next_sub_module_num(&sub_dir)?;
+    if next_sub_num >= 100 {
+        return Err(CreateError::SubModuleNumberExhausted(parent_id));
+    }
     let folder_name = format!("{next_sub_num:02}_{name}");
     let sub_module_dir = sub_dir.join(&folder_name);
     ito_common::io::create_dir_all_std(&sub_module_dir)?;

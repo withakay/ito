@@ -169,6 +169,7 @@ pub fn list_modules(module_repo: &dyn DomainModuleRepository) -> CoreResult<Vec<
                 change_count: sm.change_count as usize,
             });
         }
+        sub_modules.sort_by(|a, b| a.id.cmp(&b.id));
         modules.push(ModuleListItem {
             id: module.id,
             name: module.name,

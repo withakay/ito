@@ -761,48 +761,52 @@ pub fn validate_module(
     }
 
     // Validate sub-modules.
-    validate_sub_modules_under_module(&mut rep, &r.module_dir, strict);
+    validate_sub_modules_under_module(&mut rep, module_repo, &r.module_dir, &r.id, strict);
 
     Ok((r.full_name, rep.finish()))
 }
 
-/// Validate all sub-modules under a module directory.
+/// Validate all sub-modules belonging to a parent module.
 ///
-/// Checks that each `sub/SS_name/` directory:
-/// - Follows the `SS_name` naming convention (numeric prefix + underscore + name).
-/// - Has a `module.md` file.
-/// - The `module.md` has a non-empty Purpose section.
-fn validate_sub_modules_under_module(rep: &mut ReportBuilder, module_dir: &Path, strict: bool) {
+/// Uses the repository to iterate recognized sub-modules and validates their
+/// `module.md` (presence and Purpose section). Additionally scans `sub/`
+/// for any directories that the repository did not recognize — those have
+/// invalid naming and are reported as errors.
+fn validate_sub_modules_under_module(
+    rep: &mut ReportBuilder,
+    module_repo: &(impl DomainModuleRepository + ?Sized),
+    module_dir: &Path,
+    parent_id: &str,
+    strict: bool,
+) {
     let sub_dir = module_dir.join("sub");
     if !sub_dir.exists() {
         return;
     }
 
-    let entries = match std::fs::read_dir(&sub_dir) {
-        Ok(e) => e,
-        Err(err) => {
-            rep.push(warning(
-                "sub-modules",
-                format!("Failed to read sub/ directory: {err}"),
-            ));
-            return;
-        }
+    // Retrieve sub-modules through the repository to avoid re-discovering
+    // the same filesystem layout the repository already parsed.
+    let module = match module_repo.get(parent_id) {
+        Ok(m) => m,
+        Err(_) => return, // Parent module not found; outer validation already handles this.
     };
 
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
+    // Track which directory names the repository recognized as valid so we
+    // can later flag any unrecognized entries.
+    let mut recognized_dirs: std::collections::HashSet<String> =
+        std::collections::HashSet::with_capacity(module.sub_modules.len());
 
-        // Validate naming convention: must be `SS_name`.
-        let valid_name = dir_name.split_once('_').is_some_and(|(num, name)| {
-            !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) && !name.is_empty()
-        });
-        if !valid_name {
+    for sm in &module.sub_modules {
+        let dir_name = sm
+            .path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&sm.name)
+            .to_string();
+        recognized_dirs.insert(dir_name.clone());
+
+        // Validate naming convention: sub_id must be exactly two ASCII digits.
+        if sm.sub_id.len() != 2 || !sm.sub_id.bytes().all(|b| b.is_ascii_digit()) {
             rep.push(error(
                 format!("sub-modules/{dir_name}"),
                 format!("Sub-module directory '{dir_name}' does not follow the SS_name convention"),
@@ -811,7 +815,7 @@ fn validate_sub_modules_under_module(rep: &mut ReportBuilder, module_dir: &Path,
         }
 
         // Validate module.md presence.
-        let module_md = path.join("module.md");
+        let module_md = sm.path.join("module.md");
         if !module_md.exists() {
             let level = if strict { LEVEL_ERROR } else { LEVEL_WARNING };
             rep.push(issue(
@@ -847,6 +851,28 @@ fn validate_sub_modules_under_module(rep: &mut ReportBuilder, module_dir: &Path,
                     "Sub-module '{dir_name}' purpose is too brief (less than {MIN_MODULE_PURPOSE_LENGTH} characters)"
                 ),
             ));
+        }
+    }
+
+    // Report any sub/ entries that the repository silently skipped because
+    // they do not follow the required naming convention.
+    if let Ok(entries) = std::fs::read_dir(&sub_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !recognized_dirs.contains(dir_name) {
+                rep.push(error(
+                    format!("sub-modules/{dir_name}"),
+                    format!(
+                        "Sub-module directory '{dir_name}' does not follow the SS_name convention"
+                    ),
+                ));
+            }
         }
     }
 }

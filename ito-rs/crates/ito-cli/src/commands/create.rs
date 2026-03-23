@@ -8,8 +8,27 @@ use ito_core::create::{create_change_in_sub_module, create_sub_module};
 use ito_core::git::{
     CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
 };
+use ito_core::repository_runtime::PersistenceMode;
 use ito_core::{create as core_create, templates as core_templates};
 use std::path::Path;
+
+/// Return an error if the runtime is in remote persistence mode.
+///
+/// Several creation operations (sub-module changes, sub-module creation) write
+/// directly to the local filesystem and must not be used when a remote backend
+/// is active. Call this guard before performing any local-only write.
+fn guard_local_only(rt: &Runtime, operation: &str) -> CliResult<()> {
+    if let Ok(repo_rt) = rt.repository_runtime()
+        && repo_rt.mode() == PersistenceMode::Remote
+    {
+        return fail(format!(
+            "{operation} is a local-only operation and cannot be used when remote persistence is \
+             active.\nTo proceed locally, disable backend mode by removing 'backend.enabled' from \
+             your .ito/config.json."
+        ));
+    }
+    Ok(())
+}
 
 fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let ito_path = rt.ito_path();
@@ -262,17 +281,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             // active so the user gets an actionable error instead of a silent
             // no-op or a confusing partial write.
             if sub_module.is_some() {
-                use ito_core::repository_runtime::PersistenceMode;
-                if let Ok(repo_rt) = rt.repository_runtime()
-                    && repo_rt.mode() == PersistenceMode::Remote
-                {
-                    return fail(
-                        "ito create change --sub-module is a local-only operation and cannot be \
-                         used when remote persistence is active.\n\
-                         To create a sub-module change locally, disable backend mode by removing \
-                         'backend.enabled' from your .ito/config.json.",
-                    );
-                }
+                guard_local_only(rt, "ito create change --sub-module")?;
             }
 
             // Derive a display-friendly namespace label for the spinner message.
@@ -396,19 +405,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             };
 
             // sub-module creation is a local-only operation.
-            {
-                use ito_core::repository_runtime::PersistenceMode;
-                if let Ok(repo_rt) = rt.repository_runtime()
-                    && repo_rt.mode() == PersistenceMode::Remote
-                {
-                    return fail(
-                        "ito create sub-module is a local-only operation and cannot be \
-                         used when remote persistence is active.\n\
-                         To create a sub-module locally, disable backend mode by removing \
-                         'backend.enabled' from your .ito/config.json.",
-                    );
-                }
-            }
+            guard_local_only(rt, "ito create sub-module")?;
 
             eprintln!(
                 "- Creating sub-module '{}' under module {}...",
