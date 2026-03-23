@@ -315,6 +315,45 @@ fn traced_change_uncovered_req_is_warning_in_non_strict() {
     );
 
     let repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&repo, &ito, change_id, false).unwrap();
+
+    let mut uncovered_issues = Vec::new();
+    for issue in &r.issues {
+        if issue.path == "traceability" && issue.message.contains("not covered") {
+            uncovered_issues.push(issue);
+        }
+    }
+    assert!(
+        !uncovered_issues.is_empty(),
+        "expected uncovered requirement warning in non-strict mode, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        uncovered_issues.iter().all(|i| i.level == "WARNING"),
+        "uncovered requirement should be WARNING in non-strict mode, got: {uncovered_issues:?}"
+    );
+}
+
+#[test]
+fn traced_change_uncovered_req_is_error_in_strict() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    let change_id = "001-02_traced-uncovered-strict";
+
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        traced_spec(),
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        &partially_covered_tasks(change_id),
+    );
+
+    let repo = FsChangeRepository::new(&ito);
     let r = validate_change(&repo, &ito, change_id, true).unwrap();
 
     let mut uncovered_issues = Vec::new();
