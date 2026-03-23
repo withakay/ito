@@ -109,6 +109,7 @@ fn sqlite_runtime_builds_repository_set() {
             repo: repo_name,
             change_id: "025-07_demo",
             module_id: Some("025"),
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
@@ -442,6 +443,7 @@ fn remote_runtime_uses_remote_factory() {
     let summary = ChangeSummary {
         id: "025-04_demo".to_string(),
         module_id: Some("025".to_string()),
+        sub_module_id: None,
         completed_tasks: 1,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -456,6 +458,7 @@ fn remote_runtime_uses_remote_factory() {
     let change = Change {
         id: "025-04_demo".to_string(),
         module_id: Some("025".to_string()),
+        sub_module_id: None,
         path: std::path::PathBuf::new(),
         proposal: Some("# Proposal".to_string()),
         design: None,
@@ -470,12 +473,14 @@ fn remote_runtime_uses_remote_factory() {
         id: "025".to_string(),
         name: "repository-backends".to_string(),
         change_count: 1,
+        sub_modules: Vec::new(),
     };
     let module = Module {
         id: "025".to_string(),
         name: "repository-backends".to_string(),
         description: Some("Demo".to_string()),
         path: std::path::PathBuf::new(),
+        sub_modules: Vec::new(),
     };
 
     let repos = RepositorySet {
@@ -545,6 +550,7 @@ fn repository_modes_return_consistent_change_names() {
             repo: "demo",
             change_id,
             module_id: Some(module_id),
+            sub_module_id: None,
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
@@ -574,6 +580,7 @@ fn repository_modes_return_consistent_change_names() {
     let summary = ChangeSummary {
         id: change_id.to_string(),
         module_id: Some(module_id.to_string()),
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -588,6 +595,7 @@ fn repository_modes_return_consistent_change_names() {
     let change = Change {
         id: change_id.to_string(),
         module_id: Some(module_id.to_string()),
+        sub_module_id: None,
         path: std::path::PathBuf::new(),
         proposal: Some("# Proposal".to_string()),
         design: None,
@@ -602,12 +610,14 @@ fn repository_modes_return_consistent_change_names() {
         id: module_id.to_string(),
         name: "repository-backends".to_string(),
         change_count: 1,
+        sub_modules: Vec::new(),
     };
     let module = Module {
         id: module_id.to_string(),
         name: "repository-backends".to_string(),
         description: Some("demo".to_string()),
         path: std::path::PathBuf::new(),
+        sub_modules: Vec::new(),
     };
     let remote_repos = RepositorySet {
         changes: Arc::new(FakeChangeRepo::new(summary, change)),
@@ -696,6 +706,7 @@ fn resolve_target_parity_between_filesystem_and_sqlite() {
                 repo: "demo",
                 change_id,
                 module_id: Some("025"),
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),

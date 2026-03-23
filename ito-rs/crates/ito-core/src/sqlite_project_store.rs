@@ -61,6 +61,8 @@ pub struct UpsertChangeParams<'a> {
     pub change_id: &'a str,
     /// Optional module this change belongs to.
     pub module_id: Option<&'a str>,
+    /// Optional sub-module this change belongs to (e.g., `"005.01"`).
+    pub sub_module_id: Option<&'a str>,
     /// Optional proposal markdown content.
     pub proposal: Option<&'a str>,
     /// Optional design markdown content.
@@ -123,6 +125,7 @@ impl SqliteBackendProjectStore {
                 repo TEXT NOT NULL,
                 change_id TEXT NOT NULL,
                 module_id TEXT,
+                sub_module_id TEXT,
                 proposal TEXT,
                 design TEXT,
                 tasks_md TEXT,
@@ -166,7 +169,25 @@ impl SqliteBackendProjectStore {
                 FOREIGN KEY (org, repo) REFERENCES projects(org, repo)
             );",
         )
-        .map_err(|e| CoreError::sqlite(format!("initializing schema: {e}")))
+        .map_err(|e| CoreError::sqlite(format!("initializing schema: {e}")))?;
+
+        // Migrate pre-existing databases that were created before the sub_module_id column
+        // was added.  SQLite does not support IF NOT EXISTS in ALTER TABLE, so we probe
+        // pragma_table_info first and only run the migration when the column is absent.
+        let has_col = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('changes') WHERE name = 'sub_module_id'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| CoreError::sqlite(format!("checking schema migration: {e}")))?
+            > 0;
+        if !has_col {
+            conn.execute_batch("ALTER TABLE changes ADD COLUMN sub_module_id TEXT")
+                .map_err(|e| CoreError::sqlite(format!("migrating schema (sub_module_id): {e}")))?;
+        }
+
+        Ok(())
     }
 
     /// Insert or update a change in the store (for seeding test data).
@@ -176,6 +197,7 @@ impl SqliteBackendProjectStore {
             repo,
             change_id,
             module_id,
+            sub_module_id,
             proposal,
             design,
             tasks_md,
@@ -186,10 +208,10 @@ impl SqliteBackendProjectStore {
 
         conn.execute(
             "INSERT OR REPLACE INTO changes
-             (org, repo, change_id, module_id, proposal, design, tasks_md, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+             (org, repo, change_id, module_id, sub_module_id, proposal, design, tasks_md, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
-                org, repo, change_id, module_id, proposal, design, tasks_md, now, now
+                org, repo, change_id, module_id, sub_module_id, proposal, design, tasks_md, now, now
             ],
         )
         .map_err(|e| CoreError::sqlite(format!("upserting change: {e}")))?;
@@ -271,7 +293,7 @@ impl SqliteBackendProjectStore {
 fn load_changes_from_db(conn: &Connection, org: &str, repo: &str) -> DomainResult<Vec<ChangeRow>> {
     let mut stmt = conn
         .prepare(
-            "SELECT change_id, module_id, proposal, design, tasks_md, created_at, updated_at, archived_at
+            "SELECT change_id, module_id, sub_module_id, proposal, design, tasks_md, created_at, updated_at, archived_at
              FROM changes WHERE org = ?1 AND repo = ?2",
         )
         .map_err(|e| map_sqlite_err("preparing change query", e))?;
@@ -281,12 +303,13 @@ fn load_changes_from_db(conn: &Connection, org: &str, repo: &str) -> DomainResul
             Ok(ChangeRow {
                 change_id: row.get(0)?,
                 module_id: row.get(1)?,
-                proposal: row.get(2)?,
-                design: row.get(3)?,
-                tasks_md: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-                archived_at: row.get(7)?,
+                sub_module_id: row.get(2)?,
+                proposal: row.get(3)?,
+                design: row.get(4)?,
+                tasks_md: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+                archived_at: row.get(8)?,
                 specs: Vec::new(), // filled below
             })
         })
@@ -421,6 +444,7 @@ fn map_sqlite_err(context: &'static str, err: rusqlite::Error) -> DomainError {
 struct ChangeRow {
     change_id: String,
     module_id: Option<String>,
+    sub_module_id: Option<String>,
     proposal: Option<String>,
     design: Option<String>,
     tasks_md: Option<String>,

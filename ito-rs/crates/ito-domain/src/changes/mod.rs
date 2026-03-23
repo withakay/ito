@@ -88,10 +88,14 @@ impl std::fmt::Display for ChangeStatus {
 /// Full change with all artifacts loaded.
 #[derive(Debug, Clone)]
 pub struct Change {
-    /// Change identifier (e.g., "005-01_my-change")
+    /// Change identifier (e.g., "005-01_my-change" or "005.01-03_my-change")
     pub id: String,
     /// Module ID extracted from the change ID (e.g., "005")
     pub module_id: Option<String>,
+    /// Sub-module ID in canonical `NNN.SS` form when the change belongs to a sub-module.
+    ///
+    /// `None` for changes that use the legacy `NNN-NN_name` format without a sub-module.
+    pub sub_module_id: Option<String>,
     /// Path to the change directory
     pub path: PathBuf,
     /// Proposal content (raw markdown)
@@ -180,6 +184,10 @@ pub struct ChangeSummary {
     pub id: String,
     /// Module ID extracted from the change ID
     pub module_id: Option<String>,
+    /// Sub-module ID in canonical `NNN.SS` form when the change belongs to a sub-module.
+    ///
+    /// `None` for changes that use the legacy `NNN-NN_name` format without a sub-module.
+    pub sub_module_id: Option<String>,
     /// Number of completed tasks
     pub completed_tasks: u32,
     /// Number of shelved tasks (enhanced tasks only)
@@ -248,18 +256,41 @@ impl ChangeSummary {
 
 /// Extract module ID from a change ID.
 ///
-/// Change IDs follow the pattern `NNN-NN_name` where `NNN` is the module ID.
-/// Handles various formats:
+/// Handles both the legacy `NNN-NN_name` format and the sub-module
+/// `NNN.SS-NN_name` format. Always returns only the parent module number.
+///
 /// - `005-01_my-change` -> `005`
 /// - `5-1_whatever` -> `005`
 /// - `1-000002` -> `001`
+/// - `024.01-03_foo` -> `024`
 pub fn extract_module_id(change_id: &str) -> Option<String> {
     let parts: Vec<&str> = change_id.split('-').collect();
     if parts.len() >= 2 {
-        Some(normalize_id(parts[0], 3))
+        // Strip any sub-module component (e.g., "024.01" -> "024").
+        let module_part = parts[0].split('.').next().unwrap_or(parts[0]);
+        Some(normalize_id(module_part, 3))
     } else {
         None
     }
+}
+
+/// Extract the sub-module ID from a change ID in `NNN.SS-NN_name` format.
+///
+/// Returns `Some("NNN.SS")` for sub-module changes, `None` for legacy
+/// `NNN-NN_name` changes.
+///
+/// - `024.01-03_foo` -> `Some("024.01")`
+/// - `005-01_my-change` -> `None`
+pub fn extract_sub_module_id(change_id: &str) -> Option<String> {
+    // A sub-module change has a dot before the first hyphen.
+    let prefix = change_id.split('-').next()?;
+    if !prefix.contains('.') {
+        return None;
+    }
+    // Normalize: "24.1" -> "024.01" via the common parser.
+    ito_common::id::parse_sub_module_id(prefix)
+        .map(|p| p.sub_module_id.as_str().to_string())
+        .ok()
 }
 
 /// Normalize an ID to a fixed width with zero-padding.
@@ -275,18 +306,21 @@ pub fn normalize_id(id: &str, width: usize) -> String {
 
 /// Parse a change identifier and return the normalized module ID and change number.
 ///
-/// Handles various formats:
-/// - `005-01_my-change` -> `("005", "01")`
-/// - `5-1_whatever` -> `("005", "01")`
-/// - `1-2` -> `("001", "02")`
-/// - `001-000002_foo` -> `("001", "02")`
+/// Handles both legacy and sub-module formats:
+/// - `005-01_my-change` → `("005", "01")`
+/// - `5-1_whatever` → `("005", "01")`
+/// - `1-2` → `("001", "02")`
+/// - `001-000002_foo` → `("001", "02")`
+/// - `024.01-03_foo` → `("024", "03")`
 pub fn parse_change_id(input: &str) -> Option<(String, String)> {
     // Remove the name suffix if present (everything after underscore)
     let id_part = input.split('_').next().unwrap_or(input);
 
     let parts: Vec<&str> = id_part.split('-').collect();
     if parts.len() >= 2 {
-        let module_id = normalize_id(parts[0], 3);
+        // Strip any sub-module component (e.g., "024.01" → "024").
+        let module_part = parts[0].split('.').next().unwrap_or(parts[0]);
+        let module_id = normalize_id(module_part, 3);
         let change_num = normalize_id(parts[1], 2);
         Some((module_id, change_num))
     } else {
@@ -360,6 +394,56 @@ mod tests {
         assert_eq!(extract_module_id("013-18_cleanup"), Some("013".to_string()));
         assert_eq!(extract_module_id("5-1_foo"), Some("005".to_string()));
         assert_eq!(extract_module_id("invalid"), None);
+        // Sub-module format: strip sub-module component
+        assert_eq!(extract_module_id("024.01-03_foo"), Some("024".to_string()));
+        assert_eq!(extract_module_id("5.1-2_bar"), Some("005".to_string()));
+    }
+
+    #[test]
+    fn test_extract_sub_module_id() {
+        assert_eq!(
+            extract_sub_module_id("024.01-03_foo"),
+            Some("024.01".to_string())
+        );
+        assert_eq!(
+            extract_sub_module_id("5.1-2_bar"),
+            Some("005.01".to_string())
+        );
+        assert_eq!(extract_sub_module_id("005-01_my-change"), None);
+        assert_eq!(extract_sub_module_id("invalid"), None);
+    }
+
+    #[test]
+    fn test_parse_change_id_sub_module_format() {
+        assert_eq!(
+            parse_change_id("024.01-03_foo"),
+            Some(("024".to_string(), "03".to_string()))
+        );
+        assert_eq!(
+            parse_change_id("5.1-2_bar"),
+            Some(("005".to_string(), "02".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_change_sub_module_id_field() {
+        let summary = ChangeSummary {
+            id: "005.01-03_my-change".to_string(),
+            module_id: Some("005".to_string()),
+            sub_module_id: Some("005.01".to_string()),
+            completed_tasks: 0,
+            shelved_tasks: 0,
+            in_progress_tasks: 0,
+            pending_tasks: 0,
+            total_tasks: 0,
+            last_modified: Utc::now(),
+            has_proposal: false,
+            has_design: false,
+            has_specs: false,
+            has_tasks: false,
+        };
+
+        assert_eq!(summary.sub_module_id.as_deref(), Some("005.01"));
     }
 
     #[test]
@@ -374,6 +458,7 @@ mod tests {
         let mut summary = ChangeSummary {
             id: "test".to_string(),
             module_id: None,
+            sub_module_id: None,
             completed_tasks: 0,
             shelved_tasks: 0,
             in_progress_tasks: 0,
@@ -401,6 +486,7 @@ mod tests {
         let mut summary = ChangeSummary {
             id: "test".to_string(),
             module_id: None,
+            sub_module_id: None,
             completed_tasks: 0,
             shelved_tasks: 0,
             in_progress_tasks: 0,

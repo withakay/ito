@@ -2,7 +2,9 @@ use crate::cli::{ShowArgs, ShowCommand, ShowItemType};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
+use ito_common::io::read_to_string_or_default;
 use ito_config::output;
+use ito_core::DomainError;
 use ito_core::nearest_matches;
 use ito_core::show as core_show;
 
@@ -12,7 +14,8 @@ fn handle_show_specs(rt: &Runtime, want_json: bool) -> CliResult<()> {
     if want_json {
         let json =
             core_show::bundle_specs_show_json_from_repository(spec_repo).map_err(to_cli_error)?;
-        let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+        let rendered = serde_json::to_string_pretty(&json)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
         println!("{rendered}");
     } else {
         let md =
@@ -40,6 +43,11 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
     // Parse subcommand: `ito show module <id>`
     if args.first().map(|s| s.as_str()) == Some("module") {
         return handle_show_module(rt, &args[1..]);
+    }
+
+    // Parse subcommand: `ito show sub-module <NNN.SS>`
+    if args.first().map(|s| s.as_str()) == Some("sub-module") {
+        return handle_show_sub_module(rt, &args[1..]);
     }
 
     let want_json = args.iter().any(|a| a == "--json");
@@ -147,7 +155,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     json.requirements = vec![json.requirements[one_based - 1].clone()];
                     json.requirement_count = json.requirements.len() as u32;
                 }
-                let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&json)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
             } else {
                 print!("{md}");
@@ -163,7 +172,8 @@ pub(crate) fn handle_show(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 let files = core_show::read_change_delta_spec_files(change_repo, &resolved_change)
                     .unwrap_or_default();
                 let json = core_show::parse_change_show_json(&resolved_change, &files);
-                let rendered = serde_json::to_string_pretty(&json).expect("json should serialize");
+                let rendered = serde_json::to_string_pretty(&json)
+                    .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                 println!("{rendered}");
             } else {
                 let md = core_show::read_change_proposal_markdown(change_repo, &resolved_change)
@@ -220,6 +230,14 @@ pub(crate) fn handle_show_clap(rt: &Runtime, args: &ShowArgs) -> CliResult<()> {
             argv.push(m.module_id.clone());
             return handle_show(rt, &argv);
         }
+        Some(ShowCommand::SubModule(sm)) => {
+            argv.push("sub-module".to_string());
+            if sm.json {
+                argv.push("--json".to_string());
+            }
+            argv.push(sm.sub_module_id.clone());
+            return handle_show(rt, &argv);
+        }
         Some(ShowCommand::Specs(s)) => {
             argv.push("specs".to_string());
             if s.json {
@@ -274,19 +292,92 @@ fn handle_show_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if want_json {
         return fail("Module JSON output is not implemented");
     }
-    let module_id = super::common::last_positional(args);
-    if module_id.is_none() {
+    let Some(module_id) = super::common::last_positional(args) else {
         return fail(
             "Nothing to show. Try one of:\n  ito show module <module-id>\nOr run in an interactive terminal.",
         );
-    }
-    let module_id = module_id.expect("checked");
+    };
 
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let module_repo = runtime.repositories().modules.as_ref();
 
     let md = core_show::read_module_markdown(module_repo, &module_id).map_err(to_cli_error)?;
     print!("{md}");
+
+    Ok(())
+}
+
+fn handle_show_sub_module(rt: &Runtime, args: &[String]) -> CliResult<()> {
+    let want_json = args.iter().any(|a| a == "--json");
+    let Some(sub_module_id) = super::common::last_positional(args) else {
+        return fail(
+            "Nothing to show. Try one of:\n  ito show sub-module <NNN.SS>\nOr run in an interactive terminal.",
+        );
+    };
+
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let module_repo = runtime.repositories().modules.as_ref();
+
+    let sub_module = module_repo
+        .get_sub_module(&sub_module_id)
+        .map_err(|e| match e {
+            DomainError::NotFound { .. } => CliError::msg(format!(
+                "Sub-module '{sub_module_id}' not found.\n\
+                 Use 'ito list --modules' to see available sub-modules."
+            )),
+            other => to_cli_error(other),
+        })?;
+
+    if want_json {
+        #[derive(serde::Serialize)]
+        struct SubModuleJson<'a> {
+            id: &'a str,
+            #[serde(rename = "parentModuleId")]
+            parent_module_id: &'a str,
+            #[serde(rename = "subId")]
+            sub_id: &'a str,
+            name: &'a str,
+            description: Option<&'a str>,
+            #[serde(rename = "changeCount")]
+            change_count: u32,
+        }
+        let json = SubModuleJson {
+            id: &sub_module.id,
+            parent_module_id: &sub_module.parent_module_id,
+            sub_id: &sub_module.sub_id,
+            name: &sub_module.name,
+            description: sub_module.description.as_deref(),
+            change_count: sub_module.change_count,
+        };
+        let rendered = serde_json::to_string_pretty(&json)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
+        println!("{rendered}");
+        return Ok(());
+    }
+
+    // Human-readable output.
+    println!("Sub-module: {}", sub_module.id);
+    println!("  Name:   {}", sub_module.name);
+    println!("  Parent: {}", sub_module.parent_module_id);
+    if let Some(desc) = &sub_module.description {
+        println!("  Description: {desc}");
+    }
+    let change_suffix = if sub_module.change_count == 1 {
+        "change"
+    } else {
+        "changes"
+    };
+    println!("  Changes: {} {change_suffix}", sub_module.change_count);
+
+    // Show module.md content if present.
+    let md_path = sub_module.path.join("module.md");
+    if md_path.is_file() {
+        let md = read_to_string_or_default(&md_path);
+        if !md.is_empty() {
+            println!();
+            print!("{md}");
+        }
+    }
 
     Ok(())
 }

@@ -323,6 +323,7 @@ impl ChangeRepository for SqliteChangeRepository {
         Ok(Change {
             id: row.change_id.clone(),
             module_id: row.module_id.clone(),
+            sub_module_id: row.sub_module_id.clone(),
             path: PathBuf::new(),
             proposal: row.proposal.clone(),
             design: row.design.clone(),
@@ -358,6 +359,7 @@ impl ChangeRepository for SqliteChangeRepository {
             summaries.push(ChangeSummary {
                 id: row.change_id.clone(),
                 module_id: row.module_id.clone(),
+                sub_module_id: row.sub_module_id.clone(),
                 completed_tasks: tasks.progress.complete as u32,
                 shelved_tasks: tasks.progress.shelved as u32,
                 in_progress_tasks: tasks.progress.in_progress as u32,
@@ -446,6 +448,7 @@ impl ModuleRepository for SqliteModuleRepository {
             name: row.name.clone(),
             description: row.description.clone(),
             path: PathBuf::new(),
+            sub_modules: Vec::new(),
         })
     }
 
@@ -457,6 +460,7 @@ impl ModuleRepository for SqliteModuleRepository {
                 id: m.module_id.clone(),
                 name: m.name.clone(),
                 change_count: 0, // No cross-reference in PoC
+                sub_modules: Vec::new(),
             })
             .collect())
     }
@@ -544,6 +548,7 @@ mod tests {
                 repo: "repo",
                 change_id: "001-01_my-change",
                 module_id: Some("001"),
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("## 1. Tasks\n- [x] 1.1 Done\n- [ ] 1.2 Pending"),
@@ -571,6 +576,7 @@ mod tests {
                 repo: "repo",
                 change_id: "002-01_another",
                 module_id: None,
+                sub_module_id: None,
                 proposal: Some("# My Proposal"),
                 design: Some("# Design"),
                 tasks_md: None,
@@ -635,6 +641,7 @@ mod tests {
                 repo: "repo",
                 change_id: "001-01_change",
                 module_id: None,
+                sub_module_id: None,
                 proposal: None,
                 design: None,
                 tasks_md: Some("## 1. Tasks\n- [x] 1.1 Done\n- [ ] 1.2 Pending"),
@@ -668,6 +675,7 @@ mod tests {
                 repo: "repo1",
                 change_id: "change-a",
                 module_id: None,
+                sub_module_id: None,
                 proposal: None,
                 design: None,
                 tasks_md: None,
@@ -680,6 +688,7 @@ mod tests {
                 repo: "repo2",
                 change_id: "change-b",
                 module_id: None,
+                sub_module_id: None,
                 proposal: None,
                 design: None,
                 tasks_md: None,
@@ -720,6 +729,7 @@ mod tests {
                     repo: "repo",
                     change_id: "change-1",
                     module_id: None,
+                    sub_module_id: None,
                     proposal: Some("# P"),
                     design: None,
                     tasks_md: None,
@@ -749,6 +759,7 @@ mod tests {
                 repo: "widgets",
                 change_id: "025-01_atomic-push",
                 module_id: Some("025"),
+                sub_module_id: None,
                 proposal: Some("# Original Proposal"),
                 design: Some("# Original Design"),
                 tasks_md: Some("## 1. Tasks\n- [ ] 1.1 Keep original"),
@@ -799,6 +810,7 @@ mod tests {
                 repo: "widgets",
                 change_id: "025-02_atomic-archive",
                 module_id: Some("025"),
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("## 1. Tasks\n- [x] 1.1 Done"),
@@ -850,6 +862,7 @@ mod tests {
                 repo: "widgets",
                 change_id: "025-03_poisoned-lock",
                 module_id: Some("025"),
+                sub_module_id: None,
                 proposal: None,
                 design: None,
                 tasks_md: Some("## 1. Tasks\n- [ ] 1.1 Pending"),

@@ -92,6 +92,7 @@ fn make_summary(id: &str, completed: u32, total: u32) -> ChangeSummary {
     ChangeSummary {
         id: id.to_string(),
         module_id: None,
+        sub_module_id: None,
         completed_tasks: completed,
         shelved_tasks: 0,
         in_progress_tasks: 0,

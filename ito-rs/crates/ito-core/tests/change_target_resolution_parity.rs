@@ -63,6 +63,7 @@ fn sqlite_runtime_with_changes(
                 repo: "demo",
                 change_id,
                 module_id: change_id.split('-').next(),
+                sub_module_id: None,
                 proposal: Some("# Proposal"),
                 design: None,
                 tasks_md: Some("## 1. Implementation\n- [ ] 1.1 Todo"),
@@ -97,6 +98,7 @@ fn summary(id: &str) -> ChangeSummary {
     ChangeSummary {
         id: id.to_string(),
         module_id: Some(id.split('-').next().unwrap_or_default().to_string()),
+        sub_module_id: None,
         completed_tasks: 0,
         shelved_tasks: 0,
         in_progress_tasks: 0,
@@ -114,6 +116,7 @@ fn change(id: &str) -> Change {
     Change {
         id: id.to_string(),
         module_id: Some(id.split('-').next().unwrap_or_default().to_string()),
+        sub_module_id: None,
         path: std::path::PathBuf::new(),
         proposal: Some("# Proposal".to_string()),
         design: None,
