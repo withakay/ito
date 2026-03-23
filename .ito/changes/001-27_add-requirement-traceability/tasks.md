@@ -27,7 +27,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Parsed change artifacts expose requirement ids and task references to validation/review code, and fixture coverage includes absent/present metadata cases.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Define traceability computation semantics
 
@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: A single reusable computation path exists for validation, review, and CLI rendering, with tests for active covered/uncovered cases, archived historical cases, duplicate/unknown references, partial-id, and unavailable-trace cases.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -53,7 +53,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Validation output clearly reports traceability issues with actionable messages and strict-mode severity behaves as designed.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Add traceability context to review instructions
 
@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: `ito agent instruction review --change <id>` surfaces covered and uncovered requirements plus unresolved references for traced changes.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.3: Add `ito trace` command surface and output
 
@@ -73,7 +73,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Users can run `ito trace <change-id>` against active or archived changes to inspect covered, uncovered, and unresolved requirement links, or see why computed traceability is unavailable.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Generated guidance shows the new metadata fields and explains when they should be used.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Add end-to-end fixtures for traced and untraced changes
 
@@ -99,5 +99,5 @@ ______________________________________________________________________
 - **Verify**: `bash ito-rs/tools/test-affected.sh`
 - **Done When**: Regression coverage proves additive rollout, archived historical trace support, and prevents future drift in traceability behavior.
 - **Updated At**: 2026-03-22
-- **Status**: [ ] pending
+- **Status**: [x] complete
 <!-- ITO:END -->
