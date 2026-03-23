@@ -77,7 +77,7 @@ pub fn compute_trace_output(
     // Determine lifecycle from the change path.
     let lifecycle = {
         let path_str = change.path.to_string_lossy();
-        if path_str.contains("/archive/") || path_str.contains("/archived/") {
+        if path_str.contains("/archive/") {
             "archived".to_string()
         } else {
             "active".to_string()

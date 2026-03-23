@@ -745,7 +745,7 @@ fn task_list_to_parse_result(list: ApiTaskList) -> TasksParseResult {
             done_when: None,
             kind: TaskKind::Normal,
             header_line_index: 0,
-            requirements: Vec::new(),
+            requirements: item.requirements,
         });
     }
 
@@ -853,7 +853,7 @@ fn task_mutation_from_api(response: ApiTaskMutationEnvelope) -> TaskMutationResu
                 _ => TaskKind::Normal,
             },
             header_line_index: response.task.header_line_index,
-            requirements: Vec::new(),
+            requirements: response.task.requirements,
         },
         revision: response.revision,
     }
@@ -921,6 +921,8 @@ struct ApiTaskItem {
     status: String,
     #[serde(default)]
     dependencies: Option<Vec<String>>,
+    #[serde(default)]
+    requirements: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -959,6 +961,8 @@ struct ApiTaskDetail {
     done_when: Option<String>,
     kind: String,
     header_line_index: usize,
+    #[serde(default)]
+    requirements: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
