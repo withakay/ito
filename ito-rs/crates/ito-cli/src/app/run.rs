@@ -292,14 +292,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
         Some(Commands::Util(args)) => {
             return commands::handle_util_clap(args);
         }
-        Some(Commands::Trace(args)) => {
-            return util::with_logging(
-                &rt,
-                &command_id,
-                &project_root,
-                &ito_path_for_logging,
-                || super::trace::handle_trace_clap(&rt, args),
-            );
+|| {
+    match super::trace::handle_trace_clap(&rt, args) {
+        Ok(result) => result,
+        Err(e) => {
+            log::error!("Failed to handle trace clap: {}", e);
+            return Err(e);
+        }
+    }
+}
         }
         Some(Commands::Archive(args)) => {
             return util::with_logging(
