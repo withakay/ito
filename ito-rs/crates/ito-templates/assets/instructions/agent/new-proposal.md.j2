@@ -24,12 +24,23 @@ ito agent instruction schemas
 - If the user does not have a preference, recommend **spec-driven** (default).
 - Remember the chosen schema for the create step.
 
-## Step 2: Choose a Module
+## Step 2: Choose a Module (Confirmation Required)
 
-Changes belong to a module (a grouping of related work).
+**⛔ STOP — Do not proceed to Step 3 until the user has explicitly confirmed their module choice.**
+
+Changes belong to a module (a grouping of related work). You MUST ask the user which module to use and wait for their confirmation before creating any change scaffolding.
+
+### Discover Available Modules
+
+First, show the user what modules (and sub-modules) exist:
+
+```bash
+ito list --modules
+```
 
 {%- if modules and modules|length > 0 %}
-### Available Modules
+
+**Known modules at instruction time:**
 
 | ID | Name |
 |----|------|
@@ -37,17 +48,64 @@ Changes belong to a module (a grouping of related work).
 | {{ m.id }} | {{ m.name }} |
 {%- endfor %}
 
-Choose an existing module if your change fits its scope, or create a new one.
+(Run `ito list --modules` for the latest list including sub-modules.)
 {%- else %}
-No modules exist yet. You can:
-- Use module `000` for standalone/ungrouped changes
-- Create a new module with `ito create module <name>`
+
+No modules exist yet.
 {%- endif %}
+
+### Ask the User
+
+Present these options and **wait for the user to respond**:
+
+> **Which module should this change belong to?**
+>
+> 1. **Use an existing module** — pick from the list above (provide the module ID, e.g., `001`)
+> 2. **Create a new module** — enter a name (kebab-case, e.g., `api-auth`)
+> 3. **Create a new sub-module** under an existing module — specify the parent module ID and a sub-module name
+>
+> If unsure, I can suggest a module based on the scope of your change.
+
+**Do NOT default to module `000` without asking.** Always let the user decide.
+
+### Handle the User's Choice
+
+**Option 1 — Existing module:**
+Use the module ID they chose in the `ito create change` command.
+
+**Option 2 — New module:**
+```bash
+ito create module "<module-name>"
+```
+Then use the newly created module ID.
+
+**Option 3 — New sub-module:**
+```bash
+# Create the sub-module under the parent module
+ito create sub-module "<sub-module-name>" --module <parent-module-id>
+# Note the sub-module ID (format: NNN.SS, e.g., 019.01)
+```
+Then use `--sub-module <NNN.SS>` instead of `--module` when creating the change.
+
+### Sub-Module Reference
+
+Sub-modules group related changes within a module. Sub-module IDs use the format `NNN.SS` where `NNN` is the parent module and `SS` is the sub-module number (e.g., `019.01`).
+
+| Command | Purpose |
+|---------|---------|
+| `ito create sub-module <name> --module <NNN>` | Create a sub-module |
+| `ito create change <name> --sub-module <NNN.SS>` | Create a change in a sub-module |
 
 ## Step 3: Create the Change
 
+Only proceed here after the user has confirmed their module (or sub-module) choice.
+
 ```bash
+# For a regular module:
 ito create change "<change-name>" --module <module-id> --schema <schema>
+
+# For a sub-module:
+ito create change "<change-name>" --sub-module <NNN.SS> --schema <schema>
 ```
 
 **Naming conventions:**
@@ -59,6 +117,10 @@ ito create change "<change-name>" --module <module-id> --schema <schema>
 ```bash
 ito create change "add-two-factor-auth" --module 001
 # Creates: .ito/changes/001-05_add-two-factor-auth/
+
+# Or with a sub-module:
+ito create change "add-oauth-provider" --sub-module 001.02
+# Creates: .ito/changes/001.02-03_add-oauth-provider/
 ```
 
 ## Step 4: Generate Proposal Artifacts
@@ -85,12 +147,14 @@ Fix any errors before proceeding.
 
 | Command | Purpose |
 |---------|---------|
-| `ito list --modules` | List all modules |
+| `ito list --modules` | List all modules and sub-modules |
 | `ito list` | List active changes |
 | `ito list --specs` | List existing specifications |
 | `ito agent instruction schemas` | List workflow schemas |
 | `ito create module <name>` | Create a new module |
-| `ito create change <name> --module <id> --schema <schema>` | Create a new change |
+| `ito create sub-module <name> --module <id>` | Create a sub-module |
+| `ito create change <name> --module <id> --schema <schema>` | Create a change in a module |
+| `ito create change <name> --sub-module <id> --schema <schema>` | Create a change in a sub-module |
 | `ito validate <change-id> --strict` | Validate a change |
 
 ## Documentation
