@@ -1,6 +1,6 @@
 ---
 name: ito-verification-before-completion
-description: Use before claiming work is complete, fixed, or passing — requires running verification commands and confirming output before making success claims
+description: Use before claiming work is complete, finished, fixed, or passing — requires running verification commands and confirming output before making success claims
 ---
 
 # Verification Before Completion

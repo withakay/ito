@@ -1,24 +1,24 @@
 {
-  "tools": {},
   "agents": {},
-  "worktrees": {
-    "apply": {
-      "integration_mode": "commit_pr"
+  "backend": {
+    "enabled": false,
+    "project": {
+      "org": "withakay",
+      "repo": "ito"
     },
-    "enabled": true,
-    "strategy": "bare_control_siblings"
+    "url": "http://127.0.0.1:9010"
   },
   "defaults": {
     "testing": {
-      "tdd": {
-        "workflow": "red-green-refactor"
-      },
       "coverage": {
-        "target_percent": 100,
-        "minimum_percent": 80
+        "minimum_percent": 80,
+        "target_percent": 100
       },
       "mocking": {
         "policy": "avoid"
+      },
+      "tdd": {
+        "workflow": "red-green-refactor"
       }
     }
   },
@@ -29,12 +29,16 @@
       "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo test --workspace --exclude ito-web"
     ]
   },
-  "backend": {
-    "enabled": false,
-    "url": "http://127.0.0.1:9010",
-    "project": {
-      "org": "withakay",
-      "repo": "ito"
+  "tools": {
+    "tmux": {
+      "enabled": true
     }
+  },
+  "worktrees": {
+    "apply": {
+      "integration_mode": "commit_pr"
+    },
+    "enabled": true,
+    "strategy": "bare_control_siblings"
   }
 }
