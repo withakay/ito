@@ -474,25 +474,25 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     /// `Dependencies` string into explicit dependency IDs, and transfers collected metadata (files, action,
     /// verify, done_when, requirements, etc.) into the pushed `TaskItem`.
     ///
-     /// # Examples
-     ///
-     /// ```ignore
-     /// // Prepare a minimal current task and parse result containers.
-     /// let mut current = CurrentTask::default();
-     /// current.id = Some("T1".to_string());
-     /// current.desc = Some("Example task".to_string());
-     /// current.status_raw = Some("Complete".to_string());
-     /// current.status_marker_raw = Some('x');
-     /// current.updated_at_raw = Some("2025-03-01".to_string());
-     ///
-     /// let mut tasks = Vec::new();
-     /// let mut diagnostics = Vec::new();
-     ///
-     /// flush_current(&mut current, &mut tasks, &mut diagnostics);
-     ///
-     /// assert_eq!(tasks.len(), 1);
-     /// assert!(diagnostics.is_empty());
-     /// ```
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Prepare a minimal current task and parse result containers.
+    /// let mut current = CurrentTask::default();
+    /// current.id = Some("T1".to_string());
+    /// current.desc = Some("Example task".to_string());
+    /// current.status_raw = Some("Complete".to_string());
+    /// current.status_marker_raw = Some('x');
+    /// current.updated_at_raw = Some("2025-03-01".to_string());
+    ///
+    /// let mut tasks = Vec::new();
+    /// let mut diagnostics = Vec::new();
+    ///
+    /// flush_current(&mut current, &mut tasks, &mut diagnostics);
+    ///
+    /// assert_eq!(tasks.len(), 1);
+    /// assert!(diagnostics.is_empty());
+    /// ```
     fn flush_current(
         current: &mut CurrentTask,
         tasks: &mut Vec<TaskItem>,

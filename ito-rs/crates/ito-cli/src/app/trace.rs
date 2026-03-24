@@ -10,10 +10,19 @@ use ito_core::trace::compute_trace_output;
 #[derive(Args, Debug, Clone)]
 pub struct TraceArgs {
     /// Change id (positional or via --change flag)
-    #[arg(value_name = "CHANGE", required_unless_present = "change_flag", conflicts_with = "change_flag")]
+    #[arg(
+        value_name = "CHANGE",
+        required_unless_present = "change_flag",
+        conflicts_with = "change_flag"
+    )]
     pub change: Option<String>,
     /// Change id (flag form)
-    #[arg(short = 'c', long = "change", value_name = "CHANGE", conflicts_with = "change")]
+    #[arg(
+        short = 'c',
+        long = "change",
+        value_name = "CHANGE",
+        conflicts_with = "change"
+    )]
     pub change_flag: Option<String>,
     /// Output as JSON
     #[arg(long)]
@@ -29,7 +38,7 @@ pub struct TraceArgs {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Construct a Runtime and TraceArgs appropriate for your environment, then:
 /// // handle_trace_clap(&runtime, &args).unwrap();
 /// ```
