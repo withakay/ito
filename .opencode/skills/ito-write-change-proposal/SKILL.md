@@ -45,10 +45,10 @@ After the user confirms the module:
 
 ```bash
 # For a module:
-ito create change "<change-name>" --module <module-id>
+ito create change "<change-name>" --module <module-id> --schema <schema>
 
 # For a sub-module:
-ito create change "<change-name>" --sub-module <NNN.SS>
+ito create change "<change-name>" --sub-module <NNN.SS> --schema <schema>
 ```
 
 **Step 4: Generate artifacts**
