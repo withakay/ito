@@ -14,7 +14,6 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execFileSync } from "node:child_process";
-import { resolve as resolvePath } from "node:path";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -92,56 +91,6 @@ function formatTarget(ctx: any): string | null {
     return `${kind} ${id}`;
   }
   return null;
-}
-
-// ─── Worktree tracking helpers ───────────────────────────────────────────────
-
-interface ItoWorktreeInfo {
-  /** Absolute path to the worktree root (…/ito-worktrees/<name>) */
-  root: string;
-  /** Worktree directory name (usually the branch/change id) */
-  name: string;
-}
-
-function inferItoWorktreeFromPath(pathLike: string): ItoWorktreeInfo | null {
-  if (!pathLike) return null;
-  const norm = pathLike.replace(/\\/g, "/");
-  const m = norm.match(/^(.*\/ito-worktrees\/([^/]+))(?:\/|$)/);
-  if (!m) return null;
-  return { root: m[1], name: m[2] };
-}
-
-function unquotePath(value: string): string {
-  const v = value.trim();
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-    return v.slice(1, -1);
-  }
-  return v;
-}
-
-function parseLeadingCdPath(command: string): string | null {
-  const m = command.match(/^\s*cd\s+("([^"]+)"|'([^']+)'|([^\s;&]+))/);
-  if (!m) return null;
-  return m[2] ?? m[3] ?? m[4] ?? null;
-}
-
-function parseGitCPath(command: string): string | null {
-  const m = command.match(/\bgit\b[^\r\n]*?\s-C\s+("([^"]+)"|'([^']+)'|([^\s;&]+))/);
-  if (!m) return null;
-  return m[2] ?? m[3] ?? m[4] ?? null;
-}
-
-function parseGitWorktreeAddPath(command: string): string | null {
-  const m = command.match(/\bgit\b[^\r\n]*?\bworktree\b\s+add\s+("([^"]+)"|'([^']+)'|([^\s;&]+))/);
-  if (!m) return null;
-  return m[2] ?? m[3] ?? m[4] ?? null;
-}
-
-function findItoWorktreesPathLike(command: string): string | null {
-  // Grab the first token-ish chunk containing ito-worktrees/<name>
-  const norm = command.replace(/\\/g, "/");
-  const m = norm.match(/(?:^|\s)([^\s'";&]*ito-worktrees\/[^\s'";&]+)/);
-  return m ? m[1] : null;
 }
 
 // ─── Managed-file guardrail helpers ──────────────────────────────────────────
@@ -228,78 +177,6 @@ export default function itoSkills(pi: ExtensionAPI) {
 
   const runIto = (args: string[]) => runCmd("ito", args, directory);
   const runGit = (args: string[]) => runCmd("git", args, directory);
-
-  // ── Operational worktree tracking ───────────────────────────────────────
-
-  const WORKTREE_STATUS_KEY = "ito.worktree";
-  const baseWorktree = inferItoWorktreeFromPath(directory);
-  let activeWorktree: ItoWorktreeInfo | null = null;
-
-  function setWorktreeStatus(next: ItoWorktreeInfo | null, ctx: any) {
-    // Only show an explicit worktree indicator when we're operating in a
-    // different worktree than where pi itself was launched.
-    const shouldShow =
-      !!next && (!baseWorktree || baseWorktree.root !== next.root);
-
-    if (!shouldShow) {
-      if (activeWorktree) {
-        activeWorktree = null;
-        ctx.ui.setStatus(WORKTREE_STATUS_KEY, undefined);
-      }
-      return;
-    }
-
-    if (activeWorktree?.root === next.root) return;
-
-    activeWorktree = next;
-    ctx.ui.setStatus(WORKTREE_STATUS_KEY, `WT:${next.name}`);
-  }
-
-  function maybeUpdateWorktreeStatusFromToolCall(toolName: string, input: any, ctx: any) {
-    if (!ctx?.ui?.setStatus) return;
-
-    if (toolName === "bash") {
-      const command = typeof input?.command === "string" ? input.command : "";
-      if (!command) return;
-
-      const cdPath = parseLeadingCdPath(command);
-      const gitCPath = cdPath ? null : parseGitCPath(command);
-      const worktreeAddPath = cdPath || gitCPath ? null : parseGitWorktreeAddPath(command);
-
-      const explicitPath = cdPath ?? gitCPath ?? worktreeAddPath;
-      if (explicitPath) {
-        const abs = resolvePath(directory, unquotePath(explicitPath));
-        const inferred = inferItoWorktreeFromPath(abs);
-        if (inferred) {
-          setWorktreeStatus(inferred, ctx);
-        } else {
-          // Explicit cwd switch, but not into an ito-worktrees/* path → clear.
-          setWorktreeStatus(null, ctx);
-        }
-        return;
-      }
-
-      // Fallback: if we see an ito-worktrees/<name> path anywhere in the command,
-      // treat it as the operational context.
-      const pathLike = findItoWorktreesPathLike(command);
-      if (pathLike) {
-        const abs = resolvePath(directory, unquotePath(pathLike));
-        const inferred = inferItoWorktreeFromPath(abs);
-        if (inferred) setWorktreeStatus(inferred, ctx);
-      }
-
-      return;
-    }
-
-    // File tools: if the path points into a worktree, update indicator.
-    if (toolName === "read" || toolName === "write" || toolName === "edit") {
-      const path = typeof input?.path === "string" ? input.path : "";
-      if (!path) return;
-      const abs = resolvePath(directory, unquotePath(path));
-      const inferred = inferItoWorktreeFromPath(abs);
-      if (inferred) setWorktreeStatus(inferred, ctx);
-    }
-  }
 
   // ── Context loader (cached) ──────────────────────────────────────────────
 
@@ -470,20 +347,11 @@ Use \`/skill:using-ito-skills\` to load Ito workflows if skills are installed.`;
     };
   });
 
-  // Track worktree context for user-triggered shell commands (`!` / `!!`).
-  pi.on("user_bash", async (event, ctx) => {
-    maybeUpdateWorktreeStatusFromToolCall("bash", { command: event.command }, ctx);
-  });
-
   // Audit + managed-file guardrails on every tool call.
   pi.on("tool_call", async (event, ctx) => {
-    const toolName = event.toolName;
-
-    // Track when the agent is operating in a sibling git worktree (ito-worktrees/*)
-    // even if pi's own process cwd stays on the main worktree.
-    maybeUpdateWorktreeStatusFromToolCall(toolName, event.input, ctx);
-
     if (disableAuditHook) return;
+
+    const toolName = event.toolName;
 
     // Managed-file write warnings — collect and notify.
     if (FILE_EDITING_TOOLS.has(toolName) || toolName === "bash") {
@@ -527,25 +395,6 @@ Use \`/skill:using-ito-skills\` to load Ito workflows if skills are installed.`;
       target ? `Session compacted — continue: ${target}` : "Session compacted",
       "info"
     );
-  });
-
-  // Manual inspection/override for the heuristic worktree indicator.
-  pi.registerCommand("ito-wt", {
-    description: "Show/clear inferred Ito worktree indicator. Usage: /ito-wt [off]",
-    handler: async (args, ctx) => {
-      const sub = (args || "").trim().toLowerCase();
-      if (sub === "off" || sub === "clear") {
-        setWorktreeStatus(null, ctx);
-        ctx.ui.notify("Ito worktree indicator cleared", "info");
-        return;
-      }
-
-      if (activeWorktree) {
-        ctx.ui.notify(`Ito worktree (heuristic): ${activeWorktree.root}`, "info");
-      } else {
-        ctx.ui.notify("Ito worktree (heuristic): none", "info");
-      }
-    },
   });
 
   // Register /ito command for quick access.

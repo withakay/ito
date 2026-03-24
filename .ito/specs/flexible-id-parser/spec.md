@@ -1,38 +1,9 @@
-# flexible-id-parser Specification
-
-## Purpose
-
-Define the `flexible-id-parser` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Parse loose module ID formats).
-
-## Requirements
-
-### Requirement: Parse loose module ID formats
-
-The system SHALL accept loose module ID formats and normalize them to canonical 3-digit padded format.
-
-#### Scenario: Single digit module ID
-
-- **WHEN** user provides module ID `1`
-- **THEN** system normalizes to `001`
-
-#### Scenario: Two digit module ID
-
-- **WHEN** user provides module ID `01`
-- **THEN** system normalizes to `001`
-
-#### Scenario: Three digit module ID (already canonical)
-
-- **WHEN** user provides module ID `001`
-- **THEN** system returns `001` unchanged
-
-#### Scenario: Module ID with name suffix
-
-- **WHEN** user provides module ID `1_foo` or `001_foo`
-- **THEN** system extracts module number and normalizes to `001`
+<!-- ITO:START -->
+## MODIFIED Requirements
 
 ### Requirement: Parse loose change ID formats
 
-The system SHALL accept loose change ID formats and normalize them to canonical `NNN-NN_name` format.
+The system SHALL accept both plain module change ID formats (`NNN-NN_name`) and sub-module change ID formats (`NNN.SS-NN_name`), normalizing all components to their canonical zero-padded widths.
 
 #### Scenario: Minimal change ID
 
@@ -54,24 +25,20 @@ The system SHALL accept loose change ID formats and normalize them to canonical 
 - **WHEN** user provides change ID `0001-00002_baz`
 - **THEN** system normalizes to `001-02_baz`
 
-### Requirement: Reject invalid ID formats
+#### Scenario: Sub-module change ID with loose components
 
-The system SHALL reject IDs that don't match expected patterns and provide helpful error messages.
+- **WHEN** user provides change ID `24.1-3_foo`
+- **THEN** system normalizes to `024.01-03_foo`
 
-#### Scenario: Invalid module ID format
+#### Scenario: Sub-module change ID already canonical
 
-- **WHEN** user provides module ID `abc` (non-numeric)
-- **THEN** system returns error with message explaining expected format
+- **WHEN** user provides change ID `024.01-03_foo`
+- **THEN** system returns `024.01-03_foo` unchanged
 
-#### Scenario: Invalid change ID format - missing name
+#### Scenario: Sub-module change ID with excessive padding
 
-- **WHEN** user provides change ID `001-02` (no name suffix)
-- **THEN** system returns error indicating name is required
-
-#### Scenario: Invalid change ID format - bad separator
-
-- **WHEN** user provides change ID `001_02_bar` (wrong separator)
-- **THEN** system returns error with correct format example
+- **WHEN** user provides change ID `0024.001-0003_foo`
+- **THEN** system normalizes to `024.01-03_foo`
 
 ### Requirement: Implement parser as reusable utility
 
@@ -79,24 +46,51 @@ The parser SHALL be implemented as a standalone utility function that can be use
 
 #### Scenario: Parser exported for CLI use
 
-- **WHEN** CLI command needs to parse a module or change ID
-- **THEN** it can import and use the `parseModuleId` and `parseChangeId` functions
+- **WHEN** CLI command needs to parse a module, sub-module, or change ID
+- **THEN** it can import and use reusable parse helpers instead of duplicating inline string splitting logic
 
-#### Scenario: Parser returns structured result
+#### Scenario: Parser returns structured result for module change ID
 
-- **WHEN** parsing a valid change ID like `1-2_bar`
-- **THEN** parser returns object with `{ moduleId: "001", changeNum: "02", name: "bar", canonical: "001-02_bar" }`
+- **WHEN** parsing a valid module change ID like `1-2_bar`
+- **THEN** parser returns object with `{ module_id: "001", sub_module_id: null, change_num: "02", name: "bar", canonical: "001-02_bar" }`
 
-### Requirement: Comprehensive test coverage
+#### Scenario: Parser returns structured result for sub-module change ID
 
-The parser SHALL have comprehensive unit tests covering all edge cases.
+- **WHEN** parsing a valid sub-module change ID like `24.1-3_foo`
+- **THEN** parser returns object with `{ module_id: "024", sub_module_id: "024.01", change_num: "03", name: "foo", canonical: "024.01-03_foo" }`
 
-#### Scenario: Test suite covers all input variations
+## ADDED Requirements
 
-- **WHEN** running parser test suite
-- **THEN** tests cover: single digits, multi-digits, excessive padding, with/without names, invalid formats
+### Requirement: Parse loose sub-module ID formats
 
-#### Scenario: Test suite achieves minimum coverage
+The system SHALL accept loose sub-module ID formats (`NNN.SS` or `NNN.SS_name`) and normalize to canonical `NNN.SS` form.
 
-- **WHEN** running coverage report on parser module
-- **THEN** coverage is at least 90% for lines, branches, and functions
+#### Scenario: Loose sub-module ID `24.1`
+
+- **WHEN** user provides sub-module ID `24.1`
+- **THEN** system normalizes to `024.01`
+
+#### Scenario: Sub-module ID with name suffix `024.01_auth`
+
+- **WHEN** user provides sub-module ID `024.01_auth`
+- **THEN** system extracts and returns `024.01`
+
+#### Scenario: Canonical sub-module ID already correct
+
+- **WHEN** user provides sub-module ID `024.01`
+- **THEN** system returns `024.01` unchanged
+
+### Requirement: Reject invalid sub-module ID formats
+
+The system SHALL reject malformed sub-module IDs and sub-module change IDs with helpful errors.
+
+#### Scenario: Invalid sub-module ID format
+
+- **WHEN** user provides sub-module ID `024..01`
+- **THEN** system returns an error explaining the expected `NNN.SS` format
+
+#### Scenario: Invalid sub-module change ID separator
+
+- **WHEN** user provides change ID `024_01-03_foo`
+- **THEN** system returns an error explaining the expected `NNN.SS-NN_name` format
+<!-- ITO:END -->

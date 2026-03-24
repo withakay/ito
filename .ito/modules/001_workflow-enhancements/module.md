@@ -21,8 +21,8 @@
 - [ ] 001-24_schema-validation-format-specs
 - [ ] 001-25_tracking-file-support
 - [x] 001-26_add-pr-fix-workflow
-- [ ] 001-27_add-requirement-traceability
-- [ ] 001-28_tmux-skill-integration
-- [ ] 001-29_proposal-viewer-command
+- [x] 001-27_add-requirement-traceability
+- [x] 001-28_tmux-skill-integration
+- [x] 001-29_proposal-viewer-command
 - [ ] 001-30_proposal-viewer-html
-- [ ] 001-31_tools-config-tmux
+- [x] 001-31_tools-config-tmux

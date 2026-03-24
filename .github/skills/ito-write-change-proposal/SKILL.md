@@ -5,6 +5,8 @@ description: Use when creating, designing, planning, proposing, or specifying a 
 
 Collaborate with the user to understand their intent, then create a change and generate proposal artifacts.
 
+**If the user already provided a change ID**, skip to Step 4 (Generate artifacts) — the change already exists.
+
 **Step 0: Understand the change (do this first)**
 
 Do NOT jump straight into creating files. Interview the user to build a shared understanding:
@@ -18,17 +20,38 @@ Do NOT jump straight into creating files. Interview the user to build a shared u
 
 Only proceed to Step 1 once you and the user agree on what the change is and why it matters.
 
-**Step 1: Create the change**
+**Step 1: Choose a schema**
 
-If the user provided an existing change ID, use it. Otherwise:
+```bash
+ito agent instruction schemas
+```
 
-- Pick a module (default to `000` if unsure). Run `ito list --modules` to check.
-- Run:
-  ```bash
-  ito create change "<change-name>" --module <module-id>
-  ```
+If the user has no preference, recommend **spec-driven** (default).
 
-**Step 2: Generate artifacts**
+**Step 2: Confirm the module (mandatory gate)**
+
+⛔ **Do NOT create any change scaffolding until the user has confirmed their module choice.**
+
+1. Run `ito list --modules` to show available modules and sub-modules.
+2. Present the user with these options and **wait for their response**:
+   - **Use an existing module** — pick from the list (provide the ID)
+   - **Create a new module** — enter a name (`ito create module "<name>"`)
+   - **Create a new sub-module** under an existing module — specify parent ID and name (`ito create sub-module "<name>" --module <parent-id>`)
+3. Do NOT silently default to module `000`. Always ask.
+
+**Step 3: Create the change**
+
+After the user confirms the module:
+
+```bash
+# For a module:
+ito create change "<change-name>" --module <module-id> --schema <schema>
+
+# For a sub-module:
+ito create change "<change-name>" --sub-module <NNN.SS> --schema <schema>
+```
+
+**Step 4: Generate artifacts**
 
 ```bash
 ito agent instruction proposal --change "<change-id>"

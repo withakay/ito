@@ -1,5 +1,5 @@
 ---
-name: ito-test-with-subagent
+name: test-with-subagent
 description: Use when tests need to be run with minimal output noise and delegated execution; routes test runs through the dedicated test-runner subagent and returns curated pass/fail evidence.
 ---
 
