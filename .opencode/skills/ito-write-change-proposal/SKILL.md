@@ -5,6 +5,8 @@ description: Use when creating, designing, planning, proposing, or specifying a 
 
 Collaborate with the user to understand their intent, then create a change and generate proposal artifacts.
 
+**If the user already provided a change ID**, skip to Step 4 (Generate artifacts) — the change already exists.
+
 **Step 0: Understand the change (do this first)**
 
 Do NOT jump straight into creating files. Interview the user to build a shared understanding:
