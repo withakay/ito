@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.24] - 2026-03-24
+
+### 🚀 Features
+
+- *(019.01-01)* Add module confirmation gate to proposal prompts ([#182](https://github.com/withakay/ito/pull/182))
+- *(001-27)* Add requirement traceability chain ([#181](https://github.com/withakay/ito/pull/181))
 ## [0.1.23] - 2026-03-22
 
 ### 🚀 Features
