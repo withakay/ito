@@ -3,6 +3,23 @@
 use super::validate_relational;
 use crate::tasks::{DiagnosticLevel, TaskItem, TaskKind, TaskStatus, WaveInfo};
 
+/// Creates a test TaskItem with the given id, optional wave, status, dependencies, and header line index.
+///
+/// The constructed TaskItem uses sane defaults for fields not supplied (empty files, empty action,
+/// no timestamps, `TaskKind::Normal`, and an empty `requirements` list).
+///
+/// # Examples
+///
+/// ```
+/// let t = task("1.1", Some(1), TaskStatus::Pending, &["1.0"], 10);
+/// assert_eq!(t.id, "1.1");
+/// assert_eq!(t.dependencies, vec!["1.0".to_string()]);
+/// assert_eq!(t.header_line_index, 10);
+/// ```
+///
+/// # Returns
+///
+/// A TaskItem populated from the provided values and default placeholders for other fields.
 fn task(
     id: &str,
     wave: Option<u32>,
@@ -23,6 +40,7 @@ fn task(
         done_when: None,
         kind: TaskKind::Normal,
         header_line_index,
+        requirements: Vec::new(),
     }
 }
 

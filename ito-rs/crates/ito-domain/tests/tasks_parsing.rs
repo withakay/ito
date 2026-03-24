@@ -1,6 +1,149 @@
 use chrono::TimeZone;
 use ito_domain::tasks;
 
+/// Verifies that an Enhanced-format tasks file with a `- **Requirements**:` line
+/// parses the comma-separated requirements into `task.requirements` and produces no diagnostics.
+///
+/// # Examples
+///
+/// ```
+/// let md = r#"
+/// ## Wave 1
+/// - **Depends On**: None
+///
+/// ### Task 1.1: Implement auth
+/// - **Files**: `auth.rs`
+/// - **Dependencies**: None
+/// - **Requirements**: REQ-001, REQ-002
+/// - **Action**:
+///   Implement the auth module
+/// - **Updated At**: 2026-01-28
+/// - **Status**: [ ] pending
+/// "#;
+///
+/// let parsed = ito_domain::tasks::parse_tasks_tracking_file(md);
+/// assert_eq!(parsed.format, ito_domain::tasks::TasksFormat::Enhanced);
+/// assert_eq!(parsed.tasks.len(), 1);
+/// assert!(parsed.diagnostics.is_empty());
+/// assert_eq!(parsed.tasks[0].requirements, vec!["REQ-001".to_string(), "REQ-002".to_string()]);
+/// ```
+#[test]
+fn parse_enhanced_tasks_extracts_requirements_field() {
+    let md = r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Implement auth
+- **Files**: `auth.rs`
+- **Dependencies**: None
+- **Requirements**: REQ-001, REQ-002
+- **Action**:
+  Implement the auth module
+- **Updated At**: 2026-01-28
+- **Status**: [ ] pending
+"#;
+
+    let parsed = tasks::parse_tasks_tracking_file(md);
+    assert_eq!(parsed.format, tasks::TasksFormat::Enhanced);
+    assert_eq!(parsed.tasks.len(), 1);
+    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(
+        parsed.tasks[0].requirements,
+        vec!["REQ-001".to_string(), "REQ-002".to_string()]
+    );
+}
+
+#[test]
+fn parse_enhanced_tasks_requirements_absent_gives_empty_vec() {
+    let md = r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: No requirements field
+- **Dependencies**: None
+- **Updated At**: 2026-01-28
+- **Status**: [ ] pending
+"#;
+
+    let parsed = tasks::parse_tasks_tracking_file(md);
+    assert_eq!(parsed.tasks.len(), 1);
+    assert!(
+        parsed.tasks[0].requirements.is_empty(),
+        "expected empty requirements when field is absent"
+    );
+}
+
+#[test]
+fn parse_enhanced_tasks_requirements_single_entry() {
+    let md = r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Single req
+- **Dependencies**: None
+- **Requirements**: REQ-AUTH-001
+- **Updated At**: 2026-01-28
+- **Status**: [ ] pending
+"#;
+
+    let parsed = tasks::parse_tasks_tracking_file(md);
+    assert_eq!(
+        parsed.tasks[0].requirements,
+        vec!["REQ-AUTH-001".to_string()]
+    );
+}
+
+#[test]
+fn parse_enhanced_tasks_requirements_not_carried_across_tasks() {
+    let md = r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Has requirements
+- **Dependencies**: None
+- **Requirements**: REQ-001
+- **Updated At**: 2026-01-28
+- **Status**: [ ] pending
+
+### Task 1.2: No requirements
+- **Dependencies**: None
+- **Updated At**: 2026-01-28
+- **Status**: [ ] pending
+"#;
+
+    let parsed = tasks::parse_tasks_tracking_file(md);
+    assert_eq!(parsed.tasks.len(), 2);
+    assert_eq!(parsed.tasks[0].requirements, vec!["REQ-001".to_string()]);
+    assert!(
+        parsed.tasks[1].requirements.is_empty(),
+        "requirements from task 1.1 must not bleed into task 1.2"
+    );
+}
+
+#[test]
+fn update_enhanced_task_status_preserves_requirements_line() {
+    let md = r#"
+## Wave 1
+
+### Task 1.1: Test
+- **Dependencies**: None
+- **Requirements**: REQ-001, REQ-002
+- **Updated At**: 2026-01-01
+- **Status**: [ ] pending
+"#;
+    let now = chrono::Local
+        .with_ymd_and_hms(2026, 2, 15, 0, 0, 0)
+        .unwrap();
+    let out = tasks::update_enhanced_task_status(md, "1.1", tasks::TaskStatus::Complete, now);
+
+    assert!(
+        out.contains("- **Requirements**: REQ-001, REQ-002"),
+        "Requirements line must be preserved after status update, got:\n{out}"
+    );
+    assert!(out.contains("- **Status**: [x] complete"));
+    assert!(out.contains("- **Updated At**: 2026-02-15"));
+}
+
 #[test]
 fn detect_tasks_format_enhanced_vs_checkbox() {
     let enhanced = "### Task 1.1: Hello\n- **Status**: [ ] pending\n";

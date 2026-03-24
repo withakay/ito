@@ -83,6 +83,43 @@ Check and report:
 - Task granularity is actionable and reviewable.
 {% endif %}
 
+{% if traceability %}
+## Requirement Traceability
+
+{% if traceability.status == "ready" %}
+Status: **Traced** ({{ traceability.declared_requirements | length }} requirements declared)
+
+{% if traceability.uncovered_requirements %}
+**Uncovered Requirements** (not linked to any active task):
+{% for req in traceability.uncovered_requirements %}
+- `{{ req }}`
+{% endfor %}
+{% endif %}
+
+{% if traceability.unresolved_references %}
+**Unresolved Task References** (task references unknown requirement IDs):
+{% for ref in traceability.unresolved_references %}
+- Task `{{ ref.task_id }}` references unknown `{{ ref.requirement_id }}`
+{% endfor %}
+{% endif %}
+
+{% if not traceability.uncovered_requirements and not traceability.unresolved_references %}
+All declared requirements are covered by active tasks.
+{% endif %}
+
+{% elif traceability.status == "invalid" %}
+Status: **Invalid** — some delta requirements are missing Requirement IDs.
+{{ traceability.reason }}
+{% elif traceability.status == "unavailable" %}
+Status: **Unavailable** — {{ traceability.reason }}
+{% endif %}
+
+Check and report:
+- Are all spec requirements linked to implementing tasks?
+- Are there tasks that reference requirements that don't exist?
+- Should the task plan be revised to cover uncovered requirements?
+{% endif %}
+
 ## Cross-Cutting Concerns
 
 - Identify likely conflicts with other active work in this module{% if module_id %} (`{{ module_id }}`){% endif %}.

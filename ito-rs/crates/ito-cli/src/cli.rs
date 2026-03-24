@@ -14,6 +14,7 @@ mod validate;
 #[cfg(feature = "backend")]
 mod backend;
 
+pub use crate::app::trace::TraceArgs;
 pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
@@ -329,8 +330,9 @@ pub enum Commands {
     ///   ito util parse-id next
     #[command(verbatim_doc_comment, visible_alias = "u")]
     Util(UtilArgs),
-
-    /// Display an interactive dashboard [not implemented]
+    /// Show requirement traceability for a change
+    #[command(visible_alias = "tr")]
+    Trace(TraceArgs),
     #[command(hide = true)]
     Dashboard(DashboardArgs),
 
@@ -1196,5 +1198,3 @@ pub struct ValidateArgs {
     #[arg(value_name = "ITEM")]
     pub item: Option<String>,
 }
-
-// Ralph / validate / split args live in submodules to keep this file under the max-lines gate.

@@ -5,12 +5,12 @@ use crate::{commands, util};
 use clap::Parser;
 use clap::error::ErrorKind;
 
-/// Parse CLI arguments, initialize runtime and logging context, and dispatch the selected subcommand.
+/// Parse CLI arguments, initialize the runtime and logging context, and dispatch the selected subcommand.
 ///
-/// This is the CLI entry point: it recognizes the global `--no-color` flag, handles help and
-/// version output, constructs an argv for clap parsing, and routes execution to the chosen
-/// subcommand. If no command is provided or the selected command is unimplemented, it prints
-/// the long help fallback.
+/// Handles global behavior (such as recognizing a global `--no-color` flag and producing help/version
+/// output), constructs an argv suitable for clap, initializes `Runtime` and logging identifiers,
+/// and routes execution to the chosen subcommand handler. If no command is provided or a command
+/// is not implemented, prints the long help fallback.
 ///
 /// # Examples
 ///
@@ -291,6 +291,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
         }
         Some(Commands::Util(args)) => {
             return commands::handle_util_clap(args);
+        }
+        Some(Commands::Trace(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || super::trace::handle_trace_clap(&rt, args),
+            );
         }
         Some(Commands::Archive(args)) => {
             return util::with_logging(
