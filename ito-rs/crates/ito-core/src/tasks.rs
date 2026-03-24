@@ -670,6 +670,25 @@ pub(crate) fn apply_unshelve_task(
     })
 }
 
+/// Appends a new task block to an enhanced-format tracking markdown and returns the created task and updated contents.
+///
+/// Validates that the input is enhanced format and contains no parse errors, assigns the new task the next numeric ID in the target wave (defaults to 1), inserts a template task block into the markdown, and returns a `TaskMutationOutcome` with the new `TaskItem` and the rewritten markdown.
+///
+/// # Parameters
+/// - `wave`: Optional target wave number; when `None` the task is added to wave 1.
+/// - `file_label`: Short label used in validation error messages when the parsed content contains errors.
+///
+/// # Returns
+/// A `TaskMutationOutcome` containing the created `TaskItem` (with `status = Pending`) and the updated tracking markdown as `updated_content`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let contents = "## Checkpoints\n";
+/// let outcome = apply_add_task(contents, "Add feature X", None, "tracking file").unwrap();
+/// assert!(outcome.task.id.starts_with("1."));
+/// assert!(outcome.updated_content.contains("### Task "));
+/// ```
 pub(crate) fn apply_add_task(
     contents: &str,
     title: &str,
@@ -745,6 +764,7 @@ pub(crate) fn apply_add_task(
             done_when: Some("[Success criteria]".to_string()),
             kind: TaskKind::Normal,
             header_line_index: 0,
+            requirements: Vec::new(),
         },
         updated_content: out,
     })

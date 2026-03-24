@@ -178,6 +178,23 @@ mod tests {
         }
     }
 
+    /// Constructs a TaskItem with the given id, wave, status, dependencies, and header index, using sensible defaults for other fields.
+    ///
+    /// The function is intended as a test helper to create TaskItem instances quickly.
+    ///
+    /// # Returns
+    ///
+    /// A `TaskItem` populated with the provided values; unspecified fields are set to empty or `None` defaults.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let t = task("1.1", Some(1), TaskStatus::Pending, &["1.0"], 10);
+    /// assert_eq!(t.id, "1.1");
+    /// assert_eq!(t.wave, Some(1));
+    /// assert_eq!(t.dependencies, vec!["1.0"]);
+    /// assert_eq!(t.header_line_index, 10);
+    /// ```
     fn task(
         id: &str,
         wave: Option<u32>,
@@ -198,6 +215,7 @@ mod tests {
             done_when: None,
             kind: TaskKind::Normal,
             header_line_index,
+            requirements: Vec::new(),
         }
     }
 

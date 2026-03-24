@@ -59,6 +59,9 @@ static VERIFY_RE: LazyLock<Regex> =
 static DONE_WHEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\*\*Done When\*\*:\s*(.+?)\s*$").unwrap());
 
+static REQUIREMENTS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\*\*Requirements\*\*:\s*(.+?)\s*$").unwrap());
+
 static ALL_WAVE_CAPTURE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)^all\s+wave\s+(\d+)\s+tasks$").unwrap());
 
@@ -176,6 +179,8 @@ pub struct TaskItem {
     pub kind: TaskKind,
     /// 0-based line index where the task header was found.
     pub header_line_index: usize,
+    /// Requirement IDs this task covers (traceability metadata).
+    pub requirements: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -253,16 +258,27 @@ impl TasksParseResult {
     }
 }
 
-/// Generate the default template for an enhanced-format `tasks.md`.
+/// Builds a default enhanced-format `tasks.md` template for a given change.
 ///
-/// The template includes:
-/// - A header with execution notes and CLI hints.
-/// - A sample Wave 1 with a placeholder task.
-/// - A sample Checkpoint for review.
+/// The generated template contains a top-level header with execution notes and CLI hints,
+/// a sample "Wave 1" section with one placeholder task (including metadata fields such as
+/// Files, Dependencies, Action, Verify, Done When, Requirements, Updated At, and Status),
+/// and a "Checkpoints" section with a sample checkpoint task. The `now` timestamp is used
+/// to populate the `**Updated At**` date in YYYY-MM-DD format.
+///
+/// # Examples
+///
+/// ```
+/// use chrono::Local;
+/// use ito_domain::tasks::enhanced_tasks_template;
+/// let tpl = enhanced_tasks_template("chg-123", Local::now());
+/// assert!(tpl.contains("Tasks for: chg-123"));
+/// assert!(tpl.contains("## Wave 1"));
+/// ```
 pub fn enhanced_tasks_template(change_id: &str, now: DateTime<Local>) -> String {
     let date = now.format("%Y-%m-%d").to_string();
     format!(
-        "# Tasks for: {change_id}\n\n## Execution Notes\n\n- **Tool**: Any (OpenCode, Codex, Claude Code)\n- **Mode**: Sequential (or parallel if tool supports)\n- **Template**: Enhanced task format with waves, verification, and status tracking\n- **Tracking**: Prefer the tasks CLI to drive status updates and pick work\n\n```bash\nito tasks status {change_id}\nito tasks next {change_id}\nito tasks start {change_id} 1.1\nito tasks complete {change_id} 1.1\nito tasks shelve {change_id} 1.1\nito tasks unshelve {change_id} 1.1\nito tasks show {change_id}\n```\n\n______________________________________________________________________\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: [Task Name]\n\n- **Files**: `path/to/file.rs`\n- **Dependencies**: None\n- **Action**:\n  [Describe what needs to be done]\n- **Verify**: `cargo test --workspace`\n- **Done When**: [Success criteria]\n- **Updated At**: {date}\n- **Status**: [ ] pending\n\n______________________________________________________________________\n\n## Checkpoints\n\n### Checkpoint: Review Implementation\n\n- **Type**: checkpoint (requires human approval)\n- **Dependencies**: All Wave 1 tasks\n- **Action**: Review the implementation before proceeding\n- **Done When**: User confirms implementation is correct\n- **Updated At**: {date}\n- **Status**: [ ] pending\n"
+        "# Tasks for: {change_id}\n\n## Execution Notes\n\n- **Tool**: Any (OpenCode, Codex, Claude Code)\n- **Mode**: Sequential (or parallel if tool supports)\n- **Template**: Enhanced task format with waves, verification, and status tracking\n- **Tracking**: Prefer the tasks CLI to drive status updates and pick work\n\n```bash\nito tasks status {change_id}\nito tasks next {change_id}\nito tasks start {change_id} 1.1\nito tasks complete {change_id} 1.1\nito tasks shelve {change_id} 1.1\nito tasks unshelve {change_id} 1.1\nito tasks show {change_id}\n```\n\n______________________________________________________________________\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: [Task Name]\n\n- **Files**: `path/to/file.rs`\n- **Dependencies**: None\n- **Action**:\n  [Describe what needs to be done]\n- **Verify**: `cargo test --workspace`\n- **Done When**: [Success criteria]\n- **Requirements**: \n- **Updated At**: {date}\n- **Status**: [ ] pending\n\n______________________________________________________________________\n\n## Checkpoints\n\n### Checkpoint: Review Implementation\n\n- **Type**: checkpoint (requires human approval)\n- **Dependencies**: All Wave 1 tasks\n- **Action**: Review the implementation before proceeding\n- **Done When**: User confirms implementation is correct\n- **Updated At**: {date}\n- **Status**: [ ] pending\n"
     )
 }
 
@@ -301,23 +317,19 @@ pub fn parse_tasks_tracking_file(contents: &str) -> TasksParseResult {
     }
 }
 
-/// Parses a legacy checkbox-style tasks.md into a normalized TasksParseResult.
+/// Parses legacy checkbox-style tasks content into a normalized TasksParseResult.
 ///
-/// This recognizes list items that start with `- ` or `* ` followed by a status checkbox
-/// (`[ ]`, `[x]`, `[~]`, `[>]`) and an optional label of the form `ID: Name`. Each matched
-/// line produces a TaskItem with a sequential numeric id if no explicit id is present.
-/// The returned result uses the Checkbox format, contains no wave metadata, and includes
-/// computed progress information.
-///
-/// # Returns
-///
-/// A TasksParseResult containing all parsed TaskItem entries, no waves, no diagnostics,
-/// and computed ProgressInfo.
+/// Recognizes list items starting with `- ` or `* ` followed by a status checkbox
+/// (`[ ]`, `[x]`, `[~]`, `[>]`) and an optional label of the form `ID: Name`.
+/// Each matched line produces a TaskItem; when an explicit ID is absent a sequential
+/// numeric ID is assigned. The result uses the Checkbox format and contains no wave
+/// metadata or diagnostics; progress is computed from the parsed tasks.
 ///
 /// # Examples
 ///
 /// ```
-/// use ito_domain::tasks::{parse_tasks_tracking_file, TasksFormat};
+/// use ito_domain::tasks::parse_tasks_tracking_file;
+/// use ito_domain::tasks::TasksFormat;
 /// let contents = "- [ ] 1: First task\n- [x] Second task\n";
 /// let result = parse_tasks_tracking_file(contents);
 /// assert_eq!(result.format, TasksFormat::Checkbox);
@@ -373,6 +385,7 @@ fn parse_checkbox_tasks(contents: &str) -> TasksParseResult {
             done_when: None,
             kind: TaskKind::Normal,
             header_line_index: line_idx,
+            requirements: Vec::new(),
         });
     }
     let progress = compute_progress(&tasks);
@@ -419,6 +432,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
     let files_re = &*FILES_RE;
     let verify_re = &*VERIFY_RE;
     let done_when_re = &*DONE_WHEN_RE;
+    let requirements_re = &*REQUIREMENTS_RE;
 
     let mut current_wave: Option<u32> = None;
     let mut in_checkpoints = false;
@@ -447,8 +461,38 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         action_lines: Vec<String>,
         verify: Option<String>,
         done_when: Option<String>,
+        requirements: Vec<String>,
+        requirements_seen: bool,
     }
 
+    /// Finalizes a partially-built task from `current` and appends a validated `TaskItem` to `tasks`.
+    ///
+    /// Consumes and clears the per-task fields stored in `current`; if `current.id` is missing the function
+    /// clears task buffers, resets `current.kind` to `Normal`, and returns without creating a task. When a task
+    /// is produced it validates the enhanced-format `Status` and `Updated At` fields (adding error diagnostics for
+    /// missing/invalid values), checks checkbox marker conventions (adding warnings on mismatches), parses the
+    /// `Dependencies` string into explicit dependency IDs, and transfers collected metadata (files, action,
+    /// verify, done_when, requirements, etc.) into the pushed `TaskItem`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Prepare a minimal current task and parse result containers.
+    /// let mut current = CurrentTask::default();
+    /// current.id = Some("T1".to_string());
+    /// current.desc = Some("Example task".to_string());
+    /// current.status_raw = Some("Complete".to_string());
+    /// current.status_marker_raw = Some('x');
+    /// current.updated_at_raw = Some("2025-03-01".to_string());
+    ///
+    /// let mut tasks = Vec::new();
+    /// let mut diagnostics = Vec::new();
+    ///
+    /// flush_current(&mut current, &mut tasks, &mut diagnostics);
+    ///
+    /// assert_eq!(tasks.len(), 1);
+    /// assert!(diagnostics.is_empty());
+    /// ```
     fn flush_current(
         current: &mut CurrentTask,
         tasks: &mut Vec<TaskItem>,
@@ -476,6 +520,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             .to_string();
         let verify = current.verify.take();
         let done_when = current.done_when.take();
+        let requirements = std::mem::take(&mut current.requirements);
 
         let status = match status_raw
             .as_deref()
@@ -570,6 +615,7 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             done_when,
             kind: current.kind,
             header_line_index,
+            requirements,
         });
         current.kind = TaskKind::Normal;
     }
@@ -588,6 +634,8 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
         action_lines: Vec::new(),
         verify: None,
         done_when: None,
+        requirements: Vec::new(),
+        requirements_seen: false,
     };
 
     let mut in_action = false;
@@ -667,6 +715,8 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             current_task.action_lines.clear();
             current_task.verify = None;
             current_task.done_when = None;
+            current_task.requirements.clear();
+            current_task.requirements_seen = false;
             in_action = false;
 
             if current_wave.is_none() && !in_checkpoints {
@@ -720,6 +770,29 @@ fn parse_enhanced_tasks(contents: &str) -> TasksParseResult {
             }
             if let Some(cap) = done_when_re.captures(line) {
                 current_task.done_when = Some(cap[1].trim().to_string());
+                continue;
+            }
+            if let Some(cap) = requirements_re.captures(line) {
+                if current_task.requirements_seen {
+                    if let Some(ref tid) = current_task.id {
+                        diagnostics.push(TaskDiagnostic {
+                            level: DiagnosticLevel::Warning,
+                            message: format!(
+                                "{tid}: duplicate Requirements line; using the first one"
+                            ),
+                            task_id: Some(tid.clone()),
+                            line: Some(line_idx + 1),
+                        });
+                    }
+                } else {
+                    let raw = cap[1].trim();
+                    current_task.requirements = raw
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    current_task.requirements_seen = true;
+                }
                 continue;
             }
         }

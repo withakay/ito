@@ -30,9 +30,10 @@ use task_parsing::{looks_like_enhanced_tasks, parse_checkbox_tasks, parse_enhanc
 pub use types::{
     AgentInstructionResponse, ApplyInstructionsResponse, ApplyYaml, ArtifactStatus, ArtifactYaml,
     ChangeStatus, DependencyInfo, InstructionsResponse, PeerReviewContext, ProgressInfo,
-    ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewTaskSummaryInfo,
-    ReviewTestingPolicy, ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic,
-    TaskItem, TemplateInfo, ValidationArtifactYaml, ValidationDefaultsYaml, ValidationLevelYaml,
+    ResolvedSchema, ReviewAffectedSpecInfo, ReviewArtifactInfo, ReviewCoveredRequirement,
+    ReviewTaskSummaryInfo, ReviewTestingPolicy, ReviewTraceabilityInfo, ReviewUnresolvedReference,
+    ReviewValidationIssueInfo, SchemaSource, SchemaYaml, TaskDiagnostic, TaskItem, TemplateInfo,
+    ValidationArtifactYaml, ValidationDefaultsYaml, ValidationLevelYaml,
     ValidationTrackingSourceYaml, ValidationTrackingYaml, ValidationYaml, ValidatorId,
     WorkflowError,
 };

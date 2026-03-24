@@ -8,6 +8,7 @@ mod list;
 mod run;
 mod show;
 mod status;
+pub(crate) mod trace;
 mod update;
 mod validate;
 mod worktree_wizard;

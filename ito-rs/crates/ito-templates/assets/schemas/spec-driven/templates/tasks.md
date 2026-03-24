@@ -24,6 +24,7 @@ ______________________________________________________________________
 - **Action**: <!-- what to implement -->
 - **Verify**: <!-- command to verify -->
 - **Done When**: <!-- acceptance criteria -->
+- **Requirements**: <!-- capability:requirement-name, capability:other-requirement -->
 - **Status**: [ ] pending
 
 ### Task 1.2: <!-- Task Name -->
@@ -33,6 +34,7 @@ ______________________________________________________________________
 - **Action**: <!-- what to implement -->
 - **Verify**: <!-- command to verify -->
 - **Done When**: <!-- acceptance criteria -->
+- **Requirements**: <!-- capability:requirement-name -->
 - **Status**: [ ] pending
 
 ______________________________________________________________________
@@ -48,6 +50,7 @@ ______________________________________________________________________
 - **Action**: <!-- what to implement -->
 - **Verify**: <!-- command to verify -->
 - **Done When**: <!-- acceptance criteria -->
+- **Requirements**: <!-- capability:requirement-name -->
 - **Status**: [ ] pending
 
 ______________________________________________________________________

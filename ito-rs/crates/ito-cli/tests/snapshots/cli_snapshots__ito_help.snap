@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 103
 expression: "snapshot(&[\"--help\"])"
 ---
 AI-native system for spec-driven development
@@ -28,6 +27,7 @@ Commands:
   backend      Manage backend client configuration and connectivity [aliases: be]
   audit        Query, validate, and manage the audit event log [aliases: au]
   util         Low-level utility commands for scripting and agent tooling. [aliases: u]
+  trace        Show requirement traceability for a change [aliases: tr]
   completions  Output shell completion scripts [aliases: cp]
   stats        Display command execution counts and history [aliases: ss]
   help         Show help for ito commands [aliases: he]

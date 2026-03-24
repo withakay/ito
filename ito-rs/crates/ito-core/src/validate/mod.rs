@@ -174,7 +174,28 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult
     Ok(validate_spec_markdown(&markdown, strict))
 }
 
-/// Validate a change's delta specs by change id.
+/// Validate a change and produce a ValidationReport describing any issues found.
+///
+/// The function resolves the change's schema (when available) and runs schema-driven
+/// validation if the schema provides a validation.yaml. For legacy delta-driven
+/// schemas or when schema resolution/validation is unavailable it falls back to
+/// delta-specs and tasks-tracking validations. The `strict` flag influences severity
+/// handling and the report's final `valid` value.
+///
+/// # Returns
+///
+/// A `ValidationReport` summarizing all discovered issues and an aggregate summary,
+/// wrapped in `CoreResult`. The error variant is used for IO or repository access
+/// failures that prevent performing the validations.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// // let change_repo = ...; // impl DomainChangeRepository
+/// // let report = validate_change(&change_repo, Path::new("/path/to/ito"), "change-123", true).unwrap();
+/// // println!("Valid: {}", report.valid);
+/// ```
 pub fn validate_change(
     change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
@@ -232,7 +253,7 @@ pub fn validate_change(
         }
 
         if is_legacy_delta_schema(&resolved.schema.name) {
-            validate_change_delta_specs(&mut rep, change_repo, change_id)?;
+            validate_change_delta_specs(&mut rep, change_repo, change_id, strict)?;
 
             let tracks_rel = resolved
                 .schema
@@ -267,7 +288,7 @@ pub fn validate_change(
         return Ok(rep.finish());
     }
 
-    validate_change_delta_specs(&mut rep, change_repo, change_id)?;
+    validate_change_delta_specs(&mut rep, change_repo, change_id, strict)?;
     Ok(rep.finish())
 }
 
@@ -482,6 +503,39 @@ fn validate_change_against_schema_validation(
     Ok(())
 }
 
+/// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.
+///
+/// This function selects a validator by `validator_id` and runs it for the artifact identified by
+/// `artifact_id` and its declared `generates` outputs. Validation results are appended to
+/// `rep`. Returns `Ok(())` on successful dispatch and execution of the chosen validator; validation
+/// failures are reported via `rep`.
+///
+/// # Parameters
+///
+/// - `rep`: report builder to receive produced validation issues.
+/// - `change_repo`: repository used by validators that need change data.
+/// - `ctx`: validation context carrying `ito_path`, `change_id`, and `strict`.
+/// - `artifact_id`: identifier of the artifact being validated (used in reported issue paths).
+/// - `generates`: artifact's declared output pattern or path.
+/// - `validator_id`: selects which validator to execute.
+///
+/// # Returns
+///
+/// `Ok(())` if the validator was dispatched and executed (or a non-fatal condition was reported
+/// into `rep`); underlying repository or validation errors are propagated as `CoreResult` errors.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Illustrative usage (types omitted for brevity)
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # use std::path::Path;
+/// // let mut rep = ReportBuilder::new(false);
+/// // let change_repo = ...; // implements DomainChangeRepository
+/// // let ctx = ArtifactValidatorContext { ito_path: Path::new("."), change_id: "C001", strict: true };
+/// // run_validator_for_artifact(&mut rep, &change_repo, ctx, "artifactA", "outputs/tasks.md", ValidatorId::TasksTrackingV1)?;
+/// # Ok(()) }
+/// ```
 fn run_validator_for_artifact(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -492,7 +546,7 @@ fn run_validator_for_artifact(
 ) -> CoreResult<()> {
     match validator_id {
         ValidatorId::DeltaSpecsV1 => {
-            validate_change_delta_specs(rep, change_repo, ctx.change_id)?;
+            validate_change_delta_specs(rep, change_repo, ctx.change_id, ctx.strict)?;
         }
         ValidatorId::TasksTrackingV1 => {
             use format_specs::TASKS_TRACKING_V1;
@@ -580,10 +634,35 @@ fn validate_tasks_tracking_path(
     issues
 }
 
+/// Validate delta-spec files for a change and append any findings to the provided report.
+///
+/// This function reads the change's delta spec files, performs structural and content checks
+/// (descriptions, requirements, scenarios, and size limits), and runs traceability analysis
+/// against the change's tasks when at least one requirement exposes an ID. Validation issues
+/// are pushed into `rep`. Returns an error only for underlying repository or IO failures.
+///
+/// # Parameters
+///
+/// - `rep`: report builder to receive validation issues.
+/// - `change_repo`: repository used to read change data (delta spec files and change tasks).
+/// - `change_id`: identifier of the change to validate.
+/// - `strict`: when `true`, uncovered requirements from traceability are reported as errors;
+///   when `false`, they are reported as warnings.
+///
+/// # Examples
+///
+/// ```
+/// // Setup placeholders appropriate for your test harness:
+/// // let mut rep = ReportBuilder::new(false);
+/// // let change_repo = MyChangeRepo::new(...);
+/// // let change_id = "CHG-001";
+/// // assert!(validate_change_delta_specs(&mut rep, &change_repo, change_id, true).is_ok());
+/// ```
 fn validate_change_delta_specs(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: &str,
+    strict: bool,
 ) -> CoreResult<()> {
     use format_specs::DELTA_SPECS_V1;
 
@@ -659,6 +738,90 @@ fn validate_change_delta_specs(
             }
         }
     }
+
+    // --- Traceability validation ---
+    // Collect (title, id) pairs from all delta requirements.
+    let mut delta_requirements: Vec<(String, Option<String>)> = Vec::new();
+    for d in &show.deltas {
+        for req in &d.requirements {
+            delta_requirements.push((req.text.clone(), req.requirement_id.clone()));
+        }
+    }
+
+    // Only run traceability if at least one requirement has an ID.
+    let has_any_id = delta_requirements.iter().any(|(_, id)| id.is_some());
+    if has_any_id {
+        let change_data = change_repo.get(change_id).into_core()?;
+        let trace_result =
+            ito_domain::traceability::compute_traceability(&delta_requirements, &change_data.tasks);
+
+        match &trace_result.status {
+            ito_domain::traceability::TraceStatus::Invalid { missing_ids } => {
+                for title in missing_ids {
+                    rep.push(with_format_spec(
+                        error(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' has no Requirement ID; all requirements must have IDs for traceability",
+                                title
+                            ),
+                        ),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+            }
+            ito_domain::traceability::TraceStatus::Unavailable { reason } => {
+                rep.push(with_format_spec(
+                    info(
+                        "traceability",
+                        format!("Traceability unavailable: {reason}"),
+                    ),
+                    DELTA_SPECS_V1,
+                ));
+            }
+            ito_domain::traceability::TraceStatus::Ready => {
+                for diag in &trace_result.diagnostics {
+                    rep.push(with_format_spec(
+                        error("traceability", diag.clone()),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+                for unresolved in &trace_result.unresolved_references {
+                    rep.push(with_format_spec(
+                        error(
+                            "traceability",
+                            format!(
+                                "Task '{}' references unknown requirement ID '{}'",
+                                unresolved.task_id, unresolved.requirement_id
+                            ),
+                        ),
+                        DELTA_SPECS_V1,
+                    ));
+                }
+                for uncovered in &trace_result.uncovered_requirements {
+                    let i = if strict {
+                        error(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' is not covered by any active task",
+                                uncovered
+                            ),
+                        )
+                    } else {
+                        warning(
+                            "traceability",
+                            format!(
+                                "Requirement '{}' is not covered by any active task",
+                                uncovered
+                            ),
+                        )
+                    };
+                    rep.push(with_format_spec(i, DELTA_SPECS_V1));
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 

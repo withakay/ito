@@ -134,6 +134,9 @@ pub mod repo_index;
 /// Display and inspection commands.
 pub mod show;
 
+/// Requirement traceability computation for the `ito trace` command.
+pub mod trace;
+
 /// Proposal viewer artifact collection and backend dispatch.
 pub mod viewer;
 
