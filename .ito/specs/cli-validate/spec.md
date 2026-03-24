@@ -1,43 +1,50 @@
-# Spec: cli-validate
+## ADDED Requirements
 
-## Purpose
+### Requirement: Validation defines trace-ready changes
 
-Define the `cli-validate` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Schema-aware change validation).
+When a change opts into requirement traceability, `ito validate <change-id>` MUST require every delta requirement in that change to declare a requirement id before computed coverage is considered available.
 
-## Requirements
+#### Scenario: Missing requirement id fails traced validation
 
-### Requirement: Schema-aware change validation
-
-When a change declares a schema, `ito validate <change-id>` MUST resolve that schema and apply schema-defined validation rules when they are available.
-
-#### Scenario: Change uses schema validation.yaml
-
-- **GIVEN** `.ito/changes/<change-id>/.ito.yaml` selects schema `<schema-name>`
-- **AND** the resolved schema directory contains `validation.yaml`
+- **GIVEN** a change where at least one delta requirement declares a requirement id
+- **AND** another delta requirement in the same change declares no requirement id
 - **WHEN** executing `ito validate <change-id>`
-- **THEN** validation MUST use the schema validation rules from `validation.yaml`
-- **AND** validation output MUST report the resolved schema name
+- **THEN** validation fails with an actionable error identifying the requirement that is missing a requirement id
 
-### Requirement: Manual validation signal when schema has no validation spec
+### Requirement: Validation fails on invalid requirement references
 
-If a schema does not provide `validation.yaml`, `ito validate <change-id>` MUST NOT assume Ito delta spec semantics and MUST emit an explicit issue indicating the schema requires manual validation.
+When a change provides traceability metadata, `ito validate <change-id>` MUST fail if the change contains duplicate requirement ids or task references that do not resolve within that change.
 
-#### Scenario: Change schema has no validation.yaml
+#### Scenario: Unknown task requirement reference fails validation
 
-- **GIVEN** `.ito/changes/<change-id>/.ito.yaml` selects schema `<schema-name>`
-- **AND** the resolved schema directory does not contain `validation.yaml`
+- **GIVEN** a change task declares a requirement reference that no delta requirement declares
 - **WHEN** executing `ito validate <change-id>`
-- **THEN** validation MUST emit an informational issue indicating manual validation is required
-- **AND** validation MUST NOT fail solely because no Ito delta specs are present
+- **THEN** validation fails with an actionable error identifying the unresolved reference and task
 
-### Requirement: Tracking file validation is schema-driven
+### Requirement: Validation reports uncovered requirements
 
-When schema validation is configured to validate a tracking file derived from `apply.tracks`, `ito validate <change-id>` MUST validate the tracking file at that path, not a hard-coded filename.
+When a change is trace-ready, `ito validate <change-id>` MUST report declared requirement ids that are not covered by any non-shelved enhanced task.
 
-#### Scenario: Tracking file uses apply.tracks path
+#### Scenario: Non-strict validation warns on uncovered requirement
 
-- **GIVEN** the resolved schema's `apply.tracks` is `todo.md`
-- **AND** `validation.yaml` declares tracking validation sourced from `apply.tracks`
+- **GIVEN** a change declares a requirement id that no non-shelved enhanced task references
+- **WHEN** executing `ito validate <change-id>` without `--strict`
+- **THEN** validation reports the uncovered requirement as a warning
+
+#### Scenario: Strict validation errors on uncovered requirement
+
+- **GIVEN** a change declares a requirement id that no non-shelved enhanced task references
+- **WHEN** executing `ito validate <change-id> --strict`
+- **THEN** validation reports the uncovered requirement as an error
+
+### Requirement: Validation reports unavailable computed traceability
+
+When a change declares requirement traceability metadata but its active tracking file does not support enhanced task trace references, `ito validate <change-id>` MUST report that computed requirement coverage is unavailable instead of reporting every declared requirement as uncovered.
+
+#### Scenario: Checkbox tracking reports unavailable coverage
+
+- **GIVEN** a change declares requirement ids
+- **AND** its active tracking file uses checkbox task encoding rather than enhanced task blocks
 - **WHEN** executing `ito validate <change-id>`
-- **THEN** validation MUST validate `.ito/changes/<change-id>/todo.md`
-- **AND** validation MUST NOT require `.ito/changes/<change-id>/tasks.md`
+- **THEN** validation reports that computed requirement coverage is unavailable for that change
+- **AND** it does not treat every declared requirement as uncovered solely because enhanced task trace references are unavailable
