@@ -1,62 +1,27 @@
-## MODIFIED Requirements
+<!-- ITO:START -->
+## ADDED Requirements
 
-### Requirement: CLI exports backend changes as a zip archive
+### Requirement: Backend change sync preserves sub-module ID component during sync
 
-When backend mode is enabled, Ito SHALL provide backend change transfer commands that export backend change artifacts to a zip archive and import local change artifacts into backend-managed state.
+Change sync operations SHALL preserve and correctly propagate the sub-module component of `NNN.SS-NN_name` IDs when syncing change artifacts between local filesystem state and backend stores.
 
-The export command SHALL be `ito backend export`.
+#### Scenario: Sync push with sub-module change ID succeeds
 
-The import command SHALL be `ito backend import`.
+- **GIVEN** a local change with ID `024.01-03_add-jwt` exists
+- **WHEN** sync pushes the change to the backend
+- **THEN** the backend stores the change under key `024.01-03_add-jwt`
+- **AND** the sub-module component `01` is not dropped or mangled during serialization
 
-#### Scenario: Export writes a zip bundle with active and archived changes
+#### Scenario: Sync pull with sub-module change ID writes correct local path
 
-- **GIVEN** backend mode is enabled
-- **AND** backend contains active and archived changes
-- **WHEN** the user runs `ito backend export`
-- **THEN** Ito writes a zip archive to the filesystem
-- **AND** the archive includes both active and archived change artifacts
+- **GIVEN** the backend has a change with ID `024.01-03_add-jwt`
+- **WHEN** sync pulls the change to local filesystem
+- **THEN** the change is written to `.ito/changes/024.01-03_add-jwt/`
+- **AND** the dot in the directory name is preserved exactly
 
-#### Scenario: Import writes backend state from local active and archived changes
+#### Scenario: Module extraction during sync identifies correct parent module
 
-- **GIVEN** backend mode is enabled
-- **AND** local active and archived change artifacts exist
-- **WHEN** the user runs `ito backend import`
-- **THEN** Ito imports both lifecycle states into backend-managed storage
-- **AND** reports imported, skipped, and failed counts
-
-#### Scenario: Transfer commands in local mode are rejected
-
-- **GIVEN** backend mode is disabled
-- **WHEN** the user runs `ito backend export` or `ito backend import`
-- **THEN** Ito exits with an actionable error indicating backend mode is required
-
-### Requirement: Export uses a canonical archive layout and manifest
-
-Exported zip archives MUST use a stable layout and include a machine-readable manifest.
-
-#### Scenario: Archive includes canonical directories
-
-- **WHEN** Ito creates a backend export archive
-- **THEN** the zip contains `changes/active/` and `changes/archived/` roots
-- **AND** each exported change appears under exactly one root based on lifecycle state
-
-#### Scenario: Archive includes manifest metadata
-
-- **WHEN** Ito creates a backend export archive
-- **THEN** the zip contains `manifest.json`
-- **AND** the manifest includes archive format version, export timestamp, and exported change counts
-
-### Requirement: Export includes integrity metadata
-
-Exported archives MUST include integrity metadata for all artifact files.
-
-#### Scenario: Manifest includes per-file checksums
-
-- **WHEN** Ito creates a backend export archive
-- **THEN** `manifest.json` includes checksums for each exported artifact file
-
-#### Scenario: Export reports integrity summary
-
-- **WHEN** export completes
-- **THEN** Ito prints the archive path and exported counts
-- **AND** indicates manifest/integrity generation succeeded
+- **WHEN** sync processes a change with ID `024.01-03_add-jwt`
+- **THEN** it correctly identifies the parent module as `024` (not `024.01`)
+- **AND** associates the change with module `024`'s backend scope
+<!-- ITO:END -->

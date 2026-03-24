@@ -1,0 +1,46 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+    subgraph BRAINSTORM["1. Brainstorm"]
+        B1[Explore the idea]
+        B2[Evaluate approaches]
+        B3[Validate design]
+    end
+
+    subgraph PROPOSE["2. Propose"]
+        P1[Create change scaffold]
+        P2[Write proposal.md]
+        P3[Draft spec deltas]
+        P4[Plan tasks.md]
+        P5["Validate: ito validate --strict"]
+    end
+
+    subgraph REVIEW["3. Review"]
+        R1[Peer review checklist]
+        R2{Verdict?}
+        R3[Address feedback]
+    end
+
+    subgraph IMPLEMENT["4. Implement"]
+        I1["ito tasks next"]
+        I2[Work on task]
+        I3["ito tasks complete"]
+        I4{More tasks?}
+    end
+
+    subgraph ARCHIVE["5. Archive"]
+        A1[Reconcile audit log]
+        A2[Move to archive/]
+        A3[Apply deltas to specs/]
+        A4["Validate: ito validate --strict"]
+    end
+
+    B1 --> B2 --> B3
+    B3 --> P1 --> P2 --> P3 --> P4 --> P5
+    P5 --> R1 --> R2
+    R2 -- "approve" --> I1
+    R2 -- "request-changes" --> R3
+    R3 --> P2
+    I1 --> I2 --> I3 --> I4
+    I4 -- "Yes" --> I1
+    I4 -- "No" --> A1
+    A1 --> A2 --> A3 --> A4

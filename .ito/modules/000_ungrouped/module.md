@@ -15,4 +15,4 @@ Ungrouped changes and ad-hoc work that do not fit a module.
 - [x] 000-06_internal-change-sync-branch
 - [x] 000-07_remote-audit-mirror-branch
 - [ ] 000-10_cli-type-safe-args
-- [ ] 000-12_sub-module-support
+- [x] 000-12_sub-module-support

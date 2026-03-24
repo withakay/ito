@@ -1,10 +1,5 @@
-# Spec: global-config
-
-## Purpose
-
-Define the `global-config` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Worktree workspace defaults).
-
-## Requirements
+<!-- ITO:START -->
+## MODIFIED Requirements
 
 ### Requirement: Worktree workspace defaults
 
@@ -21,6 +16,10 @@ The `worktrees` object SHALL support:
 - `apply.copy_from_main` (array of glob patterns): Files to copy from `./main` into the change worktree without staging by default.
 - `apply.setup_commands` (array of strings): Ordered shell commands to run in the change worktree before implementation starts.
 - `default_branch` (string): Branch used when creating/reusing the base worktree.
+
+The system SHALL also support a `tools` namespace for per-tool preferences. Currently supported:
+
+- `tools.tmux.enabled` (boolean, default `true`): Whether the user's environment uses tmux. When `false`, Ito suppresses all tmux-specific suggestions across workflows and commands.
 
 #### Scenario: Default branch selection
 
@@ -107,3 +106,9 @@ The `worktrees` object SHALL support:
 - **WHEN** a config file contains both a legacy key and its new equivalent
 - **THEN** the new key value takes precedence
 - **AND** the legacy key value is ignored
+
+#### Scenario: tools.tmux.enabled defaults to true when absent
+
+- **WHEN** `tools.tmux.enabled` is absent from all config sources
+- **THEN** the system treats it as `true`
+<!-- ITO:END -->

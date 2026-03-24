@@ -1,0 +1,16 @@
+{
+  "mermaid": {
+    "layout": "elk",
+    "theme": "neutral",
+    "themeVariables": {
+      "fontFamily": "Inter, ui-sans-serif, system-ui",
+      "fontSize": "14px",
+      "primaryColor": "#ffffff",
+      "primaryTextColor": "#111827",
+      "primaryBorderColor": "#D1D5DB",
+      "lineColor": "#9CA3AF",
+      "secondaryColor": "#F3F4F6",
+      "tertiaryColor": "#FFFFFF"
+    }
+  }
+}

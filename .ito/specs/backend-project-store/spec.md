@@ -1,65 +1,21 @@
+<!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Backend resolves org/repo to a project store rooted at a configurable data directory
+### Requirement: Backend project stores persist sub-module metadata as module state
 
-The backend server SHALL store Ito project state in backend-managed storage rooted at a configurable `dataDir`.
+Backend-managed project stores SHALL persist sub-module metadata as part of module state so remote-backed `ModuleRepository` implementations can list and resolve sub-modules without local markdown.
 
-By default, the backend server MUST store data under the current user’s data directory (XDG-aware):
+#### Scenario: Filesystem-backed project store round-trips sub-module metadata
 
-- If `$XDG_DATA_HOME` is set: `$XDG_DATA_HOME/ito/backend`
-- Else: `$HOME/.local/share/ito/backend`
+- **GIVEN** backend-managed project state stores module `024` with sub-module `024.01`
+- **WHEN** the filesystem-backed project store serves module reads through `ModuleRepository`
+- **THEN** the returned module includes sub-module metadata sufficient for `ito list --modules` and `ito show sub-module`
 
-Within the data directory, project storage SHALL be namespaced by organization and repository:
+#### Scenario: SQLite-backed project store returns modules with empty sub-module list (PoC)
 
-`<dataDir>/projects/{org}/{repo}/...`
+- **GIVEN** equivalent backend-managed project state exists in SQLite storage
+- **WHEN** the SQLite-backed project store serves module reads through `ModuleRepository`
+- **THEN** the returned module list is populated but `sub_modules` is empty (cross-referencing sub-module data is not yet implemented in the SQLite PoC store)
 
-#### Scenario: First access creates missing org/repo directory structure
-
-- **GIVEN** `{org}/{repo}` does not exist in backend storage
-- **WHEN** the backend receives a request that writes state for `{org}/{repo}`
-- **THEN** the backend creates the required directory structure
-- **AND** the request succeeds
-
-### Requirement: Backend enforces allowed orgs and repos
-
-The backend server MUST enforce an allowlist policy to prevent serving arbitrary namespaces.
-
-- Orgs MUST be explicitly allowed.
-- For each allowed org, repos MAY be:
-  - `*` (all repos allowed)
-  - an explicit list of allowed repos
-
-#### Scenario: Disallowed org is rejected
-
-- **GIVEN** org `evilcorp` is not in the allowed org list
-- **WHEN** a client requests `/api/v1/projects/evilcorp/anything/changes`
-- **THEN** the backend returns an authorization error
-
-#### Scenario: Allowed org with all repos permitted
-
-- **GIVEN** org `withakay` is allowed
-- **AND** repo policy for `withakay` is `*`
-- **WHEN** a client requests any repo under `withakay`
-- **THEN** the backend authorizes based on token scope
-
-#### Scenario: Allowed org with restricted repos
-
-- **GIVEN** org `acme-inc` is allowed
-- **AND** repo policy for `acme-inc` is `["infra", "payments"]`
-- **WHEN** a client requests `/api/v1/projects/acme-inc/hr/changes`
-- **THEN** the backend rejects the request
-
-### Requirement: Backend project storage implementation is swappable
-
-The backend server MUST interact with project storage through a repository abstraction so the underlying storage implementation can be replaced.
-
-The backend MUST provide:
-
-- a filesystem-based store implementation as the default
-- a SQLite-based store implementation as a proof-of-concept
-
-#### Scenario: Filesystem store and SQLite store provide equivalent read behavior
-
-- **GIVEN** equivalent project state exists in both the filesystem and SQLite stores
-- **WHEN** a client requests change and module reads through the backend
-- **THEN** the backend returns semantically equivalent JSON responses
+> **Note:** Full sub-module metadata round-tripping in the SQLite-backed project store is deferred. The current implementation returns `sub_modules: Vec::new()` for all modules. Sub-module data is available through the filesystem-backed store and the remote HTTP-backed `ModuleRepository`.
+<!-- ITO:END -->
