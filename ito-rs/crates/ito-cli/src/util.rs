@@ -250,8 +250,51 @@ fn do_maybe_log_invalid_command(
         option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
     );
     if let Some(l) = logger {
-        l.log_invalid_command(raw_args, error_message);
+        let sanitized = sanitize_args_for_logging(raw_args);
+        l.log_invalid_command(&sanitized, error_message);
     }
+}
+
+/// Redact sensitive flag values and file paths from CLI arguments before logging.
+///
+/// - Values following `--token`, `--password`, `--secret`, or `--api-key` are replaced with `<redacted>`.
+/// - `--flag=value` forms for those keys have the value portion redacted.
+/// - Arguments containing path separators (`/` or `\`) are replaced with `<path>`.
+fn sanitize_args_for_logging(raw_args: &[String]) -> Vec<String> {
+    const SENSITIVE_FLAGS: &[&str] = &["--token", "--password", "--secret", "--api-key"];
+
+    let mut out = Vec::with_capacity(raw_args.len());
+    let mut redact_next = false;
+
+    for arg in raw_args {
+        if redact_next {
+            out.push("<redacted>".to_string());
+            redact_next = false;
+            continue;
+        }
+
+        if SENSITIVE_FLAGS.contains(&arg.as_str()) {
+            out.push(arg.clone());
+            redact_next = true;
+            continue;
+        }
+
+        if let Some((name, _)) = arg.split_once('=')
+            && SENSITIVE_FLAGS.contains(&name)
+        {
+            out.push(format!("{name}=<redacted>"));
+            continue;
+        }
+
+        if arg.contains('/') || arg.contains('\\') {
+            out.push("<path>".to_string());
+            continue;
+        }
+
+        out.push(arg.clone());
+    }
+
+    out
 }
 
 // ── Event forwarding ───────────────────────────────────────────────
@@ -431,5 +474,39 @@ mod tests {
     fn command_id_maps_gr_to_grep() {
         let args = vec!["gr".to_string(), "--all".to_string(), "pattern".to_string()];
         assert_eq!(command_id_from_args(&args), "ito.grep");
+    }
+
+    #[test]
+    fn sanitize_args_redacts_sensitive_flags() {
+        let args = vec![
+            "agent".to_string(),
+            "--token".to_string(),
+            "my-secret-token".to_string(),
+            "--change".to_string(),
+            "foo".to_string(),
+        ];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(
+            sanitized,
+            vec!["agent", "--token", "<redacted>", "--change", "foo"]
+        );
+    }
+
+    #[test]
+    fn sanitize_args_redacts_equals_form() {
+        let args = vec!["--api-key=sk-1234".to_string(), "command".to_string()];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(sanitized, vec!["--api-key=<redacted>", "command"]);
+    }
+
+    #[test]
+    fn sanitize_args_replaces_paths() {
+        let args = vec![
+            "agent".to_string(),
+            "/home/user/project".to_string(),
+            "instruction".to_string(),
+        ];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(sanitized, vec!["agent", "<path>", "instruction"]);
     }
 }
