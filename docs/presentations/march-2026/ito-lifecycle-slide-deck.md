@@ -1,37 +1,34 @@
 # Ito: Change-Driven Development for AI Agents
 
-### A structured workflow for long-running, multi-session AI coding
+### A structured workflow for long-running, multi-session AI coding via agents
 
 ---
 
 ## About This Talk
 
-- **Duration**: ~20 minutes
 - **Goal**: Walk through Ito's change lifecycle end-to-end
-- **Format**: Live walkthrough with a realistic example change
+- **Format**: Live walkthrough with a realistic example change, driven through an agent
 
-> We'll create a change from scratch, review its anatomy,
-> and see how specs, tasks, and the audit trail work together.
+> We'll create a change from scratch through slash commands,
+> review its anatomy, and see how change proposals, specs, tasks, and audit trail work together.
 
 ---
 
 ## What Is Ito?
 
-**Ito** (糸 "thread" / 意図 "intention") -- a change-driven dev tool for your terminal.
+**Ito** a change-driven dev tool for your coding agent.
 
-It structures AI-assisted development that:
+Ito helps structure AI assisted developement by providing tools to
 
-- Spans **multiple sessions** (the agent resumes where it left off)
-- Needs **explicit verification** (not just "it compiles")
-- Benefits from **parallel subagents** (divide and conquer)
+- Define changes
+- Generate specs 
+- Guide implementation
+- Track and Validate work
 
-### The Core Invariant
-
-> **Specs are truth. Changes are proposals. Keep them in sync.**
 
 ---
 
-## The Problem Ito Solves
+## Some Problems Ito Helps with
 
 | Problem | Symptom |
 |---------|---------|
@@ -47,25 +44,24 @@ It structures AI-assisted development that:
 
 ## The Change Lifecycle
 
-![Ito Workflow Diagram](ito-workflow-diagram.svg)
+![Ito Workflow Diagram](ito-workflow-diagram.png)
 
 ---
 
 ## Let's Build a Change
 
-We want to add email notifications when API keys are about to expire.
+Let's assume we have done our brainstorming and have decided we want to add a endpoint to the backend so clients can check which version is running.
 
-**Do we need a proposal?**
-- Bug fix? No -- new behavior
-- Typo/config? No -- adds functionality
-- New feature? **Yes** -- create a proposal
-
-```bash
-ito create change add-api-key-expiry-notifications
+```text
+/ito-proposal We want to add a /api/v1/version endpoint to the
+backend so clients can check which version is running.
 ```
 
+This creates a change named `add-backend-version-endpoint` with the following files:
+
 ```
-.ito/changes/add-api-key-expiry-notifications/
+.ito/changes/add-backend-version-endpoint/
+  |- design.md (optional)
   |- proposal.md
   |- tasks.md
   `- specs/
@@ -76,22 +72,22 @@ ito create change add-api-key-expiry-notifications
 ## Anatomy: proposal.md
 
 ```markdown
-# Change: Add API Key Expiry Notifications
+# Change: Add Backend Version Endpoint
 
 ## Why
-Users are caught off guard when API keys expire, causing
-service disruptions. Proactive notifications at 30/7/1 days
-before expiry would reduce surprise expirations by ~80%.
+Clients and ops tooling have no way to discover which version
+of the backend is running. A lightweight `/api/v1/version`
+endpoint enables health dashboards, deploy verification,
+and client compatibility checks.
 
 ## What Changes
-- Scheduled job checking key expiry dates daily
-- Templated email notifications at 30/7/1 day thresholds
-- User preference to opt out
-- **BREAKING**: `notification_preferences` column on users
+- New GET `/api/v1/version` route returning build metadata
+- Version struct sourced from compile-time env vars
+- No authentication required (public info)
 
 ## Impact
-- Affected specs: api-keys, notifications, user-preferences
-- Migration required: Yes (new DB column)
+- Affected specs: backend-api
+- Migration required: No
 ```
 
 ---
@@ -100,13 +96,13 @@ before expiry would reduce surprise expirations by ~80%.
 
 ```markdown
 ## Decisions
-1. Daily cron job (not event-driven) -- simpler
-2. Existing email service (not new microservice) -- YAGNI
-3. `key_notifications` table to prevent duplicates
+1. Compile-time version embedding (not config file) -- immutable
+2. Single flat JSON response (not nested metadata) -- YAGNI
+3. No auth required -- version is not sensitive
 
 ## Risks / Trade-offs
-- Cron: up to 24h delivery window -- acceptable
-- Email-only: no SMS/push -- can extend later
+- Public endpoint: version info is observable -- acceptable
+- Compile-time only: no runtime override -- can extend later
 ```
 
 **When to write one**: cross-cutting changes, new dependencies, security/perf concerns, or architectural ambiguity.
@@ -118,10 +114,9 @@ before expiry would reduce surprise expirations by ~80%.
 Specs = **what IS built**. Changes = **what SHOULD change**, as deltas.
 
 ```
-.ito/changes/add-api-key-expiry-notifications/specs/
-  |- api-keys/spec.md          # MODIFIED
-  |- notifications/spec.md     # ADDED
-  `- user-preferences/spec.md  # MODIFIED
+.ito/changes/add-backend-version-endpoint/specs/
+  |- backend-api/spec.md       # MODIFIED
+  `- backend-version/spec.md   # ADDED
 ```
 
 Four delta operations: `ADDED` | `MODIFIED` | `REMOVED` | `RENAMED`
@@ -133,20 +128,20 @@ Four delta operations: `ADDED` | `MODIFIED` | `REMOVED` | `RENAMED`
 ```markdown
 ## ADDED Requirements
 
-### Requirement: API Key Expiry Email Notifications
-The system SHALL send email notifications when
-API keys are approaching expiry.
+### Requirement: Backend Version Endpoint
+The system SHALL expose build version metadata
+via a public API endpoint.
 
-#### Scenario: 30-day warning
-- GIVEN a key expiring in 30 days
-- AND the user has not opted out
-- WHEN the daily notification job runs
-- THEN send a "30 days remaining" email
+#### Scenario: Successful version request
+- GIVEN the backend is running
+- WHEN a client sends GET /api/v1/version
+- THEN respond with 200 and a JSON body containing
+  version, git_sha, and build_timestamp
 
-#### Scenario: Duplicate prevention
-- GIVEN a 30-day notification was already sent
-- WHEN the job runs again
-- THEN no duplicate email is sent
+#### Scenario: No authentication required
+- GIVEN an unauthenticated client
+- WHEN it sends GET /api/v1/version
+- THEN the request succeeds without credentials
 ```
 
 ---
@@ -156,14 +151,15 @@ API keys are approaching expiry.
 ```markdown
 ## MODIFIED Requirements
 
-### Requirement: API Key Lifecycle Management
-The system SHALL manage API keys through creation,
-rotation, expiry, and notification phases.
+### Requirement: Backend API Route Registration
+The system SHALL register all public and authenticated
+routes under the /api/v1 prefix.
 
-#### Scenario: Key approaching expiry
-- GIVEN an API key has an expiry date set
-- WHEN the key is within 30 days of expiry
-- THEN the key is eligible for notifications
+#### Scenario: Public routes
+- GIVEN the backend is running
+- WHEN routes are registered
+- THEN /api/v1/health and /api/v1/version are
+  accessible without authentication
 ```
 
 `MODIFIED` pastes the **full updated requirement** -- not just the diff. This prevents information loss at archive time.
@@ -173,21 +169,21 @@ rotation, expiry, and notification phases.
 ## Anatomy: tasks.md (Wave 1)
 
 ```markdown
-## Wave 1: Domain Model & Database
+## Wave 1: Version Model & Route
 - **Depends On**: None
 
-### Task 1.1: Create KeyNotification domain model
-- **Files**: `crates/domain/src/notifications/key_notification.rs`
-- **Action**: Define KeyNotification struct
-- **Verify**: `cargo test -p domain --lib notifications`
-- **Done When**: Model serializes to/from DB row
+### Task 1.1: Define VersionInfo struct
+- **Files**: `crates/backend/src/version.rs`
+- **Action**: Define VersionInfo with version, git_sha, build_timestamp
+- **Verify**: `cargo test -p backend --lib version`
+- **Done When**: Struct serializes to JSON correctly
 - **Status**: [ ] pending
 
-### Task 1.2: Add database migration
+### Task 1.2: Add GET /api/v1/version handler
 - **Dependencies**: Task 1.1
-- **Action**: Create key_notifications table
-- **Verify**: `cargo run -- migrate && ... rollback`
-- **Done When**: Migration applies and rolls back cleanly
+- **Action**: Register route, return VersionInfo as JSON
+- **Verify**: `cargo test -p backend --test api_version`
+- **Done When**: Handler returns 200 with expected fields
 - **Status**: [ ] pending
 ```
 
@@ -196,24 +192,24 @@ rotation, expiry, and notification phases.
 ## Anatomy: tasks.md (Wave 2 & 3)
 
 ```markdown
-## Wave 2: Notification Logic
+## Wave 2: Build Metadata & Integration
 - **Depends On**: Wave 1
 
-### Task 2.1: Implement expiry checker
-- **Action**: Query expiring keys, skip already-sent
-- **Verify**: `cargo test -p scheduler --lib key_expiry`
+### Task 2.1: Inject compile-time build metadata
+- **Action**: Use env vars (CARGO_PKG_VERSION, GIT_SHA) at build time
+- **Verify**: `cargo test -p backend --lib version_metadata`
 - **Status**: [ ] pending
 
 ### Checkpoint 1: Integration review
 - **Type**: checkpoint (requires human approval)
-- **Dependencies**: Task 2.1, Task 2.2
+- **Dependencies**: Task 2.1
 
-## Wave 3: User Preferences
+## Wave 3: Documentation & Spec Update
 - **Depends On**: Wave 2, Checkpoint 1
 
-### Task 3.1: Add opt-out preference
-- **Action**: Add boolean to user prefs, expose via API
-- **Verify**: `cargo test -p api --lib user_preferences`
+### Task 3.1: Update API documentation
+- **Action**: Add /api/v1/version to the route table docs
+- **Verify**: `cargo doc -p backend --no-deps`
 - **Status**: [ ] pending
 ```
 
@@ -224,10 +220,9 @@ rotation, expiry, and notification phases.
 Waves are **ordered phases**. Wave 2 waits for Wave 1.
 
 ```
-Wave 1 (Domain)  -->  Wave 2 (Logic)  -->  Wave 3 (Prefs)
+Wave 1 (Route)   -->  Wave 2 (Build)  -->  Wave 3 (Docs)
    Task 1.1               Task 2.1           Task 3.1
-   Task 1.2               Task 2.2
-                           Checkpoint 1
+   Task 1.2               Checkpoint 1
 ```
 
 **Key rules:**
@@ -242,12 +237,13 @@ Wave 1 (Domain)  -->  Wave 2 (Logic)  -->  Wave 3 (Prefs)
 
 ## Validating the Change
 
-```bash
-$ ito validate add-api-key-expiry-notifications --strict
+```text
+/ito-review add-backend-version-endpoint
 
+  Agent runs strict validation before review:
   [OK] proposal.md: valid structure
-  [OK] specs/notifications/spec.md: valid delta (ADDED)
-  [OK] specs/api-keys/spec.md: valid delta (MODIFIED)
+  [OK] specs/backend-version/spec.md: valid delta (ADDED)
+  [OK] specs/backend-api/spec.md: valid delta (MODIFIED)
   [OK] tasks.md: valid wave structure
   [OK] No cross-wave task dependencies
   [OK] All requirements have scenarios
@@ -263,16 +259,16 @@ Catches: missing scenarios, cross-wave deps, orphaned spec refs, malformed delta
 
 ```markdown
 ### Proposal
-- [note] Clear problem statement with quantified impact
-- [suggestion] Mention support ticket volume
+- [note] Clear problem statement with practical use cases
+- [suggestion] Mention caching headers for version response
 
 ### Spec Deltas
-- [blocking] Missing scenario for 1-day threshold
-- [suggestion] Add scenario for keys with no expiry
+- [blocking] Missing scenario for build_timestamp format
+- [suggestion] Add scenario for unknown git_sha (dirty build)
 
 ### Tasks
 - [note] Good wave structure
-- [suggestion] Split Task 2.2: template vs. send
+- [suggestion] Add a task for error handling if env vars are missing
 
 ### Verdict: request-changes
 ```
@@ -285,10 +281,10 @@ Tags: `[blocking]` must fix | `[suggestion]` recommended | `[note]` informationa
 
 After review feedback:
 
-1. Add the missing 1-day scenario
-2. Optionally split Task 2.2 per suggestion
-3. Re-validate: `ito validate <id> --strict`
-4. Submit for re-review
+1. Add the missing build_timestamp format scenario
+2. Optionally add a task for missing env var fallback
+3. Ask the agent to re-run `/ito-review <id>`
+4. Re-submit once the review comes back clean
 
 ```
 Propose --> Review --> Revise --> Review --> Approve
@@ -300,21 +296,17 @@ Propose --> Review --> Revise --> Review --> Approve
 
 ## Implementing the Change
 
-```bash
-$ ito tasks next add-api-key-expiry-notifications
-  Next ready: Task 1.1 - Create KeyNotification model
+```text
+/ito-apply add-backend-version-endpoint
 
-$ ito tasks start add-api-key-expiry-notifications 1.1
+  Next ready: Task 1.1 - Define VersionInfo struct
   [~] Task 1.1 is now in-progress
 
-# ... write code, run verify command ...
+  ... agent writes code, runs Verify command ...
 
-$ ito tasks complete add-api-key-expiry-notifications 1.1
   [x] Task 1.1 complete. Next ready: Task 1.2
-
-$ ito tasks status add-api-key-expiry-notifications
-  Wave 1: 1/2 | Wave 2: 0/2 (blocked) | Wave 3: 0/1
-  Overall: 1/5 tasks (20%)
+  Wave 1: 1/2 | Wave 2: 0/1 (blocked) | Wave 3: 0/1
+  Overall: 1/4 tasks (25%)
 ```
 
 Audit log records every state transition automatically.
@@ -328,34 +320,34 @@ Every state change is recorded in an append-only event log:
 ```json
 {
   "entity": "task", "entity_id": "1.1",
-  "scope": "add-api-key-expiry-notifications",
+  "scope": "add-backend-version-endpoint",
   "op": "status_change",
   "from": "pending", "to": "in-progress",
-  "actor": "cli",
+  "actor": "agent",
   "ctx": { "branch": "...", "commit": "3a7f2b1c" }
 }
 ```
 
 When an agent starts a new session, the audit log tells it exactly where things stand.
 
-```bash
-ito audit log --change <id>   # view events
-ito audit validate             # verify integrity
-ito audit reconcile            # detect and fix drift
+```text
+/ito-list add-backend-version-endpoint      # where are we?
+/ito-apply add-backend-version-endpoint     # resume next ready task
+/ito-archive add-backend-version-endpoint   # close the loop
 ```
 
 ---
 
 ## Archiving a Completed Change
 
-```bash
-$ ito archive add-api-key-expiry-notifications -y
+```text
+/ito-archive add-backend-version-endpoint
 
   [1/4] Reconciling audit log... OK
   [2/4] Moving to archive/2026-03-23-.../ OK
   [3/4] Applying spec deltas...
-        MODIFIED: specs/api-keys/spec.md
-        ADDED:    specs/notifications/spec.md
+        MODIFIED: specs/backend-api/spec.md
+        ADDED:    specs/backend-version/spec.md
   [4/4] Validating final state... OK
 ```
 
@@ -371,12 +363,12 @@ $ ito archive add-api-key-expiry-notifications -y
 
 ```
 specs/                        # What IS built (truth)
-  |- api-keys/spec.md
-  |- notifications/spec.md    <-- created by our change
+  |- backend-api/spec.md
+  |- backend-version/spec.md  <-- created by our change
   `- ... (150+ specs in Ito itself)
 
 changes/archive/              # What WAS changed (history)
-  |- 2026-03-23-add-api-key-expiry-notifications/
+  |- 2026-03-23-add-backend-version-endpoint/
   `- ... (238+ archived changes in Ito itself)
 ```
 
@@ -396,9 +388,9 @@ Main Agent --> Subagent 1: Task 1.1
 ```
 
 **Ralph -- The AI Agent Loop:**
-```bash
-ito ralph --change <id> --harness opencode --max-iterations 5
-ito ralph --module 001 --continue-ready
+```text
+/ito-loop --change <id>
+/ito-loop --module 001 --continue-ready
 ```
 
 Ralph picks the next task, launches an agent, reviews output, repeats.
@@ -416,7 +408,7 @@ Ralph picks the next task, launches an agent, reviews output, repeats.
 - [ ] 024-03_backend-change-api
 ```
 
-**Skills** teach agents *how* to work (installed by `ito init`):
+**Skills** teach agents *how* to work (installed by `ito init`, invoked via slash commands):
 
 | Workflow | Engineering | Multi-Agent |
 |----------|-------------|-------------|
@@ -430,18 +422,19 @@ Works across 5+ harnesses: Claude Code, OpenCode, Copilot, Codex...
 
 ## Installation & Quick Start
 
-```bash
+```text
 # Install
 brew tap withakay/ito && brew install ito
 
 # Initialize in any repo
 cd my-project && ito init
 
-# Create your first change
-ito create change add-user-search
+# Then work through your agent
+/ito-proposal add-user-search
+/ito-apply add-user-search
 
-# Let an agent implement it
-ito ralph --change add-user-search --harness opencode
+# Optional automation loop
+/ito-loop --change add-user-search
 ```
 
 `ito init` creates: `project.md`, `specs/`, `changes/`, `modules/`, `.state/`
