@@ -1115,7 +1115,7 @@ pub struct LoggingConfig {
     pub invalid_commands: InvalidCommandsConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Invalid command logging settings")]
 /// Configuration for logging invalid or unrecognized CLI commands.
 pub struct InvalidCommandsConfig {
@@ -1123,10 +1123,4 @@ pub struct InvalidCommandsConfig {
     #[schemars(default, description = "Enable logging of invalid commands")]
     /// Enable logging of invalid commands to a JSONL file.
     pub enabled: bool,
-}
-
-impl Default for InvalidCommandsConfig {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
 }

@@ -383,17 +383,17 @@ impl InvalidCommandLogger {
     /// `error_message` is the user-facing error text.
     pub fn log_invalid_command(&self, raw_args: &[String], error_message: &str) {
         #[derive(Serialize)]
-        struct Entry {
+        struct Entry<'a> {
             event_version: u32,
             event_id: String,
             timestamp: String,
             event_type: &'static str,
-            ito_version: String,
-            session_id: String,
-            project_id: String,
+            ito_version: &'a str,
+            session_id: &'a str,
+            project_id: &'a str,
             pid: u32,
             raw_command: String,
-            error_message: String,
+            error_message: &'a str,
         }
 
         let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -402,12 +402,12 @@ impl InvalidCommandLogger {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp,
             event_type: "invalid_command",
-            ito_version: self.ito_version.clone(),
-            session_id: self.session_id.clone(),
-            project_id: self.project_id.clone(),
+            ito_version: &self.ito_version,
+            session_id: &self.session_id,
+            project_id: &self.project_id,
             pid: self.pid,
             raw_command: format!("ito {}", raw_args.join(" ")),
-            error_message: error_message.to_string(),
+            error_message,
         };
 
         let Ok(line) = serde_json::to_string(&entry) else {

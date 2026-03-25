@@ -457,24 +457,19 @@ pub(crate) fn handle_agent_clap(rt: &Runtime, args: &AgentArgs) -> CliResult<()>
 }
 
 /// Reconstruct the raw CLI arguments from the parsed `AgentArgs`.
+///
+/// NOTE: This must be kept in sync with `AgentInstructionArgs`. If new fields
+/// are added to that struct they must be mirrored here so the invalid-command
+/// log captures the full invocation.
 fn reconstruct_agent_args(args: &AgentArgs) -> Vec<String> {
     let mut raw = vec!["agent".to_string()];
     match &args.command {
         Some(AgentCommand::Instruction(instr)) => {
             raw.push("instruction".to_string());
             raw.push(instr.artifact.clone());
-            if let Some(change) = &instr.change {
-                raw.push("--change".to_string());
-                raw.push(change.clone());
-            }
-            if let Some(tool) = &instr.tool {
-                raw.push("--tool".to_string());
-                raw.push(tool.clone());
-            }
-            if let Some(schema) = &instr.schema {
-                raw.push("--schema".to_string());
-                raw.push(schema.clone());
-            }
+            push_optional_flag(&mut raw, "--change", &instr.change);
+            push_optional_flag(&mut raw, "--tool", &instr.tool);
+            push_optional_flag(&mut raw, "--schema", &instr.schema);
             if instr.json {
                 raw.push("--json".to_string());
             }
@@ -485,6 +480,13 @@ fn reconstruct_agent_args(args: &AgentArgs) -> Vec<String> {
         None => {}
     }
     raw
+}
+
+fn push_optional_flag(raw: &mut Vec<String>, name: &str, value: &Option<String>) {
+    if let Some(v) = value {
+        raw.push(name.to_string());
+        raw.push(v.clone());
+    }
 }
 
 fn handle_agent_instruction_clap(rt: &Runtime, args: &AgentInstructionArgs) -> CliResult<()> {
