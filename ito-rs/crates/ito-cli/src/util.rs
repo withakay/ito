@@ -196,6 +196,74 @@ pub(crate) fn split_csv(raw: &str) -> Vec<String> {
     raw.split(',').map(|s| s.trim().to_string()).collect()
 }
 
+/// Log an invalid command if the `logging.invalidCommands.enabled` config option is set.
+///
+/// This is best-effort: failures to load config or write the log entry are
+/// silently ignored so they never affect the command outcome.
+pub(crate) fn maybe_log_invalid_command(rt: &Runtime, raw_args: &[String], error_message: &str) {
+    let ito_path = rt.ito_path();
+    let Some(project_root) = ito_path.parent() else {
+        return;
+    };
+
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    if !config.logging.invalid_commands.enabled {
+        return;
+    }
+
+    let config_dir = ito_config::ito_config_dir(rt.ctx());
+    let logger = ito_logging::InvalidCommandLogger::new(
+        config_dir,
+        project_root,
+        Some(ito_path),
+        option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+    );
+    if let Some(l) = logger {
+        l.log_invalid_command(raw_args, error_message);
+    }
+}
+
+/// Log an invalid command without a `Runtime`, using only the `ConfigContext`.
+///
+/// Used for early parse failures (e.g. clap errors) where the full `Runtime`
+/// has not yet been constructed.
+pub(crate) fn maybe_log_invalid_command_early(
+    ctx: &ito_config::ConfigContext,
+    raw_args: &[String],
+    error_message: &str,
+) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let ito_path = ito_config::ito_dir::get_ito_path(&cwd, ctx);
+    let project_root = ito_path.parent().unwrap_or(&cwd);
+
+    let merged =
+        load_cascading_project_config(project_root, &ito_path, ctx).merged;
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    if !config.logging.invalid_commands.enabled {
+        return;
+    }
+
+    let config_dir = ito_config::ito_config_dir(ctx);
+    let logger = ito_logging::InvalidCommandLogger::new(
+        config_dir,
+        project_root,
+        Some(&ito_path),
+        option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+    );
+    if let Some(l) = logger {
+        l.log_invalid_command(raw_args, error_message);
+    }
+}
+
 // ── Event forwarding ───────────────────────────────────────────────
 
 /// Best-effort forwarding of locally buffered audit events to the backend.

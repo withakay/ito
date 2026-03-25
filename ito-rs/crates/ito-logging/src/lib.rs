@@ -323,9 +323,180 @@ fn logging_disabled() -> bool {
     }
 }
 
+// ── Invalid command logging ────────────────────────────────────────
+
+/// Logger for invalid or unrecognized CLI commands.
+///
+/// Writes JSONL entries to
+/// `~/.config/ito/logs/invalid_commands/v1/projects/{project_id}/{session_id}.jsonl`.
+/// Each entry captures the full command that was attempted and the error
+/// message, enabling downstream analysis of how agents invoke Ito incorrectly.
+#[derive(Debug, Clone)]
+pub struct InvalidCommandLogger {
+    file_path: PathBuf,
+    ito_version: String,
+    session_id: String,
+    project_id: String,
+    pid: u32,
+}
+
+impl InvalidCommandLogger {
+    /// Create a logger for invalid commands.
+    ///
+    /// Returns `None` when telemetry is disabled or the config directory
+    /// is unavailable.
+    pub fn new(
+        config_dir: Option<PathBuf>,
+        project_root: &Path,
+        ito_path: Option<&Path>,
+        ito_version: &str,
+    ) -> Option<Self> {
+        if logging_disabled() {
+            return None;
+        }
+
+        let config_dir = config_dir?;
+        let salt_path = config_dir.join(SALT_FILE_NAME);
+        let salt = load_or_create_salt(&salt_path)?;
+        let project_id = compute_project_id(&salt, project_root);
+        let session_id = resolve_session_id(ito_path);
+        let file_path = invalid_command_log_file_path(&config_dir, &project_id, &session_id);
+
+        if let Some(parent) = file_path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            log::debug!("invalid_command_log: create_dir_all failed: {e}");
+        }
+
+        Some(Self {
+            file_path,
+            ito_version: ito_version.to_string(),
+            session_id,
+            project_id,
+            pid: std::process::id(),
+        })
+    }
+
+    /// Log an invalid command invocation.
+    ///
+    /// `raw_args` is the full list of arguments as passed to the CLI.
+    /// `error_message` is the user-facing error text.
+    pub fn log_invalid_command(&self, raw_args: &[String], error_message: &str) {
+        #[derive(Serialize)]
+        struct Entry {
+            event_version: u32,
+            event_id: String,
+            timestamp: String,
+            event_type: &'static str,
+            ito_version: String,
+            session_id: String,
+            project_id: String,
+            pid: u32,
+            raw_command: String,
+            error_message: String,
+        }
+
+        let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+        let entry = Entry {
+            event_version: EVENT_VERSION,
+            event_id: uuid::Uuid::new_v4().to_string(),
+            timestamp,
+            event_type: "invalid_command",
+            ito_version: self.ito_version.clone(),
+            session_id: self.session_id.clone(),
+            project_id: self.project_id.clone(),
+            pid: self.pid,
+            raw_command: format!("ito {}", raw_args.join(" ")),
+            error_message: error_message.to_string(),
+        };
+
+        let Ok(line) = serde_json::to_string(&entry) else {
+            log::debug!("invalid_command_log: failed to serialize entry");
+            return;
+        };
+
+        let Ok(mut f) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.file_path)
+        else {
+            log::debug!("invalid_command_log: failed to open log file");
+            return;
+        };
+        if let Err(e) = writeln!(f, "{line}") {
+            log::debug!("invalid_command_log: failed to append log line: {e}");
+        }
+    }
+}
+
+fn invalid_command_log_file_path(
+    config_dir: &Path,
+    project_id: &str,
+    session_id: &str,
+) -> PathBuf {
+    config_dir
+        .join("logs")
+        .join("invalid_commands")
+        .join("v1")
+        .join("projects")
+        .join(project_id)
+        .join(format!("{session_id}.jsonl"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_command_logger_writes_jsonl_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_dir = dir.path().join("config");
+        std::fs::create_dir_all(&config_dir).unwrap();
+
+        let project_root = dir.path().join("project");
+        std::fs::create_dir_all(&project_root).unwrap();
+
+        let logger = InvalidCommandLogger::new(
+            Some(config_dir.clone()),
+            &project_root,
+            None,
+            "0.0.0-test",
+        )
+        .expect("logger should be created");
+
+        logger.log_invalid_command(
+            &[
+                "agent".to_string(),
+                "instruction".to_string(),
+                "nonexistent".to_string(),
+            ],
+            "Unknown artifact 'nonexistent'",
+        );
+
+        // Find the written log file.
+        let logs_dir = config_dir
+            .join("logs")
+            .join("invalid_commands")
+            .join("v1")
+            .join("projects");
+        assert!(logs_dir.exists(), "logs directory should exist");
+
+        let mut found = false;
+        for entry in std::fs::read_dir(logs_dir).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                for file in std::fs::read_dir(entry.path()).unwrap() {
+                    let file = file.unwrap();
+                    let contents = std::fs::read_to_string(file.path()).unwrap();
+                    assert!(contents.contains("\"event_type\":\"invalid_command\""));
+                    assert!(contents.contains("ito agent instruction nonexistent"));
+                    assert!(contents.contains("Unknown artifact"));
+                    found = true;
+                }
+            }
+        }
+        assert!(found, "should have written at least one log entry");
+    }
 
     #[test]
     fn unsafe_session_ids_are_rejected() {

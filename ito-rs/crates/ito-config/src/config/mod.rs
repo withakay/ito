@@ -856,5 +856,45 @@ mod tests {
         assert!(config.backend_server.auth.token_seed.is_none());
     }
 
+    #[test]
+    fn logging_invalid_commands_defaults_exist_in_cascading_config() {
+        let repo = tempfile::tempdir().unwrap();
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let logging = r
+            .merged
+            .get("logging")
+            .expect("logging key should exist");
+        let invalid_commands = logging
+            .get("invalidCommands")
+            .expect("logging.invalidCommands key should exist");
+
+        assert_eq!(
+            invalid_commands.get("enabled").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn logging_invalid_commands_can_be_enabled() {
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(
+            repo.path().join("ito.json"),
+            r#"{"logging":{"invalidCommands":{"enabled":true}}}"#,
+        )
+        .unwrap();
+
+        let ctx = ConfigContext::default();
+        let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+        let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+        let cfg: types::ItoConfig =
+            serde_json::from_value(r.merged).expect("should deserialize");
+
+        assert!(cfg.logging.invalid_commands.enabled);
+    }
+
     // ito_dir tests live in crate::ito_dir.
 }
