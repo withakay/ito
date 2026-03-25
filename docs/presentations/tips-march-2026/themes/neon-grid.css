@@ -1,0 +1,228 @@
+/* @theme neon-grid */
+
+@import 'default';
+
+:root {
+  --bg: #07111f;
+  --bg-deep: #030712;
+  --panel: rgba(8, 17, 34, 0.82);
+  --text: #e5f4ff;
+  --muted: #95b7d3;
+  --cyan: #5eead4;
+  --pink: #f472b6;
+  --violet: #a78bfa;
+  --lime: #bef264;
+  --line: rgba(94, 234, 212, 0.12);
+  --glow: 0 0 24px rgba(94, 234, 212, 0.25), 0 0 56px rgba(167, 139, 250, 0.14);
+}
+
+section {
+  position: relative;
+  overflow: hidden;
+  font-family: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(94, 234, 212, 0.16), transparent 26%),
+    radial-gradient(circle at 85% 20%, rgba(244, 114, 182, 0.16), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(167, 139, 250, 0.18), transparent 28%),
+    linear-gradient(180deg, #08101e 0%, #040814 100%);
+  padding: 68px 74px;
+  font-size: 28px;
+  line-height: 1.34;
+}
+
+section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 88%);
+  pointer-events: none;
+}
+
+section::after {
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(229, 244, 255, 0.55);
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Avenir Next Condensed', 'Arial Narrow', 'Avenir Next', sans-serif;
+  letter-spacing: 0.02em;
+  line-height: 1.02;
+  margin-bottom: 0.35em;
+}
+
+h1 {
+  font-size: 1.9em;
+  color: #ffffff;
+  text-shadow: 0 0 18px rgba(94, 234, 212, 0.24), 0 0 34px rgba(167, 139, 250, 0.16);
+}
+
+h2 {
+  color: var(--cyan);
+  font-size: 1.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+h3 {
+  color: var(--pink);
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+p,
+li {
+  color: var(--text);
+}
+
+strong {
+  color: #ffffff;
+  background: linear-gradient(90deg, rgba(94, 234, 212, 0.22), rgba(167, 139, 250, 0.18));
+  padding: 0.04em 0.22em;
+  border-radius: 0.25em;
+  box-decoration-break: clone;
+}
+
+em {
+  color: var(--cyan);
+  font-style: normal;
+}
+
+ul,
+ol {
+  padding-left: 1.05em;
+}
+
+li {
+  margin: 0.22em 0;
+}
+
+blockquote {
+  margin: 1em 0 0;
+  padding: 0.8em 1em;
+  border-left: 4px solid var(--pink);
+  color: #fde7f4;
+  background: rgba(244, 114, 182, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(244, 114, 182, 0.15);
+}
+
+code {
+  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+  color: var(--lime);
+  background: rgba(3, 7, 18, 0.82);
+  border: 1px solid rgba(190, 242, 100, 0.18);
+  border-radius: 0.35em;
+  padding: 0.12em 0.28em;
+}
+
+pre {
+  background: rgba(3, 7, 18, 0.88);
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  box-shadow: var(--glow);
+  border-radius: 18px;
+  padding: 0.9em 1em;
+}
+
+pre code {
+  background: transparent;
+  border: 0;
+  color: #c8ffd8;
+  padding: 0;
+}
+
+a {
+  color: var(--cyan);
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.16);
+}
+
+th {
+  background: rgba(94, 234, 212, 0.12);
+  color: #d9fffb;
+}
+
+td {
+  background: rgba(8, 17, 34, 0.74);
+}
+
+th,
+td {
+  border-color: rgba(149, 183, 211, 0.16);
+}
+
+section.lead {
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(94, 234, 212, 0.22), transparent 20%),
+    radial-gradient(circle at 80% 22%, rgba(244, 114, 182, 0.2), transparent 20%),
+    radial-gradient(circle at 50% 90%, rgba(167, 139, 250, 0.24), transparent 26%),
+    linear-gradient(180deg, #040814 0%, #07111f 100%);
+}
+
+section.lead h1 {
+  font-size: 2.4em;
+  margin-bottom: 0.16em;
+}
+
+section.lead h2 {
+  color: #f0abfc;
+  font-size: 0.85em;
+}
+
+section.lead p {
+  color: var(--muted);
+  font-size: 0.95em;
+}
+
+section.panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+section.panel::after,
+section.panel::before {
+  z-index: 0;
+}
+
+section.panel {
+  background:
+    linear-gradient(180deg, rgba(8, 17, 34, 0.92), rgba(4, 8, 20, 0.96)),
+    linear-gradient(180deg, #08101e 0%, #040814 100%);
+}
+
+section.signal h2,
+section.signal h3 {
+  color: var(--pink);
+}
+
+section.warning h2,
+section.warning h3 {
+  color: #fbbf24;
+}
+
+section.split {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 28px;
+  align-content: center;
+}
+
+section.split > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
