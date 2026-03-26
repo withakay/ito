@@ -22,7 +22,7 @@ fn agent_instruction_proposal_without_change_prints_new_proposal_guide() {
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("Create a New Proposal"));
     assert!(out.stdout.contains("ito create change"));
-    assert!(out.stdout.contains("### Available Modules"));
+    assert!(out.stdout.contains("Known modules at instruction time"));
     let lower = out.stdout.to_lowercase();
     assert!(lower.contains("| 000 |"));
 }
