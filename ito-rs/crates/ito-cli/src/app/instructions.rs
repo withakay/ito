@@ -446,11 +446,11 @@ pub(crate) fn handle_agent_clap(rt: &Runtime, args: &AgentArgs) -> CliResult<()>
     };
 
     // If the command failed, log it as an invalid command (best-effort).
-    if let Err(ref e) = result {
-        if !e.is_silent() {
-            let raw_args = reconstruct_agent_args(args);
-            crate::util::maybe_log_invalid_command(rt, &raw_args, &e.to_string());
-        }
+    if let Err(ref e) = result
+        && !e.is_silent()
+    {
+        let raw_args = reconstruct_agent_args(args);
+        crate::util::maybe_log_invalid_command(rt, &raw_args, &e.to_string());
     }
 
     result
