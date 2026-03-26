@@ -196,6 +196,107 @@ pub(crate) fn split_csv(raw: &str) -> Vec<String> {
     raw.split(',').map(|s| s.trim().to_string()).collect()
 }
 
+/// Log an invalid command if the `logging.invalidCommands.enabled` config option is set.
+///
+/// This is best-effort: failures to load config or write the log entry are
+/// silently ignored so they never affect the command outcome.
+pub(crate) fn maybe_log_invalid_command(rt: &Runtime, raw_args: &[String], error_message: &str) {
+    let ito_path = rt.ito_path();
+    let Some(project_root) = ito_path.parent() else {
+        return;
+    };
+
+    do_maybe_log_invalid_command(project_root, ito_path, rt.ctx(), raw_args, error_message);
+}
+
+/// Log an invalid command without a `Runtime`, using only the `ConfigContext`.
+///
+/// Used for early parse failures (e.g. clap errors) where the full `Runtime`
+/// has not yet been constructed.
+pub(crate) fn maybe_log_invalid_command_early(
+    ctx: &ito_config::ConfigContext,
+    raw_args: &[String],
+    error_message: &str,
+) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let ito_path = ito_config::ito_dir::get_ito_path(&cwd, ctx);
+    let project_root = ito_path.parent().unwrap_or(&cwd);
+
+    do_maybe_log_invalid_command(project_root, &ito_path, ctx, raw_args, error_message);
+}
+
+fn do_maybe_log_invalid_command(
+    project_root: &Path,
+    ito_path: &Path,
+    ctx: &ito_config::ConfigContext,
+    raw_args: &[String],
+    error_message: &str,
+) {
+    let merged = load_cascading_project_config(project_root, ito_path, ctx).merged;
+    let config: ItoConfig = match serde_json::from_value(merged) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    if !config.logging.invalid_commands.enabled {
+        return;
+    }
+
+    let config_dir = ito_config::ito_config_dir(ctx);
+    let logger = ito_logging::InvalidCommandLogger::new(
+        config_dir,
+        project_root,
+        Some(ito_path),
+        option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+    );
+    if let Some(l) = logger {
+        let sanitized = sanitize_args_for_logging(raw_args);
+        l.log_invalid_command(&sanitized, error_message);
+    }
+}
+
+/// Redact sensitive flag values and file paths from CLI arguments before logging.
+///
+/// - Values following `--token`, `--password`, `--secret`, or `--api-key` are replaced with `<redacted>`.
+/// - `--flag=value` forms for those keys have the value portion redacted.
+/// - Arguments containing path separators (`/` or `\`) are replaced with `<path>`.
+fn sanitize_args_for_logging(raw_args: &[String]) -> Vec<String> {
+    const SENSITIVE_FLAGS: &[&str] = &["--token", "--password", "--secret", "--api-key"];
+
+    let mut out = Vec::with_capacity(raw_args.len());
+    let mut redact_next = false;
+
+    for arg in raw_args {
+        if redact_next {
+            out.push("<redacted>".to_string());
+            redact_next = false;
+            continue;
+        }
+
+        if SENSITIVE_FLAGS.contains(&arg.as_str()) {
+            out.push(arg.clone());
+            redact_next = true;
+            continue;
+        }
+
+        if let Some((name, _)) = arg.split_once('=')
+            && SENSITIVE_FLAGS.contains(&name)
+        {
+            out.push(format!("{name}=<redacted>"));
+            continue;
+        }
+
+        if arg.contains('/') || arg.contains('\\') {
+            out.push("<path>".to_string());
+            continue;
+        }
+
+        out.push(arg.clone());
+    }
+
+    out
+}
+
 // ── Event forwarding ───────────────────────────────────────────────
 
 /// Best-effort forwarding of locally buffered audit events to the backend.
@@ -373,5 +474,39 @@ mod tests {
     fn command_id_maps_gr_to_grep() {
         let args = vec!["gr".to_string(), "--all".to_string(), "pattern".to_string()];
         assert_eq!(command_id_from_args(&args), "ito.grep");
+    }
+
+    #[test]
+    fn sanitize_args_redacts_sensitive_flags() {
+        let args = vec![
+            "agent".to_string(),
+            "--token".to_string(),
+            "my-secret-token".to_string(),
+            "--change".to_string(),
+            "foo".to_string(),
+        ];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(
+            sanitized,
+            vec!["agent", "--token", "<redacted>", "--change", "foo"]
+        );
+    }
+
+    #[test]
+    fn sanitize_args_redacts_equals_form() {
+        let args = vec!["--api-key=sk-1234".to_string(), "command".to_string()];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(sanitized, vec!["--api-key=<redacted>", "command"]);
+    }
+
+    #[test]
+    fn sanitize_args_replaces_paths() {
+        let args = vec![
+            "agent".to_string(),
+            "/home/user/project".to_string(),
+            "instruction".to_string(),
+        ];
+        let sanitized = sanitize_args_for_logging(&args);
+        assert_eq!(sanitized, vec!["agent", "<path>", "instruction"]);
     }
 }

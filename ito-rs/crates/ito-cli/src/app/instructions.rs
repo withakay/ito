@@ -29,6 +29,14 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         _ => {
+            // Unknown subcommand — log it as an invalid command.
+            let mut raw_args = vec!["agent".to_string()];
+            raw_args.extend(args.iter().cloned());
+            let error_message = format!(
+                "Unknown agent subcommand '{}'",
+                args.first().map(|s| s.as_str()).unwrap_or("")
+            );
+            crate::util::maybe_log_invalid_command(rt, &raw_args, &error_message);
             println!(
                 "{}",
                 super::common::render_command_long_help(&["agent"], "ito agent")
@@ -431,32 +439,41 @@ fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_
 }
 
 pub(crate) fn handle_agent_clap(rt: &Runtime, args: &AgentArgs) -> CliResult<()> {
-    match &args.command {
+    let result = match &args.command {
         Some(AgentCommand::Instruction(instr)) => handle_agent_instruction_clap(rt, instr),
         Some(AgentCommand::External(v)) => handle_agent(rt, v),
         None => handle_agent(rt, &[]),
+    };
+
+    // If the command failed, log it as an invalid command (best-effort).
+    if let Err(ref e) = result
+        && !e.is_silent()
+    {
+        let raw_args = reconstruct_agent_args(args);
+        crate::util::maybe_log_invalid_command(rt, &raw_args, &e.to_string());
     }
+
+    result
+}
+
+/// Reconstruct the raw CLI arguments from the parsed `AgentArgs`.
+fn reconstruct_agent_args(args: &AgentArgs) -> Vec<String> {
+    let mut raw = vec!["agent".to_string()];
+    match &args.command {
+        Some(AgentCommand::Instruction(instr)) => {
+            raw.push("instruction".to_string());
+            raw.extend(instr.to_argv());
+        }
+        Some(AgentCommand::External(v)) => {
+            raw.extend(v.iter().cloned());
+        }
+        None => {}
+    }
+    raw
 }
 
 fn handle_agent_instruction_clap(rt: &Runtime, args: &AgentInstructionArgs) -> CliResult<()> {
-    let mut argv: Vec<String> = Vec::new();
-    argv.push(args.artifact.clone());
-    if let Some(change) = &args.change {
-        argv.push("--change".to_string());
-        argv.push(change.clone());
-    }
-    if let Some(tool) = &args.tool {
-        argv.push("--tool".to_string());
-        argv.push(tool.clone());
-    }
-    if let Some(schema) = &args.schema {
-        argv.push("--schema".to_string());
-        argv.push(schema.clone());
-    }
-    if args.json {
-        argv.push("--json".to_string());
-    }
-    handle_agent_instruction(rt, &argv)
+    handle_agent_instruction(rt, &args.to_argv())
 }
 
 /// Emit an agent instruction as either a JSON `AgentInstructionResponse` or plain text.

@@ -57,6 +57,11 @@ pub struct ItoConfig {
     pub changes: ChangesConfig,
 
     #[serde(default)]
+    #[schemars(default, description = "Logging configuration")]
+    /// Logging configuration for diagnostics and invalid command tracking.
+    pub logging: LoggingConfig,
+
+    #[serde(default)]
     #[schemars(default, description = "Audit logging and mirroring configuration")]
     /// Audit logging and mirroring configuration.
     pub audit: AuditConfig,
@@ -1093,4 +1098,29 @@ impl Default for CoverageDefaults {
             target_percent: Self::default_target_percent(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Logging configuration")]
+/// Logging configuration for diagnostics and invalid command tracking.
+pub struct LoggingConfig {
+    #[serde(default, rename = "invalidCommands")]
+    #[schemars(default, description = "Invalid command logging settings")]
+    /// Settings for logging invalid or unrecognized commands.
+    ///
+    /// When enabled, commands that fail due to unknown subcommands, invalid
+    /// arguments, or unrecognized artifacts are logged to a JSONL file under
+    /// the user's config directory. These logs can be fed back into agent
+    /// tooling to understand and improve how agents invoke Ito.
+    pub invalid_commands: InvalidCommandsConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Invalid command logging settings")]
+/// Configuration for logging invalid or unrecognized CLI commands.
+pub struct InvalidCommandsConfig {
+    #[serde(default)]
+    #[schemars(default, description = "Enable logging of invalid commands")]
+    /// Enable logging of invalid commands to a JSONL file.
+    pub enabled: bool,
 }
