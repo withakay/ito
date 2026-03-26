@@ -1296,7 +1296,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-backend"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1317,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "ito-cli"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1351,14 +1351,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1369,7 +1369,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "assert-struct",
  "base64",
@@ -1401,7 +1401,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "chrono",
  "hex",
@@ -1432,7 +1432,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1441,7 +1441,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.24"
+version = "0.1.25"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1507,9 +1507,9 @@ checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libredox"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1744e39d1d6a9948f4f388969627434e31128196de472883b39f148769bfe30a"
+checksum = "7ddbf48fd451246b1f8c2610bd3b4ac0cc6e149d89832867093ab69a17194f08"
 dependencies = [
  "bitflags 2.11.0",
  "libc",
@@ -1703,9 +1703,9 @@ dependencies = [
 
 [[package]]
 name = "num-conv"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf97ec579c3c42f953ef76dbf8d55ac91fb219dde70e49aa4a6b7d74e9919050"
+checksum = "c6673768db2d862beb9b39a78fdcb1a69439615d5794a1be50caa9bc92c81967"
 
 [[package]]
 name = "num-traits"
