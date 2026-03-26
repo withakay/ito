@@ -4,6 +4,7 @@ use crate::runtime::Runtime;
 use crate::{commands, util};
 use clap::Parser;
 use clap::error::ErrorKind;
+use ito_config::ConfigContext;
 
 /// Parse CLI arguments, initialize the runtime and logging context, and dispatch the selected subcommand.
 ///
@@ -65,6 +66,8 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 return Ok(());
             }
             _ => {
+                let ctx = ConfigContext::from_process_env();
+                util::maybe_log_invalid_command_early(&ctx, args, &e.to_string());
                 return fail(e.to_string());
             }
         },

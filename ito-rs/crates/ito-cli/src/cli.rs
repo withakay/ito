@@ -4,6 +4,7 @@ use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+mod agent;
 mod grep;
 mod path;
 mod ralph;
@@ -15,6 +16,7 @@ mod validate;
 mod backend;
 
 pub use crate::app::trace::TraceArgs;
+pub use agent::{AgentArgs, AgentCommand, AgentInstructionArgs};
 pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
@@ -544,50 +546,6 @@ pub struct HelpArgs {
     /// Command path to show help for (e.g., `ito help tasks`)
     #[arg(value_name = "COMMAND", num_args = 0..)]
     pub command: Vec<String>,
-}
-
-/// Commands that generate machine-readable output for AI agents.
-#[derive(Args, Debug, Clone)]
-pub struct AgentArgs {
-    #[command(subcommand)]
-    pub command: Option<AgentCommand>,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-pub enum AgentCommand {
-    /// Generate enriched instructions
-    #[command(visible_alias = "in")]
-    Instruction(AgentInstructionArgs),
-
-    /// Forward unknown subcommands to legacy handler
-    #[command(external_subcommand)]
-    External(Vec<String>),
-}
-
-#[derive(Args, Debug, Clone)]
-#[command(
-    after_help = "Artifacts:\n  bootstrap      Generate a tool bootstrap preamble\n  project-setup  Guide for setting up a new project\n  backend        Backend server and client configuration guide\n  worktrees      Guide for git worktree workflow (config-driven)\n  repo-sweep     Scan for old-only ID format assumptions in prompts and templates\n  proposal       Show the change proposal\n  specs          Show the specification deltas\n  tasks          Show the implementation task list\n  apply          Show implementation instructions\n  review         Show review instructions\n  archive        Show archive instructions\n  finish         Cleanup worktrees and branches after merge\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction repo-sweep\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n  ito agent instruction finish --change 005-08_migrate-cli-to-clap"
-)]
-pub struct AgentInstructionArgs {
-    /// Artifact id (e.g. bootstrap, apply, proposal)
-    #[arg(value_name = "ARTIFACT")]
-    pub artifact: String,
-
-    /// Change id (directory name)
-    #[arg(short = 'c', long)]
-    pub change: Option<String>,
-
-    /// Tool name for bootstrap (opencode|claude|codex)
-    #[arg(long)]
-    pub tool: Option<String>,
-
-    /// Workflow schema name
-    #[arg(long)]
-    pub schema: Option<String>,
-
-    /// Output as JSON
-    #[arg(long)]
-    pub json: bool,
 }
 
 /// View and modify global Ito configuration.
