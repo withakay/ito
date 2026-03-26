@@ -429,11 +429,7 @@ impl InvalidCommandLogger {
     }
 }
 
-fn invalid_command_log_file_path(
-    config_dir: &Path,
-    project_id: &str,
-    session_id: &str,
-) -> PathBuf {
+fn invalid_command_log_file_path(config_dir: &Path, project_id: &str, session_id: &str) -> PathBuf {
     config_dir
         .join("logs")
         .join("invalid_commands")
@@ -456,13 +452,9 @@ mod tests {
         let project_root = dir.path().join("project");
         std::fs::create_dir_all(&project_root).unwrap();
 
-        let logger = InvalidCommandLogger::new(
-            Some(config_dir.clone()),
-            &project_root,
-            None,
-            "0.0.0-test",
-        )
-        .expect("logger should be created");
+        let logger =
+            InvalidCommandLogger::new(Some(config_dir.clone()), &project_root, None, "0.0.0-test")
+                .expect("logger should be created");
 
         logger.log_invalid_command(
             &[

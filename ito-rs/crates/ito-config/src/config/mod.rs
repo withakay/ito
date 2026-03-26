@@ -863,10 +863,7 @@ mod tests {
         let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
 
         let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
-        let logging = r
-            .merged
-            .get("logging")
-            .expect("logging key should exist");
+        let logging = r.merged.get("logging").expect("logging key should exist");
         let invalid_commands = logging
             .get("invalidCommands")
             .expect("logging.invalidCommands key should exist");
@@ -890,8 +887,7 @@ mod tests {
         let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
 
         let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
-        let cfg: types::ItoConfig =
-            serde_json::from_value(r.merged).expect("should deserialize");
+        let cfg: types::ItoConfig = serde_json::from_value(r.merged).expect("should deserialize");
 
         assert!(cfg.logging.invalid_commands.enabled);
     }
