@@ -261,6 +261,52 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
 }
 
 #[test]
+fn schemas_template_includes_fix_and_platform_guidance() {
+    #[derive(Serialize)]
+    struct Schema<'a> {
+        name: &'a str,
+        description: &'a str,
+        artifacts: Vec<&'a str>,
+        source: &'a str,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx<'a> {
+        schemas: Vec<Schema<'a>>,
+        recommended_default: &'a str,
+    }
+
+    let ctx = Ctx {
+        schemas: vec![
+            Schema {
+                name: "minimalist",
+                description: "Lightweight workflow for small changes",
+                artifacts: vec!["specs", "tasks"],
+                source: "embedded",
+            },
+            Schema {
+                name: "spec-driven",
+                description: "Proposal-driven workflow",
+                artifacts: vec!["proposal", "specs", "design", "tasks"],
+                source: "embedded",
+            },
+            Schema {
+                name: "tdd",
+                description: "Test-first workflow",
+                artifacts: vec!["spec", "tests", "implementation", "docs"],
+                source: "embedded",
+            },
+        ],
+        recommended_default: "spec-driven",
+    };
+
+    let out = render_instruction_template("agent/schemas.md.j2", &ctx).unwrap();
+    assert!(out.contains("bounded bug fixes or regression-oriented corrections"));
+    assert!(out.contains("supporting platform or infrastructure"));
+    assert!(out.contains("When in doubt, start from `ito-proposal`"));
+}
+
+#[test]
 fn apply_template_bare_control_siblings_branches_from_default_branch() {
     #[derive(Serialize)]
     struct InstructionsCtx {
