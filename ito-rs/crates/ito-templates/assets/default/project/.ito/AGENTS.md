@@ -1,6 +1,6 @@
 # Ito Instructions
 
-Instructions for AI coding assistants using Ito for spec-driven development.
+Instructions for AI coding assistants using Ito for change-driven development.
 
 ## Managed Files
 
@@ -35,6 +35,13 @@ Create proposal when you need to:
 - Optimize performance (changes behavior)
 - Update security patterns
 
+Recommended entrypoints:
+
+- `ito-feature` - new capabilities, enhancements, or broader behavior changes
+- `ito-fix` - bounded fixes, regressions, and supporting platform/tooling/infrastructure changes that should be treated like fixes
+- `ito-proposal` - neutral fallback when the request does not clearly fit the other lanes
+- `ito-brainstorming` - open-ended feature or design exploration before proposal scaffolding
+
 Triggers (examples):
 
 - "Help me create a change proposal"
@@ -50,15 +57,19 @@ Loose matching guidance:
 
 Skip proposal for:
 
-- Bug fixes (restore intended behavior)
+- Straightforward bug fixes that restore intended behavior with no meaningful ambiguity or workflow impact
 - Typos, formatting, comments
 - Dependency updates (non-breaking)
 - Configuration changes
 - Tests for existing behavior
 
+If the request is fix-shaped but you still need to decide whether it warrants `minimalist`, `tdd`, or `spec-driven`, start with `ito-fix`.
+
 **Workflow**
 
+1. Pick the right entry lane: `ito-feature`, `ito-fix`, `ito-proposal`, or `ito-brainstorming` for open-ended design work.
 1. Review `.ito/project.md`, `ito list`, and `ito list --specs` to understand current context.
+1. Choose a schema intentionally: `spec-driven` for new capability or broad/high-risk work, `minimalist` for bounded fixes and small supporting changes, `tdd` for regression-oriented fixes, and `event-driven` for event/message-centric workflows.
 1. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, optional `design.md`, and spec deltas under `.ito/changes/<id>/`.
 1. Draft spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement.
 1. Run `ito validate <id> --strict` and resolve any issues before sharing the proposal.
@@ -127,7 +138,10 @@ After deployment, create separate PR to:
 - Always check if capability already exists
 - Prefer modifying existing specs over creating duplicates
 - Use `ito show [spec]` to review current state
-- If request is ambiguous, ask 1–2 clarifying questions before scaffolding
+- If request is ambiguous or the right schema is unclear, start with `ito-proposal-intake`
+- Use `minimalist` for bounded fixes and small supporting platform/tooling/infrastructure changes
+- Use `tdd` when the safest fix path is to reproduce the regression with a failing test first
+- Use `event-driven` for event/message-centric systems and workflows
 
 ### Search Guidance
 

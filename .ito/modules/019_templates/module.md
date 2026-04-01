@@ -17,3 +17,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - [ ] 019-05_embed-openspec-schemas
 - [x] 019-06_schema-selection-guidance
 - [ ] 019-07_embedded-schema-validation
+- [ ] 019-08_proposal-intake-and-schema-routing
