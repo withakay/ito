@@ -4,6 +4,7 @@ description: Start a fix-oriented Ito change proposal with fix-biased intake and
 ---
 
 Use this when the user frames the work as a fix, regression, correction, or supporting platform/tooling/infrastructure change that should be handled like a fix.
+**If the user already provided a change ID**, skip to Step 5 (Continue with `ito-proposal`) — the change already exists.
 
 ## Goal
 
