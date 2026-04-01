@@ -25,9 +25,11 @@ Default: **{{ recommended_default }}**
 
 | Schema | Best for |
 |--------|----------|
-| **spec-driven** | Most changes — structured proposal → specs → design → tasks pipeline |
-| **minimalist** | Small, low-risk changes that need only specs and tasks |
+| **spec-driven** | New capabilities, cross-cutting behavior changes, ambiguous feature work, or high-risk supporting changes |
+| **minimalist** | Small, low-risk changes, bounded bug fixes or regression-oriented corrections, and rigorous supporting platform or infrastructure work |
 | **tdd** | Test-first development — write tests before implementation |
 | **event-driven** | Event-sourced or message-driven architectures with AsyncAPI |
 
-When in doubt, use **{{ recommended_default }}**.
+Start from `ito-feature` for feature-shaped requests, `ito-fix` for fix-shaped or bounded supporting changes, and `ito-proposal` when the request is neutral or mixed.
+
+When in doubt, start from `ito-proposal` and use **{{ recommended_default }}** when the request truly needs the full proposal pipeline.

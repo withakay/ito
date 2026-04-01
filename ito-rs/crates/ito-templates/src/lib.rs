@@ -480,6 +480,47 @@ mod tests {
     }
 
     #[test]
+    fn fix_and_feature_commands_are_embedded() {
+        let files = commands_files();
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "ito-proposal-intake.md")
+        );
+        assert!(files.iter().any(|f| f.relative_path == "ito-fix.md"));
+        assert!(files.iter().any(|f| f.relative_path == "ito-feature.md"));
+    }
+
+    #[test]
+    fn proposal_intake_and_routing_skills_are_embedded() {
+        let intake = get_skill_file("ito-proposal-intake/SKILL.md")
+            .expect("proposal intake skill should exist");
+        let intake_text = std::str::from_utf8(intake).expect("skill should be utf8");
+        assert!(intake_text.starts_with("---\nname: ito-proposal-intake\n"));
+
+        let fix = get_skill_file("ito-fix/SKILL.md").expect("fix skill should exist");
+        let fix_text = std::str::from_utf8(fix).expect("skill should be utf8");
+        assert!(fix_text.starts_with("---\nname: ito-fix\n"));
+
+        let feature = get_skill_file("ito-feature/SKILL.md").expect("feature skill should exist");
+        let feature_text = std::str::from_utf8(feature).expect("skill should be utf8");
+        assert!(feature_text.starts_with("---\nname: ito-feature\n"));
+    }
+
+    #[test]
+    fn default_project_agents_mentions_fix_and_feature_entrypoints() {
+        let agents = default_project_files()
+            .into_iter()
+            .find(|f| f.relative_path == ".ito/AGENTS.md")
+            .expect("expected .ito/AGENTS.md in templates");
+        let text = std::str::from_utf8(agents.contents).expect("template should be UTF-8");
+
+        assert!(text.contains("`ito-fix`"));
+        assert!(text.contains("`ito-feature`"));
+        assert!(text.contains("`ito-brainstorming`"));
+    }
+
+    #[test]
     fn normalize_ito_dir_empty_defaults_to_dot_ito() {
         assert_eq!(normalize_ito_dir(""), ".ito");
     }
