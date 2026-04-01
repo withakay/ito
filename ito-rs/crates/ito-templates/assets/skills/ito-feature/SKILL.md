@@ -4,6 +4,7 @@ description: Start a feature-oriented Ito change proposal with feature-biased in
 ---
 
 Use this when the user is introducing a new capability, expanding an existing one, or otherwise framing the work as a feature.
+**If the user already provided a change ID**, skip to Step 5 (Continue with `ito-proposal`) — the change already exists.
 
 ## Goal
 
