@@ -4,6 +4,7 @@ description: Clarify a requested change before scaffolding a proposal, then reco
 ---
 
 Use this before proposal scaffolding when the request is underspecified or when starting from an intent-biased entrypoint such as `ito-fix` or `ito-feature`.
+**If the user already provided a change ID**, skip to the Handoff Format and continue with `ito-proposal` — the change already exists.
 
 ## Goal
 
