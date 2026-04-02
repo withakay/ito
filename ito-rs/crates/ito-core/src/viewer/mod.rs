@@ -11,6 +11,9 @@ pub mod bat;
 /// Glow-based terminal viewer backend.
 pub mod glow;
 
+/// HTML browser viewer backend (pandoc + system browser).
+pub mod html;
+
 /// Viewer registry and lookup helpers.
 pub mod registry;
 
@@ -20,6 +23,7 @@ pub mod tmux_nvim;
 pub use bat::BatViewer;
 pub use collector::collect_proposal_artifacts;
 pub use glow::GlowViewer;
+pub use html::HtmlViewer;
 pub use registry::ViewerRegistry;
 pub use tmux_nvim::TmuxNvimViewer;
 
@@ -107,7 +111,17 @@ mod tests {
     fn concrete_viewers_report_expected_names() {
         assert_eq!(BatViewer.name(), "bat");
         assert_eq!(GlowViewer.name(), "glow");
+        assert_eq!(HtmlViewer.name(), "html");
         assert_eq!(TmuxNvimViewer.name(), "tmux-nvim");
+    }
+
+    #[test]
+    fn default_registry_includes_html_viewer() {
+        let registry = ViewerRegistry::for_proposals(true);
+        assert!(
+            registry.find_by_name("html").is_some(),
+            "html viewer should be registered in the default proposal registry"
+        );
     }
 
     #[cfg(unix)]
