@@ -414,3 +414,69 @@ fn repo_sweep_template_renders() {
     assert!(rendered.contains("Sub-Module"));
     assert!(rendered.contains("NNN.SS-NN_name"));
 }
+
+#[test]
+fn archive_template_renders_generic_guidance_without_change() {
+    #[derive(Serialize)]
+    struct Ctx {
+        change: Option<String>,
+        available_changes: Vec<String>,
+    }
+
+    let out = render_instruction_template(
+        "agent/archive.md.j2",
+        &Ctx {
+            change: None,
+            available_changes: vec![],
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("ito archive"));
+    assert!(out.contains("ito audit reconcile"));
+    // generic mode must NOT look like a targeted command
+    assert!(!out.contains("Archive:"));
+}
+
+#[test]
+fn archive_template_renders_targeted_instruction_with_change() {
+    #[derive(Serialize)]
+    struct Ctx {
+        change: Option<String>,
+        available_changes: Vec<String>,
+    }
+
+    let out = render_instruction_template(
+        "agent/archive.md.j2",
+        &Ctx {
+            change: Some("009-02_event-sourced-audit-log".to_string()),
+            available_changes: vec![],
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("009-02_event-sourced-audit-log"));
+    assert!(out.contains("ito archive 009-02_event-sourced-audit-log --yes"));
+    assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
+}
+
+#[test]
+fn archive_template_lists_available_changes_in_generic_mode() {
+    #[derive(Serialize)]
+    struct Ctx {
+        change: Option<String>,
+        available_changes: Vec<String>,
+    }
+
+    let out = render_instruction_template(
+        "agent/archive.md.j2",
+        &Ctx {
+            change: None,
+            available_changes: vec!["001-01_init".to_string(), "002-03_cleanup".to_string()],
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("001-01_init"));
+    assert!(out.contains("002-03_cleanup"));
+}
