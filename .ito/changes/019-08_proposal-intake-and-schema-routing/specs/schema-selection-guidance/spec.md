@@ -10,11 +10,7 @@ Ito SHALL recommend an existing workflow schema based on change shape instead of
 #### Scenario: New capability recommends spec-driven
 
 - **WHEN** the requested change introduces a new capability, cross-cutting behavior change, or unresolved feature scope
-<<<<<<< HEAD
-- **THEN** Ito SHALL recommend the `spec-driven` schema or the `event-driven` schema when the request is centered on event or message workflow behavior
-=======
 - **THEN** Ito SHALL recommend the `spec-driven` schema
->>>>>>> 2df3dfff (archive changes)
 
 #### Scenario: Localized fix recommends minimalist or tdd
 
