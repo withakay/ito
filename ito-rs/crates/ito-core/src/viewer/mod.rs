@@ -17,6 +17,9 @@ pub mod html;
 /// Viewer registry and lookup helpers.
 pub mod registry;
 
+/// Shared utilities for viewer backends.
+pub(crate) mod util;
+
 /// Tmux + Neovim popup viewer backend.
 pub mod tmux_nvim;
 
@@ -37,6 +40,13 @@ pub trait ViewerBackend {
 
     /// Whether the viewer can run in the current environment.
     fn is_available(&self) -> bool;
+
+    /// Detailed hint shown when the viewer is unavailable.
+    ///
+    /// Returns `None` if `is_available()` is true or no specific guidance exists.
+    fn availability_hint(&self) -> Option<String> {
+        None
+    }
 
     /// Open or render the provided proposal content.
     fn open(&self, content: &str) -> CoreResult<()>;
@@ -130,7 +140,7 @@ mod tests {
         let (tx, rx) = mpsc::channel();
 
         std::thread::spawn(move || {
-            let result = crate::viewer::bat::run_with_stdin("sh", &["-c", "cat >/dev/null"], "hi");
+            let result = crate::viewer::util::run_with_stdin("sh", &["-c", "cat >/dev/null"], "hi");
             tx.send(result).unwrap();
         });
 

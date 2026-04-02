@@ -8,7 +8,7 @@ use std::process::Command;
 use crate::errors::{CoreError, CoreResult};
 
 use super::ViewerBackend;
-use super::bat::command_on_path;
+use super::util::command_on_path;
 
 /// Render markdown as HTML in the system browser via `pandoc`.
 pub struct HtmlViewer;
