@@ -264,13 +264,11 @@ fn agent_instruction_archive_without_change_prints_generic_guidance() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    assert!(
-        out.stdout.contains("ito archive"),
-        "stdout={}", out.stdout
-    );
+    assert!(out.stdout.contains("ito archive"), "stdout={}", out.stdout);
     assert!(
         out.stdout.contains("ito audit reconcile"),
-        "stdout={}", out.stdout
+        "stdout={}",
+        out.stdout
     );
 }
 
@@ -299,11 +297,13 @@ fn agent_instruction_archive_with_change_prints_targeted_instruction() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(
         out.stdout.contains("000-01_test-change"),
-        "stdout={}", out.stdout
+        "stdout={}",
+        out.stdout
     );
     assert!(
         out.stdout.contains("ito archive 000-01_test-change"),
-        "stdout={}", out.stdout
+        "stdout={}",
+        out.stdout
     );
 }
 
