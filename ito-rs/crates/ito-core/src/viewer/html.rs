@@ -38,6 +38,24 @@ impl ViewerBackend for HtmlViewer {
         command_on_path("pandoc") && command_on_path(browser_opener())
     }
 
+    fn availability_hint(&self) -> Option<String> {
+        if !command_on_path("pandoc") {
+            return Some(
+                "pandoc is required for the HTML viewer. \
+                 Install it from https://pandoc.org/installing.html"
+                    .to_string(),
+            );
+        }
+        let opener = browser_opener();
+        if !command_on_path(opener) {
+            return Some(format!(
+                "'{opener}' is required to open the browser. \
+                 Please install it or open the HTML file manually."
+            ));
+        }
+        None
+    }
+
     fn open(&self, content: &str) -> CoreResult<()> {
         if !command_on_path("pandoc") {
             return Err(CoreError::not_found(
