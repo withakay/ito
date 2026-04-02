@@ -2,12 +2,12 @@
 
 ### Requirement: Archive instruction with change ID
 
-The CLI SHALL support `ito agent instruction archive --change <id>` and emit a short instruction directing the agent to run `ito archive <change-id>` and record the audit guardrail steps.
+The CLI SHALL support `ito agent instruction archive --change <id>` and emit a short instruction directing the agent to run `ito archive <change-id> --yes` and record the audit guardrail steps.
 
 #### Scenario: Archive instruction with change flag
 
 - **WHEN** an agent runs `ito agent instruction archive --change <change-id>`
-- **THEN** the system prints instruction text that tells the agent to run `ito archive <change-id>`
+- **THEN** the system prints instruction text that tells the agent to run `ito archive <change-id> --yes`
 - **AND** the output includes the audit reconcile guardrail (`ito audit reconcile --change <id>` before archiving)
 
 ### Requirement: Archive instruction without change ID

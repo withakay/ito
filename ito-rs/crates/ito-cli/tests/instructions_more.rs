@@ -270,6 +270,11 @@ fn agent_instruction_archive_without_change_prints_generic_guidance() {
         "stdout={}",
         out.stdout
     );
+    assert!(
+        out.stdout.contains("000-01_test-change"),
+        "expected available change hint in generic mode; stdout={}",
+        out.stdout
+    );
 }
 
 #[test]
@@ -301,7 +306,7 @@ fn agent_instruction_archive_with_change_prints_targeted_instruction() {
         out.stdout
     );
     assert!(
-        out.stdout.contains("ito archive 000-01_test-change"),
+        out.stdout.contains("ito archive 000-01_test-change --yes"),
         "stdout={}",
         out.stdout
     );
@@ -330,6 +335,11 @@ fn agent_instruction_archive_with_invalid_change_fails() {
     );
 
     assert_ne!(out.code, 0, "should fail for unknown change");
+    assert!(
+        out.stderr.contains("999-99_does-not-exist"),
+        "stderr should mention the invalid change id; stderr={}",
+        out.stderr
+    );
 }
 
 #[test]

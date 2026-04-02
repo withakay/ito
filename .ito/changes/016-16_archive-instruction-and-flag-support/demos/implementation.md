@@ -6,7 +6,7 @@
 Added agent/archive.md.j2 template and wired the archive artifact handler in instructions.rs. The handler supports --change (optional) and falls back to generic guidance when omitted.
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/016-16_archive-instruction-and-flag-support && ./target/debug/ito agent instruction archive 2>&1 | head -20
+ito agent instruction archive 2>&1 | head -20
 ```
 
 ````output
@@ -33,7 +33,7 @@ ito audit reconcile --change <change-id>
 ````
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/016-16_archive-instruction-and-flag-support && ./target/debug/ito agent instruction archive --change 016-16_archive-instruction-and-flag-support 2>&1
+ito agent instruction archive --change 016-16_archive-instruction-and-flag-support 2>&1
 ```
 
 ````output
