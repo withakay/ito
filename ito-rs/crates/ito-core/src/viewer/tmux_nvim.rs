@@ -3,7 +3,7 @@ use std::process::Command;
 use crate::errors::{CoreError, CoreResult};
 
 use super::ViewerBackend;
-use super::bat::command_on_path;
+use super::util::command_on_path;
 
 /// Render markdown inside a tmux popup running Neovim in read-only mode.
 pub struct TmuxNvimViewer;

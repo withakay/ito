@@ -1,12 +1,13 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Generated agent instructions are persistence-mode aware
+### Requirement: Instruction Argument Reconstruction
 
-Generated agent instructions SHALL adapt their tooling guidance to the selected persistence mode.
+The CLI SHALL reconstruct raw argument vectors from parsed `AgentInstructionArgs` using exhaustive struct destructuring so that adding a new field to the struct produces a compile-time error if the reconstruction is not updated.
 
-#### Scenario: Remote mode guidance avoids markdown-edit recommendations
+#### Scenario: New field added to AgentInstructionArgs
+- **WHEN** a developer adds a new field to `AgentInstructionArgs`
+- **THEN** the `to_argv()` method fails to compile until the new field is handled
 
-- **GIVEN** remote/API-backed persistence mode is active
-- **WHEN** Ito generates instructions for an agent workflow
-- **THEN** the guidance does not recommend editing active-work markdown files directly
-- **AND** it recommends the repository-backed CLI interfaces that correspond to the requested workflow
+#### Scenario: Instruction forwarding round-trips all flags
+- **WHEN** a clap-parsed `AgentInstructionArgs` is forwarded to the string-based handler
+- **THEN** all fields present in the struct are included in the reconstructed argument vector
