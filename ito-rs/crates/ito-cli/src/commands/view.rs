@@ -68,9 +68,10 @@ fn resolve_named_viewer<'a>(
         );
     }
     if !viewer.is_available() {
-        return fail(format!(
-            "Viewer '{name}' is unavailable. Install its backing tool and try again."
-        ));
+        let msg = viewer.availability_hint().unwrap_or_else(|| {
+            format!("Viewer '{name}' is unavailable. Install its backing tool and try again.")
+        });
+        return fail(msg);
     }
     Ok(viewer)
 }
