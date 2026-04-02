@@ -213,6 +213,53 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return emit_instruction(want_json, artifact, instruction);
     }
 
+    if artifact == "archive" {
+        let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+        let change = parse_string_flag(args, "--change")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let all_changes: Vec<String> = runtime
+            .repositories()
+            .changes
+            .list()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
+
+        let resolved_change = if let Some(ref raw) = change {
+            let change_repo = runtime.repositories().changes.as_ref();
+            match super::common::resolve_change_target(change_repo, raw) {
+                Ok(resolved) => Some(resolved),
+                Err(msg) => return fail(msg),
+            }
+        } else {
+            None
+        };
+
+        let available_changes: Vec<String> = all_changes
+            .into_iter()
+            .filter(|id| resolved_change.as_deref() != Some(id.as_str()))
+            .collect();
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            change: Option<String>,
+            available_changes: Vec<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/archive.md.j2",
+            &Ctx {
+                change: resolved_change,
+                available_changes,
+            },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render archive instruction: {e}")))?;
+
+        return emit_instruction(want_json, "archive", instruction);
+    }
+
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
         // Special case: proposal without --change outputs creation guide

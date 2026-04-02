@@ -552,6 +552,8 @@ Examples:
   ito agent instruction repo-sweep
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
+  ito agent instruction archive
+  ito agent instruction archive --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap
 
 
