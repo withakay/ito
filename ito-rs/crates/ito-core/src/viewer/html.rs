@@ -88,14 +88,15 @@ impl ViewerBackend for HtmlViewer {
         }
 
         // Open the HTML file in the system browser.
-        let open_status = Command::new(opener)
+        let open_output = Command::new(opener)
             .arg(&html_path)
-            .status()
+            .output()
             .map_err(|e| CoreError::io(format!("spawning {opener}"), e))?;
 
-        if !open_status.success() {
+        if !open_output.status.success() {
             return Err(CoreError::process(format!(
-                "{opener} exited with status {open_status}"
+                "{opener} failed: {}",
+                String::from_utf8_lossy(&open_output.stderr).trim()
             )));
         }
 
