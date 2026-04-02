@@ -70,19 +70,20 @@ impl ViewerBackend for HtmlViewer {
         let html_path = md_file.path().with_extension("html");
 
         // Convert markdown to standalone HTML via pandoc.
-        let pandoc_status = Command::new("pandoc")
+        let pandoc_output = Command::new("pandoc")
             .arg("--standalone")
             .arg("--from=markdown")
             .arg("--to=html5")
             .arg("-o")
             .arg(&html_path)
             .arg(md_file.path())
-            .status()
+            .output()
             .map_err(|e| CoreError::io("spawning pandoc", e))?;
 
-        if !pandoc_status.success() {
+        if !pandoc_output.status.success() {
             return Err(CoreError::process(format!(
-                "pandoc exited with status {pandoc_status}"
+                "pandoc failed: {}",
+                String::from_utf8_lossy(&pandoc_output.stderr).trim()
             )));
         }
 
