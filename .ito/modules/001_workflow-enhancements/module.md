@@ -24,5 +24,5 @@
 - [x] 001-27_add-requirement-traceability
 - [x] 001-28_tmux-skill-integration
 - [x] 001-29_proposal-viewer-command
-- [ ] 001-30_proposal-viewer-html
+- [x] 001-30_proposal-viewer-html
 - [x] 001-31_tools-config-tmux
