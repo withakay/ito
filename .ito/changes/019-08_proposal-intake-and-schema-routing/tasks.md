@@ -28,11 +28,7 @@ ______________________________________________________________________
 - **Done When**: Embedded assets define the new intake lane and the intent-biased entrypoints consistently across installed harness outputs.
 - **Requirements**: proposal-intake:clarify-change-before-scaffold, proposal-intake:produce-handoff-outcome, change-request-routing:intent-biased-entrypoints
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ### Task 1.2: Encode schema recommendation rules in guidance
 
@@ -43,11 +39,7 @@ ______________________________________________________________________
 - **Done When**: The installed guidance recommends `spec-driven`, `minimalist`, or `tdd` intentionally instead of only listing schemas or defaulting to `spec-driven`.
 - **Requirements**: change-request-routing:bias-with-override, schema-selection-guidance:recommend-by-change-shape, schema-selection-guidance:cover-supporting-platform-work
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ______________________________________________________________________
 
@@ -64,11 +56,7 @@ ______________________________________________________________________
 - **Done When**: The workflow clearly distinguishes repo-discoverable facts from user decisions and defines a non-duplicative handoff into proposal creation.
 - **Requirements**: proposal-intake:ground-brownfield-questions, proposal-intake:produce-handoff-outcome
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ### Task 2.2: Add template and instruction tests for routing behavior
 
@@ -79,11 +67,7 @@ ______________________________________________________________________
 - **Done When**: Template and instruction tests fail if the new routing assets or decision guidance regress.
 - **Requirements**: change-request-routing:intent-biased-entrypoints, change-request-routing:bias-with-override, schema-selection-guidance:recommend-by-change-shape
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ______________________________________________________________________
 
@@ -100,11 +84,7 @@ ______________________________________________________________________
 - **Done When**: Generated project guidance presents the new front-door workflow clearly and without conflicting instructions.
 - **Requirements**: change-request-routing:intent-biased-entrypoints, schema-selection-guidance:cover-supporting-platform-work
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ### Task 3.2: Validate the change strictly
 
@@ -115,11 +95,7 @@ ______________________________________________________________________
 - **Done When**: The proposal package validates cleanly with no strict-mode errors.
 - **Requirements**: proposal-intake:clarify-change-before-scaffold, change-request-routing:intent-biased-entrypoints, schema-selection-guidance:recommend-by-change-shape
 - **Updated At**: 2026-04-01
-<<<<<<< HEAD
 - **Status**: [x] complete
-=======
-- **Status**: [ ] pending
->>>>>>> 2df3dfff (archive changes)
 
 ______________________________________________________________________
 
