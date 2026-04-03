@@ -1,6 +1,6 @@
 ---
 name: ito-brainstorming
-description: "You MUST use this before any creative work - creating features, proposing changes,building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "Use for open-ended design exploration and idea refinement before scoping a concrete Ito change."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -44,7 +44,7 @@ Start by understanding the current project context, then ask questions one at a 
 **Implementation (if continuing):**
 - Ask: "Ready to set up for implementation?"
 - Use ito-using-git-worktrees to create isolated workspace
-- Use ito-proposal to create detailed implementation plan
+- Use `ito-feature` for feature-shaped follow-up work, or `ito-proposal` for a neutral change proposal
 
 ## Key Principles
 

@@ -65,10 +65,5 @@ The result is predictable drift toward `spec-driven`, even though Ito already sh
 
 ## Open Questions
 
-<<<<<<< HEAD
 - None for the first implementation. The intake handoff is an in-session summary, and `tdd` may be recommended from any lane when regression-oriented work makes test-first execution the safest path.
-=======
-- Should the intake handoff be a dedicated persisted artifact, or an internal summary passed directly into proposal generation until a change exists?
-- Should the first implementation recommend `tdd` only from `ito-fix`, or also from neutral intake when a regression-oriented request is detected?
->>>>>>> 2df3dfff (archive changes)
 <!-- ITO:END -->

@@ -11,7 +11,7 @@ You will analyze recently modified code and apply refinements that:
 
 2. **Apply Project Standards**: Follow the established Rust coding standards:
 
-   - Use `for` loops with mutable accumulators instead of iterator chains (`.filter().map().collect()`)
+   - Use idiomatic iterator chains (`.filter().map().collect()`) — they are standard Rust and preferred over explicit `for` loops with mutable accumulators
    - Use `let ... else` for early returns to keep happy path unindented
    - Use explicit `match` expressions instead of `matches!` macro
    - Shadow variables through transformations instead of using prefixes like `raw_`, `parsed_`
@@ -36,7 +36,7 @@ You will analyze recently modified code and apply refinements that:
    - Create overly clever solutions that are hard to understand
    - Combine too many concerns into single functions or modules
    - Remove helpful abstractions that improve code organization
-   - Prioritize "fewer lines" over readability (e.g., dense iterator chains)
+   - Prioritize "fewer lines" over readability (e.g., deeply nested or excessively long single-expression chains)
    - Make the code harder to debug or extend
    - Break explicit pattern matching by introducing wildcards
 
