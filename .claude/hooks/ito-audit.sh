@@ -8,16 +8,19 @@ if [ -z "${HOOK_PAYLOAD}" ]; then
   HOOK_PAYLOAD='{}'
 fi
 
+# Attempt audit validation — warn on failure but never block.
+# Blocking here creates a catch-22: the fix command (ito audit reconcile --fix)
+# also requires Bash, which this hook would block.
 if ! ito audit validate >/dev/null 2>&1; then
   cat <<'EOF'
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
-    "additionalContext": "Ito audit validation failed before tool execution. Run `ito audit validate` to inspect issues and `ito audit reconcile --fix` if drift must be repaired."
+    "additionalContext": "Ito audit validation failed. Run `ito audit validate` to inspect issues and `ito audit reconcile --fix` if drift must be repaired."
   }
 }
 EOF
-  exit 2
+  exit 0
 fi
 
 RECONCILE_OUTPUT="$(ito audit reconcile 2>&1 || true)"
