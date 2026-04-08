@@ -4,6 +4,7 @@ use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+use ito_core::coordination_worktree::maybe_auto_commit_coordination;
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::repository_runtime::PersistenceMode;
 use ito_core::tasks as core_tasks;
@@ -26,6 +27,19 @@ fn load_coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
     resolve_coordination_branch_settings(&merged)
+}
+
+/// Attempt to auto-commit the coordination worktree after a task mutation.
+///
+/// Failures are printed as warnings to stderr and never propagate — the
+/// primary task operation has already succeeded at this point.
+fn auto_commit_after_task_mutation(rt: &Runtime, change_id: &str, action: &str) {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let message = format!("chore: {action} task for change {change_id}");
+    if let Err(err) = maybe_auto_commit_coordination(project_root, ito_path, &message) {
+        eprintln!("Warning: auto-commit to coordination worktree failed: {err}");
+    }
 }
 
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
@@ -554,6 +568,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort backend sync after mutation
             sync_after_mutation(rt, &change_id);
+            // Best-effort auto-commit to coordination worktree
+            auto_commit_after_task_mutation(rt, &change_id, "start");
 
             if want_json {
                 let status = if runtime.mode() == PersistenceMode::Remote {
@@ -602,6 +618,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort backend sync after mutation
             sync_after_mutation(rt, &change_id);
+            // Best-effort auto-commit to coordination worktree
+            auto_commit_after_task_mutation(rt, &change_id, "complete");
 
             if want_json {
                 let status = if runtime.mode() == PersistenceMode::Remote {
@@ -650,6 +668,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort backend sync after mutation
             sync_after_mutation(rt, &change_id);
+            // Best-effort auto-commit to coordination worktree
+            auto_commit_after_task_mutation(rt, &change_id, "shelve");
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -690,6 +710,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort backend sync after mutation
             sync_after_mutation(rt, &change_id);
+            // Best-effort auto-commit to coordination worktree
+            auto_commit_after_task_mutation(rt, &change_id, "unshelve");
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -735,6 +757,8 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort backend sync after mutation
             sync_after_mutation(rt, &change_id);
+            // Best-effort auto-commit to coordination worktree
+            auto_commit_after_task_mutation(rt, &change_id, "add");
 
             if want_json {
                 return print_json(&serde_json::json!({

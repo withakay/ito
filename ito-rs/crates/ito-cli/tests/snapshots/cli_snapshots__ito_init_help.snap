@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 164
 expression: "snapshot(&[\"init\", \"--help\"])"
 ---
 Set up Ito in a project
@@ -41,6 +40,9 @@ Options:
 
       --setup-coordination-branch
           Ensure coordination branch exists on origin after init
+
+      --no-coordination-worktree
+          Skip coordination worktree setup and use embedded storage mode instead
 
       --no-tmux
           Disable tmux-backed workflow suggestions in project config

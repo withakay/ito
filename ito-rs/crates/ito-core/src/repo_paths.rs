@@ -8,7 +8,7 @@ use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::load_cascading_project_config;
-use ito_config::types::{ItoConfig, WorktreeStrategy};
+use ito_config::types::{CoordinationBranchConfig, ItoConfig, WorktreeStrategy};
 use std::path::{Path, PathBuf};
 
 /// Distinguishes bare repositories from non-bare working trees.
@@ -208,6 +208,44 @@ pub fn resolve_worktree_paths(
         worktrees_root,
         main_worktree_root,
     })
+}
+
+/// Resolve the path where the coordination worktree should be stored.
+///
+/// Resolution order:
+///
+/// 1. `config.worktree_path` — when explicitly set, it is used as-is.
+/// 2. `$XDG_DATA_HOME/ito/<org>/<repo>/` — when the `XDG_DATA_HOME` environment
+///    variable is set and non-empty.
+/// 3. `~/.local/share/ito/<org>/<repo>/` — fallback using `$HOME` (or
+///    `$USERPROFILE` on Windows) to locate the home directory.
+///
+/// The function is pure: it reads environment variables but performs no git
+/// operations. The `org` and `repo` parameters should be obtained from
+/// [`crate::git_remote::resolve_org_repo_from_config_or_remote`] or equivalent.
+pub fn coordination_worktree_path(
+    config: &CoordinationBranchConfig,
+    org: &str,
+    repo: &str,
+) -> PathBuf {
+    // 1. Explicit override wins.
+    if let Some(explicit) = config.worktree_path.as_deref().filter(|s| !s.is_empty()) {
+        return PathBuf::from(explicit);
+    }
+
+    // 2. XDG_DATA_HOME when set and non-empty.
+    let base = match std::env::var("XDG_DATA_HOME") {
+        Ok(v) if !v.trim().is_empty() => PathBuf::from(v),
+        _ => {
+            // 3. Fall back to ~/.local/share.
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| "/tmp".to_string());
+            PathBuf::from(home).join(".local").join("share")
+        }
+    };
+
+    base.join("ito").join(org).join(repo)
 }
 
 fn resolve_base_dir(env: &ResolvedEnv, configured: &Option<String>) -> PathBuf {
