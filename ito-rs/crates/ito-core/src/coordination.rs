@@ -22,7 +22,7 @@ pub const COORDINATION_DIRS: &[&str] = &["changes", "specs", "modules", "workflo
 /// Create a directory symlink `dst` → `src` in a platform-appropriate way.
 ///
 /// On Unix this calls [`std::os::unix::fs::symlink`].  On Windows this calls
-/// [`std::os::windows::fs::symlink_dir`].  The function returns an
+/// `std::os::windows::fs::symlink_dir`.  The function returns an
 /// [`io::Error`] if the underlying OS call fails.
 ///
 /// # Errors

@@ -56,12 +56,12 @@ pub fn parse_remote_url_org_repo(url: &str) -> Option<(String, String)> {
     {
         // ssh://[user@]host[:port]/path  or  git://host/path
         // Drop everything up to and including the first '/' after the authority.
-        rest.splitn(2, '/').nth(1)?
+        rest.split_once('/')?.1
     } else if url.contains("://") {
         // HTTPS (or any other scheme): https://host/path
         // Strip scheme + authority, keep the path.
-        let after_scheme = url.splitn(2, "://").nth(1)?;
-        after_scheme.splitn(2, '/').nth(1)?
+        let after_scheme = url.split_once("://")?.1;
+        after_scheme.split_once('/')?.1
     } else if let Some(colon_pos) = url.find(':') {
         // SCP-style SSH: git@github.com:org/repo.git
         // The colon separates host from path; there must be no '/' before the colon.
