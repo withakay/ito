@@ -1235,8 +1235,10 @@ mod tests {
 
     #[test]
     fn coordination_branch_config_worktree_path_round_trips() {
-        let mut config = CoordinationBranchConfig::default();
-        config.worktree_path = Some("/tmp/my-worktree".to_string());
+        let config = CoordinationBranchConfig {
+            worktree_path: Some("/tmp/my-worktree".to_string()),
+            ..Default::default()
+        };
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: CoordinationBranchConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(
