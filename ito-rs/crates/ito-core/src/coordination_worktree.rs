@@ -15,7 +15,6 @@
 //! 3. Neither exists → create an orphan branch with an empty initial commit.
 
 use std::fs;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
 use ito_config::types::{CoordinationStorage, ItoConfig};
@@ -119,22 +118,20 @@ pub fn maybe_auto_commit_coordination(
     };
 
     // Resolve org/repo for the worktree path.  When resolution fails (e.g. no
-    // git remote), fall back to a hash of the absolute project root so that
-    // different local-only projects never share the same coordination path.
+    // git remote), fall back to a stable FNV-1a hash of the absolute project
+    // root so that different local-only projects never share the same path.
     let (org, repo) = match crate::git_remote::resolve_org_repo_from_config_or_remote(
         project_root,
         &typed.backend,
     ) {
         Some(pair) => pair,
         None => {
-            let mut hasher = DefaultHasher::new();
-            project_root.hash(&mut hasher);
-            let hash = format!("{:016x}", hasher.finish());
-            ("_local".to_string(), hash)
+            let hash = fnv1a_hash(project_root.to_string_lossy().as_bytes());
+            ("_local".to_string(), format!("{hash:016x}"))
         }
     };
 
-    let worktree_path = coordination_worktree_path(coord, &org, &repo);
+    let worktree_path = coordination_worktree_path(coord, ito_path, &org, &repo);
 
     // Only attempt the commit when the worktree directory actually exists.
     // If it hasn't been created yet, silently skip — the user hasn't set up
@@ -240,7 +237,7 @@ pub fn provision_coordination_worktree(
     {
         // Explicit override — pass dummy org/repo; coordination_worktree_path
         // will return the explicit path without using them.
-        coordination_worktree_path(&coord_config, "", "")
+        coordination_worktree_path(&coord_config, ito_path, "", "")
     } else {
         let (org, repo) =
             crate::git_remote::resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
@@ -254,7 +251,7 @@ pub fn provision_coordination_worktree(
                          `backend.project.org` and `backend.project.repo` in .ito/config.json.",
                     )
                 })?;
-        coordination_worktree_path(&coord_config, &org, &repo)
+        coordination_worktree_path(&coord_config, ito_path, &org, &repo)
     };
 
     // 7. Create the worktree only when it does not yet exist.
@@ -267,8 +264,8 @@ pub fn provision_coordination_worktree(
     let worktree_ito_path = worktree_path.join(".ito");
     wire_coordination_symlinks(ito_path, &worktree_ito_path)?;
 
-    // 9. Update .gitignore.
-    update_gitignore_for_symlinks(project_root)?;
+    // 9. Update .gitignore — best-effort; don't fail provisioning for it.
+    let _ = update_gitignore_for_symlinks(project_root);
 
     // 10. Return the resulting storage mode.
     Ok(Some(CoordinationStorage::Worktree))
@@ -350,8 +347,9 @@ fn local_branch_exists(
 /// Attempts to fetch `branch_name` from `origin`.
 ///
 /// Returns `true` when the fetch succeeded (branch now exists on origin),
-/// `false` when the remote branch does not exist or `origin` is not configured,
-/// and an error for any other failure (e.g. network errors, authentication).
+/// `false` when the remote branch does not exist, `origin` is not configured,
+/// or the remote is unreachable, and an error for any other failure
+/// (e.g. authentication errors).
 fn fetch_branch_from_origin(
     runner: &dyn ProcessRunner,
     project_root: &Path,
@@ -460,47 +458,24 @@ fn create_orphan_branch(
 
     // ── Attempt 2: commit-tree fallback (git < 2.36) ─────────────────────────
     //
-    // 1. Write an empty tree object.
+    // 1. Use the well-known empty-tree SHA-1 (a git constant that never changes).
     // 2. Commit it with `git commit-tree`.
     // 3. Create the branch pointing at that commit.
     //
+    // Using the constant avoids `/dev/null` (unavailable on Windows) and the
+    // need for stdin support in ProcessRequest.
+    //
     // No checkout is performed, so the working tree is never touched.
 
-    let hash_object = runner
-        .run(
-            &ProcessRequest::new("git")
-                .args(["hash-object", "-t", "tree", "/dev/null"])
-                .current_dir(project_root),
-        )
-        .map_err(|err| {
-            CoreError::process(format!(
-                "Cannot create empty tree object for orphan branch '{branch_name}'.\n\
-                 Git command failed to run: {err}\n\
-                 Fix: ensure git is installed and '{project_root}' is a git repository.",
-                project_root = project_root.display(),
-            ))
-        })?;
-
-    if !hash_object.success {
-        // Neither strategy worked — surface both errors.
-        return Err(CoreError::process(format!(
-            "Cannot create orphan branch '{branch_name}' in '{project_root}'.\n\
-             `git worktree add --orphan` reported: {worktree_orphan_detail}\n\
-             `git hash-object` reported: {hash_object_detail}\n\
-             Fix: upgrade git to ≥ 2.36, or ensure git is properly installed.",
-            project_root = project_root.display(),
-            hash_object_detail = render_output(&hash_object),
-        )));
-    }
-
-    let empty_tree = hash_object.stdout.trim().to_string();
+    // The SHA-1 of an empty git tree — a universal constant across all repos.
+    let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
     let commit_tree = runner
         .run(
             &ProcessRequest::new("git")
                 .args([
                     "commit-tree",
-                    &empty_tree,
+                    empty_tree,
                     "-m",
                     "Initialize coordination branch",
                 ])
@@ -515,11 +490,13 @@ fn create_orphan_branch(
 
     if !commit_tree.success {
         return Err(CoreError::process(format!(
-            "Cannot create initial commit for orphan branch '{branch_name}'.\n\
-             Git reported: {}\n\
-             Fix: ensure git user.name and user.email are configured \
-             (`git config --global user.email \"you@example.com\"`).",
+            "Cannot create orphan branch '{branch_name}' in '{project_root}'.\n\
+             `git worktree add --orphan` reported: {worktree_orphan_detail}\n\
+             `git commit-tree` reported: {}\n\
+             Fix: upgrade git to ≥ 2.36, or ensure git user.name and user.email are \
+             configured (`git config --global user.email \"you@example.com\"`).",
             render_output(&commit_tree),
+            project_root = project_root.display(),
         )));
     }
 
@@ -789,6 +766,22 @@ fn commit_staged(
         worktree = worktree_path.display(),
         detail = render_output(&output),
     )))
+}
+
+// ── Hashing ───────────────────────────────────────────────────────────────────
+
+/// FNV-1a 64-bit hash — stable across Rust versions, no external dependencies.
+///
+/// Used to derive a deterministic per-project identifier when no git remote is
+/// available. Unlike `DefaultHasher`, FNV-1a produces the same output for the
+/// same input regardless of the Rust version or platform.
+fn fnv1a_hash(data: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

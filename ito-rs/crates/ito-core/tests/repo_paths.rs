@@ -223,7 +223,8 @@ fn coordination_worktree_path_uses_explicit_worktree_path_when_set() {
         worktree_path: Some("/custom/path/to/worktree".to_string()),
         ..CoordinationBranchConfig::default()
     };
-    let result = coordination_worktree_path(&config, "acme", "widget");
+    let ito_path = Path::new("/project/.ito");
+    let result = coordination_worktree_path(&config, ito_path, "acme", "widget");
     assert_eq!(result, PathBuf::from("/custom/path/to/worktree"));
 }
 
@@ -234,7 +235,8 @@ fn coordination_worktree_path_ignores_xdg_when_explicit_path_set() {
             worktree_path: Some("/explicit/override".to_string()),
             ..CoordinationBranchConfig::default()
         };
-        let result = coordination_worktree_path(&config, "acme", "widget");
+        let ito_path = Path::new("/project/.ito");
+        let result = coordination_worktree_path(&config, ito_path, "acme", "widget");
         assert_eq!(result, PathBuf::from("/explicit/override"));
     });
 }
@@ -243,7 +245,8 @@ fn coordination_worktree_path_ignores_xdg_when_explicit_path_set() {
 fn coordination_worktree_path_uses_xdg_data_home_when_set() {
     with_xdg_data_home("/xdg/data", || {
         let config = CoordinationBranchConfig::default();
-        let result = coordination_worktree_path(&config, "acme", "widget");
+        let ito_path = Path::new("/project/.ito");
+        let result = coordination_worktree_path(&config, ito_path, "acme", "widget");
         assert_eq!(result, PathBuf::from("/xdg/data/ito/acme/widget"));
     });
 }
@@ -252,7 +255,8 @@ fn coordination_worktree_path_uses_xdg_data_home_when_set() {
 fn coordination_worktree_path_falls_back_to_local_share_when_xdg_unset() {
     with_home_only("/home/alice", || {
         let config = CoordinationBranchConfig::default();
-        let result = coordination_worktree_path(&config, "acme", "widget");
+        let ito_path = Path::new("/project/.ito");
+        let result = coordination_worktree_path(&config, ito_path, "acme", "widget");
         assert_eq!(
             result,
             PathBuf::from("/home/alice/.local/share/ito/acme/widget")
@@ -264,7 +268,8 @@ fn coordination_worktree_path_falls_back_to_local_share_when_xdg_unset() {
 fn coordination_worktree_path_correct_structure_with_xdg() {
     with_xdg_data_home("/data", || {
         let config = CoordinationBranchConfig::default();
-        let result = coordination_worktree_path(&config, "withakay", "ito");
+        let ito_path = Path::new("/project/.ito");
+        let result = coordination_worktree_path(&config, ito_path, "withakay", "ito");
         // Must be: <XDG_DATA_HOME>/ito/<org>/<repo>
         assert_eq!(result, PathBuf::from("/data/ito/withakay/ito"));
     });
@@ -274,11 +279,45 @@ fn coordination_worktree_path_correct_structure_with_xdg() {
 fn coordination_worktree_path_correct_structure_with_home_fallback() {
     with_home_only("/home/bob", || {
         let config = CoordinationBranchConfig::default();
-        let result = coordination_worktree_path(&config, "withakay", "ito");
+        let ito_path = Path::new("/project/.ito");
+        let result = coordination_worktree_path(&config, ito_path, "withakay", "ito");
         // Must be: ~/.local/share/ito/<org>/<repo>
         assert_eq!(
             result,
             PathBuf::from("/home/bob/.local/share/ito/withakay/ito")
         );
     });
+}
+
+#[test]
+fn coordination_worktree_path_last_resort_uses_ito_path() {
+    // When both HOME and XDG_DATA_HOME are absent, the fallback must be
+    // <ito_path>/coordination-worktree — an absolute, project-scoped path.
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore_xdg = EnvRestore {
+        var: "XDG_DATA_HOME",
+        restore_to: std::env::var("XDG_DATA_HOME").ok(),
+    };
+    let _restore_home = EnvRestore {
+        var: "HOME",
+        restore_to: std::env::var("HOME").ok(),
+    };
+    let _restore_userprofile = EnvRestore {
+        var: "USERPROFILE",
+        restore_to: std::env::var("USERPROFILE").ok(),
+    };
+    // SAFETY: guarded by ENV_MUTEX; no other thread modifies env vars concurrently.
+    unsafe {
+        std::env::remove_var("XDG_DATA_HOME");
+        std::env::remove_var("HOME");
+        std::env::remove_var("USERPROFILE");
+    }
+
+    let config = CoordinationBranchConfig::default();
+    let ito_path = Path::new("/absolute/project/.ito");
+    let result = coordination_worktree_path(&config, ito_path, "acme", "widget");
+    assert_eq!(
+        result,
+        PathBuf::from("/absolute/project/.ito/coordination-worktree")
+    );
 }

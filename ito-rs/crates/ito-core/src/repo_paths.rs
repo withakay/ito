@@ -226,8 +226,13 @@ pub fn resolve_worktree_paths(
 /// The function is pure: it reads environment variables but performs no git
 /// operations. The `org` and `repo` parameters should be obtained from
 /// [`crate::git_remote::resolve_org_repo_from_config_or_remote`] or equivalent.
+///
+/// The `ito_path` parameter is used only for the last-resort fallback (case 4).
+/// Pass the project's `.ito` directory so the fallback path is always absolute
+/// and project-scoped rather than relative to the caller's working directory.
 pub fn coordination_worktree_path(
     config: &CoordinationBranchConfig,
+    ito_path: &Path,
     org: &str,
     repo: &str,
 ) -> PathBuf {
@@ -243,11 +248,11 @@ pub fn coordination_worktree_path(
             // 3. Fall back to ~/.local/share using HOME / USERPROFILE.
             match std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
                 Ok(home) => PathBuf::from(home).join(".local").join("share"),
-                // 4. Last-resort: fall back to a relative "coordination-worktree"
-                //    path so the project is never left in a broken state. This
-                //    mirrors embedded storage behaviour and avoids writing to the
-                //    non-persistent /tmp directory.
-                Err(_) => return PathBuf::from("coordination-worktree"),
+                // 4. Last-resort: use <ito_path>/coordination-worktree so the
+                //    path is always absolute and project-scoped. This mirrors
+                //    embedded storage behaviour and avoids writing to the
+                //    non-persistent /tmp directory or a CWD-relative path.
+                Err(_) => return ito_path.join("coordination-worktree"),
             }
         }
     };

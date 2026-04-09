@@ -355,7 +355,60 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
             )
         })?;
 
-        if file_type.is_dir() {
+        if file_type.is_symlink() {
+            let target = fs::read_link(&from).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot read symlink '{}' during recursive copy",
+                        from.display()
+                    ),
+                    e,
+                )
+            })?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&target, &to).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot recreate symlink '{}' -> '{}' during recursive copy: ensure \
+                         '{}' is writable",
+                        to.display(),
+                        target.display(),
+                        dst.display()
+                    ),
+                    e,
+                )
+            })?;
+            #[cfg(windows)]
+            {
+                if from.is_dir() {
+                    std::os::windows::fs::symlink_dir(&target, &to).map_err(|e| {
+                        CoreError::io(
+                            format!(
+                                "cannot recreate directory symlink '{}' -> '{}' during \
+                                 recursive copy: ensure '{}' is writable",
+                                to.display(),
+                                target.display(),
+                                dst.display()
+                            ),
+                            e,
+                        )
+                    })?;
+                } else {
+                    std::os::windows::fs::symlink_file(&target, &to).map_err(|e| {
+                        CoreError::io(
+                            format!(
+                                "cannot recreate file symlink '{}' -> '{}' during recursive \
+                                 copy: ensure '{}' is writable",
+                                to.display(),
+                                target.display(),
+                                dst.display()
+                            ),
+                            e,
+                        )
+                    })?;
+                }
+            }
+        } else if file_type.is_dir() {
             copy_dir_recursive(&from, &to)?;
         } else {
             fs::copy(&from, &to).map_err(|e| {
