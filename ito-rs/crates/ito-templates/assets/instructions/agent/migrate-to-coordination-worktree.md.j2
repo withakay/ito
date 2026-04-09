@@ -1,5 +1,10 @@
 # Migrate to Coordination Worktree Storage
 
+> **Note on branch name**: The default coordination branch name is
+> `ito/internal/changes`. If your project uses a custom name, check
+> `changes.coordination_branch.name` in `.ito/config.json` and substitute
+> `<coordination-branch>` with that value wherever it appears below.
+
 This guide walks you through migrating an existing Ito project from embedded
 storage (`.ito/changes/` tracked in the main repo) to coordination-worktree
 storage (content lives in a dedicated git branch, checked out as a worktree).
@@ -46,12 +51,12 @@ Omit `worktree_path` to accept the default location.
 git fetch origin
 
 # Check whether the branch already exists on the remote:
-git ls-remote --exit-code origin ito/internal/changes && echo "branch exists" || {
+git ls-remote --exit-code origin <coordination-branch> && echo "branch exists" || {
   # Create an orphan branch with an empty initial commit:
-  git checkout --orphan ito/internal/changes
+  git checkout --orphan <coordination-branch>
   git rm -rf . 2>/dev/null || true
   git commit --allow-empty -m "chore: initialize coordination branch"
-  git push -u origin ito/internal/changes
+  git push -u origin <coordination-branch>
   git checkout -
 }
 ```
@@ -62,7 +67,7 @@ git ls-remote --exit-code origin ito/internal/changes && echo "branch exists" ||
 # Resolve the target path (replace <org>/<repo> with your values):
 COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
 mkdir -p "$COORD_PATH"
-git worktree add "$COORD_PATH" ito/internal/changes
+git worktree add "$COORD_PATH" <coordination-branch>
 ```
 
 ## Step 5: Move Content to the Worktree
@@ -142,5 +147,5 @@ If something goes wrong before committing:
 
    ```bash
    git worktree remove "$COORD_PATH"
-   git branch -d ito/internal/changes 2>/dev/null || true
+   git branch -d <coordination-branch> 2>/dev/null || true
    ```

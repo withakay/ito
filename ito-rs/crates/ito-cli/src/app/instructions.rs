@@ -104,7 +104,19 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
             "agent/migrate-to-coordination-worktree.md.j2",
             &serde_json::json!({}),
         )
-        .map_err(|e| to_cli_error(format!("rendering migrate-to-coordination-worktree: {e}")))?;
+        .map_err(|e| {
+            to_cli_error(format!(
+                "Failed to render the 'migrate-to-coordination-worktree' instruction template.\n\
+             \n\
+             Why: The Jinja2 template could not be rendered — this usually means a required \
+             template variable is missing or the template asset is corrupt.\n\
+             \n\
+             How to fix: Reinstall the template assets with `ito init --force`, then retry. \
+             If the problem persists, report it with the error below.\n\
+             \n\
+             Underlying error: {e}"
+            ))
+        })?;
         return emit_instruction(want_json, "migrate-to-coordination-worktree", instruction);
     }
     if artifact == "context" {

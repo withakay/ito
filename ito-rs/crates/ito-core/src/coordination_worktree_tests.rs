@@ -115,20 +115,16 @@ fn create_makes_orphan_branch_when_not_on_remote() {
     let tmp = tempfile::TempDir::new().unwrap();
     let target = tmp.path().join("wt");
 
-    // Sequence:
-    //   1. rev-parse --verify        → fail (not local)
-    //   2. fetch origin              → fail with "couldn't find remote ref"
-    //   3. rev-parse --abbrev-ref HEAD → ok("main")  [capture current branch]
-    //   4. checkout --orphan         → success
-    //   5. git rm -rf .              → success (best-effort, ignored if fails)
-    //   6. commit --allow-empty      → success
-    //   7. checkout main             → success
-    //   8. worktree add              → success
+    // Sequence (primary path: git worktree add --orphan succeeds):
+    //   1. rev-parse --verify              → fail (not local)
+    //   2. fetch origin                    → fail with "couldn't find remote ref"
+    //   3. worktree add --orphan           → success
+    //   4. worktree remove --force <tmp>   → success (cleanup tmp worktree)
+    //   5. worktree prune                  → success (cleanup metadata)
+    //   6. worktree add <target> <branch>  → success
     let runner = StubRunner::with_outputs(vec![
         fail(""),
         fail("fatal: couldn't find remote ref coord/main"),
-        ok("main"),
-        ok(""),
         ok(""),
         ok(""),
         ok(""),
@@ -138,16 +134,65 @@ fn create_makes_orphan_branch_when_not_on_remote() {
     create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target).unwrap();
 
     let calls = runner.calls.borrow();
-    // capture current branch
-    assert_eq!(calls[2], ["rev-parse", "--abbrev-ref", "HEAD"]);
-    // orphan checkout
-    assert_eq!(calls[3], ["checkout", "--orphan", "coord/main"]);
-    // empty commit
-    assert!(calls[5].contains(&"--allow-empty".to_string()));
-    // back to captured branch
-    assert_eq!(calls[6], ["checkout", "main"]);
-    // worktree add
-    assert_eq!(calls[7][0], "worktree");
+    // worktree add --orphan
+    assert_eq!(calls[2][0], "worktree");
+    assert_eq!(calls[2][1], "add");
+    assert!(
+        calls[2].contains(&"--orphan".to_string()),
+        "should use --orphan: {:?}",
+        calls[2]
+    );
+    assert!(
+        calls[2].contains(&"coord/main".to_string()),
+        "should name the branch: {:?}",
+        calls[2]
+    );
+    // final worktree add for the real target
+    assert_eq!(calls[5][0], "worktree");
+    assert_eq!(calls[5][1], "add");
+}
+
+#[test]
+fn create_makes_orphan_branch_via_commit_tree_fallback() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let target = tmp.path().join("wt");
+
+    // Sequence (fallback path: worktree add --orphan not supported):
+    //   1. rev-parse --verify              → fail (not local)
+    //   2. fetch origin                    → fail with "couldn't find remote ref"
+    //   3. worktree add --orphan           → fail (old git)
+    //   4. hash-object -t tree /dev/null   → ok("4b825dc642cb6eb9a060e54bf8d69288fbee4904")
+    //   5. commit-tree <hash> -m "..."     → ok("deadbeef...")
+    //   6. branch <branch> <commit>        → success
+    //   7. worktree add <target> <branch>  → success
+    let runner = StubRunner::with_outputs(vec![
+        fail(""),
+        fail("fatal: couldn't find remote ref coord/main"),
+        fail("error: unknown option `--orphan'"),
+        ok("4b825dc642cb6eb9a060e54bf8d69288fbee4904"),
+        ok("deadbeef1234567890abcdef1234567890abcdef"),
+        ok(""),
+        ok(""),
+    ]);
+
+    create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target).unwrap();
+
+    let calls = runner.calls.borrow();
+    // hash-object
+    assert_eq!(calls[3], ["hash-object", "-t", "tree", "/dev/null"]);
+    // commit-tree
+    assert_eq!(calls[4][0], "commit-tree");
+    assert!(
+        calls[4].contains(&"Initialize coordination branch".to_string()),
+        "commit-tree should include the init message: {:?}",
+        calls[4]
+    );
+    // branch creation
+    assert_eq!(calls[5][0], "branch");
+    assert_eq!(calls[5][1], "coord/main");
+    // final worktree add
+    assert_eq!(calls[6][0], "worktree");
+    assert_eq!(calls[6][1], "add");
 }
 
 // ── create: fetch fails for unexpected reason ─────────────────────────────────
@@ -179,20 +224,16 @@ fn create_makes_orphan_when_origin_not_configured() {
     let tmp = tempfile::TempDir::new().unwrap();
     let target = tmp.path().join("wt");
 
-    // Sequence:
-    //   1. rev-parse --verify        → fail (not local)
-    //   2. fetch origin              → fail with "does not appear to be a git repository"
-    //   3. rev-parse --abbrev-ref HEAD → ok("main")  [capture current branch]
-    //   4. checkout --orphan         → success
-    //   5. git rm -rf .              → success
-    //   6. commit --allow-empty      → success
-    //   7. checkout main             → success
-    //   8. worktree add              → success
+    // Sequence (primary path: git worktree add --orphan succeeds):
+    //   1. rev-parse --verify              → fail (not local)
+    //   2. fetch origin                    → fail with "does not appear to be a git repository"
+    //   3. worktree add --orphan           → success
+    //   4. worktree remove --force <tmp>   → success (cleanup)
+    //   5. worktree prune                  → success (cleanup)
+    //   6. worktree add <target> <branch>  → success
     let runner = StubRunner::with_outputs(vec![
         fail(""),
         fail("fatal: 'origin' does not appear to be a git repository"),
-        ok("main"),
-        ok(""),
         ok(""),
         ok(""),
         ok(""),
@@ -202,8 +243,14 @@ fn create_makes_orphan_when_origin_not_configured() {
     create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target).unwrap();
 
     let calls = runner.calls.borrow();
-    // Should have fallen through to orphan creation
-    assert_eq!(calls[3], ["checkout", "--orphan", "coord/main"]);
+    // Should have fallen through to orphan creation via worktree add --orphan
+    assert_eq!(calls[2][0], "worktree");
+    assert_eq!(calls[2][1], "add");
+    assert!(
+        calls[2].contains(&"--orphan".to_string()),
+        "should use --orphan: {:?}",
+        calls[2]
+    );
 }
 
 // ── create: worktree add fails ────────────────────────────────────────────────
@@ -226,20 +273,21 @@ fn create_returns_error_when_worktree_add_fails() {
     );
 }
 
-// ── create: orphan commit fails ───────────────────────────────────────────────
+// ── create: orphan commit-tree fails (fallback path) ─────────────────────────
 
 #[test]
 fn create_returns_error_when_orphan_commit_fails() {
     let tmp = tempfile::TempDir::new().unwrap();
     let target = tmp.path().join("wt");
 
+    // Simulate: worktree add --orphan not supported, then commit-tree fails
+    // (e.g. git user identity not configured).
     let runner = StubRunner::with_outputs(vec![
         fail(""),                                           // rev-parse --verify
         fail("fatal: couldn't find remote ref coord/main"), // fetch
-        ok("main"),                                         // rev-parse --abbrev-ref HEAD
-        ok(""),                                             // checkout --orphan
-        ok(""),                                             // git rm
-        fail("error: unable to auto-detect email address"), // commit
+        fail("error: unknown option `--orphan'"),           // worktree add --orphan
+        ok("4b825dc642cb6eb9a060e54bf8d69288fbee4904"),     // hash-object
+        fail("error: unable to auto-detect email address"), // commit-tree
     ]);
 
     let err = create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target)

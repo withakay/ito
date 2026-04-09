@@ -15,6 +15,7 @@
 //! 3. Neither exists → create an orphan branch with an empty initial commit.
 
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
 use ito_config::types::CoordinationStorage;
@@ -117,10 +118,20 @@ pub fn maybe_auto_commit_coordination(
     };
 
     // Resolve org/repo for the worktree path.  When resolution fails (e.g. no
-    // git remote), fall back to a placeholder so the path is still deterministic.
-    let (org, repo) =
-        crate::git_remote::resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
-            .unwrap_or_else(|| ("unknown".to_string(), "unknown".to_string()));
+    // git remote), fall back to a hash of the absolute project root so that
+    // different local-only projects never share the same coordination path.
+    let (org, repo) = match crate::git_remote::resolve_org_repo_from_config_or_remote(
+        project_root,
+        &typed.backend,
+    ) {
+        Some(pair) => pair,
+        None => {
+            let mut hasher = DefaultHasher::new();
+            project_root.hash(&mut hasher);
+            let hash = format!("{:016x}", hasher.finish());
+            ("_local".to_string(), hash)
+        }
+    };
 
     let worktree_path = coordination_worktree_path(coord, &org, &repo);
 
@@ -275,59 +286,108 @@ fn fetch_branch_from_origin(
     )))
 }
 
-/// Creates an orphan branch with an empty initial commit, then returns to the
-/// previous branch.
+/// Creates an orphan branch with an empty initial commit.
 ///
-/// The current branch name is captured before switching so we can restore it
-/// reliably — `git checkout -` only works when `@{-1}` is set, which is not
-/// guaranteed in a freshly initialised repository.
+/// Strategy (in order):
+///
+/// 1. **`git worktree add --orphan <branch> <tmp-path>`** — available in git
+///    ≥ 2.36. Creates the orphan branch directly in a temporary worktree
+///    without touching the main checkout. The temporary worktree is removed
+///    immediately after the branch is created.
+///
+/// 2. **`commit-tree` fallback** — for older git that lacks `--orphan` on
+///    `worktree add`. Creates an empty tree object, commits it, and creates
+///    the branch pointing at that commit. No checkout is ever performed, so
+///    the working tree is never disturbed.
 fn create_orphan_branch(
     runner: &dyn ProcessRunner,
     project_root: &Path,
     branch_name: &str,
 ) -> CoreResult<()> {
-    // Step 1: capture the current branch so we can return to it afterwards.
-    let current_branch = current_branch_name(runner, project_root, branch_name)?;
+    // Build a stable temporary path for the short-lived worktree.  We use a
+    // sanitised branch name so the path is human-readable in error messages.
+    let safe_name = branch_name.replace('/', "-").replace(' ', "_");
+    let tmp_wt = project_root.join(format!(".git-orphan-tmp-{safe_name}"));
+    let tmp_str = tmp_wt.to_string_lossy();
 
-    // Step 2: switch to orphan branch
-    let checkout = runner
+    // ── Attempt 1: git worktree add --orphan ─────────────────────────────────
+    let worktree_orphan = runner
         .run(
             &ProcessRequest::new("git")
-                .args(["checkout", "--orphan", branch_name])
+                .args(["worktree", "add", "--orphan", branch_name, tmp_str.as_ref()])
                 .current_dir(project_root),
         )
         .map_err(|err| {
             CoreError::process(format!(
-                "Cannot create orphan branch '{branch_name}'.\n\
+                "Cannot create orphan branch '{branch_name}' in '{project_root}'.\n\
                  Git command failed to run: {err}\n\
                  Fix: ensure git is installed and '{project_root}' is a git repository.",
                 project_root = project_root.display(),
             ))
         })?;
 
-    if !checkout.success {
+    if worktree_orphan.success {
+        // The branch now exists; remove the temporary worktree immediately.
+        // Failure here is non-fatal — the branch was created successfully.
+        let _ = runner.run(
+            &ProcessRequest::new("git")
+                .args(["worktree", "remove", "--force", tmp_str.as_ref()])
+                .current_dir(project_root),
+        );
+        // Also prune any leftover metadata.
+        let _ = runner.run(
+            &ProcessRequest::new("git")
+                .args(["worktree", "prune"])
+                .current_dir(project_root),
+        );
+        return Ok(());
+    }
+
+    let worktree_orphan_detail = render_output(&worktree_orphan);
+
+    // ── Attempt 2: commit-tree fallback (git < 2.36) ─────────────────────────
+    //
+    // 1. Write an empty tree object.
+    // 2. Commit it with `git commit-tree`.
+    // 3. Create the branch pointing at that commit.
+    //
+    // No checkout is performed, so the working tree is never touched.
+
+    let hash_object = runner
+        .run(
+            &ProcessRequest::new("git")
+                .args(["hash-object", "-t", "tree", "/dev/null"])
+                .current_dir(project_root),
+        )
+        .map_err(|err| {
+            CoreError::process(format!(
+                "Cannot create empty tree object for orphan branch '{branch_name}'.\n\
+                 Git command failed to run: {err}\n\
+                 Fix: ensure git is installed and '{project_root}' is a git repository.",
+                project_root = project_root.display(),
+            ))
+        })?;
+
+    if !hash_object.success {
+        // Neither strategy worked — surface both errors.
         return Err(CoreError::process(format!(
-            "Cannot create orphan branch '{branch_name}'.\n\
-             Git reported: {}\n\
-             Fix: ensure the branch name is valid and the repository is in a clean state.",
-            render_output(&checkout),
+            "Cannot create orphan branch '{branch_name}' in '{project_root}'.\n\
+             `git worktree add --orphan` reported: {worktree_orphan_detail}\n\
+             `git hash-object` reported: {hash_object_detail}\n\
+             Fix: upgrade git to ≥ 2.36, or ensure git is properly installed.",
+            project_root = project_root.display(),
+            hash_object_detail = render_output(&hash_object),
         )));
     }
 
-    // Step 3: remove all tracked files so the orphan commit is truly empty
-    let _ = runner.run(
-        &ProcessRequest::new("git")
-            .args(["rm", "-rf", "."])
-            .current_dir(project_root),
-    );
+    let empty_tree = hash_object.stdout.trim().to_string();
 
-    // Step 4: create the empty initial commit
-    let commit = runner
+    let commit_tree = runner
         .run(
             &ProcessRequest::new("git")
                 .args([
-                    "commit",
-                    "--allow-empty",
+                    "commit-tree",
+                    &empty_tree,
                     "-m",
                     "Initialize coordination branch",
                 ])
@@ -335,79 +395,47 @@ fn create_orphan_branch(
         )
         .map_err(|err| {
             CoreError::process(format!(
-                "Cannot create initial commit on orphan branch '{branch_name}'.\n\
+                "Cannot create initial commit for orphan branch '{branch_name}'.\n\
                  Git command failed to run: {err}",
             ))
         })?;
 
-    if !commit.success {
+    if !commit_tree.success {
         return Err(CoreError::process(format!(
-            "Cannot create initial commit on orphan branch '{branch_name}'.\n\
+            "Cannot create initial commit for orphan branch '{branch_name}'.\n\
              Git reported: {}\n\
              Fix: ensure git user.name and user.email are configured \
              (`git config --global user.email \"you@example.com\"`).",
-            render_output(&commit),
+            render_output(&commit_tree),
         )));
     }
 
-    // Step 5: return to the branch we were on before creating the orphan.
-    let back = runner
+    let commit_hash = commit_tree.stdout.trim().to_string();
+
+    let branch_create = runner
         .run(
             &ProcessRequest::new("git")
-                .args(["checkout", &current_branch])
+                .args(["branch", branch_name, &commit_hash])
                 .current_dir(project_root),
         )
         .map_err(|err| {
             CoreError::process(format!(
-                "Cannot return to branch '{current_branch}' after creating '{branch_name}'.\n\
+                "Cannot create branch '{branch_name}' pointing at initial commit.\n\
                  Git command failed to run: {err}",
             ))
         })?;
 
-    if !back.success {
+    if !branch_create.success {
         return Err(CoreError::process(format!(
-            "Cannot return to branch '{current_branch}' after creating '{branch_name}'.\n\
+            "Cannot create branch '{branch_name}' pointing at initial commit '{commit_hash}'.\n\
              Git reported: {}\n\
-             Fix: run `git checkout {current_branch}` manually to restore your working branch.",
-            render_output(&back),
+             Fix: ensure the branch name is valid and does not already exist \
+             (`git branch -l '{branch_name}'`).",
+            render_output(&branch_create),
         )));
     }
 
     Ok(())
-}
-
-/// Returns the name of the currently checked-out branch.
-///
-/// Uses `git rev-parse --abbrev-ref HEAD`. If HEAD is detached, returns
-/// `"HEAD"` as a fallback (the caller will attempt `git checkout HEAD` which
-/// is a no-op in detached state).
-fn current_branch_name(
-    runner: &dyn ProcessRunner,
-    project_root: &Path,
-    context_branch: &str,
-) -> CoreResult<String> {
-    let output = runner
-        .run(
-            &ProcessRequest::new("git")
-                .args(["rev-parse", "--abbrev-ref", "HEAD"])
-                .current_dir(project_root),
-        )
-        .map_err(|err| {
-            CoreError::process(format!(
-                "Cannot determine current branch before creating '{context_branch}'.\n\
-                 Git command failed to run: {err}",
-            ))
-        })?;
-
-    if output.success {
-        let name = output.stdout.trim().to_string();
-        if !name.is_empty() {
-            return Ok(name);
-        }
-    }
-
-    // Fallback: detached HEAD or unexpected output — use "HEAD".
-    Ok("HEAD".to_string())
 }
 
 /// Runs `git worktree add <target_path> <branch_name>`.

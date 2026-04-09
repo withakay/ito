@@ -527,9 +527,18 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
         eprintln!(
             "warning: could not determine project root from Ito path '{}'; \
              skipping coordination worktree setup.\n\
+             Continuing with embedded storage mode.\n\
              Fix: ensure the .ito/ directory is inside a valid project directory.",
             ito_path.display()
         );
+        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+            eprintln!(
+                "warning: could not write coordination storage config to {}: {e}\n\
+                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                config_path.display(),
+                config_path.display(),
+            );
+        }
         return;
     };
 
@@ -559,9 +568,18 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
         eprintln!(
             "warning: could not resolve org/repo from git remote or config; \
              skipping coordination worktree setup.\n\
+             Continuing with embedded storage mode.\n\
              Fix: add an 'origin' remote (`git remote add origin <url>`) or set \
              `backend.project.org` and `backend.project.repo` in .ito/config.json."
         );
+        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+            eprintln!(
+                "warning: could not write coordination storage config to {}: {e}\n\
+                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                config_path.display(),
+                config_path.display(),
+            );
+        }
         return;
     };
 
@@ -582,6 +600,14 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
              Fix: resolve the git issue above, then re-run `ito init` to retry.",
             worktree_path.display()
         );
+        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+            eprintln!(
+                "warning: could not write coordination storage config to {}: {e}\n\
+                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                config_path.display(),
+                config_path.display(),
+            );
+        }
         return;
     }
 
@@ -593,6 +619,14 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
              Continuing with embedded storage mode.\n\
              Fix: resolve the filesystem issue above, then re-run `ito init` to retry."
         );
+        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+            eprintln!(
+                "warning: could not write coordination storage config to {}: {e}\n\
+                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                config_path.display(),
+                config_path.display(),
+            );
+        }
         return;
     }
 

@@ -173,6 +173,14 @@ pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> 
 /// Move all entries from `src_dir` into `dst_dir`, then remove `src_dir`.
 ///
 /// `dst_dir` is created if it does not already exist.
+///
+/// # Cross-filesystem moves
+///
+/// `fs::rename` is attempted first.  When the source and destination reside on
+/// different filesystems the OS returns `EXDEV` ("Invalid cross-device link").
+/// In that case the function falls back to a recursive copy followed by
+/// deletion of the source, so migration works even when the XDG data directory
+/// (or any other configured path) is on a separate partition or mount point.
 fn migrate_dir_to_worktree(src_dir: &Path, dst_dir: &Path) -> CoreResult<()> {
     fs::create_dir_all(dst_dir).map_err(|e| {
         CoreError::io(
@@ -207,17 +215,74 @@ fn migrate_dir_to_worktree(src_dir: &Path, dst_dir: &Path) -> CoreResult<()> {
         })?;
         let from = entry.path();
         let to = dst_dir.join(entry.file_name());
-        fs::rename(&from, &to).map_err(|e| {
-            CoreError::io(
+
+        let rename_err = match fs::rename(&from, &to) {
+            Ok(()) => continue,
+            Err(e) => e,
+        };
+
+        // Fall back to copy-then-delete when `rename` fails with EXDEV (cross-
+        // device link), which happens when `src_dir` and `dst_dir` are on
+        // different filesystems.
+        let is_cross_device = rename_err.kind() == io::ErrorKind::CrossesDevices;
+        if !is_cross_device {
+            return Err(CoreError::io(
                 format!(
                     "cannot move '{}' to '{}' during coordination migration: ensure both \
-                     paths are on the same filesystem or move them manually",
+                     paths are accessible and retry",
                     from.display(),
                     to.display()
+                ),
+                rename_err,
+            ));
+        }
+
+        let file_type = entry.file_type().map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot determine file type of '{}' during cross-filesystem migration",
+                    from.display()
                 ),
                 e,
             )
         })?;
+
+        if file_type.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+            fs::remove_dir_all(&from).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot remove source directory '{}' after cross-filesystem copy: \
+                         remove it manually and retry",
+                        from.display()
+                    ),
+                    e,
+                )
+            })?;
+        } else {
+            fs::copy(&from, &to).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot copy '{}' to '{}' during cross-filesystem migration: ensure \
+                         '{}' is writable",
+                        from.display(),
+                        to.display(),
+                        dst_dir.display()
+                    ),
+                    e,
+                )
+            })?;
+            fs::remove_file(&from).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot remove source file '{}' after cross-filesystem copy: \
+                         remove it manually and retry",
+                        from.display()
+                    ),
+                    e,
+                )
+            })?;
+        }
     }
 
     fs::remove_dir(src_dir).map_err(|e| {
@@ -230,6 +295,83 @@ fn migrate_dir_to_worktree(src_dir: &Path, dst_dir: &Path) -> CoreResult<()> {
             e,
         )
     })?;
+
+    Ok(())
+}
+
+/// Recursively copy the directory tree rooted at `src` into `dst`.
+///
+/// `dst` is created if it does not already exist.  Files are copied with
+/// [`fs::copy`], which preserves content but not all metadata (e.g. ownership
+/// and extended attributes are not transferred).
+///
+/// # Errors
+///
+/// Returns [`CoreError::Io`] if any directory cannot be created, any file
+/// cannot be read or written, or a directory entry cannot be inspected.
+fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
+    fs::create_dir_all(dst).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot create directory '{}' during recursive copy: ensure the target \
+                 path is writable",
+                dst.display()
+            ),
+            e,
+        )
+    })?;
+
+    let entries = fs::read_dir(src).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot read directory '{}' during recursive copy: check filesystem \
+                 permissions",
+                src.display()
+            ),
+            e,
+        )
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot read directory entry in '{}' during recursive copy",
+                    src.display()
+                ),
+                e,
+            )
+        })?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+
+        let file_type = entry.file_type().map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot determine file type of '{}' during recursive copy",
+                    from.display()
+                ),
+                e,
+            )
+        })?;
+
+        if file_type.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+        } else {
+            fs::copy(&from, &to).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot copy '{}' to '{}' during recursive copy: ensure '{}' is \
+                         writable",
+                        from.display(),
+                        to.display(),
+                        dst.display()
+                    ),
+                    e,
+                )
+            })?;
+        }
+    }
 
     Ok(())
 }

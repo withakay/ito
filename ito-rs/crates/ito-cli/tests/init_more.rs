@@ -1239,7 +1239,8 @@ fn init_without_git_remote_falls_back_gracefully() {
     );
     // A warning should be emitted to stderr.
     assert!(
-        out.stderr.contains("warning") || out.stderr.contains("skipping"),
+        out.stderr.to_lowercase().contains("warning")
+            || out.stderr.to_lowercase().contains("skipping"),
         "expected a warning about missing remote; stderr={}",
         out.stderr
     );

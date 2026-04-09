@@ -13,6 +13,12 @@ The system SHALL create a dedicated Git worktree for the coordination branch at 
 - **THEN** the system creates a worktree at `$XDG_DATA_HOME/ito/<org>/<repo>/`
 - **AND** the worktree is checked out to the coordination branch
 
+#### Scenario: Worktree fallback when XDG_DATA_HOME is not set
+
+- **WHEN** `ito init` runs with coordination storage mode `"worktree"`
+- **AND** `$XDG_DATA_HOME` is not set
+- **THEN** the system creates a worktree at `~/.local/share/ito/<org>/<repo>/`
+
 #### Scenario: Worktree created at explicit path
 
 - **WHEN** `worktree_path` is explicitly set in configuration
@@ -44,6 +50,12 @@ The system SHALL replace `.ito/{changes,specs,modules,workflows,audit}` director
 - **AND** `.ito/modules` is a symlink to `<worktree>/.ito/modules`
 - **AND** `.ito/workflows` is a symlink to `<worktree>/.ito/workflows`
 - **AND** `.ito/audit` is a symlink to `<worktree>/.ito/audit`
+
+#### Scenario: Platform-appropriate link type on Windows
+
+- **WHEN** the coordination worktree is set up on Windows
+- **THEN** the system uses directory junctions or reparse points instead of symlinks
+- **AND** the behavior is otherwise identical to Unix symlinks
 
 #### Scenario: Existing content moved to worktree before symlinking
 

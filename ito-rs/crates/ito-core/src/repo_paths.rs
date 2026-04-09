@@ -219,6 +219,9 @@ pub fn resolve_worktree_paths(
 ///    variable is set and non-empty.
 /// 3. `~/.local/share/ito/<org>/<repo>/` — fallback using `$HOME` (or
 ///    `$USERPROFILE` on Windows) to locate the home directory.
+/// 4. `<ito_path>/coordination-worktree/` — last-resort fallback when no home
+///    directory can be resolved; mirrors embedded storage behaviour so the
+///    project is never left in a broken state.
 ///
 /// The function is pure: it reads environment variables but performs no git
 /// operations. The `org` and `repo` parameters should be obtained from
@@ -237,11 +240,15 @@ pub fn coordination_worktree_path(
     let base = match std::env::var("XDG_DATA_HOME") {
         Ok(v) if !v.trim().is_empty() => PathBuf::from(v),
         _ => {
-            // 3. Fall back to ~/.local/share.
-            let home = std::env::var("HOME")
-                .or_else(|_| std::env::var("USERPROFILE"))
-                .unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join(".local").join("share")
+            // 3. Fall back to ~/.local/share using HOME / USERPROFILE.
+            match std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+                Ok(home) => PathBuf::from(home).join(".local").join("share"),
+                // 4. Last-resort: fall back to a relative "coordination-worktree"
+                //    path so the project is never left in a broken state. This
+                //    mirrors embedded storage behaviour and avoids writing to the
+                //    non-persistent /tmp directory.
+                Err(_) => return PathBuf::from("coordination-worktree"),
+            }
         }
     };
 
