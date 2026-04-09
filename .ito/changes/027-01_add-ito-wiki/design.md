@@ -72,6 +72,6 @@ The exact page set can evolve, but the reserved root files should remain stable 
 
 ## Open Questions
 
-- Should archived changes receive their own durable wiki pages by default, or should the wiki summarize at the capability/topic level unless a change is historically important?
-- Should query artifacts always be filed under `queries/`, or only when the answer has durable value?
-- Should a later iteration add CLI helpers for wiki refresh/search, or keep the first version entirely skill/instruction driven?
+- Consider: Should archived changes receive their own durable wiki pages by default, or should the wiki summarize at the capability/topic level unless a change is historically important?
+- Evaluate: Should query artifacts always be filed under `queries/`, or only when the answer has durable value?
+- Explore: Should a later iteration add CLI helpers for wiki refresh/search, or keep the first version entirely skill/instruction driven?

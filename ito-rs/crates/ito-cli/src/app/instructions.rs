@@ -100,9 +100,16 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return emit_instruction(want_json, "repo-sweep", instruction);
     }
     if artifact == "migrate-to-coordination-worktree" {
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let ctx = rt.ctx();
+        let (_coord_enabled, coord_branch) =
+            load_coordination_branch_settings(project_root, ito_path, ctx);
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/migrate-to-coordination-worktree.md.j2",
-            &serde_json::json!({}),
+            &serde_json::json!({
+                "coordination_branch_name": coord_branch,
+            }),
         )
         .map_err(|e| {
             to_cli_error(format!(

@@ -34,9 +34,9 @@ ______________________________________________________________________
 
 - **Files**: `.opencode/commands/ito-plan.md`, `.opencode/skills/ito-plan/SKILL.md`
 - **Dependencies**: Task 1.1
-- **Action**: Mirror the new planning command and skill into the checked-in OpenCode project files used for local development.
+- **Action**: Mirror the new planning command and skill into the checked-in OpenCode project files used for local development. **All harness types (Claude, Codex, GitHub Copilot, and OpenCode) must be updated for parity.**
 - **Verify**: `ito init --upgrade --help`
-- **Done When**: The repo-local OpenCode command and skill files match the embedded planning workflow assets.
+- **Done When**: The repo-local OpenCode command and skill files match the embedded planning workflow assets, and all harness types have been synchronized.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `ito-slash-command:planning-slash-command-installation`
 - **Updated At**: 2026-04-08
 - **Status**: [ ] pending
@@ -79,9 +79,9 @@ ______________________________________________________________________
 
 - **Files**: `.opencode/commands/ito.md`, `.opencode/skills/ito/SKILL.md`, `ito-rs/crates/ito-templates/assets/commands/ito.md`, `ito-rs/crates/ito-templates/assets/skills/ito/SKILL.md`, related planning references under `ito-rs/crates/ito-templates/assets/default/project/`
 - **Dependencies**: None
-- **Action**: Update routing and guidance text anywhere Ito points users toward planning so it references the new `ito-plan` pre-proposal workflow instead of the legacy planning document model.
+- **Action**: Update routing and guidance text anywhere Ito points users toward planning so it references the new `ito-plan` pre-proposal workflow instead of the legacy planning document model. **All harness types (Claude, Codex, GitHub Copilot, and OpenCode) must be updated for parity.**
 - **Verify**: `rg -n "PROJECT\.md|ROADMAP\.md|STATE\.md|ito-plan" .opencode ito-rs/crates/ito-templates/assets`
-- **Done When**: User-facing guidance consistently points planning requests toward `ito-plan` and no longer presents the legacy planning files as the primary workflow.
+- **Done When**: User-facing guidance consistently points planning requests toward `ito-plan` and no longer presents the legacy planning files as the primary workflow. All harness files have been validated for consistency.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `ito-slash-command:planning-slash-command-installation`
 - **Updated At**: 2026-04-08
 - **Status**: [ ] pending

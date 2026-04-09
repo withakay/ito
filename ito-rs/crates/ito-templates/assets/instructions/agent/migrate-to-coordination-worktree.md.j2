@@ -1,9 +1,9 @@
 # Migrate to Coordination Worktree Storage
 
-> **Note on branch name**: The default coordination branch name is
-> `ito/internal/changes`. If your project uses a custom name, check
-> `changes.coordination_branch.name` in `.ito/config.json` and substitute
-> `<coordination-branch>` with that value wherever it appears below.
+> **Note on branch name**: The coordination branch name used below is
+> `{{ coordination_branch_name | default("ito/internal/changes") }}`.
+> To override it, pass `coordination_branch_name` in the template context or
+> set `changes.coordination_branch.name` in `.ito/config.json`.
 
 This guide walks you through migrating an existing Ito project from embedded
 storage (`.ito/changes/` tracked in the main repo) to coordination-worktree
@@ -51,12 +51,12 @@ Omit `worktree_path` to accept the default location.
 git fetch origin
 
 # Check whether the branch already exists on the remote:
-git ls-remote --exit-code origin <coordination-branch> && echo "branch exists" || {
+git ls-remote --exit-code origin {{ coordination_branch_name | default("ito/internal/changes") }} && echo "branch exists" || {
   # Create an orphan branch with an empty initial commit:
-  git checkout --orphan <coordination-branch>
+  git checkout --orphan {{ coordination_branch_name | default("ito/internal/changes") }}
   git rm -rf . 2>/dev/null || true
   git commit --allow-empty -m "chore: initialize coordination branch"
-  git push -u origin <coordination-branch>
+  git push -u origin {{ coordination_branch_name | default("ito/internal/changes") }}
   git checkout -
 }
 ```
@@ -67,7 +67,7 @@ git ls-remote --exit-code origin <coordination-branch> && echo "branch exists" |
 # Resolve the target path (replace <org>/<repo> with your values):
 COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
 mkdir -p "$COORD_PATH"
-git worktree add "$COORD_PATH" <coordination-branch>
+git worktree add "$COORD_PATH" {{ coordination_branch_name | default("ito/internal/changes") }}
 ```
 
 ## Step 5: Move Content to the Worktree
@@ -147,5 +147,5 @@ If something goes wrong before committing:
 
    ```bash
    git worktree remove "$COORD_PATH"
-   git branch -d <coordination-branch> 2>/dev/null || true
+   git branch -d {{ coordination_branch_name | default("ito/internal/changes") }} 2>/dev/null || true
    ```

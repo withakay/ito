@@ -18,9 +18,10 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
-use ito_config::types::CoordinationStorage;
+use ito_config::types::{CoordinationStorage, ItoConfig};
 use ito_config::{ConfigContext, load_cascading_project_config};
 
+use crate::coordination::{update_gitignore_for_symlinks, wire_coordination_symlinks};
 use crate::errors::{CoreError, CoreResult};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::coordination_worktree_path;
@@ -159,6 +160,118 @@ pub fn maybe_auto_commit_coordination(
 pub fn remove_coordination_worktree(project_root: &Path, target_path: &Path) -> CoreResult<()> {
     let runner = SystemProcessRunner;
     remove_coordination_worktree_with_runner(&runner, project_root, target_path)
+}
+
+/// Provision the coordination worktree: resolve org/repo, compute path, create
+/// worktree, wire symlinks, update `.gitignore`.
+///
+/// Returns `Ok(Some(storage))` with the resulting [`CoordinationStorage`] mode,
+/// or `Ok(None)` if setup was skipped because backend mode is active.
+///
+/// # Behaviour
+///
+/// 1. If `skip` is `true`, returns `Ok(Some(CoordinationStorage::Embedded))`
+///    immediately — the caller opted out of worktree setup.
+/// 2. Loads the cascading config to check whether backend mode is active.
+///    When `backend.enabled` is `true`, returns `Ok(None)` — the backend owns
+///    coordination and no local worktree should be created.
+/// 3. Deserialises the `CoordinationBranchConfig` from the merged config.
+/// 4. If `coord_config.worktree_path` is explicitly set, uses it directly
+///    (skips org/repo resolution).
+/// 5. Otherwise resolves `(org, repo)` from config or the `origin` remote URL.
+///    Returns an error when resolution fails.
+/// 6. Computes the worktree path via [`coordination_worktree_path`].
+/// 7. If the worktree path does not yet exist, calls
+///    [`create_coordination_worktree`] to create it.
+/// 8. Wires `.ito/<dir>` → `<worktree>/.ito/<dir>` symlinks via
+///    [`wire_coordination_symlinks`].
+/// 9. Updates `.gitignore` via [`update_gitignore_for_symlinks`].
+/// 10. Returns `Ok(Some(CoordinationStorage::Worktree))`.
+///
+/// On any failure the error is returned to the caller, which decides whether to
+/// treat it as fatal or fall back to embedded mode.
+///
+/// # Errors
+///
+/// Returns [`CoreError`] when:
+/// - The cascading config cannot be deserialised.
+/// - Org/repo resolution fails (no config values and no parseable `origin` remote).
+/// - Worktree creation fails (git errors).
+/// - Symlink wiring fails (filesystem errors).
+/// - `.gitignore` update fails (filesystem errors).
+pub fn provision_coordination_worktree(
+    project_root: &Path,
+    ito_path: &Path,
+    skip: bool,
+) -> CoreResult<Option<CoordinationStorage>> {
+    // 1. Caller opted out — use embedded mode.
+    if skip {
+        return Ok(Some(CoordinationStorage::Embedded));
+    }
+
+    // 2. Load merged config and check backend mode.
+    let ctx = ConfigContext::from_process_env();
+    let cfg_value = load_cascading_project_config(project_root, ito_path, &ctx).merged;
+
+    let typed: ItoConfig = serde_json::from_value(cfg_value).map_err(|e| {
+        CoreError::serde(
+            "parse Ito configuration for coordination worktree setup",
+            e.to_string(),
+        )
+    })?;
+
+    if typed.backend.enabled {
+        // Backend mode is active — backend owns coordination.
+        return Ok(None);
+    }
+
+    let coord_config = typed.changes.coordination_branch;
+
+    // 4 & 5. Resolve the worktree path.
+    //
+    // When `worktree_path` is explicitly set in config, use it directly and
+    // skip org/repo resolution entirely.  Otherwise resolve org/repo from
+    // config or the origin remote.
+    let worktree_path = if coord_config
+        .worktree_path
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        // Explicit override — pass dummy org/repo; coordination_worktree_path
+        // will return the explicit path without using them.
+        coordination_worktree_path(&coord_config, "", "")
+    } else {
+        let (org, repo) =
+            crate::git_remote::resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
+                .ok_or_else(|| {
+                    CoreError::process(
+                        "Cannot resolve org/repo for coordination worktree.\n\
+                         Neither `backend.project.org`/`backend.project.repo` are set in \
+                         .ito/config.json, nor does the repository have a parseable `origin` \
+                         remote URL.\n\
+                         Fix: add an 'origin' remote (`git remote add origin <url>`) or set \
+                         `backend.project.org` and `backend.project.repo` in .ito/config.json.",
+                    )
+                })?;
+        coordination_worktree_path(&coord_config, &org, &repo)
+    };
+
+    // 7. Create the worktree only when it does not yet exist.
+    if !worktree_path.exists() {
+        let branch_name = &coord_config.name;
+        create_coordination_worktree(project_root, branch_name, &worktree_path)?;
+    }
+
+    // 8. Wire symlinks (idempotent — safe to call even when worktree already existed).
+    let worktree_ito_path = worktree_path.join(".ito");
+    wire_coordination_symlinks(ito_path, &worktree_ito_path)?;
+
+    // 9. Update .gitignore.
+    update_gitignore_for_symlinks(project_root)?;
+
+    // 10. Return the resulting storage mode.
+    Ok(Some(CoordinationStorage::Worktree))
 }
 
 // ── Testable inner implementations ───────────────────────────────────────────

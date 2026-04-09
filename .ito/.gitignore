@@ -1,4 +1,3 @@
-.ito/session.json
-.ito/.state/audit/.session
-.ito/config.local.json
-.local/ito/config.json
+session.json
+.state/audit/.session
+config.local.json

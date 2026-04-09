@@ -13,12 +13,9 @@ use ito_config::{
     ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
 };
 use ito_core::config as core_config;
-use ito_core::coordination::{update_gitignore_for_symlinks, wire_coordination_symlinks};
-use ito_core::coordination_worktree::create_coordination_worktree;
+use ito_core::coordination_worktree::provision_coordination_worktree;
 use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
-use ito_core::git_remote::resolve_org_repo_from_config_or_remote;
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
-use ito_core::repo_paths::coordination_worktree_path;
 use ito_templates::project_templates::WorktreeTemplateContext;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
@@ -491,38 +488,18 @@ fn resolve_tmux_preference(
 
 /// Set up the coordination worktree for a fresh `ito init`.
 ///
-/// When `skip` is `true` (i.e. `--no-coordination-worktree` was passed), the
-/// config is updated to `storage: "embedded"` and no worktree is created.
+/// Delegates all business logic to [`provision_coordination_worktree`] in
+/// `ito-core` and handles the result:
 ///
-/// When `skip` is `false`, the function:
+/// - `Ok(Some(storage))` — writes `storage` to the project config.
+/// - `Ok(None)` — backend mode is active; nothing to do.
+/// - `Err(err)` — logs a warning and falls back to embedded storage mode.
 ///
-/// 1. Resolves `(org, repo)` from the git remote or config.
-/// 2. Computes the coordination worktree path via [`coordination_worktree_path`].
-/// 3. Creates the worktree via [`create_coordination_worktree`].
-/// 4. Wires symlinks via [`wire_coordination_symlinks`].
-/// 5. Updates `.gitignore` via [`update_gitignore_for_symlinks`].
-/// 6. Writes `storage: "worktree"` to the coordination branch config.
-///
-/// All failures are non-fatal: a warning is printed and init continues with
-/// embedded storage mode.
+/// All failures are non-fatal: a warning is printed and init continues.
 fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContext, skip: bool) {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
     let config_path = ito_path.join("config.json");
 
-    if skip {
-        // User explicitly opted out — write embedded mode and return.
-        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
-            eprintln!(
-                "warning: could not write coordination storage config to {}: {e}\n\
-                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
-                config_path.display(),
-                config_path.display(),
-            );
-        }
-        return;
-    }
-
-    // Resolve the project root (parent of .ito/).
     let Some(project_root) = ito_path.parent() else {
         eprintln!(
             "warning: could not determine project root from Ito path '{}'; \
@@ -542,111 +519,33 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
         return;
     };
 
-    // Load merged config to get backend and coordination branch settings.
-    let merged = load_cascading_project_config(project_root, &ito_path, ctx).merged;
-
-    // Skip worktree setup when backend mode is enabled — backend owns coordination.
-    let backend_enabled = merged
-        .pointer("/backend/enabled")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if backend_enabled {
-        return;
-    }
-
-    // Deserialize coordination branch config.
-    let coord_config = serde_json::from_value::<ito_config::types::ItoConfig>(merged.clone())
-        .map(|c| c.changes.coordination_branch)
-        .unwrap_or_default();
-
-    // Resolve org/repo for the worktree path.
-    let backend_config = serde_json::from_value::<ito_config::types::ItoConfig>(merged)
-        .map(|c| c.backend)
-        .unwrap_or_default();
-    let Some((org, repo)) = resolve_org_repo_from_config_or_remote(project_root, &backend_config)
-    else {
-        eprintln!(
-            "warning: could not resolve org/repo from git remote or config; \
-             skipping coordination worktree setup.\n\
-             Continuing with embedded storage mode.\n\
-             Fix: add an 'origin' remote (`git remote add origin <url>`) or set \
-             `backend.project.org` and `backend.project.repo` in .ito/config.json."
-        );
-        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
-            eprintln!(
-                "warning: could not write coordination storage config to {}: {e}\n\
-                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
-                config_path.display(),
-                config_path.display(),
-            );
+    match provision_coordination_worktree(project_root, &ito_path, skip) {
+        Ok(Some(storage)) => {
+            if let Err(e) = write_coordination_storage(&config_path, storage) {
+                eprintln!(
+                    "warning: could not write coordination storage config to {}: {e}\n\
+                     Fix: manually set `changes.coordination_branch.storage` in {}",
+                    config_path.display(),
+                    config_path.display(),
+                );
+            }
         }
-        return;
-    };
-
-    // Compute the coordination worktree path.
-    let worktree_path = coordination_worktree_path(&coord_config, &org, &repo);
-
-    // Skip if the worktree already exists — idempotent.
-    if worktree_path.exists() {
-        return;
-    }
-
-    // Create the coordination worktree.
-    let branch_name = &coord_config.name;
-    if let Err(e) = create_coordination_worktree(project_root, branch_name, &worktree_path) {
-        eprintln!(
-            "warning: could not create coordination worktree at '{}': {e}\n\
-             Continuing with embedded storage mode.\n\
-             Fix: resolve the git issue above, then re-run `ito init` to retry.",
-            worktree_path.display()
-        );
-        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
-            eprintln!(
-                "warning: could not write coordination storage config to {}: {e}\n\
-                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
-                config_path.display(),
-                config_path.display(),
-            );
+        Ok(None) => {
+            // Backend mode is active — backend owns coordination; nothing to do.
         }
-        return;
-    }
-
-    // Wire .ito/<dir> → <worktree>/.ito/<dir> symlinks.
-    let worktree_ito_path = worktree_path.join(".ito");
-    if let Err(e) = wire_coordination_symlinks(&ito_path, &worktree_ito_path) {
-        eprintln!(
-            "warning: could not wire coordination symlinks: {e}\n\
-             Continuing with embedded storage mode.\n\
-             Fix: resolve the filesystem issue above, then re-run `ito init` to retry."
-        );
-        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
-            eprintln!(
-                "warning: could not write coordination storage config to {}: {e}\n\
-                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
-                config_path.display(),
-                config_path.display(),
-            );
+        Err(err) => {
+            eprintln!("Warning: coordination worktree setup failed: {err}");
+            eprintln!("Continuing with embedded storage mode.");
+            if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded)
+            {
+                eprintln!(
+                    "warning: could not write coordination storage config to {}: {e}\n\
+                     Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                    config_path.display(),
+                    config_path.display(),
+                );
+            }
         }
-        return;
-    }
-
-    // Update .gitignore to ignore the symlinks.
-    if let Err(e) = update_gitignore_for_symlinks(project_root) {
-        eprintln!(
-            "warning: could not update .gitignore for coordination symlinks: {e}\n\
-             Fix: manually add the coordination symlink entries to .gitignore."
-        );
-        // Non-fatal — continue even if .gitignore update fails.
-    }
-
-    // Persist storage: "worktree" to the project config.
-    if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Worktree) {
-        eprintln!(
-            "warning: could not write coordination storage config to {}: {e}\n\
-             Fix: manually set `changes.coordination_branch.storage` to \"worktree\" in {}",
-            config_path.display(),
-            config_path.display(),
-        );
     }
 }
 

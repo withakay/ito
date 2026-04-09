@@ -140,7 +140,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-core/src/change_repository.rs`, `ito-rs/crates/ito-core/src/module_repository.rs`, `ito-rs/crates/ito-core/src/task_repository.rs`
 - **Dependencies**: None
-- **Action**: After write operations in filesystem repository adapters, trigger auto-commit if coordination storage mode is worktree. Detect worktree mode by checking if the target path is inside a worktree (follow symlinks).
+- **Action**: After write operations in filesystem repository adapters, trigger auto-commit by checking `changes.coordination_branch.storage` config and verifying the resolved artifact path is under the configured coordination worktree root.
 - **Verify**: `cargo test -p ito-core`
 - **Done When**: Creating a change, updating tasks, or modifying specs triggers a coordination branch commit when in worktree mode
 - **Requirements**: coordination-worktree:auto-commit

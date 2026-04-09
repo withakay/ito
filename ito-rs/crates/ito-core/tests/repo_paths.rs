@@ -46,6 +46,9 @@ fn resolve_env_from_cwd_uses_nearest_ito_root_when_git_is_unavailable() {
 
 #[test]
 fn resolve_env_from_cwd_prefers_git_toplevel() {
+    // Hold ENV_MUTEX so this test is not interleaved with tests that mutate
+    // HOME/XDG_DATA_HOME — git reads HOME to locate global config.
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
     let td = tempfile::tempdir().expect("tempdir should succeed");
     let root = td.path();
     run("git", &["init"], root);
@@ -73,6 +76,9 @@ fn resolve_env_from_cwd_prefers_git_toplevel() {
 
 #[test]
 fn resolve_env_from_cwd_errors_in_bare_repo_without_ito_dir() {
+    // Hold ENV_MUTEX so this test is not interleaved with tests that mutate
+    // HOME/XDG_DATA_HOME — git reads HOME to locate global config.
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
     let td = tempfile::tempdir().expect("tempdir should succeed");
     let root = td.path();
     run("git", &["init", "--bare"], root);
@@ -145,43 +151,70 @@ use std::sync::Mutex;
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
+/// RAII guard that restores a single environment variable on drop, even if the
+/// enclosed closure panics.
+///
+/// `restore_to` is the value to restore:
+/// - `Some(v)` → set the variable back to `v`
+/// - `None` → remove the variable (it was absent before the test)
+///
+/// The caller is responsible for holding `ENV_MUTEX` for the lifetime of this
+/// guard. `Drop` does **not** re-acquire the mutex — doing so would deadlock
+/// because Rust drops locals in reverse declaration order (guard drops before
+/// the mutex lock is released).
+struct EnvRestore {
+    var: &'static str,
+    restore_to: Option<String>,
+}
+
+impl Drop for EnvRestore {
+    fn drop(&mut self) {
+        // SAFETY: caller holds ENV_MUTEX for the duration of this guard's
+        // lifetime, so no other thread can modify this env var concurrently.
+        match &self.restore_to {
+            Some(v) => unsafe { std::env::set_var(self.var, v) },
+            None => unsafe { std::env::remove_var(self.var) },
+        }
+    }
+}
+
 /// Temporarily set `XDG_DATA_HOME` to `value` for the duration of `f`, then
 /// restore the previous value (or remove the variable if it was not set).
+/// Uses an [`EnvRestore`] drop guard so env changes are reverted even on panic.
 fn with_xdg_data_home<F: FnOnce()>(value: &str, f: F) {
-    let _guard = ENV_MUTEX.lock().unwrap();
-    let prev = std::env::var("XDG_DATA_HOME").ok();
+    // `_restore_xdg` drops before `_lock` (reverse declaration order), so the
+    // mutex is still held when the env var is restored.
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore_xdg = EnvRestore {
+        var: "XDG_DATA_HOME",
+        restore_to: std::env::var("XDG_DATA_HOME").ok(),
+    };
     // SAFETY: guarded by ENV_MUTEX; no other thread modifies env vars concurrently.
     unsafe { std::env::set_var("XDG_DATA_HOME", value) };
     f();
-    match prev {
-        // SAFETY: same guard as above.
-        Some(v) => unsafe { std::env::set_var("XDG_DATA_HOME", v) },
-        None => unsafe { std::env::remove_var("XDG_DATA_HOME") },
-    }
 }
 
 /// Temporarily remove `XDG_DATA_HOME` and set `HOME` to `value` for the
 /// duration of `f`, then restore both variables.
+/// Uses [`EnvRestore`] drop guards so env changes are reverted even on panic.
 fn with_home_only<F: FnOnce()>(home_value: &str, f: F) {
-    let _guard = ENV_MUTEX.lock().unwrap();
-    let prev_xdg = std::env::var("XDG_DATA_HOME").ok();
-    let prev_home = std::env::var("HOME").ok();
+    // Guards drop before `_lock` (reverse declaration order), so the mutex is
+    // still held when env vars are restored.
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|p| p.into_inner());
+    let _restore_xdg = EnvRestore {
+        var: "XDG_DATA_HOME",
+        restore_to: std::env::var("XDG_DATA_HOME").ok(),
+    };
+    let _restore_home = EnvRestore {
+        var: "HOME",
+        restore_to: std::env::var("HOME").ok(),
+    };
     // SAFETY: guarded by ENV_MUTEX; no other thread modifies env vars concurrently.
     unsafe {
         std::env::remove_var("XDG_DATA_HOME");
         std::env::set_var("HOME", home_value);
     }
     f();
-    match prev_xdg {
-        // SAFETY: same guard as above.
-        Some(v) => unsafe { std::env::set_var("XDG_DATA_HOME", v) },
-        None => unsafe { std::env::remove_var("XDG_DATA_HOME") },
-    }
-    match prev_home {
-        // SAFETY: same guard as above.
-        Some(v) => unsafe { std::env::set_var("HOME", v) },
-        None => unsafe { std::env::remove_var("HOME") },
-    }
 }
 
 #[test]
