@@ -22,6 +22,15 @@ pub struct RalphHistoryEntry {
     pub completion_promise_found: bool,
     /// Number of changed files in the git working tree after the iteration.
     pub file_changes_count: u32,
+    /// Harness exit code for the iteration.
+    #[serde(default)]
+    pub harness_exit_code: i32,
+    /// Whether Ralph accepted the completion promise after validation.
+    #[serde(default)]
+    pub completion_validated: bool,
+    /// Effective working directory used for the iteration.
+    #[serde(default)]
+    pub effective_cwd: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,6 +45,12 @@ pub struct RalphState {
     pub history: Vec<RalphHistoryEntry>,
     /// Display path for the context file (used by some UIs).
     pub context_file: String,
+    /// Summary of the most recent iteration outcome.
+    #[serde(default)]
+    pub last_outcome: Option<String>,
+    /// Most recent harness or validation failure details, when present.
+    #[serde(default)]
+    pub last_failure: Option<String>,
 }
 
 /// Return the on-disk directory for Ralph state for `change_id`.
@@ -176,8 +191,13 @@ mod tests {
                 duration: 5000,
                 completion_promise_found: true,
                 file_changes_count: 3,
+                harness_exit_code: 0,
+                completion_validated: true,
+                effective_cwd: "/tmp/worktree".to_string(),
             }],
             context_file: ".ito/.state/ralph/001-01_test/context.md".to_string(),
+            last_outcome: Some("validated-complete".to_string()),
+            last_failure: None,
         };
         save_state(&ito, change_id, &state).unwrap();
         let loaded = load_state(&ito, change_id).unwrap();
@@ -196,7 +216,12 @@ mod tests {
             loaded.history[0].file_changes_count,
             state.history[0].file_changes_count
         );
+        assert_eq!(loaded.history[0].harness_exit_code, 0);
+        assert!(loaded.history[0].completion_validated);
+        assert_eq!(loaded.history[0].effective_cwd, "/tmp/worktree");
         assert_eq!(loaded.context_file, state.context_file);
+        assert_eq!(loaded.last_outcome.as_deref(), Some("validated-complete"));
+        assert_eq!(loaded.last_failure, None);
     }
 
     #[test]
@@ -205,6 +230,36 @@ mod tests {
         let ito = td.path().join(".ito");
         let result = load_state(&ito, "nonexistent").unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn load_state_backfills_missing_new_fields() {
+        let td = tempfile::tempdir().unwrap();
+        let ito = td.path().join(".ito");
+        let change_id = "001-01_test";
+        let dir = ralph_state_dir(&ito, change_id);
+        std::fs::create_dir_all(&dir).unwrap();
+        let raw = r#"{
+  "changeId": "001-01_test",
+  "iteration": 2,
+  "history": [
+    {
+      "timestamp": 1,
+      "duration": 2,
+      "completionPromiseFound": true,
+      "fileChangesCount": 3
+    }
+  ],
+  "contextFile": ".ito/.state/ralph/001-01_test/context.md"
+}"#;
+        std::fs::write(ralph_state_json_path(&ito, change_id), raw).unwrap();
+
+        let loaded = load_state(&ito, change_id).unwrap().unwrap();
+        assert_eq!(loaded.history[0].harness_exit_code, 0);
+        assert!(!loaded.history[0].completion_validated);
+        assert_eq!(loaded.history[0].effective_cwd, "");
+        assert_eq!(loaded.last_outcome, None);
+        assert_eq!(loaded.last_failure, None);
     }
 
     #[test]

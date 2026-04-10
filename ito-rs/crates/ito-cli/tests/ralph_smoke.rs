@@ -88,6 +88,58 @@ exit {exit_code}\n"
     write_executable(bin_dir.join("opencode"), &script);
 }
 
+#[cfg(unix)]
+fn make_fake_opencode_write_file(bin_dir: &Path, file_name: &str, exit_code: i32) {
+    let script = format!(
+        "#!/bin/sh\n\
+printf 'generated\\n' > \"{}\"\n\
+echo '<promise>COMPLETE</promise>'\n\
+exit {}\n",
+        file_name, exit_code
+    );
+    write_executable(bin_dir.join("opencode"), &script);
+}
+
+#[cfg(unix)]
+fn make_fake_osascript(bin_dir: &Path, log_path: &Path) {
+    let script = format!(
+        "#!/bin/sh\n\
+printf '%s\\n' \"$@\" >> \"{}\"\n\
+exit 0\n",
+        log_path.display()
+    );
+    write_executable(bin_dir.join("osascript"), &script);
+}
+
+#[cfg(unix)]
+fn make_fake_gh(bin_dir: &Path, log_path: &Path) {
+    let script = format!(
+        "#!/bin/sh\n\
+if [ \"$1\" = \"issue\" ] && [ \"$2\" = \"list\" ]; then\n\
+  printf '[{{\"number\":7,\"title\":\"demo issue\"}}]'\n\
+  exit 0\n\
+fi\n\
+if [ \"$1\" = \"issue\" ] && [ \"$2\" = \"close\" ]; then\n\
+  printf '%s\\n' \"$@\" >> \"{}\"\n\
+  exit 0\n\
+fi\n\
+if [ \"$1\" = \"issue\" ] && [ \"$2\" = \"edit\" ]; then\n\
+  printf '%s\\n' \"$@\" >> \"{}\"\n\
+  exit 0\n\
+fi\n\
+if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"create\" ]; then\n\
+  printf '%s\\n' \"$@\" >> \"{}\"\n\
+  exit 0\n\
+fi\n\
+echo unexpected gh invocation: \"$@\" >&2\n\
+exit 1\n",
+        log_path.display(),
+        log_path.display(),
+        log_path.display()
+    );
+    write_executable(bin_dir.join("gh"), &script);
+}
+
 #[test]
 #[cfg(unix)]
 fn ralph_interactive_options_wizard_prompts_for_missing_values_and_applies_them() {
@@ -360,6 +412,8 @@ fn ralph_stub_harness_writes_state_and_status_works() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Iteration:"));
     assert!(out.stdout.contains("History entries:"));
+    assert!(out.stdout.contains("Last outcome: validated-complete"));
+    assert!(out.stdout.contains("Task progress:"));
 }
 
 #[test]
@@ -479,6 +533,644 @@ fn ralph_file_flag_allowed_without_change_or_module() {
         out.stderr
             .contains("Failed to read prompt file missing-prompt.txt")
     );
+}
+
+#[test]
+fn ralph_markdown_prd_source_marks_first_pending_task_complete() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(
+        repo.path().join("PRD.md"),
+        "- [ ] first task\n- [ ] second task\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--prd",
+            "PRD.md",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    let prd = std::fs::read_to_string(repo.path().join("PRD.md")).unwrap();
+    assert!(prd.contains("- [x] first task"), "prd={prd}");
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_sync_issue_updates_prd_back_to_github_issue() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let gh_log = repo.path().join("gh.log");
+
+    reset_repo(repo.path(), base.path());
+    write(repo.path().join("PRD.md"), "- [ ] first task\n");
+    make_fake_gh(bin.path(), &gh_log);
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--prd",
+            "PRD.md",
+            "--sync-issue",
+            "42",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    let log = std::fs::read_to_string(&gh_log).unwrap();
+    assert!(log.contains("issue"));
+    assert!(log.contains("edit"));
+    assert!(log.contains("42"));
+    assert!(log.contains("--body-file"));
+}
+
+#[test]
+fn ralph_yaml_source_marks_first_pending_task_complete() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(
+        repo.path().join("tasks.yaml"),
+        "tasks:\n  - title: first yaml task\n    completed: false\n  - title: second yaml task\n    completed: false\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--yaml",
+            "tasks.yaml",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    let yaml = std::fs::read_to_string(repo.path().join("tasks.yaml")).unwrap();
+    assert!(yaml.contains("completed: true"), "yaml={yaml}");
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_github_source_closes_issue_on_success() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let gh_log = repo.path().join("gh.log");
+
+    reset_repo(repo.path(), base.path());
+    make_fake_gh(bin.path(), &gh_log);
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--github",
+            "owner/repo",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    let log = std::fs::read_to_string(&gh_log).unwrap();
+    assert!(log.contains("issue"));
+    assert!(log.contains("close"));
+    assert!(log.contains("7"));
+}
+
+#[test]
+fn ralph_branch_per_task_creates_task_branch_for_prd_source() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(repo.path().join("PRD.md"), "- [ ] branch task\n");
+
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--prd",
+            "PRD.md",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--branch-per-task",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    let branch = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(repo.path())
+        .output()
+        .unwrap();
+    let branch = String::from_utf8_lossy(&branch.stdout);
+    assert!(branch.trim().starts_with("ralph/"), "branch={branch}");
+}
+
+#[test]
+fn ralph_branch_per_task_requires_clean_worktree() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(repo.path().join("PRD.md"), "- [ ] branch task\n");
+
+    std::process::Command::new("git")
+        .args(["init", "-q", "-b", "main"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    write(repo.path().join("dirty.txt"), "dirty\n");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--prd",
+            "PRD.md",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--branch-per-task",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    assert!(
+        out.stderr.contains("clean working tree"),
+        "stderr={}",
+        out.stderr
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_create_pr_uses_base_branch_and_fake_gh() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let remote = tempfile::tempdir().expect("remote");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let gh_log = repo.path().join("gh.log");
+
+    reset_repo(repo.path(), base.path());
+    write(repo.path().join("PRD.md"), "- [ ] branch task\n");
+    make_fake_gh(bin.path(), &gh_log);
+
+    std::process::Command::new("git")
+        .args(["init", "-q", "--bare"])
+        .current_dir(remote.path())
+        .status()
+        .unwrap();
+
+    std::process::Command::new("git")
+        .args(["init", "-q", "-b", "main"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["remote", "add", "origin", remote.path().to_str().unwrap()])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["push", "-u", "origin", "main"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--prd",
+            "PRD.md",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--branch-per-task",
+            "--create-pr",
+            "--draft-pr",
+            "--base-branch",
+            "main",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    let log = std::fs::read_to_string(&gh_log).unwrap();
+    assert!(log.contains("pr"));
+    assert!(log.contains("create"));
+    assert!(log.contains("--base"));
+    assert!(log.contains("main"));
+}
+
+#[test]
+fn ralph_parallel_yaml_source_completes_grouped_tasks() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(
+        repo.path().join("tasks.yaml"),
+        "tasks:\n  - title: first grouped task\n    completed: false\n    parallel_group: 1\n  - title: second grouped task\n    completed: false\n    parallel_group: 1\n  - title: final grouped task\n    completed: false\n    parallel_group: 2\n",
+    );
+
+    std::process::Command::new("git")
+        .args(["init", "-q", "-b", "main"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "ralph",
+            "--yaml",
+            "tasks.yaml",
+            "--parallel",
+            "--max-parallel",
+            "2",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
+    let yaml = std::fs::read_to_string(repo.path().join("tasks.yaml")).unwrap();
+    let complete_count = yaml.matches("completed: true").count();
+    assert_eq!(complete_count, 3, "yaml={yaml}");
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_parallel_preserves_worker_code_changes() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    write(
+        repo.path().join("tasks.yaml"),
+        "tasks:\n  - title: write file\n    completed: false\n    parallel_group: 1\n",
+    );
+    std::process::Command::new("git")
+        .args(["init", "-q", "-b", "main"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["-c", "commit.gpgsign=false", "commit", "-m", "init"])
+        .current_dir(repo.path())
+        .status()
+        .unwrap();
+
+    make_fake_opencode_write_file(bin.path(), "parallel-output.txt", 0);
+    write_executable(
+        bin.path().join("git"),
+        "#!/bin/sh\nexec /usr/bin/git \"$@\"\n",
+    );
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--yaml",
+            "tasks.yaml",
+            "--parallel",
+            "--max-parallel",
+            "1",
+            "--harness",
+            "opencode",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    assert!(repo.path().join("parallel-output.txt").exists());
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_browser_flag_injects_agent_browser_guidance_for_opencode() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    reset_repo(repo.path(), base.path());
+    make_fake_opencode(bin.path(), 0);
+    write_executable(bin.path().join("agent-browser"), "#!/bin/sh\nexit 0\n");
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "000-01_test-change",
+            "--harness",
+            "opencode",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--browser",
+            "do",
+            "work",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("agent-browser"),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn ralph_notify_emits_operator_notification_on_success() {
+    let base = make_base_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let bin = tempfile::tempdir().expect("bin");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let notify_log = repo.path().join("notify.log");
+
+    reset_repo(repo.path(), base.path());
+    make_fake_osascript(bin.path(), &notify_log);
+
+    let old_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{old_path}", bin.path().display());
+
+    let out = run_pty_interactive_with_env(
+        rust_path,
+        &[
+            "ralph",
+            "--change",
+            "000-01_test-change",
+            "--harness",
+            "stub",
+            "--no-commit",
+            "--no-interactive",
+            "--skip-validation",
+            "--min-iterations",
+            "1",
+            "--max-iterations",
+            "1",
+            "--notify",
+            "do",
+            "work",
+        ],
+        repo.path(),
+        home.path(),
+        "",
+        &[("PATH", new_path.as_str())],
+    );
+
+    assert_eq!(out.code, 0, "stdout={}", out.stdout);
+    let log = std::fs::read_to_string(&notify_log).unwrap();
+    assert!(log.contains("display notification"), "log={log}");
 }
 
 #[test]

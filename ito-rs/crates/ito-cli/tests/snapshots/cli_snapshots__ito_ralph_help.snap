@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 169
 expression: "snapshot(&[\"ralph\", \"--help\"])"
 ---
 Run an AI agent loop to implement a change
@@ -102,6 +103,47 @@ Options:
 
       --file <FILE>
           Read prompt text from a file
+
+      --prd <FILE>
+          Read pending tasks from a markdown PRD file
+
+      --yaml <FILE>
+          Read pending tasks from a YAML task file
+
+      --github <REPO>
+          Read pending tasks from GitHub issues in owner/repo form
+
+      --github-label <LABEL>
+          Filter GitHub issue task sources by label
+
+      --sync-issue <NUMBER>
+          Sync a markdown PRD file into a GitHub issue body after completion
+
+      --branch-per-task
+          Create a dedicated git branch for the current task before running Ralph
+
+      --base-branch <BRANCH>
+          Base branch used when creating task branches
+
+      --create-pr
+          Create a pull request after successful task completion
+
+      --draft-pr
+          Create pull requests as drafts
+
+      --browser
+          Enable browser automation guidance when supported tools are available
+
+      --notify
+          Emit an operator notification after the run completes or fails
+
+      --parallel
+          Execute external task-source work in parallel worker loops
+
+      --max-parallel <MAX_PARALLEL>
+          Maximum number of concurrent parallel Ralph workers
+
+          [default: 3]
 
   -h, --help
           Print help (see a summary with '-h')

@@ -11,6 +11,7 @@ use crate::ralph::state::{
 };
 use crate::ralph::validation;
 use crate::task_repository::FsTaskRepository;
+use crate::tasks::{get_next_task_from_summary, get_task_status_from_repository};
 use ito_domain::changes::{
     ChangeRepository as DomainChangeRepository, ChangeSummary, ChangeTargetResolution,
     ChangeWorkStatus,
@@ -218,33 +219,46 @@ pub fn run_ralph(
             ));
         }
 
+        let mut processed: BTreeSet<String> = BTreeSet::new();
+        let mut succeeded: Vec<String> = Vec::new();
+        let mut failed: Vec<(String, String)> = Vec::new();
+
         loop {
             let current_changes = repo_changes(change_repo)?;
-            let eligible_changes = repo_eligible_change_ids(&current_changes);
-            print_eligible_changes(&eligible_changes);
+            let eligible_all = repo_eligible_change_ids(&current_changes);
+            print_eligible_changes(&eligible_all);
+            let eligible_changes = unprocessed_change_ids(&eligible_all, &processed);
 
             if eligible_changes.is_empty() {
-                let incomplete = repo_incomplete_change_ids(&current_changes);
-                if incomplete.is_empty() {
-                    println!("\nAll changes are complete.");
-                    return Ok(());
+                if eligible_all.is_empty() {
+                    let incomplete = repo_incomplete_change_ids(&current_changes);
+                    if incomplete.is_empty() {
+                        println!("\nAll changes are complete.");
+                        return finalize_queue_results("Repository", &succeeded, &failed);
+                    }
+
+                    return Err(CoreError::Validation(format!(
+                        "Repository has no eligible changes. Remaining non-complete changes: {}",
+                        incomplete.join(", ")
+                    )));
                 }
 
-                return Err(CoreError::Validation(format!(
-                    "Repository has no eligible changes. Remaining non-complete changes: {}",
-                    incomplete.join(", ")
-                )));
+                println!(
+                    "\nRepository has no additional eligible changes (all eligible changes were already processed in this run)."
+                );
+                return finalize_queue_results("Repository", &succeeded, &failed);
             }
 
             let mut next_change = eligible_changes[0].clone();
 
             let preflight_changes = repo_changes(change_repo)?;
-            let preflight_eligible = repo_eligible_change_ids(&preflight_changes);
+            let preflight_eligible_all = repo_eligible_change_ids(&preflight_changes);
+            let preflight_eligible = unprocessed_change_ids(&preflight_eligible_all, &processed);
             if preflight_eligible.is_empty() {
                 let incomplete = repo_incomplete_change_ids(&preflight_changes);
                 if incomplete.is_empty() {
                     println!("\nAll changes are complete.");
-                    return Ok(());
+                    return finalize_queue_results("Repository", &succeeded, &failed);
                 }
                 return Err(CoreError::Validation(format!(
                     "Repository changed during selection and now has no eligible changes. Remaining non-complete changes: {}",
@@ -268,16 +282,29 @@ pub fn run_ralph(
 
             let mut single_opts = opts.clone();
             single_opts.continue_ready = false;
-            single_opts.change_id = Some(next_change);
+            single_opts.change_id = Some(next_change.clone());
 
-            run_ralph(
+            let result = run_ralph(
                 ito_path,
                 change_repo,
                 task_repo,
                 module_repo,
                 single_opts,
                 harness,
-            )?;
+            );
+
+            processed.insert(next_change.clone());
+            match result {
+                Ok(()) => succeeded.push(next_change),
+                Err(err) => {
+                    println!(
+                        "\nChange {change} failed during continue-ready sweep: {err}\n",
+                        change = next_change,
+                        err = err
+                    );
+                    failed.push((next_change, err.to_string()));
+                }
+            }
         }
     }
 
@@ -299,6 +326,8 @@ pub fn run_ralph(
         }
 
         let mut processed: BTreeSet<String> = BTreeSet::new();
+        let mut succeeded: Vec<String> = Vec::new();
+        let mut failed: Vec<(String, String)> = Vec::new();
 
         loop {
             let current_changes = module_changes(change_repo, &module_id)?;
@@ -315,7 +344,11 @@ pub fn run_ralph(
 
                     if incomplete.is_empty() {
                         println!("\nModule {module} is complete.", module = module_id);
-                        return Ok(());
+                        return finalize_queue_results(
+                            &format!("Module {module_id}"),
+                            &succeeded,
+                            &failed,
+                        );
                     }
 
                     return Err(CoreError::Validation(format!(
@@ -331,7 +364,7 @@ pub fn run_ralph(
                     "\nModule {module} has no additional ready changes (all ready changes were already processed in this run).",
                     module = module_id
                 );
-                return Ok(());
+                return finalize_queue_results(&format!("Module {module_id}"), &succeeded, &failed);
             }
 
             let mut next_change = ready_changes[0].clone();
@@ -342,7 +375,11 @@ pub fn run_ralph(
                 let incomplete = module_incomplete_change_ids(&preflight_changes);
                 if incomplete.is_empty() {
                     println!("\nModule {module} is complete.", module = module_id);
-                    return Ok(());
+                    return finalize_queue_results(
+                        &format!("Module {module_id}"),
+                        &succeeded,
+                        &failed,
+                    );
                 }
                 return Err(CoreError::Validation(format!(
                     "Module {module} changed during selection and now has no ready changes. Remaining non-complete changes: {}",
@@ -358,7 +395,7 @@ pub fn run_ralph(
                     "\nModule {module} has no additional ready changes (all ready changes were already processed in this run).",
                     module = module_id
                 );
-                return Ok(());
+                return finalize_queue_results(&format!("Module {module_id}"), &succeeded, &failed);
             }
 
             let preflight_first = preflight_ready[0].clone();
@@ -381,17 +418,28 @@ pub fn run_ralph(
             single_opts.continue_ready = false;
             single_opts.change_id = Some(next_change.clone());
 
-            run_ralph(
+            let result = run_ralph(
                 ito_path,
                 change_repo,
                 task_repo,
                 module_repo,
                 single_opts,
                 harness,
-            )?;
+            );
 
             // Avoid re-processing the same ready change repeatedly within the same `--continue-module` run.
-            processed.insert(next_change);
+            processed.insert(next_change.clone());
+            match result {
+                Ok(()) => succeeded.push(next_change.clone()),
+                Err(err) => {
+                    println!(
+                        "\nModule change {change} failed during continue-module sweep: {err}\n",
+                        change = next_change,
+                        err = err
+                    );
+                    failed.push((next_change.clone(), err.to_string()));
+                }
+            }
 
             let post_changes = module_changes(change_repo, &module_id)?;
             let post_ready = module_ready_change_ids(&post_changes);
@@ -412,9 +460,27 @@ pub fn run_ralph(
 
     let unscoped_target = opts.change_id.is_none() && opts.module_id.is_none();
 
-    // Resolve worktree-aware working directory (task 2.1).
-    // Done before target resolution so the change_id raw value can be used for lookup.
-    let resolved_cwd = resolve_effective_cwd(ito_path, opts.change_id.as_deref(), &opts.worktree);
+    let (change_id, module_id) = if unscoped_target {
+        ("unscoped".to_string(), "unscoped".to_string())
+    } else {
+        resolve_target(
+            change_repo,
+            opts.change_id,
+            opts.module_id,
+            opts.interactive,
+        )?
+    };
+
+    // Resolve worktree-aware working directory using the canonical selected change id.
+    let resolved_cwd = resolve_effective_cwd(
+        ito_path,
+        if unscoped_target {
+            None
+        } else {
+            Some(change_id.as_str())
+        },
+        &opts.worktree,
+    );
     let effective_ito_path = &resolved_cwd.ito_path;
 
     if opts.verbose {
@@ -428,34 +494,64 @@ pub fn run_ralph(
         }
     }
 
-    let (change_id, module_id) = if unscoped_target {
-        ("unscoped".to_string(), "unscoped".to_string())
-    } else {
-        resolve_target(
-            change_repo,
-            opts.change_id,
-            opts.module_id,
-            opts.interactive,
-        )?
-    };
-
     if opts.status {
         let state = load_state(effective_ito_path, &change_id)?;
         if let Some(state) = state {
             println!("\n=== Ralph Status for {id} ===\n", id = state.change_id);
             println!("Iteration: {iter}", iter = state.iteration);
             println!("History entries: {n}", n = state.history.len());
+            if let Some(outcome) = state.last_outcome.as_deref() {
+                println!("Last outcome: {outcome}");
+            }
+            if let Some(failure) = state.last_failure.as_deref() {
+                println!("\nLast failure:\n{failure}\n");
+            }
+            let change_id_opt = if unscoped_target {
+                None
+            } else {
+                Some(change_id.as_str())
+            };
+            let fs_task_repo_for_status;
+            let task_repo_for_status: &dyn DomainTaskRepository =
+                if should_validate_tasks_from_effective_worktree(
+                    change_id_opt,
+                    ito_path,
+                    effective_ito_path,
+                ) {
+                    fs_task_repo_for_status = FsTaskRepository::new(effective_ito_path);
+                    &fs_task_repo_for_status
+                } else {
+                    task_repo
+                };
+            if let Ok(summary) =
+                get_task_status_from_repository(task_repo_for_status, &state.change_id)
+            {
+                println!(
+                    "Task progress: {complete}/{total} complete, {in_progress} in progress, {pending} pending, {shelved} shelved",
+                    complete = summary.progress.complete,
+                    total = summary.progress.total,
+                    in_progress = summary.progress.in_progress,
+                    pending = summary.progress.pending,
+                    shelved = summary.progress.shelved,
+                );
+                if let Ok(Some(task)) = get_next_task_from_summary(&summary, "tasks.md") {
+                    println!("Next task: {} {}", task.id, task.name);
+                }
+            }
             if !state.history.is_empty() {
                 println!("\nRecent iterations:");
                 let n = state.history.len();
                 let start = n.saturating_sub(5);
                 for (i, h) in state.history.iter().enumerate().skip(start) {
                     println!(
-                        "  {idx}: duration={dur}ms, changes={chg}, promise={p}",
+                        "  {idx}: duration={dur}ms, changes={chg}, promise={p}, validated={v}, exit={exit}, cwd={cwd}",
                         idx = i + 1,
                         dur = h.duration,
                         chg = h.file_changes_count,
-                        p = h.completion_promise_found
+                        p = h.completion_promise_found,
+                        v = h.completion_validated,
+                        exit = h.harness_exit_code,
+                        cwd = h.effective_cwd
                     );
                 }
             }
@@ -492,6 +588,8 @@ pub fn run_ralph(
         iteration: 0,
         history: vec![],
         context_file,
+        last_outcome: None,
+        last_failure: None,
     });
 
     let max_iters = opts.max_iterations.unwrap_or(u32::MAX);
@@ -536,9 +634,27 @@ pub fn run_ralph(
         println!("\n=== Ralph Loop Iteration {i} ===\n", i = iteration);
 
         let context_content = load_context(effective_ito_path, &change_id)?;
+        let change_id_opt = if unscoped_target {
+            None
+        } else {
+            Some(change_id.as_str())
+        };
+        let fs_task_repo_for_prompt;
+        let task_repo_for_prompt: &dyn DomainTaskRepository =
+            if should_validate_tasks_from_effective_worktree(
+                change_id_opt,
+                ito_path,
+                effective_ito_path,
+            ) {
+                fs_task_repo_for_prompt = FsTaskRepository::new(effective_ito_path);
+                &fs_task_repo_for_prompt
+            } else {
+                task_repo
+            };
         let prompt = build_ralph_prompt(
             effective_ito_path,
             change_repo,
+            task_repo_for_prompt,
             module_repo,
             &opts.prompt,
             BuildPromptOptions {
@@ -601,6 +717,8 @@ pub fn run_ralph(
 
         // Handle timeout - log and continue to next iteration
         if run.timed_out {
+            state.last_outcome = Some("timed-out".to_string());
+            state.last_failure = Some("Harness run timed out due to inactivity".to_string());
             println!("\n=== Inactivity timeout reached. Restarting iteration... ===\n");
             retriable_retry_count = 0;
             // Don't update state for timed out iterations, just retry
@@ -631,6 +749,24 @@ pub fn run_ralph(
             retriable_retry_count = 0;
 
             if opts.exit_on_error {
+                state.last_outcome = Some("harness-error".to_string());
+                state.last_failure = Some(render_harness_failure(
+                    harness.name().as_str(),
+                    run.exit_code,
+                    &run.stdout,
+                    &run.stderr,
+                ));
+                state.history.push(RalphHistoryEntry {
+                    timestamp: now_ms()?,
+                    duration: started.elapsed().as_millis() as i64,
+                    completion_promise_found: completion_found,
+                    file_changes_count,
+                    harness_exit_code: run.exit_code,
+                    completion_validated: false,
+                    effective_cwd: resolved_cwd.path.display().to_string(),
+                });
+                state.iteration = iteration;
+                save_state(effective_ito_path, &change_id, &state)?;
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exited with code {code}",
                     name = harness.name(),
@@ -640,6 +776,24 @@ pub fn run_ralph(
 
             harness_error_count = harness_error_count.saturating_add(1);
             if harness_error_count >= opts.error_threshold {
+                state.last_outcome = Some("harness-error-threshold".to_string());
+                state.last_failure = Some(render_harness_failure(
+                    harness.name().as_str(),
+                    run.exit_code,
+                    &run.stdout,
+                    &run.stderr,
+                ));
+                state.history.push(RalphHistoryEntry {
+                    timestamp: now_ms()?,
+                    duration: started.elapsed().as_millis() as i64,
+                    completion_promise_found: completion_found,
+                    file_changes_count,
+                    harness_exit_code: run.exit_code,
+                    completion_validated: false,
+                    effective_cwd: resolved_cwd.path.display().to_string(),
+                });
+                state.iteration = iteration;
+                save_state(effective_ito_path, &change_id, &state)?;
                 return Err(CoreError::Process(format!(
                     "Harness '{name}' exceeded non-zero exit threshold ({count}/{threshold}); last exit code {code}",
                     name = harness.name(),
@@ -655,6 +809,19 @@ pub fn run_ralph(
                 &run.stdout,
                 &run.stderr,
             ));
+            state.last_outcome = Some("harness-error".to_string());
+            state.last_failure = last_validation_failure.clone();
+            state.history.push(RalphHistoryEntry {
+                timestamp: now_ms()?,
+                duration: started.elapsed().as_millis() as i64,
+                completion_promise_found: completion_found,
+                file_changes_count,
+                harness_exit_code: run.exit_code,
+                completion_validated: false,
+                effective_cwd: resolved_cwd.path.display().to_string(),
+            });
+            state.iteration = iteration;
+            save_state(effective_ito_path, &change_id, &state)?;
             println!(
                 "\n=== Harness exited with code {code} ({count}/{threshold}). Continuing to let Ralph fix it... ===\n",
                 code = run.exit_code,
@@ -685,12 +852,20 @@ pub fn run_ralph(
             duration,
             completion_promise_found: completion_found,
             file_changes_count,
+            harness_exit_code: run.exit_code,
+            completion_validated: false,
+            effective_cwd: resolved_cwd.path.display().to_string(),
         });
         state.iteration = iteration;
+        state.last_outcome = Some("iteration-complete".to_string());
+        state.last_failure = None;
         save_state(effective_ito_path, &change_id, &state)?;
 
         if completion_found && iteration >= opts.min_iterations {
             if opts.skip_validation {
+                state.last_outcome = Some("unvalidated-complete".to_string());
+                state.last_failure = None;
+                save_state(effective_ito_path, &change_id, &state)?;
                 println!("\n=== Warning: --skip-validation set. Completion is not verified. ===\n");
                 println!(
                     "\n=== Completion promise \"{p}\" detected. Loop complete. ===\n",
@@ -727,6 +902,12 @@ pub fn run_ralph(
                 opts.validation_command.as_deref(),
             )?;
             if report.passed {
+                if let Some(last) = state.history.last_mut() {
+                    last.completion_validated = true;
+                }
+                state.last_outcome = Some("validated-complete".to_string());
+                state.last_failure = None;
+                save_state(effective_ito_path, &change_id, &state)?;
                 println!(
                     "\n=== Completion promise \"{p}\" detected (validated). Loop complete. ===\n",
                     p = opts.completion_promise
@@ -734,13 +915,58 @@ pub fn run_ralph(
                 return Ok(());
             }
             last_validation_failure = Some(report.context_markdown);
+            state.last_outcome = Some("validation-rejected".to_string());
+            state.last_failure = last_validation_failure.clone();
+            save_state(effective_ito_path, &change_id, &state)?;
             println!(
                 "\n=== Completion promise detected, but validation failed. Continuing... ===\n"
             );
         }
     }
 
+    state.last_outcome = Some("max-iterations-exhausted".to_string());
+    save_state(effective_ito_path, &change_id, &state)?;
+
     Ok(())
+}
+
+fn finalize_queue_results(
+    label: &str,
+    succeeded: &[String],
+    failed: &[(String, String)],
+) -> CoreResult<()> {
+    if succeeded.is_empty() && failed.is_empty() {
+        return Ok(());
+    }
+
+    println!("\n=== {label} Ralph Summary ===", label = label);
+    if !succeeded.is_empty() {
+        println!("Succeeded:");
+        for change in succeeded {
+            println!("  - {change}");
+        }
+    }
+    if !failed.is_empty() {
+        println!("Failed:");
+        for (change, reason) in failed {
+            println!("  - {change}: {reason}", change = change, reason = reason);
+        }
+    }
+
+    if failed.is_empty() {
+        return Ok(());
+    }
+
+    let failed_ids = failed
+        .iter()
+        .map(|(change, _)| change.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(CoreError::Process(format!(
+        "{label} Ralph sweep completed with failures in: {failed_ids}",
+        label = label,
+        failed_ids = failed_ids
+    )))
 }
 
 fn module_changes(

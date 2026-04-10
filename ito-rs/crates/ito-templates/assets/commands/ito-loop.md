@@ -1,6 +1,6 @@
 ---
-name: loop
-description: Run an Ito Ralph loop for a change.
+name: ito-loop
+description: Run an Ito Ralph loop for a change, module, or next ready work.
 category: Ito
 tags: [ito, ralph, loop]
 ---
@@ -20,6 +20,9 @@ Load and follow the `ito-loop` skill. Pass the <UserRequest> block as input. Tre
 
 **Notes**
 
+- Use `/ito-loop <change-id>` for a specific change
+- Use `/ito-loop <module-id>` for ready work in a module
+- Use `/ito-loop` with no arguments to continue ready work across the repo
 - Ralph supports appending restart context: `ito ralph --add-context "..."`
 - Ralph supports inactivity restarts: `ito ralph --timeout 15m`
 

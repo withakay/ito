@@ -185,6 +185,17 @@ fn render_failure_empty() {
     assert!(!s.contains("Stdout:") && !s.contains("Stderr:"));
 }
 
+#[test]
+fn finalize_queue_results_errors_with_failed_change_ids() {
+    let err = finalize_queue_results(
+        "Repository",
+        &["001-01_ok".to_string()],
+        &[("001-02_fail".to_string(), "boom".to_string())],
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("001-02_fail"));
+}
+
 // -- ChangeSummary filter helpers ------------------------------------
 
 fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSummary {
