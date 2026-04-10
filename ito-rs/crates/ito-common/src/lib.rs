@@ -23,3 +23,6 @@ pub mod match_;
 
 /// Canonical `.ito/` path builders.
 pub mod paths;
+
+/// Git remote URL parsing utilities.
+pub mod git_url;

@@ -36,3 +36,6 @@ tempfile = { workspace = true }
 [dev-dependencies]
 assert-struct = "0.2"
 filetime = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+junction = "1.4.2"

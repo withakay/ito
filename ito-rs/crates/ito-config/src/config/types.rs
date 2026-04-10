@@ -368,6 +368,18 @@ pub struct CoordinationBranchConfig {
     )]
     /// Name of the internal coordination branch.
     pub name: String,
+
+    #[serde(default)]
+    #[schemars(default, description = "Storage backend for coordination data")]
+    /// Storage backend used to persist coordination data.
+    pub storage: CoordinationStorage,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Worktree path override for coordination storage")]
+    /// Override path for the worktree used by `CoordinationStorage::Worktree`.
+    ///
+    /// When `None`, the default worktree location is resolved automatically.
+    pub worktree_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
@@ -391,7 +403,49 @@ impl Default for CoordinationBranchConfig {
         Self {
             enabled: Self::default_enabled(),
             name: Self::default_name(),
+            storage: CoordinationStorage::default(),
+            worktree_path: None,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+#[schemars(description = "Storage backend for coordination data")]
+/// Storage backend used to persist coordination data.
+pub enum CoordinationStorage {
+    /// Store coordination data in the git worktree (default).
+    #[default]
+    Worktree,
+    /// Store coordination data embedded in the repository.
+    Embedded,
+}
+
+impl CoordinationStorage {
+    /// Return a stable string identifier for display.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CoordinationStorage::Worktree => "worktree",
+            CoordinationStorage::Embedded => "embedded",
+        }
+    }
+
+    /// All supported storage variant values.
+    pub const ALL: &'static [&'static str] = &["worktree", "embedded"];
+
+    /// Parse a string into a `CoordinationStorage`, returning `None` for invalid values.
+    pub fn parse_value(s: &str) -> Option<Self> {
+        match s {
+            "worktree" => Some(Self::Worktree),
+            "embedded" => Some(Self::Embedded),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for CoordinationStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -1124,3 +1178,7 @@ pub struct InvalidCommandsConfig {
     /// Enable logging of invalid commands to a JSONL file.
     pub enabled: bool,
 }
+
+#[cfg(test)]
+#[path = "coordination_storage_tests.rs"]
+mod coordination_storage_tests;

@@ -54,6 +54,12 @@ pub mod change_repository;
 /// JSON configuration file CRUD operations.
 pub mod config;
 
+/// Symlink wiring for coordination worktrees.
+pub mod coordination;
+
+/// Coordination worktree lifecycle management (create / remove).
+pub mod coordination_worktree;
+
 /// Create new modules/changes and initial scaffolding.
 pub mod create;
 
@@ -80,6 +86,9 @@ pub mod front_matter;
 
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
+
+/// Git remote URL resolution for org/repo namespace discovery.
+pub mod git_remote;
 
 /// Resolve repository and worktree path roots.
 pub mod repo_paths;

@@ -55,6 +55,20 @@ pub enum CreateError {
     #[error("Sub-module number exhausted under module '{0}'; maximum of 99 sub-modules allowed")]
     SubModuleNumberExhausted(String),
 
+    /// The change-allocation lock file could not be acquired.
+    #[error(
+        "Cannot acquire lock: {path}\n\
+         \n\
+         A previous `ito create` may have been interrupted, leaving a stale lock file.\n\
+         Fix: delete the lock file and retry:\n\
+         \n\
+         \x20 rm {path}\n"
+    )]
+    LockAcquireFailed {
+        /// Absolute path to the lock file that blocked acquisition.
+        path: String,
+    },
+
     /// Underlying I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
@@ -462,22 +476,40 @@ fn allocate_next_change_number(ito_path: &Path, namespace_key: &str) -> Result<u
     Ok(next)
 }
 
+/// Maximum age (in seconds) before a lock file is considered stale and removed.
+const LOCK_STALE_SECS: u64 = 30;
+
 fn acquire_lock(path: &Path) -> Result<fs::File, CreateError> {
-    for _ in 0..10 {
+    for attempt in 0..10 {
         match fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(path)
         {
             Ok(f) => return Ok(f),
-            Err(_) => thread::sleep(Duration::from_millis(50)),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                // Check if the lock file is stale (older than LOCK_STALE_SECS).
+                if let Ok(meta) = fs::metadata(path)
+                    && let Ok(modified) = meta.modified()
+                    && let Ok(age) = modified.elapsed()
+                    && age.as_secs() >= LOCK_STALE_SECS
+                {
+                    let _ = fs::remove_file(path);
+                    // Retry immediately after removing stale lock.
+                    continue;
+                }
+                // Lock is fresh — another process may hold it. Wait and retry.
+                if attempt < 9 {
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+            Err(e) => return Err(CreateError::Io(e)),
         }
     }
-    // final attempt with the original error
-    Ok(fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)?)
+    // All retries exhausted — produce an actionable error.
+    Err(CreateError::LockAcquireFailed {
+        path: path.display().to_string(),
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
