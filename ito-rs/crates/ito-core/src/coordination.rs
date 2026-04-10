@@ -23,8 +23,9 @@ pub const COORDINATION_DIRS: &[&str] = &["changes", "specs", "modules", "workflo
 
 /// Create a directory symlink `dst` → `src` in a platform-appropriate way.
 ///
-/// On Unix this calls [`std::os::unix::fs::symlink`].  On Windows this calls
-/// `std::os::windows::fs::symlink_dir`.  The function returns an
+/// On Unix this calls [`std::os::unix::fs::symlink`].  On Windows this creates
+/// an NTFS junction so standard users do not need Developer Mode or elevated
+/// privileges. The function returns an
 /// [`io::Error`] if the underlying OS call fails.
 ///
 /// # Errors
@@ -38,7 +39,7 @@ pub fn create_dir_link(src: &Path, dst: &Path) -> io::Result<()> {
     }
     #[cfg(windows)]
     {
-        std::os::windows::fs::symlink_dir(src, dst)
+        junction::create(src, dst)
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -55,7 +56,7 @@ pub fn create_dir_link(src: &Path, dst: &Path) -> io::Result<()> {
 /// Return the resolved symlink target for `path`, or `None` if `path` is not a
 /// symlink (including when `path` does not exist).
 fn read_link_opt(path: &Path) -> io::Result<Option<PathBuf>> {
-    match fs::read_link(path) {
+    match read_dir_link(path) {
         Ok(target) => Ok(Some(target)),
         // Path does not exist — not a symlink.
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -355,7 +356,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
         })?;
 
         if file_type.is_symlink() {
-            let target = fs::read_link(&from).map_err(|e| {
+            let target = read_dir_link(&from).map_err(|e| {
                 CoreError::io(
                     format!(
                         "cannot read symlink '{}' during recursive copy",
@@ -379,33 +380,18 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
             })?;
             #[cfg(windows)]
             {
-                if file_type.is_dir() {
-                    std::os::windows::fs::symlink_dir(&target, &to).map_err(|e| {
-                        CoreError::io(
-                            format!(
-                                "cannot recreate directory symlink '{}' -> '{}' during \
-                                 recursive copy: ensure '{}' is writable",
-                                to.display(),
-                                target.display(),
-                                dst.display()
-                            ),
-                            e,
-                        )
-                    })?;
-                } else {
-                    std::os::windows::fs::symlink_file(&target, &to).map_err(|e| {
-                        CoreError::io(
-                            format!(
-                                "cannot recreate file symlink '{}' -> '{}' during recursive \
-                                 copy: ensure '{}' is writable",
-                                to.display(),
-                                target.display(),
-                                dst.display()
-                            ),
-                            e,
-                        )
-                    })?;
-                }
+                junction::create(&target, &to).map_err(|e| {
+                    CoreError::io(
+                        format!(
+                            "cannot recreate directory junction '{}' -> '{}' during recursive \
+                             copy: ensure '{}' is writable",
+                            to.display(),
+                            target.display(),
+                            dst.display()
+                        ),
+                        e,
+                    )
+                })?;
             }
         } else if file_type.is_dir() {
             copy_dir_recursive(&from, &to)?;
@@ -680,7 +666,7 @@ pub fn check_coordination_health(
             continue;
         }
 
-        match fs::read_link(&link_path) {
+        match read_dir_link(&link_path) {
             Ok(target) => {
                 // It is a symlink — check whether the target resolves.
                 let resolved = if target.is_absolute() {
@@ -789,7 +775,7 @@ fn move_entry_with_fallback(from: &Path, to: &Path, target_root: &Path) -> CoreR
 }
 
 fn copy_symlink(from: &Path, to: &Path) -> CoreResult<()> {
-    let target = fs::read_link(from).map_err(|e| {
+    let target = read_dir_link(from).map_err(|e| {
         CoreError::io(
             format!("cannot read symlink '{}' during copy", from.display()),
             e,
@@ -812,30 +798,17 @@ fn copy_symlink(from: &Path, to: &Path) -> CoreResult<()> {
 
     #[cfg(windows)]
     {
-        let is_dir = fs::metadata(from).map(|m| m.is_dir()).unwrap_or(false);
-        if is_dir {
-            std::os::windows::fs::symlink_dir(&target, to).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "cannot recreate directory symlink '{}' -> '{}' during copy",
-                        to.display(),
-                        target.display()
-                    ),
-                    e,
-                )
-            })?;
-        } else {
-            std::os::windows::fs::symlink_file(&target, to).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "cannot recreate file symlink '{}' -> '{}' during copy",
-                        to.display(),
-                        target.display()
-                    ),
-                    e,
-                )
-            })?;
-        }
+        let _ = from;
+        junction::create(&target, to).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot recreate directory junction '{}' -> '{}' during copy",
+                    to.display(),
+                    target.display()
+                ),
+                e,
+            )
+        })?;
     }
 
     #[cfg(not(any(unix, windows)))]
@@ -865,12 +838,24 @@ fn remove_copied_symlink(path: &Path) -> CoreResult<()> {
 fn remove_symlink_path(path: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
-        fs::remove_dir(path)
+        junction::delete(path)
     }
 
     #[cfg(not(windows))]
     {
         fs::remove_file(path)
+    }
+}
+
+fn read_dir_link(path: &Path) -> io::Result<PathBuf> {
+    #[cfg(windows)]
+    {
+        junction::get_target(path)
+    }
+
+    #[cfg(not(windows))]
+    {
+        fs::read_link(path)
     }
 }
 
