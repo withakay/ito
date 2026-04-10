@@ -799,6 +799,8 @@ fn render_output(output: &crate::process::ProcessOutput) -> String {
 fn empty_tree_hash(runner: &dyn ProcessRunner, project_root: &Path) -> CoreResult<String> {
     let object_format = repository_object_format(runner, project_root)?;
     let hash = match object_format {
+        // The empty tree SHA-1 is a well-known git constant (immutable).
+        // It is the hash of `tree 0\0` and is hardcoded in git's own source.
         GitObjectFormat::Sha1 => "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string(),
         GitObjectFormat::Sha256 => hex::encode(Sha256::digest(b"tree 0\0")),
     };

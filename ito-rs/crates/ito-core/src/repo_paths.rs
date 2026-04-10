@@ -237,7 +237,12 @@ pub fn coordination_worktree_path(
     repo: &str,
 ) -> PathBuf {
     // 1. Explicit override wins.
-    if let Some(explicit) = config.worktree_path.as_deref().filter(|s| !s.is_empty()) {
+    if let Some(explicit) = config
+        .worktree_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         return PathBuf::from(explicit);
     }
 
