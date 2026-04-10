@@ -19,6 +19,7 @@ use std::path::Path;
 
 use ito_config::types::{CoordinationStorage, ItoConfig};
 use ito_config::{ConfigContext, load_cascading_project_config};
+use sha2::{Digest, Sha256};
 
 use crate::coordination::{update_gitignore_for_symlinks, wire_coordination_symlinks};
 use crate::errors::{CoreError, CoreResult};
@@ -458,24 +459,21 @@ fn create_orphan_branch(
 
     // ── Attempt 2: commit-tree fallback (git < 2.36) ─────────────────────────
     //
-    // 1. Use the well-known empty-tree SHA-1 (a git constant that never changes).
-    // 2. Commit it with `git commit-tree`.
-    // 3. Create the branch pointing at that commit.
-    //
-    // Using the constant avoids `/dev/null` (unavailable on Windows) and the
-    // need for stdin support in ProcessRequest.
+    // 1. Resolve the repository object format.
+    // 2. Compute the corresponding empty-tree object hash.
+    // 3. Commit it with `git commit-tree`.
+    // 4. Create the branch pointing at that commit.
     //
     // No checkout is performed, so the working tree is never touched.
 
-    // The SHA-1 of an empty git tree — a universal constant across all repos.
-    let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+    let empty_tree = empty_tree_hash(runner, project_root)?;
 
     let commit_tree = runner
         .run(
             &ProcessRequest::new("git")
                 .args([
                     "commit-tree",
-                    empty_tree,
+                    empty_tree.as_str(),
                     "-m",
                     "Initialize coordination branch",
                 ])
@@ -796,6 +794,46 @@ fn render_output(output: &crate::process::ProcessOutput) -> String {
         return stdout.to_string();
     }
     "no command output".to_string()
+}
+
+fn empty_tree_hash(runner: &dyn ProcessRunner, project_root: &Path) -> CoreResult<String> {
+    let object_format = repository_object_format(runner, project_root)?;
+    let hash = match object_format {
+        GitObjectFormat::Sha1 => "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string(),
+        GitObjectFormat::Sha256 => hex::encode(Sha256::digest(b"tree 0\0")),
+    };
+    Ok(hash)
+}
+
+fn repository_object_format(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+) -> CoreResult<GitObjectFormat> {
+    let output = runner.run(
+        &ProcessRequest::new("git")
+            .args(["rev-parse", "--show-object-format"])
+            .current_dir(project_root),
+    );
+
+    let Ok(output) = output else {
+        return Ok(GitObjectFormat::Sha1);
+    };
+    if !output.success {
+        return Ok(GitObjectFormat::Sha1);
+    }
+
+    let format = output.stdout.trim();
+    let object_format = match format {
+        "sha256" => GitObjectFormat::Sha256,
+        _ => GitObjectFormat::Sha1,
+    };
+    Ok(object_format)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GitObjectFormat {
+    Sha1,
+    Sha256,
 }
 
 #[cfg(test)]

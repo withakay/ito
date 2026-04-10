@@ -161,13 +161,15 @@ fn create_makes_orphan_branch_via_commit_tree_fallback() {
     //   1. rev-parse --verify              → fail (not local)
     //   2. fetch origin                    → fail with "couldn't find remote ref"
     //   3. worktree add --orphan           → fail (old git)
-    //   4. commit-tree <hash> -m "..."     → ok("deadbeef...") (uses well-known empty-tree SHA)
-    //   5. branch <branch> <commit>        → success
-    //   6. worktree add <target> <branch>  → success
+    //   4. rev-parse --show-object-format  → ok("sha1")
+    //   5. commit-tree <hash> -m "..."     → ok("deadbeef...")
+    //   6. branch <branch> <commit>        → success
+    //   7. worktree add <target> <branch>  → success
     let runner = StubRunner::with_outputs(vec![
         fail(""),
         fail("fatal: couldn't find remote ref coord/main"),
         fail("error: unknown option `--orphan'"),
+        ok("sha1\n"),
         ok("deadbeef1234567890abcdef1234567890abcdef"),
         ok(""),
         ok(""),
@@ -176,20 +178,46 @@ fn create_makes_orphan_branch_via_commit_tree_fallback() {
     create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target).unwrap();
 
     let calls = runner.calls.borrow();
-    // commit-tree uses the well-known empty-tree SHA constant (no hash-object call needed)
-    assert_eq!(calls[3][0], "commit-tree");
-    assert_eq!(calls[3][1], "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
+    assert_eq!(calls[3], ["rev-parse", "--show-object-format"]);
+    assert_eq!(calls[4][0], "commit-tree");
+    assert_eq!(calls[4][1], "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
     assert!(
-        calls[3].contains(&"Initialize coordination branch".to_string()),
+        calls[4].contains(&"Initialize coordination branch".to_string()),
         "commit-tree should include the init message: {:?}",
-        calls[3]
+        calls[4]
     );
     // branch creation
-    assert_eq!(calls[4][0], "branch");
-    assert_eq!(calls[4][1], "coord/main");
+    assert_eq!(calls[5][0], "branch");
+    assert_eq!(calls[5][1], "coord/main");
     // final worktree add
-    assert_eq!(calls[5][0], "worktree");
-    assert_eq!(calls[5][1], "add");
+    assert_eq!(calls[6][0], "worktree");
+    assert_eq!(calls[6][1], "add");
+}
+
+#[test]
+fn create_makes_orphan_branch_via_commit_tree_fallback_in_sha256_repo() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let target = tmp.path().join("wt");
+
+    let runner = StubRunner::with_outputs(vec![
+        fail(""),
+        fail("fatal: couldn't find remote ref coord/main"),
+        fail("error: unknown option `--orphan'"),
+        ok("sha256\n"),
+        ok("deadbeef1234567890abcdef1234567890abcdef"),
+        ok(""),
+        ok(""),
+    ]);
+
+    create_coordination_worktree_with_runner(&runner, tmp.path(), "coord/main", &target).unwrap();
+
+    let calls = runner.calls.borrow();
+    assert_eq!(calls[3], ["rev-parse", "--show-object-format"]);
+    assert_eq!(calls[4][0], "commit-tree");
+    assert_eq!(
+        calls[4][1],
+        "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321"
+    );
 }
 
 // ── create: fetch fails for unexpected reason ─────────────────────────────────
@@ -283,7 +311,7 @@ fn create_returns_error_when_orphan_commit_fails() {
         fail(""),                                           // rev-parse --verify
         fail("fatal: couldn't find remote ref coord/main"), // fetch
         fail("error: unknown option `--orphan'"),           // worktree add --orphan
-        ok("4b825dc642cb6eb9a060e54bf8d69288fbee4904"),     // hash-object
+        ok("sha1\n"),                                       // rev-parse --show-object-format
         fail("error: unable to auto-detect email address"), // commit-tree
     ]);
 
