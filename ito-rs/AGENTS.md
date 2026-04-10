@@ -61,6 +61,31 @@ Follow the Rust style guide at [`.ito/user-rust-style.md`](../.ito/user-rust-sty
 
 You can also load the `rust-style` skill for the full guide with examples.
 
+## Error Message Quality
+
+**Every error message must answer three questions: What failed? Why? How do I fix it?**
+
+Errors are the primary interface between the tool and a stuck user (human or AI agent). A bare OS error like `"I/O error: File exists (os error 17)"` is useless — it gives no path, no context, and no remediation. An actionable error looks like:
+
+```
+Cannot acquire lock: /path/to/.ito/workflows/.state/change-allocations.lock
+
+A previous `ito create` may have been interrupted, leaving a stale lock file.
+Fix: delete the lock file and retry:
+
+  rm /path/to/.ito/workflows/.state/change-allocations.lock
+```
+
+Rules:
+
+- **Include the path** — never surface a filesystem error without the file/directory involved
+- **Explain the likely cause** — don't make the user reverse-engineer what happened
+- **Suggest a fix** — give a concrete command or action, not just a description
+- **Prefer dedicated error variants** over generic `Io(#[from] io::Error)` when the failure mode is known and recoverable
+- **Don't swallow context** — if wrapping an error, preserve the original message alongside the higher-level explanation
+
+When writing `thiserror` variants, prefer structured fields over opaque wrappers so the Display impl can produce a complete diagnostic.
+
 ## Quality Gates
 
 The primary local gate is `make check` (which runs `prek` at `pre-push` stage on all files).

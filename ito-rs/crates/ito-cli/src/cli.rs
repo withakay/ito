@@ -519,6 +519,10 @@ pub struct InitArgs {
     #[arg(long = "setup-coordination-branch")]
     pub setup_coordination_branch: bool,
 
+    /// Skip coordination worktree setup and use embedded storage mode instead
+    #[arg(long = "no-coordination-worktree")]
+    pub no_coordination_worktree: bool,
+
     /// Disable tmux-backed workflow suggestions in project config
     #[arg(long = "no-tmux")]
     pub no_tmux: bool,

@@ -19,18 +19,19 @@ Options:
   -h, --help             Print help
 
 Artifacts:
-  bootstrap      Generate a tool bootstrap preamble
-  project-setup  Guide for setting up a new project
-  backend        Backend server and client configuration guide
-  worktrees      Guide for git worktree workflow (config-driven)
-  repo-sweep     Scan for old-only ID format assumptions in prompts and templates
-  proposal       Show the change proposal
-  specs          Show the specification deltas
-  tasks          Show the implementation task list
-  apply          Show implementation instructions
-  review         Show review instructions
-  archive        Show archive instructions
-  finish         Cleanup worktrees and branches after merge
+  bootstrap                          Generate a tool bootstrap preamble
+  project-setup                      Guide for setting up a new project
+  backend                            Backend server and client configuration guide
+  worktrees                          Guide for git worktree workflow (config-driven)
+  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates
+  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage
+  proposal                           Show the change proposal
+  specs                              Show the specification deltas
+  tasks                              Show the implementation task list
+  apply                              Show implementation instructions
+  review                             Show review instructions
+  archive                            Show archive instructions
+  finish                             Cleanup worktrees and branches after merge
 
 Examples:
   ito agent instruction bootstrap --tool opencode
@@ -38,6 +39,7 @@ Examples:
   ito agent instruction backend
   ito agent instruction worktrees
   ito agent instruction repo-sweep
+  ito agent instruction migrate-to-coordination-worktree
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
   ito agent instruction archive

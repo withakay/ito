@@ -26,3 +26,4 @@
 - [x] 001-29_proposal-viewer-command
 - [x] 001-30_proposal-viewer-html
 - [x] 001-31_tools-config-tmux
+- [ ] 001-32_add-planning-workflow
