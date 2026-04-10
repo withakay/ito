@@ -10,6 +10,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use ito_config::ito_dir::lexical_normalize;
+
 use ito_config::types::CoordinationStorage;
 
 use crate::errors::{CoreError, CoreResult};
@@ -104,19 +106,13 @@ pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> 
             // Resolve both paths for comparison so relative vs absolute doesn't
             // cause spurious mismatches.
             let resolved_target = if target.is_absolute() {
-                target.clone()
+                lexical_normalize(&target)
             } else {
                 // Symlink targets are relative to the directory containing the
                 // link, i.e. `ito_path`.
-                ito_path.join(&target)
+                lexical_normalize(&ito_path.join(&target))
             };
-            let resolved_dst = if dst.is_absolute() {
-                dst.clone()
-            } else {
-                std::env::current_dir()
-                    .map_err(|e| CoreError::io("cannot determine current directory", e))?
-                    .join(&dst)
-            };
+            let resolved_dst = lexical_normalize(&dst);
 
             if resolved_target == resolved_dst || target == dst {
                 // Already wired correctly — nothing to do.
@@ -125,7 +121,7 @@ pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> 
 
             // Symlink exists but points somewhere else — remove it so we can
             // re-create it pointing at the right place.
-            fs::remove_file(&src).map_err(|e| {
+            remove_symlink_path(&src).map_err(|e| {
                 CoreError::io(
                     format!(
                         "cannot remove stale symlink '{}': delete it manually and retry",
@@ -247,7 +243,10 @@ fn migrate_dir_to_worktree(src_dir: &Path, dst_dir: &Path) -> CoreResult<()> {
             )
         })?;
 
-        if file_type.is_dir() {
+        if file_type.is_symlink() {
+            copy_symlink(&from, &to)?;
+            remove_copied_symlink(&from)?;
+        } else if file_type.is_dir() {
             copy_dir_recursive(&from, &to)?;
             fs::remove_dir_all(&from).map_err(|e| {
                 CoreError::io(
@@ -380,7 +379,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
             })?;
             #[cfg(windows)]
             {
-                if from.is_dir() {
+                if file_type.is_dir() {
                     std::os::windows::fs::symlink_dir(&target, &to).map_err(|e| {
                         CoreError::io(
                             format!(
@@ -596,17 +595,7 @@ pub fn remove_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -
                 })?;
                 let from = entry.path();
                 let to = link_path.join(entry.file_name());
-                fs::rename(&from, &to).map_err(|e| {
-                    CoreError::io(
-                        format!(
-                            "cannot move '{}' to '{}' during coordination teardown: ensure \
-                             both paths are on the same filesystem or move them manually",
-                            from.display(),
-                            to.display()
-                        ),
-                        e,
-                    )
-                })?;
+                move_entry_with_fallback(&from, &to, &link_path)?;
             }
         }
     }
@@ -686,6 +675,11 @@ pub fn check_coordination_health(
     for dir in COORDINATION_DIRS {
         let link_path = ito_path.join(dir);
 
+        if !link_path.exists() && fs::read_link(&link_path).is_err() {
+            not_wired.push(link_path);
+            continue;
+        }
+
         match fs::read_link(&link_path) {
             Ok(target) => {
                 // It is a symlink — check whether the target resolves.
@@ -725,6 +719,159 @@ pub fn check_coordination_health(
     }
 
     CoordinationHealthStatus::Healthy
+}
+
+fn move_entry_with_fallback(from: &Path, to: &Path, target_root: &Path) -> CoreResult<()> {
+    let rename_err = match fs::rename(from, to) {
+        Ok(()) => return Ok(()),
+        Err(e) => e,
+    };
+
+    if rename_err.kind() != io::ErrorKind::CrossesDevices {
+        return Err(CoreError::io(
+            format!(
+                "cannot move '{}' to '{}' during coordination teardown: ensure both paths are accessible and retry",
+                from.display(),
+                to.display()
+            ),
+            rename_err,
+        ));
+    }
+
+    let file_type = fs::symlink_metadata(from).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot inspect '{}' during cross-filesystem coordination teardown",
+                from.display()
+            ),
+            e,
+        )
+    })?;
+
+    if file_type.file_type().is_symlink() {
+        copy_symlink(from, to)?;
+        remove_copied_symlink(from)?;
+    } else if file_type.is_dir() {
+        copy_dir_recursive(from, to)?;
+        fs::remove_dir_all(from).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot remove source directory '{}' after cross-filesystem teardown copy: remove it manually and retry",
+                    from.display()
+                ),
+                e,
+            )
+        })?;
+    } else {
+        fs::copy(from, to).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot copy '{}' to '{}' during coordination teardown: ensure '{}' is writable",
+                    from.display(),
+                    to.display(),
+                    target_root.display()
+                ),
+                e,
+            )
+        })?;
+        fs::remove_file(from).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot remove source file '{}' after cross-filesystem teardown copy: remove it manually and retry",
+                    from.display()
+                ),
+                e,
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+fn copy_symlink(from: &Path, to: &Path) -> CoreResult<()> {
+    let target = fs::read_link(from).map_err(|e| {
+        CoreError::io(
+            format!("cannot read symlink '{}' during copy", from.display()),
+            e,
+        )
+    })?;
+
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(&target, to).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot recreate symlink '{}' -> '{}' during copy",
+                    to.display(),
+                    target.display()
+                ),
+                e,
+            )
+        })?;
+    }
+
+    #[cfg(windows)]
+    {
+        let is_dir = fs::metadata(from).map(|m| m.is_dir()).unwrap_or(false);
+        if is_dir {
+            std::os::windows::fs::symlink_dir(&target, to).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot recreate directory symlink '{}' -> '{}' during copy",
+                        to.display(),
+                        target.display()
+                    ),
+                    e,
+                )
+            })?;
+        } else {
+            std::os::windows::fs::symlink_file(&target, to).map_err(|e| {
+                CoreError::io(
+                    format!(
+                        "cannot recreate file symlink '{}' -> '{}' during copy",
+                        to.display(),
+                        target.display()
+                    ),
+                    e,
+                )
+            })?;
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (target, to);
+        return Err(CoreError::io(
+            "cannot recreate symlink on this platform",
+            io::Error::new(io::ErrorKind::Unsupported, "symlinks unsupported"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn remove_copied_symlink(path: &Path) -> CoreResult<()> {
+    remove_symlink_path(path).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot remove source symlink '{}' after copy: remove it manually and retry",
+                path.display()
+            ),
+            e,
+        )
+    })
+}
+
+fn remove_symlink_path(path: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        fs::remove_dir(path)
+    }
+
+    #[cfg(not(windows))]
+    {
+        fs::remove_file(path)
+    }
 }
 
 /// Return an actionable error message for an unhealthy coordination state, or
@@ -1096,6 +1243,21 @@ mod tests {
 
         let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
         assert_eq!(status, CoordinationHealthStatus::Healthy);
+    }
+
+    #[test]
+    fn health_missing_link_is_not_wired() {
+        let (_tmp, ito, worktree_ito) = make_dirs();
+
+        let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
+
+        let CoordinationHealthStatus::NotWired { dirs } = status else {
+            panic!("expected NotWired, got {status:?}");
+        };
+        assert!(
+            dirs.contains(&ito.join("changes")),
+            "missing coordination entries should be reported as not wired"
+        );
     }
 
     #[test]

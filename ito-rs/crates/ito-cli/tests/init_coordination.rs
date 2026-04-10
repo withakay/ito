@@ -72,8 +72,11 @@ fn init_upgrade_does_not_touch_coordination_storage() {
     // Confirm embedded was written.
     let config_before =
         std::fs::read_to_string(repo.path().join(".ito/config.json")).expect("config.json");
-    assert!(
-        config_before.contains("\"embedded\""),
+    let config_before: serde_json::Value =
+        serde_json::from_str(&config_before).expect("config.json should be valid JSON");
+    assert_eq!(
+        config_before["changes"]["coordination_branch"]["storage"].as_str(),
+        Some("embedded"),
         "expected embedded storage after --no-coordination-worktree"
     );
 
@@ -92,12 +95,15 @@ fn init_upgrade_does_not_touch_coordination_storage() {
     );
     assert_eq!(out.code, 0, "init --upgrade failed: {}", out.stderr);
 
-    // Storage field must be unchanged (still embedded or absent — not "worktree").
+    // Storage field must be unchanged and still set to embedded.
     let config_after =
         std::fs::read_to_string(repo.path().join(".ito/config.json")).expect("config.json");
-    assert!(
-        !config_after.contains("\"worktree\""),
-        "--upgrade must not change coordination storage to worktree; got:\n{config_after}"
+    let config_after_json: serde_json::Value =
+        serde_json::from_str(&config_after).expect("config.json should be valid JSON");
+    assert_eq!(
+        config_after_json["changes"]["coordination_branch"]["storage"].as_str(),
+        Some("embedded"),
+        "--upgrade must preserve embedded coordination storage; got:\n{config_after}"
     );
 }
 
