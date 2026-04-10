@@ -8,6 +8,11 @@
     },
     "url": "http://127.0.0.1:9010"
   },
+  "changes": {
+    "coordination_branch": {
+      "storage": "worktree"
+    }
+  },
   "defaults": {
     "testing": {
       "coverage": {

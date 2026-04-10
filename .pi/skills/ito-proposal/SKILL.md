@@ -7,15 +7,19 @@ Collaborate with the user to understand their intent, then create a change and g
 
 **If the user already provided a change ID**, skip to Step 4 (Generate artifacts) — the change already exists.
 
+**If the request arrived from `ito-proposal-intake`, `ito-fix`, or `ito-feature`**, treat the intake summary as the shared understanding. Ask only the smallest number of follow-up questions needed to unblock change creation.
+
 **Step 0: Understand the change (do this first)**
 
-Do NOT jump straight into creating files. Interview the user to build a shared understanding:
+Do NOT jump straight into creating files. Confirm the change shape first:
 
 - Ask clarifying questions one at a time. Prefer multiple-choice when possible.
 - Identify: What problem does this solve? Why now? What does success look like?
 - Surface ambiguity early — if something is unclear or could be interpreted multiple ways, ask.
 - Explore scope: What's in? What's explicitly out? Are there simpler alternatives?
 - If the user's request is vague, propose 2-3 interpretations and ask which fits.
+- If the request is still too underspecified for safe scaffolding, switch to `ito-proposal-intake` before continuing.
+- If intake has already happened and the request still is not concrete enough, switch to `ito-brainstorming` instead of looping back into intake.
 - If the request is already well-defined, confirm your understanding and move on — don't over-interview.
 
 Only proceed to Step 1 once you and the user agree on what the change is and why it matters.
@@ -26,7 +30,14 @@ Only proceed to Step 1 once you and the user agree on what the change is and why
 ito agent instruction schemas
 ```
 
-If the user has no preference, recommend **spec-driven** (default).
+Recommend the best-fit schema for the request shape:
+
+- **spec-driven**: new capabilities, cross-cutting behavior changes, architecture work, or requests that remain broad or ambiguous
+- **minimalist**: bounded fixes and small, rigorous platform/tooling/CI/infrastructure changes
+- **tdd**: regression-oriented fixes where test-first work is the safest path
+- **event-driven**: event- or message-centric systems and workflows
+
+If the user has no preference, recommend the best fit rather than defaulting automatically to `spec-driven`. Keep `spec-driven` as the safe fallback when the request still needs the full proposal pipeline.
 
 **Step 2: Confirm the module (mandatory gate)**
 

@@ -59,6 +59,9 @@ ito tasks complete <change-id> <task-id>
 
 ## Related Skills
 
+- `ito-fix` - Start fix-oriented changes
+- `ito-feature` - Start feature-oriented changes
+- `ito-proposal-intake` - Clarify change shape before scaffolding
 - `ito-proposal` - Create new changes
 - `ito-apply` - Implement changes
 - `ito-review` - Review changes

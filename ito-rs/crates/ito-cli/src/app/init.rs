@@ -8,10 +8,12 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ito_dir;
 use ito_config::output;
+use ito_config::types::CoordinationStorage;
 use ito_config::{
     ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
 };
 use ito_core::config as core_config;
+use ito_core::coordination_worktree::provision_coordination_worktree;
 use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -47,6 +49,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     // --update activates non-destructive update semantics; --upgrade implies update semantics.
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
+    let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
     let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
 
@@ -238,6 +241,13 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
+    // Coordination worktree setup: only for fresh init (not --upgrade), and only
+    // when backend mode is not enabled. Failures are non-fatal — init still succeeds
+    // but falls back to embedded storage mode.
+    if !upgrade {
+        setup_coordination_worktree(target_path, ctx, no_coordination_worktree);
+    }
+
     print_post_init_guidance(target_path, ctx);
 
     Ok(())
@@ -352,6 +362,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.setup_coordination_branch {
         argv.push("--setup-coordination-branch".to_string());
+    }
+    if args.no_coordination_worktree {
+        argv.push("--no-coordination-worktree".to_string());
     }
     if args.no_tmux {
         argv.push("--no-tmux".to_string());
@@ -471,6 +484,94 @@ fn resolve_tmux_preference(
         .default(existing_preference.unwrap_or(true))
         .interact()
         .map_err(|e| CliError::msg(format!("Failed to prompt for tmux preference: {e}")))
+}
+
+/// Set up the coordination worktree for a fresh `ito init`.
+///
+/// Delegates all business logic to [`provision_coordination_worktree`] in
+/// `ito-core` and handles the result:
+///
+/// - `Ok(Some(storage))` — writes `storage` to the project config.
+/// - `Ok(None)` — backend mode is active; nothing to do.
+/// - `Err(err)` — logs a warning and falls back to embedded storage mode.
+///
+/// All failures are non-fatal: a warning is printed and init continues.
+fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContext, skip: bool) {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let config_path = ito_path.join("config.json");
+
+    let Some(project_root) = ito_path.parent() else {
+        eprintln!(
+            "warning: could not determine project root from Ito path '{}'; \
+             skipping coordination worktree setup.\n\
+             Continuing with embedded storage mode.\n\
+             Fix: ensure the .ito/ directory is inside a valid project directory.",
+            ito_path.display()
+        );
+        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+            eprintln!(
+                "warning: could not write coordination storage config to {}: {e}\n\
+                 Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                config_path.display(),
+                config_path.display(),
+            );
+        }
+        return;
+    };
+
+    match provision_coordination_worktree(project_root, &ito_path, skip) {
+        Ok(Some(storage)) => {
+            if let Err(e) = write_coordination_storage(&config_path, storage) {
+                eprintln!(
+                    "warning: could not write coordination storage config to {}: {e}\n\
+                     Fix: manually set `changes.coordination_branch.storage` in {}",
+                    config_path.display(),
+                    config_path.display(),
+                );
+            }
+        }
+        Ok(None) => {
+            // Backend mode is active — backend owns coordination; nothing to do.
+        }
+        Err(err) => {
+            eprintln!("Warning: coordination worktree setup failed: {err}");
+            eprintln!("Continuing with embedded storage mode.");
+            if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded)
+            {
+                eprintln!(
+                    "warning: could not write coordination storage config to {}: {e}\n\
+                     Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
+                    config_path.display(),
+                    config_path.display(),
+                );
+            }
+        }
+    }
+}
+
+/// Write the `changes.coordination_branch.storage` field to the project config file.
+///
+/// Reads the existing config (or starts from an empty object), sets the storage
+/// field, and writes the result back.
+fn write_coordination_storage(
+    config_path: &std::path::Path,
+    storage: CoordinationStorage,
+) -> CliResult<()> {
+    let mut config = core_config::read_json_config(config_path)
+        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
+
+    let parts = core_config::json_split_path("changes.coordination_branch.storage");
+    core_config::json_set_path(
+        &mut config,
+        &parts,
+        serde_json::Value::String(storage.to_string()),
+    )
+    .map_err(|e| CliError::msg(format!("Failed to set coordination storage config: {e}")))?;
+
+    core_config::write_json_config(config_path, &config)
+        .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
+
+    Ok(())
 }
 
 /// Create a WorktreeTemplateContext from a WorktreeWizardResult for template rendering.

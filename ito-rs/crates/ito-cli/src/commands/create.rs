@@ -4,6 +4,7 @@ use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+use ito_core::coordination_worktree::maybe_auto_commit_coordination;
 use ito_core::create::{create_change_in_sub_module, create_sub_module};
 use ito_core::git::{
     CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
@@ -28,6 +29,17 @@ fn guard_local_only(rt: &Runtime, operation: &str) -> CliResult<()> {
         ));
     }
     Ok(())
+}
+
+fn auto_commit_after_change_creation(ito_path: &Path, change_id: &str) {
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    if let Err(err) = maybe_auto_commit_coordination(
+        project_root,
+        ito_path,
+        &format!("chore: create change {change_id}"),
+    ) {
+        eprintln!("Warning: auto-commit to coordination worktree failed: {err}");
+    }
 }
 
 fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
@@ -387,6 +399,9 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         }
                     }
 
+                    // Best-effort auto-commit to coordination worktree.
+                    auto_commit_after_change_creation(ito_path, &r.change_id);
+
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),
@@ -544,6 +559,9 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     ));
                 }
             }
+
+            // Best-effort auto-commit to coordination worktree.
+            auto_commit_after_change_creation(ito_path, &r.change_id);
 
             Ok(())
         }

@@ -8,7 +8,7 @@ use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::load_cascading_project_config;
-use ito_config::types::{ItoConfig, WorktreeStrategy};
+use ito_config::types::{CoordinationBranchConfig, ItoConfig, WorktreeStrategy};
 use std::path::{Path, PathBuf};
 
 /// Distinguishes bare repositories from non-bare working trees.
@@ -208,6 +208,61 @@ pub fn resolve_worktree_paths(
         worktrees_root,
         main_worktree_root,
     })
+}
+
+/// Resolve the path where the coordination worktree should be stored.
+///
+/// Resolution order:
+///
+/// 1. `config.worktree_path` — when explicitly set, it is used as-is.
+/// 2. `$XDG_DATA_HOME/ito/<org>/<repo>/` — when the `XDG_DATA_HOME` environment
+///    variable is set and non-empty.
+/// 3. `~/.local/share/ito/<org>/<repo>/` — fallback using `$HOME` (or
+///    `$USERPROFILE` on Windows) to locate the home directory.
+/// 4. `<ito_path>/coordination-worktree/` — last-resort fallback when no home
+///    directory can be resolved; mirrors embedded storage behaviour so the
+///    project is never left in a broken state.
+///
+/// The function is pure: it reads environment variables but performs no git
+/// operations. The `org` and `repo` parameters should be obtained from
+/// [`crate::git_remote::resolve_org_repo_from_config_or_remote`] or equivalent.
+///
+/// The `ito_path` parameter is used only for the last-resort fallback (case 4).
+/// Pass the project's `.ito` directory so the fallback path is always absolute
+/// and project-scoped rather than relative to the caller's working directory.
+pub fn coordination_worktree_path(
+    config: &CoordinationBranchConfig,
+    ito_path: &Path,
+    org: &str,
+    repo: &str,
+) -> PathBuf {
+    // 1. Explicit override wins.
+    if let Some(explicit) = config
+        .worktree_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        return PathBuf::from(explicit);
+    }
+
+    // 2. XDG_DATA_HOME when set and non-empty.
+    let base = match std::env::var("XDG_DATA_HOME") {
+        Ok(v) if !v.trim().is_empty() => PathBuf::from(v),
+        _ => {
+            // 3. Fall back to ~/.local/share using HOME / USERPROFILE.
+            match std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+                Ok(home) => PathBuf::from(home).join(".local").join("share"),
+                // 4. Last-resort: use <ito_path>/coordination-worktree so the
+                //    path is always absolute and project-scoped. This mirrors
+                //    embedded storage behaviour and avoids writing to the
+                //    non-persistent /tmp directory or a CWD-relative path.
+                Err(_) => return ito_path.join("coordination-worktree"),
+            }
+        }
+    };
+
+    base.join("ito").join(org).join(repo)
 }
 
 fn resolve_base_dir(env: &ResolvedEnv, configured: &Option<String>) -> PathBuf {

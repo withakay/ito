@@ -248,6 +248,101 @@ fn agent_instruction_review_renders_review_template() {
 }
 
 #[test]
+fn agent_instruction_archive_without_change_prints_generic_guidance() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["agent", "instruction", "archive"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("ito archive"), "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("ito audit reconcile"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("000-01_test-change"),
+        "expected available change hint in generic mode; stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+fn agent_instruction_archive_with_change_prints_targeted_instruction() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "archive",
+            "--change",
+            "000-01_test-change",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("000-01_test-change"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("ito archive 000-01_test-change --yes"),
+        "stdout={}",
+        out.stdout
+    );
+}
+
+#[test]
+fn agent_instruction_archive_with_invalid_change_fails() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "archive",
+            "--change",
+            "999-99_does-not-exist",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0, "should fail for unknown change");
+    assert!(
+        out.stderr.contains("999-99_does-not-exist"),
+        "stderr should mention the invalid change id; stderr={}",
+        out.stderr
+    );
+}
+
+#[test]
 fn agent_instruction_apply_text_is_compact_and_has_trailing_newline() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");

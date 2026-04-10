@@ -99,6 +99,33 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let instruction = generate_repo_sweep_instruction()?;
         return emit_instruction(want_json, "repo-sweep", instruction);
     }
+    if artifact == "migrate-to-coordination-worktree" {
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let ctx = rt.ctx();
+        let (_coord_enabled, coord_branch) =
+            load_coordination_branch_settings(project_root, ito_path, ctx);
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/migrate-to-coordination-worktree.md.j2",
+            &serde_json::json!({
+                "coordination_branch_name": coord_branch,
+            }),
+        )
+        .map_err(|e| {
+            to_cli_error(format!(
+                "Failed to render the 'migrate-to-coordination-worktree' instruction template.\n\
+             \n\
+             Why: The Jinja2 template could not be rendered — this usually means a required \
+             template variable is missing or the template asset is corrupt.\n\
+             \n\
+             How to fix: Reinstall the template assets with `ito init --force`, then retry. \
+             If the problem persists, report it with the error below.\n\
+             \n\
+             Underlying error: {e}"
+            ))
+        })?;
+        return emit_instruction(want_json, "migrate-to-coordination-worktree", instruction);
+    }
     if artifact == "context" {
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let inferred = harness_context::infer_context_from_cwd(&cwd).map_err(to_cli_error)?;
@@ -211,6 +238,53 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
 
         return emit_instruction(want_json, artifact, instruction);
+    }
+
+    if artifact == "archive" {
+        let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+        let change = parse_string_flag(args, "--change")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let all_changes: Vec<String> = runtime
+            .repositories()
+            .changes
+            .list()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
+
+        let resolved_change = if let Some(ref raw) = change {
+            let change_repo = runtime.repositories().changes.as_ref();
+            match super::common::resolve_change_target(change_repo, raw) {
+                Ok(resolved) => Some(resolved),
+                Err(msg) => return fail(msg),
+            }
+        } else {
+            None
+        };
+
+        let available_changes: Vec<String> = all_changes
+            .into_iter()
+            .filter(|id| resolved_change.as_deref() != Some(id.as_str()))
+            .collect();
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            change: Option<String>,
+            available_changes: Vec<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/archive.md.j2",
+            &Ctx {
+                change: resolved_change,
+                available_changes,
+            },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render archive instruction: {e}")))?;
+
+        return emit_instruction(want_json, "archive", instruction);
     }
 
     let change = parse_string_flag(args, "--change");
@@ -497,7 +571,6 @@ fn generate_bootstrap_instruction(tool: &str) -> CliResult<String> {
     struct Ctx<'a> {
         tool: &'a str,
     }
-
     ito_templates::instructions::render_instruction_template("agent/bootstrap.md.j2", &Ctx { tool })
         .map_err(|e| to_cli_error(format!("rendering bootstrap instruction: {e}")))
 }
@@ -505,7 +578,6 @@ fn generate_bootstrap_instruction(tool: &str) -> CliResult<String> {
 fn generate_project_setup_instruction() -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx {}
-
     ito_templates::instructions::render_instruction_template("agent/project-setup.md.j2", &Ctx {})
         .map_err(|e| to_cli_error(format!("rendering project-setup instruction: {e}")))
 }
@@ -513,7 +585,6 @@ fn generate_project_setup_instruction() -> CliResult<String> {
 fn generate_backend_instruction() -> CliResult<String> {
     #[derive(serde::Serialize)]
     struct Ctx {}
-
     ito_templates::instructions::render_instruction_template("agent/backend.md.j2", &Ctx {})
         .map_err(|e| to_cli_error(format!("rendering backend instruction: {e}")))
 }
@@ -531,12 +602,10 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
         id: String,
         name: String,
     }
-
     #[derive(serde::Serialize)]
     struct Ctx {
         modules: Vec<ModuleEntry>,
     }
-
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let modules = runtime.repositories().modules.list().unwrap_or_default();
     let modules: Vec<ModuleEntry> = modules
@@ -546,9 +615,7 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
             name: m.name,
         })
         .collect();
-
     let ctx = Ctx { modules };
-
     let instruction =
         ito_templates::instructions::render_instruction_template("agent/new-proposal.md.j2", &ctx)
             .map_err(|e| to_cli_error(format!("rendering new-proposal instruction: {e}")))?;

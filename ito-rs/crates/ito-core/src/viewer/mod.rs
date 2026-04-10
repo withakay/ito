@@ -11,8 +11,14 @@ pub mod bat;
 /// Glow-based terminal viewer backend.
 pub mod glow;
 
+/// HTML browser viewer backend (pandoc + system browser).
+pub mod html;
+
 /// Viewer registry and lookup helpers.
 pub mod registry;
+
+/// Shared utilities for viewer backends.
+pub(crate) mod util;
 
 /// Tmux + Neovim popup viewer backend.
 pub mod tmux_nvim;
@@ -20,6 +26,7 @@ pub mod tmux_nvim;
 pub use bat::BatViewer;
 pub use collector::collect_proposal_artifacts;
 pub use glow::GlowViewer;
+pub use html::HtmlViewer;
 pub use registry::ViewerRegistry;
 pub use tmux_nvim::TmuxNvimViewer;
 
@@ -33,6 +40,13 @@ pub trait ViewerBackend {
 
     /// Whether the viewer can run in the current environment.
     fn is_available(&self) -> bool;
+
+    /// Detailed hint shown when the viewer is unavailable.
+    ///
+    /// Returns `None` if `is_available()` is true or no specific guidance exists.
+    fn availability_hint(&self) -> Option<String> {
+        None
+    }
 
     /// Open or render the provided proposal content.
     fn open(&self, content: &str) -> CoreResult<()>;
@@ -107,7 +121,17 @@ mod tests {
     fn concrete_viewers_report_expected_names() {
         assert_eq!(BatViewer.name(), "bat");
         assert_eq!(GlowViewer.name(), "glow");
+        assert_eq!(HtmlViewer.name(), "html");
         assert_eq!(TmuxNvimViewer.name(), "tmux-nvim");
+    }
+
+    #[test]
+    fn default_registry_includes_html_viewer() {
+        let registry = ViewerRegistry::for_proposals(true);
+        assert!(
+            registry.find_by_name("html").is_some(),
+            "html viewer should be registered in the default proposal registry"
+        );
     }
 
     #[cfg(unix)]
@@ -116,7 +140,7 @@ mod tests {
         let (tx, rx) = mpsc::channel();
 
         std::thread::spawn(move || {
-            let result = crate::viewer::bat::run_with_stdin("sh", &["-c", "cat >/dev/null"], "hi");
+            let result = crate::viewer::util::run_with_stdin("sh", &["-c", "cat >/dev/null"], "hi");
             tx.send(result).unwrap();
         });
 

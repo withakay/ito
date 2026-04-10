@@ -1,4 +1,4 @@
-use super::{BatViewer, GlowViewer, TmuxNvimViewer, ViewerBackend};
+use super::{BatViewer, GlowViewer, HtmlViewer, TmuxNvimViewer, ViewerBackend};
 
 /// Registry of known proposal viewer backends.
 pub struct ViewerRegistry {
@@ -30,6 +30,7 @@ impl ViewerRegistry {
                 Box::new(TmuxNvimViewer),
                 Box::new(BatViewer),
                 Box::new(GlowViewer),
+                Box::new(HtmlViewer),
             ],
             tmux_enabled,
         )

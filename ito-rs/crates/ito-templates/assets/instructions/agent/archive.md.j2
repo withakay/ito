@@ -1,0 +1,67 @@
+# Archive Instruction
+
+{% if change and change|trim != "" %}
+## Archive: `{{ change }}`
+
+Run the following to archive this change:
+
+```bash
+# 1. Ensure audit log is in sync before archiving
+ito audit reconcile --change {{ change }}
+
+# 2. Archive the change (merges spec deltas into main specs)
+ito archive {{ change }} --yes
+```
+
+If the reconcile reports drift, fix it first:
+
+```bash
+ito audit reconcile --change {{ change }} --fix
+```
+
+{% if available_changes | length > 0 %}
+### Other available changes
+
+{% for c in available_changes %}
+- `{{ c }}`
+{% endfor %}
+{% endif %}
+{% else %}
+## Archive a Change
+
+`ito archive` moves a completed change to the archive and merges its spec deltas into the main specs.
+
+### When to archive
+
+- All tasks in `tasks.md` are complete
+- The PR has been merged (or the change has been integrated into `main`)
+- You want to record the change as done and update the canonical specs
+
+### Commands
+
+```bash
+# Archive a specific change
+ito archive <change-id> --yes
+
+# Pre-archive audit reconcile (recommended)
+ito audit reconcile --change <change-id>
+ito archive <change-id> --yes
+
+# Archive with --change flag (equivalent)
+ito archive --change <change-id> --yes
+
+# Skip spec updates (for tooling/infra-only changes)
+ito archive <change-id> --skip-specs --yes
+
+# Get archive instructions for a specific change
+ito agent instruction archive --change <change-id>
+```
+
+{% if available_changes | length > 0 %}
+### Available changes
+
+{% for c in available_changes %}
+- `{{ c }}`
+{% endfor %}
+{% endif %}
+{% endif %}

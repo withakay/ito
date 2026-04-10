@@ -1,0 +1,151 @@
+# Migrate to Coordination Worktree Storage
+
+> **Note on branch name**: The coordination branch name used below is
+> `{{ coordination_branch_name | default("ito/internal/changes") }}`.
+> To override it, pass `coordination_branch_name` in the template context or
+> set `changes.coordination_branch.name` in `.ito/config.json`.
+
+This guide walks you through migrating an existing Ito project from embedded
+storage (`.ito/changes/` tracked in the main repo) to coordination-worktree
+storage (content lives in a dedicated git branch, checked out as a worktree).
+
+## Prerequisites
+
+- No in-flight change proposals with uncommitted work.
+- `git status` is clean.
+- The project has a git remote configured, **or** `backend.project.org` and
+  `backend.project.repo` are set in `.ito/config.json`.
+
+## Step 1: Verify Current State
+
+```bash
+ito list
+git status
+```
+
+Ensure all active changes have their current state committed and the working
+tree is clean before continuing.
+
+## Step 2: Update Configuration
+
+Edit `.ito/config.json` and add (or update) the `changes.coordination_branch`
+section:
+
+```json
+{
+  "changes": {
+    "coordination_branch": {
+      "storage": "worktree",
+      "worktree_path": "~/.local/share/ito/<org>/<repo>"
+    }
+  }
+}
+```
+
+Replace `<org>/<repo>` with your actual values (for example `acme/my-service`).
+Omit `worktree_path` to accept the default location.
+
+## Step 3: Create the Coordination Branch (if it does not exist)
+
+```bash
+git fetch origin
+
+# Check whether the branch already exists on the remote:
+git ls-remote --exit-code origin {{ coordination_branch_name | default("ito/internal/changes") }} && echo "branch exists" || {
+  # Create an orphan branch with an empty initial commit:
+  git checkout --orphan {{ coordination_branch_name | default("ito/internal/changes") }}
+  git rm -rf . 2>/dev/null || true
+  git commit --allow-empty -m "chore: initialize coordination branch"
+  git push -u origin {{ coordination_branch_name | default("ito/internal/changes") }}
+  git checkout -
+}
+```
+
+## Step 4: Create the Worktree
+
+```bash
+# Resolve the target path (replace <org>/<repo> with your values):
+COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
+mkdir -p "$COORD_PATH"
+git worktree add "$COORD_PATH" {{ coordination_branch_name | default("ito/internal/changes") }}
+```
+
+## Step 5: Move Content to the Worktree
+
+```bash
+COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
+
+for dir in changes specs modules workflows audit; do
+  src=".ito/${dir}"
+  dst="${COORD_PATH}/.ito/${dir}"
+
+  # Skip if the source does not exist or is already a symlink:
+  [ -d "$src" ] && [ ! -L "$src" ] || continue
+
+  mkdir -p "$dst"
+  cp -r "${src}/." "${dst}/"
+  rm -rf "$src"
+  ln -s "$dst" "$src"
+done
+```
+
+## Step 6: Update .gitignore
+
+Add these entries to `.gitignore` so the symlink targets are not accidentally
+tracked in the main branch:
+
+```
+.ito/changes
+.ito/specs
+.ito/modules
+.ito/workflows
+.ito/audit
+```
+
+## Step 7: Verify
+
+```bash
+# Changes should appear as before:
+ito list
+
+# Validate any active changes:
+# ito validate --strict <change-id>
+
+# Confirm symlinks resolve correctly:
+ls -la .ito/
+```
+
+## Step 8: Commit the Migration
+
+```bash
+git add .gitignore .ito/config.json
+git commit -m "chore: migrate to coordination worktree storage"
+```
+
+## Rollback
+
+If something goes wrong before committing:
+
+1. Remove the symlinks and restore the directories from the worktree copy:
+
+   ```bash
+   COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
+   for dir in changes specs modules workflows audit; do
+     dst="${COORD_PATH}/.ito/${dir}"
+     src=".ito/${dir}"
+     [ -L "$src" ] && rm "$src" && cp -r "${dst}/." "${src}/" || true
+   done
+   ```
+
+2. Revert the config change:
+
+   ```bash
+   git checkout -- .ito/config.json
+   ```
+
+3. Remove the worktree:
+
+   ```bash
+   git worktree remove "$COORD_PATH"
+   git branch -d {{ coordination_branch_name | default("ito/internal/changes") }} 2>/dev/null || true
+   ```
