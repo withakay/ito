@@ -620,6 +620,7 @@ fn integration_auto_commit_coordination() {
 
     let git = |args: &[&str]| -> String {
         let mut command = std::process::Command::new("git");
+        scrub_git_env(&mut command);
         command
             .args(args)
             .current_dir(&worktree)
@@ -627,7 +628,6 @@ fn integration_auto_commit_coordination() {
             .env("GIT_AUTHOR_EMAIL", "test@example.com")
             .env("GIT_COMMITTER_NAME", "Test")
             .env("GIT_COMMITTER_EMAIL", "test@example.com");
-        scrub_git_env(&mut command);
         let out = command.output().expect("git command failed");
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
@@ -756,6 +756,7 @@ fn init_test_repo(repo: &std::path::Path) {
 
     let run = |args: &[&str]| {
         let mut command = std::process::Command::new("git");
+        scrub_git_env(&mut command);
         command
             .args(args)
             .current_dir(repo)
@@ -763,7 +764,6 @@ fn init_test_repo(repo: &std::path::Path) {
             .env("GIT_AUTHOR_EMAIL", "test@example.com")
             .env("GIT_COMMITTER_NAME", "Test")
             .env("GIT_COMMITTER_EMAIL", "test@example.com");
-        scrub_git_env(&mut command);
         command.output().expect("git command failed")
     };
 

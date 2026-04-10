@@ -113,10 +113,15 @@ fn worktree_config_bare_control_siblings_calls_resolve() {
     let cfg = worktree_config_from_merged(&merged, None);
     assert!(cfg.project_root.is_none());
 
-    let cfg = worktree_config_from_merged(&merged, Some(Path::new(".")));
-    if let Some(ref root) = cfg.project_root {
-        assert!(!root.is_empty());
-    }
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let expected = resolve_bare_repo_root(project_root)
+        .expect("CARGO_MANIFEST_DIR should resolve to the bare repo root in this repo");
+
+    let cfg = worktree_config_from_merged(&merged, Some(project_root));
+    assert_eq!(
+        cfg.project_root.as_deref(),
+        Some(expected.to_string_lossy().as_ref())
+    );
 }
 
 #[test]
