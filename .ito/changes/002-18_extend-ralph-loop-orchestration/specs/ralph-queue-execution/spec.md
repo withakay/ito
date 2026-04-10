@@ -50,6 +50,6 @@ Queue execution SHALL make per-change outcomes visible to operators and wrappers
 #### Scenario: Queue summary distinguishes completion states
 
 - **WHEN** a queue-style Ralph run completes
-- **THEN** the output SHALL distinguish at least successful, failed, and skipped-or-unavailable targets
+- **THEN** the output SHALL distinguish at least successful and failed targets
 - **AND** the summary SHALL identify each affected change by change id
 <!-- ITO:END -->

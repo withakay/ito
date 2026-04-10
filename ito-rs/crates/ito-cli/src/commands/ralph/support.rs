@@ -753,7 +753,13 @@ fn integrate_parallel_branch(repo_root: &Path, branch: &str) -> CliResult<()> {
         .collect::<Vec<_>>();
 
     for commit in commits {
-        run_git(repo_root, &["cherry-pick", &commit])?;
+        if let Err(err) = run_git(repo_root, &["cherry-pick", &commit]) {
+            let _ = Command::new("git")
+                .args(["cherry-pick", "--abort"])
+                .current_dir(repo_root)
+                .output();
+            return Err(err);
+        }
     }
 
     Ok(())
@@ -774,7 +780,21 @@ pub(super) fn create_task_branch(
     if current_branch != base {
         run_git(repo_root, &["checkout", &base])?;
     }
-    run_git(repo_root, &["checkout", "-B", &branch])?;
+    let output = Command::new("git")
+        .args([
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{branch}"),
+        ])
+        .current_dir(repo_root)
+        .output()
+        .map_err(|e| to_cli_error(miette::miette!("Failed to inspect existing branch: {e}")))?;
+    if output.status.success() {
+        run_git(repo_root, &["checkout", &branch])?;
+    } else {
+        run_git(repo_root, &["checkout", "-b", &branch, &base])?;
+    }
     Ok((branch, base))
 }
 
@@ -939,7 +959,7 @@ pub(super) fn notify_run_result(error: Option<String>) {
 
     #[cfg(target_os = "linux")]
     {
-        let summary = match error {
+        let summary = match error.as_ref() {
             Some(_) => "Ito Ralph failed",
             None => "Ito Ralph complete",
         };

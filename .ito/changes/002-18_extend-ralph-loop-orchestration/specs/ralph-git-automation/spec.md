@@ -10,7 +10,8 @@ Ralph SHALL support creating dedicated git branches for task execution when bran
 #### Scenario: Branch-per-task creates a task branch
 
 - **WHEN** branch-per-task mode is enabled for a Ralph run
-- **THEN** Ralph SHALL create or reuse a task-specific branch before executing the task
+- **THEN** Ralph SHALL create a task-specific branch from the configured base branch or switch to an existing task branch
+- **AND** it SHALL NOT silently reset an existing task branch to the base branch
 
 ### Requirement: Ralph can create pull requests for automated work
 

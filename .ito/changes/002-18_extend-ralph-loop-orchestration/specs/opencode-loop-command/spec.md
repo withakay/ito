@@ -46,7 +46,8 @@ The restart note SHOULD follow this structure:
 
 - **GIVEN** a Ralph run exits early in a way the wrapper treats as restartable
 - **WHEN** the wrapper decides to restart
-- **THEN** it SHALL run `ito ralph --no-interactive --change <change-id> --add-context <restart-note>` before or as part of the rerun flow
+- **THEN** it SHALL preserve the `opencode` harness selection for the rerun flow
+- **AND** it SHALL run `ito ralph --no-interactive --harness opencode --change <change-id> --add-context <restart-note>` before or as part of the rerun flow
 
 #### Scenario: Successful run is not wrapped in an outer infinite loop
 
