@@ -58,6 +58,15 @@ fn fail(stderr: &str) -> Result<ProcessOutput, ProcessExecutionError> {
     })
 }
 
+fn scrub_git_env(command: &mut std::process::Command) {
+    for (key, _value) in std::env::vars_os() {
+        let key = key.to_string_lossy();
+        if key.starts_with("GIT_") {
+            command.env_remove(key.as_ref());
+        }
+    }
+}
+
 // ── create: branch already exists locally ────────────────────────────────────
 
 #[test]
@@ -572,11 +581,12 @@ fn integration_create_and_remove_coordination_worktree() {
     // Use `git rev-parse --abbrev-ref HEAD` inside the worktree — reading
     // the HEAD file directly is unreliable because in a linked worktree the
     // `.git` entry is a file (gitdir pointer), not a directory.
-    let head_output = std::process::Command::new("git")
+    let mut head_command = std::process::Command::new("git");
+    head_command
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&worktree)
-        .output()
-        .expect("git rev-parse should run");
+        .current_dir(&worktree);
+    scrub_git_env(&mut head_command);
+    let head_output = head_command.output().expect("git rev-parse should run");
     let head = String::from_utf8_lossy(&head_output.stdout)
         .trim()
         .to_string();
@@ -609,15 +619,16 @@ fn integration_auto_commit_coordination() {
         .expect("create should succeed");
 
     let git = |args: &[&str]| -> String {
-        let out = std::process::Command::new("git")
+        let mut command = std::process::Command::new("git");
+        command
             .args(args)
             .current_dir(&worktree)
             .env("GIT_AUTHOR_NAME", "Test")
             .env("GIT_AUTHOR_EMAIL", "test@example.com")
             .env("GIT_COMMITTER_NAME", "Test")
-            .env("GIT_COMMITTER_EMAIL", "test@example.com")
-            .output()
-            .expect("git command failed");
+            .env("GIT_COMMITTER_EMAIL", "test@example.com");
+        scrub_git_env(&mut command);
+        let out = command.output().expect("git command failed");
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
 
@@ -744,15 +755,16 @@ fn init_test_repo(repo: &std::path::Path) {
     fs::create_dir_all(repo).unwrap();
 
     let run = |args: &[&str]| {
-        std::process::Command::new("git")
+        let mut command = std::process::Command::new("git");
+        command
             .args(args)
             .current_dir(repo)
             .env("GIT_AUTHOR_NAME", "Test")
             .env("GIT_AUTHOR_EMAIL", "test@example.com")
             .env("GIT_COMMITTER_NAME", "Test")
-            .env("GIT_COMMITTER_EMAIL", "test@example.com")
-            .output()
-            .expect("git command failed")
+            .env("GIT_COMMITTER_EMAIL", "test@example.com");
+        scrub_git_env(&mut command);
+        command.output().expect("git command failed")
     };
 
     run(&["init", "-b", "main"]);
