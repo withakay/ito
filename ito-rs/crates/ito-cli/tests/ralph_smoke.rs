@@ -168,7 +168,12 @@ fn ralph_interactive_options_wizard_prompts_for_missing_values_and_applies_them(
         repo.path(),
         home.path(),
         input,
-        &[("PATH", new_path.as_str())],
+        &[
+            ("PATH", new_path.as_str()),
+            ("GIT_CONFIG_COUNT", "1"),
+            ("GIT_CONFIG_KEY_0", "core.hooksPath"),
+            ("GIT_CONFIG_VALUE_0", "/dev/null"),
+        ],
     );
 
     assert_eq!(out.code, 0, "stdout={}", out.stdout);
@@ -219,7 +224,12 @@ fn ralph_interactive_options_wizard_exit_on_error_stops_on_nonzero_harness_exit(
         repo.path(),
         home.path(),
         input,
-        &[("PATH", new_path.as_str())],
+        &[
+            ("PATH", new_path.as_str()),
+            ("GIT_CONFIG_COUNT", "1"),
+            ("GIT_CONFIG_KEY_0", "core.hooksPath"),
+            ("GIT_CONFIG_VALUE_0", "/dev/null"),
+        ],
     );
 
     assert_ne!(out.code, 0, "stdout={}", out.stdout);
