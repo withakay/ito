@@ -558,6 +558,9 @@ fn spawn_parallel_worker(
     if args.skip_validation {
         cmd.arg("--skip-validation");
     }
+    if args.no_commit {
+        cmd.arg("--no-commit");
+    }
     if args.allow_all {
         cmd.arg("--allow-all");
     }
