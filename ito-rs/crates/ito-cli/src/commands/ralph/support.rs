@@ -35,75 +35,46 @@ pub(super) fn branch_label(
     }
 }
 
-#[derive(Debug, Clone)]
-pub(super) enum RalphTaskSource {
-    Markdown {
-        path: PathBuf,
-        line_index: usize,
-        task: String,
-    },
-    Yaml {
-        path: PathBuf,
-        index: usize,
-        task: String,
-        parallel_group: u32,
-    },
-    Github {
-        repo: String,
-        issue_number: u64,
-        task: String,
-    },
-}
+// Re-export the core RalphTaskSource type
+pub(super) use core_ralph::RalphTaskSource;
 
-impl RalphTaskSource {
-    pub(super) fn parallel_group(&self) -> Option<u32> {
-        match self {
-            RalphTaskSource::Yaml { parallel_group, .. } => Some(*parallel_group),
-            _ => None,
-        }
-    }
-
-    pub(super) fn build_prompt(&self, base_prompt: &str) -> String {
-        let task_block = match self {
-            RalphTaskSource::Markdown { path, task, .. } => format!(
-                "## External Task Source\n- Type: markdown\n- Path: {}\n\n## Pending Task\n{}",
-                path.display(),
-                task
-            ),
-            RalphTaskSource::Yaml { path, task, .. } => format!(
-                "## External Task Source\n- Type: yaml\n- Path: {}\n\n## Pending Task\n{}",
-                path.display(),
-                task
-            ),
-            RalphTaskSource::Github {
-                repo,
-                issue_number,
-                task,
-            } => format!(
-                "## External Task Source\n- Type: github\n- Repo: {}\n- Issue: #{}\n\n## Pending Task\n{}",
-                repo, issue_number, task
-            ),
-        };
-
-        if base_prompt.trim().is_empty() {
-            task_block
-        } else {
-            format!("{task_block}\n\n---\n\n{base_prompt}")
-        }
+// Helper methods for RalphTaskSource
+fn task_source_parallel_group(source: &RalphTaskSource) -> Option<u32> {
+    match source {
+        RalphTaskSource::Yaml { parallel_group, .. } => Some(*parallel_group),
+        _ => None,
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct RalphYamlTasks {
-    tasks: Vec<RalphYamlTask>,
+fn build_task_source_prompt(source: &RalphTaskSource, base_prompt: &str) -> String {
+    let task_block = match source {
+        RalphTaskSource::Markdown { path, task, .. } => format!(
+            "## External Task Source\n- Type: markdown\n- Path: {}\n\n## Pending Task\n{}",
+            path.display(),
+            task
+        ),
+        RalphTaskSource::Yaml { path, task, .. } => format!(
+            "## External Task Source\n- Type: yaml\n- Path: {}\n\n## Pending Task\n{}",
+            path.display(),
+            task
+        ),
+        RalphTaskSource::Github {
+            repo,
+            issue_number,
+            task,
+        } => format!(
+            "## External Task Source\n- Type: github\n- Repo: {}\n- Issue: #{}\n\n## Pending Task\n{}",
+            repo, issue_number, task
+        ),
+    };
+
+    if base_prompt.trim().is_empty() {
+        task_block
+    } else {
+        format!("{task_block}\n\n---\n\n{base_prompt}")
+    }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct RalphYamlTask {
-    title: String,
-    completed: Option<bool>,
-    parallel_group: Option<u32>,
-}
 
 pub(super) fn resolve_task_source(args: &RalphArgs) -> CliResult<Option<RalphTaskSource>> {
     let mut all = resolve_all_task_sources(args)?;
@@ -130,126 +101,27 @@ pub(super) fn resolve_all_task_sources(args: &RalphArgs) -> CliResult<Vec<RalphT
     if args.sync_issue.is_some() && args.prd.is_none() {
         return fail("--sync-issue requires --prd");
     }
-    if source_count > 0 && (args.change.is_some() || args.module.is_some() || args.continue_ready) {
+    if source_count > 0 && (args.change.is_some() || args.module.is_some() || args.continue_module || args.continue_ready) {
         return fail(
-            "External task sources cannot be combined with --change, --module, or --continue-ready.",
+            "External task sources cannot be combined with --change, --module, --continue-module, or --continue-ready.",
         );
     }
 
-    if let Some(path) = &args.prd {
-        let path = PathBuf::from(path);
-        let contents = ito_common::io::read_to_string_std(&path).map_err(|e| {
-            to_cli_error(miette::miette!(
-                "Failed to read PRD file {}: {e}",
-                path.display()
-            ))
-        })?;
-        let tasks = contents
-            .lines()
-            .enumerate()
-            .filter_map(|(idx, line)| {
-                parse_markdown_task_line(line).map(|s| RalphTaskSource::Markdown {
-                    path: path.clone(),
-                    line_index: idx,
-                    task: s,
-                })
-            })
-            .collect::<Vec<_>>();
-        if tasks.is_empty() {
-            return fail(format!(
-                "No pending markdown tasks found in {}",
-                path.display()
-            ));
-        }
+    if let Some(path_str) = &args.prd {
+        let path = PathBuf::from(path_str);
+        let tasks = core_ralph::resolve_markdown_task_sources(&path).map_err(to_cli_error)?;
         return Ok(tasks);
     }
 
-    if let Some(path) = &args.yaml {
-        let path = PathBuf::from(path);
-        let contents = ito_common::io::read_to_string_std(&path).map_err(|e| {
-            to_cli_error(miette::miette!(
-                "Failed to read YAML task file {}: {e}",
-                path.display()
-            ))
-        })?;
-        let parsed: RalphYamlTasks = serde_yaml::from_str(&contents).map_err(|e| {
-            to_cli_error(miette::miette!(
-                "Failed to parse YAML task file {}: {e}",
-                path.display()
-            ))
-        })?;
-        let sources = parsed
-            .tasks
-            .iter()
-            .enumerate()
-            .filter(|(_, task)| task.completed != Some(true))
-            .map(|(idx, task)| RalphTaskSource::Yaml {
-                path: path.clone(),
-                index: idx,
-                task: task.title.clone(),
-                parallel_group: task.parallel_group.unwrap_or(0),
-            })
-            .collect::<Vec<_>>();
-        if sources.is_empty() {
-            return fail(format!("No pending YAML tasks found in {}", path.display()));
-        }
+    if let Some(path_str) = &args.yaml {
+        let path = PathBuf::from(path_str);
+        let sources = core_ralph::resolve_yaml_task_sources(&path).map_err(to_cli_error)?;
         return Ok(sources);
     }
 
     if let Some(repo) = &args.github {
-        let mut cmd = Command::new("gh");
-        cmd.arg("issue")
-            .arg("list")
-            .arg("--repo")
-            .arg(repo)
-            .arg("--state")
-            .arg("open")
-            .arg("--json")
-            .arg("number,title");
-        if let Some(label) = &args.github_label {
-            cmd.arg("--label").arg(label);
-        }
-        let output = cmd
-            .output()
-            .map_err(|e| to_cli_error(miette::miette!("Failed to run gh issue list: {e}")))?;
-        if !output.status.success() {
-            return fail(format!(
-                "gh issue list failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
-
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|e| {
-            to_cli_error(miette::miette!("Failed to parse gh issue list output: {e}"))
-        })?;
-        let items = value.as_array().ok_or_else(|| {
-            to_cli_error(miette::miette!("No open GitHub issues found for {repo}"))
-        })?;
-        if items.is_empty() {
-            return fail(format!("No open GitHub issues found for {repo}"));
-        }
-
-        let mut sources = Vec::new();
-        for issue in items {
-            let issue_number = issue
-                .get("number")
-                .and_then(|v| v.as_u64())
-                .ok_or_else(|| {
-                    to_cli_error(miette::miette!("Missing GitHub issue number in gh output"))
-                })?;
-            let task = issue
-                .get("title")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    to_cli_error(miette::miette!("Missing GitHub issue title in gh output"))
-                })?
-                .to_string();
-            sources.push(RalphTaskSource::Github {
-                repo: repo.clone(),
-                issue_number,
-                task,
-            });
-        }
+        let sources = core_ralph::resolve_github_task_sources(repo, args.github_label.as_deref())
+            .map_err(to_cli_error)?;
         return Ok(sources);
     }
 
@@ -263,6 +135,19 @@ pub(super) fn ralph_run_completed(ito_path: &Path, target: &str) -> CliResult<bo
         .is_some_and(|outcome| {
             outcome == "validated-complete" || outcome == "unvalidated-complete"
         }))
+}
+
+// YAML types for task syncing (CLI-only operations)
+#[derive(Debug, Deserialize, Serialize)]
+struct RalphYamlTasks {
+    tasks: Vec<RalphYamlTask>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct RalphYamlTask {
+    title: String,
+    completed: Option<bool>,
+    parallel_group: Option<u32>,
 }
 
 pub(super) fn sync_task_source(source: &RalphTaskSource) -> CliResult<()> {
@@ -497,18 +382,6 @@ fn failure_message(worktree_ito: &Path) -> CliResult<String> {
     Ok("worker failed".to_string())
 }
 
-fn parse_markdown_task_line(line: &str) -> Option<String> {
-    let line = line.trim_start();
-    let candidate = line
-        .strip_prefix("- [ ] ")
-        .or_else(|| line.strip_prefix("* [ ] "))?;
-    let task = candidate.trim();
-    if task.is_empty() {
-        return None;
-    }
-    Some(task.to_string())
-}
-
 fn spawn_parallel_worker(
     repo_root: &Path,
     exe: &Path,
@@ -529,7 +402,7 @@ fn spawn_parallel_worker(
         ))
     })?;
     let prompt_file = prompt_dir.join(format!("task-{}.md", idx));
-    std::fs::write(&prompt_file, source.build_prompt(base_prompt))
+    std::fs::write(&prompt_file, build_task_source_prompt(&source, base_prompt))
         .map_err(|e| to_cli_error(miette::miette!("Failed to write worker prompt file: {e}")))?;
 
     let mut cmd = Command::new(exe);
@@ -597,10 +470,10 @@ fn batch_task_sources(
     let mut batches = Vec::new();
     let mut idx = 0;
     while idx < sources.len() {
-        let group = sources[idx].parallel_group();
+        let group = task_source_parallel_group(&sources[idx]);
         let mut chunk = Vec::new();
         while idx < sources.len()
-            && sources[idx].parallel_group() == group
+            && task_source_parallel_group(&sources[idx]) == group
             && chunk.len() < max_parallel
         {
             chunk.push(sources[idx].clone());
