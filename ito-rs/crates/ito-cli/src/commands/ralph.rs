@@ -10,6 +10,14 @@ use ito_core::harness::OpencodeHarness;
 use ito_core::harness::stub::StubHarness;
 use ito_core::ralph as core_ralph;
 use std::io::IsTerminal;
+use std::path::Path;
+
+mod support;
+use support::{
+    add_browser_guidance, branch_label, create_pull_request, create_task_branch,
+    is_command_available, notify_run_result, ralph_run_completed, resolve_all_task_sources,
+    resolve_task_source, run_parallel_task_sources, sync_issue_body, sync_task_source,
+};
 
 /// Handle the `ito loop` command (deprecated alias for `ito ralph`).
 pub(crate) fn handle_loop_clap(
@@ -74,6 +82,19 @@ pub(crate) fn handle_ralph_clap(
     args: &RalphArgs,
     raw_args: &[String],
 ) -> CliResult<()> {
+    let parallel_sources = if args.parallel {
+        resolve_all_task_sources(args)?
+    } else {
+        Vec::new()
+    };
+    let task_source = if args.parallel {
+        None
+    } else {
+        resolve_task_source(args)?
+    };
+    if args.create_pr && !args.branch_per_task {
+        return fail("--create-pr requires --branch-per-task");
+    }
     let interactive = !args.no_interactive;
     let continue_module =
         args.continue_module || (!interactive && args.module.is_some() && args.change.is_none());
@@ -86,8 +107,13 @@ pub(crate) fn handle_ralph_clap(
         && args.add_context.is_none()
         && !args.clear_context
         && args.file.is_none()
+        && args.prd.is_none()
+        && args.yaml.is_none()
+        && args.github.is_none()
     {
-        return fail("When --no-interactive is set, you must provide --change (or --module).");
+        return fail(
+            "When --no-interactive is set, you must provide --change, --module, or an external task source.",
+        );
     }
 
     if !interactive {
@@ -103,7 +129,7 @@ pub(crate) fn handle_ralph_clap(
     }
 
     let positional_prompt = args.prompt.join(" ");
-    let prompt = if let Some(path) = &args.file {
+    let base_prompt = if let Some(path) = &args.file {
         let path_buf = std::path::PathBuf::from(path);
         let file_prompt = ito_common::io::read_to_string_std(&path_buf)
             .map_err(|e| to_cli_error(miette::miette!("Failed to read prompt file {path}: {e}")))?;
@@ -115,6 +141,33 @@ pub(crate) fn handle_ralph_clap(
     } else {
         positional_prompt
     };
+    let mut prompt = if let Some(source) = &task_source {
+        source.build_prompt(&base_prompt)
+    } else {
+        base_prompt
+    };
+    if args.browser && is_command_available("agent-browser") {
+        prompt = add_browser_guidance(prompt);
+    }
+
+    let ito_path = rt.ito_path();
+    let repo_root = ito_path.parent().unwrap_or_else(|| Path::new("."));
+
+    if args.parallel {
+        if interactive {
+            return fail("--parallel requires --no-interactive");
+        }
+        if parallel_sources.is_empty() {
+            return fail(
+                "--parallel currently requires an external task source (--prd, --yaml, or --github).",
+            );
+        }
+        let result = run_parallel_task_sources(repo_root, &parallel_sources, &prompt, args);
+        if args.notify {
+            notify_run_result(result.as_ref().err().map(|e| e.to_string()));
+        }
+        return result;
+    }
 
     let inactivity_timeout = if let Some(raw) = &args.timeout {
         match core_ralph::parse_duration(raw) {
@@ -131,7 +184,16 @@ pub(crate) fn handle_ralph_clap(
         .error_threshold
         .unwrap_or(core_ralph::DEFAULT_ERROR_THRESHOLD);
 
-    let ito_path = rt.ito_path();
+    let branch_task_label = branch_label(args, task_source.as_ref(), &prompt);
+    let branch_context = if args.branch_per_task {
+        Some(create_task_branch(
+            repo_root,
+            &branch_task_label,
+            args.base_branch.as_deref(),
+        )?)
+    } else {
+        None
+    };
 
     let worktree_config = load_worktree_config(ito_path, rt);
 
@@ -147,6 +209,7 @@ pub(crate) fn handle_ralph_clap(
     let needs_picker = interactive
         && args.change.is_none()
         && args.file.is_none()
+        && task_source.is_none()
         && !args.continue_ready
         && !continue_module;
 
@@ -245,15 +308,39 @@ pub(crate) fn handle_ralph_clap(
         worktree: worktree_config,
     };
 
-    core_ralph::run_ralph(
+    let result = core_ralph::run_ralph(
         ito_path,
         change_repo,
         task_repo,
         module_repo,
         opts,
         harness_impl.as_mut(),
-    )
-    .map_err(to_cli_error)?;
+    );
+    if args.notify {
+        notify_run_result(result.as_ref().err().map(|e| e.to_string()));
+    }
+    result.map_err(to_cli_error)?;
+
+    if let Some(source) = task_source.as_ref() {
+        let completed = ralph_run_completed(ito_path, "unscoped")?;
+        if completed {
+            if args.create_pr
+                && let Some((branch, base)) = branch_context.as_ref()
+            {
+                create_pull_request(
+                    repo_root,
+                    branch,
+                    Some(base.as_str()),
+                    &branch_task_label,
+                    args.draft_pr,
+                )?;
+            }
+            sync_task_source(source)?;
+            if let Some(issue_number) = args.sync_issue {
+                sync_issue_body(repo_root, issue_number, source)?;
+            }
+        }
+    }
 
     Ok(())
 }

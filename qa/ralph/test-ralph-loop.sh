@@ -135,7 +135,7 @@ run_proposal_loop() {
         model_args=(--model "$RALPH_MODEL")
     fi
 
-    output=$(ito x-ralph "Create a full change proposal for $change_id using the spec-driven workflow. Generate proposal.md, any required specs, design.md if needed, and tasks.md. Use the ito-ff-change skill." \
+    output=$(ito x-ralph "Create the proposal artifacts for this change using the change context already available in Ralph." \
         --change "$change_id" \
         --harness "$RALPH_HARNESS" \
         "${model_args[@]}" \
@@ -178,7 +178,7 @@ run_apply_loop() {
         model_args=(--model "$RALPH_MODEL")
     fi
 
-    output=$(ito x-ralph "Implement the tasks in tasks.md for $change_id. Create hello-world.sh and mark tasks complete." \
+    output=$(ito x-ralph "Implement the current change tasks using Ralph's built-in change and task context. Create hello-world.sh and complete the tracked work." \
         --change "$change_id" \
         --harness "$RALPH_HARNESS" \
         "${model_args[@]}" \

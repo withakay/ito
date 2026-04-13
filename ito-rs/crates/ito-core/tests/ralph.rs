@@ -88,6 +88,32 @@ impl Harness for CwdCapturingHarness {
     }
 }
 
+#[derive(Debug)]
+struct PromptCapturingHarness {
+    prompts: Vec<String>,
+}
+
+impl Harness for PromptCapturingHarness {
+    fn name(&self) -> HarnessName {
+        HarnessName::Stub
+    }
+
+    fn run(&mut self, config: &HarnessRunConfig) -> miette::Result<HarnessRunResult> {
+        self.prompts.push(config.prompt.clone());
+        Ok(HarnessRunResult {
+            stdout: "<promise>COMPLETE</promise>\n".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            duration: Duration::from_millis(1),
+            timed_out: false,
+        })
+    }
+
+    fn stop(&mut self) {
+        // No-op
+    }
+}
+
 fn write_fixture_ito(ito_path: &Path, change_id: &str) {
     std::fs::create_dir_all(ito_path.join("changes").join(change_id)).unwrap();
     std::fs::write(
@@ -463,6 +489,55 @@ fn run_ralph_loop_writes_state_and_honors_min_iterations() {
         v.get("history").and_then(|v| v.as_array()).unwrap().len(),
         2
     );
+    let history = v.get("history").and_then(|v| v.as_array()).unwrap();
+    assert_eq!(
+        history[1].get("harnessExitCode").and_then(|v| v.as_i64()),
+        Some(0)
+    );
+    assert_eq!(
+        history[1]
+            .get("completionValidated")
+            .and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert!(
+        history[1]
+            .get("effectiveCwd")
+            .and_then(|v| v.as_str())
+            .is_some()
+    );
+    assert_eq!(
+        v.get("lastOutcome").and_then(|v| v.as_str()),
+        Some("validated-complete")
+    );
+}
+
+#[test]
+fn run_ralph_prompt_includes_task_context_and_guidance() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+    write_fixture_ito(&ito, "006-09_fixture");
+    write_tasks(
+        &ito,
+        "006-09_fixture",
+        "# Tasks\n\n- [>] 1.1 Current task\n- [ ] 1.2 Next task\n",
+    );
+
+    let mut h = PromptCapturingHarness {
+        prompts: Vec::new(),
+    };
+    let mut opts = default_opts();
+    opts.change_id = Some("006-09_fixture".to_string());
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
+
+    run_ralph_for_test(&ito, opts, &mut h).unwrap();
+
+    let prompt = h.prompts.first().expect("prompt captured");
+    assert!(prompt.contains("## Change Task Status (006-09_fixture)"));
+    assert!(prompt.contains("## Next Actionable Task"));
+    assert!(prompt.contains("## Execution Guidance"));
 }
 
 #[test]
@@ -841,6 +916,49 @@ fn run_ralph_continue_ready_processes_all_eligible_changes_across_repo() {
     );
     assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
     assert!(ito.join(".state/ralph/007-01_a/state.json").exists());
+}
+
+#[test]
+fn run_ralph_continue_ready_accumulates_failures_after_processing_remaining_changes() {
+    let td = tempfile::tempdir().unwrap();
+    let ito = td.path().join(".ito");
+    std::fs::create_dir_all(&ito).unwrap();
+
+    write_ready_change(&ito, "006-01_a");
+    write_ready_change(&ito, "006-02_b");
+    write_ready_change(&ito, "006-03_c");
+
+    let mut h = FixedHarness::new(
+        HarnessName::Stub,
+        vec![
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+            ("boom".to_string(), "failed".to_string(), 2),
+            (
+                "<promise>COMPLETE</promise>\n".to_string(),
+                String::new(),
+                0,
+            ),
+        ],
+    );
+
+    let mut opts = default_opts();
+    opts.continue_ready = true;
+    opts.max_iterations = Some(1);
+    opts.skip_validation = true;
+    opts.exit_on_error = true;
+    opts.prompt = String::new();
+
+    let err = run_ralph_for_test(&ito, opts, &mut h).unwrap_err();
+    let msg = err.to_string();
+    assert_eq!(h.idx, 3);
+    assert!(msg.contains("006-02_b"), "msg={msg}");
+    assert!(ito.join(".state/ralph/006-01_a/state.json").exists());
+    assert!(ito.join(".state/ralph/006-02_b/state.json").exists());
+    assert!(ito.join(".state/ralph/006-03_c/state.json").exists());
 }
 
 #[test]

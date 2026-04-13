@@ -111,6 +111,45 @@ pub struct RalphArgs {
     /// Read prompt text from a file
     #[arg(long = "file", value_name = "FILE")]
     pub file: Option<String>,
+    /// Read pending tasks from a markdown PRD file
+    #[arg(long = "prd", value_name = "FILE")]
+    pub prd: Option<String>,
+    /// Read pending tasks from a YAML task file
+    #[arg(long = "yaml", value_name = "FILE")]
+    pub yaml: Option<String>,
+    /// Read pending tasks from GitHub issues in owner/repo form
+    #[arg(long = "github", value_name = "REPO")]
+    pub github: Option<String>,
+    /// Filter GitHub issue task sources by label
+    #[arg(long = "github-label", value_name = "LABEL")]
+    pub github_label: Option<String>,
+    /// Sync a markdown PRD file into a GitHub issue body after completion
+    #[arg(long = "sync-issue", value_name = "NUMBER")]
+    pub sync_issue: Option<u64>,
+    /// Create a dedicated git branch for the current task before running Ralph
+    #[arg(long = "branch-per-task")]
+    pub branch_per_task: bool,
+    /// Base branch used when creating task branches
+    #[arg(long = "base-branch", value_name = "BRANCH")]
+    pub base_branch: Option<String>,
+    /// Create a pull request after successful task completion
+    #[arg(long = "create-pr")]
+    pub create_pr: bool,
+    /// Create pull requests as drafts
+    #[arg(long = "draft-pr")]
+    pub draft_pr: bool,
+    /// Enable browser automation guidance when supported tools are available
+    #[arg(long = "browser")]
+    pub browser: bool,
+    /// Emit an operator notification after the run completes or fails
+    #[arg(long = "notify")]
+    pub notify: bool,
+    /// Execute external task-source work in parallel worker loops
+    #[arg(long = "parallel")]
+    pub parallel: bool,
+    /// Maximum number of concurrent parallel Ralph workers
+    #[arg(long = "max-parallel", default_value_t = 3)]
+    pub max_parallel: usize,
     /// Prompt text
     #[arg(value_name = "PROMPT", num_args = 0.., trailing_var_arg = true)]
     pub prompt: Vec<String>,

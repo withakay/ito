@@ -5,9 +5,11 @@
 //! preamble describing the iteration rules.
 
 use crate::errors::{CoreError, CoreResult};
+use crate::tasks::{get_next_task_from_summary, get_task_status_from_repository};
 use crate::validate;
 use ito_domain::changes::{ChangeRepository as DomainChangeRepository, ChangeTargetResolution};
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
+use ito_domain::tasks::TaskRepository as DomainTaskRepository;
 use std::path::Path;
 
 use ito_common::paths;
@@ -96,6 +98,7 @@ pub fn build_prompt_preamble(
 pub fn build_ralph_prompt(
     ito_path: &Path,
     change_repo: &(impl DomainChangeRepository + ?Sized),
+    task_repo: &(impl DomainTaskRepository + ?Sized),
     module_repo: &(impl DomainModuleRepository + ?Sized),
     user_prompt: &str,
     options: BuildPromptOptions,
@@ -104,6 +107,12 @@ pub fn build_ralph_prompt(
 
     if let Some(change_id) = options.change_id.as_deref()
         && let Some(ctx) = load_change_context(ito_path, change_repo, change_id)?
+    {
+        sections.push(ctx);
+    }
+
+    if let Some(change_id) = options.change_id.as_deref()
+        && let Some(ctx) = load_task_context(task_repo, change_id)?
     {
         sections.push(ctx);
     }
@@ -132,6 +141,50 @@ pub fn build_ralph_prompt(
     } else {
         Ok(task)
     }
+}
+
+fn load_task_context(
+    task_repo: &(impl DomainTaskRepository + ?Sized),
+    change_id: &str,
+) -> CoreResult<Option<String>> {
+    let summary = match get_task_status_from_repository(task_repo, change_id) {
+        Ok(summary) => summary,
+        Err(CoreError::NotFound(_)) => return Ok(None),
+        Err(err) => return Err(err),
+    };
+
+    let next_task = get_next_task_from_summary(&summary, "tasks.md")?;
+    let ready_tasks = summary
+        .ready
+        .iter()
+        .take(3)
+        .map(|task| format!("- {} {}", task.id, task.name))
+        .collect::<Vec<_>>();
+    let next_task_section = match next_task {
+        Some(task) => format!(
+            "## Next Actionable Task\n\n- Current task: {} {}\n- Action: {}\n",
+            task.id, task.name, task.action
+        ),
+        None => "## Next Actionable Task\n\n- No ready task found. Finish remaining in-progress work or repair the task file if it is blocked.\n"
+            .to_string(),
+    };
+    let ready_section = if ready_tasks.is_empty() {
+        String::new()
+    } else {
+        format!("\nReady queue:\n{}\n", ready_tasks.join("\n"))
+    };
+
+    Ok(Some(format!(
+        "## Change Task Status ({change_id})\n\n- Progress: {complete}/{total} complete, {in_progress} in progress, {pending} pending, {shelved} shelved\n{ready_section}\n{next_task_section}\n## Execution Guidance\n\n- Work the next actionable task first and keep the change tasks/specs aligned with the code.\n- Use `ito tasks` commands when task state needs to change.\n- Before claiming completion, make sure project validation and change task validation will pass.\n",
+        change_id = change_id,
+        complete = summary.progress.complete,
+        total = summary.progress.total,
+        in_progress = summary.progress.in_progress,
+        pending = summary.progress.pending,
+        shelved = summary.progress.shelved,
+        ready_section = ready_section,
+        next_task_section = next_task_section,
+    )))
 }
 
 fn load_change_context(
