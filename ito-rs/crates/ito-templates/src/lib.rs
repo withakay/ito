@@ -445,9 +445,23 @@ mod tests {
         let text = std::str::from_utf8(file).expect("skill should be utf8");
         assert!(text.starts_with("---\nname: ito-loop\n"));
         assert!(text.contains(
-            "description: Run an ito ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits."
+            "description: Run an ito ralph loop for a change, module, or repo-ready sequence, with safe defaults and automatic restart context on early exits."
         ));
+        assert!(text.contains("restart at most **2** times"));
+        assert!(text.contains("ito ralph --no-interactive --change <change-id> --status"));
         assert!(text.contains("\n---\n\n<!-- ITO:START -->"));
+    }
+
+    #[test]
+    fn loop_command_template_uses_ito_loop_command_name() {
+        let file = commands_files()
+            .into_iter()
+            .find(|f| f.relative_path == "ito-loop.md")
+            .expect("loop command should exist");
+        let text = std::str::from_utf8(file.contents).expect("command should be utf8");
+        assert!(text.starts_with("---\nname: ito-loop\n"));
+        assert!(text.contains("/ito-loop"));
+        assert!(text.contains("continue ready work across the repo"));
     }
 
     #[test]

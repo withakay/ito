@@ -197,6 +197,7 @@ fn render_failure_empty() {
     assert!(!s.contains("Stdout:") && !s.contains("Stderr:"));
 }
 
+
 // -- ChangeSummary filter helpers ------------------------------------
 
 fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSummary {
