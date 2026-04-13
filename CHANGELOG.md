@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.26] - 2026-04-13
+
+### 🚀 Features
+
+- *(001-30)* Add HTML browser viewer backend ([#188](https://github.com/withakay/ito/pull/188))
+- *(016-16)* Support archive artifact in ito agent instruction ([#187](https://github.com/withakay/ito/pull/187))
+- *(025-08)* Centralize mutable Ito artifacts onto coordination branch worktree
+- *(002-18)* Extend ralph orchestration parity ([#195](https://github.com/withakay/ito/pull/195))
+
+### 🚜 Refactor
+
+- Extract inline tests from oversized modules ([#196](https://github.com/withakay/ito/pull/196))
 ## [0.1.25] - 2026-03-26
 
 ### 🚀 Features
