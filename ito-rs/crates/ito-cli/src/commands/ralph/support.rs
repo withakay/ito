@@ -74,8 +74,6 @@ fn build_task_source_prompt(source: &RalphTaskSource, base_prompt: &str) -> Stri
         format!("{task_block}\n\n---\n\n{base_prompt}")
     }
 }
-
-
 pub(super) fn resolve_task_source(args: &RalphArgs) -> CliResult<Option<RalphTaskSource>> {
     let mut all = resolve_all_task_sources(args)?;
     Ok(all.drain(..).next())
@@ -101,7 +99,12 @@ pub(super) fn resolve_all_task_sources(args: &RalphArgs) -> CliResult<Vec<RalphT
     if args.sync_issue.is_some() && args.prd.is_none() {
         return fail("--sync-issue requires --prd");
     }
-    if source_count > 0 && (args.change.is_some() || args.module.is_some() || args.continue_module || args.continue_ready) {
+    if source_count > 0
+        && (args.change.is_some()
+            || args.module.is_some()
+            || args.continue_module
+            || args.continue_ready)
+    {
         return fail(
             "External task sources cannot be combined with --change, --module, --continue-module, or --continue-ready.",
         );
