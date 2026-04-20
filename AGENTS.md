@@ -272,3 +272,11 @@ Prefer normal `git` first. Use `git-yolo` when you are otherwise stuck and need 
 <!-- lore:019caf77-e931-7bfc-b014-f5f211855e45 -->
 - **Backend migration commands use \`ito backend\` namespace**: Backend-facing workflows are standardized under \`ito backend ...\` with capability ownership in \`backend-change-sync\` (not \`ito tasks ...\`/\`cli-tasks\`). This includes migration (\`ito backend import\`) and export (\`ito backend export\`) surfaces. Keep \`ito init\` as the backend/local mode gate with strict import-policy handling when local changes exist.
 <!-- End lore-managed section -->
+## ByteRover Guidance
+
+Use ByteRover skills and the `brv` CLI when prior project context would help.
+
+- Before broad exploration, debugging, or architectural work, try `brv query` to pull relevant prior context.
+- After a meaningful change, bug fix, or design decision, capture reusable learnings with `brv curate`.
+- When curating something important, verify the saved entry with `brv curate view <logId>`.
+- Keep ByteRover context short, actionable, and tied to concrete files, commands, or decisions.
