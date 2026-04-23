@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 001-02_interactive-splitting. Update Purpose after archive.
+Define the `delta-migration-utility` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Move delta specs between changes).
 
 ## Requirements
 

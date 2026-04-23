@@ -1,3 +1,5 @@
+# Spec: rust-ito-path-helpers
+
 ## Purpose
 
 Provide a canonical set of `.ito/` path builders in `ito-core` so other crates do not duplicate path construction.

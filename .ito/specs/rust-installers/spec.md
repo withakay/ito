@@ -1,45 +1,44 @@
-# Rust Installers Specification
+# Spec: rust-installers
 
 ## Purpose
 
-Define the `rust-installers` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
+Define the `rust-installers` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Deterministic Init/Update Merge Policy).
 
 ## Requirements
 
-### Requirement: `ito-rs` is installed as `ito` by default
+### Requirement: Deterministic Init/Update Merge Policy
 
-Installers MUST ensure the default `ito` command resolves to the Rust implementation.
+The system SHALL apply a deterministic, test-covered merge/overwrite policy when installing templates via `ito init --update`, `ito init --upgrade`, and `ito update`.
 
-If the legacy TypeScript/Bun implementation is installed for legacy purposes, it MUST use a distinct command/name and MUST be labeled deprecated.
+#### Scenario: Update preserves user-owned files
 
-#### Scenario: Default CLI resolves to Rust
+- **GIVEN** a project has user edits in explicitly user-owned files (e.g., `.ito/project.md`, `.ito/config.json`)
+- **WHEN** `ito update` is executed
+- **THEN** the installer SHALL preserve the user edits
 
-- **WHEN** a user installs Ito using the documented installer path
-- **THEN** running `ito --version` indicates the Rust implementation
-- **AND** the installation does not place a TypeScript/Bun `ito` ahead of Rust on PATH
+#### Scenario: Update refreshes Ito-managed adapter assets
 
-### Requirement: Legacy TypeScript `ito` is removed from global cache
+- **GIVEN** a project has Ito-managed harness assets installed under `.opencode/`, `.claude/`, `.github/`, or `.codex/`
+- **WHEN** `ito update` is executed
+- **THEN** the installer SHALL refresh those assets to match the embedded templates
 
-Installers MUST remove or disable any cached legacy TypeScript `ito` that would shadow the Rust `ito` command.
+#### Scenario: Marker-managed files are merged
 
-#### Scenario: Cached legacy CLI does not shadow Rust
+- **GIVEN** a file contains Ito markers
+- **WHEN** `ito update` is executed
+- **THEN** the installer SHALL update the managed block content
+- **AND** preserve user content outside the managed block
 
-- **GIVEN** a machine with a cached legacy TypeScript `ito` in the global cache
-- **WHEN** the Rust `ito` installation or upgrade is performed
-- **THEN** `ito` resolves to the Rust implementation
-- **AND** the legacy cache entry is removed or renamed so it cannot shadow `ito`
+#### Scenario: Upgrade refreshes prompt/template managed blocks only
 
+- **GIVEN** a prompt/template file contains `<!-- ITO:START -->` and `<!-- ITO:END -->` markers
+- **WHEN** `ito init --upgrade` is executed
+- **THEN** only content between those markers SHALL be replaced from embedded templates
+- **AND** all content outside those markers SHALL be preserved exactly
 
-### Requirement: Non-interactive installers match TypeScript byte-for-byte
+#### Scenario: Missing markers fail safe during upgrade
 
-This requirement is removed; installer verification MUST NOT require executing the TypeScript/Bun implementation.
-
-#### Scenario: Rust installers do not depend on TypeScript
-
-- **WHEN** a developer runs `ito init` in non-interactive mode
-- **THEN** installer outputs MUST be validated using Rust-owned templates and/or Rust golden tests
-- **AND** the validation process SHALL NOT execute TypeScript/Bun code
-
-**Reason**: The TypeScript/Bun implementation is deprecated and is no longer the canonical source for installer outputs.
-**Migration**: Treat Rust `ito init` outputs as canonical and validate outputs via templates and/or golden tests instead of comparing to the TypeScript implementation.
+- **GIVEN** a prompt/template file is expected to be marker-managed but no longer contains valid Ito markers
+- **WHEN** `ito init --upgrade` is executed
+- **THEN** the installer SHALL leave the file unchanged
+- **AND** SHALL emit actionable guidance describing how to restore markers or manually reconcile the file

@@ -15,8 +15,13 @@
 - [ ] 002-06_add-agent-preamble-system
 - [ ] 002-07_improve-ralph-loop-parity
 - [ ] 002-08_extract-ralph-into-crate
-- [ ] 002-09_add-ralph-interactive-mode
+- [x] 002-09_add-ralph-interactive-mode
 - [x] 002-10_validate-completion-before-exit
 - [x] 002-11_ralph-module-ready-sequencing
 - [x] 002-12_add-ralph-error-threshold
 - [x] 002-13_add-ralph-continue-ready
+- [x] 002-14_ralph-harnesses-claude-codex-copilot
+- [x] 002-15_retriable-harness-crashes
+- [x] 002-16_ralph-worktree-awareness
+- [x] 002-17_opencode-loop-command
+- [ ] 002-18_extend-ralph-loop-orchestration

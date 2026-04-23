@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: ito-core
+
+## Purpose
+
+Define the `ito-core` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Core does not depend on adapter frameworks).
+
+## Requirements
 
 ### Requirement: Core does not depend on adapter frameworks
 

@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: cli-artifact-workflow
+
+## Purpose
+
+Define the `cli-artifact-workflow` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Worktree-aware apply instructions).
+
+## Requirements
 
 ### Requirement: Worktree-aware apply instructions
 

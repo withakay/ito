@@ -177,9 +177,9 @@ ito tasks complete 000-04_ready-work-commands 1.1
 - **Updated At**: 2026-02-02
 - **Status**: [x] complete
 
-### Task 4.3: Update ito-apply-change-proposal skill
+### Task 4.3: Update ito-apply skill
 
-- **Files**: ito-rs/crates/ito-templates/assets/skills/ito-apply-change-proposal.md
+- **Files**: ito-rs/crates/ito-templates/assets/skills/ito-apply.md
 - **Dependencies**: Task 4.1, Task 4.2
 - **Action**:
   Reference `ito tasks ready` as the recommended way to find next task.
@@ -194,6 +194,6 @@ ito tasks complete 000-04_ready-work-commands 1.1
 ## Task Status Legend
 
 - `[ ] pending` - Not started yet
-- `[ ] in-progress` - Currently being worked on
+- `[>] in-progress` - Currently being worked on
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Intentionally not-to-be-done (reversible)

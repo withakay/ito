@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 006-08_port-plan-tasks-workflow-state. Update Purpose after archive.
+Define the `rust-planning-and-state` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Workflow/state schemas are compatible).
 
 ## Requirements
 

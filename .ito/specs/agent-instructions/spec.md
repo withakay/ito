@@ -1,24 +1,22 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Lifecycle-stage workflow guidance
+### Requirement: Archive instruction with change ID
 
-Agent instruction artifacts SHALL present proposal, execution, and review as a coherent staged workflow for change delivery.
+The CLI SHALL support `ito agent instruction archive --change <id>` and emit a short instruction directing the agent to run `ito archive <change-id> --yes` and record the audit guardrail steps.
 
-#### Scenario: Proposal stage includes research framing
+#### Scenario: Archive instruction with change flag
 
-- **WHEN** a user runs `ito agent instruction proposal --change <change-id>`
-- **THEN** the output SHALL include guidance for structured research inputs that improve proposal quality
-- **AND** it SHALL explain how research outcomes feed specs and design artifacts
+- **WHEN** an agent runs `ito agent instruction archive --change <change-id>`
+- **THEN** the system prints instruction text that tells the agent to run `ito archive <change-id> --yes`
+- **AND** the output includes the audit reconcile guardrail (`ito audit reconcile --change <id>` before archiving)
 
-#### Scenario: Apply stage includes structured execution guidance
+### Requirement: Archive instruction without change ID
 
-- **WHEN** a user runs `ito agent instruction apply --change <change-id>`
-- **THEN** the output SHALL provide structured execution guidance equivalent in intent to legacy execute workflows
-- **AND** it SHALL direct progress tracking through `ito tasks` commands
-- **AND** it SHALL include checkpoints or pause guidance when human review is required
+The CLI SHALL support `ito agent instruction archive` (without `--change`) and emit generic archive guidance covering when to archive, what the command does, and the recommended pre-archive audit steps.
 
-#### Scenario: Review is represented as a first-class stage
+#### Scenario: Archive instruction without change flag
 
-- **WHEN** a user runs `ito agent instruction review --change <change-id>`
-- **THEN** the output SHALL position review as a stage in the proposal-to-archive lifecycle
-- **AND** it SHALL describe expected review inputs and outputs relative to proposal/specs/tasks artifacts
+- **WHEN** an agent runs `ito agent instruction archive` with no `--change`
+- **THEN** the system prints generic archive guidance (not an error)
+- **AND** the output explains what `ito archive` does and when to use it
+- **AND** the output includes available changes as a hint when any exist

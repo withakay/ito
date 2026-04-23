@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 004-01_new-splash-screen. Update Purpose after archive.
+Define the `splash-screen-art` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Splash Screen Display).
 
 ## Requirements
 

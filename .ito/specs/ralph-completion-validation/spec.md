@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: ralph-completion-validation
+
+## Purpose
+
+Define the `ralph-completion-validation` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Ito task status validation).
+
+## Requirements
 
 ### Requirement: Ito task status validation
 

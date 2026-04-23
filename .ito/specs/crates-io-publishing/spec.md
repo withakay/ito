@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: crates-io-publishing
+
+## Purpose
+
+Define the `crates-io-publishing` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: release-plz config lives at the git repository root).
+
+## Requirements
 
 ### Requirement: release-plz config lives at the git repository root
 

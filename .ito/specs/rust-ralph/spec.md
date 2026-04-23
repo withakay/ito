@@ -1,37 +1,23 @@
-# rust-ralph Specification
+# Spec: rust-ralph
 
 ## Purpose
 
-TBD - created by archiving change 006-09_port-ralph-loop. Update Purpose after archive.
+Define the `rust-ralph` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: State is written under `.ito/.state/ralph/<change>`).
 
 ## Requirements
 
-### Requirement: Completion promise detection matches TypeScript
-
-Rust MUST detect completion promises using the same rules as TypeScript.
-
-#### Scenario: Detect `<promise>COMPLETE</promise>`
-
-- GIVEN harness output containing `<promise>COMPLETE</promise>`
-- WHEN the loop processes the output
-- THEN Rust stops after meeting `--min-iterations` semantics
-
 ### Requirement: State is written under `.ito/.state/ralph/<change>`
 
-Rust MUST write loop state and history in the same location and structure as TypeScript.
+Rust MUST write loop state and history in the same location and structure as TypeScript. When Ralph resolves a worktree for the targeted change, state files SHALL be written relative to the worktree's `.ito` directory, not the invoking process's `.ito` directory.
 
 #### Scenario: State files exist
 
-- GIVEN a completed loop run
-- WHEN the user inspects `.ito/.state/ralph/<change-id>/`
-- THEN the expected state and history files exist
+- **GIVEN** a completed loop run
+- **WHEN** the user inspects `.ito/.state/ralph/<change-id>/`
+- **THEN** the expected state and history files exist
 
-### Requirement: Tests do not require network
+#### Scenario: State written in worktree when resolved
 
-Rust tests MUST run with stub harnesses.
-
-#### Scenario: Parity tests run offline
-
-- GIVEN no network access
-- WHEN `cargo test --workspace` runs
-- THEN ralph tests pass using stub harnesses
+- **GIVEN** Ralph resolves a worktree at `/project/ito-worktrees/002-16_foo/`
+- **WHEN** a loop iteration completes
+- **THEN** state files SHALL be written under `/project/ito-worktrees/002-16_foo/.ito/.state/ralph/002-16_foo/`

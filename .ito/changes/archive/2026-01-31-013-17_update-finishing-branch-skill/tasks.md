@@ -19,7 +19,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-skills/skills/finishing-a-development-branch/SKILL.md`
 - **Action**:
-  - Replace `executing-plans` with `ito-apply-change-proposal`
+  - Replace `executing-plans` with `ito-apply`
   - Replace `subagent-driven-development` reference if needed (skill is being updated separately)
 - **Verify**: `grep executing-plans ito-skills/skills/finishing-a-development-branch/SKILL.md` returns no results
 - **Done When**: No executing-plans references
@@ -55,7 +55,7 @@ ______________________________________________________________________
 
 ### Task 3.1: Sync embedded template
 
-- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-finishing-a-development-branch/SKILL.md`
+- **Files**: `ito-rs/crates/ito-templates/assets/default/project/.opencode/skills/ito-finish/SKILL.md`
 - **Action**:
   - Copy updated skill from `ito-skills/skills/finishing-a-development-branch/SKILL.md`
 - **Done When**: Embedded template updated
@@ -66,6 +66,6 @@ ______________________________________________________________________
 ## Task Status Legend
 
 - `[ ] pending` - Not started
-- `[ ] in-progress` - Currently working
+- `[>] in-progress` - Currently working
 - `[x] complete` - Finished and verified
 - `[-] shelved` - Deferred

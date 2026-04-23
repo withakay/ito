@@ -22,8 +22,8 @@ Skills are discovered by matching user language against skill descriptions. Poor
 ### 1. New names
 
 **Decision**:
-- `ito-proposal` → `ito-write-change-proposal`
-- `ito-apply` → `ito-apply-change-proposal`
+- `ito-proposal` → `ito-proposal`
+- `ito-apply` → `ito-apply`
 
 **Rationale**: Verbose names that describe the action (write/apply) and the object (change proposal).
 

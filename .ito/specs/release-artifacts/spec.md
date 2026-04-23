@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Spec: release-artifacts
+
+## Purpose
+
+Define the `release-artifacts` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: GitHub Releases include cross-platform binaries).
+
+## Requirements
 
 ### Requirement: GitHub Releases include cross-platform binaries
 
@@ -21,7 +27,6 @@ The project SHALL publish GitHub Releases that include prebuilt `ito` binaries f
 - **THEN** it SHALL NOT reference non-existent workflows (e.g., "Release Please")
 - **AND** it SHALL be triggered by `release` events, `workflow_dispatch`, and optionally by completion of the `Release-plz` workflow
 
-## ADDED Requirements
 
 ### Requirement: Release pipeline publishes to crates.io
 
