@@ -195,3 +195,6 @@ target
 # Bacon
 ito-rs/.bacon-locations
 ito-rs/.bacon/
+
+# Ito runtime state (large audit logs)
+.ito/.state/
