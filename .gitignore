@@ -198,3 +198,13 @@ ito-rs/.bacon/
 
 # Ito runtime state (large audit logs)
 .ito/.state/
+.ito/session.json
+.ito/.state/audit/.session
+.ito/config.local.json
+
+# Ito coordination worktree symlinks
+.ito/changes
+.ito/specs
+.ito/modules
+.ito/workflows
+.ito/audit
