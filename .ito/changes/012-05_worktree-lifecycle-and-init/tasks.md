@@ -55,7 +55,7 @@ ______________________________________________________________________
 - **Done When**: Tests pass; idempotent copy/symlink re-run succeeds; setup command exit code propagated; `cargo clippy` clean.
 - **Requirements**: `worktree-init-files:config-include`, `worktree-init-files:file-include`, `worktree-init-files:init-ordering`, `worktree-init-files:idempotent`, `worktree-setup:command-execution`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
