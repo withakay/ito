@@ -117,7 +117,7 @@ ______________________________________________________________________
 - **Done When**: Existing worktree-aware entry points use one consistent sync mechanism instead of scattered fetch-only logic.
 - **Requirements**: `cli-sync:coordination-worktree-sync`, `cli-sync:quiet-rate-limited-sync`, `agent-instructions:sync-aware-worktree-guidance`, `cli-config:coordination-sync-interval`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.2: Wire archive and finish follow-up behavior to the configured integration mode
 
