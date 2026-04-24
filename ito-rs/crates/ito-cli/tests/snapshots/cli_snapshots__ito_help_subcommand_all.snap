@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 113
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -29,6 +28,7 @@ Commands:
   update       Refresh Ito instruction files and AI tool configs [aliases: up]
   config       Read and write global Ito settings [aliases: co]
   path         Print resolved project and worktree paths
+  worktree     Manage change worktrees (ensure, setup)
   view         View proposal artifacts with an interactive or explicit viewer
   serve        Serve local Ito artifacts and docs over HTTP [aliases: se]
   backend      Manage backend client configuration and connectivity [aliases: be]

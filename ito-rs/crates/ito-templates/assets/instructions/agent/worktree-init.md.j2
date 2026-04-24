@@ -1,0 +1,66 @@
+## Worktree Initialization
+{% if not worktree.enabled %}
+
+Worktrees are **not enabled** for this project. No worktree initialization is needed.
+Work directly in the current checkout.
+{% else %}
+
+{% if change %}
+### Change: `{{ change }}`
+{% endif %}
+
+### Ensure Worktree
+
+Run the following to create and initialize the change worktree (idempotent — safe to re-run):
+
+```bash
+{% if change %}
+WORKTREE_PATH=$(ito worktree ensure --change '{{ change | replace("'", "'\"'\"'") }}')
+echo "Working directory: $WORKTREE_PATH"
+{% else %}
+WORKTREE_PATH=$(ito worktree ensure --change "<change-id>")
+echo "Working directory: $WORKTREE_PATH"
+{% endif %}
+```
+
+All subsequent file operations should use `$WORKTREE_PATH` as the working directory.
+
+### Include Files
+{% if worktree.init_include %}
+
+The following file patterns are copied from the main worktree into the new worktree:
+
+{% for pattern in worktree.init_include %}
+- `{{ pattern }}`
+{% endfor %}
+{% else %}
+
+No include-file patterns are configured. Check if a `.worktree-include` file exists at the
+repo root for additional patterns.
+{% endif %}
+
+### Setup Commands
+{% if worktree.init_setup %}
+
+After file copy, the following commands run inside the new worktree:
+
+{% for cmd in worktree.init_setup %}
+```bash
+{{ cmd }}
+```
+{% endfor %}
+
+To re-run setup without recreating the worktree:
+
+```bash
+{% if change %}
+ito worktree setup --change '{{ change | replace("'", "'\"'\"'") }}'
+{% else %}
+ito worktree setup --change "<change-id>"
+{% endif %}
+```
+{% else %}
+
+No setup commands are configured. No additional initialization is required after file copy.
+{% endif %}
+{% endif %}

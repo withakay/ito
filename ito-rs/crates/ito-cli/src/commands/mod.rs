@@ -17,6 +17,7 @@ pub(crate) mod tasks;
 pub(crate) mod templates;
 pub(crate) mod util;
 pub(crate) mod view;
+pub(crate) mod worktree;
 
 pub(crate) use audit::handle_audit_clap;
 #[cfg(feature = "backend")]
@@ -40,3 +41,4 @@ pub(crate) use tasks::handle_tasks_clap;
 pub(crate) use templates::handle_templates_clap;
 pub(crate) use util::handle_util_clap;
 pub(crate) use view::handle_view_clap;
+pub(crate) use worktree::handle_worktree_clap;

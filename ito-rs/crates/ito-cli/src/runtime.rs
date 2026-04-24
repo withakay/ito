@@ -80,6 +80,11 @@ impl Runtime {
         &self.ctx
     }
 
+    /// Returns the resolved working directory root.
+    pub(crate) fn cwd(&self) -> &Path {
+        &self.cwd
+    }
+
     pub(crate) fn ito_path(&self) -> &Path {
         self.ito_path
             .get_or_init(|| get_ito_path(&self.cwd, &self.ctx))

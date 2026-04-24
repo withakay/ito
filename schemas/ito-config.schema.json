@@ -499,7 +499,8 @@
           ],
           "default": {
             "enabled": true,
-            "name": "ito/internal/changes"
+            "name": "ito/internal/changes",
+            "storage": "worktree"
           },
           "description": "Coordination branch settings"
         }
@@ -596,9 +597,44 @@
           "default": "ito/internal/changes",
           "description": "Name of the internal coordination branch",
           "type": "string"
+        },
+        "storage": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CoordinationStorage"
+            }
+          ],
+          "default": "worktree",
+          "description": "Storage backend for coordination data"
+        },
+        "worktree_path": {
+          "description": "Worktree path override for coordination storage",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": "object"
+    },
+    "CoordinationStorage": {
+      "description": "Storage backend for coordination data",
+      "oneOf": [
+        {
+          "description": "Store coordination data in the git worktree (default).",
+          "enum": [
+            "worktree"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Store coordination data embedded in the repository.",
+          "enum": [
+            "embedded"
+          ],
+          "type": "string"
+        }
+      ]
     },
     "CoverageDefaults": {
       "description": "Coverage defaults",
@@ -786,6 +822,34 @@
           "type": "string"
         }
       ]
+    },
+    "InvalidCommandsConfig": {
+      "description": "Invalid command logging settings",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Enable logging of invalid commands",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "LoggingConfig": {
+      "description": "Logging configuration",
+      "properties": {
+        "invalidCommands": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InvalidCommandsConfig"
+            }
+          ],
+          "default": {
+            "enabled": false
+          },
+          "description": "Invalid command logging settings"
+        }
+      },
+      "type": "object"
     },
     "OpenCodeHarnessConfig": {
       "description": "OpenCode harness configuration",
@@ -1102,6 +1166,31 @@
       },
       "type": "object"
     },
+    "WorktreeInitConfig": {
+      "description": "Worktree initialization configuration",
+      "properties": {
+        "include": {
+          "default": [],
+          "description": "Glob patterns for files to copy from the main worktree into a new change worktree",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "setup": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WorktreeSetupConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Command(s) to run inside the worktree after file copy"
+        }
+      },
+      "type": "object"
+    },
     "WorktreeLayoutConfig": {
       "description": "Worktree layout path configuration",
       "properties": {
@@ -1119,6 +1208,22 @@
         }
       },
       "type": "object"
+    },
+    "WorktreeSetupConfig": {
+      "anyOf": [
+        {
+          "description": "A single command string (e.g. `\"make init\"`).",
+          "type": "string"
+        },
+        {
+          "description": "An ordered list of command strings (e.g. `[\"npm ci\", \"npm run build\"]`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "Setup command(s) \u2014 a single string or an ordered list of strings"
     },
     "WorktreeStrategy": {
       "description": "Supported worktree workspace topology strategies",
@@ -1176,6 +1281,17 @@
           "default": false,
           "description": "Enable worktree policy features",
           "type": "boolean"
+        },
+        "init": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/WorktreeInitConfig"
+            }
+          ],
+          "default": {
+            "include": []
+          },
+          "description": "Initialization settings for new worktrees"
         },
         "layout": {
           "allOf": [
@@ -1288,7 +1404,8 @@
       "default": {
         "coordination_branch": {
           "enabled": true,
-          "name": "ito/internal/changes"
+          "name": "ito/internal/changes",
+          "storage": "worktree"
         }
       },
       "description": "Change coordination configuration"
@@ -1385,6 +1502,19 @@
       },
       "description": "Harness-specific configuration"
     },
+    "logging": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/LoggingConfig"
+        }
+      ],
+      "default": {
+        "invalidCommands": {
+          "enabled": false
+        }
+      },
+      "description": "Logging configuration"
+    },
     "projectPath": {
       "default": null,
       "description": "Ito working directory name (defaults to .ito)",
@@ -1437,6 +1567,9 @@
         },
         "default_branch": "main",
         "enabled": false,
+        "init": {
+          "include": []
+        },
         "layout": {
           "dir_name": "ito-worktrees"
         },

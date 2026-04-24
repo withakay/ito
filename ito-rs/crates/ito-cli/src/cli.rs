@@ -8,6 +8,7 @@ mod agent;
 mod grep;
 mod path;
 mod ralph;
+mod worktree;
 mod split;
 mod util;
 mod validate;
@@ -23,6 +24,7 @@ pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
 pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
+pub use worktree::{WorktreeArgs, WorktreeCommand};
 
 #[cfg(feature = "backend")]
 pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
@@ -257,6 +259,10 @@ pub enum Commands {
     /// Print resolved project and worktree paths
     #[command(verbatim_doc_comment)]
     Path(PathArgs),
+
+    /// Manage change worktrees (ensure, setup)
+    #[command(verbatim_doc_comment)]
+    Worktree(WorktreeArgs),
 
     /// View proposal artifacts with an interactive or explicit viewer
     #[command(verbatim_doc_comment)]

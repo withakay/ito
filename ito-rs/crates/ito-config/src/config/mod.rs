@@ -28,6 +28,9 @@ pub mod backend_types;
 /// Serde models for `config.json`.
 pub mod types;
 
+/// Worktree initialization configuration types (split out to keep `types.rs` under the line limit).
+pub mod worktree_init_types;
+
 const REPO_CONFIG_FILE_NAME: &str = "ito.json";
 const REPO_DOT_CONFIG_FILE_NAME: &str = ".ito.json";
 const ITO_DIR_CONFIG_FILE_NAME: &str = "config.json";

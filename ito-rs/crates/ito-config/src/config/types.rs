@@ -869,6 +869,13 @@ pub struct WorktreesConfig {
     /// Apply-time behavior configuration.
     pub apply: WorktreeApplyConfig,
 
+    #[serde(default)]
+    #[schemars(default, description = "Initialization settings for new worktrees")]
+    /// Initialization settings applied when a new worktree is created via
+    /// `ito worktree ensure`. Controls which files to copy from the main
+    /// worktree and which commands to run after creation.
+    pub init: WorktreeInitConfig,
+
     #[serde(default = "WorktreesConfig::default_branch")]
     #[schemars(
         default = "WorktreesConfig::default_branch",
@@ -885,6 +892,7 @@ impl Default for WorktreesConfig {
             strategy: Self::default_strategy(),
             layout: WorktreeLayoutConfig::default(),
             apply: WorktreeApplyConfig::default(),
+            init: WorktreeInitConfig::default(),
             default_branch: Self::default_branch(),
         }
     }
@@ -1046,6 +1054,8 @@ impl WorktreeApplyConfig {
     }
 }
 
+pub use super::worktree_init_types::{WorktreeInitConfig, WorktreeSetupConfig};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(description = "Integration mode after implementation")]
@@ -1182,3 +1192,7 @@ pub struct InvalidCommandsConfig {
 #[cfg(test)]
 #[path = "coordination_storage_tests.rs"]
 mod coordination_storage_tests;
+
+#[cfg(test)]
+#[path = "worktree_init_tests.rs"]
+mod worktree_init_tests;
