@@ -71,7 +71,7 @@ ______________________________________________________________________
 - **Done When**: All four folder-pack curations completed successfully.
 - **Requirements**: `agent-memory-byterover:bootstrap-curation`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Curate the agent-facing root docs
 
