@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Core can parse `orchestrate.md`, resolve a preset, and provide deterministic render context for the orchestrate instruction.
 - **Requirements**: orchestrate-user-prompt:schema, orchestrate-user-prompt:gate-overrides, orchestrate-presets:library, orchestrate-presets:agent-roles, orchestrate-workflow-skill:convention-load, orchestrate-workflow-skill:living-doc
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Expose orchestrate metadata through change repository models
 
