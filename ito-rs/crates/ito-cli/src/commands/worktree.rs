@@ -7,7 +7,7 @@ use ito_core::worktree_ensure::ensure_worktree;
 use ito_core::worktree_init::run_worktree_setup;
 
 use crate::cli::{WorktreeArgs, WorktreeCommand};
-use crate::cli_error::{CliError, CliResult};
+use crate::cli_error::{CliError, CliResult, fail};
 use crate::runtime::Runtime;
 
 /// Dispatch `ito worktree` sub-commands.
@@ -45,6 +45,8 @@ fn handle_ensure(rt: &Runtime, change_id: &str) -> CliResult<()> {
 /// Re-runs setup commands in an existing worktree. Errors if the worktree
 /// does not exist.
 fn handle_setup(rt: &Runtime, change_id: &str) -> CliResult<()> {
+    validate_change_id(change_id)?;
+
     let env = resolve_env(rt.ctx()).map_err(|e| CliError::msg(e.to_string()))?;
     let worktree_paths =
         resolve_worktree_paths(&env, rt.ctx()).map_err(|e| CliError::msg(e.to_string()))?;
@@ -78,6 +80,19 @@ fn handle_setup(rt: &Runtime, change_id: &str) -> CliResult<()> {
 
     eprintln!("Setup complete for change '{change_id}'.");
 
+    Ok(())
+}
+
+/// Validate that a change ID is safe to use as a path segment.
+///
+/// Rejects IDs that are empty, contain path traversal sequences (`..`),
+/// path separators (`/` or `\`), or start with `-`.
+fn validate_change_id(id: &str) -> CliResult<()> {
+    if id.is_empty() || id.contains("..") || id.contains('/') || id.contains('\\') || id.starts_with('-') {
+        return fail(format!(
+            "Invalid change id '{id}': must not contain path separators, '..' sequences, or start with '-'"
+        ));
+    }
     Ok(())
 }
 

@@ -23,7 +23,10 @@ Strategy: `{{ worktree.strategy }}` | Branch: `{{ worktree.default_branch }}` | 
 **Recommended**: Use `ito worktree ensure` to create and initialize the worktree in one step:
 
 ```bash
-CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace("\"", "\\\"") }}")
+CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace("\"", "\\\"") }}") || {
+  echo "Error: failed to ensure worktree for {{ instructions.changeName | replace("\"", "\\\"") }}" >&2
+  exit 1
+}
 ```
 
 This creates the worktree (if absent), copies include files, and runs setup commands.

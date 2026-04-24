@@ -14,9 +14,12 @@ use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
 use crate::worktree_init;
 
-/// Marker file written after successful worktree initialization.
-/// Prevents re-running init on every `ensure` call and detects partial failures.
-const INIT_MARKER: &str = ".worktree-initialized";
+/// Marker file written into the worktree's gitdir after successful initialization.
+///
+/// For linked worktrees, `.git` is a file containing `gitdir: <path>`.  The
+/// marker is placed inside that resolved gitdir directory so it never appears
+/// as an untracked file in `git status`.
+const INIT_MARKER: &str = "ito-initialized";
 
 /// Ensure the correct change worktree exists and is initialized.
 ///
@@ -77,12 +80,17 @@ pub(crate) fn ensure_worktree_with_runner(
 
     // If the worktree exists and was fully initialized, return it without
     // re-init. We check for a `.git` file/dir (present in all git worktrees)
-    // AND our `.worktree-initialized` marker (proves init completed). If the
-    // directory exists but lacks the marker, it was partially initialized and
-    // we re-run initialization.
+    // AND our `ito-initialized` marker inside the gitdir (proves init
+    // completed without polluting `git status`). If the directory exists but
+    // lacks the marker, it was partially initialized and we re-run init.
     if worktree_path.is_dir() {
-        let has_git = worktree_path.join(".git").exists();
-        let has_marker = worktree_path.join(INIT_MARKER).exists();
+        let git_entry = worktree_path.join(".git");
+        let has_git = git_entry.exists();
+        let has_marker = has_git && {
+            resolve_gitdir(&git_entry)
+                .map(|gitdir| gitdir.join(INIT_MARKER).exists())
+                .unwrap_or(false)
+        };
         if has_git && has_marker {
             return Ok(worktree_path);
         }
@@ -142,14 +150,52 @@ pub(crate) fn ensure_worktree_with_runner(
     Ok(worktree_path)
 }
 
-/// Write the initialization marker file.
+/// Resolve the actual gitdir path for a worktree.
+///
+/// For a regular (main) worktree, `.git` is a directory and is returned as-is.
+/// For a linked worktree, `.git` is a file whose first line has the form
+/// `gitdir: <path>` — the `<path>` is resolved relative to the worktree root
+/// and returned.
+///
+/// Returns `None` if the `.git` entry does not exist, cannot be read, or does
+/// not contain a valid `gitdir:` pointer.
+fn resolve_gitdir(git_entry: &Path) -> Option<PathBuf> {
+    if git_entry.is_dir() {
+        return Some(git_entry.to_path_buf());
+    }
+
+    // Linked worktree: `.git` is a file containing `gitdir: <path>`.
+    let content = std::fs::read_to_string(git_entry).ok()?;
+    let line = content.lines().next()?;
+    let pointer = line.strip_prefix("gitdir:")?;
+    let pointer = pointer.trim();
+
+    // Resolve relative to the directory that contains the `.git` file.
+    let parent = git_entry.parent()?;
+    let gitdir = parent.join(pointer);
+    Some(gitdir)
+}
+
+/// Write the initialization marker into the worktree's gitdir.
+///
+/// The marker is placed inside the resolved gitdir (not the working tree root)
+/// so it never appears as an untracked file in `git status`.
 fn write_init_marker(worktree_path: &Path) -> CoreResult<()> {
-    let marker_path = worktree_path.join(INIT_MARKER);
+    let git_entry = worktree_path.join(".git");
+    let gitdir = resolve_gitdir(&git_entry).ok_or_else(|| {
+        CoreError::validation(format!(
+            "Cannot resolve gitdir for worktree at '{}'.\n\
+             Fix: ensure the worktree has a valid .git file or directory.",
+            worktree_path.display(),
+        ))
+    })?;
+
+    let marker_path = gitdir.join(INIT_MARKER);
     std::fs::write(&marker_path, "initialized\n").map_err(|err| {
         CoreError::io(
             format!(
                 "Cannot write initialization marker at '{}'.\n\
-                 Fix: ensure the worktree path is writable.",
+                 Fix: ensure the gitdir path is writable.",
                 marker_path.display(),
             ),
             err,
@@ -195,7 +241,38 @@ fn validate_change_id(change_id: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Create a git worktree for a change, branching from `base_branch`.
+/// Check whether a git branch already exists in the repository.
+///
+/// Runs `git rev-parse --verify <branch>` and returns `true` when the exit
+/// code is 0 (branch exists), `false` when it is non-zero (branch absent).
+/// Any process-execution error is propagated as a [`CoreError`].
+fn branch_exists(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+    branch: &str,
+) -> CoreResult<bool> {
+    let request = ProcessRequest::new("git")
+        .args(["rev-parse", "--verify", branch])
+        .current_dir(project_root);
+
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot check whether branch '{branch}' exists.\n\
+             Git command failed to run: {err}\n\
+             Fix: ensure git is installed and '{project_root}' is a git repository.",
+            project_root = project_root.display(),
+        ))
+    })?;
+
+    Ok(output.success)
+}
+
+/// Create a git worktree for a change.
+///
+/// Pre-checks whether the branch already exists using `git rev-parse --verify`
+/// to avoid relying on English-only git error message text.  When the branch
+/// exists, `git worktree add <path> <branch>` is used; when it does not,
+/// `git worktree add <path> -b <branch> <base_branch>` creates it.
 fn create_change_worktree(
     runner: &dyn ProcessRunner,
     project_root: &Path,
@@ -205,16 +282,27 @@ fn create_change_worktree(
 ) -> CoreResult<()> {
     let target_str = target_path.to_string_lossy();
 
-    let request = ProcessRequest::new("git")
-        .args([
-            "worktree",
-            "add",
-            target_str.as_ref(),
-            "-b",
-            change_id,
-            base_branch,
-        ])
-        .current_dir(project_root);
+    // Pre-check branch existence to choose the right `git worktree add` form.
+    let branch_already_exists = branch_exists(runner, project_root, change_id)?;
+
+    let request = if branch_already_exists {
+        // Branch exists — attach the new worktree to it without -b.
+        ProcessRequest::new("git")
+            .args(["worktree", "add", target_str.as_ref(), change_id])
+            .current_dir(project_root)
+    } else {
+        // Branch absent — create it from base_branch.
+        ProcessRequest::new("git")
+            .args([
+                "worktree",
+                "add",
+                target_str.as_ref(),
+                "-b",
+                change_id,
+                base_branch,
+            ])
+            .current_dir(project_root)
+    };
 
     let output = runner.run(&request).map_err(|err| {
         CoreError::process(format!(
@@ -238,44 +326,12 @@ fn create_change_worktree(
         "no command output".to_string()
     };
 
-    // If the branch already exists, try without -b (just attach to existing branch).
-    if detail.contains("already exists") {
-        let retry = ProcessRequest::new("git")
-            .args(["worktree", "add", target_str.as_ref(), change_id])
-            .current_dir(project_root);
-
-        let retry_output = runner.run(&retry).map_err(|err| {
-            CoreError::process(format!(
-                "Cannot create worktree for change '{change_id}' at '{target}'.\n\
-                 Git command failed to run: {err}",
-                target = target_path.display(),
-            ))
-        })?;
-
-        if retry_output.success {
-            return Ok(());
-        }
-
-        let retry_detail = if !retry_output.stderr.trim().is_empty() {
-            retry_output.stderr.trim().to_string()
-        } else {
-            "no command output".to_string()
-        };
-
-        return Err(CoreError::process(format!(
-            "Cannot create worktree for change '{change_id}' at '{target}'.\n\
-             Branch '{change_id}' already exists. Git reported: {retry_detail}\n\
-             Fix: check if the branch is already checked out in another worktree \
-             (`git worktree list`).",
-            target = target_path.display(),
-        )));
-    }
-
     Err(CoreError::process(format!(
         "Cannot create worktree for change '{change_id}' at '{target}'.\n\
          Git reported: {detail}\n\
          Fix: ensure the base branch '{base_branch}' exists and the target path \
-         does not already exist.",
+         does not already exist. If the branch is already checked out in another \
+         worktree, run `git worktree list` to inspect.",
         target = target_path.display(),
     )))
 }

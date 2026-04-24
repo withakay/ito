@@ -15,7 +15,7 @@ Run the following to create and initialize the change worktree (idempotent — s
 
 ```bash
 {% if change %}
-WORKTREE_PATH=$(ito worktree ensure --change "{{ change }}")
+WORKTREE_PATH=$(ito worktree ensure --change '{{ change | replace("'", "'\"'\"'") }}')
 echo "Working directory: $WORKTREE_PATH"
 {% else %}
 WORKTREE_PATH=$(ito worktree ensure --change "<change-id>")
@@ -54,7 +54,7 @@ To re-run setup without recreating the worktree:
 
 ```bash
 {% if change %}
-ito worktree setup --change "{{ change }}"
+ito worktree setup --change '{{ change | replace("'", "'\"'\"'") }}'
 {% else %}
 ito worktree setup --change "<change-id>"
 {% endif %}

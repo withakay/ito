@@ -271,22 +271,29 @@ fn copy_include_files_copies_to_dest() {
 }
 
 #[test]
-fn copy_include_files_overwrites_existing() {
+fn copy_include_files_skips_existing_destination() {
+    // Destination files that already exist are preserved (user edits protected).
     let src_dir = tempfile::tempdir().unwrap();
     let dst_dir = tempfile::tempdir().unwrap();
     let src = src_dir.path();
     let dst = dst_dir.path();
 
     fs::write(src.join(".env"), "NEW_SECRET").unwrap();
-    fs::write(dst.join(".env"), "OLD_SECRET").unwrap();
+    fs::write(dst.join(".env"), "USER_EDIT").unwrap();
 
     let config = WorktreeInitConfig {
         include: vec![".env".to_string()],
         setup: None,
     };
 
-    copy_include_files(&config, src, dst).unwrap();
-    assert_eq!(fs::read_to_string(dst.join(".env")).unwrap(), "NEW_SECRET");
+    let copied = copy_include_files(&config, src, dst).unwrap();
+    // Nothing should have been copied — destination already existed.
+    assert!(copied.is_empty(), "expected no files copied, got: {copied:?}");
+    assert_eq!(
+        fs::read_to_string(dst.join(".env")).unwrap(),
+        "USER_EDIT",
+        "existing destination file must not be overwritten"
+    );
 }
 
 #[test]
@@ -322,11 +329,14 @@ fn copy_include_files_empty_config_and_no_file() {
 
 #[test]
 fn resolve_include_files_rejects_path_traversal() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
+    // Use a nested tempdir so the "outside" location is still isolated and
+    // cleaned up automatically — no writes to the system temp root.
+    let outer = tempfile::tempdir().unwrap();
+    let parent = outer.path();
+    let root = parent.join("inner");
+    fs::create_dir(&root).unwrap();
 
     // Create a file outside the source root via parent traversal.
-    let parent = root.parent().unwrap();
     fs::write(parent.join("secret.txt"), "password").unwrap();
 
     let config = WorktreeInitConfig {
@@ -335,14 +345,11 @@ fn resolve_include_files_rejects_path_traversal() {
     };
 
     // The pattern resolves outside root — should not be included.
-    let files = resolve_include_files(&config, root).unwrap();
+    let files = resolve_include_files(&config, &root).unwrap();
     assert!(
         files.is_empty(),
         "Path traversal via '../' should be rejected, got: {files:?}"
     );
-
-    // Clean up the file we created outside the tempdir.
-    let _ = fs::remove_file(parent.join("secret.txt"));
 }
 
 #[test]
@@ -514,14 +521,16 @@ fn init_worktree_setup_failure_returns_error() {
 }
 
 #[test]
-fn init_worktree_idempotent_file_copy() {
+fn init_worktree_preserves_existing_destination_file() {
+    // When a destination file already exists, init must not overwrite it.
+    // This protects user edits during partial-init recovery.
     let src_dir = tempfile::tempdir().unwrap();
     let dst_dir = tempfile::tempdir().unwrap();
     let src = src_dir.path();
     let dst = dst_dir.path();
 
     fs::write(src.join(".env"), "V2").unwrap();
-    fs::write(dst.join(".env"), "V1").unwrap();
+    fs::write(dst.join(".env"), "USER_EDIT").unwrap();
 
     let config = WorktreesConfig {
         init: WorktreeInitConfig {
@@ -535,6 +544,10 @@ fn init_worktree_idempotent_file_copy() {
 
     init_worktree_with_runner(&runner, src, dst, &config).unwrap();
 
-    // File is overwritten with the source version.
-    assert_eq!(fs::read_to_string(dst.join(".env")).unwrap(), "V2");
+    // Destination file must retain the user's content.
+    assert_eq!(
+        fs::read_to_string(dst.join(".env")).unwrap(),
+        "USER_EDIT",
+        "init must not overwrite existing destination files"
+    );
 }

@@ -52,8 +52,11 @@ pub fn parse_worktree_include_file(content: &str) -> Vec<String> {
 }
 
 /// Copy matched include files from `source_root` into `dest_root`, preserving
-/// relative paths. Existing destination files are overwritten. Missing source
-/// files are silently skipped.
+/// relative paths.
+///
+/// Destination files that already exist are **skipped** to preserve any edits
+/// the user may have made (e.g. during partial-init recovery).  Missing source
+/// files are also silently skipped.
 ///
 /// Returns the list of files that were actually copied.
 pub fn copy_include_files(
@@ -69,6 +72,11 @@ pub fn copy_include_files(
         let dst = dest_root.join(rel_path);
 
         if !src.exists() {
+            continue;
+        }
+
+        // Skip files that already exist in the destination to preserve user edits.
+        if dst.exists() {
             continue;
         }
 
@@ -172,9 +180,11 @@ pub(crate) fn run_setup_with_runner(
 
     let commands = setup.as_commands();
 
+    let (shell, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
+
     for cmd in &commands {
-        let request = ProcessRequest::new("sh")
-            .arg("-c")
+        let request = ProcessRequest::new(shell)
+            .arg(flag)
             .arg(*cmd)
             .current_dir(worktree_root);
 
@@ -262,10 +272,10 @@ fn expand_globs(patterns: &[String], source_root: &Path) -> CoreResult<Vec<PathB
             continue;
         }
 
-        let full_pattern = source_root.join(pattern);
-        let full_pattern_str = full_pattern.to_string_lossy();
+        let escaped_root = glob::Pattern::escape(&source_root.to_string_lossy());
+        let full_pattern = format!("{escaped_root}/{pattern}");
 
-        let entries = glob::glob(&full_pattern_str).map_err(|err| {
+        let entries = glob::glob(&full_pattern).map_err(|err| {
             CoreError::validation(format!(
                 "Invalid glob pattern '{}' in worktree include configuration.\n\
                  Pattern error: {err}\n\

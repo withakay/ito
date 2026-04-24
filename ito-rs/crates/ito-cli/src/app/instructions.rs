@@ -2,7 +2,7 @@ use crate::cli::{AgentArgs, AgentCommand, AgentInstructionArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::types::WorktreeStrategy;
+use ito_config::types::{WorktreeInitConfig, WorktreeStrategy};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::harness_context;
@@ -857,31 +857,12 @@ fn worktree_config_from_merged(
         }
 
         // Parse init section (worktrees.init.include and worktrees.init.setup).
-        if let Some(init) = wt.get("init") {
-            if let Some(arr) = init.get("include").and_then(|v| v.as_array()) {
-                let mut items = Vec::new();
-                for item in arr {
-                    if let Some(s) = item.as_str() {
-                        items.push(s.to_string());
-                    }
-                }
-                out.init_include = items;
-            }
-
-            if let Some(setup) = init.get("setup") {
-                if let Some(s) = setup.as_str() {
-                    if !s.is_empty() {
-                        out.init_setup = vec![s.to_string()];
-                    }
-                } else if let Some(arr) = setup.as_array() {
-                    let mut items = Vec::new();
-                    for item in arr {
-                        if let Some(s) = item.as_str() {
-                            items.push(s.to_string());
-                        }
-                    }
-                    out.init_setup = items;
-                }
+        if let Some(init) = wt.get("init")
+            && let Ok(init_cfg) = serde_json::from_value::<WorktreeInitConfig>(init.clone())
+        {
+            out.init_include = init_cfg.include;
+            if let Some(setup) = init_cfg.setup {
+                out.init_setup = setup.as_commands().iter().map(|s| s.to_string()).collect();
             }
         }
     }
