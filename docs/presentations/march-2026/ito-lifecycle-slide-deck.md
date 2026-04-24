@@ -21,7 +21,7 @@
 Ito helps structure AI assisted developement by providing tools to
 
 - Define changes
-- Generate specs 
+- Generate specs
 - Guide implementation
 - Track and Validate work
 
