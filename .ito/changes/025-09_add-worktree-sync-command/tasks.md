@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: Repeated syncs validate locally but skip redundant remote pushes, `--force` bypasses the quiet window, and tests pin the intended behavior.
 - **Requirements**: `cli-sync:quiet-rate-limited-sync`, `coordination-worktree:exact-sync-wiring`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.4: Add configurable sync interval defaults and config support
 
