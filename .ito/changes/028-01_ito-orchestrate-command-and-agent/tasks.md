@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: Filesystem-backed change loads expose the new orchestrate metadata fields and existing schema lookups still work.
 - **Requirements**: change-repository:lifecycle-aware-canonical-access, orchestrate-parallelism:dependency-graph
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
