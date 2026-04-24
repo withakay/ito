@@ -25,4 +25,4 @@ agent_roles:
   research-worker: "ito-orchestrator-researcher"
   apply-worker: "ito-orchestrator-worker"
   review-worker: "ito-orchestrator-reviewer"
-  security-worker: "ito-orchestrator-reviewer"
+  security-worker: ""

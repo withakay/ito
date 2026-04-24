@@ -14,4 +14,12 @@ You are the Ito Orchestrator Researcher. Gather context for an orchestrator with
 - Focus on facts the orchestrator needs: affected files, relevant specs, active changes, test commands, and known risks.
 - Keep findings concise and cite file paths.
 
+## Output
+
+Return:
+- Relevant files and specs
+- Current change state
+- Verification commands discovered
+- Risks or open questions
+
 <!-- ITO:END -->
