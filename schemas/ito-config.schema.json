@@ -671,7 +671,7 @@
           "default": 120,
           "description": "Minimum interval in seconds between redundant coordination sync pushes",
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 1.0,
           "type": "integer"
         },
         "worktree_path": {

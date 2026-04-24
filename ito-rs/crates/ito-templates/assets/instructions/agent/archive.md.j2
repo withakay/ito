@@ -34,6 +34,8 @@ After archive succeeds, create an integration branch from `main`, apply the arch
 After archive succeeds, create an integration branch from `main`, open a pull request, and request auto-merge if repository policy allows it.
 {% elif archive.main_integration_mode == "coordination_only" %}
 After archive succeeds, the archived change is disseminated through the coordination branch and `main` integration remains a separate manual follow-up.
+{% else %}
+Mode `{{ archive.main_integration_mode }}` is unrecognized. Set a valid mode with `ito config set changes.archive.main_integration_mode <mode>`.
 {% endif %}
 {% endif %}
 

@@ -614,7 +614,19 @@ fn write_sync_state(path: &Path, state: &StoredCoordinationSyncState) -> CoreRes
     // Atomic write: write to a temporary file, then rename. This prevents
     // corruption if the process is interrupted mid-write, which would
     // otherwise leave invalid JSON that blocks all future sync operations.
-    let tmp_path = path.with_extension("tmp");
+    // The temp name must be process-unique: concurrent syncs should not
+    // clobber each other's partial writes.
+    let pid = std::process::id();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut tmp_name = path
+        .file_name()
+        .unwrap_or_else(|| std::ffi::OsStr::new(SYNC_STATE_FILE_NAME))
+        .to_os_string();
+    tmp_name.push(format!(".{pid}.{nanos}.tmp"));
+    let tmp_path = parent.join(tmp_name);
     fs::write(&tmp_path, &json).map_err(|err| {
         CoreError::io(
             format!(

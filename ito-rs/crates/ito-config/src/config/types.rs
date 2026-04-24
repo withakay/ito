@@ -389,7 +389,8 @@ pub struct CoordinationBranchConfig {
     #[serde(default = "CoordinationBranchConfig::default_sync_interval_seconds")]
     #[schemars(
         default = "CoordinationBranchConfig::default_sync_interval_seconds",
-        description = "Minimum interval in seconds between redundant coordination sync pushes"
+        description = "Minimum interval in seconds between redundant coordination sync pushes",
+        range(min = 1)
     )]
     /// Minimum interval in seconds between redundant coordination sync pushes.
     pub sync_interval_seconds: u64,

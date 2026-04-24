@@ -246,7 +246,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
-        let archive = archive_instruction_config_from_merged(&cfg.merged);
+        let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -277,7 +277,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-        let archive = archive_instruction_config_from_merged(&cfg.merged);
+        let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -630,9 +630,20 @@ struct ArchiveInstructionConfig {
     main_integration_mode: String,
 }
 
-fn archive_instruction_config_from_merged(merged: &serde_json::Value) -> ArchiveInstructionConfig {
-    let typed: ItoConfig = serde_json::from_value(merged.clone()).unwrap_or_default();
-    ArchiveInstructionConfig {
+fn archive_instruction_config_from_merged(merged: &serde_json::Value) -> CliResult<ArchiveInstructionConfig> {
+    let typed: ItoConfig = serde::Deserialize::deserialize(merged).map_err(|e| {
+        to_cli_error(format!(
+            "Failed to parse merged Ito config.\n\
+             \n\
+             Why: The merged config contains an invalid value or type, so instruction rendering cannot safely choose a main integration mode.\n\
+             \n\
+             How to fix: Run `ito config check` (or inspect your config files) and correct the invalid field, then retry.\n\
+             \n\
+             Underlying error: {e}"
+        ))
+    })?;
+
+    Ok(ArchiveInstructionConfig {
         coordination_storage: typed
             .changes
             .coordination_branch
@@ -645,7 +656,7 @@ fn archive_instruction_config_from_merged(merged: &serde_json::Value) -> Archive
             .main_integration_mode
             .as_str()
             .to_string(),
-    }
+    })
 }
 
 fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
