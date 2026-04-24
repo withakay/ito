@@ -20,4 +20,7 @@ gates:
 
 recommended_skills: []
 
-agent_roles: {}
+agent_roles:
+  apply-worker: ""
+  review-worker: ""
+  security-worker: ""

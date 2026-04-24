@@ -58,6 +58,8 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
             .contains("Orchestrate: Change Apply Coordination")
     );
     assert!(out.stdout.contains("ito-orchestrator-workflow"));
+    assert!(out.stdout.contains("apply-worker"));
+    assert!(out.stdout.contains("use the caller's default agent choice"));
 }
 
 #[test]
