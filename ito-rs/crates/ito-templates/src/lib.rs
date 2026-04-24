@@ -274,6 +274,14 @@ pub const ITO_START_MARKER: &str = "<!-- ITO:START -->";
 /// End marker for Ito-managed file blocks.
 pub const ITO_END_MARKER: &str = "<!-- ITO:END -->";
 
+/// Opening tag of the canonical version stamp written immediately after [`ITO_START_MARKER`].
+///
+/// The full stamp line is `<!--ITO:VERSION:<semver>-->` with no internal whitespace.
+pub const ITO_VERSION_MARKER_PREFIX: &str = "<!--ITO:VERSION:";
+
+/// Closing tag of the canonical version stamp.
+pub const ITO_VERSION_MARKER_SUFFIX: &str = "-->";
+
 /// Extract the substring between [`ITO_START_MARKER`] and [`ITO_END_MARKER`].
 ///
 /// Returns `None` if the markers are not present *on their own lines*.
@@ -365,6 +373,96 @@ fn find_marker_index(content: &str, marker: &str, from_index: usize) -> Option<u
         search_from = idx + marker.len();
     }
     None
+}
+
+/// Stamp `content` with the Ito CLI `version`, idempotently.
+///
+/// The stamp is injected on the line immediately after `<!-- ITO:START -->` in
+/// the canonical tight form `<!--ITO:VERSION:<semver>-->`.  If the file already
+/// carries the same canonical stamp the content is returned byte-identical.  If
+/// the file carries a stamp with a different version (or in a spaced form such as
+/// `<!-- ITO:VERSION: 1.2.3 -->`), the stamp line is replaced.  If no stamp is
+/// present the stamp line is inserted.
+///
+/// Returns `content` unchanged when no managed block is present.
+///
+/// # Examples
+///
+/// ```
+/// use ito_templates::stamp_version;
+///
+/// let input = "<!-- ITO:START -->\nhello\n<!-- ITO:END -->\n";
+/// let stamped = stamp_version(input, "1.2.3");
+/// assert!(stamped.contains("<!--ITO:VERSION:1.2.3-->"));
+/// ```
+pub fn stamp_version(content: &str, version: &str) -> String {
+    // Locate the start marker on its own line.
+    let Some(start_idx) = find_marker_index(content, ITO_START_MARKER, 0) else {
+        return content.to_string();
+    };
+
+    // The canonical stamp line we want to write.
+    let canonical_stamp = format!(
+        "{}{}{}",
+        ITO_VERSION_MARKER_PREFIX, version, ITO_VERSION_MARKER_SUFFIX
+    );
+
+    // Find where the line after the start marker begins.
+    let after_start = line_end(content, start_idx + ITO_START_MARKER.len());
+
+    // Check whether the very next line is already a version stamp.
+    let next_line_end = line_end(content, after_start);
+    let next_line = content[after_start..next_line_end]
+        .trim_end_matches('\n')
+        .trim_end_matches('\r');
+
+    if is_version_stamp(next_line) {
+        // The line is a stamp — check if it is already the canonical form.
+        if next_line == canonical_stamp {
+            // Already correct; return unchanged.
+            return content.to_string();
+        }
+
+        // Replace the existing stamp line with the canonical one.
+        let mut out = String::with_capacity(content.len());
+        out.push_str(&content[..after_start]);
+        out.push_str(&canonical_stamp);
+        out.push('\n');
+        out.push_str(&content[next_line_end..]);
+        return out;
+    }
+
+    // No stamp present — insert one after the start-marker line.
+    let mut out = String::with_capacity(content.len() + canonical_stamp.len() + 1);
+    out.push_str(&content[..after_start]);
+    out.push_str(&canonical_stamp);
+    out.push('\n');
+    out.push_str(&content[after_start..]);
+    out
+}
+
+/// Returns `true` when `line` matches the version-stamp pattern
+/// `<!--\s*ITO:VERSION:\s*[^>\s]+\s*-->`.
+fn is_version_stamp(line: &str) -> bool {
+    let line = line.trim();
+    let Some(rest) = line.strip_prefix("<!--") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    let Some(rest) = rest.strip_prefix("ITO:VERSION:") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    // Must have a non-empty version token followed by optional whitespace and `-->`.
+    if rest.is_empty() {
+        return false;
+    }
+    // The version token ends at the first whitespace or `>`.
+    let token_end = rest
+        .find(|c: char| c.is_whitespace() || c == '>')
+        .unwrap_or(rest.len());
+    let after_token = rest[token_end..].trim_start();
+    after_token == "-->"
 }
 
 #[cfg(test)]
@@ -500,14 +598,14 @@ mod tests {
 
     #[test]
     fn tmux_skill_and_scripts_are_embedded() {
-        let skill = get_skill_file("tmux/SKILL.md").expect("tmux skill should exist");
+        let skill = get_skill_file("ito-tmux/SKILL.md").expect("ito-tmux skill should exist");
         let skill_text = std::str::from_utf8(skill).expect("skill should be utf8");
-        assert!(skill_text.starts_with("---\nname: tmux\n"));
+        assert!(skill_text.starts_with("---\nname: ito-tmux\n"));
         assert!(skill_text.contains("tmux -S \"$SOCKET\" send-keys"));
         assert!(skill_text.contains("wait-for-text.sh -S \"$SOCKET\""));
 
         let wait_for_text =
-            get_skill_file("tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
+            get_skill_file("ito-tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
         let wait_for_text = std::str::from_utf8(wait_for_text).expect("script should be utf8");
         assert!(wait_for_text.contains("-S|--socket-path"));
         assert!(wait_for_text.contains("tmux_cmd+=(-S \"$socket_path\")"));
@@ -516,13 +614,13 @@ mod tests {
         assert!(
             files
                 .iter()
-                .any(|f| f.relative_path == "tmux/scripts/wait-for-text.sh"),
+                .any(|f| f.relative_path == "ito-tmux/scripts/wait-for-text.sh"),
             "expected wait-for-text helper script to be embedded"
         );
         assert!(
             files
                 .iter()
-                .any(|f| f.relative_path == "tmux/scripts/find-sessions.sh"),
+                .any(|f| f.relative_path == "ito-tmux/scripts/find-sessions.sh"),
             "expected find-sessions helper script to be embedded"
         );
     }
@@ -577,21 +675,32 @@ mod tests {
     }
 
     #[test]
-    fn opencode_orchestrator_agent_templates_are_embedded() {
+    fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
         use crate::agents::{Harness, get_agent_files};
 
-        let files = get_agent_files(Harness::OpenCode);
-        for expected in [
-            "ito-orchestrator.md",
-            "ito-orchestrator-planner.md",
-            "ito-orchestrator-researcher.md",
-            "ito-orchestrator-worker.md",
-            "ito-orchestrator-reviewer.md",
-        ] {
-            assert!(
-                files.iter().any(|(name, _)| *name == expected),
-                "expected {expected} in OpenCode agent templates"
-            );
+        for harness in Harness::all() {
+            let files = get_agent_files(*harness);
+            let expected = match harness {
+                Harness::Codex => [
+                    "ito-orchestrator-planner/SKILL.md",
+                    "ito-orchestrator-researcher/SKILL.md",
+                    "ito-orchestrator-worker/SKILL.md",
+                    "ito-orchestrator-reviewer/SKILL.md",
+                ],
+                Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => [
+                    "ito-orchestrator-planner.md",
+                    "ito-orchestrator-researcher.md",
+                    "ito-orchestrator-worker.md",
+                    "ito-orchestrator-reviewer.md",
+                ],
+            };
+
+            for expected in expected {
+                assert!(
+                    files.iter().any(|(name, _)| *name == expected),
+                    "expected {expected} in {harness:?} agent templates"
+                );
+            }
         }
     }
 
