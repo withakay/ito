@@ -157,8 +157,14 @@ pub(crate) fn ensure_worktree_with_runner(
 /// `gitdir: <path>` — the `<path>` is resolved relative to the worktree root
 /// and returned.
 ///
-/// Returns `None` if the `.git` entry does not exist, cannot be read, or does
-/// not contain a valid `gitdir:` pointer.
+/// Returns `None` if the `.git` entry does not exist, cannot be read, does
+/// not contain a valid `gitdir:` pointer, or the resolved path does not
+/// exist on disk.
+///
+/// For linked worktrees the pointer is resolved relative to the directory
+/// containing the `.git` file and then canonicalized to eliminate `..`
+/// segments and symlinks.  This prevents a crafted `gitdir:` value from
+/// escaping the repository tree.
 fn resolve_gitdir(git_entry: &Path) -> Option<PathBuf> {
     if git_entry.is_dir() {
         return Some(git_entry.to_path_buf());
@@ -170,10 +176,18 @@ fn resolve_gitdir(git_entry: &Path) -> Option<PathBuf> {
     let pointer = line.strip_prefix("gitdir:")?;
     let pointer = pointer.trim();
 
-    // Resolve relative to the directory that contains the `.git` file.
+    if pointer.is_empty() {
+        return None;
+    }
+
+    // Resolve relative to the directory that contains the `.git` file,
+    // then canonicalize so `..` segments and symlinks cannot escape.
+    // `canonicalize` returns `Err` when the target does not exist — that
+    // is fine because a legitimate linked-worktree gitdir always exists
+    // by the time `ensure_worktree` runs.
     let parent = git_entry.parent()?;
     let gitdir = parent.join(pointer);
-    Some(gitdir)
+    gitdir.canonicalize().ok()
 }
 
 /// Write the initialization marker into the worktree's gitdir.
