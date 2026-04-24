@@ -93,7 +93,7 @@ ______________________________________________________________________
 - **Done When**: Instruction review is clean and the local-only check passes.
 - **Requirements**: `agent-memory-byterover:local-only`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
