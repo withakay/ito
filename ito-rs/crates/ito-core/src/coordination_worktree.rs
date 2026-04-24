@@ -15,7 +15,7 @@
 //! 3. Neither exists → create an orphan branch with an empty initial commit.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ito_config::types::{CoordinationStorage, ItoConfig};
@@ -156,7 +156,7 @@ pub fn maybe_auto_commit_coordination(
     // Resolve org/repo for the worktree path.  When resolution fails (e.g. no
     // git remote), fall back to a stable FNV-1a hash of the absolute project
     // root so that different local-only projects never share the same path.
-    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, true);
+    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, true)?;
 
     // Only attempt the commit when the worktree directory actually exists.
     // If it hasn't been created yet, silently skip — the user hasn't set up
@@ -351,27 +351,16 @@ pub(crate) fn sync_coordination_worktree_with_runner(
         return Ok(CoordinationSyncOutcome::Embedded);
     };
 
-    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, false);
+    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, false)?;
     let worktree_ito_path = worktree_path.join(".ito");
     let status = check_coordination_health(ito_path, &worktree_ito_path, &coord.storage);
     if let Some(message) = format_health_message(&status) {
         return Err(CoreError::process(message));
     }
 
-    let current_state = coordination_sync_state_with_runner(runner, &worktree_path)?;
-    let git_common_dir = git_common_dir_with_runner(runner, project_root)?;
-    let state_file = git_common_dir.join(SYNC_STATE_FILE_NAME);
-    let last_sync = read_sync_state(&state_file)?;
-
-    if should_rate_limit(
-        force,
-        &current_state,
-        last_sync.as_ref(),
-        coord.sync_interval_seconds,
-    ) {
-        return Ok(CoordinationSyncOutcome::RateLimited);
-    }
-
+    // Always fetch first so remote changes are visible even when rate-limiting
+    // skips the push. Fetch is generally fast and ensures the coordination
+    // worktree stays up-to-date with teammate contributions.
     if let Err(err) = fetch_coordination_branch_with_runner(runner, project_root, &coord.name)
         && err.kind != CoordinationGitErrorKind::RemoteMissing
     {
@@ -379,6 +368,27 @@ pub(crate) fn sync_coordination_worktree_with_runner(
             "coordination fetch failed: {}",
             err.message
         )));
+    }
+
+    // Fast-forward the local branch to include remote changes before committing
+    // local work. This ensures remote updates from teammates are visible via
+    // the `.ito/` symlinks. Merge failures (e.g. diverged history) are non-fatal
+    // — the push will surface the conflict instead.
+    let _ = fast_forward_coordination_with_runner(runner, &worktree_path, &coord.name);
+
+    let current_state = coordination_sync_state_with_runner(runner, &worktree_path)?;
+    let git_common_dir = git_common_dir_with_runner(runner, project_root)?;
+    let state_file = git_common_dir.join(SYNC_STATE_FILE_NAME);
+    let last_sync = read_sync_state(&state_file)?;
+
+    // Rate-limiting only affects the push — fetch always runs above.
+    if should_rate_limit(
+        force,
+        &current_state,
+        last_sync.as_ref(),
+        coord.sync_interval_seconds,
+    ) {
+        return Ok(CoordinationSyncOutcome::RateLimited);
     }
 
     auto_commit_coordination_with_runner(
@@ -417,21 +427,44 @@ fn resolved_coordination_worktree_path(
     ito_path: &Path,
     typed: &ItoConfig,
     allow_local_fallback: bool,
-) -> std::path::PathBuf {
+) -> CoreResult<PathBuf> {
     let coord = &typed.changes.coordination_branch;
+
+    // When an explicit worktree_path is configured, use it directly —
+    // no org/repo resolution needed.
+    if coord
+        .worktree_path
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        return Ok(coordination_worktree_path(coord, ito_path, "", ""));
+    }
 
     let Some((org, repo)) =
         crate::git_remote::resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
     else {
         if !allow_local_fallback {
-            return coordination_worktree_path(coord, ito_path, "", "");
+            return Err(CoreError::process(
+                "Cannot resolve org/repo for coordination worktree.\n\
+                 Neither `backend.project.org`/`backend.project.repo` are set in \
+                 .ito/config.json, nor does the repository have a parseable `origin` \
+                 remote URL.\n\
+                 Fix: add an 'origin' remote (`git remote add origin <url>`) or set \
+                 `backend.project.org` and `backend.project.repo` in .ito/config.json.",
+            ));
         }
 
         let hash = fnv1a_hash(project_root.to_string_lossy().as_bytes());
-        return coordination_worktree_path(coord, ito_path, "_local", &format!("{hash:016x}"));
+        return Ok(coordination_worktree_path(
+            coord,
+            ito_path,
+            "_local",
+            &format!("{hash:016x}"),
+        ));
     };
 
-    coordination_worktree_path(coord, ito_path, &org, &repo)
+    Ok(coordination_worktree_path(coord, ito_path, &org, &repo))
 }
 
 fn coordination_sync_state_with_runner(
@@ -577,10 +610,25 @@ fn write_sync_state(path: &Path, state: &StoredCoordinationSyncState) -> CoreRes
             err.to_string(),
         )
     })?;
-    fs::write(path, json).map_err(|err| {
+
+    // Atomic write: write to a temporary file, then rename. This prevents
+    // corruption if the process is interrupted mid-write, which would
+    // otherwise leave invalid JSON that blocks all future sync operations.
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, &json).map_err(|err| {
         CoreError::io(
             format!(
-                "cannot write coordination sync state '{}': ensure the git metadata directory is writable",
+                "cannot write coordination sync state temp file '{}': ensure the git metadata directory is writable",
+                tmp_path.display()
+            ),
+            err,
+        )
+    })?;
+    fs::rename(&tmp_path, path).map_err(|err| {
+        CoreError::io(
+            format!(
+                "cannot rename coordination sync state '{}' → '{}': ensure the directory is writable",
+                tmp_path.display(),
                 path.display()
             ),
             err,
@@ -620,6 +668,42 @@ fn now_epoch_seconds() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+/// Fast-forward the coordination branch to include remote changes.
+///
+/// Runs `git -C <worktree> merge --ff-only origin/<branch>`. Failures are
+/// returned as errors but callers typically treat them as non-fatal since
+/// the subsequent push will surface any real conflicts.
+fn fast_forward_coordination_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+    branch_name: &str,
+) -> CoreResult<()> {
+    let wt_str = path_arg(worktree_path)?;
+    let remote_ref = format!("origin/{branch_name}");
+    let request = ProcessRequest::new("git").args(["-C", wt_str, "merge", "--ff-only", &remote_ref]);
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot fast-forward coordination branch in '{}'.\n\
+             Git command failed: {err}\n\
+             Fix: ensure the worktree is a valid git checkout.",
+            worktree_path.display(),
+        ))
+    })?;
+
+    if !output.success {
+        let detail = output.stderr.trim();
+        return Err(CoreError::process(format!(
+            "Fast-forward merge of '{remote_ref}' failed in '{}'.\n\
+             Git reported: {detail}\n\
+             This is usually non-fatal — local commits will be pushed and the remote \
+             will be updated.",
+            worktree_path.display(),
+        )));
+    }
+
+    Ok(())
 }
 
 /// Extract the UTF-8 string slice for `path`, returning a `CoreError` if the

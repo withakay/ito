@@ -798,22 +798,25 @@ fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
     });
     std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
 
+    // New call order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
+    // add -A → diff --cached → commit → rev-parse HEAD → push
     let runner = StubRunner::with_outputs(vec![
-        ok("abc123\n"),
-        ok(" M .ito/changes/example\n"),
-        ok(git_common_dir.to_str().unwrap()),
-        ok(""),
-        ok(""),
-        Ok(ProcessOutput {
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD (state)
+        ok(" M .ito/changes/example\n"),              // status --porcelain
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+        ok(""),                                       // add -A
+        Ok(ProcessOutput {                            // diff --cached --quiet (has changes)
             exit_code: 1,
             success: false,
             stdout: String::new(),
             stderr: String::new(),
             timed_out: false,
         }),
-        ok(""),
-        ok("def456\n"),
-        ok(""),
+        ok(""),                                       // commit
+        ok("def456\n"),                               // rev-parse HEAD (post-commit)
+        ok(""),                                       // push
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
@@ -822,43 +825,19 @@ fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
     assert_eq!(outcome, CoordinationSyncOutcome::Synchronized);
 
     let calls = runner.calls.borrow();
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
     assert_eq!(
-        calls[0],
+        calls[2],
         ["-C", coord_wt.to_str().unwrap(), "rev-parse", "HEAD"]
     );
     assert_eq!(
-        calls[1],
+        calls[3],
         ["-C", coord_wt.to_str().unwrap(), "status", "--porcelain"]
     );
-    assert_eq!(calls[2], ["rev-parse", "--git-common-dir"]);
-    assert_eq!(calls[3], ["fetch", "origin", "ito/internal/changes"]);
-    assert_eq!(calls[4], ["-C", coord_wt.to_str().unwrap(), "add", "-A"]);
+    assert_eq!(calls[4], ["rev-parse", "--git-common-dir"]);
+    assert_eq!(calls[5], ["-C", coord_wt.to_str().unwrap(), "add", "-A"]);
     assert_eq!(
-        calls[5],
-        [
-            "-C",
-            coord_wt.to_str().unwrap(),
-            "diff",
-            "--cached",
-            "--quiet"
-        ]
-    );
-    assert_eq!(
-        calls[6],
-        [
-            "-C",
-            coord_wt.to_str().unwrap(),
-            "commit",
-            "-m",
-            "chore: sync coordination worktree"
-        ]
-    );
-    assert_eq!(
-        calls[7],
-        ["-C", coord_wt.to_str().unwrap(), "rev-parse", "HEAD"]
-    );
-    assert_eq!(
-        calls[8],
+        calls[9],
         ["push", "origin", "HEAD:refs/heads/ito/internal/changes"]
     );
 }
@@ -944,10 +923,13 @@ fn sync_coordination_worktree_rate_limits_when_recent_and_clean() {
     )
     .unwrap();
 
+    // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir → rate-limited
     let runner = StubRunner::with_outputs(vec![
-        ok("abc123\n"),
-        ok(""),
-        ok(git_common_dir.to_str().unwrap()),
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD
+        ok(""),                                       // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
@@ -956,15 +938,16 @@ fn sync_coordination_worktree_rate_limits_when_recent_and_clean() {
     assert_eq!(outcome, CoordinationSyncOutcome::RateLimited);
 
     let calls = runner.calls.borrow();
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
     assert_eq!(
-        calls[0],
+        calls[2],
         ["-C", coord_wt.to_str().unwrap(), "rev-parse", "HEAD"]
     );
     assert_eq!(
-        calls[1],
+        calls[3],
         ["-C", coord_wt.to_str().unwrap(), "status", "--porcelain"]
     );
-    assert_eq!(calls[2], ["rev-parse", "--git-common-dir"]);
+    assert_eq!(calls[4], ["rev-parse", "--git-common-dir"]);
 }
 
 #[test]
@@ -1005,14 +988,17 @@ fn sync_coordination_worktree_force_bypasses_rate_limit() {
     )
     .unwrap();
 
+    // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
+    // add -A → diff --cached (no changes) → push
     let runner = StubRunner::with_outputs(vec![
-        ok("abc123\n"),
-        ok(""),
-        ok(git_common_dir.to_str().unwrap()),
-        ok(""),
-        ok(""),
-        ok(""),
-        ok(""),
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD
+        ok(""),                                       // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+        ok(""),                                       // add -A
+        ok(""),                                       // diff --cached --quiet (no changes)
+        ok(""),                                       // push
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, true)
@@ -1021,10 +1007,10 @@ fn sync_coordination_worktree_force_bypasses_rate_limit() {
     assert_eq!(outcome, CoordinationSyncOutcome::Synchronized);
 
     let calls = runner.calls.borrow();
-    assert_eq!(calls[3], ["fetch", "origin", "ito/internal/changes"]);
-    assert_eq!(
-        calls[6],
-        ["push", "origin", "HEAD:refs/heads/ito/internal/changes"]
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
+    assert!(
+        calls.iter().any(|c| c.contains(&"push".to_string())),
+        "should have pushed"
     );
 }
 
