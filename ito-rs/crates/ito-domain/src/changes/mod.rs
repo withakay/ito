@@ -63,6 +63,15 @@ pub enum ChangeWorkStatus {
     Complete,
 }
 
+/// Per-change orchestration metadata.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ChangeOrchestrateMetadata {
+    /// Canonical change IDs that must complete before this change is dispatched.
+    pub depends_on: Vec<String>,
+    /// Optional gate order override for this change.
+    pub preferred_gates: Vec<String>,
+}
+
 impl std::fmt::Display for ChangeWorkStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -106,6 +115,8 @@ pub struct Change {
     pub specs: Vec<Spec>,
     /// Parsed tasks
     pub tasks: TasksParseResult,
+    /// Per-change orchestration metadata.
+    pub orchestrate: ChangeOrchestrateMetadata,
     /// Last modification time of any artifact
     pub last_modified: DateTime<Utc>,
 }
@@ -208,6 +219,8 @@ pub struct ChangeSummary {
     pub has_specs: bool,
     /// Whether tasks.md exists and has tasks
     pub has_tasks: bool,
+    /// Per-change orchestration metadata.
+    pub orchestrate: ChangeOrchestrateMetadata,
 }
 
 impl ChangeSummary {
@@ -441,6 +454,7 @@ mod tests {
             has_design: false,
             has_specs: false,
             has_tasks: false,
+            orchestrate: ChangeOrchestrateMetadata::default(),
         };
 
         assert_eq!(summary.sub_module_id.as_deref(), Some("005.01"));
@@ -469,6 +483,7 @@ mod tests {
             has_design: false,
             has_specs: false,
             has_tasks: false,
+            orchestrate: ChangeOrchestrateMetadata::default(),
         };
 
         assert_eq!(summary.status(), ChangeStatus::NoTasks);
@@ -497,6 +512,7 @@ mod tests {
             has_design: false,
             has_specs: false,
             has_tasks: false,
+            orchestrate: ChangeOrchestrateMetadata::default(),
         };
 
         assert_eq!(summary.work_status(), ChangeWorkStatus::Draft);

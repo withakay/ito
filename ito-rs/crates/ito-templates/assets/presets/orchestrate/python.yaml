@@ -1,0 +1,29 @@
+name: python
+
+gate_order:
+  - apply-complete
+  - format
+  - lint
+  - tests
+  - style
+  - code-review
+  - security-review
+
+gates:
+  apply-complete: {}
+  format:
+    tool: "python -m ruff format --check ."
+  lint:
+    tool: "python -m ruff check ."
+  tests:
+    tool: "pytest"
+  style: {}
+  code-review: {}
+  security-review: {}
+
+recommended_skills: []
+
+agent_roles:
+  apply-worker: "python-engineer"
+  review-worker: "python-code-reviewer"
+  security-worker: ""

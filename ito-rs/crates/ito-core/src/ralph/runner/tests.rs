@@ -204,6 +204,7 @@ fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSumm
     ChangeSummary {
         id: id.into(),
         module_id: None,
+        sub_module_id: None,
         completed_tasks: c,
         shelved_tasks: sh,
         in_progress_tasks: ip,
@@ -214,6 +215,7 @@ fn summary(id: &str, c: u32, ip: u32, p: u32, sh: u32, plan: bool) -> ChangeSumm
         has_design: false,
         has_specs: plan,
         has_tasks: plan,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     }
 }
 

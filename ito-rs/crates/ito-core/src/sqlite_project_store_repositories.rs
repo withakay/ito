@@ -336,6 +336,7 @@ impl ChangeRepository for SqliteChangeRepository {
                 })
                 .collect(),
             tasks,
+            orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
             last_modified,
         })
     }
@@ -370,6 +371,7 @@ impl ChangeRepository for SqliteChangeRepository {
                 has_design: row.design.is_some(),
                 has_specs: !row.specs.is_empty(),
                 has_tasks: row.tasks_md.is_some(),
+                orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
             });
         }
         Ok(summaries)

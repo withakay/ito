@@ -103,6 +103,7 @@ fn make_summary(id: &str, completed: u32, total: u32) -> ChangeSummary {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     }
 }
 

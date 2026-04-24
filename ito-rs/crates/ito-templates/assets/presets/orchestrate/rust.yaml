@@ -1,0 +1,32 @@
+name: rust
+
+gate_order:
+  - apply-complete
+  - format
+  - lint
+  - tests
+  - style
+  - code-review
+  - security-review
+
+gates:
+  apply-complete: {}
+  format:
+    tool: "cargo fmt --check"
+  lint:
+    tool: "cargo clippy -- -D warnings"
+  tests:
+    tool: "cargo test"
+  style:
+    skill: "rust-style"
+  code-review: {}
+  security-review: {}
+
+recommended_skills:
+  - rust-style
+  - rust-code-reviewer
+
+agent_roles:
+  apply-worker: "rust-engineer"
+  review-worker: "rust-code-reviewer"
+  security-worker: "rust-quality-checker"

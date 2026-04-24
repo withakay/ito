@@ -363,6 +363,7 @@ mod tests {
             has_design: false,
             has_specs: true,
             has_tasks: true,
+            orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
         }
     }
 
@@ -376,6 +377,7 @@ mod tests {
             design: None,
             specs: vec![],
             tasks: TasksParseResult::empty(),
+            orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
             last_modified: Utc::now(),
         }
     }

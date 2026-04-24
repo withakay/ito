@@ -92,6 +92,35 @@ fn render_instruction_template_returns_not_found_for_missing_template() {
 }
 
 #[test]
+fn orchestrate_template_renders() {
+    #[derive(Serialize)]
+    struct Ctx {
+        orchestrate_md_path: &'static str,
+        orchestrate_md: &'static str,
+        workflow_skill_name: &'static str,
+        preset_name: &'static str,
+        gate_order: Vec<&'static str>,
+    }
+
+    let rendered = render_instruction_template(
+        "agent/orchestrate.md.j2",
+        &Ctx {
+            orchestrate_md_path: "/repo/.ito/user-prompts/orchestrate.md",
+            orchestrate_md: "---\npreset: generic\n---\n\n## MUST\n- Run tests\n",
+            workflow_skill_name: "ito-orchestrator-workflow",
+            preset_name: "generic",
+            gate_order: vec!["apply-complete", "tests"],
+        },
+    )
+    .unwrap();
+
+    assert!(rendered.contains("Orchestrate: Change Apply Coordination"));
+    assert!(rendered.contains("orchestrate.md"));
+    assert!(rendered.contains("ito-orchestrator-workflow"));
+    assert!(rendered.contains("Preset"));
+}
+
+#[test]
 fn review_template_renders_conditional_sections() {
     #[derive(Serialize)]
     struct Artifact {

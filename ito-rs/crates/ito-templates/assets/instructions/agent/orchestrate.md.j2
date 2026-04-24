@@ -1,0 +1,34 @@
+# Orchestrate: Change Apply Coordination
+
+This artifact configures and drives an **orchestrator agent** that coordinates applying one or more Ito changes, enforcing gate order, parallelism, and remediation policy.
+
+## Inputs
+
+- **orchestrate.md**: `{{ orchestrate_md_path }}`
+- **Workflow skill (by convention)**: `{{ workflow_skill_name }}`
+- **Preset**: `{{ preset_name }}`
+{% if recommended_skills -%}
+- **Recommended skills**: {% for skill in recommended_skills %}`{{ skill }}`{% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}
+
+## Gate Order
+
+{% for gate in gate_order %}- `{{ gate }}`
+{% endfor %}
+
+## How This Works
+
+1. The orchestrator agent reads `orchestrate.md` front matter + MUST/PREFER sections.
+2. The orchestrator agent loads the workflow skill (`{{ workflow_skill_name }}`) if present in the harness.
+3. The orchestrator builds a run plan and dispatches workers by gate.
+4. Run state is persisted under `.ito/.state/orchestrate/runs/<run-id>/`.
+
+## orchestrate.md (Current)
+
+The following block contains the raw contents of `orchestrate.md`. It is
+rendered inside a tilde-fenced code block so that any triple-backtick
+sequences in the user prompt do not prematurely terminate the fence.
+
+~~~markdown
+{{ orchestrate_md }}
+~~~

@@ -85,6 +85,7 @@ impl MockChangeRepository {
             has_design: change.design.is_some(),
             has_specs: !change.specs.is_empty(),
             has_tasks: progress.total > 0,
+            orchestrate: change.orchestrate.clone(),
         };
         self.summaries.push(summary);
         self.changes.insert(change.id.clone(), change);
@@ -310,6 +311,7 @@ pub fn make_change(id: &str) -> Change {
         design: None,
         specs: Vec::new(),
         tasks: TasksParseResult::empty(),
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
         last_modified: Utc::now(),
     }
 }
@@ -356,6 +358,7 @@ pub fn make_change_summary(id: &str) -> ChangeSummary {
         has_design: false,
         has_specs: false,
         has_tasks: false,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     }
 }
 

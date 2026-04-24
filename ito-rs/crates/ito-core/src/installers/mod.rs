@@ -703,8 +703,18 @@ fn install_agent_templates(
                 None
             };
 
-            // Get config for this tier
-            let config = tier.and_then(|t| configs.get(&(harness, t)));
+            // Get config for this tier.
+            //
+            // Some harness agent templates are not tiered but still include
+            // `{{model}}` placeholders (e.g., coordinator agents). In that case,
+            // render using the harness's General tier defaults.
+            let mut config = tier.and_then(|t| configs.get(&(harness, t)));
+            if config.is_none()
+                && let Ok(s) = std::str::from_utf8(contents)
+                && s.contains("{{model}}")
+            {
+                config = configs.get(&(harness, AgentTier::General));
+            }
 
             match mode {
                 InstallMode::Init => {

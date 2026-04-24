@@ -467,6 +467,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
         let has_tasks = total_tasks > 0;
         let module_id = extract_module_id(&location.id);
         let sub_module_id = extract_sub_module_id(&location.id);
+        let meta = crate::change_meta::read_change_meta_from_dir(&self.fs, &location.path);
 
         Ok(ChangeSummary {
             id: location.id.clone(),
@@ -482,6 +483,7 @@ impl<'a, F: FileSystem> FsChangeRepository<'a, F> {
             has_design,
             has_specs,
             has_tasks,
+            orchestrate: meta.orchestrate,
         })
     }
 }
@@ -717,6 +719,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
         let tasks = self.load_tasks_for_location(&location)?;
         let last_modified = self.get_last_modified(&location.path)?;
         let path = location.path;
+        let meta = crate::change_meta::read_change_meta_from_dir(&self.fs, &path);
 
         let sub_module_id = extract_sub_module_id(&actual_id);
 
@@ -729,6 +732,7 @@ impl<'a, F: FileSystem> DomainChangeRepository for FsChangeRepository<'a, F> {
             design,
             specs,
             tasks,
+            orchestrate: meta.orchestrate,
             last_modified,
         })
     }

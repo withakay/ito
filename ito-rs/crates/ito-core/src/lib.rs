@@ -51,6 +51,8 @@ pub mod audit;
 /// Filesystem-backed change repository implementation.
 pub mod change_repository;
 
+mod change_meta;
+
 /// JSON configuration file CRUD operations.
 pub mod config;
 
@@ -83,6 +85,9 @@ pub mod sqlite_project_store;
 
 /// YAML front matter parsing, writing, and metadata utilities for artifacts.
 pub mod front_matter;
+
+/// Orchestrator configuration helpers (user prompt + presets).
+pub mod orchestrate;
 
 /// Git synchronization helpers for coordination workflows.
 pub mod git;

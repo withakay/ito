@@ -45,6 +45,7 @@ impl BackendChangeReader for FakeReader {
                     design: None,
                     specs: vec![],
                     tasks: TasksParseResult::empty(),
+                    orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
                     last_modified: Utc::now(),
                 });
             }
@@ -68,6 +69,7 @@ fn make_summary(id: &str, module_id: Option<&str>) -> ChangeSummary {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     }
 }
 

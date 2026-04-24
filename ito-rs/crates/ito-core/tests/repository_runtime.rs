@@ -454,6 +454,7 @@ fn remote_runtime_uses_remote_factory() {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     };
     let change = Change {
         id: "025-04_demo".to_string(),
@@ -467,6 +468,7 @@ fn remote_runtime_uses_remote_factory() {
             content: "## ADDED".to_string(),
         }],
         tasks: TasksParseResult::empty(),
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
         last_modified: Utc::now(),
     };
     let module_summary = ModuleSummary {
@@ -591,6 +593,7 @@ fn repository_modes_return_consistent_change_names() {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     };
     let change = Change {
         id: change_id.to_string(),
@@ -604,6 +607,7 @@ fn repository_modes_return_consistent_change_names() {
             content: "## ADDED".to_string(),
         }],
         tasks: TasksParseResult::empty(),
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
         last_modified: Utc::now(),
     };
     let module_summary = ModuleSummary {

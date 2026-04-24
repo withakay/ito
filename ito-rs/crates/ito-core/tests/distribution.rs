@@ -51,6 +51,15 @@ fn opencode_manifests_includes_plugin_and_skills() {
     });
     assert!(has_ito_loop, "should include ito-loop skill");
 
+    let has_ito_orchestrate = manifests.iter().any(|m| {
+        m.asset_type == AssetType::Skill
+            && m.source == "ito-orchestrate/SKILL.md"
+            && m.dest
+                .to_string_lossy()
+                .ends_with("/skills/ito-orchestrate/SKILL.md")
+    });
+    assert!(has_ito_orchestrate, "should include ito-orchestrate skill");
+
     // Should include the renamed ito-loop command.
     let has_loop = manifests.iter().any(|m| {
         m.asset_type == AssetType::Command
@@ -58,6 +67,15 @@ fn opencode_manifests_includes_plugin_and_skills() {
             && m.dest.to_string_lossy().ends_with("/commands/ito-loop.md")
     });
     assert!(has_loop, "should include ito-loop command");
+
+    let has_orchestrate = manifests.iter().any(|m| {
+        m.asset_type == AssetType::Command
+            && m.source == "ito-orchestrate.md"
+            && m.dest
+                .to_string_lossy()
+                .ends_with("/commands/ito-orchestrate.md")
+    });
+    assert!(has_orchestrate, "should include ito-orchestrate command");
 }
 
 #[test]

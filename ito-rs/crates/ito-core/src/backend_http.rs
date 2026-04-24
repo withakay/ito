@@ -261,6 +261,7 @@ impl BackendChangeReader for BackendHttpClient {
                 has_design: summary.has_design,
                 has_specs: summary.has_specs,
                 has_tasks: summary.has_tasks,
+                orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
             });
         }
         Ok(out)
@@ -303,6 +304,7 @@ impl BackendChangeReader for BackendHttpClient {
                 specs
             },
             tasks,
+            orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
             last_modified,
         })
     }
