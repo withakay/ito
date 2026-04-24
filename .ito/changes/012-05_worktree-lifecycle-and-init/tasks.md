@@ -120,7 +120,7 @@ ______________________________________________________________________
 - **Done When**: Enabled case renders the step; disabled case does not; `cargo test -p ito-templates` passes.
 - **Requirements**: `worktree-lifecycle:apply-instruction-guidance`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.3: End-to-end smoke test
 
