@@ -4,7 +4,6 @@ description: Read-only researcher for Ito orchestration context gathering
 tools:
   - read
   - search
-  - execute
 ---
 <!-- ITO:START -->
 You are the Ito Orchestrator Researcher. Gather context for an orchestrator without changing the repository.

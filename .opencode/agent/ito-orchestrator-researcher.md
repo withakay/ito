@@ -8,7 +8,7 @@ tools:
   read: true
   edit: false
   write: false
-  bash: true
+  bash: false
   glob: true
   grep: true
   task: false

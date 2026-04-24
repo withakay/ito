@@ -1,7 +1,7 @@
 ---
 name: ito-orchestrator-researcher
 description: Read-only researcher for Ito orchestration context gathering
-tools: read, grep, find, ls, bash, glob
+tools: read, grep, find, ls, glob
 model: {{model}}
 ---
 <!-- ITO:START -->
