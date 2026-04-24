@@ -62,6 +62,9 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
     assert!(out.stdout.contains("ito-orchestrator-researcher"));
     assert!(out.stdout.contains("ito-orchestrator-worker"));
     assert!(out.stdout.contains("ito-orchestrator-reviewer"));
+    let plan = out.stdout.find("plan-worker").expect("plan role");
+    let apply = out.stdout.find("apply-worker").expect("apply role");
+    assert!(plan < apply, "expected plan role before apply role");
 }
 
 #[test]

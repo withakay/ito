@@ -146,18 +146,31 @@ then re-run:\n\n\
             agent_roles_md: &'a str,
         }
 
-        let agent_roles_md = preset
-            .agent_roles
-            .iter()
-            .map(|(role, agent)| {
-                if agent.is_empty() {
-                    format!("  - `{role}`: use the caller's default agent choice")
-                } else {
-                    format!("  - `{role}`: `{agent}`")
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        const ROLE_ORDER: &[&str] = &[
+            "plan-worker",
+            "research-worker",
+            "apply-worker",
+            "review-worker",
+            "security-worker",
+        ];
+
+        let mut agent_roles = Vec::new();
+        for role in ROLE_ORDER {
+            let Some(agent) = preset.agent_roles.get(*role) else {
+                continue;
+            };
+            if agent.is_empty() {
+                continue;
+            }
+            agent_roles.push(format!("  - `{role}`: `{agent}`"));
+        }
+        for (role, agent) in &preset.agent_roles {
+            if ROLE_ORDER.contains(&role.as_str()) || agent.is_empty() {
+                continue;
+            }
+            agent_roles.push(format!("  - `{role}`: `{agent}`"));
+        }
+        let agent_roles_md = agent_roles.join("\n");
 
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/orchestrate.md.j2",
