@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: `ito sync` is a real CLI entry point with tests covering the command surface.
 - **Requirements**: `cli-sync:coordination-worktree-sync`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement core coordination sync orchestration
 
