@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: The CLI can call a single core sync path that enforces the new validation and push behavior.
 - **Requirements**: `cli-sync:coordination-worktree-sync`, `coordination-worktree:exact-sync-wiring`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Add sync metadata, quiet-window suppression, and force-bypass tests
 
