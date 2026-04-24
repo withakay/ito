@@ -27,14 +27,14 @@ fn worktree_init_config_absent_deserializes_to_default() {
 fn worktree_setup_config_single_string_deserializes() {
     let json = r#""make init""#;
     let config: WorktreeSetupConfig = serde_json::from_str(json).unwrap();
-    assert_eq!(config.to_commands(), vec!["make init"]);
+    assert_eq!(config.as_commands(), vec!["make init"]);
 }
 
 #[test]
 fn worktree_setup_config_array_deserializes() {
     let json = r#"["npm ci", "npm run build:types"]"#;
     let config: WorktreeSetupConfig = serde_json::from_str(json).unwrap();
-    assert_eq!(config.to_commands(), vec!["npm ci", "npm run build:types"]);
+    assert_eq!(config.as_commands(), vec!["npm ci", "npm run build:types"]);
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn worktree_setup_config_single_round_trips() {
     let original = WorktreeSetupConfig::Single("make init".to_string());
     let json = serde_json::to_string(&original).unwrap();
     let deserialized: WorktreeSetupConfig = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.to_commands(), vec!["make init"]);
+    assert_eq!(deserialized.as_commands(), vec!["make init"]);
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn worktree_setup_config_multiple_round_trips() {
         WorktreeSetupConfig::Multiple(vec!["npm ci".to_string(), "npm run build".to_string()]);
     let json = serde_json::to_string(&original).unwrap();
     let deserialized: WorktreeSetupConfig = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.to_commands(), vec!["npm ci", "npm run build"]);
+    assert_eq!(deserialized.as_commands(), vec!["npm ci", "npm run build"]);
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn worktree_init_config_with_single_setup_deserializes() {
     let config: WorktreeInitConfig = serde_json::from_str(json).unwrap();
     assert_eq!(config.include, vec![".env"]);
     let setup = config.setup.unwrap();
-    assert_eq!(setup.to_commands(), vec!["make init"]);
+    assert_eq!(setup.as_commands(), vec!["make init"]);
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn worktree_init_config_with_multiple_setup_deserializes() {
     let config: WorktreeInitConfig = serde_json::from_str(json).unwrap();
     assert_eq!(config.include, vec![".env"]);
     let setup = config.setup.unwrap();
-    assert_eq!(setup.to_commands(), vec!["npm ci", "npm run build"]);
+    assert_eq!(setup.as_commands(), vec!["npm ci", "npm run build"]);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn worktrees_config_with_init_section_deserializes() {
     assert!(config.enabled);
     assert_eq!(config.init.include, vec![".env", ".envrc"]);
     let setup = config.init.setup.unwrap();
-    assert_eq!(setup.to_commands(), vec!["make init"]);
+    assert_eq!(setup.as_commands(), vec!["make init"]);
 }
 
 #[test]
@@ -145,5 +145,5 @@ fn full_ito_config_with_worktree_init_round_trips() {
     assert!(config.worktrees.enabled);
     assert_eq!(config.worktrees.init.include, vec![".env", "*.local.toml"]);
     let setup = config.worktrees.init.setup.unwrap();
-    assert_eq!(setup.to_commands(), vec!["npm ci", "npm run build:types"]);
+    assert_eq!(setup.as_commands(), vec!["npm ci", "npm run build:types"]);
 }

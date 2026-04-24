@@ -14,6 +14,10 @@ use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
 use crate::worktree_init;
 
+/// Marker file written after successful worktree initialization.
+/// Prevents re-running init on every `ensure` call and detects partial failures.
+const INIT_MARKER: &str = ".worktree-initialized";
+
 /// Ensure the correct change worktree exists and is initialized.
 ///
 /// Returns the resolved absolute path to the worktree.
@@ -53,6 +57,9 @@ pub(crate) fn ensure_worktree_with_runner(
     worktree_paths: &ResolvedWorktreePaths,
     cwd: &Path,
 ) -> CoreResult<PathBuf> {
+    // Validate change_id to prevent path traversal and git flag injection.
+    validate_change_id(change_id)?;
+
     // When worktrees are disabled, work in the current directory.
     let WorktreeFeature::Enabled = worktree_paths.feature else {
         return Ok(cwd.to_path_buf());
@@ -68,9 +75,33 @@ pub(crate) fn ensure_worktree_with_runner(
         ))
     })?;
 
-    // If the worktree already exists, return it without re-init.
+    // If the worktree exists and was fully initialized, return it without
+    // re-init. We check for a `.git` file/dir (present in all git worktrees)
+    // AND our `.worktree-initialized` marker (proves init completed). If the
+    // directory exists but lacks the marker, it was partially initialized and
+    // we re-run initialization.
     if worktree_path.is_dir() {
-        return Ok(worktree_path);
+        let has_git = worktree_path.join(".git").exists();
+        let has_marker = worktree_path.join(INIT_MARKER).exists();
+        if has_git && has_marker {
+            return Ok(worktree_path);
+        }
+        // If the directory exists with .git but no marker, re-run init.
+        // If no .git at all, fall through to creation (the dir is stale).
+        if has_git {
+            let source_root = worktree_paths
+                .main_worktree_root
+                .as_deref()
+                .unwrap_or(cwd);
+            worktree_init::init_worktree_with_runner(
+                runner,
+                source_root,
+                &worktree_path,
+                &config.worktrees,
+            )?;
+            write_init_marker(&worktree_path)?;
+            return Ok(worktree_path);
+        }
     }
 
     // Create the parent directory if needed.
@@ -105,7 +136,63 @@ pub(crate) fn ensure_worktree_with_runner(
         &config.worktrees,
     )?;
 
+    // Write marker to indicate initialization completed successfully.
+    write_init_marker(&worktree_path)?;
+
     Ok(worktree_path)
+}
+
+/// Write the initialization marker file.
+fn write_init_marker(worktree_path: &Path) -> CoreResult<()> {
+    let marker_path = worktree_path.join(INIT_MARKER);
+    std::fs::write(&marker_path, "initialized\n").map_err(|err| {
+        CoreError::io(
+            format!(
+                "Cannot write initialization marker at '{}'.\n\
+                 Fix: ensure the worktree path is writable.",
+                marker_path.display(),
+            ),
+            err,
+        )
+    })
+}
+
+/// Validate that a change ID is safe to use as a branch name and path segment.
+///
+/// Rejects IDs that:
+/// - Are empty
+/// - Start with `-` (could be interpreted as git flags)
+/// - Contain `..` (path traversal)
+/// - Contain path separators (`/` or `\`)
+/// - Contain NUL bytes
+fn validate_change_id(change_id: &str) -> CoreResult<()> {
+    if change_id.is_empty() {
+        return Err(CoreError::validation(
+            "Change ID must not be empty.\n\
+             Fix: provide a valid change ID (e.g. '012-05_my-change').",
+        ));
+    }
+    if change_id.starts_with('-') {
+        return Err(CoreError::validation(format!(
+            "Change ID '{change_id}' must not start with '-'.\n\
+             A leading dash could be misinterpreted as a git flag.\n\
+             Fix: use a change ID that starts with an alphanumeric character.",
+        )));
+    }
+    if change_id.contains("..") {
+        return Err(CoreError::validation(format!(
+            "Change ID '{change_id}' must not contain '..'.\n\
+             This could enable path traversal.\n\
+             Fix: use a change ID without '..' components.",
+        )));
+    }
+    if change_id.contains('/') || change_id.contains('\\') || change_id.contains('\0') {
+        return Err(CoreError::validation(format!(
+            "Change ID '{change_id}' contains invalid characters (/, \\, or NUL).\n\
+             Fix: use a change ID with only alphanumeric characters, dashes, and underscores.",
+        )));
+    }
+    Ok(())
 }
 
 /// Create a git worktree for a change, branching from `base_branch`.

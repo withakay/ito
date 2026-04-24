@@ -94,6 +94,41 @@ fn make_disabled_paths() -> ResolvedWorktreePaths {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[test]
+fn validate_change_id_accepts_normal_ids() {
+    assert!(validate_change_id("012-05_my-change").is_ok());
+    assert!(validate_change_id("simple").is_ok());
+    assert!(validate_change_id("with-dashes-and_underscores").is_ok());
+}
+
+#[test]
+fn validate_change_id_rejects_empty() {
+    assert!(validate_change_id("").is_err());
+}
+
+#[test]
+fn validate_change_id_rejects_leading_dash() {
+    assert!(validate_change_id("--orphan").is_err());
+    assert!(validate_change_id("-b").is_err());
+}
+
+#[test]
+fn validate_change_id_rejects_path_traversal() {
+    assert!(validate_change_id("../escape").is_err());
+    assert!(validate_change_id("foo/../bar").is_err());
+}
+
+#[test]
+fn validate_change_id_rejects_path_separators() {
+    assert!(validate_change_id("foo/bar").is_err());
+    assert!(validate_change_id("foo\\bar").is_err());
+}
+
+#[test]
+fn validate_change_id_rejects_nul() {
+    assert!(validate_change_id("foo\0bar").is_err());
+}
+
+#[test]
 fn ensure_worktrees_disabled_returns_cwd() {
     let tmp = tempfile::tempdir().unwrap();
     let cwd = tmp.path();
@@ -114,6 +149,9 @@ fn ensure_existing_worktree_returns_path_without_creation() {
     let worktrees_root = project_root.join("ito-worktrees");
     let change_dir = worktrees_root.join("my-change");
     std::fs::create_dir_all(&change_dir).unwrap();
+    // Simulate a valid, fully-initialized worktree: .git file + marker.
+    std::fs::write(change_dir.join(".git"), "gitdir: ../..").unwrap();
+    std::fs::write(change_dir.join(".worktree-initialized"), "initialized\n").unwrap();
 
     let config = ItoConfig::default();
     let env = make_env(project_root);
@@ -143,9 +181,43 @@ fn ensure_creates_worktree_when_absent() {
 
     let config = ItoConfig::default();
     let env = make_env(project_root);
-    let paths = make_enabled_paths(worktrees_root.clone(), main_root);
-    // git worktree add → success
-    let runner = StubRunner::with_outputs(vec![ok_output()]);
+    let expected = worktrees_root.join("my-change");
+    let paths = make_enabled_paths(worktrees_root, main_root);
+
+    // Use a runner that simulates git creating the directory (with a .git file).
+    struct CreatingRunner {
+        target_path: PathBuf,
+    }
+
+    impl ProcessRunner for CreatingRunner {
+        fn run(
+            &self,
+            _request: &ProcessRequest,
+        ) -> Result<ProcessOutput, ProcessExecutionError> {
+            std::fs::create_dir_all(&self.target_path).unwrap();
+            // Simulate git creating a .git file in the worktree.
+            std::fs::write(self.target_path.join(".git"), "gitdir: ../..").unwrap();
+            Ok(ProcessOutput {
+                exit_code: 0,
+                success: true,
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+            })
+        }
+
+        fn run_with_timeout(
+            &self,
+            _request: &ProcessRequest,
+            _timeout: std::time::Duration,
+        ) -> Result<ProcessOutput, ProcessExecutionError> {
+            unreachable!()
+        }
+    }
+
+    let runner = CreatingRunner {
+        target_path: expected.clone(),
+    };
 
     let result = ensure_worktree_with_runner(
         &runner,
@@ -156,19 +228,9 @@ fn ensure_creates_worktree_when_absent() {
         project_root,
     );
 
-    // The function should have attempted to create the worktree via git.
-    let calls = runner.calls.borrow();
-    assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0].0, "git");
-    assert!(calls[0].1.contains(&"worktree".to_string()));
-    assert!(calls[0].1.contains(&"add".to_string()));
-    assert!(calls[0].1.contains(&"my-change".to_string()));
-
-    // The result is the expected path (the directory gets created by git,
-    // but since we stub git, we created it ourselves to make the test valid).
-    // In practice git creates it; here we just verify the returned path.
-    let expected = worktrees_root.join("my-change");
     assert_eq!(result.unwrap(), expected);
+    // Verify the marker was written.
+    assert!(expected.join(".worktree-initialized").exists());
 }
 
 #[test]

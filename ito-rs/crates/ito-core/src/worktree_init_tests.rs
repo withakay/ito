@@ -318,6 +318,48 @@ fn copy_include_files_empty_config_and_no_file() {
     assert!(copied.is_empty());
 }
 
+// ── Path traversal rejection tests ───────────────────────────────────────────
+
+#[test]
+fn resolve_include_files_rejects_path_traversal() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+
+    // Create a file outside the source root via parent traversal.
+    let parent = root.parent().unwrap();
+    fs::write(parent.join("secret.txt"), "password").unwrap();
+
+    let config = WorktreeInitConfig {
+        include: vec!["../secret.txt".to_string()],
+        setup: None,
+    };
+
+    // The pattern resolves outside root — should not be included.
+    let files = resolve_include_files(&config, root).unwrap();
+    assert!(
+        files.is_empty(),
+        "Path traversal via '../' should be rejected, got: {files:?}"
+    );
+
+    // Clean up the file we created outside the tempdir.
+    let _ = fs::remove_file(parent.join("secret.txt"));
+}
+
+#[test]
+fn resolve_include_files_rejects_absolute_path_in_pattern() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+
+    let config = WorktreeInitConfig {
+        include: vec!["/etc/passwd".to_string()],
+        setup: None,
+    };
+
+    // Absolute paths should not be included (they resolve outside source_root).
+    let files = resolve_include_files(&config, root).unwrap();
+    assert!(files.is_empty());
+}
+
 // ── run_setup_with_runner tests ──────────────────────────────────────────────
 
 #[test]

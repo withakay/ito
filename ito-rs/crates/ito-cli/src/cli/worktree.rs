@@ -7,7 +7,7 @@ use clap::{Args, Subcommand};
 pub struct WorktreeArgs {
     /// The worktree sub-command to run.
     #[command(subcommand)]
-    pub command: Option<WorktreeCommand>,
+    pub command: WorktreeCommand,
 }
 
 /// Sub-commands under `ito worktree`.

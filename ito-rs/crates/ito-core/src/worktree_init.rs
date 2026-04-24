@@ -170,7 +170,7 @@ pub(crate) fn run_setup_with_runner(
         return Ok(());
     }
 
-    let commands = setup.to_commands();
+    let commands = setup.as_commands();
 
     for cmd in &commands {
         let request = ProcessRequest::new("sh")
@@ -238,8 +238,24 @@ fn collect_patterns(config: &WorktreeInitConfig, source_root: &Path) -> CoreResu
 }
 
 /// Expand glob patterns against `source_root` and return deduplicated relative paths.
+///
+/// All resolved paths are canonicalized and verified to remain under
+/// `source_root`. Patterns that resolve outside the source root (e.g. via
+/// `..` components) are silently skipped to prevent path-traversal attacks.
 fn expand_globs(patterns: &[String], source_root: &Path) -> CoreResult<Vec<PathBuf>> {
     let mut result = BTreeSet::new();
+
+    // Canonicalize source_root so that symlink-based escapes are caught.
+    let canonical_root = source_root.canonicalize().map_err(|err| {
+        CoreError::io(
+            format!(
+                "Cannot canonicalize source root '{}'.\n\
+                 Fix: ensure the directory exists and is readable.",
+                source_root.display(),
+            ),
+            err,
+        )
+    })?;
 
     for pattern in patterns {
         if pattern.is_empty() {
@@ -272,9 +288,20 @@ fn expand_globs(patterns: &[String], source_root: &Path) -> CoreResult<Vec<PathB
             })?;
 
             // Only include files, not directories.
-            if path.is_file() && let Ok(rel) = path.strip_prefix(source_root) {
-                result.insert(rel.to_path_buf());
+            if !path.is_file() {
+                continue;
             }
+
+            // Canonicalize the matched path and verify it is under source_root.
+            // This prevents path-traversal via `..` or symlinks.
+            let Ok(canonical_path) = path.canonicalize() else {
+                continue;
+            };
+            let Ok(rel) = canonical_path.strip_prefix(&canonical_root) else {
+                continue;
+            };
+
+            result.insert(rel.to_path_buf());
         }
     }
 

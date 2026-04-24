@@ -12,11 +12,7 @@ use crate::runtime::Runtime;
 
 /// Dispatch `ito worktree` sub-commands.
 pub(crate) fn handle_worktree_clap(rt: &Runtime, args: &WorktreeArgs) -> CliResult<()> {
-    let Some(cmd) = &args.command else {
-        return Err(CliError::msg("Missing required subcommand"));
-    };
-
-    match cmd {
+    match &args.command {
         WorktreeCommand::Ensure(change_args) => handle_ensure(rt, &change_args.change),
         WorktreeCommand::Setup(change_args) => handle_setup(rt, &change_args.change),
     }

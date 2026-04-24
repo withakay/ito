@@ -1084,7 +1084,7 @@ pub struct WorktreeInitConfig {
     pub setup: Option<WorktreeSetupConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 #[schemars(description = "Setup command(s) — a single string or an ordered list of strings")]
 /// A single shell command or an ordered list of shell commands to run during
@@ -1098,18 +1098,23 @@ pub enum WorktreeSetupConfig {
 
 impl WorktreeSetupConfig {
     /// Return the commands as a list, regardless of the variant.
-    pub fn to_commands(&self) -> Vec<&str> {
+    pub fn as_commands(&self) -> Vec<&str> {
         match self {
             WorktreeSetupConfig::Single(cmd) => vec![cmd.as_str()],
             WorktreeSetupConfig::Multiple(cmds) => cmds.iter().map(String::as_str).collect(),
         }
     }
 
-    /// Return true when there are no commands to run.
+    /// Return true when there are no meaningful commands to run.
+    ///
+    /// Empty strings are considered non-meaningful — `Multiple(vec![""])`
+    /// returns `true`.
     pub fn is_empty(&self) -> bool {
         match self {
-            WorktreeSetupConfig::Single(cmd) => cmd.is_empty(),
-            WorktreeSetupConfig::Multiple(cmds) => cmds.is_empty(),
+            WorktreeSetupConfig::Single(cmd) => cmd.trim().is_empty(),
+            WorktreeSetupConfig::Multiple(cmds) => {
+                cmds.is_empty() || cmds.iter().all(|c| c.trim().is_empty())
+            }
         }
     }
 }
