@@ -231,6 +231,7 @@ fn summary(id: &str) -> ChangeSummary {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     }
 }
 
@@ -244,6 +245,7 @@ fn change(id: &str) -> Change {
         design: None,
         specs: Vec::new(),
         tasks: TasksParseResult::empty(),
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
         last_modified: Utc::now(),
     }
 }

@@ -64,22 +64,9 @@ impl<'a, F: FileSystem> FsTaskRepository<'a, F> {
 }
 
 fn read_schema_from_dir<F: FileSystem>(fs: &F, change_dir: &Path) -> String {
-    let meta = change_dir.join(".ito.yaml");
-    if fs.is_file(&meta)
-        && let Ok(contents) = fs.read_to_string(&meta)
-    {
-        for line in contents.lines() {
-            let l = line.trim();
-            if let Some(rest) = l.strip_prefix("schema:") {
-                let v = rest.trim();
-                if !v.is_empty() {
-                    return v.to_string();
-                }
-            }
-        }
-    }
-
-    default_schema_name().to_string()
+    let meta = crate::change_meta::read_change_meta_from_dir(fs, change_dir);
+    meta.schema
+        .unwrap_or_else(|| default_schema_name().to_string())
 }
 
 impl<F: FileSystem> DomainTaskRepository for FsTaskRepository<'_, F> {

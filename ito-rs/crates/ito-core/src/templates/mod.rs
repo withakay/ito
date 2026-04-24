@@ -119,17 +119,33 @@ pub fn validate_change_name_input(name: &str) -> bool {
 pub fn read_change_schema(ito_path: &Path, change: &str) -> String {
     let meta = paths::change_meta_path(ito_path, change);
     if let Ok(Some(s)) = ito_common::io::read_to_string_optional(&meta) {
-        for line in s.lines() {
-            let l = line.trim();
-            if let Some(rest) = l.strip_prefix("schema:") {
-                let v = rest.trim();
-                if !v.is_empty() {
-                    return v.to_string();
-                }
-            }
+        let parsed = crate::change_meta::parse_change_meta_best_effort(&s);
+        if let Some(schema) = parsed.schema {
+            return schema;
+        }
+
+        // Backward-compatible: preserve the legacy line-scan behavior as a
+        // fallback if the metadata file isn't valid YAML.
+        if let Some(schema) = read_legacy_schema_line(&s) {
+            return schema;
         }
     }
     default_schema_name().to_string()
+}
+
+fn read_legacy_schema_line(contents: &str) -> Option<String> {
+    for line in contents.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("schema:") else {
+            continue;
+        };
+        let schema = rest.trim();
+        if !schema.is_empty() {
+            return Some(schema.to_string());
+        }
+    }
+
+    None
 }
 
 /// List change directory names under the `.ito/changes` directory.

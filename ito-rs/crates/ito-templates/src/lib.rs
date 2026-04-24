@@ -29,6 +29,7 @@ static ADAPTERS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/ada
 static COMMANDS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/commands");
 static AGENTS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/agents");
 static SCHEMAS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/schemas");
+static PRESETS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/presets");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// A file embedded in the `ito-templates` assets.
@@ -126,6 +127,20 @@ pub fn commands_files() -> Vec<EmbeddedFile> {
 /// ```
 pub fn schema_files() -> Vec<EmbeddedFile> {
     dir_files(&SCHEMAS_DIR)
+}
+
+/// Lists embedded workflow preset files.
+///
+/// Each entry contains the file's path relative to the presets root and its raw contents.
+pub fn presets_files() -> Vec<EmbeddedFile> {
+    dir_files(&PRESETS_DIR)
+}
+
+/// Returns the contents of an embedded preset file identified by its path relative to the presets root.
+///
+/// The `path` is relative to the embedded presets directory, for example `"orchestrate/rust.yaml"`.
+pub fn get_preset_file(path: &str) -> Option<&'static [u8]> {
+    PRESETS_DIR.get_file(path).map(|f| f.contents())
 }
 
 /// Returns the contents of an embedded schema file identified by its path relative to the schemas root.
@@ -440,6 +455,25 @@ mod tests {
     }
 
     #[test]
+    fn presets_files_contains_orchestrate_builtins() {
+        let files = presets_files();
+        assert!(!files.is_empty());
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "orchestrate/generic.yaml"),
+            "expected orchestrate/generic.yaml in presets"
+        );
+    }
+
+    #[test]
+    fn get_preset_file_returns_contents() {
+        let file = get_preset_file("orchestrate/generic.yaml").expect("preset should exist");
+        let text = std::str::from_utf8(file).expect("preset should be utf8");
+        assert!(text.contains("name:"));
+    }
+
+    #[test]
     fn loop_skill_template_includes_yaml_frontmatter() {
         let file = get_skill_file("ito-loop/SKILL.md").expect("loop skill should exist");
         let text = std::str::from_utf8(file).expect("skill should be utf8");
@@ -503,6 +537,54 @@ mod tests {
         );
         assert!(files.iter().any(|f| f.relative_path == "ito-fix.md"));
         assert!(files.iter().any(|f| f.relative_path == "ito-feature.md"));
+    }
+
+    #[test]
+    fn orchestrate_skills_and_command_are_embedded() {
+        let orchestrate =
+            get_skill_file("ito-orchestrate/SKILL.md").expect("ito-orchestrate skill");
+        let orchestrate = std::str::from_utf8(orchestrate).expect("utf8");
+        assert!(orchestrate.starts_with("---\nname: ito-orchestrate\n"));
+
+        let setup =
+            get_skill_file("ito-orchestrate-setup/SKILL.md").expect("ito-orchestrate-setup skill");
+        let setup = std::str::from_utf8(setup).expect("utf8");
+        assert!(setup.starts_with("---\nname: ito-orchestrate-setup\n"));
+
+        let workflow = get_skill_file("ito-orchestrator-workflow/SKILL.md")
+            .expect("ito-orchestrator-workflow skill");
+        let workflow = std::str::from_utf8(workflow).expect("utf8");
+        assert!(workflow.starts_with("---\nname: ito-orchestrator-workflow\n"));
+
+        let commands = commands_files();
+        assert!(
+            commands
+                .iter()
+                .any(|f| f.relative_path == "ito-orchestrate.md"),
+            "expected ito-orchestrate command to be embedded"
+        );
+    }
+
+    #[test]
+    fn default_project_includes_orchestrate_user_prompt() {
+        let files = default_project_files();
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == ".ito/user-prompts/orchestrate.md"),
+            "expected default project orchestrate.md prompt stub"
+        );
+    }
+
+    #[test]
+    fn opencode_orchestrator_agent_template_is_embedded() {
+        use crate::agents::{Harness, get_agent_files};
+
+        let files = get_agent_files(Harness::OpenCode);
+        assert!(
+            files.iter().any(|(name, _)| *name == "ito-orchestrator.md"),
+            "expected ito-orchestrator.md in OpenCode agent templates"
+        );
     }
 
     #[test]

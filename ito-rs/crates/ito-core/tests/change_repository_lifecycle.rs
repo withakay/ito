@@ -302,6 +302,7 @@ fn remote_runtime_ignores_local_change_dirs() {
         has_design: false,
         has_specs: true,
         has_tasks: true,
+        orchestrate: ito_domain::changes::ChangeOrchestrateMetadata::default(),
     };
     let repos = RepositorySet {
         changes: Arc::new(FakeRemoteChangeRepo::new(summary)),

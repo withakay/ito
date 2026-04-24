@@ -53,6 +53,37 @@ fn init_with_tools_none_installs_ito_skeleton() {
     assert!(repo.path().join(".ito/user-prompts/proposal.md").exists());
     assert!(repo.path().join(".ito/user-prompts/apply.md").exists());
     assert!(repo.path().join(".ito/user-prompts/tasks.md").exists());
+    assert!(
+        repo.path()
+            .join(".ito/user-prompts/orchestrate.md")
+            .exists()
+    );
+}
+
+#[test]
+fn init_with_tools_opencode_installs_orchestrator_agent_template() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = ["init", repo_path.as_ref(), "--tools", "opencode"];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    assert!(
+        agent_path.exists(),
+        "expected ito-orchestrator agent template"
+    );
+
+    let contents = std::fs::read_to_string(agent_path).expect("read agent");
+    assert!(!contents.contains("{{model}}"));
+    assert!(!contents.contains("{{variant}}"));
+    assert!(contents.contains("model:"));
 }
 
 #[test]

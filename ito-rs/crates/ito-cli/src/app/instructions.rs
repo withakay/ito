@@ -99,6 +99,67 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let instruction = generate_repo_sweep_instruction()?;
         return emit_instruction(want_json, "repo-sweep", instruction);
     }
+    if artifact == "orchestrate" {
+        let ito_path = rt.ito_path();
+        let prompt = match ito_core::orchestrate::load_orchestrate_user_prompt(ito_path) {
+            Ok(prompt) => prompt,
+            Err(ito_core::errors::CoreError::NotFound(_)) => {
+                return fail(
+                    "Missing required project file: .ito/user-prompts/orchestrate.md\n\n\
+The orchestrator workflow is configured via orchestrate.md and a project workflow skill.\n\
+Fix: run the orchestrator setup flow (agent-driven) by loading the ito-orchestrate-setup skill,\n\
+then re-run:\n\n\
+  ito agent instruction orchestrate\n",
+                );
+            }
+            Err(e) => return Err(to_cli_error(e)),
+        };
+
+        let preset_name = prompt
+            .front_matter
+            .preset
+            .clone()
+            .unwrap_or_else(|| "generic".to_string());
+        let preset = match ito_core::orchestrate::load_orchestrate_preset(&preset_name) {
+            Ok(preset) => preset,
+            Err(ito_core::errors::CoreError::NotFound(_)) => {
+                let available = ito_core::orchestrate::list_orchestrate_presets();
+                return fail(format!(
+                    "Unknown orchestrate preset '{preset_name}'.\n\nAvailable presets:\n  {available}\n",
+                    available = available.join("\n  ")
+                ));
+            }
+            Err(e) => return Err(to_cli_error(e)),
+        };
+
+        let orchestrate_md_path = prompt.path.to_string_lossy().to_string();
+        let orchestrate_md = prompt.raw;
+
+        #[derive(serde::Serialize)]
+        struct Ctx<'a> {
+            orchestrate_md_path: &'a str,
+            orchestrate_md: &'a str,
+            workflow_skill_name: &'a str,
+            preset_name: &'a str,
+            gate_order: &'a [String],
+            recommended_skills: &'a [String],
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/orchestrate.md.j2",
+            &Ctx {
+                orchestrate_md_path: &orchestrate_md_path,
+                orchestrate_md: &orchestrate_md,
+                workflow_skill_name: "ito-orchestrator-workflow",
+                preset_name: &preset.name,
+                gate_order: &preset.gate_order,
+                recommended_skills: &preset.recommended_skills,
+            },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render orchestrate instruction: {e}")))?;
+
+        return emit_instruction(want_json, "orchestrate", instruction);
+    }
     if artifact == "migrate-to-coordination-worktree" {
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);

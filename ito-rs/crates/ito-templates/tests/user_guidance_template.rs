@@ -26,6 +26,7 @@ fn user_prompt_stub_templates_exist() {
         ".ito/user-prompts/proposal.md",
         ".ito/user-prompts/apply.md",
         ".ito/user-prompts/tasks.md",
+        ".ito/user-prompts/orchestrate.md",
     ];
 
     for rel in files {

@@ -1,0 +1,28 @@
+name: go
+
+gate_order:
+  - apply-complete
+  - format
+  - lint
+  - tests
+  - style
+  - code-review
+  - security-review
+
+gates:
+  apply-complete: {}
+  format:
+    tool: "gofmt -w ."
+  lint: {}
+  tests:
+    tool: "go test ./..."
+  style: {}
+  code-review: {}
+  security-review: {}
+
+recommended_skills: []
+
+agent_roles:
+  apply-worker: "golang-engineer"
+  review-worker: "golang-code-reviewer"
+  security-worker: ""
