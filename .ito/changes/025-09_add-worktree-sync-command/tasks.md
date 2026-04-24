@@ -128,7 +128,7 @@ ______________________________________________________________________
 - **Done When**: Archive-related command output and finish/agent guidance consistently follow the configured integration mode and the finish archive prompt behaves correctly.
 - **Requirements**: `cli-archive:main-integration-mode`, `agent-instructions:archive-integration-guidance`, `agent-instructions:finish-archive-prompt`, `cli-config:archive-main-integration-mode`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.3: Run full validation for the change
 
