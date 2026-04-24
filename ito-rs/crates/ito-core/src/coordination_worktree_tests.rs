@@ -750,6 +750,270 @@ fn maybe_auto_commit_calls_auto_commit_when_worktree_mode_and_dir_exists() {
     );
 }
 
+#[test]
+fn sync_coordination_worktree_is_noop_when_storage_is_embedded() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    std::fs::create_dir_all(&ito_path).unwrap();
+    write_ito_json_with_storage(project_root, "embedded");
+
+    let runner = StubRunner::with_outputs(Vec::new());
+    let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect("embedded sync should succeed");
+
+    assert_eq!(outcome, CoordinationSyncOutcome::Embedded);
+    assert!(
+        runner.calls.borrow().is_empty(),
+        "embedded sync should not run git"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let coord_wt = tmp.path().join("coord-wt");
+    let coord_ito = coord_wt.join(".ito");
+    let git_common_dir = tmp.path().join("git-common");
+
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::create_dir_all(&coord_ito).unwrap();
+    std::fs::create_dir_all(&git_common_dir).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(coord_ito.join(subdir)).unwrap();
+    }
+    crate::coordination::wire_coordination_symlinks(&ito_path, &coord_ito).expect("wire");
+
+    let json = serde_json::json!({
+        "changes": {
+            "coordination_branch": {
+                "storage": "worktree",
+                "name": "ito/internal/changes",
+                "worktree_path": coord_wt.to_str().unwrap()
+            }
+        }
+    });
+    std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
+
+    // New call order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
+    // add -A → diff --cached → commit → rev-parse HEAD → push
+    let runner = StubRunner::with_outputs(vec![
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD (state)
+        ok(" M .ito/changes/example\n"),              // status --porcelain
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+        ok(""),                                       // add -A
+        Ok(ProcessOutput {                            // diff --cached --quiet (has changes)
+            exit_code: 1,
+            success: false,
+            stdout: String::new(),
+            stderr: String::new(),
+            timed_out: false,
+        }),
+        ok(""),                                       // commit
+        ok("def456\n"),                               // rev-parse HEAD (post-commit)
+        ok(""),                                       // push
+    ]);
+
+    let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect("sync should succeed");
+
+    assert_eq!(outcome, CoordinationSyncOutcome::Synchronized);
+
+    let calls = runner.calls.borrow();
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
+    assert_eq!(
+        calls[2],
+        ["-C", coord_wt.to_str().unwrap(), "rev-parse", "HEAD"]
+    );
+    assert_eq!(
+        calls[3],
+        ["-C", coord_wt.to_str().unwrap(), "status", "--porcelain"]
+    );
+    assert_eq!(calls[4], ["rev-parse", "--git-common-dir"]);
+    assert_eq!(calls[5], ["-C", coord_wt.to_str().unwrap(), "add", "-A"]);
+    assert_eq!(
+        calls[9],
+        ["push", "origin", "HEAD:refs/heads/ito/internal/changes"]
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn sync_coordination_worktree_returns_error_when_links_point_to_wrong_target() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let expected_coord_wt = tmp.path().join("coord-wt");
+    let wrong_coord_wt = tmp.path().join("wrong-coord-wt");
+    let expected_coord_ito = expected_coord_wt.join(".ito");
+    let wrong_coord_ito = wrong_coord_wt.join(".ito");
+
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::create_dir_all(&expected_coord_ito).unwrap();
+    std::fs::create_dir_all(&wrong_coord_ito).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(wrong_coord_ito.join(subdir)).unwrap();
+    }
+    crate::coordination::wire_coordination_symlinks(&ito_path, &wrong_coord_ito).expect("wire");
+
+    let json = serde_json::json!({
+        "changes": {
+            "coordination_branch": {
+                "storage": "worktree",
+                "name": "ito/internal/changes",
+                "worktree_path": expected_coord_wt.to_str().unwrap()
+            }
+        }
+    });
+    std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
+
+    let runner = StubRunner::with_outputs(Vec::new());
+    let err = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect_err("mismatched wiring should fail");
+
+    let msg = err.to_string();
+    assert!(msg.contains("should point to"), "msg: {msg}");
+    assert!(msg.contains("ito init"), "msg: {msg}");
+    assert!(
+        runner.calls.borrow().is_empty(),
+        "validation failure should stop before git calls"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn sync_coordination_worktree_rate_limits_when_recent_and_clean() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let coord_wt = tmp.path().join("coord-wt");
+    let coord_ito = coord_wt.join(".ito");
+    let git_common_dir = tmp.path().join("git-common");
+
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::create_dir_all(&coord_ito).unwrap();
+    std::fs::create_dir_all(&git_common_dir).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(coord_ito.join(subdir)).unwrap();
+    }
+    crate::coordination::wire_coordination_symlinks(&ito_path, &coord_ito).expect("wire");
+
+    let json = serde_json::json!({
+        "changes": {
+            "coordination_branch": {
+                "storage": "worktree",
+                "name": "ito/internal/changes",
+                "worktree_path": coord_wt.to_str().unwrap()
+            }
+        }
+    });
+    std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
+    let stored = serde_json::json!({
+        "synced_at_epoch_seconds": super::now_epoch_seconds(),
+        "head": "abc123"
+    });
+    std::fs::write(
+        git_common_dir.join("ito-sync-state.json"),
+        stored.to_string(),
+    )
+    .unwrap();
+
+    // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir → rate-limited
+    let runner = StubRunner::with_outputs(vec![
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD
+        ok(""),                                       // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+    ]);
+
+    let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect("sync should succeed");
+
+    assert_eq!(outcome, CoordinationSyncOutcome::RateLimited);
+
+    let calls = runner.calls.borrow();
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
+    assert_eq!(
+        calls[2],
+        ["-C", coord_wt.to_str().unwrap(), "rev-parse", "HEAD"]
+    );
+    assert_eq!(
+        calls[3],
+        ["-C", coord_wt.to_str().unwrap(), "status", "--porcelain"]
+    );
+    assert_eq!(calls[4], ["rev-parse", "--git-common-dir"]);
+}
+
+#[test]
+#[cfg(unix)]
+fn sync_coordination_worktree_force_bypasses_rate_limit() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let coord_wt = tmp.path().join("coord-wt");
+    let coord_ito = coord_wt.join(".ito");
+    let git_common_dir = tmp.path().join("git-common");
+
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::create_dir_all(&coord_ito).unwrap();
+    std::fs::create_dir_all(&git_common_dir).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(coord_ito.join(subdir)).unwrap();
+    }
+    crate::coordination::wire_coordination_symlinks(&ito_path, &coord_ito).expect("wire");
+
+    let json = serde_json::json!({
+        "changes": {
+            "coordination_branch": {
+                "storage": "worktree",
+                "name": "ito/internal/changes",
+                "worktree_path": coord_wt.to_str().unwrap()
+            }
+        }
+    });
+    std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
+    let stored = serde_json::json!({
+        "synced_at_epoch_seconds": super::now_epoch_seconds(),
+        "head": "abc123"
+    });
+    std::fs::write(
+        git_common_dir.join("ito-sync-state.json"),
+        stored.to_string(),
+    )
+    .unwrap();
+
+    // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
+    // add -A → diff --cached (no changes) → push
+    let runner = StubRunner::with_outputs(vec![
+        ok(""),                                       // fetch
+        ok(""),                                       // merge --ff-only
+        ok("abc123\n"),                               // rev-parse HEAD
+        ok(""),                                       // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+        ok(""),                                       // add -A
+        ok(""),                                       // diff --cached --quiet (no changes)
+        ok(""),                                       // push
+    ]);
+
+    let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, true)
+        .expect("forced sync should succeed");
+
+    assert_eq!(outcome, CoordinationSyncOutcome::Synchronized);
+
+    let calls = runner.calls.borrow();
+    assert_eq!(calls[0], ["fetch", "origin", "ito/internal/changes"]);
+    assert!(
+        calls.iter().any(|c| c.contains(&"push".to_string())),
+        "should have pushed"
+    );
+}
+
 /// Initialises a minimal git repository with a single empty commit.
 fn init_test_repo(repo: &std::path::Path) {
     fs::create_dir_all(repo).unwrap();

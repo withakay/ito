@@ -1,10 +1,10 @@
 use crate::cli::{AgentArgs, AgentCommand, AgentInstructionArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::types::{WorktreeInitConfig, WorktreeStrategy};
+use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
-use ito_core::git::{CoordinationGitErrorKind, fetch_coordination_branch};
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
@@ -246,6 +246,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let project_root = ito_path.parent().unwrap_or(ito_path);
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+        let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -253,12 +254,17 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         #[derive(serde::Serialize)]
         struct Ctx {
             worktree: WorktreeConfig,
+            archive: ArchiveInstructionConfig,
             change: Option<String>,
         }
 
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/finish.md.j2",
-            &Ctx { worktree, change },
+            &Ctx {
+                worktree,
+                archive,
+                change,
+            },
         )
         .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
 
@@ -267,6 +273,11 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
 
     if artifact == "archive" {
         let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+        let ctx = rt.ctx();
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -296,6 +307,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
 
         #[derive(serde::Serialize)]
         struct Ctx {
+            archive: ArchiveInstructionConfig,
             change: Option<String>,
             available_changes: Vec<String>,
         }
@@ -303,6 +315,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/archive.md.j2",
             &Ctx {
+                archive,
                 change: resolved_change,
                 available_changes,
             },
@@ -364,17 +377,7 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
 
-        let (coord_enabled, coord_branch) =
-            load_coordination_branch_settings(project_root, ito_path, ctx);
-        if coord_enabled
-            && let Err(err) = fetch_coordination_branch(project_root, &coord_branch)
-            && err.kind != CoordinationGitErrorKind::RemoteMissing
-        {
-            eprintln!(
-                "Warning: failed to sync coordination branch '{}' before apply instructions: {}",
-                coord_branch, err.message
-            );
-        }
+        best_effort_sync_coordination(rt, "before apply instructions");
 
         let apply = match core_templates::compute_apply_instructions(
             ito_path,
@@ -619,6 +622,41 @@ fn generate_repo_sweep_instruction() -> CliResult<String> {
     struct Ctx {}
     ito_templates::instructions::render_instruction_template("agent/repo-sweep.md.j2", &Ctx {})
         .map_err(|e| to_cli_error(format!("rendering repo-sweep instruction: {e}")))
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ArchiveInstructionConfig {
+    coordination_storage: String,
+    main_integration_mode: String,
+}
+
+fn archive_instruction_config_from_merged(merged: &serde_json::Value) -> CliResult<ArchiveInstructionConfig> {
+    let typed: ItoConfig = serde::Deserialize::deserialize(merged).map_err(|e| {
+        to_cli_error(format!(
+            "Failed to parse merged Ito config.\n\
+             \n\
+             Why: The merged config contains an invalid value or type, so instruction rendering cannot safely choose a main integration mode.\n\
+             \n\
+             How to fix: Run `ito config check` (or inspect your config files) and correct the invalid field, then retry.\n\
+             \n\
+             Underlying error: {e}"
+        ))
+    })?;
+
+    Ok(ArchiveInstructionConfig {
+        coordination_storage: typed
+            .changes
+            .coordination_branch
+            .storage
+            .as_str()
+            .to_string(),
+        main_integration_mode: typed
+            .changes
+            .archive
+            .main_integration_mode
+            .as_str()
+            .to_string(),
+    })
 }
 
 fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {

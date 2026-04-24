@@ -13,6 +13,7 @@ pub(crate) mod serve;
 #[cfg(feature = "backend")]
 pub(crate) mod serve_api;
 pub(crate) mod stats;
+pub(crate) mod sync;
 pub(crate) mod tasks;
 pub(crate) mod templates;
 pub(crate) mod util;
@@ -37,6 +38,7 @@ pub(crate) use serve::handle_serve_clap;
 #[cfg(feature = "backend")]
 pub(crate) use serve_api::handle_backend_serve_clap;
 pub(crate) use stats::handle_stats_clap;
+pub(crate) use sync::handle_sync_clap;
 pub(crate) use tasks::handle_tasks_clap;
 pub(crate) use templates::handle_templates_clap;
 pub(crate) use util::handle_util_clap;

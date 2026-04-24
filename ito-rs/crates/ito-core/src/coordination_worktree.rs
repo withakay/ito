@@ -15,20 +15,30 @@
 //! 3. Neither exists → create an orphan branch with an empty initial commit.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use ito_config::types::{CoordinationStorage, ItoConfig};
 use ito_config::{ConfigContext, load_cascading_project_config};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::coordination::{update_gitignore_for_symlinks, wire_coordination_symlinks};
+use crate::coordination::{
+    check_coordination_health, format_health_message, update_gitignore_for_symlinks,
+    wire_coordination_symlinks,
+};
 use crate::errors::{CoreError, CoreResult};
+use crate::git::{
+    CoordinationGitErrorKind, fetch_coordination_branch_with_runner,
+    push_coordination_branch_with_runner,
+};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::coordination_worktree_path;
 
 // ── Subdirectories created inside the coordination worktree ──────────────────
 
 const ITO_SUBDIRS: &[&str] = &["changes", "specs", "modules", "workflows", "audit"];
+const SYNC_STATE_FILE_NAME: &str = "ito-sync-state.json";
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -49,6 +59,36 @@ const ITO_SUBDIRS: &[&str] = &["changes", "specs", "modules", "workflows", "audi
 pub fn auto_commit_coordination(worktree_path: &Path, message: &str) -> CoreResult<()> {
     let runner = SystemProcessRunner;
     auto_commit_coordination_with_runner(&runner, worktree_path, message)
+}
+
+/// Outcome of a top-level coordination sync attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CoordinationSyncOutcome {
+    /// Worktree-backed coordination is not active, so sync is a no-op.
+    Embedded,
+    /// The sync was skipped because the coordination state was already pushed recently.
+    RateLimited,
+    /// Worktree-backed coordination was validated and synchronized.
+    Synchronized,
+}
+
+/// In-memory snapshot of the coordination worktree's current git state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CoordinationSyncState {
+    /// Git commit hash (`HEAD`) of the coordination worktree.
+    head: String,
+    /// `true` when `git status --porcelain` reports uncommitted changes.
+    dirty: bool,
+}
+
+/// On-disk record of the last successful coordination sync, serialized as
+/// JSON under the shared git metadata directory (`ito-sync-state.json`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct StoredCoordinationSyncState {
+    /// Unix epoch seconds when the last push completed successfully.
+    synced_at_epoch_seconds: u64,
+    /// Git commit hash that was pushed at that time.
+    head: String,
 }
 
 /// Creates a git worktree at `target_path` tracking `branch_name`.
@@ -104,12 +144,7 @@ pub fn maybe_auto_commit_coordination(
     let ctx = ConfigContext::from_process_env();
     let cfg_value = load_cascading_project_config(project_root, ito_path, &ctx).merged;
 
-    let typed: ito_config::types::ItoConfig = serde_json::from_value(cfg_value).map_err(|e| {
-        CoreError::serde(
-            "parse Ito configuration for auto-commit check",
-            e.to_string(),
-        )
-    })?;
+    let typed = deserialize_config(&cfg_value, "parse Ito configuration for auto-commit check")?;
 
     let coord = &typed.changes.coordination_branch;
 
@@ -121,18 +156,7 @@ pub fn maybe_auto_commit_coordination(
     // Resolve org/repo for the worktree path.  When resolution fails (e.g. no
     // git remote), fall back to a stable FNV-1a hash of the absolute project
     // root so that different local-only projects never share the same path.
-    let (org, repo) = match crate::git_remote::resolve_org_repo_from_config_or_remote(
-        project_root,
-        &typed.backend,
-    ) {
-        Some(pair) => pair,
-        None => {
-            let hash = fnv1a_hash(project_root.to_string_lossy().as_bytes());
-            ("_local".to_string(), format!("{hash:016x}"))
-        }
-    };
-
-    let worktree_path = coordination_worktree_path(coord, ito_path, &org, &repo);
+    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, true)?;
 
     // Only attempt the commit when the worktree directory actually exists.
     // If it hasn't been created yet, silently skip — the user hasn't set up
@@ -142,6 +166,28 @@ pub fn maybe_auto_commit_coordination(
     }
 
     auto_commit_coordination(&worktree_path, message)
+}
+
+/// Validate, fetch, auto-commit, and push the coordination worktree.
+///
+/// # Errors
+///
+/// Returns [`CoreError`] when:
+/// - The cascading config cannot be deserialized.
+/// - Coordination health validation fails (broken symlinks, wrong targets,
+///   missing worktree directory).
+/// - The git common-dir cannot be resolved.
+/// - The coordination branch fetch fails for a reason other than the remote
+///   branch not existing yet.
+/// - Auto-commit or push fails.
+/// - Sync-state metadata cannot be read or written.
+pub fn sync_coordination_worktree(
+    project_root: &Path,
+    ito_path: &Path,
+    force: bool,
+) -> CoreResult<CoordinationSyncOutcome> {
+    let runner = SystemProcessRunner;
+    sync_coordination_worktree_with_runner(&runner, project_root, ito_path, force)
 }
 
 /// Removes the coordination worktree at `target_path` and prunes stale refs.
@@ -288,6 +334,399 @@ pub(crate) fn auto_commit_coordination_with_runner(
 
     commit_staged(runner, worktree_path, message)?;
     Ok(())
+}
+
+pub(crate) fn sync_coordination_worktree_with_runner(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+    ito_path: &Path,
+    force: bool,
+) -> CoreResult<CoordinationSyncOutcome> {
+    let ctx = ConfigContext::from_process_env();
+    let cfg_value = load_cascading_project_config(project_root, ito_path, &ctx).merged;
+    let typed = deserialize_config(&cfg_value, "parse Ito configuration for sync")?;
+    let coord = &typed.changes.coordination_branch;
+
+    let CoordinationStorage::Worktree = coord.storage else {
+        return Ok(CoordinationSyncOutcome::Embedded);
+    };
+
+    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, false)?;
+    let worktree_ito_path = worktree_path.join(".ito");
+    let status = check_coordination_health(ito_path, &worktree_ito_path, &coord.storage);
+    if let Some(message) = format_health_message(&status) {
+        return Err(CoreError::process(message));
+    }
+
+    // Always fetch first so remote changes are visible even when rate-limiting
+    // skips the push. Fetch is generally fast and ensures the coordination
+    // worktree stays up-to-date with teammate contributions.
+    if let Err(err) = fetch_coordination_branch_with_runner(runner, project_root, &coord.name)
+        && err.kind != CoordinationGitErrorKind::RemoteMissing
+    {
+        return Err(CoreError::process(format!(
+            "coordination fetch failed: {}",
+            err.message
+        )));
+    }
+
+    // Fast-forward the local branch to include remote changes before committing
+    // local work. This ensures remote updates from teammates are visible via
+    // the `.ito/` symlinks. Merge failures (e.g. diverged history) are non-fatal
+    // — the push will surface the conflict instead.
+    let _ = fast_forward_coordination_with_runner(runner, &worktree_path, &coord.name);
+
+    let current_state = coordination_sync_state_with_runner(runner, &worktree_path)?;
+    let git_common_dir = git_common_dir_with_runner(runner, project_root)?;
+    let state_file = git_common_dir.join(SYNC_STATE_FILE_NAME);
+    let last_sync = read_sync_state(&state_file)?;
+
+    // Rate-limiting only affects the push — fetch always runs above.
+    if should_rate_limit(
+        force,
+        &current_state,
+        last_sync.as_ref(),
+        coord.sync_interval_seconds,
+    ) {
+        return Ok(CoordinationSyncOutcome::RateLimited);
+    }
+
+    auto_commit_coordination_with_runner(
+        runner,
+        &worktree_path,
+        "chore: sync coordination worktree",
+    )?;
+
+    let synced_head = if current_state.dirty {
+        current_head_with_runner(runner, &worktree_path)?
+    } else {
+        current_state.head
+    };
+
+    push_coordination_branch_with_runner(runner, &worktree_path, "HEAD", &coord.name)
+        .map_err(|err| CoreError::process(format!("coordination push failed: {}", err.message)))?;
+
+    write_sync_state(
+        &state_file,
+        &StoredCoordinationSyncState {
+            synced_at_epoch_seconds: now_epoch_seconds(),
+            head: synced_head,
+        },
+    )?;
+
+    Ok(CoordinationSyncOutcome::Synchronized)
+}
+
+fn deserialize_config(cfg_value: &serde_json::Value, context: &str) -> CoreResult<ItoConfig> {
+    serde_json::from_value(cfg_value.clone())
+        .map_err(|e| CoreError::serde(context.to_string(), e.to_string()))
+}
+
+fn resolved_coordination_worktree_path(
+    project_root: &Path,
+    ito_path: &Path,
+    typed: &ItoConfig,
+    allow_local_fallback: bool,
+) -> CoreResult<PathBuf> {
+    let coord = &typed.changes.coordination_branch;
+
+    // When an explicit worktree_path is configured, use it directly —
+    // no org/repo resolution needed.
+    if coord
+        .worktree_path
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        return Ok(coordination_worktree_path(coord, ito_path, "", ""));
+    }
+
+    let Some((org, repo)) =
+        crate::git_remote::resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
+    else {
+        if !allow_local_fallback {
+            return Err(CoreError::process(
+                "Cannot resolve org/repo for coordination worktree.\n\
+                 Neither `backend.project.org`/`backend.project.repo` are set in \
+                 .ito/config.json, nor does the repository have a parseable `origin` \
+                 remote URL.\n\
+                 Fix: add an 'origin' remote (`git remote add origin <url>`) or set \
+                 `backend.project.org` and `backend.project.repo` in .ito/config.json.",
+            ));
+        }
+
+        let hash = fnv1a_hash(project_root.to_string_lossy().as_bytes());
+        return Ok(coordination_worktree_path(
+            coord,
+            ito_path,
+            "_local",
+            &format!("{hash:016x}"),
+        ));
+    };
+
+    Ok(coordination_worktree_path(coord, ito_path, &org, &repo))
+}
+
+fn coordination_sync_state_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+) -> CoreResult<CoordinationSyncState> {
+    let head = current_head_with_runner(runner, worktree_path)?;
+    let dirty = working_tree_dirty_with_runner(runner, worktree_path)?;
+    Ok(CoordinationSyncState { head, dirty })
+}
+
+fn current_head_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+) -> CoreResult<String> {
+    let request =
+        ProcessRequest::new("git").args(["-C", path_arg(worktree_path)?, "rev-parse", "HEAD"]);
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot resolve coordination worktree HEAD at '{}'.\nGit command failed to run: {err}\nFix: ensure '{}' is a git worktree and retry.",
+            worktree_path.display(),
+            worktree_path.display()
+        ))
+    })?;
+    if !output.success {
+        return Err(CoreError::process(format!(
+            "Cannot resolve coordination worktree HEAD at '{}'.\nGit returned: {}\nFix: ensure '{}' is a valid git worktree and retry.",
+            worktree_path.display(),
+            render_output(&output),
+            worktree_path.display()
+        )));
+    }
+
+    Ok(output.stdout.trim().to_string())
+}
+
+fn working_tree_dirty_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+) -> CoreResult<bool> {
+    let request =
+        ProcessRequest::new("git").args(["-C", path_arg(worktree_path)?, "status", "--porcelain"]);
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot inspect coordination worktree status at '{}'.\nGit command failed to run: {err}\nFix: ensure '{}' is a git worktree and retry.",
+            worktree_path.display(),
+            worktree_path.display()
+        ))
+    })?;
+    if !output.success {
+        return Err(CoreError::process(format!(
+            "Cannot inspect coordination worktree status at '{}'.\nGit returned: {}\nFix: ensure '{}' is a valid git worktree and retry.",
+            worktree_path.display(),
+            render_output(&output),
+            worktree_path.display()
+        )));
+    }
+
+    Ok(!output.stdout.trim().is_empty())
+}
+
+fn git_common_dir_with_runner(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+) -> CoreResult<std::path::PathBuf> {
+    let request = ProcessRequest::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(project_root);
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot resolve shared git metadata for '{}'.\nGit command failed to run: {err}\nFix: ensure '{}' is inside a git worktree and retry.",
+            project_root.display(),
+            project_root.display()
+        ))
+    })?;
+    if !output.success {
+        return Err(CoreError::process(format!(
+            "Cannot resolve shared git metadata for '{}'.\nGit returned: {}\nFix: ensure '{}' is inside a git worktree and retry.",
+            project_root.display(),
+            render_output(&output),
+            project_root.display()
+        )));
+    }
+
+    let path = std::path::PathBuf::from(output.stdout.trim());
+    if path.is_absolute() {
+        return Ok(path);
+    }
+
+    Ok(project_root.join(path))
+}
+
+fn read_sync_state(path: &Path) -> CoreResult<Option<StoredCoordinationSyncState>> {
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => {
+            return Err(CoreError::io(
+                format!(
+                    "cannot read coordination sync state '{}': ensure the git metadata directory is readable",
+                    path.display()
+                ),
+                err,
+            ));
+        }
+    };
+
+    let state = serde_json::from_str(&content).map_err(|err| {
+        CoreError::serde(
+            format!(
+                "parse coordination sync state '{}': invalid JSON",
+                path.display()
+            ),
+            err.to_string(),
+        )
+    })?;
+    Ok(Some(state))
+}
+
+fn write_sync_state(path: &Path, state: &StoredCoordinationSyncState) -> CoreResult<()> {
+    let Some(parent) = path.parent() else {
+        return Err(CoreError::process(format!(
+            "Cannot write coordination sync state '{}'.\nThe target path has no parent directory.\nFix: choose a valid git metadata path and retry.",
+            path.display()
+        )));
+    };
+    fs::create_dir_all(parent).map_err(|err| {
+        CoreError::io(
+            format!(
+                "cannot create coordination sync state directory '{}': ensure it is writable",
+                parent.display()
+            ),
+            err,
+        )
+    })?;
+
+    let json = serde_json::to_string(state).map_err(|err| {
+        CoreError::serde(
+            format!(
+                "serialize coordination sync state '{}': invalid state",
+                path.display()
+            ),
+            err.to_string(),
+        )
+    })?;
+
+    // Atomic write: write to a temporary file, then rename. This prevents
+    // corruption if the process is interrupted mid-write, which would
+    // otherwise leave invalid JSON that blocks all future sync operations.
+    // The temp name must be process-unique: concurrent syncs should not
+    // clobber each other's partial writes.
+    let pid = std::process::id();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut tmp_name = path
+        .file_name()
+        .unwrap_or_else(|| std::ffi::OsStr::new(SYNC_STATE_FILE_NAME))
+        .to_os_string();
+    tmp_name.push(format!(".{pid}.{nanos}.tmp"));
+    let tmp_path = parent.join(tmp_name);
+    fs::write(&tmp_path, &json).map_err(|err| {
+        CoreError::io(
+            format!(
+                "cannot write coordination sync state temp file '{}': ensure the git metadata directory is writable",
+                tmp_path.display()
+            ),
+            err,
+        )
+    })?;
+    fs::rename(&tmp_path, path).map_err(|err| {
+        CoreError::io(
+            format!(
+                "cannot rename coordination sync state '{}' → '{}': ensure the directory is writable",
+                tmp_path.display(),
+                path.display()
+            ),
+            err,
+        )
+    })
+}
+
+fn sync_state_is_recent(state: &StoredCoordinationSyncState, interval_seconds: u64) -> bool {
+    now_epoch_seconds().saturating_sub(state.synced_at_epoch_seconds) < interval_seconds
+}
+
+fn should_rate_limit(
+    force: bool,
+    current_state: &CoordinationSyncState,
+    last_sync: Option<&StoredCoordinationSyncState>,
+    interval_seconds: u64,
+) -> bool {
+    if force || current_state.dirty {
+        return false;
+    }
+
+    let Some(last_sync) = last_sync else {
+        return false;
+    };
+
+    last_sync.head == current_state.head && sync_state_is_recent(last_sync, interval_seconds)
+}
+
+/// Returns the current wall-clock time as seconds since the Unix epoch.
+///
+/// Falls back to `0` if the system clock is before the epoch (e.g. broken
+/// hardware clock). A zero value causes `sync_state_is_recent` to treat
+/// every stored state as recent (`0 - stored == 0 < interval`), which
+/// means rate limiting stays active — the safe direction for a broken clock.
+fn now_epoch_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
+/// Fast-forward the coordination branch to include remote changes.
+///
+/// Runs `git -C <worktree> merge --ff-only origin/<branch>`. Failures are
+/// returned as errors but callers typically treat them as non-fatal since
+/// the subsequent push will surface any real conflicts.
+fn fast_forward_coordination_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_path: &Path,
+    branch_name: &str,
+) -> CoreResult<()> {
+    let wt_str = path_arg(worktree_path)?;
+    let remote_ref = format!("origin/{branch_name}");
+    let request = ProcessRequest::new("git").args(["-C", wt_str, "merge", "--ff-only", &remote_ref]);
+    let output = runner.run(&request).map_err(|err| {
+        CoreError::process(format!(
+            "Cannot fast-forward coordination branch in '{}'.\n\
+             Git command failed: {err}\n\
+             Fix: ensure the worktree is a valid git checkout.",
+            worktree_path.display(),
+        ))
+    })?;
+
+    if !output.success {
+        let detail = output.stderr.trim();
+        return Err(CoreError::process(format!(
+            "Fast-forward merge of '{remote_ref}' failed in '{}'.\n\
+             Git reported: {detail}\n\
+             This is usually non-fatal — local commits will be pushed and the remote \
+             will be updated.",
+            worktree_path.display(),
+        )));
+    }
+
+    Ok(())
+}
+
+/// Extract the UTF-8 string slice for `path`, returning a `CoreError` if the
+/// path contains non-UTF-8 bytes (possible on Linux).
+fn path_arg(path: &Path) -> CoreResult<&str> {
+    path.to_str().ok_or_else(|| {
+        CoreError::process(format!(
+            "Path '{}' contains non-UTF-8 characters and cannot be used in git commands.",
+            path.display()
+        ))
+    })
 }
 
 pub(crate) fn create_coordination_worktree_with_runner(

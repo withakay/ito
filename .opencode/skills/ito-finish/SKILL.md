@@ -1,132 +1,28 @@
 ---
 name: ito-finish
-description: "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work — presents structured options for merge, PR, or cleanup"
+description: "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work"
 ---
 
 # Finishing a Development Branch
 
-Verify tests, present options, execute choice, clean up.
+Use the CLI-generated finish instructions as the source of truth.
 
-## Step 1: Verify Tests
+## Steps
 
-Run the project's test suite before offering any options. If tests fail, stop — fix them first.
+1. Determine the target change/branch.
+   - If the user provides one, use it.
+   - Otherwise inspect the current branch and ask only if needed.
 
-## Step 2: Determine Base Branch
+2. Generate instructions:
+   ```bash
+   ito agent instruction finish --change "<change-id-or-branch>"
+   ```
 
-```bash
-git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
-```
+3. Follow the printed instructions exactly.
+   - If the finish instruction asks `Do you want to archive this change now?`, ask that question verbatim.
+   - If the user chooses to archive, delegate to the CLI-generated archive instructions.
+   - Do not maintain a separate finish/archive workflow in this skill.
 
-Or ask: "This branch split from main — is that correct?"
-
-## Step 3: Detect Ito Change
-
-```bash
-ito list --changes 2>/dev/null
-```
-
-If an Ito change is detected, include Option 5 (Archive).
-
-## Step 4: Present Options
-
-```
-Implementation complete. What would you like to do?
-
-1. Merge back to <base-branch> locally
-2. Push and create a Pull Request
-3. Keep the branch as-is (I'll handle it later)
-4. Discard this work
-5. Archive Ito change (integrates specs, marks complete)  [if Ito change detected]
-
-Which option?
-```
-
-Keep options concise. Don't add explanation.
-
-## Step 5: Execute Choice
-
-### Option 1: Merge Locally
-
-**Important:** If using worktrees, perform the merge from the main worktree, not the feature worktree.
-
-```bash
-# From the main worktree:
-git merge <feature-branch>
-<test command>          # verify on merged result
-```
-
-Then: Cleanup (Step 6).
-
-### Option 2: Push and Create PR
-
-```bash
-git push -u origin <feature-branch>
-gh pr create --title "<title>" --body "$(cat <<'EOF'
-## Summary
-<2-3 bullets>
-EOF
-)"
-```
-
-Then: Cleanup (Step 6). Keep worktree until PR merges if needed.
-
-### Option 3: Keep As-Is
-
-Report: "Keeping branch `<name>`. Worktree preserved at `<path>`."
-
-No cleanup.
-
-### Option 4: Discard
-
-**Require typed confirmation:**
-```
-This will permanently delete branch <name> and all commits.
-Type 'discard' to confirm.
-```
-
-After confirmation:
-```bash
-git branch -D <feature-branch>
-```
-
-Then: Cleanup (Step 6).
-
-### Option 5: Archive Ito Change
-
-```bash
-ito agent instruction archive --change <change-id>
-```
-
-Follow printed instructions. Then: Cleanup (Step 6).
-
-## Step 6: Cleanup Worktree
-
-For Options 1 and 5 — use the CLI-generated cleanup instructions (source of truth):
-
-```bash
-ito agent instruction finish --change <feature-branch>
-```
-
-If the worktree is locked, assume the user locked it intentionally and keep it.
-
-For Options 2 and 3 — keep the worktree.
-
-## Quick Reference
-
-| Option | Merge | Push | Archive | Keep Worktree | Delete Branch |
-|--------|-------|------|---------|---------------|---------------|
-| 1. Merge | Yes | - | - | No | Yes |
-| 2. PR | - | Yes | - | Optional | No |
-| 3. Keep | - | - | - | Yes | No |
-| 4. Discard | - | - | - | No | Yes (force) |
-| 5. Archive | - | - | Yes | No | Yes |
-
-## Rules
-
-- Never proceed with failing tests
-- Never merge without verifying tests on the result
-- Never delete work without typed confirmation
-- Never force-push without explicit request
-- If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks
-- Always detect Ito changes and include the archive option
-- Always present structured options, not open-ended questions
+   If the command fails or returns an error:
+   - Report the error message to the user.
+   - Suggest checking that the change/branch exists and the working tree is clean.

@@ -32,3 +32,5 @@ Run the CLI-generated archive instructions for a specific change.
    ```
 
 3. Follow the printed instructions exactly.
+   - Treat the CLI-generated archive instruction as the source of truth for coordination-first archive and main integration follow-up.
+   - Do not embed a separate archive policy in this wrapper.

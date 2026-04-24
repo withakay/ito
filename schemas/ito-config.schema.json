@@ -134,6 +134,54 @@
       ],
       "type": "object"
     },
+    "ArchiveConfig": {
+      "description": "Archive integration settings",
+      "properties": {
+        "main_integration_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ArchiveMainIntegrationMode"
+            }
+          ],
+          "default": "pull_request",
+          "description": "Default mode for integrating archived changes into main"
+        }
+      },
+      "type": "object"
+    },
+    "ArchiveMainIntegrationMode": {
+      "description": "Archive integration mode for promoting archived changes into main",
+      "oneOf": [
+        {
+          "description": "Integrate archived changes directly into `main`.",
+          "enum": [
+            "direct_merge"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Create a pull request for `main` integration.",
+          "enum": [
+            "pull_request"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Create a pull request and request automatic merge.",
+          "enum": [
+            "pull_request_auto_merge"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Archive on the coordination branch only and leave `main` integration for later.",
+          "enum": [
+            "coordination_only"
+          ],
+          "type": "string"
+        }
+      ]
+    },
     "AuditConfig": {
       "description": "Audit configuration",
       "properties": {
@@ -491,6 +539,17 @@
     "ChangesConfig": {
       "description": "Change coordination settings",
       "properties": {
+        "archive": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ArchiveConfig"
+            }
+          ],
+          "default": {
+            "main_integration_mode": "pull_request"
+          },
+          "description": "Archive integration settings"
+        },
         "coordination_branch": {
           "allOf": [
             {
@@ -500,7 +559,8 @@
           "default": {
             "enabled": true,
             "name": "ito/internal/changes",
-            "storage": "worktree"
+            "storage": "worktree",
+            "sync_interval_seconds": 120
           },
           "description": "Coordination branch settings"
         }
@@ -606,6 +666,13 @@
           ],
           "default": "worktree",
           "description": "Storage backend for coordination data"
+        },
+        "sync_interval_seconds": {
+          "default": 120,
+          "description": "Minimum interval in seconds between redundant coordination sync pushes",
+          "format": "uint64",
+          "minimum": 1.0,
+          "type": "integer"
         },
         "worktree_path": {
           "description": "Worktree path override for coordination storage",
@@ -1223,7 +1290,7 @@
           "type": "array"
         }
       ],
-      "description": "Setup command(s) \u2014 a single string or an ordered list of strings"
+      "description": "Setup command(s) — a single string or an ordered list of strings"
     },
     "WorktreeStrategy": {
       "description": "Supported worktree workspace topology strategies",
@@ -1402,10 +1469,14 @@
         }
       ],
       "default": {
+        "archive": {
+          "main_integration_mode": "pull_request"
+        },
         "coordination_branch": {
           "enabled": true,
           "name": "ito/internal/changes",
-          "storage": "worktree"
+          "storage": "worktree",
+          "sync_interval_seconds": 120
         }
       },
       "description": "Change coordination configuration"

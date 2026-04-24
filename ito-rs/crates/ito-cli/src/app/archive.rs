@@ -2,15 +2,93 @@ use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
 use ito_config::load_cascading_project_config;
-use ito_config::types::ItoConfig;
+use ito_config::types::{ArchiveMainIntegrationMode, CoordinationStorage, ItoConfig};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
 use ito_core::backend_coordination;
 use ito_core::backend_http::BackendHttpClient;
+use ito_core::coordination_worktree::{CoordinationSyncOutcome, sync_coordination_worktree};
 use ito_core::paths as core_paths;
 
 fn requires_local_changes_dir(mode: ito_core::repository_runtime::PersistenceMode) -> bool {
     mode == ito_core::repository_runtime::PersistenceMode::Filesystem
+}
+
+fn archive_config(rt: &Runtime) -> CliResult<ItoConfig> {
+    let ito_path = rt.ito_path();
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
+    serde_json::from_value(merged).map_err(to_cli_error)
+}
+
+fn print_archive_follow_up(mode: ArchiveMainIntegrationMode, change_name: &str) {
+    eprintln!();
+    eprintln!("Next steps:");
+    match mode {
+        ArchiveMainIntegrationMode::DirectMerge => {
+            eprintln!(
+                "  Integrate the archived result for '{}' directly into main.",
+                change_name
+            );
+        }
+        ArchiveMainIntegrationMode::PullRequest => {
+            eprintln!(
+                "  Create an integration branch from main, apply the archived result for '{}', and open a PR.",
+                change_name
+            );
+        }
+        ArchiveMainIntegrationMode::PullRequestAutoMerge => {
+            eprintln!(
+                "  Create an integration branch from main, open a PR for '{}', and request auto-merge if policy allows.",
+                change_name
+            );
+        }
+        ArchiveMainIntegrationMode::CoordinationOnly => {
+            eprintln!(
+                "  The archive is disseminated through the coordination branch; main integration for '{}' is pending manual follow-up.",
+                change_name
+            );
+        }
+    }
+}
+
+fn sync_archived_coordination_state(
+    rt: &Runtime,
+    change_name: &str,
+) -> CliResult<Option<ArchiveMainIntegrationMode>> {
+    let config = archive_config(rt)?;
+    let CoordinationStorage::Worktree = config.changes.coordination_branch.storage else {
+        return Ok(None);
+    };
+
+    let ito_path = rt.ito_path();
+    let changes_dir = core_paths::changes_dir(ito_path);
+    let is_symlink = std::fs::symlink_metadata(&changes_dir)
+        .map(|meta| meta.file_type().is_symlink())
+        .unwrap_or(false);
+    if !is_symlink {
+        return Ok(None);
+    }
+
+    let project_root = ito_path.parent().unwrap_or(ito_path);
+    let outcome = sync_coordination_worktree(project_root, ito_path, true).map_err(|err| {
+        CliError::msg(format!(
+            "Archive for '{}' was written locally, but coordination sync failed: {}\nMain integration is blocked until the coordination branch is synchronized.",
+            change_name, err
+        ))
+    })?;
+
+    match outcome {
+        CoordinationSyncOutcome::Embedded => Ok(None),
+        CoordinationSyncOutcome::RateLimited => {
+            eprintln!("✔ Coordination archive already synchronized recently");
+            Ok(Some(config.changes.archive.main_integration_mode))
+        }
+        CoordinationSyncOutcome::Synchronized => {
+            eprintln!("✔ Coordination archive synchronized");
+            Ok(Some(config.changes.archive.main_integration_mode))
+        }
+    }
 }
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -237,6 +315,11 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
         eprintln!("  Updated specs: {}", specs_updated.join(", "));
     }
 
+    if let Some(mode) = sync_archived_coordination_state(rt, &change_name)? {
+        print_archive_follow_up(mode, &change_name);
+        return Ok(());
+    }
+
     Ok(())
 }
 
@@ -381,6 +464,11 @@ fn handle_backend_archive(
         eprintln!("  Updated specs: {}", outcome.specs_updated.join(", "));
     }
 
+    if let Some(mode) = sync_archived_coordination_state(rt, change_name)? {
+        print_archive_follow_up(mode, change_name);
+        return Ok(());
+    }
+
     // Post-archive commit reminder
     eprintln!();
     eprintln!("Next steps:");
@@ -474,7 +562,8 @@ fn handle_archive_completed(rt: &Runtime, args: &ArchiveArgs) -> CliResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::requires_local_changes_dir;
+    use super::{print_archive_follow_up, requires_local_changes_dir};
+    use ito_config::types::ArchiveMainIntegrationMode;
 
     #[test]
     fn only_filesystem_mode_requires_local_changes_dir() {
@@ -487,5 +576,25 @@ mod tests {
         assert!(!requires_local_changes_dir(
             ito_core::repository_runtime::PersistenceMode::Remote
         ));
+    }
+
+    #[test]
+    fn archive_follow_up_messages_cover_all_modes() {
+        print_archive_follow_up(
+            ArchiveMainIntegrationMode::DirectMerge,
+            "025-09_add-worktree-sync-command",
+        );
+        print_archive_follow_up(
+            ArchiveMainIntegrationMode::PullRequest,
+            "025-09_add-worktree-sync-command",
+        );
+        print_archive_follow_up(
+            ArchiveMainIntegrationMode::PullRequestAutoMerge,
+            "025-09_add-worktree-sync-command",
+        );
+        print_archive_follow_up(
+            ArchiveMainIntegrationMode::CoordinationOnly,
+            "025-09_add-worktree-sync-command",
+        );
     }
 }

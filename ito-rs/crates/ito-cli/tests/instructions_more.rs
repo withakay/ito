@@ -310,6 +310,15 @@ fn agent_instruction_archive_with_change_prints_targeted_instruction() {
         "stdout={}",
         out.stdout
     );
+    assert!(
+        out.stdout
+            .contains("create an integration branch from `main`")
+            || out
+                .stdout
+                .contains("create an integration branch from main"),
+        "stdout={}",
+        out.stdout
+    );
 }
 
 #[test]
@@ -339,6 +348,39 @@ fn agent_instruction_archive_with_invalid_change_fails() {
         out.stderr.contains("999-99_does-not-exist"),
         "stderr should mention the invalid change id; stderr={}",
         out.stderr
+    );
+}
+
+#[test]
+fn agent_instruction_finish_with_change_prompts_for_archive() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "finish",
+            "--change",
+            "000-01_test-change",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout
+            .contains("Do you want to archive this change now?")
+    );
+    assert!(
+        out.stdout
+            .contains("ito agent instruction archive --change '000-01_test-change'")
     );
 }
 

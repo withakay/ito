@@ -61,6 +61,12 @@ fi
 
 echo "Working directory: $CHANGE_DIR"
 ```
+Before starting implementation, synchronize coordination state:
+
+```bash
+cd "$CHANGE_DIR"
+ito sync
+```
 {% if worktree.copy_from_main and worktree.copy_from_main|length > 0 %}
 
 Copy local setup files into the change worktree (missing files are skipped):

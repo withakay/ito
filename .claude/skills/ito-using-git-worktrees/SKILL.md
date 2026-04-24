@@ -54,6 +54,13 @@ If you need absolute paths (for logs, scripts, or agent instructions), use:
 - Ensure the parent directory for the worktree exists (create it if needed).
 - Run a clean baseline build/test in the new worktree so new failures are attributable.
 - Do not proceed if baseline tests fail without explicitly calling that out.
+- Before relying on coordination-backed change/spec state inside the new worktree, run `ito sync`.
+
+```bash
+ito sync
+```
+
+The command rate-limits redundant pushes, but still prints a short status message.
 
 ## Cleanup
 
