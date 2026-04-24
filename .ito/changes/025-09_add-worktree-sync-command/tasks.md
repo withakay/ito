@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Done When**: Worktree-mode archive archives on the coordination branch first and only proceeds to configured `main` integration after that succeeds.
 - **Requirements**: `cli-archive:coordination-first-archive`, `cli-archive:main-integration-mode`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Add sync-aware, archive-aware, and finish-aware CLI instruction templates
 
