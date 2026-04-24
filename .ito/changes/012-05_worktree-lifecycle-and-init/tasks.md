@@ -87,7 +87,7 @@ ______________________________________________________________________
 - **Done When**: Both commands behave per spec; stdout/stderr separation correct; exit codes correct.
 - **Requirements**: `worktree-lifecycle:path-reporting`, `worktree-lifecycle:existence-check`, `worktree-setup:standalone-rerun`, `worktree-setup:ensure-integration`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
