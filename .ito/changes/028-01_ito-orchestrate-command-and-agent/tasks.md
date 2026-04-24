@@ -95,7 +95,7 @@ ______________________________________________________________________
 - **Done When**: Newly initialized projects include the orchestrate assets and the orchestrate instruction path is covered by integration tests.
 - **Requirements**: orchestrate-instruction:artifact-type, orchestrate-setup:outputs, agent-instructions:orchestrate-artifact
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 3.2: Full verification and demos
 
