@@ -91,6 +91,11 @@ fn orchestrate_surfaces_recommended_skills_from_preset() {
         "expected rust-style to be listed; stdout was:\n{}",
         out.stdout
     );
+    assert!(
+        out.stdout.contains("rust-engineer"),
+        "expected rust preset agent roles to be listed; stdout was:\n{}",
+        out.stdout
+    );
 }
 
 #[test]
