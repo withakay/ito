@@ -1,4 +1,5 @@
-//! Change worktree initialization: file copy-over and include-pattern resolution.
+//! Change worktree initialization: file copy-over, setup command execution,
+//! and include-pattern resolution.
 //!
 //! Resolves include patterns from two sources:
 //!
@@ -8,14 +9,18 @@
 //!
 //! The union of both sources is used. Patterns are expanded against the source
 //! worktree root and matched files are copied into the destination worktree.
+//!
+//! After file copy, an optional setup command (or list of commands) from
+//! `worktrees.init.setup` is executed inside the new worktree.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ito_config::types::WorktreeInitConfig;
+use ito_config::types::{WorktreeInitConfig, WorktreesConfig};
 
 use crate::errors::{CoreError, CoreResult};
+use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 
 /// Name of the optional include-file at the repo root.
 const WORKTREE_INCLUDE_FILE: &str = ".worktree-include";
@@ -101,6 +106,111 @@ pub fn copy_include_files(
     Ok(copied)
 }
 
+/// Initialize a new change worktree: copy include files, then run setup commands.
+///
+/// This is the full initialization sequence called after a worktree is created:
+///
+/// 1. Copy include files from `source_root` into `dest_root` (idempotent).
+/// 2. Run setup commands from `config.init.setup` in `dest_root` (if configured).
+///
+/// Coordination symlink wiring is handled separately by the caller because it
+/// requires the `.ito/` path context which this function does not own.
+///
+/// # Errors
+///
+/// Returns [`CoreError`] if file copy fails or a setup command exits non-zero.
+pub fn init_worktree(
+    source_root: &Path,
+    dest_root: &Path,
+    config: &WorktreesConfig,
+) -> CoreResult<()> {
+    let runner = SystemProcessRunner;
+    init_worktree_with_runner(&runner, source_root, dest_root, config)
+}
+
+/// Testable inner implementation of [`init_worktree`].
+pub(crate) fn init_worktree_with_runner(
+    runner: &dyn ProcessRunner,
+    source_root: &Path,
+    dest_root: &Path,
+    config: &WorktreesConfig,
+) -> CoreResult<()> {
+    // Step 1: Copy include files.
+    copy_include_files(&config.init, source_root, dest_root)?;
+
+    // Step 2: Run setup commands (if any).
+    run_setup_with_runner(runner, dest_root, config)?;
+
+    Ok(())
+}
+
+/// Run the configured setup command(s) inside `worktree_root`.
+///
+/// Each command is executed as `sh -c <command>` with `worktree_root` as the
+/// working directory. Commands run in order; if any exits non-zero, subsequent
+/// commands are skipped and an error is returned.
+///
+/// Returns `Ok(())` when no setup is configured or all commands succeed.
+pub fn run_worktree_setup(worktree_root: &Path, config: &WorktreesConfig) -> CoreResult<()> {
+    let runner = SystemProcessRunner;
+    run_setup_with_runner(&runner, worktree_root, config)
+}
+
+/// Testable inner implementation of [`run_worktree_setup`].
+pub(crate) fn run_setup_with_runner(
+    runner: &dyn ProcessRunner,
+    worktree_root: &Path,
+    config: &WorktreesConfig,
+) -> CoreResult<()> {
+    let Some(setup) = &config.init.setup else {
+        return Ok(());
+    };
+
+    if setup.is_empty() {
+        return Ok(());
+    }
+
+    let commands = setup.to_commands();
+
+    for cmd in &commands {
+        let request = ProcessRequest::new("sh")
+            .arg("-c")
+            .arg(*cmd)
+            .current_dir(worktree_root);
+
+        let output = runner.run(&request).map_err(|err| {
+            CoreError::process(format!(
+                "Cannot run worktree setup command '{}' in '{}'.\n\
+                 Process failed to start: {err}\n\
+                 Fix: ensure the command exists and the worktree path is accessible.",
+                cmd,
+                worktree_root.display(),
+            ))
+        })?;
+
+        if !output.success {
+            let detail = if !output.stderr.trim().is_empty() {
+                output.stderr.trim().to_string()
+            } else if !output.stdout.trim().is_empty() {
+                output.stdout.trim().to_string()
+            } else {
+                format!("exit code {}", output.exit_code)
+            };
+
+            return Err(CoreError::process(format!(
+                "Worktree setup command failed: '{}'\n\
+                 Working directory: {}\n\
+                 Output: {detail}\n\
+                 Fix: verify the command works when run manually in that directory.",
+                cmd,
+                worktree_root.display(),
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
 /// Collect patterns from both config and the `.worktree-include` file.
@@ -162,10 +272,8 @@ fn expand_globs(patterns: &[String], source_root: &Path) -> CoreResult<Vec<PathB
             })?;
 
             // Only include files, not directories.
-            if path.is_file() {
-                if let Ok(rel) = path.strip_prefix(source_root) {
-                    result.insert(rel.to_path_buf());
-                }
+            if path.is_file() && let Ok(rel) = path.strip_prefix(source_root) {
+                result.insert(rel.to_path_buf());
             }
         }
     }
