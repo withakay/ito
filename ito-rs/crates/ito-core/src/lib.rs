@@ -158,6 +158,9 @@ pub mod stats;
 /// Validation utilities for on-disk state.
 pub mod validate;
 
+/// Change worktree ensure: verify or create the correct worktree for a change.
+pub mod worktree_ensure;
+
 /// Change worktree initialization: file copy-over and include-pattern resolution.
 pub mod worktree_init;
 
