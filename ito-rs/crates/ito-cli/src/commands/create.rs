@@ -1,14 +1,13 @@
 use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
+use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::coordination_worktree::maybe_auto_commit_coordination;
 use ito_core::create::{create_change_in_sub_module, create_sub_module};
-use ito_core::git::{
-    CoordinationGitErrorKind, fetch_coordination_branch, reserve_change_on_coordination_branch,
-};
+use ito_core::git::reserve_change_on_coordination_branch;
 use ito_core::repository_runtime::PersistenceMode;
 use ito_core::{create as core_create, templates as core_templates};
 use std::path::Path;
@@ -47,22 +46,6 @@ fn coordination_branch_settings(rt: &Runtime) -> (bool, String) {
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
     resolve_coordination_branch_settings(&merged)
-}
-
-fn sync_coordination_if_enabled(ito_path: &Path, coord_enabled: bool, coord_branch: &str) {
-    if !coord_enabled {
-        return;
-    }
-
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    if let Err(err) = fetch_coordination_branch(project_root, coord_branch)
-        && err.kind != CoordinationGitErrorKind::RemoteMissing
-    {
-        eprintln!(
-            "Warning: failed to sync coordination branch '{}' before create: {}",
-            coord_branch, err.message
-        );
-    }
 }
 
 /// Prints a concise, structured summary about a newly created change to stderr.
@@ -324,7 +307,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             );
 
             let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-            sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
+            best_effort_sync_coordination(rt, "before create");
 
             let create_result = if let Some(ref sm) = sub_module {
                 create_change_in_sub_module(ito_path, name, &schema, sm, description.as_deref())
@@ -401,6 +384,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
                     // Best-effort auto-commit to coordination worktree.
                     auto_commit_after_change_creation(ito_path, &r.change_id);
+                    best_effort_sync_coordination(rt, "after create");
 
                     Ok(())
                 }
@@ -491,7 +475,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
 
     let (coord_enabled, coord_branch) = coordination_branch_settings(rt);
-    sync_coordination_if_enabled(ito_path, coord_enabled, &coord_branch);
+    best_effort_sync_coordination(rt, "before create");
 
     match core_create::create_change(
         ito_path,
@@ -562,6 +546,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort auto-commit to coordination worktree.
             auto_commit_after_change_creation(ito_path, &r.change_id);
+            best_effort_sync_coordination(rt, "after create");
 
             Ok(())
         }

@@ -403,6 +403,8 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     assert!(out.contains(
         "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
+    assert!(out.contains("Before starting implementation, synchronize coordination state:"));
+    assert!(out.contains("ito sync"));
 }
 
 #[test]
@@ -418,7 +420,14 @@ fn repo_sweep_template_renders() {
 #[test]
 fn archive_template_renders_generic_guidance_without_change() {
     #[derive(Serialize)]
+    struct ArchiveCfg {
+        coordination_storage: String,
+        main_integration_mode: String,
+    }
+
+    #[derive(Serialize)]
     struct Ctx {
+        archive: ArchiveCfg,
         change: Option<String>,
         available_changes: Vec<String>,
     }
@@ -426,6 +435,10 @@ fn archive_template_renders_generic_guidance_without_change() {
     let out = render_instruction_template(
         "agent/archive.md.j2",
         &Ctx {
+            archive: ArchiveCfg {
+                coordination_storage: "worktree".to_string(),
+                main_integration_mode: "pull_request".to_string(),
+            },
             change: None,
             available_changes: vec![],
         },
@@ -434,6 +447,7 @@ fn archive_template_renders_generic_guidance_without_change() {
 
     assert!(out.contains("ito archive"));
     assert!(out.contains("ito audit reconcile"));
+    assert!(out.contains("Default archive main integration mode: `pull_request`"));
     // generic mode must NOT look like a targeted command
     assert!(!out.contains("Archive:"));
 }
@@ -441,7 +455,14 @@ fn archive_template_renders_generic_guidance_without_change() {
 #[test]
 fn archive_template_renders_targeted_instruction_with_change() {
     #[derive(Serialize)]
+    struct ArchiveCfg {
+        coordination_storage: String,
+        main_integration_mode: String,
+    }
+
+    #[derive(Serialize)]
     struct Ctx {
+        archive: ArchiveCfg,
         change: Option<String>,
         available_changes: Vec<String>,
     }
@@ -449,6 +470,10 @@ fn archive_template_renders_targeted_instruction_with_change() {
     let out = render_instruction_template(
         "agent/archive.md.j2",
         &Ctx {
+            archive: ArchiveCfg {
+                coordination_storage: "worktree".to_string(),
+                main_integration_mode: "pull_request_auto_merge".to_string(),
+            },
             change: Some("009-02_event-sourced-audit-log".to_string()),
             available_changes: vec![],
         },
@@ -458,12 +483,21 @@ fn archive_template_renders_targeted_instruction_with_change() {
     assert!(out.contains("009-02_event-sourced-audit-log"));
     assert!(out.contains("ito archive 009-02_event-sourced-audit-log --yes"));
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
+    assert!(out.contains("Configured mode: `pull_request_auto_merge`"));
+    assert!(out.contains("request auto-merge"));
 }
 
 #[test]
 fn archive_template_lists_available_changes_in_generic_mode() {
     #[derive(Serialize)]
+    struct ArchiveCfg {
+        coordination_storage: String,
+        main_integration_mode: String,
+    }
+
+    #[derive(Serialize)]
     struct Ctx {
+        archive: ArchiveCfg,
         change: Option<String>,
         available_changes: Vec<String>,
     }
@@ -471,6 +505,10 @@ fn archive_template_lists_available_changes_in_generic_mode() {
     let out = render_instruction_template(
         "agent/archive.md.j2",
         &Ctx {
+            archive: ArchiveCfg {
+                coordination_storage: "embedded".to_string(),
+                main_integration_mode: "pull_request".to_string(),
+            },
             change: None,
             available_changes: vec!["001-01_init".to_string(), "002-03_cleanup".to_string()],
         },
@@ -479,4 +517,50 @@ fn archive_template_lists_available_changes_in_generic_mode() {
 
     assert!(out.contains("001-01_init"));
     assert!(out.contains("002-03_cleanup"));
+}
+
+#[test]
+fn finish_template_prompts_for_archive() {
+    #[derive(Serialize)]
+    struct Worktree {
+        enabled: bool,
+        strategy: &'static str,
+        layout_dir_name: &'static str,
+        default_branch: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct ArchiveCfg {
+        main_integration_mode: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        worktree: Worktree,
+        archive: ArchiveCfg,
+        change: Option<String>,
+    }
+
+    let out = render_instruction_template(
+        "agent/finish.md.j2",
+        &Ctx {
+            worktree: Worktree {
+                enabled: true,
+                strategy: "bare_control_siblings",
+                layout_dir_name: "ito-worktrees",
+                default_branch: "main",
+            },
+            archive: ArchiveCfg {
+                main_integration_mode: "pull_request",
+            },
+            change: Some("025-09_add-worktree-sync-command".to_string()),
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("Do you want to archive this change now?"));
+    assert!(
+        out.contains("ito agent instruction archive --change '025-09_add-worktree-sync-command'")
+    );
+    assert!(out.contains("`changes.archive.main_integration_mode`: `pull_request`"));
 }

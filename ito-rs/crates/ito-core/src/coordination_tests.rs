@@ -308,6 +308,24 @@ fn health_broken_symlinks_when_target_missing() {
 
 #[test]
 #[cfg(unix)]
+fn health_wrong_target_when_symlink_points_elsewhere() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    let wrong_root = ito.parent().unwrap().join("other-worktree").join(".ito");
+    fs::create_dir_all(&wrong_root).unwrap();
+
+    wire_coordination_symlinks(&ito, &wrong_root).expect("wire");
+
+    let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
+
+    let CoordinationHealthStatus::WrongTargets { mismatched } = status else {
+        panic!("expected WrongTargets, got {status:?}");
+    };
+    assert_eq!(mismatched.len(), COORDINATION_DIRS.len());
+    assert_eq!(mismatched[0].0, ito.join("changes"));
+}
+
+#[test]
+#[cfg(unix)]
 fn health_not_wired_when_real_dirs_present() {
     let (_tmp, ito, worktree_ito) = make_dirs();
     for dir in COORDINATION_DIRS {
@@ -367,5 +385,21 @@ fn format_message_not_wired_contains_dir_and_hint() {
     .expect("should produce a message");
 
     assert!(msg.contains(&dir.display().to_string()));
+    assert!(msg.contains("ito init"));
+}
+
+#[test]
+fn format_message_wrong_target_contains_paths_and_hint() {
+    let link = PathBuf::from("/project/.ito/changes");
+    let actual = PathBuf::from("/other/.ito/changes");
+    let expected = PathBuf::from("/coord/.ito/changes");
+    let msg = format_health_message(&CoordinationHealthStatus::WrongTargets {
+        mismatched: vec![(link.clone(), actual.clone(), expected.clone())],
+    })
+    .expect("should produce a message");
+
+    assert!(msg.contains(&link.display().to_string()));
+    assert!(msg.contains(&actual.display().to_string()));
+    assert!(msg.contains(&expected.display().to_string()));
     assert!(msg.contains("ito init"));
 }

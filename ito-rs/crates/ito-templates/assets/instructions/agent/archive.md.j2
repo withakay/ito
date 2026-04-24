@@ -19,6 +19,24 @@ If the reconcile reports drift, fix it first:
 ito audit reconcile --change {{ change }} --fix
 ```
 
+{% if archive.coordination_storage == "worktree" %}
+This project uses coordination-worktree storage, so `ito archive` archives on the coordination branch first and synchronizes that state before any `main` integration follow-up.
+
+### Main Integration Mode
+
+Configured mode: `{{ archive.main_integration_mode }}`
+
+{% if archive.main_integration_mode == "direct_merge" %}
+After archive succeeds, integrate the archived result directly into `main`.
+{% elif archive.main_integration_mode == "pull_request" %}
+After archive succeeds, create an integration branch from `main`, apply the archived result there, and open a pull request.
+{% elif archive.main_integration_mode == "pull_request_auto_merge" %}
+After archive succeeds, create an integration branch from `main`, open a pull request, and request auto-merge if repository policy allows it.
+{% elif archive.main_integration_mode == "coordination_only" %}
+After archive succeeds, the archived change is disseminated through the coordination branch and `main` integration remains a separate manual follow-up.
+{% endif %}
+{% endif %}
+
 {% if available_changes | length > 0 %}
 ### Other available changes
 
@@ -56,6 +74,8 @@ ito archive <change-id> --skip-specs --yes
 # Get archive instructions for a specific change
 ito agent instruction archive --change <change-id>
 ```
+
+Default archive main integration mode: `{{ archive.main_integration_mode }}`
 
 {% if available_changes | length > 0 %}
 ### Available changes

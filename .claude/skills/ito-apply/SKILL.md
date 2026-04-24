@@ -22,5 +22,7 @@ Run the CLI-generated apply instructions for a specific change.
    ```
 
 3. Follow the printed instructions exactly.
+   - If the instructions tell you to run `ito sync`, do that before continuing.
+   - Do not duplicate apply workflow policy inside this skill.
 
 4. Use `ito tasks ready <change-id>` to see actionable tasks at any point.

@@ -29,6 +29,10 @@ pub use worktree::{WorktreeArgs, WorktreeCommand};
 #[cfg(feature = "backend")]
 pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
 
+#[cfg(test)]
+#[path = "cli_tests.rs"]
+mod cli_tests;
+
 /// Creates a Styles builder preconfigured for CLI output.
 ///
 /// The returned builder sets styles for header and usage (bold), literal (cyan),
@@ -147,6 +151,18 @@ pub enum Commands {
     ///   ito archive 005-01_add-auth -y --skip-specs
     #[command(verbatim_doc_comment, visible_alias = "ar")]
     Archive(ArchiveArgs),
+
+    /// Validate and synchronize coordination worktree state
+    ///
+    /// Validates local coordination wiring and synchronizes the coordination
+    /// branch when worktree-backed coordination is enabled. Use --force to
+    /// bypass redundant-push suppression.
+    ///
+    /// Examples:
+    ///   ito sync
+    ///   ito sync --force
+    #[command(verbatim_doc_comment)]
+    Sync(SyncArgs),
 
     /// Split a large change into smaller changes [not implemented]
     #[command(hide = true)]
@@ -1089,6 +1105,18 @@ pub struct ArchiveArgs {
     /// Skip validation checks
     #[arg(long = "no-validate")]
     pub no_validate: bool,
+}
+
+/// Synchronize coordination worktree state.
+#[derive(Args, Debug, Clone, Default)]
+pub struct SyncArgs {
+    /// Bypass redundant-push suppression for this invocation
+    #[arg(long)]
+    pub force: bool,
+
+    /// Output as JSON when supported by the handler
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Display artifact completion status for a change.

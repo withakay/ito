@@ -8,7 +8,9 @@ use std::path::Path;
 use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::load_cascading_project_config;
-use ito_config::types::{IntegrationMode, RepositoryPersistenceMode, WorktreeStrategy};
+use ito_config::types::{
+    ArchiveMainIntegrationMode, IntegrationMode, RepositoryPersistenceMode, WorktreeStrategy,
+};
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
 ///
@@ -220,6 +222,37 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        "changes.coordination_branch.sync_interval_seconds" => {
+            let Some(n) = value.as_u64() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a positive integer value in seconds.",
+                    path,
+                )));
+            };
+            if n == 0 {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Provide a positive integer number of seconds.",
+                    n, path,
+                )));
+            }
+        }
+        "changes.archive.main_integration_mode" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: {}",
+                    path,
+                    ArchiveMainIntegrationMode::ALL.join(", ")
+                )));
+            };
+            if ArchiveMainIntegrationMode::parse_value(s).is_none() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: {}",
+                    s,
+                    path,
+                    ArchiveMainIntegrationMode::ALL.join(", ")
+                )));
+            }
+        }
         "audit.mirror.branch" => {
             let Some(s) = value.as_str() else {
                 return Err(CoreError::validation(format!(
@@ -234,6 +267,8 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        // Wildcard: config keys are open-ended strings; only enum-constrained
+        // keys are validated above. New constrained keys should be added here.
         _ => {}
     }
     Ok(())
@@ -528,6 +563,40 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("Invalid value"));
         assert!(msg.contains("changes.coordination_branch.name"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_positive_sync_interval() {
+        let parts = ["changes", "coordination_branch", "sync_interval_seconds"];
+        let value = json!(120);
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_zero_sync_interval() {
+        let parts = ["changes", "coordination_branch", "sync_interval_seconds"];
+        let value = json!(0);
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("positive integer"));
+        assert!(msg.contains("changes.coordination_branch.sync_interval_seconds"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_archive_main_integration_mode() {
+        let parts = ["changes", "archive", "main_integration_mode"];
+        let value = json!("pull_request_auto_merge");
+        assert!(validate_config_value(&parts, &value).is_ok());
+    }
+
+    #[test]
+    fn validate_config_value_rejects_invalid_archive_main_integration_mode() {
+        let parts = ["changes", "archive", "main_integration_mode"];
+        let value = json!("always_merge");
+        let err = validate_config_value(&parts, &value).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid value"));
+        assert!(msg.contains("changes.archive.main_integration_mode"));
     }
 
     #[test]

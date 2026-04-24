@@ -611,6 +611,11 @@ pub enum CoordinationHealthStatus {
         /// Each entry is `(link_path, target_path)` for a broken symlink.
         broken: Vec<(PathBuf, PathBuf)>,
     },
+    /// One or more `.ito/<dir>` symlinks resolve, but point at the wrong target.
+    WrongTargets {
+        /// Each entry is `(link_path, actual_target, expected_target)`.
+        mismatched: Vec<(PathBuf, PathBuf, PathBuf)>,
+    },
     /// One or more `.ito/<dir>` entries are real directories instead of symlinks.
     NotWired {
         /// Paths of the real directories that should be symlinks.
@@ -632,14 +637,17 @@ pub enum CoordinationHealthStatus {
 ///    `modules`, `workflows`, `audit`):
 ///    - If `<ito_path>/<dir>` is a symlink whose target does not exist, record
 ///      it as broken.
+///    - If `<ito_path>/<dir>` is a symlink whose resolved target exists but is
+///      not the expected `<worktree_ito_path>/<dir>`, record it as mismatched.
 ///    - If `<ito_path>/<dir>` is a real directory (not a symlink), record it as
 ///      not-wired.
-/// 4. Return [`CoordinationHealthStatus::BrokenSymlinks`] or
+/// 4. Return [`CoordinationHealthStatus::BrokenSymlinks`],
+///    [`CoordinationHealthStatus::WrongTargets`], or
 ///    [`CoordinationHealthStatus::NotWired`] when problems are found, or
 ///    [`CoordinationHealthStatus::Healthy`] when everything looks good.
 ///
-/// Note: broken symlinks take precedence over not-wired directories in the
-/// return value.  If both are present, `BrokenSymlinks` is returned.
+/// Note: broken symlinks take precedence over mismatched targets, which take
+/// precedence over not-wired directories in the return value.
 pub fn check_coordination_health(
     ito_path: &Path,
     worktree_ito_path: &Path,
@@ -656,10 +664,12 @@ pub fn check_coordination_health(
     }
 
     let mut broken: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut mismatched: Vec<(PathBuf, PathBuf, PathBuf)> = Vec::new();
     let mut not_wired: Vec<PathBuf> = Vec::new();
 
     for dir in COORDINATION_DIRS {
         let link_path = ito_path.join(dir);
+        let expected_target = lexical_normalize(&worktree_ito_path.join(dir));
 
         if !link_path.exists() && fs::read_link(&link_path).is_err() {
             not_wired.push(link_path);
@@ -670,12 +680,14 @@ pub fn check_coordination_health(
             Ok(target) => {
                 // It is a symlink — check whether the target resolves.
                 let resolved = if target.is_absolute() {
-                    target.clone()
+                    lexical_normalize(&target)
                 } else {
-                    ito_path.join(&target)
+                    lexical_normalize(&ito_path.join(&target))
                 };
                 if !resolved.exists() {
                     broken.push((link_path, target));
+                } else if resolved != expected_target {
+                    mismatched.push((link_path, resolved, expected_target));
                 }
             }
             Err(e) if e.kind() == io::ErrorKind::InvalidInput => {
@@ -698,6 +710,10 @@ pub fn check_coordination_health(
 
     if !broken.is_empty() {
         return CoordinationHealthStatus::BrokenSymlinks { broken };
+    }
+
+    if !mismatched.is_empty() {
+        return CoordinationHealthStatus::WrongTargets { mismatched };
     }
 
     if !not_wired.is_empty() {
@@ -883,6 +899,21 @@ pub fn format_health_message(status: &CoordinationHealthStatus) -> Option<String
                          Run `ito init` to repair.",
                         link.display(),
                         target.display()
+                    )
+                })
+                .collect();
+            Some(lines.join("\n"))
+        }
+        CoordinationHealthStatus::WrongTargets { mismatched } => {
+            let lines: Vec<String> = mismatched
+                .iter()
+                .map(|(link, actual, expected)| {
+                    format!(
+                        "{} points to {} but should point to {}. \
+                         Run `ito init` to repair.",
+                        link.display(),
+                        actual.display(),
+                        expected.display()
                     )
                 })
                 .collect();

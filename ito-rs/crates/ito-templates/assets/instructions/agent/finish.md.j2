@@ -14,6 +14,27 @@ Use this after a change branch has been integrated (PR merged or local merge) an
 - `worktrees.strategy`: `{{ worktree.strategy }}`
 - `worktrees.layout.dir_name`: `{{ worktree.layout_dir_name }}`
 - `worktrees.default_branch`: `{{ worktree.default_branch }}`
+- `changes.archive.main_integration_mode`: `{{ archive.main_integration_mode }}`
+
+### Archive Prompt
+
+If this is a completed Ito change, ask the user:
+
+`Do you want to archive this change now?`
+
+If the user says **yes**, run:
+
+```bash
+{% if change and change|trim != "" %}
+ito agent instruction archive --change '{{ change | replace("'", "'\"'\"'") }}'
+{% else %}
+ito agent instruction archive --change '<change-name>'
+{% endif %}
+```
+
+Then follow that archive guidance before cleanup.
+
+If the user says **no**, continue with cleanup below, but note that archive/spec dissemination is still pending until `ito-archive` runs.
 
 ### Cleanup Steps
 

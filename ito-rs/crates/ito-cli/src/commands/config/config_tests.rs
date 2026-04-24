@@ -29,3 +29,23 @@ fn handle_config_schema_writes_file_when_output_is_set() {
     assert!(s.ends_with('\n'));
     let _: serde_json::Value = serde_json::from_str(&s).expect("json");
 }
+
+#[test]
+fn config_schema_includes_coordination_sync_interval_default() {
+    let schema: serde_json::Value =
+        serde_json::from_str(&ito_config::schema::config_schema_pretty_json()).expect("json");
+
+    let value = &schema["definitions"]["CoordinationBranchConfig"]["properties"]["sync_interval_seconds"]
+        ["default"];
+    assert_eq!(value, 120);
+}
+
+#[test]
+fn config_schema_includes_archive_main_integration_mode_default() {
+    let schema: serde_json::Value =
+        serde_json::from_str(&ito_config::schema::config_schema_pretty_json()).expect("json");
+
+    let value =
+        &schema["definitions"]["ArchiveConfig"]["properties"]["main_integration_mode"]["default"];
+    assert_eq!(value, "pull_request");
+}

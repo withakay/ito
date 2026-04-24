@@ -310,6 +310,11 @@ pub struct ChangesConfig {
     #[schemars(default, description = "Coordination branch settings")]
     /// Coordination branch settings.
     pub coordination_branch: CoordinationBranchConfig,
+
+    #[serde(default)]
+    #[schemars(default, description = "Archive integration settings")]
+    /// Archive follow-up settings.
+    pub archive: ArchiveConfig,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -380,6 +385,14 @@ pub struct CoordinationBranchConfig {
     ///
     /// When `None`, the default worktree location is resolved automatically.
     pub worktree_path: Option<String>,
+
+    #[serde(default = "CoordinationBranchConfig::default_sync_interval_seconds")]
+    #[schemars(
+        default = "CoordinationBranchConfig::default_sync_interval_seconds",
+        description = "Minimum interval in seconds between redundant coordination sync pushes"
+    )]
+    /// Minimum interval in seconds between redundant coordination sync pushes.
+    pub sync_interval_seconds: u64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
@@ -396,6 +409,10 @@ impl CoordinationBranchConfig {
     fn default_name() -> String {
         "ito/internal/changes".to_string()
     }
+
+    fn default_sync_interval_seconds() -> u64 {
+        120
+    }
 }
 
 impl Default for CoordinationBranchConfig {
@@ -405,7 +422,88 @@ impl Default for CoordinationBranchConfig {
             name: Self::default_name(),
             storage: CoordinationStorage::default(),
             worktree_path: None,
+            sync_interval_seconds: Self::default_sync_interval_seconds(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "Archive integration settings")]
+/// Configuration for how archived changes are integrated into `main`.
+pub struct ArchiveConfig {
+    #[serde(default = "ArchiveConfig::default_main_integration_mode")]
+    #[schemars(
+        default = "ArchiveConfig::default_main_integration_mode",
+        description = "Default mode for integrating archived changes into main"
+    )]
+    /// Default mode for integrating archived changes into `main`.
+    pub main_integration_mode: ArchiveMainIntegrationMode,
+}
+
+impl ArchiveConfig {
+    fn default_main_integration_mode() -> ArchiveMainIntegrationMode {
+        ArchiveMainIntegrationMode::PullRequest
+    }
+}
+
+impl Default for ArchiveConfig {
+    fn default() -> Self {
+        Self {
+            main_integration_mode: Self::default_main_integration_mode(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+#[schemars(description = "Archive integration mode for promoting archived changes into main")]
+/// Integration mode preference for archive follow-up.
+pub enum ArchiveMainIntegrationMode {
+    /// Integrate archived changes directly into `main`.
+    DirectMerge,
+    /// Create a pull request for `main` integration.
+    #[default]
+    PullRequest,
+    /// Create a pull request and request automatic merge.
+    PullRequestAutoMerge,
+    /// Archive on the coordination branch only and leave `main` integration for later.
+    CoordinationOnly,
+}
+
+impl ArchiveMainIntegrationMode {
+    /// Return a stable string identifier for display.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ArchiveMainIntegrationMode::DirectMerge => "direct_merge",
+            ArchiveMainIntegrationMode::PullRequest => "pull_request",
+            ArchiveMainIntegrationMode::PullRequestAutoMerge => "pull_request_auto_merge",
+            ArchiveMainIntegrationMode::CoordinationOnly => "coordination_only",
+        }
+    }
+
+    /// All supported archive integration mode values.
+    pub const ALL: &'static [&'static str] = &[
+        "direct_merge",
+        "pull_request",
+        "pull_request_auto_merge",
+        "coordination_only",
+    ];
+
+    /// Parse a string into an archive integration mode.
+    pub fn parse_value(s: &str) -> Option<Self> {
+        match s {
+            "direct_merge" => Some(Self::DirectMerge),
+            "pull_request" => Some(Self::PullRequest),
+            "pull_request_auto_merge" => Some(Self::PullRequestAutoMerge),
+            "coordination_only" => Some(Self::CoordinationOnly),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ArchiveMainIntegrationMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
