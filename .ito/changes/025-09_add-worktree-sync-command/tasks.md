@@ -139,7 +139,7 @@ ______________________________________________________________________
 - **Done When**: The change validates cleanly and the implementation verification commands selected during apply are ready to run.
 - **Requirements**: `cli-sync:coordination-worktree-sync`, `cli-sync:quiet-rate-limited-sync`, `coordination-worktree:exact-sync-wiring`, `agent-instructions:sync-aware-worktree-guidance`, `agent-instructions:archive-integration-guidance`, `agent-instructions:templated-cli-workflows`, `agent-instructions:finish-archive-prompt`, `config-defaults:coordination-sync-interval-default`, `config-defaults:archive-main-integration-mode-default`, `cli-config:coordination-sync-interval`, `cli-config:archive-main-integration-mode`, `cli-archive:coordination-first-archive`, `cli-archive:main-integration-mode`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
