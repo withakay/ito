@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Done When**: Generated instruction output includes the new sync guidance, mode-specific archive guidance, the finish archive prompt, and template-backed coverage for the relevant worktree-aware flows.
 - **Requirements**: `agent-instructions:sync-aware-worktree-guidance`, `agent-instructions:archive-integration-guidance`, `agent-instructions:templated-cli-workflows`, `agent-instructions:finish-archive-prompt`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.3: Update mirrored Ito skills to invoke sync and archive follow-up at the right touchpoints
 
