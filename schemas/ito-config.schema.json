@@ -559,12 +559,8 @@
           "default": {
             "enabled": true,
             "name": "ito/internal/changes",
-<<<<<<< HEAD
-            "storage": "worktree"
-=======
             "storage": "worktree",
             "sync_interval_seconds": 120
->>>>>>> e71f0c73 (feat(025-09): add worktree sync command with rate limiting, coordination-first archive, and configurable main integration)
           },
           "description": "Coordination branch settings"
         }
@@ -1294,7 +1290,7 @@
           "type": "array"
         }
       ],
-      "description": "Setup command(s) \u2014 a single string or an ordered list of strings"
+      "description": "Setup command(s) — a single string or an ordered list of strings"
     },
     "WorktreeStrategy": {
       "description": "Supported worktree workspace topology strategies",
@@ -1479,12 +1475,8 @@
         "coordination_branch": {
           "enabled": true,
           "name": "ito/internal/changes",
-<<<<<<< HEAD
-          "storage": "worktree"
-=======
           "storage": "worktree",
           "sync_interval_seconds": 120
->>>>>>> e71f0c73 (feat(025-09): add worktree sync command with rate limiting, coordination-first archive, and configurable main integration)
         }
       },
       "description": "Change coordination configuration"
