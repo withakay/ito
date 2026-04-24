@@ -72,7 +72,7 @@ ______________________________________________________________________
 - **Done When**: All three scenario tests pass; path is absolute; `cargo clippy` clean.
 - **Requirements**: `worktree-lifecycle:existence-check`, `worktree-lifecycle:strategy-aware-creation`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add `ito worktree ensure` and `ito worktree setup` CLI sub-commands
 
