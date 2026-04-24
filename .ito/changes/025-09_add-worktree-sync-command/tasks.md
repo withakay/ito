@@ -61,7 +61,7 @@ ______________________________________________________________________
 - **Done When**: The effective sync interval defaults to 120 seconds, the default archive integration mode is `pull_request`, and both can be configured through the existing config surface.
 - **Requirements**: `cli-sync:quiet-rate-limited-sync`, `config-defaults:coordination-sync-interval-default`, `config-defaults:archive-main-integration-mode-default`, `cli-config:coordination-sync-interval`, `cli-config:archive-main-integration-mode`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
