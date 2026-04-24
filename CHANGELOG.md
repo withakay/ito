@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.27] - 2026-04-24
+
+### 🚀 Features
+
+- *(worktrees)* Add worktree lifecycle management and initialization (012-05) ([#203](https://github.com/withakay/ito/pull/203))
+- *(025-09)* Add worktree sync command with coordination-first archive ([#204](https://github.com/withakay/ito/pull/204))
+- *(028-01)* Ito agent instruction orchestrate + orchestrator core ([#205](https://github.com/withakay/ito/pull/205))
+
+### 🎨 Styling
+
+- Cargo fmt normalization
 ## [0.1.26] - 2026-04-13
 
 ### 🚀 Features
