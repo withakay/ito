@@ -33,7 +33,7 @@ ______________________________________________________________________
   the union type; existing configs without `init` still load.
 - **Requirements**: `config:worktrees-init-config`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Implement include-file resolution logic in `ito-core`
 
