@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Done When**: Template assets for orchestrate setup and execution are embedded and covered by template tests.
 - **Requirements**: orchestrate-setup:first-run-detection, orchestrate-setup:stack-detection, orchestrate-setup:cross-reference, orchestrate-setup:outputs, orchestrate-workflow-skill:convention-load, orchestrate-workflow-skill:living-doc
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
