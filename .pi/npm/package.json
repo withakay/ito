@@ -2,6 +2,6 @@
   "name": "pi-extensions",
   "private": true,
   "dependencies": {
-    "pi-subagents": "^0.11.10"
+    "pi-subagents": "^0.11.12"
   }
 }

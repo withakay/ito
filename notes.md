@@ -63,3 +63,25 @@ Let's think about adding a new schema for a DAW type, like a super minimal schem
 ## 2026-03-07 12:57:50 UTC
 
 If a code file is more than 300 lines long, ALWAYS put the tests in a separate file (e.g., `foo_tests.rs` or `tests/foo.rs`). Do not inline `#[cfg(test)] mod tests` in files exceeding 300 lines.
+
+
+---
+
+---
+## I want to explore extending the OpenCode plugin
+## 2026-04-24 08:07:23 UTC
+
+I want to explore extending the OpenCode plugin. In particular, I want to make it Ito change-aware and Ito worktree-aware. I would like to be able to update the OpenCode session title based on the change we're working on, such as the module number or change ID. I also want to explore injecting continuation prompts to help the orchestrator and the apply agents keep things ticking.
+
+There's some prior art to look at here in the Oh My OpenCode Slim project.
+
+
+---
+
+---
+## OpenCode Ito integration ideas
+## 2026-04-24 08:07:31 UTC
+
+I want to explore extending the OpenCode plugin. In particular, I want to make it Ito change-aware and Ito worktree-aware. I would like to be able to update the OpenCode session title based on the change we're working on, such as the module number or change ID. I also want to explore injecting continuation prompts to help the orchestrator and the apply agents keep things ticking.
+
+There's some prior art to look at here in the Oh My OpenCode Slim project.
