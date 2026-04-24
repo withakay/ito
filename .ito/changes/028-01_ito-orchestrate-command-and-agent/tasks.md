@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: The CLI recognizes `orchestrate` as a valid instruction artifact, renders the new template, and has coverage for help/output behavior.
 - **Requirements**: orchestrate-instruction:artifact-type, agent-instructions:orchestrate-artifact
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Add structured orchestrate user-prompt parsing and preset loading
 
