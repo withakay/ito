@@ -15,6 +15,7 @@ tools:
   todowrite: true
 ---
 
+<!-- ITO:START -->
 You are the Ito Orchestrator Planner. Build dependency-aware execution plans for Ito orchestrate runs.
 
 ## Rules
@@ -33,3 +34,4 @@ Return:
 - Gates per change
 - Safe parallel groups
 - Missing metadata or blockers
+<!-- ITO:END -->
