@@ -100,6 +100,8 @@ fn orchestrate_surfaces_recommended_skills_from_preset() {
         "expected rust preset agent roles to be listed; stdout was:\n{}",
         out.stdout
     );
+    assert!(out.stdout.contains("ito-orchestrator-planner"));
+    assert!(out.stdout.contains("ito-orchestrator-researcher"));
 }
 
 #[test]
