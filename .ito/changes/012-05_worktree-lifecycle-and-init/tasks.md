@@ -44,7 +44,7 @@ ______________________________________________________________________
 - **Done When**: All unit tests pass; `cargo clippy` clean.
 - **Requirements**: `worktree-init-files:config-include`, `worktree-init-files:file-include`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Implement worktree initialization (copy + symlinks + setup)
 
