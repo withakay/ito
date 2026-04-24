@@ -131,5 +131,5 @@ ______________________________________________________________________
 - **Done When**: Test passes in CI; `make check` green.
 - **Requirements**: `worktree-lifecycle:existence-check`, `worktree-init-files:config-include`, `worktree-setup:ensure-integration`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
