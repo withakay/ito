@@ -1,6 +1,6 @@
 use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
-use crate::commands::sync::best_effort_sync_coordination;
+use crate::commands::sync::{best_effort_sync_coordination, best_effort_sync_coordination_bg};
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
@@ -551,7 +551,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
             // Best-effort auto-commit to coordination worktree
             auto_commit_after_task_mutation(rt, &change_id, "start");
-            best_effort_sync_coordination(rt, "after task start");
+            best_effort_sync_coordination_bg(rt, "after task start");
 
             if want_json {
                 let status = if runtime.mode() == PersistenceMode::Remote {
@@ -602,7 +602,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
             // Best-effort auto-commit to coordination worktree
             auto_commit_after_task_mutation(rt, &change_id, "complete");
-            best_effort_sync_coordination(rt, "after task complete");
+            best_effort_sync_coordination_bg(rt, "after task complete");
 
             if want_json {
                 let status = if runtime.mode() == PersistenceMode::Remote {
@@ -653,7 +653,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
             // Best-effort auto-commit to coordination worktree
             auto_commit_after_task_mutation(rt, &change_id, "shelve");
-            best_effort_sync_coordination(rt, "after task shelve");
+            best_effort_sync_coordination_bg(rt, "after task shelve");
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -696,7 +696,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
             // Best-effort auto-commit to coordination worktree
             auto_commit_after_task_mutation(rt, &change_id, "unshelve");
-            best_effort_sync_coordination(rt, "after task unshelve");
+            best_effort_sync_coordination_bg(rt, "after task unshelve");
 
             if want_json {
                 return print_json(&serde_json::json!({
@@ -744,7 +744,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
             sync_after_mutation(rt, &change_id);
             // Best-effort auto-commit to coordination worktree
             auto_commit_after_task_mutation(rt, &change_id, "add");
-            best_effort_sync_coordination(rt, "after task add");
+            best_effort_sync_coordination_bg(rt, "after task add");
 
             if want_json {
                 return print_json(&serde_json::json!({

@@ -1,6 +1,6 @@
 use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
-use crate::commands::sync::best_effort_sync_coordination;
+use crate::commands::sync::{best_effort_sync_coordination, best_effort_sync_coordination_bg};
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
@@ -384,7 +384,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
                     // Best-effort auto-commit to coordination worktree.
                     auto_commit_after_change_creation(ito_path, &r.change_id);
-                    best_effort_sync_coordination(rt, "after create");
+                    best_effort_sync_coordination_bg(rt, "after create");
 
                     Ok(())
                 }
@@ -546,7 +546,7 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
             // Best-effort auto-commit to coordination worktree.
             auto_commit_after_change_creation(ito_path, &r.change_id);
-            best_effort_sync_coordination(rt, "after create");
+            best_effort_sync_coordination_bg(rt, "after create");
 
             Ok(())
         }
