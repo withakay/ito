@@ -110,7 +110,7 @@ ______________________________________________________________________
 - **Done When**: Strict validation passes.
 - **Requirements**: `agent-memory-byterover:bootstrap-curation`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Update change README with implementation notes
 
