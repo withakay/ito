@@ -1,13 +1,13 @@
 ---
 name: ito-loop
-description: Run an ito ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
+description: Run an ito ralph loop for a change, module, or repo-ready sequence, with safe defaults and automatic restart context on early exits.
 ---
 
 <!-- ITO:START -->
 
 # Skill: ito-loop
 
-Run the Ito Ralph loop for a specific change (or module/repo sequence), with safe defaults and automatic restart context on early exits.
+Run the Ito Ralph loop for a change, module, or repo-ready sequence, with safe defaults and automatic restart context on early exits.
 
 ## Inputs
 
@@ -116,7 +116,7 @@ Command:      ito ralph --no-interactive --harness opencode --change 003-02_fix-
 2) Choose harness:
   - Pick the active harness (`claude`, `codex`, `copilot`, `opencode` or `pi`).
 
-3) Build and run a single `ito ralph` command.
+3) Build the base `ito ralph` command.
 
    Ralph already runs an iterative loop internally — do NOT wrap it in another
    retry loop or bash while-loop. Just run the one command and let Ralph manage
@@ -140,7 +140,42 @@ Command:      ito ralph --no-interactive --harness opencode --change 003-02_fix-
 
    Check `ito ralph --help` for additional flags that might be relevant.
 
-4) After Ralph exits:
-   - **Exit 0**: Work is done (or Ralph ran out of iterations). Report the result to the user.
-   - **Non-zero exit**: Report the failure. The user can re-invoke `/ito-loop` to resume.
+4) Run the command, with bounded restart supervision.
+
+   - Run the base command once.
+   - If it exits `0`, stop and report the result.
+   - If it exits non-zero in a way that looks restartable, you may restart at most **2** times.
+
+5) For each bounded restart:
+
+   - Collect restart context from:
+
+     ```bash
+     ito ralph --no-interactive --change <change-id> --status
+     ito tasks status <change-id>
+     ```
+
+   - Summarize that into a short restart note with:
+     - “You have been restarted …”
+     - last iteration / last failure / current task summary
+     - one sentence telling Ralph to continue from the current state
+
+   - Append it before the rerun:
+
+     ```bash
+     ito ralph --no-interactive --change <change-id> --add-context "<restart-note>"
+     ```
+
+   - Re-run the same base `ito ralph` command.
+
+6) After the supervised run sequence finishes:
+
+   - **Exit 0**: Work is done (or Ralph exhausted its own iterations without a restartable wrapper failure). Report the result.
+   - **Non-zero exit after bounded restarts**: Report the failure and include the last known Ralph status summary.
+
+Important:
+
+- Do not wrap Ralph in an unbounded outer loop.
+- Only use bounded restarts for targeted change runs where `ito ralph --status` and `ito tasks status` can provide useful restart context.
+- For module or continue-ready runs, report the failure rather than inventing per-change restart behavior unless the failure clearly maps to one targeted change.
 <!-- ITO:END -->

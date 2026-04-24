@@ -85,3 +85,20 @@ There's some prior art to look at here in the Oh My OpenCode Slim project.
 I want to explore extending the OpenCode plugin. In particular, I want to make it Ito change-aware and Ito worktree-aware. I would like to be able to update the OpenCode session title based on the change we're working on, such as the module number or change ID. I also want to explore injecting continuation prompts to help the orchestrator and the apply agents keep things ticking.
 
 There's some prior art to look at here in the Oh My OpenCode Slim project.
+
+
+---
+
+---
+## Ito worktree configuration distinctions
+## 2026-04-24 20:34:59 UTC
+
+Ito worktree configuration distinction for this repo:
+
+Regular change/feature worktree placement is controlled by `worktrees.*`, especially `worktrees.strategy`, `worktrees.layout.base_dir`, and `worktrees.layout.dir_name`. This repo uses bare/control siblings with change worktrees under `ito-worktrees/`.
+
+Creation-time copy/setup for `ito worktree ensure` is `worktrees.init.include` and `worktrees.init.setup` (for example: copy `.env`, `.envrc`, `.mise.local.toml`; run `make init`). Manual apply fallback instructions use separate `worktrees.apply.copy_from_main` and `worktrees.apply.setup_commands`, which should generally mirror `worktrees.init.*`.
+
+Coordination worktree storage is separate: `changes.coordination_branch.storage = "worktree"` and optional `changes.coordination_branch.worktree_path` points to the shared coordination worktree that stores `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, and `.ito/audit` symlink targets. Do not confuse `changes.coordination_branch.worktree_path` with the feature worktree path prefix.
+
+Machine-specific coordination worktree absolute paths belong in ignored local config such as `.ito/config.local.json` or `.local/ito/config.json`, not committed `.ito/config.json`.
