@@ -1,18 +1,49 @@
-## ADDED Requirements
+<!-- ITO:START -->
+## MODIFIED Requirements
 
-### Requirement: Configuration can select local SQLite persistence mode
+### Requirement: WorktreesConfig includes init sub-section
 
-Ito configuration SHALL allow selecting `sqlite` as a client-side persistence mode and SHALL provide the local SQLite runtime settings needed to initialize that mode.
+The `worktrees` configuration block in `config.json` (and its JSON Schema representation)
+SHALL include an `init` sub-section of type `WorktreeInitConfig`. This sub-section
+SHALL contain an `include` field holding a list of glob pattern strings and an optional
+`setup` field accepting either a single command string or an ordered list of command strings.
+All fields default to empty/absent without error.
 
-#### Scenario: SQLite mode requires database path configuration
+- **Requirement ID**: `config:worktrees-init-config`
 
-- **GIVEN** the user selects local SQLite persistence mode
-- **WHEN** Ito resolves repository runtime configuration
-- **THEN** it requires a configured local SQLite database path or equivalent runtime setting
+#### Scenario: Default — empty include list and no setup
 
-#### Scenario: SQLite mode fails fast on invalid local database configuration
+- **WHEN** `worktrees.init` is absent from `config.json`
+- **THEN** the resolved config has an empty `include` list and no setup commands; no files are
+  copied and no commands are run during worktree initialization
 
-- **GIVEN** local SQLite persistence mode is selected
-- **AND** the SQLite runtime configuration is missing or invalid
-- **WHEN** Ito resolves the repository runtime
-- **THEN** Ito fails fast with an actionable configuration error
+#### Scenario: Explicit include list
+
+- **WHEN** `config.json` contains `"worktrees": { "init": { "include": [".env", ".envrc"] } }`
+- **THEN** the resolved config has `include = [".env", ".envrc"]`
+
+#### Scenario: Single setup command string
+
+- **WHEN** `config.json` contains `"worktrees": { "init": { "setup": "make init" } }`
+- **THEN** the resolved config has a single setup command `"make init"`
+
+#### Scenario: Ordered setup command list
+
+- **WHEN** `config.json` contains `"worktrees": { "init": { "setup": ["npm ci", "npm run build:types"] } }`
+- **THEN** the resolved config has two setup commands in that order
+
+#### Scenario: JSON Schema validates include as array of strings
+
+- **WHEN** a config file sets `worktrees.init.include` to a non-array value
+- **THEN** schema validation rejects it with a clear error
+
+#### Scenario: JSON Schema validates setup as string or array of strings
+
+- **WHEN** a config file sets `worktrees.init.setup` to a non-string, non-array value
+- **THEN** schema validation rejects it with a clear error
+
+#### Scenario: Existing worktrees config fields unaffected
+
+- **WHEN** `worktrees.init` is added alongside existing fields (`enabled`, `strategy`, `layout`, `apply`, `default_branch`)
+- **THEN** all existing fields retain their previous behavior and defaults
+<!-- ITO:END -->
