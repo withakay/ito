@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: README committed and the reproducibility / local-only notes are present.
 - **Requirements**: `agent-memory-byterover:readme-reproducibility`, `agent-memory-byterover:local-only`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
