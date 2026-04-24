@@ -7,8 +7,13 @@ This artifact configures and drives an **orchestrator agent** that coordinates a
 - **orchestrate.md**: `{{ orchestrate_md_path }}`
 - **Workflow skill (by convention)**: `{{ workflow_skill_name }}`
 - **Preset**: `{{ preset_name }}`
+- **Coordinator agent**: `{{ coordinator_agent_name }}`
 {% if recommended_skills -%}
 - **Recommended skills**: {% for skill in recommended_skills %}`{{ skill }}`{% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}
+{% if agent_roles_md %}
+- **Agent roles**:
+{{ agent_roles_md }}
 {% endif %}
 
 ## Gate Order

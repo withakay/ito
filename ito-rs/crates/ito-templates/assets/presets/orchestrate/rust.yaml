@@ -27,6 +27,8 @@ recommended_skills:
   - rust-code-reviewer
 
 agent_roles:
+  plan-worker: "ito-orchestrator-planner"
+  research-worker: "ito-orchestrator-researcher"
   apply-worker: "rust-engineer"
   review-worker: "rust-code-reviewer"
   security-worker: "rust-quality-checker"

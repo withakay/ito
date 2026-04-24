@@ -577,14 +577,42 @@ mod tests {
     }
 
     #[test]
-    fn opencode_orchestrator_agent_template_is_embedded() {
+    fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
         use crate::agents::{Harness, get_agent_files};
 
-        let files = get_agent_files(Harness::OpenCode);
-        assert!(
-            files.iter().any(|(name, _)| *name == "ito-orchestrator.md"),
-            "expected ito-orchestrator.md in OpenCode agent templates"
-        );
+        for harness in Harness::all() {
+            let files = get_agent_files(*harness);
+            if *harness == Harness::OpenCode {
+                assert!(
+                    files.iter().any(|(name, _)| *name == "ito-orchestrator.md"),
+                    "expected ito-orchestrator.md in OpenCode agent templates"
+                );
+            }
+
+            let expected = match harness {
+                Harness::Codex => [
+                    "ito-orchestrator/SKILL.md",
+                    "ito-orchestrator-planner/SKILL.md",
+                    "ito-orchestrator-researcher/SKILL.md",
+                    "ito-orchestrator-worker/SKILL.md",
+                    "ito-orchestrator-reviewer/SKILL.md",
+                ],
+                Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => [
+                    "ito-orchestrator.md",
+                    "ito-orchestrator-planner.md",
+                    "ito-orchestrator-researcher.md",
+                    "ito-orchestrator-worker.md",
+                    "ito-orchestrator-reviewer.md",
+                ],
+            };
+
+            for expected in expected {
+                assert!(
+                    files.iter().any(|(name, _)| *name == expected),
+                    "expected {expected} in {harness:?} agent templates"
+                );
+            }
+        }
     }
 
     #[test]

@@ -1,18 +1,10 @@
 ---
+name: ito-orchestrator
 description: Coordinator-only agent for orchestrating multi-change runs
-mode: subagent
-model: "{{model}}"
-variant: "{{variant}}"
-temperature: 0.2
 tools:
-  read: true
-  edit: false
-  write: false
-  bash: true
-  glob: true
-  grep: true
-  task: true
-  todowrite: true
+  - read
+  - search
+  - execute
 ---
 
 <!-- ITO:START -->

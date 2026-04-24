@@ -262,16 +262,18 @@ pub fn get_agent_files(harness: Harness) -> Vec<(&'static str, &'static [u8])> {
 
         // Also check subdirectories (for Codex SKILL.md format)
         for subdir in harness_dir.dirs() {
-            if let Some(skill_file) = subdir.get_file("SKILL.md") {
-                let dir_name = subdir.path().file_name().and_then(|n| n.to_str());
-                if let Some(name) = dir_name {
-                    // Return as "dirname/SKILL.md"
-                    let path = format!("{}/SKILL.md", name);
-                    // We need to leak the string to get a static lifetime
-                    // This is acceptable since these are loaded once at startup
-                    let leaked: &'static str = Box::leak(path.into_boxed_str());
-                    files.push((leaked, skill_file.contents()));
-                }
+            let skill_file = subdir.files().find(|file| {
+                file.path().file_name().and_then(|name| name.to_str()) == Some("SKILL.md")
+            });
+            if let Some(skill_file) = skill_file
+                && let Some(name) = subdir.path().file_name().and_then(|name| name.to_str())
+            {
+                // Return as "dirname/SKILL.md"
+                let path = format!("{name}/SKILL.md");
+                // We need to leak the string to get a static lifetime.
+                // This is acceptable since these are loaded once at startup.
+                let leaked: &'static str = Box::leak(path.into_boxed_str());
+                files.push((leaked, skill_file.contents()));
             }
         }
     }
