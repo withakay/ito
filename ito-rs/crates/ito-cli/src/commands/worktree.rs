@@ -88,7 +88,12 @@ fn handle_setup(rt: &Runtime, change_id: &str) -> CliResult<()> {
 /// Rejects IDs that are empty, contain path traversal sequences (`..`),
 /// path separators (`/` or `\`), or start with `-`.
 fn validate_change_id(id: &str) -> CliResult<()> {
-    if id.is_empty() || id.contains("..") || id.contains('/') || id.contains('\\') || id.starts_with('-') {
+    if id.is_empty()
+        || id.contains("..")
+        || id.contains('/')
+        || id.contains('\\')
+        || id.starts_with('-')
+    {
         return fail(format!(
             "Invalid change id '{id}': must not contain path separators, '..' sequences, or start with '-'"
         ));

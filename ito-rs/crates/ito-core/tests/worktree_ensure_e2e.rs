@@ -36,9 +36,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     use ito_config::types::{
         ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
     };
-    use ito_core::repo_paths::{
-        GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature,
-    };
+    use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
 
     let tmp = tempfile::tempdir().unwrap();
@@ -96,9 +94,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
 #[test]
 fn ensure_worktree_disabled_returns_cwd() {
     use ito_config::types::ItoConfig;
-    use ito_core::repo_paths::{
-        GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature,
-    };
+    use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
 
     let tmp = tempfile::tempdir().unwrap();
@@ -125,12 +121,9 @@ fn ensure_worktree_disabled_returns_cwd() {
 #[test]
 fn ensure_worktree_with_setup_script() {
     use ito_config::types::{
-        ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeSetupConfig,
-        WorktreeStrategy,
+        ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeSetupConfig, WorktreeStrategy,
     };
-    use ito_core::repo_paths::{
-        GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature,
-    };
+    use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
 
     let tmp = tempfile::tempdir().unwrap();

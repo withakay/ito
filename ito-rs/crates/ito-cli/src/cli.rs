@@ -8,10 +8,10 @@ mod agent;
 mod grep;
 mod path;
 mod ralph;
-mod worktree;
 mod split;
 mod util;
 mod validate;
+mod worktree;
 
 #[cfg(feature = "backend")]
 mod backend;

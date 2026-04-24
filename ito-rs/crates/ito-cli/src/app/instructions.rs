@@ -630,7 +630,9 @@ struct ArchiveInstructionConfig {
     main_integration_mode: String,
 }
 
-fn archive_instruction_config_from_merged(merged: &serde_json::Value) -> CliResult<ArchiveInstructionConfig> {
+fn archive_instruction_config_from_merged(
+    merged: &serde_json::Value,
+) -> CliResult<ArchiveInstructionConfig> {
     let typed: ItoConfig = serde::Deserialize::deserialize(merged).map_err(|e| {
         to_cli_error(format!(
             "Failed to parse merged Ito config.\n\

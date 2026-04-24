@@ -97,10 +97,7 @@ pub(crate) fn ensure_worktree_with_runner(
         // If the directory exists with .git but no marker, re-run init.
         // If no .git at all, fall through to creation (the dir is stale).
         if has_git {
-            let source_root = worktree_paths
-                .main_worktree_root
-                .as_deref()
-                .unwrap_or(cwd);
+            let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
             worktree_init::init_worktree_with_runner(
                 runner,
                 source_root,
@@ -128,13 +125,16 @@ pub(crate) fn ensure_worktree_with_runner(
 
     // Create the git worktree.
     let default_branch = &config.worktrees.default_branch;
-    create_change_worktree(runner, &env.project_root, change_id, default_branch, &worktree_path)?;
+    create_change_worktree(
+        runner,
+        &env.project_root,
+        change_id,
+        default_branch,
+        &worktree_path,
+    )?;
 
     // Resolve the source root (main worktree) for file copy.
-    let source_root = worktree_paths
-        .main_worktree_root
-        .as_deref()
-        .unwrap_or(cwd);
+    let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
 
     // Initialize: copy files + run setup.
     worktree_init::init_worktree_with_runner(

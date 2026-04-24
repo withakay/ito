@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
 use super::*;
-use crate::process::{ProcessExecutionError, ProcessOutput, ProcessRunner, ProcessRequest};
+use crate::process::{ProcessExecutionError, ProcessOutput, ProcessRequest, ProcessRunner};
 use crate::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
 
 // ── Stub runner ──────────────────────────────────────────────────────────────
@@ -154,11 +154,7 @@ fn ensure_existing_worktree_returns_path_without_creation() {
     std::fs::create_dir_all(&change_dir).unwrap();
     std::fs::create_dir_all(&fake_gitdir).unwrap();
     // .git file uses a relative pointer to the fake gitdir.
-    std::fs::write(
-        change_dir.join(".git"),
-        "gitdir: ../my-change.git",
-    )
-    .unwrap();
+    std::fs::write(change_dir.join(".git"), "gitdir: ../my-change.git").unwrap();
     // Marker lives inside the resolved gitdir, not the working tree.
     std::fs::write(fake_gitdir.join(INIT_MARKER), "initialized\n").unwrap();
 
@@ -167,14 +163,8 @@ fn ensure_existing_worktree_returns_path_without_creation() {
     let paths = make_enabled_paths(worktrees_root, project_root.to_path_buf());
     let runner = StubRunner::with_outputs(vec![]);
 
-    let result = ensure_worktree_with_runner(
-        &runner,
-        "my-change",
-        &config,
-        &env,
-        &paths,
-        project_root,
-    );
+    let result =
+        ensure_worktree_with_runner(&runner, "my-change", &config, &env, &paths, project_root);
     assert_eq!(result.unwrap(), change_dir);
     // No git commands should have been issued.
     assert!(runner.calls.borrow().is_empty());
@@ -205,10 +195,7 @@ fn ensure_creates_worktree_when_absent() {
     }
 
     impl ProcessRunner for CreatingRunner {
-        fn run(
-            &self,
-            _request: &ProcessRequest,
-        ) -> Result<ProcessOutput, ProcessExecutionError> {
+        fn run(&self, _request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
             let count = self.call_count.get();
             self.call_count.set(count + 1);
             match count {
@@ -224,11 +211,8 @@ fn ensure_creates_worktree_when_absent() {
                 _ => {
                     std::fs::create_dir_all(&self.target_path).unwrap();
                     std::fs::create_dir_all(&self.fake_gitdir).unwrap();
-                    std::fs::write(
-                        self.target_path.join(".git"),
-                        "gitdir: ../my-change.git",
-                    )
-                    .unwrap();
+                    std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git")
+                        .unwrap();
                     Ok(ProcessOutput {
                         exit_code: 0,
                         success: true,
@@ -255,14 +239,8 @@ fn ensure_creates_worktree_when_absent() {
         call_count: std::cell::Cell::new(0),
     };
 
-    let result = ensure_worktree_with_runner(
-        &runner,
-        "my-change",
-        &config,
-        &env,
-        &paths,
-        project_root,
-    );
+    let result =
+        ensure_worktree_with_runner(&runner, "my-change", &config, &env, &paths, project_root);
 
     assert_eq!(result.unwrap(), expected);
     // Marker must be inside the gitdir, not the working tree root.
@@ -306,10 +284,7 @@ fn ensure_with_include_files_copies_them() {
     }
 
     impl ProcessRunner for CreatingRunner {
-        fn run(
-            &self,
-            _request: &ProcessRequest,
-        ) -> Result<ProcessOutput, ProcessExecutionError> {
+        fn run(&self, _request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
             let count = self.call_count.get();
             self.call_count.set(count + 1);
             match count {
@@ -323,11 +298,8 @@ fn ensure_with_include_files_copies_them() {
                 _ => {
                     std::fs::create_dir_all(&self.target_path).unwrap();
                     std::fs::create_dir_all(&self.fake_gitdir).unwrap();
-                    std::fs::write(
-                        self.target_path.join(".git"),
-                        "gitdir: ../my-change.git",
-                    )
-                    .unwrap();
+                    std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git")
+                        .unwrap();
                     Ok(ProcessOutput {
                         exit_code: 0,
                         success: true,
@@ -354,14 +326,8 @@ fn ensure_with_include_files_copies_them() {
         call_count: std::cell::Cell::new(0),
     };
 
-    let result = ensure_worktree_with_runner(
-        &runner,
-        "my-change",
-        &config,
-        &env,
-        &paths,
-        project_root,
-    );
+    let result =
+        ensure_worktree_with_runner(&runner, "my-change", &config, &env, &paths, project_root);
 
     let wt_path = result.unwrap();
     assert!(wt_path.join(".env").exists());
@@ -390,14 +356,8 @@ fn ensure_git_failure_returns_error() {
         fail_output("fatal: not a git repository"),
     ]);
 
-    let result = ensure_worktree_with_runner(
-        &runner,
-        "my-change",
-        &config,
-        &env,
-        &paths,
-        project_root,
-    );
+    let result =
+        ensure_worktree_with_runner(&runner, "my-change", &config, &env, &paths, project_root);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("my-change"));

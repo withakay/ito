@@ -110,10 +110,7 @@ fn resolve_include_files_config_only() {
     };
 
     let files = resolve_include_files(&config, root).unwrap();
-    assert_eq!(
-        files,
-        vec![PathBuf::from(".env"), PathBuf::from(".envrc")]
-    );
+    assert_eq!(files, vec![PathBuf::from(".env"), PathBuf::from(".envrc")]);
 }
 
 #[test]
@@ -122,11 +119,7 @@ fn resolve_include_files_file_only() {
     let root = dir.path();
 
     fs::write(root.join(".env"), "SECRET=abc").unwrap();
-    fs::write(
-        root.join(".worktree-include"),
-        "# Copy env files\n.env\n",
-    )
-    .unwrap();
+    fs::write(root.join(".worktree-include"), "# Copy env files\n.env\n").unwrap();
 
     let config = WorktreeInitConfig::default();
 
@@ -149,10 +142,7 @@ fn resolve_include_files_union_of_config_and_file() {
     };
 
     let files = resolve_include_files(&config, root).unwrap();
-    assert_eq!(
-        files,
-        vec![PathBuf::from(".env"), PathBuf::from(".envrc")]
-    );
+    assert_eq!(files, vec![PathBuf::from(".env"), PathBuf::from(".envrc")]);
 }
 
 #[test]
@@ -261,10 +251,7 @@ fn copy_include_files_copies_to_dest() {
     };
 
     let copied = copy_include_files(&config, src, dst).unwrap();
-    assert_eq!(
-        copied,
-        vec![PathBuf::from(".env"), PathBuf::from(".envrc")]
-    );
+    assert_eq!(copied, vec![PathBuf::from(".env"), PathBuf::from(".envrc")]);
 
     assert_eq!(fs::read_to_string(dst.join(".env")).unwrap(), "SECRET=abc");
     assert_eq!(fs::read_to_string(dst.join(".envrc")).unwrap(), "use nix");
@@ -288,7 +275,10 @@ fn copy_include_files_skips_existing_destination() {
 
     let copied = copy_include_files(&config, src, dst).unwrap();
     // Nothing should have been copied — destination already existed.
-    assert!(copied.is_empty(), "expected no files copied, got: {copied:?}");
+    assert!(
+        copied.is_empty(),
+        "expected no files copied, got: {copied:?}"
+    );
     assert_eq!(
         fs::read_to_string(dst.join(".env")).unwrap(),
         "USER_EDIT",
@@ -320,8 +310,7 @@ fn copy_include_files_empty_config_and_no_file() {
 
     let config = WorktreeInitConfig::default();
 
-    let copied =
-        copy_include_files(&config, src_dir.path(), dst_dir.path()).unwrap();
+    let copied = copy_include_files(&config, src_dir.path(), dst_dir.path()).unwrap();
     assert!(copied.is_empty());
 }
 
@@ -515,8 +504,7 @@ fn init_worktree_setup_failure_returns_error() {
 
     let runner = StubRunner::with_outputs(vec![fail_output("setup failed")]);
 
-    let result =
-        init_worktree_with_runner(&runner, src_dir.path(), dst_dir.path(), &config);
+    let result = init_worktree_with_runner(&runner, src_dir.path(), dst_dir.path(), &config);
     assert!(result.is_err());
 }
 

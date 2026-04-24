@@ -694,7 +694,8 @@ fn fast_forward_coordination_with_runner(
 ) -> CoreResult<()> {
     let wt_str = path_arg(worktree_path)?;
     let remote_ref = format!("origin/{branch_name}");
-    let request = ProcessRequest::new("git").args(["-C", wt_str, "merge", "--ff-only", &remote_ref]);
+    let request =
+        ProcessRequest::new("git").args(["-C", wt_str, "merge", "--ff-only", &remote_ref]);
     let output = runner.run(&request).map_err(|err| {
         CoreError::process(format!(
             "Cannot fast-forward coordination branch in '{}'.\n\

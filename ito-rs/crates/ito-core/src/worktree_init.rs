@@ -180,7 +180,11 @@ pub(crate) fn run_setup_with_runner(
 
     let commands = setup.as_commands();
 
-    let (shell, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
+    let (shell, flag) = if cfg!(windows) {
+        ("cmd", "/C")
+    } else {
+        ("sh", "-c")
+    };
 
     for cmd in &commands {
         let request = ProcessRequest::new(shell)

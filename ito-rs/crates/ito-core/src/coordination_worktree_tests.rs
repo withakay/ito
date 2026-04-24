@@ -801,22 +801,23 @@ fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
     // New call order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
     // add -A → diff --cached → commit → rev-parse HEAD → push
     let runner = StubRunner::with_outputs(vec![
-        ok(""),                                       // fetch
-        ok(""),                                       // merge --ff-only
-        ok("abc123\n"),                               // rev-parse HEAD (state)
-        ok(" M .ito/changes/example\n"),              // status --porcelain
-        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
-        ok(""),                                       // add -A
-        Ok(ProcessOutput {                            // diff --cached --quiet (has changes)
+        ok(""),                               // fetch
+        ok(""),                               // merge --ff-only
+        ok("abc123\n"),                       // rev-parse HEAD (state)
+        ok(" M .ito/changes/example\n"),      // status --porcelain
+        ok(git_common_dir.to_str().unwrap()), // rev-parse --git-common-dir
+        ok(""),                               // add -A
+        Ok(ProcessOutput {
+            // diff --cached --quiet (has changes)
             exit_code: 1,
             success: false,
             stdout: String::new(),
             stderr: String::new(),
             timed_out: false,
         }),
-        ok(""),                                       // commit
-        ok("def456\n"),                               // rev-parse HEAD (post-commit)
-        ok(""),                                       // push
+        ok(""),         // commit
+        ok("def456\n"), // rev-parse HEAD (post-commit)
+        ok(""),         // push
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
@@ -925,11 +926,11 @@ fn sync_coordination_worktree_rate_limits_when_recent_and_clean() {
 
     // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir → rate-limited
     let runner = StubRunner::with_outputs(vec![
-        ok(""),                                       // fetch
-        ok(""),                                       // merge --ff-only
-        ok("abc123\n"),                               // rev-parse HEAD
-        ok(""),                                       // status --porcelain (clean)
-        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
+        ok(""),                               // fetch
+        ok(""),                               // merge --ff-only
+        ok("abc123\n"),                       // rev-parse HEAD
+        ok(""),                               // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()), // rev-parse --git-common-dir
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
@@ -991,14 +992,14 @@ fn sync_coordination_worktree_force_bypasses_rate_limit() {
     // New order: fetch → ff-merge → rev-parse HEAD → status → git-common-dir →
     // add -A → diff --cached (no changes) → push
     let runner = StubRunner::with_outputs(vec![
-        ok(""),                                       // fetch
-        ok(""),                                       // merge --ff-only
-        ok("abc123\n"),                               // rev-parse HEAD
-        ok(""),                                       // status --porcelain (clean)
-        ok(git_common_dir.to_str().unwrap()),         // rev-parse --git-common-dir
-        ok(""),                                       // add -A
-        ok(""),                                       // diff --cached --quiet (no changes)
-        ok(""),                                       // push
+        ok(""),                               // fetch
+        ok(""),                               // merge --ff-only
+        ok("abc123\n"),                       // rev-parse HEAD
+        ok(""),                               // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()), // rev-parse --git-common-dir
+        ok(""),                               // add -A
+        ok(""),                               // diff --cached --quiet (no changes)
+        ok(""),                               // push
     ]);
 
     let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, true)
