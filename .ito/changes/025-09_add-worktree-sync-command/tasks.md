@@ -100,7 +100,7 @@ ______________________________________________________________________
 - **Done When**: The mirrored skill families consistently refer to `ito sync` at the intended workflow boundaries and delegate archive/finish behavior to the CLI-generated instructions.
 - **Requirements**: `agent-instructions:sync-aware-worktree-guidance`, `agent-instructions:archive-integration-guidance`, `agent-instructions:templated-cli-workflows`, `agent-instructions:finish-archive-prompt`, `cli-sync:quiet-rate-limited-sync`, `cli-archive:main-integration-mode`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
