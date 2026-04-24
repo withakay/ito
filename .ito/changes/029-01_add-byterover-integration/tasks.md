@@ -82,7 +82,7 @@ ______________________________________________________________________
 - **Done When**: All three files ingested into the context tree.
 - **Requirements**: `agent-memory-byterover:bootstrap-curation`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.3: Validate the local-only workflow instructions
 
