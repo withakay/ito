@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Claude Code connector files are committed; `brv connectors` shows `Claude Code`.
 - **Requirements**: `agent-memory-byterover:claude-connector-only`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Install the ByteRover hub skills into `.agents/skills/byterover/`
 
