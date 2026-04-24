@@ -1,25 +1,35 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: ByteRover hub skills live under `.agents/skills/byterover/`
+### Requirement: ByteRover hub skills are discoverable by every supported harness
 
-The repository SHALL host the installed ByteRover hub skills under the shared
-`.agents/skills/byterover/` directory so every agent harness that reads
-`.agents/skills/` can discover them without harness-specific duplication.
+The repository SHALL host the four ByteRover hub skills (`byterover-review`,
+`byterover-plan`, `byterover-explore`, `byterover-audit`) in locations that
+every supported agent harness can discover. Concretely, `brv hub install`
+writes skills into a target agent's connector directory (e.g. `.claude/skills/`
+for Claude Code), so the repository SHALL additionally mirror the installed
+skills into the shared `.agents/skills/byterover/` directory used by all
+non-Claude agent harnesses.
 
 - **Requirement ID**: `agent-memory-byterover:hub-skills-location`
 
-#### Scenario: Required hub skills present
+#### Scenario: Required hub skills present under `.agents/skills/byterover/`
 
 - **WHEN** a contributor inspects `.agents/skills/byterover/` after onboarding
 - **THEN** the directory contains at least four sub-directories: `byterover-review`, `byterover-plan`, `byterover-explore`, `byterover-audit`
 - **AND** each sub-directory contains a `SKILL.md` file
 
-#### Scenario: Fresh install reproduces the layout
+#### Scenario: Required hub skills present under `.claude/skills/`
 
-- **WHEN** a contributor runs `brv hub install byterover-review`, `brv hub install byterover-plan`, `brv hub install byterover-explore`, and `brv hub install byterover-audit` from the project root
-- **THEN** the resulting files are placed under `.agents/skills/byterover/<skill-id>/`
-- **AND** no additional per-harness copies (e.g. under `.claude/skills/byterover/`) are created by these commands
+- **WHEN** a contributor inspects `.claude/skills/` after onboarding
+- **THEN** the directory contains sub-directories `byterover-review`, `byterover-plan`, `byterover-explore`, and `byterover-audit`
+- **AND** each sub-directory contains a `SKILL.md` file
+
+#### Scenario: Fresh install plus mirror reproduces both locations
+
+- **WHEN** a contributor runs `brv hub install byterover-review --agent "Claude Code"` (and the equivalent for `byterover-plan`, `byterover-explore`, `byterover-audit`) from the project root, then mirrors each installed skill directory from `.claude/skills/<skill-id>/` to `.agents/skills/byterover/<skill-id>/`
+- **THEN** the four hub skills exist under both `.claude/skills/` and `.agents/skills/byterover/`
+- **AND** `SKILL.md` content under each location matches byte-for-byte immediately after the mirror step
 
 ### Requirement: Claude Code connector is the only connector this change installs
 

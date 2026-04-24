@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: All four skills present under `.agents/skills/byterover/`; each has a `SKILL.md`.
 - **Requirements**: `agent-memory-byterover:hub-skills-location`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Author `.agents/skills/byterover/README.md`
 
