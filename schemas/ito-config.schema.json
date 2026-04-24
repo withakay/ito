@@ -675,9 +675,8 @@
           "default": 120,
           "description": "Minimum interval in seconds between redundant coordination sync pushes",
           "format": "uint64",
-          "minimum": 1.0,
+          "minimum": 0.0,
           "type": "integer"
-        }
         },
         "worktree_path": {
           "description": "Worktree path override for coordination storage",
