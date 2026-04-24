@@ -143,6 +143,7 @@ then re-run:\n\n\
             preset_name: &'a str,
             gate_order: &'a [String],
             recommended_skills: &'a [String],
+            coordinator_agent_name: &'a str,
             agent_roles_md: &'a str,
         }
 
@@ -181,6 +182,7 @@ then re-run:\n\n\
                 preset_name: &preset.name,
                 gate_order: &preset.gate_order,
                 recommended_skills: &preset.recommended_skills,
+                coordinator_agent_name: "ito-orchestrator",
                 agent_roles_md: &agent_roles_md,
             },
         )

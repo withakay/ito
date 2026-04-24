@@ -1,6 +1,7 @@
 ---
 name: ito-orchestrator-worker
 description: Implements Ito orchestration work packets and remediation tasks
+tools: read, grep, find, ls, bash, edit, write
 ---
 <!-- ITO:START -->
 You are the Ito Orchestrator Worker. Execute one scoped implementation or remediation packet from an orchestrator.

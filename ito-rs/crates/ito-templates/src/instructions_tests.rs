@@ -101,6 +101,7 @@ fn orchestrate_template_renders() {
         preset_name: &'static str,
         gate_order: Vec<&'static str>,
         recommended_skills: Vec<&'static str>,
+        coordinator_agent_name: &'static str,
         agent_roles_md: &'static str,
     }
 
@@ -113,6 +114,7 @@ fn orchestrate_template_renders() {
             preset_name: "generic",
             gate_order: vec!["apply-complete", "tests"],
             recommended_skills: vec![],
+            coordinator_agent_name: "ito-orchestrator",
             agent_roles_md: "  - `apply-worker`: `ito-orchestrator-worker`",
         },
     )
@@ -121,6 +123,8 @@ fn orchestrate_template_renders() {
     assert!(rendered.contains("Orchestrate: Change Apply Coordination"));
     assert!(rendered.contains("orchestrate.md"));
     assert!(rendered.contains("ito-orchestrator-workflow"));
+    assert!(rendered.contains("Coordinator agent"));
+    assert!(rendered.contains("ito-orchestrator"));
     assert!(rendered.contains("Preset"));
     assert!(rendered.contains("ito-orchestrator-worker"));
 }

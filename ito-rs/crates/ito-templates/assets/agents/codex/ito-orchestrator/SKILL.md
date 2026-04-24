@@ -1,6 +1,7 @@
 ---
 name: ito-orchestrator
 description: Coordinator-only agent for orchestrating multi-change runs
+tools: read, grep, find, ls, bash, task
 ---
 
 <!-- ITO:START -->
