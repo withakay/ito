@@ -109,7 +109,7 @@ ______________________________________________________________________
 - **Done When**: Three variants (setup present, no setup, disabled) each render correctly.
 - **Requirements**: `worktree-setup:instruction-artifact`
 - **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.2: Update apply instruction template to include worktree ensure step
 
