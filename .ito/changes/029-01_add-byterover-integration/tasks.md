@@ -121,5 +121,5 @@ ______________________________________________________________________
 - **Done When**: README updated and committed with implementation notes.
 - **Requirements**: `agent-memory-byterover:readme-reproducibility`
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
