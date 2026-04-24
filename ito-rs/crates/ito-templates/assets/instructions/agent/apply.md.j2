@@ -20,6 +20,18 @@ Use the ito-continue-change skill to create these first.
 
 Strategy: `{{ worktree.strategy }}` | Branch: `{{ worktree.default_branch }}` | Dir: `{{ worktree.layout_dir_name }}`
 
+**Recommended**: Use `ito worktree ensure` to create and initialize the worktree in one step:
+
+```bash
+CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace("\"", "\\\"") }}")
+```
+
+This creates the worktree (if absent), copies include files, and runs setup commands.
+All subsequent file operations should use `$CHANGE_DIR` as the working directory.
+
+<details>
+<summary>Manual setup (alternative)</summary>
+
 For full layout diagrams and setup commands, run:
 
 ```bash
@@ -74,6 +86,8 @@ cd "$CHANGE_DIR"
 {% endfor %}
 ```
 {% endif %}
+
+</details>
 
 {% elif worktree.enabled and not worktree.apply_enabled %}
 ### Worktree Mode

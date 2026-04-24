@@ -215,6 +215,31 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         return emit_instruction(want_json, artifact, instruction);
     }
 
+    if artifact == "worktree-init" {
+        let ctx = rt.ctx();
+        let ito_path = rt.ito_path();
+        let project_root = ito_path.parent().unwrap_or(ito_path);
+        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+        let change = parse_string_flag(args, "--change")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        #[derive(serde::Serialize)]
+        struct Ctx {
+            worktree: WorktreeConfig,
+            change: Option<String>,
+        }
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            "agent/worktree-init.md.j2",
+            &Ctx { worktree, change },
+        )
+        .map_err(|e| to_cli_error(format!("failed to render worktree-init instruction: {e}")))?;
+
+        return emit_instruction(want_json, artifact, instruction);
+    }
+
     if artifact == "finish" {
         let ctx = rt.ctx();
         let ito_path = rt.ito_path();
@@ -697,6 +722,10 @@ struct WorktreeConfig {
     copy_from_main: Vec<String>,
     setup_commands: Vec<String>,
     default_branch: String,
+    /// Glob patterns from `worktrees.init.include` for worktree initialization.
+    init_include: Vec<String>,
+    /// Setup commands from `worktrees.init.setup` for worktree initialization.
+    init_setup: Vec<String>,
     /// Absolute path to the current working worktree root.
     ///
     /// This is the directory that contains the `.ito/` folder for this invocation.
@@ -763,6 +792,8 @@ fn worktree_config_from_merged(
         ],
         setup_commands: Vec::new(),
         default_branch: "main".to_string(),
+        init_include: Vec::new(),
+        init_setup: Vec::new(),
         worktree_root: None,
         ito_root: None,
         project_root: None,
@@ -822,6 +853,35 @@ fn worktree_config_from_merged(
                     }
                 }
                 out.setup_commands = items;
+            }
+        }
+
+        // Parse init section (worktrees.init.include and worktrees.init.setup).
+        if let Some(init) = wt.get("init") {
+            if let Some(arr) = init.get("include").and_then(|v| v.as_array()) {
+                let mut items = Vec::new();
+                for item in arr {
+                    if let Some(s) = item.as_str() {
+                        items.push(s.to_string());
+                    }
+                }
+                out.init_include = items;
+            }
+
+            if let Some(setup) = init.get("setup") {
+                if let Some(s) = setup.as_str() {
+                    if !s.is_empty() {
+                        out.init_setup = vec![s.to_string()];
+                    }
+                } else if let Some(arr) = setup.as_array() {
+                    let mut items = Vec::new();
+                    for item in arr {
+                        if let Some(s) = item.as_str() {
+                            items.push(s.to_string());
+                        }
+                    }
+                    out.init_setup = items;
+                }
             }
         }
     }
