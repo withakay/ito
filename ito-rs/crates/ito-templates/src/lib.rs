@@ -591,12 +591,14 @@ mod tests {
 
             let expected = match harness {
                 Harness::Codex => [
+                    "ito-orchestrator/SKILL.md",
                     "ito-orchestrator-planner/SKILL.md",
                     "ito-orchestrator-researcher/SKILL.md",
                     "ito-orchestrator-worker/SKILL.md",
                     "ito-orchestrator-reviewer/SKILL.md",
                 ],
                 Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => [
+                    "ito-orchestrator.md",
                     "ito-orchestrator-planner.md",
                     "ito-orchestrator-researcher.md",
                     "ito-orchestrator-worker.md",
