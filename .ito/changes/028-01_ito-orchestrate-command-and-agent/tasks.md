@@ -67,7 +67,7 @@ ______________________________________________________________________
 - **Done When**: Core can build a plan from change metadata, persist run state under `.ito/.state/orchestrate/runs/<run-id>/`, and resume from prior state.
 - **Requirements**: orchestrate-run-state:layout, orchestrate-run-state:event-log, orchestrate-run-state:resumability, orchestrate-gates:pipeline, orchestrate-gates:semantics, orchestrate-gates:remediation, orchestrate-parallelism:max-parallel-flag, orchestrate-parallelism:dependency-graph
 - **Updated At**: 2026-04-24
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Add setup guidance and setup skill/template assets
 
