@@ -3,6 +3,10 @@ name: ito-orchestrate-setup
 description: Set up orchestration defaults, presets, and workflow guidance for a repo.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Set up the project to use the orchestrator.
 
 ## Goal
@@ -37,3 +41,5 @@ Create or validate the repo assets needed for orchestration:
 5. Verify:
    - Run: `ito agent instruction orchestrate`
    - Confirm the rendered instruction includes your preset and policy.
+
+<!-- ITO:END -->

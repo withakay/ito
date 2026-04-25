@@ -1,5 +1,5 @@
 ---
-name: tmux
+name: ito-tmux
 description: "Remote control tmux sessions for interactive CLIs (python, gdb, etc.) by sending keystrokes and scraping pane output."
 metadata:
   upstream: https://github.com/mitsuhiko/agent-stuff/tree/main/skills/tmux
@@ -9,6 +9,7 @@ metadata:
 # tmux Skill
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 Use tmux as a programmable terminal multiplexer for interactive work. Works on Linux and macOS with stock tmux; avoid custom config by using a private socket.
 
 ## Ito Integration

@@ -1,7 +1,11 @@
 ---
-name: using-ito-skills
+name: ito-using-ito-skills
 description: "Use when discovering, finding, invoking, or loading skills. Ensures skills are invoked BEFORE responding."
 ---
+
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 
 # Using Ito Skills
 
@@ -34,3 +38,5 @@ When multiple skills apply:
 
 **Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
 **Flexible** (patterns): Adapt principles to context. The skill itself tells you which.
+
+<!-- ITO:END -->

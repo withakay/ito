@@ -1,4 +1,5 @@
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 # Ito Instructions
 
 These instructions are for AI assistants working in this project.

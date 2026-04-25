@@ -3,6 +3,10 @@ name: ito
 description: Unified entry point for ito commands with intelligent skill-first routing and CLI fallback.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Route ito commands to the best handler.
 
 ## Goal
@@ -44,3 +48,5 @@ The requested command is provided either:
 4. **Error handling**:
    - If the invoked skill fails: prefix with `[ito-* skill error]` and preserve the original error
    - If the CLI fails: prefix with `[ito CLI error]` and preserve the original error
+
+<!-- ITO:END -->

@@ -3,6 +3,10 @@ name: ito-proposal
 description: Use when creating and writing an Ito change proposal (new change or existing change id). Delegates to Ito CLI instruction artifacts.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Collaborate with the user to understand their intent, then create a change and generate proposal artifacts.
 
 **If the user already provided a change ID**, skip to Step 4 (Generate artifacts) — the change already exists.
@@ -77,3 +81,5 @@ Follow the printed instructions for each artifact exactly.
 
 - Default workflow: RED/GREEN/REFACTOR. Coverage target: 80% (projects may override).
 - Follow the "Testing Policy" section emitted by `ito agent instruction proposal|apply`.
+
+<!-- ITO:END -->

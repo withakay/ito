@@ -6,6 +6,10 @@ description: |
     Use when implementing, executing, applying, building, coding, or developing a feature, change, requirement, enhancement, fix, or modification. Use when running tasks from a spec, proposal, or plan.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Run the CLI-generated apply instructions for a specific change.
 
 **Steps**
@@ -24,3 +28,5 @@ Run the CLI-generated apply instructions for a specific change.
 3. Follow the printed instructions exactly.
 
 4. Use `ito tasks ready <change-id>` to see actionable tasks at any point.
+
+<!-- ITO:END -->

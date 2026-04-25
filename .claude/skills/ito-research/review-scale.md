@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Scale Review
 
 ## Objective
@@ -62,3 +65,5 @@ Brief summary of the proposed architecture from a scaling perspective.
 - [ ] Scales adequately for expected load
 - [ ] Needs optimization before launch
 - [ ] Requires architectural changes
+
+<!-- ITO:END -->

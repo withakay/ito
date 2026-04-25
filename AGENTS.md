@@ -1,4 +1,5 @@
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 
 # Ito Instructions
 
@@ -42,6 +43,13 @@ Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute pa
 **Default branch:** `main`
 **Integration mode:** `commit_pr`
 
+Worktree rules:
+
+- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
+- Do not reuse one worktree for two changes.
+- If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
 
 This project uses a bare/control repo layout with worktrees as siblings:
 
@@ -51,14 +59,14 @@ This project uses a bare/control repo layout with worktrees as siblings:
 |-- .git                                # gitdir pointer
 |-- main/               # main branch worktree
 `-- ito-worktrees/              # change worktrees
-    `-- <change-name>/
+    `-- <full-change-id>/
 ```
 
 To create a worktree for a change:
 
 ```bash
 mkdir -p "../ito-worktrees"
-git worktree add "../ito-worktrees/<change-name>" -b <change-name> main
+git worktree add "../ito-worktrees/<full-change-id>" -b <full-change-id> main
 ```
 
 Always branch new change worktrees from `main`. Do not create them from the bare/control repo placeholder `HEAD`.
@@ -66,12 +74,10 @@ Always branch new change worktrees from `main`. Do not create them from the bare
 
 Do NOT ask the user where to create worktrees. Use the configured locations above.
 
-After the change branch is merged, clean up:
+After the change branch is merged, ask Ito for cleanup instructions:
 
 ```bash
-git worktree remove <worktree-path> 2>/dev/null || true
-git branch -d <change-name> 2>/dev/null || true
-git worktree prune
+ito agent instruction finish --change "<full-change-id>"
 ```
 
 

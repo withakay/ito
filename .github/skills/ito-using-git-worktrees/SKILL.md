@@ -4,6 +4,7 @@ description: Use when starting feature work that needs isolation from current wo
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 
 # Using Git Worktrees
 
@@ -17,6 +18,13 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 **Default branch:** `main`
 **Integration mode:** `commit_pr`
 
+## Change Worktree Rules
+
+- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
+- Do not reuse one worktree for two changes.
+- If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
 ## Worktree Location
 
 
@@ -25,14 +33,14 @@ Worktrees live under the bare/control layout:
 ```bash
 ../
 |-- main/
-`-- ito-worktrees/<change-name>/
+`-- ito-worktrees/<full-change-id>/
 ```
 
 Create a worktree:
 
 ```bash
 mkdir -p "../ito-worktrees"
-git worktree add "../ito-worktrees/<change-name>" -b <change-name> main
+git worktree add "../ito-worktrees/<full-change-id>" -b <full-change-id> main
 ```
 
 Always branch new change worktrees from `main`. Never use the bare/control repo placeholder `HEAD` as the checkout source.
@@ -57,10 +65,10 @@ If you need absolute paths (for logs, scripts, or agent instructions), use:
 
 ## Cleanup
 
-After the branch is merged:
+After the branch is merged, ask Ito for cleanup instructions:
 
 ```bash
-ito agent instruction finish --change "<branch-name>"
+ito agent instruction finish --change "<full-change-id>"
 ```
 
 If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks.

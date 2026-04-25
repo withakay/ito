@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Pitfalls Research
 
 ## Objective
@@ -43,3 +46,5 @@ Signs that something is going wrong:
 
 - Signal 1
 - Signal 2
+
+<!-- ITO:END -->

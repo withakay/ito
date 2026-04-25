@@ -3,6 +3,10 @@ name: ito-list
 description: List Ito changes, specs, or modules with status summaries and intelligent interpretation.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Use `ito list` to display project items and interpret the results for the user.
 
 **Goal**
@@ -84,3 +88,5 @@ ito list --modules
 - Always use `--json` when you need to programmatically interpret results.
 - Progress filters (`--ready`, `--completed`, `--partial`, `--pending`) only apply to changes, not specs or modules.
 - If the Ito project is not initialized, advise the user to run `ito init`.
+
+<!-- ITO:END -->

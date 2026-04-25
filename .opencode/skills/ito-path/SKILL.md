@@ -3,6 +3,10 @@ name: ito-path
 description: Use when you need stable absolute paths (project/worktree/.ito/worktrees) without embedding machine-specific paths into committed files
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 # Ito Path Helpers
 
 ## Overview
@@ -65,3 +69,5 @@ Returns:
 Committed files (templates/skills) should use repo-relative paths.
 
 If an absolute path is needed at runtime (for agent output or scripts), instruct the caller to use `ito path ...`.
+
+<!-- ITO:END -->

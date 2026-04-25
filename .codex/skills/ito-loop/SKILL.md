@@ -4,6 +4,7 @@ description: Run an ito ralph loop for a change, module, or repo-ready sequence,
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 
 # Skill: ito-loop
 

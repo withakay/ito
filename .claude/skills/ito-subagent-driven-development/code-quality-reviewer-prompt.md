@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Code Quality Reviewer Prompt Template
 
 Use this template when dispatching a code quality reviewer subagent.
@@ -27,3 +30,5 @@ Review the diff and report:
 ```
 
 **If REQUEST_CHANGES:** fix critical/important issues before proceeding.
+
+<!-- ITO:END -->

@@ -3,6 +3,10 @@ name: ito-finish
 description: "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work — presents structured options for merge, PR, or cleanup"
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 # Finishing a Development Branch
 
 Verify tests, present options, execute choice, clean up.
@@ -130,3 +134,5 @@ For Options 2 and 3 — keep the worktree.
 - If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks
 - Always detect Ito changes and include the archive option
 - Always present structured options, not open-ended questions
+
+<!-- ITO:END -->

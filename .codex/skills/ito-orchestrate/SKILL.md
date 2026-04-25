@@ -3,6 +3,10 @@ name: ito-orchestrate
 description: Coordinate multi-change runs with gates, run state, and remediation.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Coordinate applying changes across a repo with an orchestrator role.
 
 ## Goal
@@ -75,3 +79,5 @@ Gates can be overridden by the active preset (`.ito/user-prompts/orchestrate.md`
    - Dispatch the packet to a **fresh apply worker** (a new worker agent session; do not reuse the one that failed).
    - After remediation, rerun only the failed gate and its downstream gates. Previously passed gates are not rerun.
    - Respect `failure_policy` from `orchestrate.md`: `remediate` (default), `stop`, or `continue`.
+
+<!-- ITO:END -->

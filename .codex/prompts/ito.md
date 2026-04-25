@@ -10,6 +10,7 @@ $ARGUMENTS
 </ItoCommand>
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 
 Load and follow the `ito` skill. Pass the <ItoCommand> block as input.
 

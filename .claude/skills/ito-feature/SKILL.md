@@ -3,6 +3,10 @@ name: ito-feature
 description: Start a feature-oriented Ito change proposal with feature-biased intake and schema recommendations.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Use this when the user is introducing a new capability, expanding an existing one, or otherwise framing the work as a feature.
 **If the user already provided a change ID**, skip to Step 5 (Continue with `ito-proposal`) — the change already exists.
 
@@ -31,3 +35,5 @@ Drive proposal creation through a feature-oriented intake lane that gives the us
 
 - `ito-feature` is an opinionated front door, not a separate schema.
 - The user may still override the recommended schema or continue through the neutral `ito-proposal` lane.
+
+<!-- ITO:END -->

@@ -3,6 +3,10 @@ name: ito-proposal-intake
 description: Clarify a requested change before scaffolding a proposal, then recommend the next workflow lane and schema.
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
+
 Use this before proposal scaffolding when the request is underspecified or when starting from an intent-biased entrypoint such as `ito-fix` or `ito-feature`.
 **If the user already provided a change ID**, skip to the Handoff Format and continue with `ito-proposal` — the change already exists.
 
@@ -67,3 +71,5 @@ When the change is ready for proposal creation, hand off this summary to the nex
 Then continue with `ito-proposal` using that summary as the shared understanding. Do not restart discovery unless a blocking ambiguity remains.
 
 If intake has already been attempted and the request still is not concrete enough for safe scaffolding, route to `ito-brainstorming` or ask the user for more context rather than restarting intake.
+
+<!-- ITO:END -->

@@ -4,6 +4,7 @@ description: Use when executing implementation plans with independent tasks in t
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
 
 # Subagent-Driven Development
 

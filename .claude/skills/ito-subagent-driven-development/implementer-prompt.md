@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Implementer Subagent Prompt Template
 
 Use this template when dispatching an implementer subagent.
@@ -76,3 +79,5 @@ Task tool (general-purpose):
     - Self-review findings (if any)
     - Any issues or concerns
 ```
+
+<!-- ITO:END -->

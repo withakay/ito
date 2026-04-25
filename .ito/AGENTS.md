@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Ito Instructions
 
 Instructions for AI coding assistants using Ito for change-driven development.
@@ -696,3 +699,5 @@ ito archive <change-id> [--yes|-y]  # Mark complete (add --yes for automation)
 ```
 
 Remember: Specs are truth. Changes are proposals. Keep them in sync.
+
+<!-- ITO:END -->

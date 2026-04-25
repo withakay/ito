@@ -1,3 +1,6 @@
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.27-->
+
 # Synthesize Research Findings
 
 ## Objective
@@ -63,3 +66,5 @@ Top pitfalls and how we'll avoid them:
 ## Open Questions
 
 Questions requiring further investigation or stakeholder input.
+
+<!-- ITO:END -->
