@@ -27,13 +27,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-24T21:05:47.158Z",
+  "generated_at": "2026-04-25T20:34:11.208Z",
   "lane_tokens": {
     "contexts": 38,
     "stubs": 0,
     "summaries": 740
   },
-  "source_fingerprint": "d497283c1a7ed74d8abe2273d38025a9b730213cb7ea4718c65124b9517bf336",
+  "source_fingerprint": "88a0a15ac9300be2b916b2f8baff50fdd9980970faca8aa7b1832ce6052aead1",
   "total_tokens": 778,
   "version": 1
 }

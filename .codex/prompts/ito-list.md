@@ -19,6 +19,6 @@ Load and follow the `ito-list` skill. Pass the <UserRequest> block as input.
 - Before stateful Ito actions: run `ito audit validate`.
 - If validation fails or drift is reported, run `ito audit reconcile` and `ito audit reconcile --fix` to remediate.
 
-If the skill is missing, fall back to running `ito list` directly with any user-supplied flags.
+If the skill is missing, fall back to running `ito list` or `ito list-archive` directly with any user-supplied flags.
 
 <!-- ITO:END -->
