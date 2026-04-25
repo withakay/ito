@@ -61,7 +61,7 @@ ______________________________________________________________________
 - **Done When**: Contributors cannot land an unprefixed Ito asset without updating the allow-list.
 - **Requirements**: ito-managed-asset-naming:templates-enforce
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.7: Retrofit managed blocks into every templated markdown file
 
