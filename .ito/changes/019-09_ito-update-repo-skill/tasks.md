@@ -149,6 +149,6 @@ ______________________________________________________________________
 - **Verify**: `rg -n "ito-update-repo" docs/` returns at least one hit.
 - **Done When**: Command is discoverable in documentation.
 - **Requirements**: ito-update-repo-skill:distribution
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [-] shelved
 <!-- ITO:END -->
