@@ -1654,6 +1654,427 @@ The system SHALL declare a public contract.
 }
 
 #[test]
+fn task_quality_rule_errors_on_missing_status() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        r#"
+name: tracking-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+apply:
+  tracks: tasks.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Known requirement
+The system SHALL track tasks.
+
+- **Requirement ID**: auth:known
+
+#### Scenario: Track tasks
+- **WHEN** validation runs
+- **THEN** task requirements resolve
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Missing status
+- **Files**: `src/lib.rs`
+- **Dependencies**: None
+- **Action**:
+  Update validator behavior.
+- **Verify**: `cargo test -p ito-core --test validate task_quality_rule`
+- **Done When**: Status is present.
+- **Requirements**: auth:known
+- **Updated At**: 2026-04-25
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "ERROR"
+            && issue.message.contains("Missing Status")
+    }));
+}
+
+#[test]
+fn task_quality_rule_enforces_done_when_and_verify_for_impl_tasks() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        r#"
+name: tracking-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+apply:
+  tracks: tasks.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Known requirement
+The system SHALL track tasks.
+
+- **Requirement ID**: auth:known
+
+#### Scenario: Track tasks
+- **WHEN** validation runs
+- **THEN** task requirements resolve
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Missing quality fields
+- **Files**: `src/lib.rs`
+- **Dependencies**: None
+- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "ERROR"
+            && issue.message.contains("Missing Done When")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "ERROR"
+            && issue.message.contains("Missing Verify")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "WARNING"
+            && issue.message.contains("Missing Action")
+    }));
+}
+
+#[test]
+fn task_quality_rule_warns_for_vague_verify_missing_files_and_non_impl_verify() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        r#"
+name: tracking-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+apply:
+  tracks: tasks.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Known requirement
+The system SHALL track tasks.
+
+- **Requirement ID**: auth:known
+
+#### Scenario: Track tasks
+- **WHEN** validation runs
+- **THEN** task requirements resolve
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Vague verify
+- **Dependencies**: None
+- **Verify**: `Run Tests`
+- **Done When**: The docs task is reviewed.
+- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+
+### Task 1.2: Docs task without verify
+- **Files**: `docs/schema-customization.md`
+- **Dependencies**: None
+- **Action**:
+  Document the workflow.
+- **Done When**: Docs are updated.
+- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "WARNING"
+            && issue.message.contains("Vague Verify")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "WARNING"
+            && issue.message.contains("Missing Files")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "WARNING"
+            && issue.message.contains("Missing Action")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "WARNING"
+            && issue.message.contains("Missing Verify")
+            && issue.message.contains("1.2")
+    }));
+}
+
+#[test]
+fn task_quality_rule_errors_on_unknown_requirement_ids() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        r#"
+name: tracking-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+apply:
+  tracks: tasks.md
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Known requirement
+The system SHALL track tasks.
+
+- **Requirement ID**: auth:known
+
+#### Scenario: Track tasks
+- **WHEN** validation runs
+- **THEN** task requirements resolve
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        r#"
+## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Unknown requirement id
+- **Files**: `src/lib.rs`
+- **Dependencies**: None
+- **Action**:
+  Update validator behavior.
+- **Verify**: `cargo test -p ito-core --test validate task_quality_rule`
+- **Done When**: Requirement ids resolve.
+- **Requirements**: auth:missing
+- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "ERROR"
+            && issue.message.contains("unknown requirement ID 'auth:missing'")
+    }));
+}
+
+#[test]
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
