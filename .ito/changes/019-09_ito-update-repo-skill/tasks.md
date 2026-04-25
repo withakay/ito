@@ -127,13 +127,13 @@ ______________________________________________________________________
 ### Task 2.3: End-to-end orphan cleanup apply
 
 - **Files**: potentially many orphan files across harness directories (deletions only)
-- **Dependencies**: Task 2.2
+- **Dependencies**: None
 - **Action**: Invoke `/ito-update-repo` (non-dry-run) on a throwaway branch in this repo, approve the cleanup, and confirm that a rerun reports zero orphans and zero file modifications.
 - **Verify**: Second invocation is a no-op; `git status` only shows the deletions the user approved.
 - **Done When**: Re-run idempotence holds.
 - **Requirements**: ito-update-repo-skill:rerun-idempotent
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [-] shelved
 
 ______________________________________________________________________
 
