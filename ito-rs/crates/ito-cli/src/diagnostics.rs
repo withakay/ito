@@ -47,7 +47,14 @@ pub fn render_validation_issues(issues: &[ValidationIssue]) -> String {
                 loc.push_str(&format!(":{line}"));
             }
         }
-        out.push_str(&format!("- [{}] {loc}: {}\n", i.level, i.message));
+        if let Some(rule_id) = i.rule_id.as_deref() {
+            out.push_str(&format!(
+                "- [{}][{rule_id}] {loc}: {}\n",
+                i.level, i.message
+            ));
+        } else {
+            out.push_str(&format!("- [{}] {loc}: {}\n", i.level, i.message));
+        }
     }
     out
 }
@@ -140,6 +147,24 @@ mod tests {
         assert_eq!(
             super::render_validation_issues(&issues),
             "- [ERROR] specs/foo.md:10:2: missing purpose\n"
+        );
+    }
+
+    #[test]
+    fn render_validation_issues_renders_rule_id_when_present() {
+        let issues = vec![ValidationIssue {
+            level: "WARNING".to_string(),
+            path: "changes/001-01_demo/tasks.md".to_string(),
+            message: "Missing Verify for task '1.2'".to_string(),
+            line: None,
+            column: None,
+            rule_id: Some("task_quality".to_string()),
+            metadata: None,
+        }];
+
+        assert_eq!(
+            super::render_validation_issues(&issues),
+            "- [WARNING][task_quality] changes/001-01_demo/tasks.md: Missing Verify for task '1.2'\n"
         );
     }
 }
