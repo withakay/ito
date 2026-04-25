@@ -1,0 +1,1 @@
+Ito’s release workflow uses release-plz to publish crates and tag versions, cargo-dist to build GitHub Releases from those tags, and Homebrew tap updates plus release-note polishing to complete the CI pipeline.
