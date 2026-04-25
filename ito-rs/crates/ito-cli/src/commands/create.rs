@@ -1,6 +1,6 @@
 use crate::cli::{CreateAction, CreateArgs, NewAction, NewArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
-use crate::commands::sync::{best_effort_sync_coordination, best_effort_sync_coordination_bg};
+use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::{parse_string_flag, split_csv};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
@@ -252,7 +252,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 ito_path,
                 &format!("chore: create module {}", r.folder_name),
             );
-            best_effort_sync_coordination_bg(rt, "after module create");
+            best_effort_sync_coordination(rt, "after module create");
             Ok(())
         }
         "change" => {
@@ -437,7 +437,7 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         ito_path,
                         &format!("chore: create sub-module {}", r.sub_module_id),
                     );
-                    best_effort_sync_coordination_bg(rt, "after sub-module create");
+                    best_effort_sync_coordination(rt, "after sub-module create");
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),

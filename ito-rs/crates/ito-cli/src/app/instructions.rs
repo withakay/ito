@@ -596,7 +596,7 @@ fn load_coordination_branch_settings(
 }
 
 fn sync_before_change_resolution(artifact: &str) -> bool {
-    artifact == "apply" || artifact == "proposal"
+    artifact == "apply" || artifact == "proposal" || artifact == "review"
 }
 
 fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {
