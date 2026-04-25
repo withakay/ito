@@ -83,5 +83,5 @@ ______________________________________________________________________
 - **Done When**: The skill's mental model matches the new install behaviour.
 - **Requirements**: cli-update:harness-manifest-marker-scoped
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 <!-- ITO:END -->
