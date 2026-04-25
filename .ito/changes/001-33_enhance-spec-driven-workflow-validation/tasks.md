@@ -111,7 +111,7 @@ ______________________________________________________________________
 - **Done When**: Each row of the severity table is exercised; non-implementation tasks downgrade missing-Verify to warning.
 - **Requirements**: cli-validate:task-quality-validation, tasks-tracking:concrete-verification
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.5: Update agent-facing docs and instructions
 
