@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: All tests pass; the three entry points return the expected render branches deterministically.
 - **Requirements**: `agent-memory-abstraction:placeholder-rendering`, `agent-memory-abstraction:skill-input-delegation`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Add `memory-capture`, `memory-search`, `memory-query` CLI artifacts
 
