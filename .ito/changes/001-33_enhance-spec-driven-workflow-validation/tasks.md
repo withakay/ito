@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: `validation.yaml` accepts `rules:` per artifact and a `proposal:` entry; existing schemas continue to parse; diagnostics expose `rule_id` when produced by a rule.
 - **Requirements**: ito-schemas:validation-rules-extension, ito-schemas:opt-in-rules-default
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.4: Parse enhanced-task quality fields
 
