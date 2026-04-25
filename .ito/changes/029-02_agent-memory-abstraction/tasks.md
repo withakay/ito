@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: `ito validate --strict` rejects bad configs with clear messages; valid configs pass.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
