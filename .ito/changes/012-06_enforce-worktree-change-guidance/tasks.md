@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Rendered worktree-enabled instructions contain the new invariants without changing disabled-worktree behavior.
 - **Requirements**: cli-artifact-workflow:fresh-change-worktrees
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
