@@ -55,8 +55,8 @@ ______________________________________________________________________
 - **Verify**: Unit tests for each operation × each render branch × each placeholder edge case (list expansion, missing optional scalar, shell-metacharacter quoting, unknown placeholder pass-through). `cargo clippy` clean; `#![warn(missing_docs)]` coverage.
 - **Done When**: All tests pass; the three entry points return the expected render branches deterministically.
 - **Requirements**: `agent-memory-abstraction:placeholder-rendering`, `agent-memory-abstraction:skill-input-delegation`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add `memory-capture`, `memory-search`, `memory-query` CLI artifacts
 
