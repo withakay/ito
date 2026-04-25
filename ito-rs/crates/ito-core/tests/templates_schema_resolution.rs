@@ -138,9 +138,14 @@ fn resolve_instructions_exposes_enhanced_spec_driven_templates() {
     assert!(spec.template.contains("#### Rules / Invariants"));
     assert!(spec.template.contains("#### State Transitions"));
 
-    let design =
-        resolve_instructions(&ito_path, "demo-change", Some("spec-driven"), "design", &ctx)
-            .expect("design template should resolve");
+    let design = resolve_instructions(
+        &ito_path,
+        "demo-change",
+        Some("spec-driven"),
+        "design",
+        &ctx,
+    )
+    .expect("design template should resolve");
     assert!(design.template.contains("## Approach"));
     assert!(design.template.contains("## Contracts / Interfaces"));
     assert!(design.template.contains("## Verification Strategy"));

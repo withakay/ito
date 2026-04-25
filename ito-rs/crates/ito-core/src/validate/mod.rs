@@ -6,22 +6,15 @@
 //! The primary consumer is the CLI and any APIs that need a structured report
 //! (`ValidationReport`) rather than a single error.
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
-use regex::Regex;
 use serde::Serialize;
 
-use ito_common::fs::StdFs;
 use ito_common::paths;
 
-use crate::show::{
-    parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files,
-    read_change_proposal_markdown,
-};
+use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
 use crate::templates::{
     ResolvedSchema, ValidationLevelYaml, ValidationYaml, ValidatorId, artifact_done,
     load_schema_validation, read_change_schema, resolve_schema,
@@ -30,10 +23,13 @@ use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
+mod delta_rules;
 mod format_specs;
 mod issue;
 mod repo_integrity;
 mod report;
+mod rules_engine;
+mod tracking_rules;
 
 pub(crate) use issue::with_format_spec;
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata, with_rule_id};
@@ -54,31 +50,6 @@ pub const LEVEL_INFO: ValidationLevel = "INFO";
 const MIN_PURPOSE_LENGTH: usize = 50;
 const MIN_MODULE_PURPOSE_LENGTH: usize = 20;
 const MAX_DELTAS_PER_CHANGE: usize = 10;
-const MAX_SCENARIO_STEPS: usize = 8;
-const DELTA_SPECS_ARTIFACT_RULES: &[&str] = &["contract_refs", "scenario_grammar", "ui_mechanics"];
-const DELTA_SPECS_PROPOSAL_RULES: &[&str] = &["capabilities_consistency"];
-const TASKS_TRACKING_RULES: &[&str] = &["task_quality"];
-const CONTRACT_REF_SCHEMES: &[&str] = &["asyncapi", "cli", "config", "jsonschema", "openapi"];
-
-static UI_MECHANICS_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
-    [
-        r"(?i)\bclick\s+(?:on\s+|the\s+)?\w+",
-        r"(?i)\bwait\s+\d+\s*(?:ms|millisecond|second|s)\b",
-        r"(?i)\bsleep\s+\d+\b",
-        r"(?i)\bselector\s*[:=]",
-        r"(?i)\bcss\s+selector\b",
-    ]
-    .into_iter()
-    .map(|pattern| Regex::new(pattern).expect("valid UI mechanics regex"))
-    .collect()
-});
-
-static INLINE_CODE_TOKEN_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"`([^`]+)`").expect("valid inline code regex"));
-static IMPLEMENTATION_FILE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\.(rs|ts|tsx|js|py|go|toml|yaml|yml|json|sh)$")
-        .expect("valid implementation file regex")
-});
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One validation finding.
@@ -209,28 +180,8 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult
     Ok(validate_spec_markdown(&markdown, strict))
 }
 
-/// Validate a change and produce a ValidationReport describing any issues found.
-///
-/// The function resolves the change's schema (when available) and runs schema-driven
-/// validation if the schema provides a validation.yaml. For legacy delta-driven
-/// schemas or when schema resolution/validation is unavailable it falls back to
-/// delta-specs and tasks-tracking validations. The `strict` flag influences severity
-/// handling and the report's final `valid` value.
-///
-/// # Returns
-///
-/// A `ValidationReport` summarizing all discovered issues and an aggregate summary,
-/// wrapped in `CoreResult`. The error variant is used for IO or repository access
-/// failures that prevent performing the validations.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::path::Path;
-/// // let change_repo = ...; // impl DomainChangeRepository
-/// // let report = validate_change(&change_repo, Path::new("/path/to/ito"), "change-123", true).unwrap();
-/// // println!("Valid: {}", report.valid);
-/// ```
+/// Validate a change using schema-driven rules when available, with legacy
+/// delta/task fallback for older schemas.
 pub fn validate_change(
     change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
@@ -453,12 +404,12 @@ fn validate_change_against_schema_validation(
                     &schema_artifact.generates,
                     validator_id,
                 )?;
-                run_configured_rules(
+                rules_engine::run_artifact_rules(
                     rep,
                     change_repo,
                     ctx,
                     validator_id,
-                    ValidationRuleTarget::Artifact { id: artifact_id },
+                    artifact_id,
                     cfg.rules.as_ref(),
                 )?;
             }
@@ -481,12 +432,12 @@ fn validate_change_against_schema_validation(
             &schema_artifact.generates,
             validator_id,
         )?;
-        run_configured_rules(
+        rules_engine::run_artifact_rules(
             rep,
             change_repo,
             ctx,
             validator_id,
-            ValidationRuleTarget::Artifact { id: artifact_id },
+            artifact_id,
             cfg.rules.as_ref(),
         )?;
     }
@@ -504,30 +455,27 @@ fn validate_change_against_schema_validation(
             ));
         }
 
-        if present {
-            if let Some(validator_id) = proposal.validate_as {
-                let ctx = ArtifactValidatorContext {
-                    ito_path,
-                    change_id,
-                    strict,
-                };
-                match validator_id {
-                    ValidatorId::DeltaSpecsV1 => {
-                        run_configured_rules(
-                            rep,
-                            change_repo,
-                            ctx,
-                            validator_id,
-                            ValidationRuleTarget::Proposal,
-                            proposal.rules.as_ref(),
-                        )?;
-                    }
-                    ValidatorId::TasksTrackingV1 => {
-                        rep.push(error(
-                            "schema.validation",
-                            "Validator 'ito.tasks-tracking.v1' is not valid for proposal artifacts",
-                        ));
-                    }
+        if present && let Some(validator_id) = proposal.validate_as {
+            let ctx = ArtifactValidatorContext {
+                ito_path,
+                change_id,
+                strict,
+            };
+            match validator_id {
+                ValidatorId::DeltaSpecsV1 => {
+                    rules_engine::run_proposal_rules(
+                        rep,
+                        change_repo,
+                        ctx,
+                        validator_id,
+                        proposal.rules.as_ref(),
+                    )?;
+                }
+                ValidatorId::TasksTrackingV1 => {
+                    rep.push(error(
+                        "schema.validation",
+                        "Validator 'ito.tasks-tracking.v1' is not valid for proposal artifacts",
+                    ));
                 }
             }
         }
@@ -586,15 +534,13 @@ fn validate_change_against_schema_validation(
                             change_id,
                             strict,
                         };
-                        run_configured_rules(
+                        rules_engine::run_tracking_rules(
                             rep,
                             change_repo,
                             ctx,
                             ValidatorId::TasksTrackingV1,
-                            ValidationRuleTarget::Tracking {
-                                path: &abs_path,
-                                report_path: &report_path,
-                            },
+                            &abs_path,
+                            &report_path,
                             tracking.rules.as_ref(),
                         )?;
                     }
@@ -612,808 +558,7 @@ fn validate_change_against_schema_validation(
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ValidationRuleTarget<'a> {
-    Artifact { id: &'a str },
-    Proposal,
-    Tracking { path: &'a Path, report_path: &'a str },
-}
-
-impl ValidationRuleTarget<'_> {
-    fn config_path(self, rule_name: &str) -> String {
-        match self {
-            ValidationRuleTarget::Artifact { id } => {
-                format!("schema.validation.artifacts.{id}.rules.{rule_name}")
-            }
-            ValidationRuleTarget::Proposal => {
-                format!("schema.validation.proposal.rules.{rule_name}")
-            }
-            ValidationRuleTarget::Tracking { .. } => {
-                format!("schema.validation.tracking.rules.{rule_name}")
-            }
-        }
-    }
-
-    fn label(self) -> String {
-        match self {
-            ValidationRuleTarget::Artifact { id } => format!("artifact '{id}'"),
-            ValidationRuleTarget::Proposal => "proposal artifact".to_string(),
-            ValidationRuleTarget::Tracking { report_path, .. } => {
-                format!("tracking file '{report_path}'")
-            }
-        }
-    }
-}
-
-fn format_spec_for_validator(
-    validator_id: ValidatorId,
-) -> crate::validate::format_specs::FormatSpecRef {
-    match validator_id {
-        ValidatorId::DeltaSpecsV1 => format_specs::DELTA_SPECS_V1,
-        ValidatorId::TasksTrackingV1 => format_specs::TASKS_TRACKING_V1,
-    }
-}
-
-fn rule_issue(
-    validator_id: ValidatorId,
-    rule_name: &str,
-    level: ValidationLevel,
-    path: impl AsRef<str>,
-    message: impl Into<String>,
-) -> ValidationIssue {
-    with_format_spec(
-        with_rule_id(issue(level, path, message), rule_name),
-        format_spec_for_validator(validator_id),
-    )
-}
-
-fn run_configured_rules(
-    rep: &mut ReportBuilder,
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    ctx: ArtifactValidatorContext<'_>,
-    validator_id: ValidatorId,
-    target: ValidationRuleTarget<'_>,
-    rules: Option<&BTreeMap<String, ValidationLevelYaml>>,
-) -> CoreResult<()> {
-    let Some(rules) = rules else {
-        return Ok(());
-    };
-
-    for (rule_name, level) in rules {
-        let supported_rules = supported_rules_for_target(validator_id, target);
-        if !supported_rules.iter().any(|supported| supported == rule_name) {
-            let supported = if supported_rules.is_empty() {
-                "none".to_string()
-            } else {
-                supported_rules.join(", ")
-            };
-            rep.push(with_format_spec(
-                warning(
-                    target.config_path(rule_name),
-                    format!(
-                        "Unknown validation rule '{rule_name}' for {} (validator: {}). Supported rules: {supported}",
-                        target.label(),
-                        validator_id.as_str()
-                    ),
-                ),
-                format_spec_for_validator(validator_id),
-            ));
-            continue;
-        }
-
-        match (validator_id, target) {
-            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
-                run_delta_specs_artifact_rule(rep, change_repo, ctx, rule_name, *level)?;
-            }
-            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {
-                run_delta_specs_proposal_rule(rep, change_repo, ctx, rule_name, *level)?;
-            }
-            (
-                ValidatorId::TasksTrackingV1,
-                ValidationRuleTarget::Tracking { path, report_path },
-            ) => {
-                run_tasks_tracking_rule(rep, change_repo, ctx, path, report_path, rule_name, *level)?;
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
-}
-
-fn supported_rules_for_target(
-    validator_id: ValidatorId,
-    target: ValidationRuleTarget<'_>,
-) -> &'static [&'static str] {
-    match (validator_id, target) {
-        (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
-            DELTA_SPECS_ARTIFACT_RULES
-        }
-        (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {
-            DELTA_SPECS_PROPOSAL_RULES
-        }
-        (ValidatorId::TasksTrackingV1, ValidationRuleTarget::Tracking { .. }) => {
-            TASKS_TRACKING_RULES
-        }
-        _ => &[],
-    }
-}
-
-fn run_delta_specs_artifact_rule(
-    rep: &mut ReportBuilder,
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    ctx: ArtifactValidatorContext<'_>,
-    rule_name: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<()> {
-    match rule_name {
-        "scenario_grammar" => rep.extend(validate_scenario_grammar_rule(
-            change_repo,
-            ctx.change_id,
-            level,
-        )?),
-        "ui_mechanics" => rep.extend(validate_ui_mechanics_rule(change_repo, ctx.change_id)?),
-        "contract_refs" => rep.extend(validate_contract_refs_rule(
-            change_repo,
-            ctx.change_id,
-            level,
-        )?),
-        _ => {}
-    }
-    Ok(())
-}
-
-fn run_delta_specs_proposal_rule(
-    rep: &mut ReportBuilder,
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    ctx: ArtifactValidatorContext<'_>,
-    rule_name: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<()> {
-    match rule_name {
-        "capabilities_consistency" => rep.extend(validate_capabilities_consistency_rule(
-            change_repo,
-            ctx.ito_path,
-            ctx.change_id,
-            level,
-        )?),
-        _ => {}
-    }
-    Ok(())
-}
-
-fn run_tasks_tracking_rule(
-    rep: &mut ReportBuilder,
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    ctx: ArtifactValidatorContext<'_>,
-    path: &Path,
-    report_path: &str,
-    rule_name: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<()> {
-    match rule_name {
-        "task_quality" => rep.extend(validate_task_quality_rule(
-            change_repo,
-            ctx.change_id,
-            path,
-            report_path,
-            level,
-        )?),
-        _ => {}
-    }
-    Ok(())
-}
-
-fn validate_scenario_grammar_rule(
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    change_id: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<Vec<ValidationIssue>> {
-    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
-    let mut issues = Vec::new();
-
-    for (delta_idx, delta) in show.deltas.iter().enumerate() {
-        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
-            for (scenario_idx, scenario) in requirement.scenarios.iter().enumerate() {
-                if scenario.raw_text.trim().is_empty() {
-                    continue;
-                }
-
-                let steps = extract_scenario_steps(&scenario.raw_text);
-                let has_given = steps.iter().any(|step| step.keyword == "GIVEN");
-                let has_when = steps.iter().any(|step| step.keyword == "WHEN");
-                let has_then = steps.iter().any(|step| step.keyword == "THEN");
-                let path = format!(
-                    "deltas[{delta_idx}].requirements[{requirement_idx}].scenarios[{scenario_idx}]"
-                );
-
-                if !has_when {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "scenario_grammar",
-                        level.as_level_str(),
-                        &path,
-                        "Scenario is missing WHEN step",
-                    ));
-                }
-                if !has_then {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "scenario_grammar",
-                        level.as_level_str(),
-                        &path,
-                        "Scenario is missing THEN step",
-                    ));
-                }
-                if !has_given {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "scenario_grammar",
-                        LEVEL_WARNING,
-                        &path,
-                        "Scenario is missing GIVEN step",
-                    ));
-                }
-                if steps.len() > MAX_SCENARIO_STEPS {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "scenario_grammar",
-                        LEVEL_WARNING,
-                        &path,
-                        format!(
-                            "Scenario has more than {MAX_SCENARIO_STEPS} steps; consider splitting it"
-                        ),
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(issues)
-}
-
-fn validate_ui_mechanics_rule(
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    change_id: &str,
-) -> CoreResult<Vec<ValidationIssue>> {
-    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
-    let mut issues = Vec::new();
-
-    for (delta_idx, delta) in show.deltas.iter().enumerate() {
-        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
-            if requirement.tags.iter().any(|tag| tag == "ui") {
-                continue;
-            }
-
-            for (scenario_idx, scenario) in requirement.scenarios.iter().enumerate() {
-                if scenario.raw_text.trim().is_empty() {
-                    continue;
-                }
-
-                let Some(pattern) = UI_MECHANICS_PATTERNS
-                    .iter()
-                    .find(|pattern| pattern.is_match(&scenario.raw_text))
-                else {
-                    continue;
-                };
-
-                issues.push(rule_issue(
-                    ValidatorId::DeltaSpecsV1,
-                    "ui_mechanics",
-                    LEVEL_WARNING,
-                    format!(
-                        "deltas[{delta_idx}].requirements[{requirement_idx}].scenarios[{scenario_idx}]"
-                    ),
-                    format!(
-                        "Scenario may be describing UI mechanics rather than behavior (matched pattern: {})",
-                        pattern.as_str()
-                    ),
-                ));
-            }
-        }
-    }
-
-    Ok(issues)
-}
-
-#[derive(Debug, Clone)]
-struct ScenarioStep {
-    keyword: &'static str,
-}
-
-fn extract_scenario_steps(raw_text: &str) -> Vec<ScenarioStep> {
-    raw_text
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            let upper = line.to_ascii_uppercase();
-            if upper.starts_with("- **GIVEN**") {
-                return Some(ScenarioStep { keyword: "GIVEN" });
-            }
-            if upper.starts_with("- **WHEN**") {
-                return Some(ScenarioStep { keyword: "WHEN" });
-            }
-            if upper.starts_with("- **THEN**") {
-                return Some(ScenarioStep { keyword: "THEN" });
-            }
-            if upper.starts_with("- **AND**") {
-                return Some(ScenarioStep { keyword: "AND" });
-            }
-            None
-        })
-        .collect()
-}
-
-fn validate_contract_refs_rule(
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    change_id: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<Vec<ValidationIssue>> {
-    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
-    let proposal = read_change_proposal_markdown(change_repo, change_id)?;
-    let public_contract_schemes = proposal
-        .as_deref()
-        .map(parse_public_contract_schemes)
-        .unwrap_or_default();
-    let mut referenced_schemes: BTreeSet<String> = BTreeSet::new();
-    let mut has_any_contract_ref = false;
-    let mut issues = Vec::new();
-
-    for (delta_idx, delta) in show.deltas.iter().enumerate() {
-        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
-            for contract_ref in &requirement.contract_refs {
-                has_any_contract_ref = true;
-                let path = format!("deltas[{delta_idx}].requirements[{requirement_idx}].contract_refs");
-
-                let Some(scheme) = contract_ref.scheme.as_deref() else {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "contract_refs",
-                        level.as_level_str(),
-                        &path,
-                        format!("Invalid contract ref '{}'", contract_ref.raw),
-                    ));
-                    continue;
-                };
-                let Some(identifier) = contract_ref.identifier.as_deref() else {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "contract_refs",
-                        level.as_level_str(),
-                        &path,
-                        format!("Invalid contract ref '{}'", contract_ref.raw),
-                    ));
-                    continue;
-                };
-                if !CONTRACT_REF_SCHEMES.contains(&scheme) {
-                    issues.push(rule_issue(
-                        ValidatorId::DeltaSpecsV1,
-                        "contract_refs",
-                        level.as_level_str(),
-                        &path,
-                        format!(
-                            "Unknown contract ref scheme '{scheme}' in '{raw}'. Supported schemes: {{{supported}}}",
-                            raw = contract_ref.raw,
-                            supported = CONTRACT_REF_SCHEMES.join(", "),
-                        ),
-                    ));
-                    continue;
-                }
-                if !identifier.is_empty() {
-                    referenced_schemes.insert(scheme.to_string());
-                }
-            }
-        }
-    }
-
-    if has_any_contract_ref && !contract_discovery_is_configured() {
-        issues.push(rule_issue(
-            ValidatorId::DeltaSpecsV1,
-            "contract_refs",
-            LEVEL_INFO,
-            "proposal.contracts",
-            "Contract refs are present, but contract resolution is not configured for this project yet",
-        ));
-    }
-
-    for scheme in public_contract_schemes {
-        if scheme == "none" || referenced_schemes.contains(&scheme) {
-            continue;
-        }
-        issues.push(rule_issue(
-            ValidatorId::DeltaSpecsV1,
-            "contract_refs",
-            LEVEL_WARNING,
-            "proposal.contracts",
-            format!(
-                "Public Contract facet '{scheme}' is declared in Change Shape but no requirement references {scheme}:..."
-            ),
-        ));
-    }
-
-    Ok(issues)
-}
-
-fn contract_discovery_is_configured() -> bool {
-    false
-}
-
-fn parse_public_contract_schemes(markdown: &str) -> Vec<String> {
-    let mut in_change_shape = false;
-    for line in markdown.lines() {
-        let line = line.trim_end();
-        let trimmed = line.trim();
-        if let Some(title) = trimmed.strip_prefix("## ") {
-            in_change_shape = title.trim().eq_ignore_ascii_case("Change Shape");
-            continue;
-        }
-        if !in_change_shape {
-            continue;
-        }
-        let Some(rest) = trimmed.strip_prefix("- **Public Contract**:").map(str::trim) else {
-            continue;
-        };
-        return rest
-            .split(',')
-            .map(|value| value.trim().to_ascii_lowercase())
-            .filter(|value| !value.is_empty())
-            .collect();
-    }
-
-    Vec::new()
-}
-
-fn validate_capabilities_consistency_rule(
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    ito_path: &Path,
-    change_id: &str,
-    level: ValidationLevelYaml,
-) -> CoreResult<Vec<ValidationIssue>> {
-    let Some(proposal) = read_change_proposal_markdown(change_repo, change_id)? else {
-        return Ok(Vec::new());
-    };
-
-    let parsed = parse_proposal_capabilities(&proposal);
-    let delta_specs = read_change_delta_spec_files(change_repo, change_id)?;
-    let delta_names: BTreeSet<String> = delta_specs.into_iter().map(|spec| spec.spec).collect();
-    let baseline_names: BTreeSet<String> =
-        ito_domain::discovery::list_spec_dir_names(&StdFs, ito_path).into_core()?.into_iter().collect();
-
-    let mut issues = Vec::new();
-    for warning_message in parsed.warnings {
-        issues.push(rule_issue(
-            ValidatorId::DeltaSpecsV1,
-            "capabilities_consistency",
-            LEVEL_WARNING,
-            "proposal.capabilities",
-            warning_message,
-        ));
-    }
-
-    for capability in &parsed.new_capabilities {
-        if !delta_names.contains(capability) {
-            issues.push(rule_issue(
-                ValidatorId::DeltaSpecsV1,
-                "capabilities_consistency",
-                level.as_level_str(),
-                "proposal.capabilities",
-                format!(
-                    "Capability '{capability}' is listed in the proposal but no delta spec exists at specs/{capability}/spec.md"
-                ),
-            ));
-        }
-        if baseline_names.contains(capability) {
-            issues.push(rule_issue(
-                ValidatorId::DeltaSpecsV1,
-                "capabilities_consistency",
-                level.as_level_str(),
-                "proposal.capabilities",
-                format!(
-                    "Capability '{capability}' is listed as new but already exists in .ito/specs/{capability}/"
-                ),
-            ));
-        }
-    }
-
-    for capability in &parsed.modified_capabilities {
-        if !delta_names.contains(capability) {
-            issues.push(rule_issue(
-                ValidatorId::DeltaSpecsV1,
-                "capabilities_consistency",
-                level.as_level_str(),
-                "proposal.capabilities",
-                format!(
-                    "Capability '{capability}' is listed in the proposal but no delta spec exists at specs/{capability}/spec.md"
-                ),
-            ));
-        }
-        if !baseline_names.contains(capability) {
-            issues.push(rule_issue(
-                ValidatorId::DeltaSpecsV1,
-                "capabilities_consistency",
-                level.as_level_str(),
-                "proposal.capabilities",
-                format!(
-                    "Capability '{capability}' is listed as modified but no baseline spec exists in .ito/specs/{capability}/"
-                ),
-            ));
-        }
-    }
-
-    let declared: BTreeSet<String> = parsed
-        .new_capabilities
-        .iter()
-        .chain(parsed.modified_capabilities.iter())
-        .cloned()
-        .collect();
-    for capability in delta_names {
-        if declared.contains(&capability) {
-            continue;
-        }
-        issues.push(rule_issue(
-            ValidatorId::DeltaSpecsV1,
-            "capabilities_consistency",
-            level.as_level_str(),
-            "proposal.capabilities",
-            format!("Delta capability '{capability}' is not listed in the proposal"),
-        ));
-    }
-
-    Ok(issues)
-}
-
-#[derive(Debug, Default)]
-struct ParsedProposalCapabilities {
-    new_capabilities: Vec<String>,
-    modified_capabilities: Vec<String>,
-    warnings: Vec<String>,
-}
-
-fn parse_proposal_capabilities(markdown: &str) -> ParsedProposalCapabilities {
-    let mut parsed = ParsedProposalCapabilities::default();
-    let mut in_capabilities = false;
-
-    enum CapabilitySection {
-        None,
-        New,
-        Modified,
-    }
-
-    let mut section = CapabilitySection::None;
-    for line in markdown.lines() {
-        let line = line.trim_end();
-        let trimmed = line.trim();
-
-        if let Some(title) = trimmed.strip_prefix("## ") {
-            in_capabilities = title.trim().eq_ignore_ascii_case("Capabilities");
-            if !in_capabilities {
-                section = CapabilitySection::None;
-            }
-            continue;
-        }
-        if !in_capabilities {
-            continue;
-        }
-
-        if let Some(title) = trimmed.strip_prefix("### ") {
-            section = if title.trim().eq_ignore_ascii_case("New Capabilities") {
-                CapabilitySection::New
-            } else if title.trim().eq_ignore_ascii_case("Modified Capabilities") {
-                CapabilitySection::Modified
-            } else {
-                CapabilitySection::None
-            };
-            continue;
-        }
-
-        let Some(rest) = trimmed
-            .strip_prefix("- ")
-            .or_else(|| trimmed.strip_prefix("* "))
-            .map(str::trim)
-        else {
-            continue;
-        };
-        if rest.is_empty() || rest.starts_with("<!--") {
-            continue;
-        }
-
-        let Some(capability) = extract_first_inline_code_token(rest) else {
-            parsed.warnings.push(format!(
-                "Capability bullet is missing an inline-code token: {rest}"
-            ));
-            continue;
-        };
-        if capability.starts_with('<') && capability.ends_with('>') {
-            continue;
-        }
-
-        match section {
-            CapabilitySection::New => parsed.new_capabilities.push(capability),
-            CapabilitySection::Modified => parsed.modified_capabilities.push(capability),
-            CapabilitySection::None => {}
-        }
-    }
-
-    parsed
-}
-
-fn extract_first_inline_code_token(line: &str) -> Option<String> {
-    let captures = INLINE_CODE_TOKEN_RE.captures(line)?;
-    let token = captures.get(1)?.as_str().trim();
-    if token.is_empty() {
-        return None;
-    }
-    Some(token.to_string())
-}
-
-fn validate_task_quality_rule(
-    change_repo: &(impl DomainChangeRepository + ?Sized),
-    change_id: &str,
-    path: &Path,
-    report_path: &str,
-    _level: ValidationLevelYaml,
-) -> CoreResult<Vec<ValidationIssue>> {
-    use ito_domain::tasks::parse_tasks_tracking_file;
-
-    let contents = match ito_common::io::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(_) => return Ok(Vec::new()),
-    };
-    let parsed = parse_tasks_tracking_file(&contents);
-    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
-    let known_requirement_ids: BTreeSet<String> = show
-        .deltas
-        .iter()
-        .flat_map(|delta| delta.requirements.iter())
-        .filter_map(|requirement| requirement.requirement_id.clone())
-        .collect();
-    let missing_status_tasks: BTreeSet<String> = parsed
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.message.contains("Invalid or missing status"))
-        .filter_map(|diagnostic| diagnostic.task_id.clone())
-        .collect();
-
-    let mut issues = Vec::new();
-    for task in parsed.tasks {
-        if missing_status_tasks.contains(&task.id) {
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_ERROR,
-                report_path,
-                format!("Missing Status for task '{}'", task.id),
-            ));
-        }
-        if task
-            .done_when
-            .as_deref()
-            .map(str::trim)
-            .unwrap_or("")
-            .is_empty()
-        {
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_ERROR,
-                report_path,
-                format!("Missing Done When for task '{}'", task.id),
-            ));
-        }
-        if task.files.is_empty() {
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_WARNING,
-                report_path,
-                format!("Missing Files for task '{}'", task.id),
-            ));
-        }
-        if task.action.trim().is_empty() {
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_WARNING,
-                report_path,
-                format!("Missing Action for task '{}'", task.id),
-            ));
-        }
-
-        let implementation_task = task.files.iter().any(|file| IMPLEMENTATION_FILE_RE.is_match(file));
-        let verify = task.verify.as_deref().map(str::trim).unwrap_or("");
-        if verify.is_empty() {
-            let missing_verify_level = if implementation_task && task_is_active(task.status) {
-                LEVEL_ERROR
-            } else {
-                LEVEL_WARNING
-            };
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                missing_verify_level,
-                report_path,
-                format!("Missing Verify for task '{}'", task.id),
-            ));
-        } else if is_vague_verify(verify) {
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_WARNING,
-                report_path,
-                format!("Task '{}' has a Vague Verify value '{}'", task.id, verify),
-            ));
-        }
-
-        for requirement_id in task.requirements {
-            if known_requirement_ids.contains(&requirement_id) {
-                continue;
-            }
-            issues.push(rule_issue(
-                ValidatorId::TasksTrackingV1,
-                "task_quality",
-                LEVEL_ERROR,
-                report_path,
-                format!("Task '{}' references unknown requirement ID '{}'", task.id, requirement_id),
-            ));
-        }
-    }
-
-    Ok(issues)
-}
-
-fn task_is_active(status: ito_domain::tasks::TaskStatus) -> bool {
-    match status {
-        ito_domain::tasks::TaskStatus::Pending | ito_domain::tasks::TaskStatus::InProgress => true,
-        ito_domain::tasks::TaskStatus::Complete | ito_domain::tasks::TaskStatus::Shelved => false,
-    }
-}
-
-fn is_vague_verify(verify: &str) -> bool {
-    [
-        "run tests",
-        "run the tests",
-        "run all tests",
-        "test it",
-        "verify manually",
-        "check it works",
-    ]
-    .iter()
-    .any(|candidate| verify.trim().eq_ignore_ascii_case(candidate))
-}
-
-/// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.
-///
-/// This function selects a validator by `validator_id` and runs it for the artifact identified by
-/// `artifact_id` and its declared `generates` outputs. Validation results are appended to
-/// `rep`. Returns `Ok(())` on successful dispatch and execution of the chosen validator; validation
-/// failures are reported via `rep`.
-///
-/// # Parameters
-///
-/// - `rep`: report builder to receive produced validation issues.
-/// - `change_repo`: repository used by validators that need change data.
-/// - `ctx`: validation context carrying `ito_path`, `change_id`, and `strict`.
-/// - `artifact_id`: identifier of the artifact being validated (used in reported issue paths).
-/// - `generates`: artifact's declared output pattern or path.
-/// - `validator_id`: selects which validator to execute.
-///
-/// # Returns
-///
-/// `Ok(())` if the validator was dispatched and executed (or a non-fatal condition was reported
-/// into `rep`); underlying repository or validation errors are propagated as `CoreResult` errors.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Illustrative usage (types omitted for brevity)
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # use std::path::Path;
-/// // let mut rep = ReportBuilder::new(false);
-/// // let change_repo = ...; // implements DomainChangeRepository
-/// // let ctx = ArtifactValidatorContext { ito_path: Path::new("."), change_id: "C001", strict: true };
-/// // run_validator_for_artifact(&mut rep, &change_repo, ctx, "artifactA", "outputs/tasks.md", ValidatorId::TasksTrackingV1)?;
-/// # Ok(()) }
-/// ```
+/// Dispatch the configured validator for one artifact and append any findings.
 fn run_validator_for_artifact(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -1513,30 +658,7 @@ fn validate_tasks_tracking_path(
     issues
 }
 
-/// Validate delta-spec files for a change and append any findings to the provided report.
-///
-/// This function reads the change's delta spec files, performs structural and content checks
-/// (descriptions, requirements, scenarios, and size limits), and runs traceability analysis
-/// against the change's tasks when at least one requirement exposes an ID. Validation issues
-/// are pushed into `rep`. Returns an error only for underlying repository or IO failures.
-///
-/// # Parameters
-///
-/// - `rep`: report builder to receive validation issues.
-/// - `change_repo`: repository used to read change data (delta spec files and change tasks).
-/// - `change_id`: identifier of the change to validate.
-/// - `strict`: when `true`, uncovered requirements from traceability are reported as errors;
-///   when `false`, they are reported as warnings.
-///
-/// # Examples
-///
-/// ```
-/// // Setup placeholders appropriate for your test harness:
-/// // let mut rep = ReportBuilder::new(false);
-/// // let change_repo = MyChangeRepo::new(...);
-/// // let change_id = "CHG-001";
-/// // assert!(validate_change_delta_specs(&mut rep, &change_repo, change_id, true).is_ok());
-/// ```
+/// Validate a change's delta specs, including structural checks and traceability.
 fn validate_change_delta_specs(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -1718,9 +840,6 @@ pub struct ResolvedModule {
 }
 
 /// Resolve a module directory name from user input.
-///
-/// Input can be a full directory name (`NNN_slug`) or the numeric module id
-/// (`NNN`). Empty input returns `Ok(None)`.
 pub fn resolve_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
@@ -1756,12 +875,7 @@ pub fn resolve_module(
     }
 }
 
-/// Validate a module's `module.md` for minimal required sections.
-///
-/// Also validates all sub-modules under the module: each `sub/SS_name/`
-/// directory must have a valid `module.md` with a Purpose section.
-///
-/// Returns the resolved module directory name along with the report.
+/// Validate a module's `module.md` and any discovered sub-modules.
 pub fn validate_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
@@ -1809,11 +923,6 @@ pub fn validate_module(
 }
 
 /// Validate all sub-modules belonging to a parent module.
-///
-/// Uses the repository to iterate recognized sub-modules and validates their
-/// `module.md` (presence and Purpose section). Additionally scans `sub/`
-/// for any directories that the repository did not recognize — those have
-/// invalid naming and are reported as errors.
 fn validate_sub_modules_under_module(
     rep: &mut ReportBuilder,
     module_repo: &(impl DomainModuleRepository + ?Sized),
@@ -1943,7 +1052,7 @@ fn extract_section(markdown: &str, header: &str) -> String {
     out
 }
 
-/// Validate a change's tasks.md file and return any issues found.
+/// Validate a change's tracking file and return any issues found.
 pub fn validate_tasks_file(
     ito_path: &Path,
     change_id: &str,

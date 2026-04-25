@@ -94,6 +94,7 @@ Identify areas with zero or insufficient coverage:
 Present a structured report:
 
 **Coverage Summary:**
+
 | Domain | Status | Issues |
 |--------|--------|--------|
 | Technology Stack | Current / Stale / Missing | Count of issues |
@@ -102,6 +103,7 @@ Present a structured report:
 | Testing | Current / Stale / Missing | Count of issues |
 | Integrations | Current / Stale / Missing | Count of issues |
 | Concerns | Current / Stale / Missing | Count of issues |
+
 
 **Stale Entries (fix first — wrong knowledge is worse than missing):**
 

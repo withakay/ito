@@ -32,7 +32,11 @@ fn quality_fields_round_trip_when_present() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert!(parsed.diagnostics.is_empty(), "unexpected diagnostics: {:?}", parsed.diagnostics);
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "unexpected diagnostics: {:?}",
+        parsed.diagnostics
+    );
     assert_eq!(parsed.tasks.len(), 3);
 
     let task = parsed
@@ -42,7 +46,10 @@ fn quality_fields_round_trip_when_present() {
         .expect("task 1.1 should be present");
     assert_eq!(task.files, vec!["src/lib.rs", "Cargo.toml"]);
     assert_eq!(task.dependencies, vec!["1.0", "1.2"]);
-    assert_eq!(task.action, "Update the parser.\nKeep task metadata structured.");
+    assert_eq!(
+        task.action,
+        "Update the parser.\nKeep task metadata structured."
+    );
     assert_eq!(
         task.verify.as_deref(),
         Some("cargo test -p ito-domain tasks::enhanced::quality_fields")
@@ -76,7 +83,11 @@ fn quality_fields_allow_missing_optional_metadata() {
 "#;
 
     let parsed = tasks::parse_tasks_tracking_file(md);
-    assert!(parsed.diagnostics.is_empty(), "unexpected diagnostics: {:?}", parsed.diagnostics);
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "unexpected diagnostics: {:?}",
+        parsed.diagnostics
+    );
     assert_eq!(parsed.tasks.len(), 1);
 
     let task = &parsed.tasks[0];
