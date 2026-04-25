@@ -13,3 +13,4 @@ Command-line interface for Ito (`ito-cli` crate). Argument parsing, command disp
 - [ ] 016-13_optimize-agent-instructions
 - [x] 016-14_show-specs-bundle
 - [x] 016-16_archive-instruction-and-flag-support
+- [ ] 016-17_add-list-archive
