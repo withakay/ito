@@ -75,14 +75,14 @@ ______________________________________________________________________
 
 - **Depends On**: Wave 2
 
-### Task 3.1: Update User-Facing Help and Docs
+### Task 3.1: Update Generated Worktree Instructions and User-Facing Docs
 
-- **Files**: `README.md`, `docs/`, CLI help snapshots if present
+- **Files**: `ito-rs/crates/ito-templates/assets/default/project/AGENTS.md`, `ito-rs/crates/ito-templates/assets/skills/ito-using-git-worktrees/SKILL.md`, `README.md`, `docs/`, CLI help snapshots if present
 - **Dependencies**: None
-- **Action**: Document any new init/update flags and clarify that rerunning init uses existing config values as defaults.
+- **Action**: Document any new init/update flags, clarify that rerunning init uses existing config values as defaults, and update generated worktree-enabled instructions so agents must use a dedicated change worktree before file-changing work.
 - **Verify**: `cargo test -p ito-cli help -- --nocapture` or relevant docs/help verification
-- **Done When**: User-facing docs and help match the implemented flag surface.
-- **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage
+- **Done When**: User-facing docs and help match the implemented flag surface, and rendered worktree-enabled instructions make main/control read/control-only for agents.
+- **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
 - **Updated At**: 2026-04-25
 - **Status**: [ ] pending
 
@@ -93,7 +93,7 @@ ______________________________________________________________________
 - **Action**: Validate the change proposal and run the project quality gate after implementation.
 - **Verify**: `ito validate 011-04_ito-init-update --strict` and `make check`
 - **Done When**: Ito validation and repo checks pass, or failures are documented with follow-up work.
-- **Requirements**: cli-init:existing-config-wizard-defaults, cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification
+- **Requirements**: cli-init:existing-config-wizard-defaults, cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
 - **Updated At**: 2026-04-25
 - **Status**: [ ] pending
 <!-- ITO:END -->
