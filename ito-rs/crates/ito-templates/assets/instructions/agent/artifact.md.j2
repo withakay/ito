@@ -48,9 +48,10 @@ Read these files for context before creating this artifact:
 Write to: {{ out_path }}
 </output>
 
-{% if instructions.instruction and instructions.instruction|trim != "" %}
+{% set instruction = instructions.instruction|trim %}
+{% if instruction %}
 <instruction>
-{{ instructions.instruction|trim }}
+{{ instruction }}
 </instruction>
 
 {% endif %}

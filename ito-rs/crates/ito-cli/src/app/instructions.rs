@@ -587,7 +587,7 @@ then re-run:\n\n\
         println!("{rendered}");
         return Ok(());
     }
-    print_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy);
+    print_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)?;
 
     Ok(())
 }
@@ -815,7 +815,7 @@ fn print_artifact_instructions_text(
     instructions: &core_templates::InstructionsResponse,
     user_guidance: Option<&str>,
     testing_policy: &TestingPolicy,
-) {
+) -> CliResult<()> {
     #[derive(Debug, Clone, serde::Serialize)]
     struct TemplateDependency {
         id: String,
@@ -825,8 +825,22 @@ fn print_artifact_instructions_text(
     }
 
     #[derive(serde::Serialize)]
+    struct TemplateInstructions {
+        #[serde(rename = "changeName")]
+        change_name: String,
+        #[serde(rename = "artifactId")]
+        artifact_id: String,
+        #[serde(rename = "schemaName")]
+        schema_name: String,
+        description: String,
+        instruction: String,
+        template: String,
+        unlocks: Vec<String>,
+    }
+
+    #[derive(serde::Serialize)]
     struct Ctx {
-        instructions: core_templates::InstructionsResponse,
+        instructions: TemplateInstructions,
         missing: Vec<String>,
         dependencies: Vec<TemplateDependency>,
         out_path: String,
@@ -858,7 +872,15 @@ fn print_artifact_instructions_text(
         .filter(|s| !s.is_empty());
 
     let ctx = Ctx {
-        instructions: instructions.clone(),
+        instructions: TemplateInstructions {
+            change_name: instructions.change_name.clone(),
+            artifact_id: instructions.artifact_id.clone(),
+            schema_name: instructions.schema_name.clone(),
+            description: instructions.description.clone(),
+            instruction: instructions.instruction.clone().unwrap_or_default(),
+            template: instructions.template.clone(),
+            unlocks: instructions.unlocks.clone(),
+        },
         missing,
         dependencies,
         out_path: out_path.to_string_lossy().to_string(),
@@ -868,9 +890,10 @@ fn print_artifact_instructions_text(
 
     let out =
         ito_templates::instructions::render_instruction_template("agent/artifact.md.j2", &ctx)
-            .expect("artifact instruction template should render");
+            .map_err(|e| to_cli_error(format!("rendering artifact instruction: {e}")))?;
 
     print!("{out}");
+    Ok(())
 }
 
 /// Worktree configuration serialized for the apply instruction template.

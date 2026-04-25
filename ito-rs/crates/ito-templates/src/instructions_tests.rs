@@ -92,6 +92,71 @@ fn render_instruction_template_returns_not_found_for_missing_template() {
 }
 
 #[test]
+fn artifact_template_renders_when_instruction_is_empty() {
+    #[derive(Serialize)]
+    struct Instructions {
+        #[serde(rename = "artifactId")]
+        artifact_id: &'static str,
+        #[serde(rename = "changeName")]
+        change_name: &'static str,
+        #[serde(rename = "schemaName")]
+        schema_name: &'static str,
+        #[serde(rename = "changeDir")]
+        change_dir: &'static str,
+        #[serde(rename = "outputPath")]
+        output_path: &'static str,
+        description: &'static str,
+        instruction: &'static str,
+        template: &'static str,
+        dependencies: Vec<&'static str>,
+        unlocks: Vec<&'static str>,
+    }
+    #[derive(Serialize)]
+    struct TestingPolicy {
+        tdd_workflow: &'static str,
+        coverage_target_percent: u64,
+    }
+    #[derive(Serialize)]
+    struct Ctx {
+        instructions: Instructions,
+        missing: Vec<&'static str>,
+        dependencies: Vec<&'static str>,
+        out_path: &'static str,
+        testing_policy: TestingPolicy,
+        user_guidance: Option<&'static str>,
+    }
+
+    let ctx = Ctx {
+        instructions: Instructions {
+            artifact_id: "tasks",
+            change_name: "016-18_add-archived-list-filter",
+            schema_name: "minimalist",
+            change_dir: "/repo/.ito/changes/016-18_add-archived-list-filter",
+            output_path: "tasks.md",
+            description: "Write the implementation task list.",
+            instruction: "",
+            template: "## 1. Implementation\n- [ ] 1.1 Add tests\n",
+            dependencies: vec![],
+            unlocks: vec![],
+        },
+        missing: vec![],
+        dependencies: vec![],
+        out_path: "/repo/.ito/changes/016-18_add-archived-list-filter/tasks.md",
+        testing_policy: TestingPolicy {
+            tdd_workflow: "red-green-refactor",
+            coverage_target_percent: 80,
+        },
+        user_guidance: None,
+    };
+
+    let out = render_instruction_template("agent/artifact.md.j2", &ctx).unwrap();
+
+    assert!(out.contains("Create the tasks artifact"));
+    assert!(out.contains("Write to: /repo/.ito/changes/016-18_add-archived-list-filter/tasks.md"));
+    assert!(!out.contains("<instruction>"));
+}
+
+#[test]
 fn orchestrate_template_renders() {
     #[derive(Serialize)]
     struct Ctx {
