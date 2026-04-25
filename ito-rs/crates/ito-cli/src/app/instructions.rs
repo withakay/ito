@@ -420,6 +420,10 @@ then re-run:\n\n\
         return emit_instruction(want_json, "archive", instruction);
     }
 
+    if super::memory_instructions::try_handle(rt, artifact, args, want_json)? {
+        return Ok(());
+    }
+
     let change = parse_string_flag(args, "--change");
     if change.as_deref().unwrap_or("").is_empty() {
         // Special case: proposal without --change outputs creation guide

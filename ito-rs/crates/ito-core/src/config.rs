@@ -328,13 +328,12 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
-        path
-            if matches!(parts, ["memory", op] if matches!(*op, "capture" | "search" | "query")) =>
+        _ if matches!(parts, ["memory", op] if matches!(*op, "capture" | "search" | "query")) =>
         {
             let op_name = parts[1];
             return validate_memory_op_value(op_name, value);
         }
-        path if parts == ["memory"] => {
+        _ if parts == ["memory"] => {
             return validate_memory_section_value(value);
         }
         // Wildcard: config keys are open-ended strings; only enum-constrained
