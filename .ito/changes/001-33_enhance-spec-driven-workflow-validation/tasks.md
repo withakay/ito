@@ -61,7 +61,7 @@ ______________________________________________________________________
 - **Done When**: Enhanced-task parsing exposes the full quality-critical field set without altering existing behavior.
 - **Requirements**: tasks-tracking:quality-critical-fields
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
