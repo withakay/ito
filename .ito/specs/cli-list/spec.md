@@ -1,12 +1,24 @@
 ## ADDED Requirements
 
-### Requirement: `ito list` resolves change data through ChangeRepository
+### Requirement: `ito list-archive` lists archived changes
 
-When listing changes, `ito list` SHALL resolve change summaries through the runtime-selected `ChangeRepository` implementation instead of constructing a filesystem repository directly.
+The CLI SHALL provide an `ito list-archive` command that lists archived changes without requiring users to inspect `.ito/changes/archive` directly.
 
-#### Scenario: Remote mode lists repository-backed changes
+#### Scenario: List archived changes
 
-- **GIVEN** remote persistence mode is active
-- **WHEN** the user runs `ito list`
-- **THEN** the command lists change summaries from the selected remote-backed `ChangeRepository`
-- **AND** it does not surface stray local active-change markdown as in-scope changes
+- **GIVEN** archived changes exist
+- **WHEN** the user runs `ito list-archive`
+- **THEN** the command lists archived change identifiers
+- **AND** active changes are not included
+
+#### Scenario: List archived changes as JSON
+
+- **GIVEN** archived changes exist
+- **WHEN** the user runs `ito list-archive --json`
+- **THEN** the command prints a machine-readable JSON object containing archived changes
+
+#### Scenario: No archived changes
+
+- **GIVEN** no archived changes exist
+- **WHEN** the user runs `ito list-archive`
+- **THEN** the command reports that no archived changes were found
