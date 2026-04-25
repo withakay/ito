@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Existing configs without `memory` still load unchanged; schema check green.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Validate `MemoryConfig` — shape, required fields, skill discoverability
 
