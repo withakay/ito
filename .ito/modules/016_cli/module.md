@@ -14,3 +14,4 @@ Command-line interface for Ito (`ito-cli` crate). Argument parsing, command disp
 - [x] 016-14_show-specs-bundle
 - [x] 016-16_archive-instruction-and-flag-support
 - [x] 016-17_add-list-archive
+- [ ] 016-18_add-archived-list-filter
