@@ -1,35 +1,48 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-These requirements keep built-in workflow schema templates aligned with the validators that Ito actually runs.
+These requirements keep built-in workflow schema templates aligned with the validators that Ito actually runs and ensure the export command remains a faithful starting point for project-local customization.
 
 ### Requirement: Built-in schema templates match configured validators
 
-Built-in workflow schema templates MUST use an artifact format that is accepted by the validators declared in the same schema directory's `validation.yaml`.
+Built-in workflow schema templates MUST use a markdown shape that is accepted by the validators declared in the same schema directory's `validation.yaml`.
 
 - **Requirement ID**: cli-templates-schemas:template-validator-alignment
 
 #### Scenario: Minimalist specs parse as deltas
 
-- **GIVEN** the built-in minimalist schema declares `specs` validation as `ito.delta-specs.v1`
-- **WHEN** its spec template is rendered for a new change
-- **THEN** the rendered template uses delta requirement headers and `### Requirement:` blocks rather than `## Stories` and `### Story:` blocks
+- **GIVEN** the built-in `minimalist` schema configures `specs` as `validate_as: ito.delta-specs.v1`
+- **WHEN** the spec template is rendered into a new change
+- **THEN** the rendered file uses `## ADDED Requirements`, `### Requirement:`, and `#### Scenario:` headers (delta-spec shape)
+- **AND** does not use `## Stories` or `### Story:` headers
 
 #### Scenario: Event-driven specs parse as deltas
 
-- **GIVEN** the built-in event-driven schema declares `specs` validation as `ito.delta-specs.v1`
-- **WHEN** its spec template is rendered for a new change
-- **THEN** the rendered template uses delta requirement headers and `### Requirement:` blocks rather than `## Stories` and `### Story:` blocks
+- **GIVEN** the built-in `event-driven` schema configures `specs` as `validate_as: ito.delta-specs.v1`
+- **WHEN** the spec template is rendered into a new change
+- **THEN** the rendered file uses delta requirement headers and does not use story-shaped headers
 
-#### Scenario: Export includes validation configuration
+#### Scenario: Rendered samples pass strict validation
+
+- **GIVEN** a synthetic minimal change is generated from each built-in schema using only its templates
+- **WHEN** `ito validate <change-id> --strict` runs against that synthetic change
+- **THEN** validation does not fail because of template/validator format incompatibility
+
+### Requirement: Exported schemas include validation configuration
+
+The `ito templates schemas export` command SHALL include `validation.yaml` (when present) for each exported schema directory.
+
+- **Requirement ID**: cli-templates-schemas:export-validation-assets
+
+#### Scenario: Export includes validation.yaml
 
 - **GIVEN** a built-in schema directory contains `validation.yaml`
 - **WHEN** the user runs `ito templates schemas export -f <target>`
-- **THEN** the exported schema directory contains `validation.yaml` alongside `schema.yaml` and templates
+- **THEN** the exported directory contains `validation.yaml` alongside `schema.yaml` and `templates/`
 
-#### Scenario: Exported templates validate strictly
+#### Scenario: Export remains deterministic
 
-- **GIVEN** exported built-in schema templates are rendered into a valid sample change
-- **WHEN** `ito validate <change-id> --strict` runs for that sample
-- **THEN** validation does not fail because a template uses a format incompatible with its configured validators
+- **GIVEN** the export command runs twice with no embedded changes
+- **WHEN** the user inspects the resulting `validation.yaml` files
+- **THEN** their content is byte-for-byte identical between runs
 <!-- ITO:END -->

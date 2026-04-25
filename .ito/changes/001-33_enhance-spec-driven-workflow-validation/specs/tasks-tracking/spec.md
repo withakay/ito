@@ -1,41 +1,42 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-These requirements tighten enhanced task semantics so tasks stay close enough to implementation to guide agents without becoming implementation design documents.
+These requirements tighten enhanced-task field semantics so the `task_quality` rule (`cli-validate:task-quality-validation`) has unambiguous structured input. Field severities for the rule live in the cli-validate spec; this spec governs parsing.
 
 ### Requirement: Enhanced tasks expose quality-critical fields
 
-Enhanced task blocks SHALL preserve Files, Dependencies, Action, Verify, Done When, Requirements, and Status metadata as structured fields for validation.
+Enhanced task blocks SHALL preserve the following metadata as structured fields on the parsed task: `Files`, `Dependencies`, `Action`, `Verify`, `Done When`, `Requirements`, `Status`, `Updated At`.
 
 - **Requirement ID**: tasks-tracking:quality-critical-fields
 
-#### Scenario: Enhanced task fields are parsed
+#### Scenario: All fields are parsed when present
 
-- **GIVEN** an enhanced task block contains Files, Dependencies, Action, Verify, Done When, Requirements, and Status metadata
+- **GIVEN** an enhanced task block contains lines `- **Files**:`, `- **Dependencies**:`, `- **Action**:`, `- **Verify**:`, `- **Done When**:`, `- **Requirements**:`, `- **Status**:`, and `- **Updated At**:`
 - **WHEN** Ito parses the tracking file
-- **THEN** each metadata line is available to task quality and traceability validation
+- **THEN** the parsed task exposes each value as a separate structured field
 
-#### Scenario: Missing status is invalid
+#### Scenario: Missing optional fields produce no parser error
 
-- **GIVEN** an enhanced task block omits Status metadata
-- **WHEN** Ito validates the tracking file
-- **THEN** validation reports an error for the missing task status
+- **GIVEN** an enhanced task omits `Files`, `Dependencies`, `Action`, or `Updated At`
+- **WHEN** Ito parses the tracking file
+- **THEN** parsing succeeds and the missing fields are absent from the parsed task
+- **AND** any severity decision is left to the `task_quality` rule
 
-### Requirement: Enhanced task verification is concrete
+### Requirement: Vague verification denylist semantics
 
-Enhanced tasks that describe implementation work MUST include concrete verification commands or targets.
+The vague-verification check SHALL use an exact, case-insensitive denylist evaluated after trimming whitespace.
 
 - **Requirement ID**: tasks-tracking:concrete-verification
 
-#### Scenario: Vague verification is reported
+#### Scenario: Denylist match warns
 
-- **GIVEN** an enhanced implementation task has `Verify: run tests`
-- **WHEN** Ito validates the tracking file
-- **THEN** validation reports a warning asking for a concrete command or target
+- **GIVEN** a task has `Verify: Run Tests` (any case)
+- **WHEN** the `task_quality` rule runs
+- **THEN** validation emits a warning identifying the task and the denylist match
 
-#### Scenario: Specific verification is accepted
+#### Scenario: Tool-led verify is accepted
 
-- **GIVEN** an enhanced implementation task has `Verify: cargo test -p ito-core validate::scenario_grammar`
-- **WHEN** Ito validates the tracking file
-- **THEN** validation accepts the verification metadata as concrete
+- **GIVEN** a task has `Verify: make test`, `Verify: cargo test ...`, `Verify: ito validate ...`, or any value not in the denylist
+- **WHEN** the `task_quality` rule runs
+- **THEN** validation does not emit a vague-verification warning
 <!-- ITO:END -->
