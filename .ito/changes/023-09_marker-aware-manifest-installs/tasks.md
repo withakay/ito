@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: `write_one` calls the shared helper for the marker-managed branch and existing behaviour is preserved.
 - **Requirements**: cli-update:idempotent-non-destructive
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Plumb mode + opts into install_manifests
 
