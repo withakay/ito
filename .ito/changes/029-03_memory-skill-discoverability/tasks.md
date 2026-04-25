@@ -43,7 +43,7 @@ ______________________________________________________________________
 - **Done When**: Docs explain how agents discover the memory skill and instruction artifacts.
 - **Requirements**: `agent-memory-abstraction:installed-ito-memory-skill`, `agent-memory-abstraction:memory-artifacts-in-help`
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
