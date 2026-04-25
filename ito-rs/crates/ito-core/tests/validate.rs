@@ -1414,6 +1414,246 @@ proposal:
 }
 
 #[test]
+fn contract_refs_rule_accepts_known_schemes_and_emits_single_advisory() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("schema.yaml"),
+        "name: contract-rules\nversion: 1\nartifacts:\n  - id: specs\n    generates: specs/**/*.md\n    template: specs/spec.md\n    requires: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      contract_refs: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: contract-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Contract refs
+The system SHALL reference external contracts.
+
+- **Contract Refs**: openapi:POST /v1/password-reset, jsonschema:PasswordResetRequest
+
+#### Scenario: Valid refs
+- **WHEN** validation runs
+- **THEN** refs are accepted
+
+### Requirement: Second ref
+The system SHALL allow more refs.
+
+- **Contract Refs**: asyncapi:user.created
+
+#### Scenario: Async ref
+- **WHEN** validation runs
+- **THEN** refs are accepted
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    let advisory_count = report
+        .issues
+        .iter()
+        .filter(|issue| {
+            issue.rule_id.as_deref() == Some("contract_refs")
+                && issue.level == "INFO"
+                && issue.message.contains("contract resolution is not configured")
+        })
+        .count();
+    assert_eq!(advisory_count, 1, "expected one advisory, got: {:?}", report.issues);
+    assert!(
+        !report.issues.iter().any(|issue| {
+            issue.rule_id.as_deref() == Some("contract_refs") && issue.level == "ERROR"
+        }),
+        "known schemes should not error, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn contract_refs_rule_rejects_unknown_schemes() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("schema.yaml"),
+        "name: contract-rules\nversion: 1\nartifacts:\n  - id: specs\n    generates: specs/**/*.md\n    template: specs/spec.md\n    requires: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      contract_refs: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: contract-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Invalid scheme
+The system SHALL reject unknown schemes.
+
+- **Contract Refs**: graphql:UserQuery
+
+#### Scenario: Invalid ref
+- **WHEN** validation runs
+- **THEN** it errors
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("contract_refs")
+            && issue.level == "ERROR"
+            && issue.message.contains("Unknown contract ref scheme 'graphql'")
+    }));
+}
+
+#[test]
+fn contract_refs_rule_warns_when_public_contract_has_no_requirement_anchor() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("schema.yaml"),
+        "name: contract-rules\nversion: 1\nartifacts:\n  - id: specs\n    generates: specs/**/*.md\n    template: specs/spec.md\n    requires: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("contract-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      contract_refs: error
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: contract-rules\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        r#"
+## What Changes
+
+- Introduce a public API.
+
+## Change Shape
+
+- **Type**: feature
+- **Risk**: medium
+- **Stateful**: no
+- **Public Contract**: openapi
+- **Design Needed**: no
+- **Design Reason**: API surface is small.
+"#,
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Public contract missing anchor
+The system SHALL declare a public contract.
+
+#### Scenario: No refs
+- **WHEN** validation runs
+- **THEN** it warns
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("contract_refs")
+            && issue.level == "WARNING"
+            && issue.message.contains("Public Contract facet 'openapi'")
+    }));
+}
+
+#[test]
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");

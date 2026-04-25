@@ -58,6 +58,7 @@ const MAX_SCENARIO_STEPS: usize = 8;
 const DELTA_SPECS_ARTIFACT_RULES: &[&str] = &["contract_refs", "scenario_grammar", "ui_mechanics"];
 const DELTA_SPECS_PROPOSAL_RULES: &[&str] = &["capabilities_consistency"];
 const TASKS_TRACKING_RULES: &[&str] = &["task_quality"];
+const CONTRACT_REF_SCHEMES: &[&str] = &["asyncapi", "cli", "config", "jsonschema", "openapi"];
 
 static UI_MECHANICS_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     [
@@ -748,7 +749,11 @@ fn run_delta_specs_artifact_rule(
             level,
         )?),
         "ui_mechanics" => rep.extend(validate_ui_mechanics_rule(change_repo, ctx.change_id)?),
-        "contract_refs" => {}
+        "contract_refs" => rep.extend(validate_contract_refs_rule(
+            change_repo,
+            ctx.change_id,
+            level,
+        )?),
         _ => {}
     }
     Ok(())
@@ -926,6 +931,125 @@ fn extract_scenario_steps(raw_text: &str) -> Vec<ScenarioStep> {
             None
         })
         .collect()
+}
+
+fn validate_contract_refs_rule(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    change_id: &str,
+    level: ValidationLevelYaml,
+) -> CoreResult<Vec<ValidationIssue>> {
+    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
+    let proposal = read_change_proposal_markdown(change_repo, change_id)?;
+    let public_contract_schemes = proposal
+        .as_deref()
+        .map(parse_public_contract_schemes)
+        .unwrap_or_default();
+    let mut referenced_schemes: BTreeSet<String> = BTreeSet::new();
+    let mut has_any_contract_ref = false;
+    let mut issues = Vec::new();
+
+    for (delta_idx, delta) in show.deltas.iter().enumerate() {
+        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
+            for contract_ref in &requirement.contract_refs {
+                has_any_contract_ref = true;
+                let path = format!("deltas[{delta_idx}].requirements[{requirement_idx}].contract_refs");
+
+                let Some(scheme) = contract_ref.scheme.as_deref() else {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "contract_refs",
+                        level.as_level_str(),
+                        &path,
+                        format!("Invalid contract ref '{}'", contract_ref.raw),
+                    ));
+                    continue;
+                };
+                let Some(identifier) = contract_ref.identifier.as_deref() else {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "contract_refs",
+                        level.as_level_str(),
+                        &path,
+                        format!("Invalid contract ref '{}'", contract_ref.raw),
+                    ));
+                    continue;
+                };
+                if !CONTRACT_REF_SCHEMES.contains(&scheme) {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "contract_refs",
+                        level.as_level_str(),
+                        &path,
+                        format!(
+                            "Unknown contract ref scheme '{scheme}' in '{raw}'. Supported schemes: {{{supported}}}",
+                            raw = contract_ref.raw,
+                            supported = CONTRACT_REF_SCHEMES.join(", "),
+                        ),
+                    ));
+                    continue;
+                }
+                if !identifier.is_empty() {
+                    referenced_schemes.insert(scheme.to_string());
+                }
+            }
+        }
+    }
+
+    if has_any_contract_ref && !contract_discovery_is_configured() {
+        issues.push(rule_issue(
+            ValidatorId::DeltaSpecsV1,
+            "contract_refs",
+            LEVEL_INFO,
+            "proposal.contracts",
+            "Contract refs are present, but contract resolution is not configured for this project yet",
+        ));
+    }
+
+    for scheme in public_contract_schemes {
+        if scheme == "none" || referenced_schemes.contains(&scheme) {
+            continue;
+        }
+        issues.push(rule_issue(
+            ValidatorId::DeltaSpecsV1,
+            "contract_refs",
+            LEVEL_WARNING,
+            "proposal.contracts",
+            format!(
+                "Public Contract facet '{scheme}' is declared in Change Shape but no requirement references {scheme}:..."
+            ),
+        ));
+    }
+
+    Ok(issues)
+}
+
+fn contract_discovery_is_configured() -> bool {
+    false
+}
+
+fn parse_public_contract_schemes(markdown: &str) -> Vec<String> {
+    let mut in_change_shape = false;
+    for line in markdown.lines() {
+        let line = line.trim_end();
+        let trimmed = line.trim();
+        if let Some(title) = trimmed.strip_prefix("## ") {
+            in_change_shape = title.trim().eq_ignore_ascii_case("Change Shape");
+            continue;
+        }
+        if !in_change_shape {
+            continue;
+        }
+        let Some(rest) = trimmed.strip_prefix("- **Public Contract**:").map(str::trim) else {
+            continue;
+        };
+        return rest
+            .split(',')
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty())
+            .collect();
+    }
+
+    Vec::new()
 }
 
 fn validate_capabilities_consistency_rule(

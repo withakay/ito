@@ -24,6 +24,19 @@ pub struct Scenario {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A requirement-level external contract reference.
+pub struct ContractRef {
+    /// Original token text as written in markdown.
+    pub raw: String,
+    /// Parsed scheme when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<String>,
+    /// Parsed identifier when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// A single requirement statement and its scenarios.
 pub struct Requirement {
     /// The normalized requirement statement.
@@ -36,6 +49,10 @@ pub struct Requirement {
     /// Optional requirement-level tags (normalized to lowercase).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+
+    /// Optional requirement-level contract references.
+    #[serde(rename = "contractRefs", skip_serializing_if = "Vec::is_empty")]
+    pub contract_refs: Vec<ContractRef>,
 
     /// Scenario blocks associated with the requirement.
     pub scenarios: Vec<Scenario>,
@@ -478,6 +495,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
     let mut statement_lines: Vec<String> = Vec::new();
     let mut requirement_id: Option<String> = None;
     let mut tags: Vec<String> = Vec::new();
+    let mut contract_refs: Vec<ContractRef> = Vec::new();
     while i < lines.len() {
         let t = lines[i].trim_end();
         if t.starts_with("#### Scenario:")
@@ -505,6 +523,13 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
                     .map(|tag| tag.trim().to_ascii_lowercase())
                     .filter(|tag| !tag.is_empty())
                     .collect();
+            }
+            i += 1;
+            continue;
+        }
+        if let Some(rest) = t.trim().strip_prefix("- **Contract Refs**:").map(str::trim) {
+            if !rest.is_empty() {
+                contract_refs = parse_contract_refs(rest);
             }
             i += 1;
             continue;
@@ -550,6 +575,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
             text,
             requirement_id,
             tags,
+            contract_refs,
             scenarios,
         },
         i,
@@ -612,6 +638,31 @@ fn collapse_whitespace(input: &str) -> String {
         }
     }
     out.trim().to_string()
+}
+
+fn parse_contract_refs(input: &str) -> Vec<ContractRef> {
+    input
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| {
+            let Some((scheme, identifier)) = entry.split_once(':') else {
+                return ContractRef {
+                    raw: entry.to_string(),
+                    scheme: None,
+                    identifier: None,
+                };
+            };
+
+            let scheme = scheme.trim();
+            let identifier = identifier.trim();
+            ContractRef {
+                raw: entry.to_string(),
+                scheme: (!scheme.is_empty()).then(|| scheme.to_ascii_lowercase()),
+                identifier: (!identifier.is_empty()).then(|| identifier.to_string()),
+            }
+        })
+        .collect()
 }
 
 fn trim_trailing_blank_lines(lines: &[String]) -> Vec<String> {
