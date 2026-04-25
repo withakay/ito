@@ -110,8 +110,8 @@ ______________________________________________________________________
 - **Verify**: New files present under each of `.claude/`, `.codex/`, `.github/`, `.opencode/`, `.pi/`.
 - **Done When**: Fresh-init and update paths both install the new assets.
 - **Requirements**: ito-update-repo-skill:distribution
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [-] shelved
 
 ### Task 2.2: End-to-end orphan + staleness dry-run
 
