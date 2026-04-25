@@ -6,6 +6,10 @@
 
 use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
 
+const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
+const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -40,6 +44,12 @@ fn skill_md_bytes() -> &'static [u8] {
 fn render_text(template: &[u8], ctx: &WorktreeTemplateContext) -> String {
     let bytes = render_project_template(template, ctx).expect("template should render");
     String::from_utf8(bytes).expect("rendered output should be UTF-8")
+}
+
+fn assert_main_worktree_guardrails(text: &str) {
+    assert!(text.contains(READ_ONLY_MAIN_RULE));
+    assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE));
+    assert!(text.contains(NO_MAIN_WRITE_RULE));
 }
 
 /// Strings that indicate vague directory-discovery heuristics. None of these
@@ -227,7 +237,7 @@ fn agents_md_checkout_subdir() {
             "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
         )
     );
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -247,7 +257,7 @@ fn agents_md_checkout_siblings() {
     let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `checkout_siblings`"));
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -284,7 +294,7 @@ fn agents_md_bare_control_siblings() {
     let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `bare_control_siblings`"));
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -333,7 +343,7 @@ fn skill_checkout_subdir() {
             "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
         )
     );
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -349,7 +359,7 @@ fn skill_checkout_siblings() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_siblings`"));
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -384,7 +394,7 @@ fn skill_bare_control_siblings() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
-    assert!(text.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );

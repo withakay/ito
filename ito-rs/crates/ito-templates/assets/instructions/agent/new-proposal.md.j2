@@ -119,15 +119,22 @@ Sub-modules group related changes within a module. Sub-module IDs use the format
 Only proceed here after the user has confirmed their module (or sub-module) choice.
 
 {% if worktree is defined and worktree.enabled %}
-Create the change ID first, then create and use a **new** worktree before editing proposal artifacts:
+Before running any command that writes proposal artifacts, create and use a **new** worktree. If the final Ito change ID is not allocated yet, start in a temporary proposal worktree, create the change there, then move into the final change worktree before editing generated artifacts:
 
-- Keep the main/control checkout clean; do not edit proposal, spec, design, or task files there.
+- Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
+- Do not run `ito create change` from the main/control checkout. Run it from the temporary proposal worktree or from the final change worktree.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse a worktree from another change.
 - If you need more than one worktree for the same change, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
 {% endif %}
 
 ```bash
+{% if worktree is defined and worktree.enabled %}
+# If the final change ID is not known yet, create a temporary proposal worktree first.
+git worktree add "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>" -b "proposal-<short-name>" {{ worktree.default_branch | default(value="main") }}
+cd "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>"
+
+{% endif %}
 # For a regular module:
 ito create change "<change-name>" --module <module-id> --schema <schema>
 

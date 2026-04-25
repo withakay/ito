@@ -2,6 +2,24 @@ use super::*;
 
 use serde::Serialize;
 
+const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
+const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+const BEFORE_WRITE_THIS_CHANGE_RULE: &str =
+    "Before any write operation, create the dedicated worktree for this change or move into it";
+const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
+
+fn assert_main_worktree_guardrails(text: &str) {
+    assert!(text.contains(READ_ONLY_MAIN_RULE));
+    assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE));
+    assert!(text.contains(NO_MAIN_WRITE_RULE));
+}
+
+fn assert_change_worktree_guardrails(text: &str) {
+    assert!(text.contains(READ_ONLY_MAIN_RULE));
+    assert!(text.contains(BEFORE_WRITE_THIS_CHANGE_RULE));
+    assert!(text.contains(NO_MAIN_WRITE_RULE));
+}
+
 #[test]
 fn render_template_str_renders_from_serialize_ctx() {
     #[derive(Serialize)]
@@ -358,7 +376,7 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
     };
 
     let out = render_instruction_template("agent/worktrees.md.j2", &ctx).unwrap();
-    assert!(out.contains("Keep the main/control checkout clean"));
+    assert_main_worktree_guardrails(&out);
     assert!(
         out.contains("Use the full change ID as the branch and primary worktree directory name")
     );
@@ -520,6 +538,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     };
 
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert_change_worktree_guardrails(&out);
     assert!(out.contains("Use the full change ID as the branch and primary worktree directory name: `000-01_test-change`"));
     assert!(out.contains("Do not reuse one worktree for two changes"));
     assert!(out.contains(
@@ -647,10 +666,127 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
     };
 
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert_change_worktree_guardrails(&out);
     assert!(out.contains("Default branch: `develop`"));
     assert!(out.contains(
         "git -C \"$WORKTREE_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
+}
+
+#[test]
+fn apply_template_requires_change_worktree_when_apply_setup_disabled() {
+    #[derive(Serialize)]
+    struct InstructionsCtx {
+        #[serde(rename = "changeName")]
+        change_name: &'static str,
+        #[serde(rename = "schemaName")]
+        schema_name: &'static str,
+        state: &'static str,
+        #[serde(rename = "missingArtifacts")]
+        missing_artifacts: Vec<&'static str>,
+        instruction: &'static str,
+        #[serde(rename = "tracksFile")]
+        tracks_file: bool,
+        #[serde(rename = "tracksPath")]
+        tracks_path: &'static str,
+        #[serde(rename = "tracksFormat")]
+        tracks_format: &'static str,
+        progress: ProgressCtx,
+        tasks: Vec<&'static str>,
+    }
+
+    #[derive(Serialize)]
+    struct ProgressCtx {
+        total: usize,
+        complete: usize,
+    }
+
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+        apply_enabled: bool,
+        strategy: &'static str,
+        default_branch: &'static str,
+        layout_dir_name: &'static str,
+        integration_mode: &'static str,
+        copy_from_main: Vec<&'static str>,
+        setup_commands: Vec<&'static str>,
+    }
+
+    #[derive(Serialize)]
+    struct TestingPolicyCtx {
+        tdd_workflow: &'static str,
+        coverage_target_percent: u64,
+    }
+
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        instructions: InstructionsCtx,
+        context_files: Vec<&'static str>,
+        worktree: WorktreeCtx,
+        tracking_errors: Vec<&'static str>,
+        tracking_warnings: Vec<&'static str>,
+        testing_policy: TestingPolicyCtx,
+        user_guidance: &'static str,
+        memory: MemoryCtx,
+    }
+
+    let out = render_instruction_template(
+        "agent/apply.md.j2",
+        &Ctx {
+            instructions: InstructionsCtx {
+                change_name: "000-01_test-change",
+                schema_name: "spec-driven",
+                state: "ready",
+                missing_artifacts: Vec::new(),
+                instruction: "Implement the change.",
+                tracks_file: false,
+                tracks_path: "",
+                tracks_format: "",
+                progress: ProgressCtx {
+                    total: 0,
+                    complete: 0,
+                },
+                tasks: Vec::new(),
+            },
+            context_files: Vec::new(),
+            worktree: WorktreeCtx {
+                enabled: true,
+                apply_enabled: false,
+                strategy: "bare_control_siblings",
+                default_branch: "main",
+                layout_dir_name: "ito-worktrees",
+                integration_mode: "commit_pr",
+                copy_from_main: Vec::new(),
+                setup_commands: Vec::new(),
+            },
+            tracking_errors: Vec::new(),
+            tracking_warnings: Vec::new(),
+            testing_policy: TestingPolicyCtx {
+                tdd_workflow: "red-green-refactor",
+                coverage_target_percent: 80,
+            },
+            user_guidance: "",
+            memory: MemoryCtx::default(),
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("Do not write from the main/control checkout"));
+    assert!(out.contains("Move into the dedicated change worktree before any write operation"));
+    assert!(!out.contains("Work in your current directory"));
 }
 
 #[test]
@@ -664,6 +800,8 @@ fn new_proposal_template_moves_to_worktree_after_create() {
     #[derive(Serialize)]
     struct WorktreeCtx {
         enabled: bool,
+        layout_dir_name: &'static str,
+        default_branch: &'static str,
     }
 
     #[derive(Serialize)]
@@ -679,12 +817,20 @@ fn new_proposal_template_moves_to_worktree_after_create() {
                 id: "012",
                 name: "git-worktrees",
             }],
-            worktree: WorktreeCtx { enabled: true },
+            worktree: WorktreeCtx {
+                enabled: true,
+                layout_dir_name: "ito-worktrees",
+                default_branch: "main",
+            },
         },
     )
     .unwrap();
 
-    assert!(out.contains("Create the change ID first"));
+    assert!(out.contains("Before running any command that writes proposal artifacts"));
+    assert!(out.contains(READ_ONLY_MAIN_RULE));
+    assert!(out.contains("Do not run `ito create change` from the main/control checkout"));
+    assert!(out.contains(NO_MAIN_WRITE_RULE));
+    assert!(out.contains("proposal-<short-name>"));
     assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change \"<change-id>\")"));
     assert!(out.contains("cd \"$CHANGE_DIR\""));
     assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
@@ -719,6 +865,7 @@ fn worktree_init_template_includes_fresh_worktree_rules() {
     .unwrap();
 
     assert!(out.contains("Worktree rules:"));
+    assert_main_worktree_guardrails(&out);
     assert!(
         out.contains("Use the full change ID as the branch and primary worktree directory name")
     );
