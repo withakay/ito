@@ -263,6 +263,13 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
+        assert!(text.contains("Keep the main/control checkout clean"));
+        assert!(
+            text.contains(
+                "Use the full change ID as the branch and primary worktree directory name"
+            )
+        );
+        assert!(text.contains("Do not reuse one worktree for two changes"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
         assert!(text.contains(

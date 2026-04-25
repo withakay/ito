@@ -156,7 +156,7 @@ After creating the change, get the canonical, change-scoped instructions:
 
 ```bash
 {% if worktree is defined and worktree.enabled %}
-CHANGE_DIR=$(ito worktree ensure --change <change-id>)
+CHANGE_DIR=$(ito worktree ensure --change "<change-id>")
 cd "$CHANGE_DIR"
 {% endif %}
 ito agent instruction proposal --change <change-id>
