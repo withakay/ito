@@ -129,7 +129,7 @@ fn resolve_instructions_exposes_enhanced_spec_driven_templates() {
     .expect("proposal template should resolve");
     assert!(proposal.template.contains("## Change Shape"));
     assert!(proposal.template.contains("- **Type**:"));
-    assert!(proposal.template.contains("- **Public Contract**:"));
+    assert!(proposal.template.contains("- **Public Contract**: none"));
 
     let spec = resolve_instructions(&ito_path, "demo-change", Some("spec-driven"), "specs", &ctx)
         .expect("spec template should resolve");

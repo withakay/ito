@@ -21,7 +21,7 @@
 - **Type**: <feature|fix|refactor|migration|contract|event-driven>
 - **Risk**: <low|medium|high>
 - **Stateful**: <yes|no>
-- **Public Contract**: <none|openapi|jsonschema|asyncapi|cli|config>
+- **Public Contract**: none
 - **Design Needed**: <yes|no>
 - **Design Reason**: <why a design doc is or is not needed>
 
