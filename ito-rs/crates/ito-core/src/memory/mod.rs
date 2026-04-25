@@ -4,7 +4,7 @@
 //! of three operations (`capture`, `search`, `query`) under
 //! `ItoConfig.memory`; each operation independently picks either an inline
 //! command template or a delegated skill. This module turns those
-//! configurations plus runtime inputs into a [`RenderedInstruction`] that
+//! configurations plus runtime inputs into a `RenderedInstruction` that
 //! the agent-facing CLI can print verbatim.
 //!
 //! See `.ito/specs/agent-memory-abstraction/` for the authoritative spec.

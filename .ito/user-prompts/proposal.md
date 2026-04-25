@@ -29,3 +29,13 @@ This file is for optional, user-authored guidance specific to `ito agent instruc
 ### Validation
 
 - Always run `ito validate <change-id> --strict` before presenting the proposal.
+
+### Change Shape
+
+- Use the optional `## Change Shape` block when risk, statefulness, public contracts, or design intent would help reviewers understand the proposal faster.
+- Keep it advisory and lightweight; do not invent a Change Shape section when it adds no signal.
+
+### Opt-In Rules
+
+- Built-in `spec-driven` validation stays quiet by default.
+- If this repo wants proposal/spec/task rule checks such as `capabilities_consistency`, `scenario_grammar`, `contract_refs`, or `task_quality`, export the schema and enable them in `.ito/templates/schemas/<name>/validation.yaml`.
