@@ -60,11 +60,10 @@ pub(super) fn render_search_command(template: &str, inputs: &SearchInputs) -> St
         .limit
         .unwrap_or(DEFAULT_SEARCH_LIMIT)
         .to_string();
-    let scope_quoted = inputs
-        .scope
-        .as_ref()
-        .map(|s| shell_quote(s))
-        .unwrap_or_default();
+    // Always shell-quote, even when unset, so flag-prefixed templates like
+    // `--scope {scope}` produce a valid shell token (`--scope ''`) rather
+    // than a dangling flag with no argument. Matches `{context}` semantics.
+    let scope_quoted = shell_quote(inputs.scope.as_deref().unwrap_or(""));
     substitute(template, |name| match name {
         "query" => Some(query_quoted.clone()),
         "limit" => Some(limit_value.clone()),

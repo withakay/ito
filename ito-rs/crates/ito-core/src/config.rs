@@ -503,11 +503,15 @@ pub fn skill_id_resolves(skill_id: &str, search_paths: &[PathBuf]) -> bool {
         let Ok(entries) = std::fs::read_dir(base) else {
             continue;
         };
-        for entry in entries.flatten() {
-            if !entry.path().is_dir() {
+        for entry in entries {
+            let Ok(entry) = entry else {
+                continue;
+            };
+            let path = entry.path();
+            if !path.is_dir() {
                 continue;
             }
-            if entry.path().join(skill_id).join("SKILL.md").is_file() {
+            if path.join(skill_id).join("SKILL.md").is_file() {
                 return true;
             }
         }

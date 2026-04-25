@@ -183,14 +183,21 @@ fn search_command_uses_supplied_limit_when_present() {
 }
 
 #[test]
-fn search_command_omits_scope_when_absent() {
-    let cfg = search_command_cfg("brv search {query}{scope}");
+fn search_command_renders_scope_as_empty_quoted_token_when_absent() {
+    // {scope} always shell-quotes — even when unset — so that flag-prefixed
+    // templates like `--scope {scope}` produce a valid shell argument
+    // (`--scope ''`) instead of a dangling flag with no value. This matches
+    // the {context} placeholder's behavior for capture.
+    let cfg = search_command_cfg("brv search {query} --scope {scope}");
     let inputs = SearchInputs {
         query: "x".to_string(),
         limit: None,
         scope: None,
     };
-    assert_command(&render_search(Some(&cfg), &inputs), "brv search 'x'");
+    assert_command(
+        &render_search(Some(&cfg), &inputs),
+        "brv search 'x' --scope ''",
+    );
 }
 
 #[test]
