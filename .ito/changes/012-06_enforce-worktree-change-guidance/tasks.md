@@ -67,5 +67,5 @@ ______________________________________________________________________
 - **Done When**: The proposal validates and project checks pass or have documented follow-up blockers.
 - **Requirements**: cli-artifact-workflow:fresh-change-worktrees
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 <!-- ITO:END -->
