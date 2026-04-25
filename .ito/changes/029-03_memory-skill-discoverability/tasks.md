@@ -60,5 +60,5 @@ ______________________________________________________________________
 - **Done When**: Validation and focused tests pass.
 - **Requirements**: `agent-memory-abstraction:installed-ito-memory-skill`, `agent-memory-abstraction:memory-artifacts-in-help`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
