@@ -1,79 +1,47 @@
-# Spec: cli-artifact-workflow
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: Worktree-enabled changes use fresh change-named worktrees
 
-Define the `cli-artifact-workflow` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Worktree-aware apply instructions).
+When worktrees are enabled in configuration, generated agent instructions SHALL direct proposal and implementation work for each change to occur in a newly created change worktree rather than in the main/control checkout.
 
-## Requirements
+- **Requirement ID**: cli-artifact-workflow:fresh-change-worktrees
 
-### Requirement: Worktree-aware apply instructions
+#### Scenario: Proposal guidance requires a new worktree
 
-When worktree apply mode is enabled by configuration, `ito instructions apply` SHALL include deterministic instructions that resolve the configured layout strategy, create (or reuse) a worktree for the change branch, prepare local files, and tell the agent which directory to work in.
+- **GIVEN** `worktrees.enabled=true`
+- **WHEN** an agent generates proposal instructions for change `012-06_example-change`
+- **THEN** the instructions tell the agent to create or switch into a worktree dedicated to `012-06_example-change` before doing proposal work
+- **AND** the instructions state that the main/control checkout must remain clean and must not be used for change work
 
-#### Scenario: Apply instructions include worktree script
-- **GIVEN** `worktrees.enabled=true` and `worktrees.apply.enabled=true`
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** the instructions include a copy/pasteable shell snippet that:
-  - Ensures the configured `main` worktree path exists and is on the default branch
-  - Creates or reuses a change worktree directory at a stable path derived from `worktrees.strategy` and `worktrees.layout.base_dir`
-  - Prints the expected working directory for subsequent commands
+#### Scenario: Apply guidance requires a new worktree
 
-#### Scenario: Strategy-specific path conventions are deterministic
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** `worktrees.strategy` is `bare_control_siblings`
-- **THEN** instructions resolve `main` as a worktree at `<base>/main`
-- **AND** instructions resolve change worktrees under `<base>/<dir_name>/<change-id>`, where `<dir_name>` is `worktrees.layout.dir_name` (default `ito-worktrees`)
-- **AND** the change worktree path is deterministic for the change ID
+- **GIVEN** `worktrees.enabled=true`
+- **WHEN** an agent generates apply instructions for change `012-06_example-change`
+- **THEN** the instructions tell the agent to create a new worktree for that change rather than reusing an unrelated or previous change worktree
+- **AND** the instructions state that implementation commands must run from the change worktree path
 
-#### Scenario: Checkout-subdir strategy path conventions
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** `worktrees.strategy` is `checkout_subdir`
-- **THEN** instructions resolve change worktrees under a gitignored `.<dir_name>/` subdirectory in the checkout, where `<dir_name>` is `worktrees.layout.dir_name` (default `ito-worktrees`)
+#### Scenario: Worktree and branch names align with change ID
 
-#### Scenario: Checkout-siblings strategy path conventions
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** `worktrees.strategy` is `checkout_siblings`
-- **THEN** instructions resolve change worktrees under a dedicated `<project>-<dir_name>/` sibling directory next to the checkout, where `<dir_name>` is `worktrees.layout.dir_name` (default `ito-worktrees`)
+- **GIVEN** `worktrees.enabled=true`
+- **AND** the change ID is `012-06_example-change`
+- **WHEN** generated instructions show branch or worktree naming guidance
+- **THEN** the branch name and primary worktree directory name use `012-06_example-change`
+- **AND** names preserve the module and sub-module prefix from the full change ID
 
-#### Scenario: Apply instructions ask for layout preference when missing
-- **GIVEN** worktree apply mode is enabled
-- **AND** `worktrees.strategy` is not configured
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** the instructions include an explicit ask-user step to confirm preferred strategy before creating new worktrees
-- **AND** the instructions include only supported strategy options with a recommended default
+#### Scenario: One worktree is not reused for two changes
 
-#### Scenario: Apply instructions do not offer custom strategy
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** instructions present only codified strategy options
-- **AND** instructions do not suggest unsupported custom topology modes
+- **GIVEN** `worktrees.enabled=true`
+- **AND** a worktree already exists for change `012-06_example-change`
+- **WHEN** an agent starts work for change `012-07_other-change`
+- **THEN** the instructions require a separate worktree for `012-07_other-change`
+- **AND** the instructions prohibit using the `012-06_example-change` worktree for the new change
 
-#### Scenario: Apply instructions include local file copy step
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** the instructions include a step to copy files matched by `worktrees.apply.copy_from_main` from `./main` into the change worktree
-- **AND** missing files are treated as non-fatal (copy what exists)
-- **AND** copied files are identified as local/uncommitted setup files
+#### Scenario: Multiple worktrees for one change remain identifiable
 
-#### Scenario: Apply instructions include setup commands
-- **GIVEN** worktree apply mode is enabled
-- **AND** `worktrees.apply.setup_commands` is non-empty
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** the instructions include the configured commands in order, scoped to the change worktree
-
-#### Scenario: Apply instructions include integration guidance
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** instructions include integration guidance based on `worktrees.apply.integration_mode`
-- **AND** `commit_pr` guidance includes commit and PR creation steps
-- **AND** `merge_parent` guidance includes merge-into-parent steps
-
-#### Scenario: Apply instructions include cleanup guidance
-- **GIVEN** worktree apply mode is enabled
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** the instructions include post-merge cleanup steps for the change worktree and associated local branch
-
-#### Scenario: Worktree instructions are skipped when disabled
-- **GIVEN** `worktrees.enabled=false` or `worktrees.apply.enabled=false`
-- **WHEN** the user runs `ito instructions apply --change <id>`
-- **THEN** worktree-specific setup and cleanup instructions are not injected
+- **GIVEN** `worktrees.enabled=true`
+- **AND** an agent needs an additional worktree for change `012-06_example-change`
+- **WHEN** generated guidance describes acceptable naming
+- **THEN** the additional branch or worktree name starts with `012-06_example-change`
+- **AND** the name may append a classifier such as `012-06_example-change-review` or `012-06_example-change-experiment`
+<!-- ITO:END -->
