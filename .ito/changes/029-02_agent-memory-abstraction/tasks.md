@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Verify**: Snapshot tests for every (operation, branch) cell of the 3×3 grid. Integration tests that assert the CLI usage error when required inputs are missing.
 - **Done When**: All nine snapshots stable; required-input validation returns non-zero with a usage message.
 - **Requirements**: `agent-memory-abstraction:three-branch-artifacts`, `agent-memory-abstraction:operation-input-schemas`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
