@@ -395,7 +395,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         coverage_target_percent: u64,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Default)]
     struct MemoryOpState {
         configured: bool,
     }
@@ -405,12 +405,6 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         search: MemoryOpState,
         query: MemoryOpState,
     }
-    impl Default for MemoryOpState {
-        fn default() -> Self {
-            Self { configured: false }
-        }
-    }
-
     #[derive(Serialize)]
     struct Ctx {
         instructions: InstructionsCtx,
@@ -526,6 +520,18 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
         coverage_target_percent: u64,
     }
 
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+
     #[derive(Serialize)]
     struct Ctx {
         instructions: InstructionsCtx,
@@ -535,6 +541,7 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
         tracking_warnings: Vec<&'static str>,
         testing_policy: TestingPolicyCtx,
         user_guidance: &'static str,
+        memory: MemoryCtx,
     }
 
     let ctx = Ctx {
@@ -571,6 +578,7 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
             coverage_target_percent: 80,
         },
         user_guidance: "",
+        memory: MemoryCtx::default(),
     };
 
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
@@ -612,7 +620,7 @@ fn new_proposal_template_moves_to_worktree_after_create() {
     .unwrap();
 
     assert!(out.contains("Create the change ID first"));
-    assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change <change-id>)"));
+    assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change \"<change-id>\")"));
     assert!(out.contains("cd \"$CHANGE_DIR\""));
     assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
 }

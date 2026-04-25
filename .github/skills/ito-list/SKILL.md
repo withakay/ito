@@ -1,13 +1,13 @@
 ---
 name: ito-list
-description: List Ito changes, specs, or modules with status summaries and intelligent interpretation.
+description: List Ito changes, archived changes, specs, or modules with status summaries and intelligent interpretation.
 ---
 
 <!-- ITO:START -->
 <!--ITO:VERSION:0.1.27-->
 
 
-Use `ito list` to display project items and interpret the results for the user.
+Use `ito list` and `ito list-archive` to display project items and interpret the results for the user.
 
 **Goal**
 
@@ -19,6 +19,7 @@ for implementation, which are partially complete, or what to work on next).
 
 ```text
 ito list [OPTIONS]
+ito list-archive [--json]
 
 Item types (default: changes):
   --changes     List changes (default)
@@ -39,19 +40,21 @@ Other options:
 **Steps**
 
 1. **Parse user intent** from the arguments:
-   - Determine if they want changes, specs, or modules
+   - Determine if they want changes, archived changes, specs, or modules
+   - Use `ito list-archive` when they ask for archived changes
    - Determine any progress filter (ready, completed, partial, pending)
    - Use `--json` for structured output that is easier to interpret programmatically
 
 2. **Run the CLI command**:
-   - Build the appropriate `ito list` invocation
-   - Example: `ito list --ready --json` or `ito list --specs`
+   - Build the appropriate `ito list` or `ito list-archive` invocation
+   - Example: `ito list --ready --json`, `ito list --specs`, or `ito list-archive`
 
 3. **Present and interpret results**:
    - Summarize the output in a readable format
    - For changes: highlight task progress, suggest which changes to work on next
    - For specs: note requirement counts
    - For modules: show change counts per module
+   - For archived changes: list the archived change IDs for follow-up inspection
    - If the list is empty, explain what that means and suggest next steps
      (e.g., "No ready changes found. Run `ito list --partial` to see in-progress work.")
 
@@ -81,6 +84,9 @@ ito list --completed
 
 # List modules
 ito list --modules
+
+# List archived changes
+ito list-archive
 ```
 
 **Guardrails**

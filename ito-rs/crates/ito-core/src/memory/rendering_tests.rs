@@ -260,10 +260,7 @@ fn capture_skill_emits_structured_inputs_and_options() {
     );
     assert_eq!(inputs.get("files"), Some(&json!(["a.md"])));
     assert_eq!(inputs.get("folders"), Some(&json!(Vec::<String>::new())));
-    assert_eq!(
-        options,
-        Some(json!({ "root": ".ito/memories" })),
-    );
+    assert_eq!(options, Some(json!({ "root": ".ito/memories" })),);
 }
 
 #[test]

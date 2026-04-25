@@ -21,6 +21,7 @@ ito list --ready                    # Show only changes ready for implementation
 ito list --pending                  # Show changes with 0/N tasks complete
 ito list --partial                  # Show changes with 1..N-1/N tasks complete
 ito list --completed                # Show changes with N/N tasks complete
+ito list-archive                    # Show archived changes
 ito status --change "<change-id>"
 ```
 

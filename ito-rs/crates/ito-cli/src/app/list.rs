@@ -19,6 +19,11 @@ struct SpecsResponse {
     specs: Vec<ito_core::list::SpecListItem>,
 }
 
+#[derive(Debug, serde::Serialize)]
+struct ArchivedChangesResponse {
+    archived: Vec<ito_core::list::ArchivedChangeListItem>,
+}
+
 pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
@@ -245,6 +250,32 @@ pub(crate) fn handle_list_clap(rt: &Runtime, args: &ListArgs) -> CliResult<()> {
     argv.push(sort.to_string());
 
     handle_list(rt, &argv)
+}
+
+pub(crate) fn handle_list_archive(rt: &Runtime, want_json: bool) -> CliResult<()> {
+    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
+    let repos = runtime.repositories();
+    let archived =
+        ito_core::list::list_archived_changes(repos.changes.as_ref()).map_err(to_cli_error)?;
+
+    if want_json {
+        let payload = ArchivedChangesResponse { archived };
+        let rendered = serde_json::to_string_pretty(&payload)
+            .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
+        println!("{rendered}");
+        return Ok(());
+    }
+
+    if archived.is_empty() {
+        println!("No archived changes found.");
+        return Ok(());
+    }
+
+    println!("Archived changes:");
+    for change in archived {
+        println!("  {}", change.name);
+    }
+    Ok(())
 }
 
 fn format_change_count(count: usize) -> String {

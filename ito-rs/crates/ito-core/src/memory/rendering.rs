@@ -56,10 +56,7 @@ pub(super) fn render_capture_command(template: &str, inputs: &CaptureInputs) -> 
 /// substitution.
 pub(super) fn render_search_command(template: &str, inputs: &SearchInputs) -> String {
     let query_quoted = shell_quote(&inputs.query);
-    let limit_value = inputs
-        .limit
-        .unwrap_or(DEFAULT_SEARCH_LIMIT)
-        .to_string();
+    let limit_value = inputs.limit.unwrap_or(DEFAULT_SEARCH_LIMIT).to_string();
     // Always shell-quote, even when unset, so flag-prefixed templates like
     // `--scope {scope}` produce a valid shell token (`--scope ''`) rather
     // than a dangling flag with no argument. Matches `{context}` semantics.
@@ -172,7 +169,10 @@ where
         }
         // Default: copy this character literally. Use char_indices to handle
         // multi-byte UTF-8 correctly.
-        let ch = template[i..].chars().next().expect("non-empty by loop guard");
+        let ch = template[i..]
+            .chars()
+            .next()
+            .expect("non-empty by loop guard");
         out.push(ch);
         i += ch.len_utf8();
     }
@@ -184,8 +184,5 @@ where
 /// difference between `{files}` (a placeholder) and `{}` or `{foo bar}`
 /// (literal text).
 fn is_placeholder_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+    !name.is_empty() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
 }

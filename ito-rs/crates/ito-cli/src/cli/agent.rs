@@ -11,7 +11,7 @@ pub struct AgentArgs {
 pub enum AgentCommand {
     /// Generate enriched instructions
     #[command(visible_alias = "in")]
-    Instruction(AgentInstructionArgs),
+    Instruction(Box<AgentInstructionArgs>),
 
     /// Forward unknown subcommands to legacy handler
     #[command(external_subcommand)]

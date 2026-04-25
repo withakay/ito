@@ -8,15 +8,6 @@ By default lists changes sorted by ascending change ID. Use --specs or --modules
 to list other item types. Use --ready to filter to changes ready for
 implementation (have proposal, specs, tasks, and pending work).
 
-Examples:
-  ito list
-  ito list --ready
-  ito list --pending
-  ito list --partial
-  ito list --completed
-  ito list --specs
-  ito list --modules --json
-
 Usage: ito list [OPTIONS]
 
 Options:

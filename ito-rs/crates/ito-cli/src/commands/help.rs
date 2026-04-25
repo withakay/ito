@@ -39,6 +39,7 @@ fn help_all_parts() -> Vec<Vec<String>> {
         &["tasks"],
         &["plan"],
         &["list"],
+        &["list-archive"],
         &["archive"],
         &["config"],
         &["create"],

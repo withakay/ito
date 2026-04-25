@@ -12,7 +12,7 @@ use crate::errors::{CoreError, CoreResult};
 use ito_common::fs::StdFs;
 use ito_common::paths;
 use ito_domain::changes::{
-    ChangeRepository as DomainChangeRepository, ChangeStatus, ChangeSummary,
+    ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeStatus, ChangeSummary,
 };
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
@@ -76,6 +76,16 @@ pub struct ChangeListItem {
     pub work_status: String,
     /// True when no remaining work (complete or paused)
     pub completed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// Archived change entry returned by `ito list-archive`.
+pub struct ArchivedChangeListItem {
+    /// Canonical change id, without the archive date prefix.
+    pub name: String,
+    #[serde(rename = "lastModified")]
+    /// Last modified time for the archived change directory.
+    pub last_modified: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +247,29 @@ pub fn list_changes(
             }
         })
         .collect())
+}
+
+/// List archived changes as serializable items, sorted by canonical change id.
+///
+/// Each item carries the change id (without any archive date prefix) and the
+/// recursive last-modified timestamp formatted via [`to_iso_millis`]. Adapters
+/// should not reformat the timestamp.
+pub fn list_archived_changes(
+    change_repo: &dyn DomainChangeRepository,
+) -> CoreResult<Vec<ArchivedChangeListItem>> {
+    let mut summaries = change_repo
+        .list_with_filter(ChangeLifecycleFilter::Archived)
+        .into_core()?;
+    summaries.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let mut items = Vec::with_capacity(summaries.len());
+    for s in summaries {
+        items.push(ArchivedChangeListItem {
+            name: s.id,
+            last_modified: to_iso_millis(s.last_modified),
+        });
+    }
+    Ok(items)
 }
 
 /// Compute the most-recent modification time under `path`.

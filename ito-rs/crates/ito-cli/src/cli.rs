@@ -95,16 +95,12 @@ pub enum Commands {
     /// to list other item types. Use --ready to filter to changes ready for
     /// implementation (have proposal, specs, tasks, and pending work).
     ///
-    /// Examples:
-    ///   ito list
-    ///   ito list --ready
-    ///   ito list --pending
-    ///   ito list --partial
-    ///   ito list --completed
-    ///   ito list --specs
-    ///   ito list --modules --json
     #[command(visible_alias = "ls", verbatim_doc_comment)]
     List(ListArgs),
+
+    /// List archived changes (use --json for machine-readable output)
+    #[command(visible_alias = "la")]
+    ListArchive(ListArchiveArgs),
 
     /// Display details of a change, spec, or module
     ///
@@ -872,6 +868,14 @@ pub struct ListArgs {
     #[arg(long, value_enum, default_value_t = ListSortOrder::Name)]
     pub sort: ListSortOrder,
 
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Arguments for `ito list-archive`.
+#[derive(Args, Debug, Clone)]
+pub struct ListArchiveArgs {
     /// Output as JSON
     #[arg(long)]
     pub json: bool,
