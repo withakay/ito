@@ -266,3 +266,82 @@ fn task_quality_rule_errors_on_unknown_requirement_ids() {
                 .contains("unknown requirement ID 'auth:missing'")
     }));
 }
+
+#[test]
+fn task_quality_rule_respects_warning_floor_without_promoting_advisories() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        "name: tracking-rules\nversion: 1\nartifacts:\n  - id: specs\n    generates: specs/**/*.md\n    template: specs/spec.md\n    requires: []\napply:\n  tracks: tasks.md\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        "version: 1\nartifacts:\n  specs:\n    required: true\n    validate_as: ito.delta-specs.v1\ntracking:\n  source: apply_tracks\n  required: true\n  validate_as: ito.tasks-tracking.v1\n  rules:\n    task_quality: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Known requirement\nThe system SHALL track tasks.\n\n- **Requirement ID**: auth:known\n\n#### Scenario: Track tasks\n- **WHEN** validation runs\n- **THEN** task requirements resolve\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        "## Wave 1\n- **Depends On**: None\n\n### Task 1.1: Warning floor\n- **Files**: `src/lib.rs`\n- **Dependencies**: None\n- **Updated At**: 2026-04-25\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    let task_quality_issues: Vec<_> = report
+        .issues
+        .iter()
+        .filter(|issue| issue.rule_id.as_deref() == Some("task_quality"))
+        .collect();
+    assert!(
+        task_quality_issues
+            .iter()
+            .any(|issue| { issue.level == "WARNING" && issue.message.contains("Missing Status") })
+    );
+    assert!(
+        task_quality_issues.iter().any(|issue| {
+            issue.level == "WARNING" && issue.message.contains("Missing Done When")
+        })
+    );
+    assert!(
+        task_quality_issues
+            .iter()
+            .any(|issue| { issue.level == "WARNING" && issue.message.contains("Missing Verify") })
+    );
+    assert!(
+        task_quality_issues
+            .iter()
+            .any(|issue| { issue.level == "WARNING" && issue.message.contains("Missing Action") })
+    );
+    assert!(
+        !task_quality_issues
+            .iter()
+            .any(|issue| issue.level == "ERROR"),
+        "task_quality: warning should downgrade rule errors, got issues: {:?}",
+        task_quality_issues
+    );
+}

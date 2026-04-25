@@ -45,7 +45,7 @@ fn validate_task_quality_rule(
     change_id: &str,
     path: &std::path::Path,
     report_path: &str,
-    _level: ValidationLevelYaml,
+    level: ValidationLevelYaml,
 ) -> CoreResult<Vec<ValidationIssue>> {
     use ito_domain::tasks::parse_tasks_tracking_file;
 
@@ -77,7 +77,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_ERROR,
+                task_quality_issue_level(level, LEVEL_ERROR),
                 report_path,
                 format!("Missing Status for task '{}'", task.id),
             ));
@@ -92,7 +92,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_ERROR,
+                task_quality_issue_level(level, LEVEL_ERROR),
                 report_path,
                 format!("Missing Done When for task '{}'", task.id),
             ));
@@ -101,7 +101,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_WARNING,
+                task_quality_issue_level(level, LEVEL_WARNING),
                 report_path,
                 format!("Missing Files for task '{}'", task.id),
             ));
@@ -110,7 +110,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_WARNING,
+                task_quality_issue_level(level, LEVEL_WARNING),
                 report_path,
                 format!("Missing Action for task '{}'", task.id),
             ));
@@ -130,7 +130,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                missing_verify_level,
+                task_quality_issue_level(level, missing_verify_level),
                 report_path,
                 format!("Missing Verify for task '{}'", task.id),
             ));
@@ -138,7 +138,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_WARNING,
+                task_quality_issue_level(level, LEVEL_WARNING),
                 report_path,
                 format!("Task '{}' has a Vague Verify value '{}'", task.id, verify),
             ));
@@ -151,7 +151,7 @@ fn validate_task_quality_rule(
             issues.push(rule_issue(
                 ValidatorId::TasksTrackingV1,
                 "task_quality",
-                LEVEL_ERROR,
+                task_quality_issue_level(level, LEVEL_ERROR),
                 report_path,
                 format!(
                     "Task '{}' references unknown requirement ID '{}'",
@@ -162,6 +162,18 @@ fn validate_task_quality_rule(
     }
 
     Ok(issues)
+}
+
+fn task_quality_issue_level(
+    configured_level: ValidationLevelYaml,
+    table_level: &'static str,
+) -> &'static str {
+    // Opt-in rule severity is a floor: users can turn rule errors down to warnings,
+    // but setting the rule to `error` does not promote advisory rows into errors.
+    if configured_level == ValidationLevelYaml::Warning && table_level == LEVEL_ERROR {
+        return LEVEL_WARNING;
+    }
+    table_level
 }
 
 fn task_is_active(status: ito_domain::tasks::TaskStatus) -> bool {
