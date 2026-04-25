@@ -139,5 +139,5 @@ ______________________________________________________________________
 - **Done When**: Strict validation passes for the change and the repository quality gate passes. This task does NOT carry traceability for new requirements; it is a gate.
 - **Requirements**:
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 <!-- ITO:END -->
