@@ -82,8 +82,8 @@ ______________________________________________________________________
 - **Verify**: New unit tests assert: (a) a freshly rendered skill contains the stamp, (b) a second render produces a byte-identical file, (c) a managed file whose only drift is an older stamp is updated by `--upgrade`, (d) files outside managed markers are never stamped.
 - **Done When**: Every managed file emitted by `ito init` / `ito init --update` is version-stamped and the stamp round-trips cleanly.
 - **Requirements**: ito-managed-asset-versioning:stamp-every-output, ito-managed-asset-versioning:stamp-format, ito-managed-asset-versioning:privacy
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 1.6: Teach `ito-update-repo` to report staleness from stamps
 
