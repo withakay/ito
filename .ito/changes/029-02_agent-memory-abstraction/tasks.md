@@ -83,8 +83,8 @@ ______________________________________________________________________
 - **Verify**: Snapshot tests cover both configured and not-configured states for `memory.capture`. Existing apply snapshots updated only where the new section appears.
 - **Done When**: Snapshot suite green; reminder appears only when `memory.capture` is configured; search/query-only configs do not render the reminder.
 - **Requirements**: `agent-instructions:apply-memory-capture-reminder`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 3.2: Append memory-capture + wrap-up reminders to `finish.md.j2`
 
