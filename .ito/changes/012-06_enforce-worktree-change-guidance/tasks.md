@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: Template rendering tests cover the new worktree guidance rules.
 - **Requirements**: cli-artifact-workflow:fresh-change-worktrees
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 2.2: Validate proposal and full checks
 
