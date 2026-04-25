@@ -7,6 +7,24 @@
 
 <!-- Describe what will change. Be specific about new capabilities, modifications, or removals. -->
 
+<!-- OPTIONAL: Include this block when the change would benefit from extra scope/risk signaling. -->
+<!-- Allowed vocabulary:
+  - Type: feature | fix | refactor | migration | contract | event-driven
+  - Risk: low | medium | high
+  - Stateful: yes | no
+  - Public Contract: none | openapi | jsonschema | asyncapi | cli | config (comma-separated when needed)
+  - Design Needed: yes | no
+  - Design Reason: free text
+-->
+## Change Shape
+
+- **Type**: <feature|fix|refactor|migration|contract|event-driven>
+- **Risk**: <low|medium|high>
+- **Stateful**: <yes|no>
+- **Public Contract**: <none|openapi|jsonschema|asyncapi|cli|config>
+- **Design Needed**: <yes|no>
+- **Design Reason**: <why a design doc is or is not needed>
+
 ## Capabilities
 
 ### New Capabilities

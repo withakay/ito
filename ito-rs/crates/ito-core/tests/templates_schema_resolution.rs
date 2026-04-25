@@ -109,6 +109,51 @@ fn resolve_instructions_reads_embedded_templates() {
 }
 
 #[test]
+fn resolve_instructions_exposes_enhanced_spec_driven_templates() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/demo-change")).expect("create change dir");
+
+    let ctx = ConfigContext {
+        project_dir: Some(root.path().to_path_buf()),
+        ..Default::default()
+    };
+
+    let proposal = resolve_instructions(
+        &ito_path,
+        "demo-change",
+        Some("spec-driven"),
+        "proposal",
+        &ctx,
+    )
+    .expect("proposal template should resolve");
+    assert!(proposal.template.contains("## Change Shape"));
+    assert!(proposal.template.contains("- **Type**:"));
+    assert!(proposal.template.contains("- **Public Contract**:"));
+
+    let spec = resolve_instructions(&ito_path, "demo-change", Some("spec-driven"), "specs", &ctx)
+        .expect("spec template should resolve");
+    assert!(spec.template.contains("- **Tags**:"));
+    assert!(spec.template.contains("- **Contract Refs**:"));
+    assert!(spec.template.contains("#### Rules / Invariants"));
+    assert!(spec.template.contains("#### State Transitions"));
+
+    let design =
+        resolve_instructions(&ito_path, "demo-change", Some("spec-driven"), "design", &ctx)
+            .expect("design template should resolve");
+    assert!(design.template.contains("## Approach"));
+    assert!(design.template.contains("## Contracts / Interfaces"));
+    assert!(design.template.contains("## Verification Strategy"));
+    assert!(design.template.contains("## Migration / Rollback"));
+    assert!(
+        design
+            .template
+            .contains("Do not include full code examples"),
+        "design template should discourage over-prescriptive code samples"
+    );
+}
+
+#[test]
 fn export_embedded_schemas_writes_then_skips_without_force() {
     let root = tempfile::tempdir().expect("tempdir should succeed");
     let out_dir = root.path().join("schemas-out");
