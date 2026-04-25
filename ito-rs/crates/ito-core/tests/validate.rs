@@ -1109,6 +1109,311 @@ The system SHALL ignore code-like tokens.
 }
 
 #[test]
+fn capabilities_consistency_rule_errors_for_listed_capability_without_delta() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        r#"
+## Capabilities
+
+### New Capabilities
+
+- `auth`: Add login behavior.
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("capabilities_consistency")
+            && issue.level == "ERROR"
+            && issue.message.contains("listed in the proposal")
+            && issue.message.contains("auth")
+    }));
+}
+
+#[test]
+fn capabilities_consistency_rule_errors_for_unlisted_delta_capability() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        r#"
+## Capabilities
+
+### New Capabilities
+
+<!-- None -->
+"#,
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("notifications")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Notify users
+The system SHALL notify users.
+
+#### Scenario: Notify
+- **WHEN** an event occurs
+- **THEN** a notification is sent
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("capabilities_consistency")
+            && issue.level == "ERROR"
+            && issue.message.contains("not listed in the proposal")
+            && issue.message.contains("notifications")
+    }));
+}
+
+#[test]
+fn capabilities_consistency_rule_checks_new_vs_modified_against_baseline() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        r#"
+## Capabilities
+
+### New Capabilities
+
+- `auth`: Claimed as new.
+
+### Modified Capabilities
+
+- `payments`: Claimed as modified.
+"#,
+    );
+    write(
+        &ito.join("specs").join("auth").join("spec.md"),
+        "## Purpose\n\nBaseline auth spec.\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## MODIFIED Requirements
+
+### Requirement: Auth changes
+The system SHALL modify auth.
+
+#### Scenario: Auth
+- **WHEN** auth changes
+- **THEN** auth works
+"#,
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("payments")
+            .join("spec.md"),
+        r#"
+## MODIFIED Requirements
+
+### Requirement: Payment changes
+The system SHALL modify payments.
+
+#### Scenario: Payments
+- **WHEN** payments change
+- **THEN** payments work
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("capabilities_consistency")
+            && issue.message.contains("listed as new")
+            && issue.message.contains("auth")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("capabilities_consistency")
+            && issue.message.contains("listed as modified")
+            && issue.message.contains("payments")
+    }));
+}
+
+#[test]
+fn capabilities_consistency_rule_skips_placeholders_and_warns_on_plain_bullets() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        r#"
+## Capabilities
+
+### New Capabilities
+
+- `<name>`: Placeholder entry.
+- Plain bullet without code token.
+- <!-- ignored -->
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("capabilities_consistency")
+            && issue.level == "WARNING"
+            && issue.message.contains("inline-code token")
+    }));
+    assert!(
+        !report.issues.iter().any(|issue| {
+            issue.rule_id.as_deref() == Some("capabilities_consistency")
+                && issue.level == "ERROR"
+                && issue.message.contains("<name>")
+        }),
+        "placeholder entries should be ignored, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");

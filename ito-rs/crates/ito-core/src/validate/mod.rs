@@ -6,7 +6,7 @@
 //! The primary consumer is the CLI and any APIs that need a structured report
 //! (`ValidationReport`) rather than a single error.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
@@ -15,9 +15,13 @@ use crate::errors::{CoreError, CoreResult};
 use regex::Regex;
 use serde::Serialize;
 
+use ito_common::fs::StdFs;
 use ito_common::paths;
 
-use crate::show::{parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files};
+use crate::show::{
+    parse_change_show_json, parse_spec_show_json, read_change_delta_spec_files,
+    read_change_proposal_markdown,
+};
 use crate::templates::{
     ResolvedSchema, ValidationLevelYaml, ValidationYaml, ValidatorId, artifact_done,
     load_schema_validation, read_change_schema, resolve_schema,
@@ -67,6 +71,9 @@ static UI_MECHANICS_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     .map(|pattern| Regex::new(pattern).expect("valid UI mechanics regex"))
     .collect()
 });
+
+static INLINE_CODE_TOKEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"`([^`]+)`").expect("valid inline code regex"));
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One validation finding.
@@ -748,16 +755,22 @@ fn run_delta_specs_artifact_rule(
 }
 
 fn run_delta_specs_proposal_rule(
-    _rep: &mut ReportBuilder,
-    _change_repo: &(impl DomainChangeRepository + ?Sized),
-    _ctx: ArtifactValidatorContext<'_>,
+    rep: &mut ReportBuilder,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    ctx: ArtifactValidatorContext<'_>,
     rule_name: &str,
-    _level: ValidationLevelYaml,
+    level: ValidationLevelYaml,
 ) -> CoreResult<()> {
     match rule_name {
-        "capabilities_consistency" => Ok(()),
-        _ => Ok(()),
+        "capabilities_consistency" => rep.extend(validate_capabilities_consistency_rule(
+            change_repo,
+            ctx.ito_path,
+            ctx.change_id,
+            level,
+        )?),
+        _ => {}
     }
+    Ok(())
 }
 
 fn run_tasks_tracking_rule(
@@ -913,6 +926,189 @@ fn extract_scenario_steps(raw_text: &str) -> Vec<ScenarioStep> {
             None
         })
         .collect()
+}
+
+fn validate_capabilities_consistency_rule(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    ito_path: &Path,
+    change_id: &str,
+    level: ValidationLevelYaml,
+) -> CoreResult<Vec<ValidationIssue>> {
+    let Some(proposal) = read_change_proposal_markdown(change_repo, change_id)? else {
+        return Ok(Vec::new());
+    };
+
+    let parsed = parse_proposal_capabilities(&proposal);
+    let delta_specs = read_change_delta_spec_files(change_repo, change_id)?;
+    let delta_names: BTreeSet<String> = delta_specs.into_iter().map(|spec| spec.spec).collect();
+    let baseline_names: BTreeSet<String> =
+        ito_domain::discovery::list_spec_dir_names(&StdFs, ito_path).into_core()?.into_iter().collect();
+
+    let mut issues = Vec::new();
+    for warning_message in parsed.warnings {
+        issues.push(rule_issue(
+            ValidatorId::DeltaSpecsV1,
+            "capabilities_consistency",
+            LEVEL_WARNING,
+            "proposal.capabilities",
+            warning_message,
+        ));
+    }
+
+    for capability in &parsed.new_capabilities {
+        if !delta_names.contains(capability) {
+            issues.push(rule_issue(
+                ValidatorId::DeltaSpecsV1,
+                "capabilities_consistency",
+                level.as_level_str(),
+                "proposal.capabilities",
+                format!(
+                    "Capability '{capability}' is listed in the proposal but no delta spec exists at specs/{capability}/spec.md"
+                ),
+            ));
+        }
+        if baseline_names.contains(capability) {
+            issues.push(rule_issue(
+                ValidatorId::DeltaSpecsV1,
+                "capabilities_consistency",
+                level.as_level_str(),
+                "proposal.capabilities",
+                format!(
+                    "Capability '{capability}' is listed as new but already exists in .ito/specs/{capability}/"
+                ),
+            ));
+        }
+    }
+
+    for capability in &parsed.modified_capabilities {
+        if !delta_names.contains(capability) {
+            issues.push(rule_issue(
+                ValidatorId::DeltaSpecsV1,
+                "capabilities_consistency",
+                level.as_level_str(),
+                "proposal.capabilities",
+                format!(
+                    "Capability '{capability}' is listed in the proposal but no delta spec exists at specs/{capability}/spec.md"
+                ),
+            ));
+        }
+        if !baseline_names.contains(capability) {
+            issues.push(rule_issue(
+                ValidatorId::DeltaSpecsV1,
+                "capabilities_consistency",
+                level.as_level_str(),
+                "proposal.capabilities",
+                format!(
+                    "Capability '{capability}' is listed as modified but no baseline spec exists in .ito/specs/{capability}/"
+                ),
+            ));
+        }
+    }
+
+    let declared: BTreeSet<String> = parsed
+        .new_capabilities
+        .iter()
+        .chain(parsed.modified_capabilities.iter())
+        .cloned()
+        .collect();
+    for capability in delta_names {
+        if declared.contains(&capability) {
+            continue;
+        }
+        issues.push(rule_issue(
+            ValidatorId::DeltaSpecsV1,
+            "capabilities_consistency",
+            level.as_level_str(),
+            "proposal.capabilities",
+            format!("Delta capability '{capability}' is not listed in the proposal"),
+        ));
+    }
+
+    Ok(issues)
+}
+
+#[derive(Debug, Default)]
+struct ParsedProposalCapabilities {
+    new_capabilities: Vec<String>,
+    modified_capabilities: Vec<String>,
+    warnings: Vec<String>,
+}
+
+fn parse_proposal_capabilities(markdown: &str) -> ParsedProposalCapabilities {
+    let mut parsed = ParsedProposalCapabilities::default();
+    let mut in_capabilities = false;
+
+    enum CapabilitySection {
+        None,
+        New,
+        Modified,
+    }
+
+    let mut section = CapabilitySection::None;
+    for line in markdown.lines() {
+        let line = line.trim_end();
+        let trimmed = line.trim();
+
+        if let Some(title) = trimmed.strip_prefix("## ") {
+            in_capabilities = title.trim().eq_ignore_ascii_case("Capabilities");
+            if !in_capabilities {
+                section = CapabilitySection::None;
+            }
+            continue;
+        }
+        if !in_capabilities {
+            continue;
+        }
+
+        if let Some(title) = trimmed.strip_prefix("### ") {
+            section = if title.trim().eq_ignore_ascii_case("New Capabilities") {
+                CapabilitySection::New
+            } else if title.trim().eq_ignore_ascii_case("Modified Capabilities") {
+                CapabilitySection::Modified
+            } else {
+                CapabilitySection::None
+            };
+            continue;
+        }
+
+        let Some(rest) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+            .map(str::trim)
+        else {
+            continue;
+        };
+        if rest.is_empty() || rest.starts_with("<!--") {
+            continue;
+        }
+
+        let Some(capability) = extract_first_inline_code_token(rest) else {
+            parsed.warnings.push(format!(
+                "Capability bullet is missing an inline-code token: {rest}"
+            ));
+            continue;
+        };
+        if capability.starts_with('<') && capability.ends_with('>') {
+            continue;
+        }
+
+        match section {
+            CapabilitySection::New => parsed.new_capabilities.push(capability),
+            CapabilitySection::Modified => parsed.modified_capabilities.push(capability),
+            CapabilitySection::None => {}
+        }
+    }
+
+    parsed
+}
+
+fn extract_first_inline_code_token(line: &str) -> Option<String> {
+    let captures = INLINE_CODE_TOKEN_RE.captures(line)?;
+    let token = captures.get(1)?.as_str().trim();
+    if token.is_empty() {
+        return None;
+    }
+    Some(token.to_string())
 }
 
 /// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.
