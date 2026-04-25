@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Built-in spec-driven templates render with the new optional sections, no mandatory empty sections, and existing renders still parse as deltas.
 - **Requirements**: ito-schemas:spec-driven-change-shape, ito-schemas:behavioral-requirement-metadata
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Align minimalist and event-driven spec templates with their validators
 
