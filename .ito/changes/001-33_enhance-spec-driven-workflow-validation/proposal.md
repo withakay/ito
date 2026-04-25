@@ -12,7 +12,7 @@ Ito's default spec-driven workflow already gives LLMs useful anchors, but its te
 - Add **proposal-capabilities ↔ delta-spec consistency** validation with a defined parsing grammar for the proposal `## Capabilities` section.
 - Add **enhanced task quality validation**: missing Status / Done When / Verify are errors; vague Verify and missing Files/Action are warnings; unresolved Requirement IDs are errors.
 - Replace the proposed "composable validation facets" with a backward-compatible **`rules:` extension** to existing validators (no new validator IDs in v1). Rules are opt-in per artifact in `validation.yaml`.
-- Built-in `spec-driven` `validation.yaml` does NOT enable the new rules by default in v1; they are opt-in via project-local schema overrides or by including a Change Shape block in the proposal. This protects in-flight changes from sudden new diagnostics.
+- Built-in `spec-driven` `validation.yaml` does NOT enable the new rules by default in v1; they are opt-in via project-local schema overrides only. Change Shape remains purely advisory and never enables rules implicitly. This protects in-flight changes from sudden new diagnostics.
 - Expand the spec-driven design template toward decisions, interfaces, state, invariants, verification, and migration with an explicit anti-overprescription rule (no full code examples).
 - Add optional state-transition tables and rules/invariants sections for stateful changes; prefer tables over decorative Mermaid.
 - Align built-in **minimalist** and **event-driven** spec templates with their already-configured `ito.delta-specs.v1` validator (current templates use `## Stories` / `### Story:` and silently fail to parse as deltas).
