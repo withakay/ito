@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 113
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -576,6 +577,9 @@ Artifacts:
   review                             Show review instructions
   archive                            Show archive instructions
   finish                             Cleanup worktrees and branches after merge
+  memory-capture                     Capture durable knowledge through configured memory
+  memory-search                      Search configured memory for ranked matches
+  memory-query                       Query configured memory for a synthesized answer
 
 Examples:
   ito agent instruction bootstrap --tool opencode
@@ -590,6 +594,9 @@ Examples:
   ito agent instruction archive
   ito agent instruction archive --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap
+  ito agent instruction memory-capture --context "Decision and rationale" --file docs/config.md
+  ito agent instruction memory-search --query "archive workflow" --limit 5
+  ito agent instruction memory-query --query "How should agents capture memories?"
 
 
 --------------------------------------------------------------------------------

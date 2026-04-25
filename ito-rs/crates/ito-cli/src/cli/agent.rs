@@ -1,5 +1,43 @@
 use clap::{Args, Subcommand};
 
+const AGENT_INSTRUCTION_AFTER_HELP: &str = concat!(
+    "Artifacts:\n",
+    "  bootstrap                          Generate a tool bootstrap preamble\n",
+    "  project-setup                      Guide for setting up a new project\n",
+    "  backend                            Backend server and client configuration guide\n",
+    "  worktrees                          Guide for git worktree workflow (config-driven)\n",
+    "  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates\n",
+    "  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n",
+    "  orchestrate                        Orchestrate applying a set of changes via an orchestrator agent\n",
+    "  proposal                           Show the change proposal\n",
+    "  specs                              Show the specification deltas\n",
+    "  tasks                              Show the implementation task list\n",
+    "  apply                              Show implementation instructions\n",
+    "  review                             Show review instructions\n",
+    "  archive                            Show archive instructions\n",
+    "  finish                             Cleanup worktrees and branches after merge\n",
+    "  memory-capture                     Capture durable knowledge through configured memory\n",
+    "  memory-search                      Search configured memory for ranked matches\n",
+    "  memory-query                       Query configured memory for a synthesized answer\n",
+    "\n",
+    "Examples:\n",
+    "  ito agent instruction bootstrap --tool opencode\n",
+    "  ito agent instruction project-setup\n",
+    "  ito agent instruction backend\n",
+    "  ito agent instruction worktrees\n",
+    "  ito agent instruction repo-sweep\n",
+    "  ito agent instruction migrate-to-coordination-worktree\n",
+    "  ito agent instruction orchestrate\n",
+    "  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n",
+    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n",
+    "  ito agent instruction archive\n",
+    "  ito agent instruction archive --change 005-08_migrate-cli-to-clap\n",
+    "  ito agent instruction finish --change 005-08_migrate-cli-to-clap\n",
+    "  ito agent instruction memory-capture --context \"Decision and rationale\" --file docs/config.md\n",
+    "  ito agent instruction memory-search --query \"archive workflow\" --limit 5\n",
+    "  ito agent instruction memory-query --query \"How should agents capture memories?\"",
+);
+
 /// Commands that generate machine-readable output for AI agents.
 #[derive(Args, Debug, Clone)]
 pub struct AgentArgs {
@@ -23,9 +61,7 @@ pub enum AgentCommand {
 /// Used by both the clap-based and legacy string-based instruction handlers.
 /// See [`to_argv`](Self::to_argv) for round-tripping back to a raw argument vector.
 #[derive(Args, Debug, Clone)]
-#[command(
-    after_help = "Artifacts:\n  bootstrap                          Generate a tool bootstrap preamble\n  project-setup                      Guide for setting up a new project\n  backend                            Backend server and client configuration guide\n  worktrees                          Guide for git worktree workflow (config-driven)\n  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates\n  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n  orchestrate                        Orchestrate applying a set of changes via an orchestrator agent\n  proposal                           Show the change proposal\n  specs                              Show the specification deltas\n  tasks                              Show the implementation task list\n  apply                              Show implementation instructions\n  review                             Show review instructions\n  archive                            Show archive instructions\n  finish                             Cleanup worktrees and branches after merge\n\nExamples:\n  ito agent instruction bootstrap --tool opencode\n  ito agent instruction project-setup\n  ito agent instruction backend\n  ito agent instruction worktrees\n  ito agent instruction repo-sweep\n  ito agent instruction migrate-to-coordination-worktree\n  ito agent instruction orchestrate\n  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n  ito agent instruction archive\n  ito agent instruction archive --change 005-08_migrate-cli-to-clap\n  ito agent instruction finish --change 005-08_migrate-cli-to-clap"
-)]
+#[command(after_help = AGENT_INSTRUCTION_AFTER_HELP)]
 pub struct AgentInstructionArgs {
     /// Artifact id (e.g. bootstrap, apply, proposal)
     #[arg(value_name = "ARTIFACT")]

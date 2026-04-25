@@ -37,6 +37,33 @@ fn setup_project_without_memory() -> (tempfile::TempDir, tempfile::TempDir) {
     (repo, home)
 }
 
+#[test]
+fn agent_instruction_help_lists_memory_artifacts() {
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    let (repo, home) = setup_project_without_memory();
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["agent", "instruction", "--help"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("memory-capture"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("memory-search"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(out.stdout.contains("memory-query"), "stdout={}", out.stdout);
+    assert!(out.stdout.contains("Examples:"), "stdout={}", out.stdout);
+}
+
 // ---- memory-capture ---------------------------------------------------------
 
 #[test]
