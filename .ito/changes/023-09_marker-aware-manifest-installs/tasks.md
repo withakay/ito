@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: `install_manifests` knows whether it is running in init/update mode and whether `--force` / `--update` / `--upgrade` were requested.
 - **Requirements**: cli-update:harness-manifest-marker-scoped
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.3: Route managed-marker manifest entries through the marker-aware writer
 
