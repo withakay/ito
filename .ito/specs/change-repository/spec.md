@@ -7,6 +7,10 @@
 
 `ChangeRepository` SHALL accept both module-level change IDs (`NNN-NN_name`) and sub-module change IDs (`NNN.SS-NN_name`) as canonical identifiers, and SHALL expose the parsed `module_id` plus optional `sub_module_id` in returned change models and summaries.
 
+`ChangeRepository` SHALL expose an `orchestrate` field on each change model, sourced from the `orchestrate:` block in `.ito/changes/<id>/.ito.yaml`, containing `depends_on` (list of change IDs this change must wait for) and `preferred_gates` (ordered list of gate names overriding the default pipeline for this change). Both sub-fields are optional and default to empty.
+
+- **Requirement ID**: change-repository:lifecycle-aware-canonical-access
+
 #### Scenario: List active changes through selected implementation
 
 - **GIVEN** Ito resolves a repository implementation for the current persistence mode
@@ -36,4 +40,18 @@
 - **WHEN** `ChangeRepository` serves change reads
 - **THEN** it uses the remote-backed implementation as the canonical source
 - **AND** it does not merge in local active-change markdown implicitly
+
+#### Scenario: Orchestrate metadata exposed on change model
+
+- **GIVEN** a change's `.ito.yaml` contains an `orchestrate:` block with `depends_on` and `preferred_gates`
+- **WHEN** a caller loads that change through `ChangeRepository`
+- **THEN** the returned change model includes `orchestrate.depends_on` as a list of change ID strings
+- **AND** includes `orchestrate.preferred_gates` as an ordered list of gate name strings
+
+#### Scenario: Absent orchestrate block returns empty defaults
+
+- **GIVEN** a change's `.ito.yaml` has no `orchestrate:` block
+- **WHEN** a caller loads that change through `ChangeRepository`
+- **THEN** `orchestrate.depends_on` is an empty list
+- **AND** `orchestrate.preferred_gates` is an empty list
 <!-- ITO:END -->

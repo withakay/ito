@@ -7,4 +7,4 @@
 - *
 
 ## Changes
-- [ ] 028-01_ito-orchestrate-command-and-agent
+- [x] 028-01_ito-orchestrate-command-and-agent
