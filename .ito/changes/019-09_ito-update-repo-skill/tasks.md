@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: Every asset basename under `assets/{skills,commands,agents}/` satisfies the prefix rule (`ito` or `ito-<suffix>`).
 - **Requirements**: ito-managed-asset-naming:prefix-rule, ito-managed-asset-naming:templates-enforce
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.4: Add CI guard for the prefix rule
 
