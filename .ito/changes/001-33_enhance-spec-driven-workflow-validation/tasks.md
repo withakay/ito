@@ -100,7 +100,7 @@ ______________________________________________________________________
 - **Done When**: Syntax errors fire on unknown schemes; advisory and Public-Contract-anchor scenarios fire as specified; resolution is explicitly out of scope.
 - **Requirements**: cli-validate:contract-reference-validation
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.4: Implement task_quality rule
 
