@@ -83,7 +83,7 @@ ______________________________________________________________________
 - **Done When**: Every managed file emitted by `ito init` / `ito init --update` is version-stamped and the stamp round-trips cleanly.
 - **Requirements**: ito-managed-asset-versioning:stamp-every-output, ito-managed-asset-versioning:stamp-format, ito-managed-asset-versioning:privacy
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.6: Teach `ito-update-repo` to report staleness from stamps
 
