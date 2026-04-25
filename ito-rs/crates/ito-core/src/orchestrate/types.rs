@@ -66,22 +66,17 @@ pub struct OrchestratePreset {
     pub agent_roles: BTreeMap<String, String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Run-level behavior when a gate fails.
 pub enum FailurePolicy {
     /// Attempt remediation and continue the run.
+    #[default]
     Remediate,
     /// Stop the run immediately.
     Stop,
     /// Continue to the next change/gate without remediation.
     Continue,
-}
-
-impl Default for FailurePolicy {
-    fn default() -> Self {
-        Self::Remediate
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -142,10 +142,7 @@ pub fn render_capture(
 
 /// Render the `memory-search` instruction for the given config and inputs.
 #[must_use]
-pub fn render_search(
-    config: Option<&MemoryConfig>,
-    inputs: &SearchInputs,
-) -> RenderedInstruction {
+pub fn render_search(config: Option<&MemoryConfig>, inputs: &SearchInputs) -> RenderedInstruction {
     let op_cfg = config.and_then(|c| c.search.as_ref());
     let Some(op_cfg) = op_cfg else {
         return RenderedInstruction::NotConfigured {
@@ -166,10 +163,7 @@ pub fn render_search(
 
 /// Render the `memory-query` instruction for the given config and inputs.
 #[must_use]
-pub fn render_query(
-    config: Option<&MemoryConfig>,
-    inputs: &QueryInputs,
-) -> RenderedInstruction {
+pub fn render_query(config: Option<&MemoryConfig>, inputs: &QueryInputs) -> RenderedInstruction {
     let op_cfg = config.and_then(|c| c.query.as_ref());
     let Some(op_cfg) = op_cfg else {
         return RenderedInstruction::NotConfigured {

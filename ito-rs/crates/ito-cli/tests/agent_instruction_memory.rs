@@ -69,7 +69,11 @@ fn memory_capture_command_branch_renders_executable_command_line() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    assert!(out.stdout.contains("Capture this memory"), "stdout={}", out.stdout);
+    assert!(
+        out.stdout.contains("Capture this memory"),
+        "stdout={}",
+        out.stdout
+    );
     assert!(
         out.stdout
             .contains("brv curate 'decision X' --file 'a.md' --file 'b.md' --folder 'docs/'"),
@@ -200,13 +204,7 @@ fn memory_search_skill_branch_emits_structured_inputs() {
 
     let out = run_rust_candidate(
         rust_path,
-        &[
-            "agent",
-            "instruction",
-            "memory-search",
-            "--query",
-            "auth",
-        ],
+        &["agent", "instruction", "memory-search", "--query", "auth"],
         repo.path(),
         home.path(),
     );
@@ -224,13 +222,7 @@ fn memory_search_not_configured_branch_renders_setup_guidance() {
 
     let out = run_rust_candidate(
         rust_path,
-        &[
-            "agent",
-            "instruction",
-            "memory-search",
-            "--query",
-            "x",
-        ],
+        &["agent", "instruction", "memory-search", "--query", "x"],
         repo.path(),
         home.path(),
     );
@@ -285,9 +277,10 @@ fn memory_query_command_branch_substitutes_query() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    assert!(out
-        .stdout
-        .contains("brv query 'How does coordination work?'"));
+    assert!(
+        out.stdout
+            .contains("brv query 'How does coordination work?'")
+    );
 }
 
 #[test]

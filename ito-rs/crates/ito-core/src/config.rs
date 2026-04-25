@@ -268,12 +268,11 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
-        path
-            if matches!(
-                parts,
-                ["memory", op, "kind"]
-                    if matches!(*op, "capture" | "search" | "query")
-            ) =>
+        path if matches!(
+            parts,
+            ["memory", op, "kind"]
+                if matches!(*op, "capture" | "search" | "query")
+        ) =>
         {
             let Some(s) = value.as_str() else {
                 return Err(CoreError::validation(format!(
@@ -288,12 +287,11 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
-        path
-            if matches!(
-                parts,
-                ["memory", op, "skill"]
-                    if matches!(*op, "capture" | "search" | "query")
-            ) =>
+        path if matches!(
+            parts,
+            ["memory", op, "skill"]
+                if matches!(*op, "capture" | "search" | "query")
+        ) =>
         {
             let Some(s) = value.as_str() else {
                 return Err(CoreError::validation(format!(
@@ -308,12 +306,11 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
-        path
-            if matches!(
-                parts,
-                ["memory", op, "command"]
-                    if matches!(*op, "capture" | "search" | "query")
-            ) =>
+        path if matches!(
+            parts,
+            ["memory", op, "command"]
+                if matches!(*op, "capture" | "search" | "query")
+        ) =>
         {
             let Some(s) = value.as_str() else {
                 return Err(CoreError::validation(format!(
@@ -328,8 +325,7 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
-        _ if matches!(parts, ["memory", op] if matches!(*op, "capture" | "search" | "query")) =>
-        {
+        _ if matches!(parts, ["memory", op] if matches!(*op, "capture" | "search" | "query")) => {
             let op_name = parts[1];
             return validate_memory_op_value(op_name, value);
         }
@@ -422,10 +418,7 @@ fn validate_memory_op_value(op_name: &str, value: &serde_json::Value) -> CoreRes
 /// Returns [`CoreError::Validation`] for any operation whose skill id does
 /// not resolve to a directory containing `SKILL.md` under one of the
 /// supplied search paths. Lists the searched paths in the error message.
-pub fn validate_memory_config(
-    config: &MemoryConfig,
-    search_paths: &[PathBuf],
-) -> CoreResult<()> {
+pub fn validate_memory_config(config: &MemoryConfig, search_paths: &[PathBuf]) -> CoreResult<()> {
     for (op_name, op) in [
         ("capture", &config.capture),
         ("search", &config.search),
@@ -452,7 +445,11 @@ pub fn validate_memory_config(
                 "memory.{op}: skill id '{skill}' was not found under any of the searched skills directories: [{searched}]. Install the skill or correct the id.",
                 op = op_name,
                 skill = skill,
-                searched = if searched.is_empty() { "(none configured)".to_string() } else { searched },
+                searched = if searched.is_empty() {
+                    "(none configured)".to_string()
+                } else {
+                    searched
+                },
             )));
         }
     }
@@ -990,11 +987,8 @@ mod tests {
     #[test]
     fn validate_config_value_rejects_memory_op_unknown_kind() {
         let parts = ["memory", "search"];
-        let err = validate_config_value(
-            &parts,
-            &json!({ "kind": "magic", "command": "noop" }),
-        )
-        .expect_err("expected error");
+        let err = validate_config_value(&parts, &json!({ "kind": "magic", "command": "noop" }))
+            .expect_err("expected error");
         let msg = err.to_string();
         assert!(msg.contains("Invalid 'kind' value 'magic'"), "msg = {msg}");
         assert!(msg.contains("memory.search"), "msg = {msg}");
@@ -1034,7 +1028,9 @@ mod tests {
     #[test]
     fn validate_memory_config_passes_when_skill_resolves_in_grouped_layout() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let skill_dir = tmp.path().join(".agents/skills/byterover/byterover-explore");
+        let skill_dir = tmp
+            .path()
+            .join(".agents/skills/byterover/byterover-explore");
         std::fs::create_dir_all(&skill_dir).unwrap();
         std::fs::write(skill_dir.join("SKILL.md"), "stub").unwrap();
 

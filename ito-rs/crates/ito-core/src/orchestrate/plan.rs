@@ -186,7 +186,6 @@ fn topo_sort(deps: &BTreeMap<String, BTreeSet<String>>) -> CoreResult<Vec<String
     }
 
     let mut out = Vec::new();
-    let mut indegree = indegree;
     while let Some(n) = q.pop_front() {
         out.push(n.clone());
         let Some(children) = reverse.get(&n) else {

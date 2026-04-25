@@ -336,6 +336,7 @@ pub fn install_manifests(
 /// - the relative path ends in `.md` (not `.md.j2`)
 /// - the bytes are valid UTF-8
 /// - the content contains `<!-- ITO:START -->`
+///
 /// True when `path` is a plain `.md` asset (excludes Jinja `.md.j2` templates
 /// which are rendered, not installed verbatim). Centralising this guard keeps
 /// the stamping and marker-scoping checks in one place.

@@ -5,9 +5,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
-use super::memory_instructions::{
-    MemoryTemplateConfig, memory_template_config_from_merged,
-};
+use super::memory_instructions::{MemoryTemplateConfig, memory_template_config_from_merged};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
@@ -1126,8 +1124,6 @@ fn print_apply_instructions_text(
 
     print!("{out}");
 }
-
-
 
 fn collect_missing_dependencies(
     instructions: &core_templates::InstructionsResponse,

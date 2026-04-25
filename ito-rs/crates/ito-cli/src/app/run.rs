@@ -135,6 +135,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 || super::list::handle_list_clap(&rt, args),
             );
         }
+        Some(Commands::ListArchive(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || super::list::handle_list_archive(&rt, args.json),
+            );
+        }
         Some(Commands::Plan(args)) => {
             return util::with_logging(
                 &rt,

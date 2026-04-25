@@ -15,7 +15,7 @@ Some project files are installed/updated by Ito (`ito init`, `ito update`) and m
 
 ## TL;DR Quick Checklist
 
-- Search existing work: `ito list --specs`, `ito list`, `ito list --modules`
+- Search existing work: `ito list --specs`, `ito list`, `ito list-archive`, `ito list --modules`
 - Filter by progress: `ito list --pending`, `ito list --partial`, `ito list --completed`
 - Choose a module by semantic fit; create a new module if none fit (avoid dumping unrelated work into an arbitrary existing module)
 - Decide scope: new capability vs modify existing capability
@@ -170,6 +170,7 @@ After deployment, create separate PR to:
 ```bash
 # Essential commands
 ito list                  # List active changes
+ito list-archive          # List archived changes
 ito list --pending         # List changes with 0/N tasks complete
 ito list --partial         # List changes with 1..N-1/N tasks complete
 ito list --completed       # List completed changes

@@ -179,11 +179,7 @@ struct OutputEnvelope<'a> {
     operation: Option<&'a str>,
 }
 
-fn emit_rendered(
-    rendered: RenderedInstruction,
-    artifact: &str,
-    want_json: bool,
-) -> CliResult<()> {
+fn emit_rendered(rendered: RenderedInstruction, artifact: &str, want_json: bool) -> CliResult<()> {
     match rendered {
         RenderedInstruction::Command { line } => {
             let body = render_command_text(artifact, &line);
@@ -276,13 +272,12 @@ fn render_skill_text(
     };
     let mut out = format!("{header}\n\n- Skill: `{skill_id}`\n- Inputs:\n");
     for (key, value) in inputs {
-        let pretty = serde_json::to_string(value)
-            .unwrap_or_else(|_| "<unrenderable>".to_string());
+        let pretty = serde_json::to_string(value).unwrap_or_else(|_| "<unrenderable>".to_string());
         out.push_str(&format!("  - `{key}` = `{pretty}`\n"));
     }
     if let Some(options) = options {
-        let pretty = serde_json::to_string_pretty(options)
-            .unwrap_or_else(|_| "<unrenderable>".to_string());
+        let pretty =
+            serde_json::to_string_pretty(options).unwrap_or_else(|_| "<unrenderable>".to_string());
         out.push_str(&format!(
             "- Options (passed through verbatim):\n```json\n{pretty}\n```\n"
         ));
