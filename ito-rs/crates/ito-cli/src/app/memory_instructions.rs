@@ -16,12 +16,63 @@
 use std::collections::BTreeMap;
 
 use ito_config::load_cascading_project_config;
-use ito_config::types::ItoConfig;
+use ito_config::types::{ItoConfig, MemoryConfig, MemoryOpConfig};
 use ito_core::memory::{
     self, CaptureInputs, Operation, QueryInputs, RenderedInstruction, SearchInputs,
 };
 use serde::Serialize;
 use serde_json::Value;
+
+/// Per-operation flag exposed to the apply / finish instruction templates.
+///
+/// Templates use `{% if memory.<op>.configured %}` guards to decide whether
+/// to render memory-related reminders.
+#[derive(Debug, Clone, Default, Serialize)]
+pub(crate) struct MemoryOpTemplateState {
+    /// `true` when the operation has a configured provider (`skill` or `command`).
+    pub(crate) configured: bool,
+}
+
+/// Memory state surfaced to instruction templates.
+///
+/// Each operation tracks whether it is configured. The `instructions.rs`
+/// renderers feed this into the `apply.md.j2` and `finish.md.j2` contexts
+/// so the templates can independently decide which reminders to show.
+#[derive(Debug, Clone, Default, Serialize)]
+pub(crate) struct MemoryTemplateConfig {
+    pub(crate) capture: MemoryOpTemplateState,
+    pub(crate) search: MemoryOpTemplateState,
+    pub(crate) query: MemoryOpTemplateState,
+}
+
+/// Build a [`MemoryTemplateConfig`] from a merged Ito config value.
+///
+/// Returns the all-`false` default when the merged config either has no
+/// `memory` section or fails to deserialize as [`ItoConfig`]. The latter is
+/// rare (the strict `ito validate` command would surface it first), so we
+/// degrade silently here and let the template render the not-configured
+/// branch rather than failing instruction generation.
+pub(crate) fn memory_template_config_from_merged(
+    merged: &serde_json::Value,
+) -> MemoryTemplateConfig {
+    let typed: ItoConfig = serde::Deserialize::deserialize(merged).unwrap_or_default();
+    let memory: Option<MemoryConfig> = typed.memory;
+    let configured = |op: &Option<MemoryOpConfig>| op.is_some();
+    match memory {
+        Some(m) => MemoryTemplateConfig {
+            capture: MemoryOpTemplateState {
+                configured: configured(&m.capture),
+            },
+            search: MemoryOpTemplateState {
+                configured: configured(&m.search),
+            },
+            query: MemoryOpTemplateState {
+                configured: configured(&m.query),
+            },
+        },
+        None => MemoryTemplateConfig::default(),
+    }
+}
 
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;

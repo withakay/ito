@@ -677,6 +677,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         main_integration_mode: &'static str,
+        coordination_storage: &'static str,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -709,6 +710,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
             },
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
+                coordination_storage: "worktree",
             },
             memory: MemoryCtx {
                 capture: MemoryOpState { configured: true },
@@ -737,6 +739,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         main_integration_mode: &'static str,
+        coordination_storage: &'static str,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -769,6 +772,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
             },
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
+                coordination_storage: "worktree",
             },
             memory: MemoryCtx::default(),
             change: Some("000-01_test-change".to_string()),

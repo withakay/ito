@@ -3,7 +3,11 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::types::{ItoConfig, MemoryConfig, MemoryOpConfig, WorktreeInitConfig, WorktreeStrategy};
+use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
+
+use super::memory_instructions::{
+    MemoryTemplateConfig, memory_template_config_from_merged,
+};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
@@ -1123,38 +1127,7 @@ fn print_apply_instructions_text(
     print!("{out}");
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize)]
-struct MemoryOpTemplateState {
-    /// Whether this operation has a configured provider.
-    configured: bool,
-}
 
-#[derive(Debug, Clone, Default, serde::Serialize)]
-struct MemoryTemplateConfig {
-    capture: MemoryOpTemplateState,
-    search: MemoryOpTemplateState,
-    query: MemoryOpTemplateState,
-}
-
-fn memory_template_config_from_merged(merged: &serde_json::Value) -> MemoryTemplateConfig {
-    let typed: ItoConfig = serde::Deserialize::deserialize(merged).unwrap_or_default();
-    let memory: Option<MemoryConfig> = typed.memory;
-    let configured = |op: &Option<MemoryOpConfig>| op.is_some();
-    match memory {
-        Some(m) => MemoryTemplateConfig {
-            capture: MemoryOpTemplateState {
-                configured: configured(&m.capture),
-            },
-            search: MemoryOpTemplateState {
-                configured: configured(&m.search),
-            },
-            query: MemoryOpTemplateState {
-                configured: configured(&m.query),
-            },
-        },
-        None => MemoryTemplateConfig::default(),
-    }
-}
 
 fn collect_missing_dependencies(
     instructions: &core_templates::InstructionsResponse,
