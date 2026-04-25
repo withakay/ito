@@ -94,8 +94,8 @@ ______________________________________________________________________
 - **Verify**: Snapshot tests for all four combinations of {capture configured | not} × {already archived | not}. Assertion that the archive step is mentioned at most once per finish output.
 - **Done When**: Snapshot suite green; dedupe assertion passes.
 - **Requirements**: `agent-instructions:finish-wrap-up-reminder`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
