@@ -21,7 +21,7 @@ ______________________________________________________________________
 - **Done When**: The skill exists in shared template assets and is picked up by skill distribution tests.
 - **Requirements**: `agent-memory-abstraction:installed-ito-memory-skill`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Make memory artifacts visible in CLI help
 
