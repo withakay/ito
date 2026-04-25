@@ -15,3 +15,4 @@ Add an optional Git worktree-based workspace layout so Ito can isolate changes i
 - [x] 012-03_worktree-aware-agents-md
 - [x] 012-04_config-driven-worktree-guidance
 - [x] 012-05_worktree-lifecycle-and-init
+- [ ] 012-06_enforce-worktree-change-guidance
