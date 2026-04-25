@@ -1,63 +1,43 @@
-# Ito Config Crate Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: CoordinationStorage enum
 
-Define the `ito-config-crate` capability: configuration discovery, resolution, and merging.
+The `ito-config` crate SHALL provide a `CoordinationStorage` enum with variants `Worktree` and `Embedded`, serialized as `"worktree"` and `"embedded"` respectively.
 
-## Requirements
+- **Requirement ID**: ito-config-crate:coordination-storage-enum
 
-### Requirement: ito-config crate exists as configuration layer
+#### Scenario: Worktree variant serializes correctly
 
-The `ito-config` crate SHALL exist and depend only on `ito-common` (no other `ito-*` dependencies). It SHALL provide configuration loading, resolution, and context management.
+- **WHEN** `CoordinationStorage::Worktree` is serialized to JSON
+- **THEN** the output is `"worktree"`
 
-#### Scenario: Crate depends only on ito-common
-- **WHEN** examining `ito-config/Cargo.toml`
-- **THEN** the only `ito-*` dependency is `ito-common`
+#### Scenario: Embedded variant serializes correctly
 
-### Requirement: ItoContext struct
+- **WHEN** `CoordinationStorage::Embedded` is serialized to JSON
+- **THEN** the output is `"embedded"`
 
-The crate SHALL provide a `ItoContext` struct that holds resolved configuration state including config directory, project root, ito path, and merged configuration values.
+#### Scenario: Default is Worktree
 
-#### Scenario: Create context from project root
-- **WHEN** calling `ItoContext::resolve(fs, project_root)`
-- **THEN** returns context with resolved paths and merged configuration
+- **WHEN** no storage field is present in config
+- **THEN** the deserialized value is `CoordinationStorage::Worktree`
 
-#### Scenario: Context includes all resolved paths
-- **WHEN** examining a resolved `ItoContext`
-- **THEN** it contains `config_dir`, `project_root`, `ito_path`, and `config` fields
+### Requirement: Coordination branch config gains storage fields
 
-### Requirement: Cascading configuration loading
+`CoordinationBranchConfig` SHALL include a `storage` field of type `CoordinationStorage` and an optional `worktree_path` field for explicit path override.
 
-The crate SHALL load configuration from multiple sources (global, project, ito-dir) and merge them with appropriate precedence (ito-dir > project > global).
+- **Requirement ID**: ito-config-crate:coordination-branch-storage-fields
 
-#### Scenario: Merge global and project config
-- **WHEN** global config has `key=1` and project config has `key=2`
-- **THEN** resolved config has `key=2` (project wins)
+#### Scenario: Storage field defaults to Worktree
 
-#### Scenario: Ito-dir config has highest precedence
-- **WHEN** global has `key=1`, project has `key=2`, ito-dir has `key=3`
-- **THEN** resolved config has `key=3` (ito-dir wins)
+- **WHEN** config JSON has `changes.coordination_branch` without a `storage` key
+- **THEN** `storage` resolves to `CoordinationStorage::Worktree`
 
-### Requirement: Ito directory resolution
+#### Scenario: Explicit worktree_path overrides XDG resolution
 
-The crate SHALL provide functions to resolve the ito directory name (`.ito` by default, configurable) and locate ito directories from a given path.
+- **WHEN** config JSON has `changes.coordination_branch.worktree_path` set to `/custom/path`
+- **THEN** `worktree_path` resolves to `Some("/custom/path")`
 
-#### Scenario: Default ito directory name
-- **WHEN** no configuration overrides the ito directory name
-- **THEN** the ito directory name is `.ito`
+#### Scenario: Missing worktree_path defaults to None
 
-#### Scenario: Find ito directory from nested path
-- **WHEN** calling `find_ito_dir` from `/project/src/deep/nested`
-- **THEN** returns `/project/.ito` if it exists
-
-### Requirement: UI options resolution
-
-The crate SHALL provide functions to resolve UI options (no_color, interactive mode) from environment and configuration.
-
-#### Scenario: Respect NO_COLOR environment variable
-- **WHEN** `NO_COLOR` environment variable is set
-- **THEN** `UiOptions::no_color()` returns true
-
-#### Scenario: Detect interactive mode
-- **WHEN** stdout is a TTY
-- **THEN** `UiOptions::interactive()` returns true
+- **WHEN** config JSON has no `worktree_path` key
+- **THEN** `worktree_path` resolves to `None`

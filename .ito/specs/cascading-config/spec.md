@@ -1,57 +1,30 @@
-# Cascading Config Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: XDG data path resolution for coordination worktree
 
-Define the `cascading-config` capability, including required behavior and validation scenarios, so it remains stable and testable.
+The configuration system SHALL resolve the central worktree storage path using XDG conventions when no explicit `worktree_path` is configured.
 
+- **Requirement ID**: cascading-config:xdg-worktree-path
 
-## Requirements
+#### Scenario: XDG_DATA_HOME is set
 
-### Requirement: Cascading project config sources
+- **WHEN** `$XDG_DATA_HOME` is set to `/custom/data`
+- **AND** the project is `withakay/ito`
+- **THEN** the resolved worktree path is `/custom/data/ito/withakay/ito/`
 
-The system SHALL load project configuration by cascading multiple config files, merging them in precedence order.
+#### Scenario: XDG_DATA_HOME is not set
 
-Precedence order (lowest to highest):
+- **WHEN** `$XDG_DATA_HOME` is not set
+- **AND** the project is `withakay/ito`
+- **THEN** the resolved worktree path is `~/.local/share/ito/withakay/ito/`
 
-1. `<repo-root>/ito.json`
-1. `<repo-root>/.ito.json`
-1. `<itoDir>/config.json`
-1. `<itoDir>/config.local.json`
-1. `<repo-root>/.local/ito/config.json`
-1. If `PROJECT_DIR` is set: `$PROJECT_DIR/config.json`
+#### Scenario: Org and repo derived from git remote
 
-#### Scenario: Later config overrides earlier
+- **WHEN** no `backend.project.org` or `backend.project.repo` is configured
+- **AND** the git remote `origin` URL is `git@github.com:withakay/ito.git`
+- **THEN** `<org>` resolves to `withakay` and `<repo>` resolves to `ito`
 
-- **WHEN** a key is present in multiple config sources
-- **THEN** the value from the highest-precedence source is used
+#### Scenario: Org and repo from backend config take precedence
 
-#### Scenario: Per-developer overlay overrides committed project config
-
-- **GIVEN** a key is present in `<itoDir>/config.json`
-- **AND** the same key is present in `<itoDir>/config.local.json`
-- **WHEN** configuration is resolved
-- **THEN** the value from `<itoDir>/config.local.json` is used
-
-### Requirement: Merge semantics
-
-The system SHALL deep-merge JSON objects when combining sources.
-
-#### Scenario: Objects merge recursively
-
-- **WHEN** two sources contain objects at the same key
-- **THEN** their child keys are merged recursively
-
-#### Scenario: Arrays are replaced
-
-- **WHEN** two sources contain arrays at the same key
-- **THEN** the higher-precedence array replaces the lower-precedence array
-
-### Requirement: Invalid JSON does not break commands
-
-The system MUST treat invalid JSON in optional config sources as non-fatal.
-
-#### Scenario: Invalid project config is ignored
-
-- **WHEN** a config file exists but contains invalid JSON
-- **THEN** the system ignores that file for config merging
-- **AND** continues using other sources and defaults
+- **WHEN** `backend.project.org` is `myorg` and `backend.project.repo` is `myrepo`
+- **THEN** the resolved worktree path uses `myorg/myrepo` regardless of git remote
