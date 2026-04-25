@@ -37,4 +37,4 @@ Define repository-backed persistence for Ito so clients can resolve active work 
 - [x] 025-06_improve-agent-backend-workflows
 - [x] 025-07_add-local-sqlite-repository-mode
 - [x] 025-08_coordination-worktree-storage
-- [ ] 025-09_add-worktree-sync-command
+- [x] 025-09_add-worktree-sync-command

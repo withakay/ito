@@ -1,79 +1,41 @@
-# Spec: cli-config
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: Configure coordination sync interval
 
-Define the `cli-config` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Configure worktree workspace defaults).
+The config command SHALL allow setting and retrieving `changes.coordination_branch.sync_interval_seconds` as the coordination-worktree sync interval in seconds.
 
-## Requirements
+- **Requirement ID**: `cli-config:coordination-sync-interval`
 
-### Requirement: Configure worktree workspace defaults
+#### Scenario: Set the coordination sync interval
 
-The config command SHALL allow setting and retrieving nested configuration keys related to worktree workspace behavior.
+- **WHEN** the user executes `ito config set changes.coordination_branch.sync_interval_seconds 300`
+- **THEN** Ito stores `300` as the coordination sync interval
 
-Supported keys SHALL include:
+#### Scenario: Reject invalid sync interval values
 
-- `worktrees.enabled`
-- `worktrees.strategy`
-- `worktrees.layout.base_dir`
-- `worktrees.layout.dir_name`
-- `worktrees.apply.enabled`
-- `worktrees.apply.integration_mode`
-- `worktrees.apply.copy_from_main`
-- `worktrees.apply.setup_commands`
-- `worktrees.default_branch`
+- **WHEN** the user executes `ito config set changes.coordination_branch.sync_interval_seconds 0`
+- **THEN** the command fails with a validation error because the sync interval must be a positive integer number of seconds
 
-#### Scenario: Set default branch for worktrees
+### Requirement: Configure archive main integration mode
 
-- **WHEN** the user executes `ito config set worktrees.default_branch <value>`
-- **THEN** Ito stores the value in global configuration
+The config command SHALL allow setting and retrieving `changes.archive.main_integration_mode` as the default policy for integrating archived changes into `main`.
 
-#### Scenario: Set local file copy patterns
+- **Requirement ID**: `cli-config:archive-main-integration-mode`
 
-- **WHEN** the user executes `ito config set worktrees.apply.copy_from_main <json-array>`
-- **THEN** Ito stores the list in global configuration
-- **AND** the list is used when generating worktree-aware apply instructions
+#### Scenario: Set archive integration mode to direct merge
 
-#### Scenario: Set integration mode
+- **WHEN** the user executes `ito config set changes.archive.main_integration_mode direct_merge`
+- **THEN** Ito stores `direct_merge` as the archive integration mode
 
-- **WHEN** the user executes `ito config set worktrees.apply.integration_mode <value>`
-- **THEN** Ito stores the value in global configuration
-- **AND** `<value>` MUST be either `commit_pr` or `merge_parent`
+#### Scenario: Set archive integration mode to pull request auto merge
 
-#### Scenario: Set setup command list
+- **WHEN** the user executes `ito config set changes.archive.main_integration_mode pull_request_auto_merge`
+- **THEN** Ito stores `pull_request_auto_merge` as the archive integration mode
 
-- **WHEN** the user executes `ito config set worktrees.apply.setup_commands <json-array>`
-- **THEN** Ito stores the ordered command list in global configuration
+#### Scenario: Reject unsupported archive integration modes
 
-#### Scenario: Set worktree enablement
-
-- **WHEN** the user executes `ito config set worktrees.enabled <boolean>`
-- **THEN** Ito stores the boolean in global configuration
-- **AND** when set to `false`, worktree-specific behavior is disabled across all commands
-
-#### Scenario: Set apply enablement
-
-- **WHEN** the user executes `ito config set worktrees.apply.enabled <boolean>`
-- **THEN** Ito stores the boolean in global configuration
-
-#### Scenario: Set layout strategy
-
-- **WHEN** the user executes `ito config set worktrees.strategy <value>`
-- **THEN** Ito stores the value in global configuration
-- **AND** `<value>` MUST be one of `bare_control_siblings`, `checkout_subdir`, or `checkout_siblings`
-
-#### Scenario: Reject unsupported strategy values
-
-- **WHEN** the user executes `ito config set worktrees.strategy <value>`
-- **AND** `<value>` is not one of the supported strategies
+- **WHEN** the user executes `ito config set changes.archive.main_integration_mode <value>`
+- **AND** `<value>` is not one of `direct_merge`, `pull_request`, `pull_request_auto_merge`, or `coordination_only`
 - **THEN** the command fails with a validation error
-
-#### Scenario: Set layout base directory
-
-- **WHEN** the user executes `ito config set worktrees.layout.base_dir <value>`
-- **THEN** Ito stores the value in global configuration
-
-#### Scenario: Set worktree directory name
-
-- **WHEN** the user executes `ito config set worktrees.layout.dir_name <value>`
-- **THEN** Ito stores the value in global configuration
-- **AND** the value is used in place of the default `ito-worktrees` when resolving worktree directory paths
+<!-- ITO:END -->

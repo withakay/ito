@@ -1,75 +1,37 @@
-# Config Defaults Specification
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: Coordination sync interval default
 
-Define the `config-defaults` capability: a single source of truth for Ito configuration defaults.
+The system SHALL provide a default `changes.coordination_branch.sync_interval_seconds` value of `120` when no explicit coordination sync interval is configured.
 
-## Requirements
+- **Requirement ID**: `config-defaults:coordination-sync-interval-default`
 
-### Requirement: Centralized configuration defaults
+#### Scenario: Default sync interval is applied
 
-The system SHALL provide a single source of truth for all Ito configuration defaults.
+- **WHEN** Ito loads project configuration for `ito sync`
+- **AND** `changes.coordination_branch.sync_interval_seconds` is not set
+- **THEN** the effective coordination sync interval is `120` seconds
 
-#### Scenario: Defaults defined in Rust code
+#### Scenario: Default sync interval is exported in schema output
 
-- **WHEN** building the ito binary
-- **THEN** all default configuration values are defined in `ito-core/src/config/defaults.rs`
-- **AND** defaults are organized by section (harnesses, cache, agents, etc.)
-- **AND** defaults are type-safe and documented
+- **WHEN** Ito generates the JSON schema for configuration
+- **THEN** the schema includes the default value `120` for `changes.coordination_branch.sync_interval_seconds`
 
-#### Scenario: Defaults used when config missing
+### Requirement: Archive main integration mode default
 
-- **WHEN** loading configuration with missing keys
-- **THEN** the system uses centralized defaults for missing values
-- **AND** partial configs merge with defaults (user values override defaults)
+The system SHALL provide a default `changes.archive.main_integration_mode` value of `pull_request` when no explicit archive integration mode is configured.
 
-#### Scenario: Defaults exported for schema generation
+- **Requirement ID**: `config-defaults:archive-main-integration-mode-default`
 
-- **WHEN** generating the JSON schema
-- **THEN** default values are included in the schema
-- **AND** schema consumers can see what defaults apply
+#### Scenario: Default archive integration mode is applied
 
-### Requirement: Agent model defaults
+- **WHEN** Ito loads project configuration for worktree-mode archive guidance
+- **AND** `changes.archive.main_integration_mode` is not set
+- **THEN** the effective archive integration mode is `pull_request`
 
-The system SHALL provide default agent model configurations for each harness.
+#### Scenario: Default archive integration mode is exported in schema output
 
-#### Scenario: OpenCode agent defaults
-
-- **WHEN** no user configuration exists for OpenCode agents
-- **THEN** use these defaults:
-  - `ito-quick`: `anthropic/claude-haiku-4-5`, temperature: 0.3
-  - `ito-general`: `openai/gpt-5.2-codex`, variant: "high", temperature: 0.3
-  - `ito-thinking`: `openai/gpt-5.2-codex`, variant: "xhigh", temperature: 0.5
-
-#### Scenario: Claude Code agent defaults
-
-- **WHEN** no user configuration exists for Claude Code agents
-- **THEN** use these defaults:
-  - `ito-quick`: `haiku`
-  - `ito-general`: `sonnet`
-  - `ito-thinking`: `opus`
-
-#### Scenario: Codex agent defaults
-
-- **WHEN** no user configuration exists for Codex agents
-- **THEN** use these defaults:
-  - `ito-quick`: `openai/gpt-5.1-codex-mini`
-  - `ito-general`: `openai/gpt-5.2-codex`, reasoningEffort: "high"
-  - `ito-thinking`: `openai/gpt-5.2-codex`, reasoningEffort: "xhigh"
-
-#### Scenario: GitHub Copilot agent defaults
-
-- **WHEN** no user configuration exists for GitHub Copilot agents
-- **THEN** use these defaults:
-  - `ito-quick`: `github-copilot/claude-haiku-4.5`
-  - `ito-general`: `github-copilot/gpt-5.2-codex`
-  - `ito-thinking`: `github-copilot/gpt-5.2-codex`
-
-### Requirement: Cache defaults
-
-The system SHALL provide default cache configuration.
-
-#### Scenario: Cache TTL default
-
-- **WHEN** no user configuration exists for cache
-- **THEN** use default `ttl_hours`: 24
+- **WHEN** Ito generates the JSON schema for configuration
+- **THEN** the schema includes the default value `pull_request` for `changes.archive.main_integration_mode`
+<!-- ITO:END -->
