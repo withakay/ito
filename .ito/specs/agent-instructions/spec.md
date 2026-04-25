@@ -1,21 +1,79 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Orchestrate artifact type supported by agent instruction command
+### Requirement: Apply instruction includes memory-capture reminder when capture is configured
 
-The CLI SHALL support `ito agent instruction orchestrate` as a valid artifact type, rendering the orchestrator instruction document and printing it to stdout. When `orchestrate.md` is absent, the command SHALL emit setup guidance and exit with a non-zero status.
+The agent instruction artifact for `apply` SHALL include a trailing
+"Capture memories" reminder section when Ito's `memory.capture` operation
+is configured (either as a `skill` or a `command`). The reminder SHALL
+instruct the agent to (a) review what was learned during the session,
+(b) identify items worth persisting (decisions, gotchas, non-obvious
+patterns, architecture rationale), and (c) invoke
+`ito agent instruction memory-capture` with appropriate `--context`,
+`--file`, and/or `--folder` inputs.
 
-- **Requirement ID**: agent-instructions:orchestrate-artifact
+- **Requirement ID**: `agent-instructions:apply-memory-capture-reminder`
 
-#### Scenario: Orchestrate instruction rendered successfully
+#### Scenario: Capture configured — reminder present
 
-- **WHEN** an agent runs `ito agent instruction orchestrate` and `.ito/user-prompts/orchestrate.md` exists
-- **THEN** the system renders `orchestrate.md.j2` and prints the full orchestrator instruction document to stdout
-- **AND** exits with status code 0
+- **WHEN** `ito agent instruction apply --change <id>` is rendered and `memory.capture.configured` is `true`
+- **THEN** the output contains a terminal section headed `Capture memories` (or equivalent)
+- **AND** that section references `ito agent instruction memory-capture`
+- **AND** the section mentions the three input flags (`--context`, `--file`, `--folder`)
 
-#### Scenario: Missing orchestrate.md exits with setup guidance
+#### Scenario: Capture not configured — reminder absent
 
-- **WHEN** an agent runs `ito agent instruction orchestrate` and `.ito/user-prompts/orchestrate.md` does not exist
-- **THEN** the system prints a message directing the agent to load the `ito-orchestrate-setup` skill
-- **AND** exits with a non-zero status code without printing any instruction document
+- **WHEN** `ito agent instruction apply --change <id>` is rendered and `memory.capture.configured` is `false`
+- **THEN** the output does not contain a `Capture memories` section
+- **AND** no reference to `memory-capture`, `memory-search`, or `memory-query` is included
+
+#### Scenario: Only search/query configured — apply reminder still absent
+
+- **WHEN** `memory.search` and/or `memory.query` are configured but `memory.capture` is not
+- **THEN** the rendered apply output does not contain a `Capture memories` section (the reminder is keyed on `memory.capture` specifically, not any memory configuration)
+
+### Requirement: Finish instruction includes memory-capture and wrap-up reminders
+
+The agent instruction artifact for `finish` SHALL include:
+
+1. The same memory-capture reminder as the apply artifact (rendered only
+   when `memory.capture` is configured).
+2. A "Refresh archive and specs" reminder that tells the agent to:
+   - Confirm the change has been archived (or run `ito archive <id> --yes`).
+   - Confirm canonical specs under `.ito/specs/` reflect the delivered
+     change (deltas merged).
+   - Confirm agent-facing docs (e.g. `AGENTS.md`, `.ito/AGENTS.md`) are
+     up to date with the new capability.
+
+- **Requirement ID**: `agent-instructions:finish-wrap-up-reminder`
+
+#### Scenario: Capture configured and not yet archived
+
+- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `true`, and the change is not yet archived
+- **THEN** the output contains a `Capture memories` section referencing `ito agent instruction memory-capture`
+- **AND** the output contains a `Refresh archive and specs` section
+- **AND** that wrap-up section lists the specs and docs checks
+- **AND** that wrap-up section does not repeat the archive confirmation step covered by the existing archive prompt
+
+#### Scenario: Capture not configured and not yet archived
+
+- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `false`, and the change is not yet archived
+- **THEN** the output does not contain a `Capture memories` section
+- **AND** the output contains a `Refresh archive and specs` section
+- **AND** that wrap-up section lists the specs and docs checks
+- **AND** that wrap-up section does not repeat the archive confirmation step covered by the existing archive prompt
+
+#### Scenario: Capture configured and already archived
+
+- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `true`, and the change is already archived
+- **THEN** the output contains a `Capture memories` section referencing `ito agent instruction memory-capture`
+- **AND** the output contains a `Refresh archive and specs` section
+- **AND** that wrap-up section lists the archive confirmation, specs, and docs checks
+
+#### Scenario: Capture not configured and already archived
+
+- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `false`, and the change is already archived
+- **THEN** the output does not contain a `Capture memories` section
+- **AND** the output contains a `Refresh archive and specs` section
+- **AND** that wrap-up section lists the archive confirmation, specs, and docs checks
 <!-- ITO:END -->
