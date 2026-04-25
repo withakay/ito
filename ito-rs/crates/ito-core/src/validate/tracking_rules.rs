@@ -49,9 +49,16 @@ fn validate_task_quality_rule(
 ) -> CoreResult<Vec<ValidationIssue>> {
     use ito_domain::tasks::parse_tasks_tracking_file;
 
-    let contents = match ito_common::io::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(_) => return Ok(Vec::new()),
+    let contents = ito_common::io::read_to_string(path);
+    let Ok(contents) = contents else {
+        let error = contents.expect_err("read_to_string should fail when contents are unavailable");
+        return Ok(vec![rule_issue(
+            ValidatorId::TasksTrackingV1,
+            "task_quality",
+            LEVEL_ERROR,
+            report_path,
+            format!("Failed to read {report_path}: {error}"),
+        )]);
     };
     let parsed = parse_tasks_tracking_file(&contents);
     let show = parse_change_show_json(
