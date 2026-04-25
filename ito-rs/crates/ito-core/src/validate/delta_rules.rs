@@ -17,16 +17,17 @@ const MAX_SCENARIO_STEPS: usize = 8;
 const CONTRACT_REF_SCHEMES: &[&str] = &["asyncapi", "cli", "config", "jsonschema", "openapi"];
 
 static UI_MECHANICS_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
-    [
+    let mut patterns = Vec::new();
+    for pattern in [
         r"(?i)\bclick\s+(?:on\s+|the\s+)?\w+",
         r"(?i)\bwait\s+\d+\s*(?:ms|millisecond|second|s)\b",
         r"(?i)\bsleep\s+\d+\b",
         r"(?i)\bselector\s*[:=]",
         r"(?i)\bcss\s+selector\b",
-    ]
-    .into_iter()
-    .map(|pattern| Regex::new(pattern).expect("valid UI mechanics regex"))
-    .collect()
+    ] {
+        patterns.push(Regex::new(pattern).expect("valid UI mechanics regex"));
+    }
+    patterns
 });
 
 static INLINE_CODE_TOKEN_RE: LazyLock<Regex> =
@@ -223,26 +224,27 @@ struct ScenarioStep {
 }
 
 fn extract_scenario_steps(raw_text: &str) -> Vec<ScenarioStep> {
-    raw_text
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            let upper = line.to_ascii_uppercase();
-            if upper.starts_with("- **GIVEN**") {
-                return Some(ScenarioStep { keyword: "GIVEN" });
-            }
-            if upper.starts_with("- **WHEN**") {
-                return Some(ScenarioStep { keyword: "WHEN" });
-            }
-            if upper.starts_with("- **THEN**") {
-                return Some(ScenarioStep { keyword: "THEN" });
-            }
-            if upper.starts_with("- **AND**") {
-                return Some(ScenarioStep { keyword: "AND" });
-            }
-            None
-        })
-        .collect()
+    let mut steps = Vec::new();
+    for line in raw_text.lines() {
+        let line = line.trim_start();
+        let upper = line.to_ascii_uppercase();
+        if upper.starts_with("- **GIVEN**") {
+            steps.push(ScenarioStep { keyword: "GIVEN" });
+            continue;
+        }
+        if upper.starts_with("- **WHEN**") {
+            steps.push(ScenarioStep { keyword: "WHEN" });
+            continue;
+        }
+        if upper.starts_with("- **THEN**") {
+            steps.push(ScenarioStep { keyword: "THEN" });
+            continue;
+        }
+        if upper.starts_with("- **AND**") {
+            steps.push(ScenarioStep { keyword: "AND" });
+        }
+    }
+    steps
 }
 
 fn validate_contract_refs_rule(
@@ -361,11 +363,15 @@ fn parse_public_contract_schemes(markdown: &str) -> Vec<String> {
         else {
             continue;
         };
-        return rest
-            .split(',')
-            .map(|value| value.trim().to_ascii_lowercase())
-            .filter(|value| !value.is_empty())
-            .collect();
+        let mut schemes = Vec::new();
+        for value in rest.split(',') {
+            let value = value.trim().to_ascii_lowercase();
+            if value.is_empty() {
+                continue;
+            }
+            schemes.push(value);
+        }
+        return schemes;
     }
 
     Vec::new()
@@ -383,12 +389,16 @@ fn validate_capabilities_consistency_rule(
 
     let parsed = parse_proposal_capabilities(&proposal);
     let delta_specs = read_change_delta_spec_files(change_repo, change_id)?;
-    let delta_names: BTreeSet<String> = delta_specs.into_iter().map(|spec| spec.spec).collect();
-    let baseline_names: BTreeSet<String> =
-        ito_domain::discovery::list_spec_dir_names(&StdFs, ito_path)
-            .into_core()?
-            .into_iter()
-            .collect();
+    let mut delta_names: BTreeSet<String> = BTreeSet::new();
+    for spec in delta_specs {
+        delta_names.insert(spec.spec);
+    }
+    let baseline_names_raw =
+        ito_domain::discovery::list_spec_dir_names(&StdFs, ito_path).into_core()?;
+    let mut baseline_names: BTreeSet<String> = BTreeSet::new();
+    for baseline_name in baseline_names_raw {
+        baseline_names.insert(baseline_name);
+    }
 
     let mut issues = Vec::new();
     for warning_message in parsed.warnings {
@@ -451,12 +461,13 @@ fn validate_capabilities_consistency_rule(
         }
     }
 
-    let declared: BTreeSet<String> = parsed
-        .new_capabilities
-        .iter()
-        .chain(parsed.modified_capabilities.iter())
-        .cloned()
-        .collect();
+    let mut declared: BTreeSet<String> = BTreeSet::new();
+    for capability in &parsed.new_capabilities {
+        declared.insert(capability.clone());
+    }
+    for capability in &parsed.modified_capabilities {
+        declared.insert(capability.clone());
+    }
     for capability in delta_names {
         if declared.contains(&capability) {
             continue;

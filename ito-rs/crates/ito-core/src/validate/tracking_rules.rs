@@ -65,18 +65,25 @@ fn validate_task_quality_rule(
         change_id,
         &read_change_delta_spec_files(change_repo, change_id)?,
     );
-    let known_requirement_ids: BTreeSet<String> = show
-        .deltas
-        .iter()
-        .flat_map(|delta| delta.requirements.iter())
-        .filter_map(|requirement| requirement.requirement_id.clone())
-        .collect();
-    let missing_status_tasks: BTreeSet<String> = parsed
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.message.contains("Invalid or missing status"))
-        .filter_map(|diagnostic| diagnostic.task_id.clone())
-        .collect();
+    let mut known_requirement_ids: BTreeSet<String> = BTreeSet::new();
+    for delta in &show.deltas {
+        for requirement in &delta.requirements {
+            let Some(requirement_id) = requirement.requirement_id.clone() else {
+                continue;
+            };
+            known_requirement_ids.insert(requirement_id);
+        }
+    }
+    let mut missing_status_tasks: BTreeSet<String> = BTreeSet::new();
+    for diagnostic in &parsed.diagnostics {
+        if !diagnostic.message.contains("Invalid or missing status") {
+            continue;
+        }
+        let Some(task_id) = diagnostic.task_id.clone() else {
+            continue;
+        };
+        missing_status_tasks.insert(task_id);
+    }
 
     let mut issues = Vec::new();
     for task in parsed.tasks {

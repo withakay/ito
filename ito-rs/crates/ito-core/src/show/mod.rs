@@ -313,14 +313,13 @@ pub fn read_change_delta_spec_files(
     change_id: &str,
 ) -> CoreResult<Vec<DeltaSpecFile>> {
     let change = repo.get(change_id).into_core()?;
-    let mut out: Vec<DeltaSpecFile> = change
-        .specs
-        .into_iter()
-        .map(|spec| DeltaSpecFile {
+    let mut out: Vec<DeltaSpecFile> = Vec::new();
+    for spec in change.specs {
+        out.push(DeltaSpecFile {
             spec: spec.name,
             markdown: spec.content,
-        })
-        .collect();
+        });
+    }
     out.sort_by(|a, b| a.spec.cmp(&b.spec));
     Ok(out)
 }
@@ -372,7 +371,10 @@ fn parse_delta_spec_file(file: &DeltaSpecFile) -> Vec<ChangeDelta> {
     let mut current_op: Option<String> = None;
     let mut i = 0usize;
     let normalized = file.markdown.replace('\r', "");
-    let lines: Vec<&str> = normalized.split('\n').collect();
+    let mut lines: Vec<&str> = Vec::new();
+    for line in normalized.split('\n') {
+        lines.push(line);
+    }
     while i < lines.len() {
         let line = lines[i].trim_end();
         if let Some(op) = parse_delta_op_header(line) {
@@ -431,7 +433,10 @@ fn parse_spec_requirements(markdown: &str) -> Vec<Requirement> {
 fn parse_requirements_from_lines(lines: &[String]) -> Vec<Requirement> {
     let mut out: Vec<Requirement> = Vec::new();
     let mut i = 0usize;
-    let raw: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
+    let mut raw: Vec<&str> = Vec::new();
+    for line in lines {
+        raw.push(line.as_str());
+    }
     while i < raw.len() {
         let line = raw[i].trim_end();
         if line.starts_with("### Requirement:") {
@@ -524,11 +529,15 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
             .map(str::trim)
         {
             if !rest.is_empty() && tags.is_empty() {
-                tags = rest
-                    .split(',')
-                    .map(|tag| tag.trim().to_ascii_lowercase())
-                    .filter(|tag| !tag.is_empty())
-                    .collect();
+                let mut parsed_tags = Vec::new();
+                for tag in rest.split(',') {
+                    let tag = tag.trim().to_ascii_lowercase();
+                    if tag.is_empty() {
+                        continue;
+                    }
+                    parsed_tags.push(tag);
+                }
+                tags = parsed_tags;
             }
             i += 1;
             continue;
@@ -654,28 +663,30 @@ fn collapse_whitespace(input: &str) -> String {
 fn parse_contract_refs(input: &str) -> Vec<ContractRef> {
     // Split only on comma-space so query strings like `?ids=1,2` survive intact.
     // This pragmatic parser does not treat bare commas as separators.
-    input
-        .split(", ")
-        .map(str::trim)
-        .filter(|entry| !entry.is_empty())
-        .map(|entry| {
-            let Some((scheme, identifier)) = entry.split_once(':') else {
-                return ContractRef {
-                    raw: entry.to_string(),
-                    scheme: None,
-                    identifier: None,
-                };
-            };
-
-            let scheme = scheme.trim();
-            let identifier = identifier.trim();
-            ContractRef {
+    let mut refs = Vec::new();
+    for entry in input.split(", ") {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        let Some((scheme, identifier)) = entry.split_once(':') else {
+            refs.push(ContractRef {
                 raw: entry.to_string(),
-                scheme: (!scheme.is_empty()).then(|| scheme.to_ascii_lowercase()),
-                identifier: (!identifier.is_empty()).then(|| identifier.to_string()),
-            }
-        })
-        .collect()
+                scheme: None,
+                identifier: None,
+            });
+            continue;
+        };
+
+        let scheme = scheme.trim();
+        let identifier = identifier.trim();
+        refs.push(ContractRef {
+            raw: entry.to_string(),
+            scheme: (!scheme.is_empty()).then(|| scheme.to_ascii_lowercase()),
+            identifier: (!identifier.is_empty()).then(|| identifier.to_string()),
+        });
+    }
+    refs
 }
 
 fn trim_trailing_blank_lines(lines: &[String]) -> Vec<String> {
