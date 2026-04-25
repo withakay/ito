@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: A managed-marker harness skill installed by the manifest installer is updated marker-scoped, while non-markdown manifest entries continue to be wholesale-written.
 - **Requirements**: cli-update:harness-manifest-marker-scoped
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
