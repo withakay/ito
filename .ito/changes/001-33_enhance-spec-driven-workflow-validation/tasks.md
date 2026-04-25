@@ -122,7 +122,7 @@ ______________________________________________________________________
 - **Done When**: Agent instruction artifacts mention the new template sections only when relevant facets are declared, and the schema-customization docs cover the rules extension.
 - **Requirements**: ito-schemas:spec-driven-change-shape, ito-schemas:behavioral-requirement-metadata, ito-schemas:validation-rules-extension, ito-schemas:opt-in-rules-default
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
