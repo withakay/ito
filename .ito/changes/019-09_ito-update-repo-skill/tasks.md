@@ -60,8 +60,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates prefix_rule` passes against the renamed tree and fails if a test fixture introduces an unprefixed asset.
 - **Done When**: Contributors cannot land an unprefixed Ito asset without updating the allow-list.
 - **Requirements**: ito-managed-asset-naming:templates-enforce
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 1.7: Retrofit managed blocks into every templated markdown file
 
