@@ -1,124 +1,200 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Memory config is optional and additive
+### Requirement: Memory config is optional and per-operation
 
-Ito config SHALL gain an optional top-level `memory` section describing the
-active memory provider. When the section is absent, Ito MUST treat memory
-as "not configured" and SHALL NOT error.
+Ito config SHALL gain an optional top-level `memory` section. When present
+it SHALL be an object keyed by operation name, with the keys `capture`,
+`search`, and `query`. Each operation entry is independently optional.
+When the whole `memory` section is absent, Ito MUST treat memory as "not
+configured" and SHALL NOT error.
 
-- **Requirement ID**: `agent-memory-abstraction:optional-config`
+- **Requirement ID**: `agent-memory-abstraction:optional-per-op-config`
 
 #### Scenario: Config without memory section loads successfully
 
 - **WHEN** an Ito config omits the `memory` section entirely
-- **THEN** `ito validate` succeeds
-- **AND** `memory.configured` exposed to instruction templates evaluates to `false`
-
-#### Scenario: Unknown memory provider value is rejected
-
-- **WHEN** an Ito config declares `memory.provider` with a value that is not `commands` or `skill`
-- **THEN** `ito validate --strict` fails with a message that lists the accepted values
-
-### Requirement: Memory provider shape — command-based
-
-When `memory.provider == "commands"`, the config SHALL provide a `store`
-and a `search` command template (string). The `store` template SHALL include
-`{text}` and the `search` template SHALL include `{query}`. These placeholders
-remain literal in emitted instructions so the agent can substitute input at
-execution time.
-
-- **Requirement ID**: `agent-memory-abstraction:commands-provider`
-
-#### Scenario: Valid commands provider passes validation
-
-- **WHEN** `memory` is `{ provider: "commands", store: "brv curate \"{text}\"", search: "brv search \"{query}\"" }`
 - **THEN** `ito validate --strict` succeeds
-- **AND** `ito agent instruction memory-capture` emits the configured command template with the literal `{text}` placeholder preserved for the agent to substitute
+- **AND** `memory.capture.configured`, `memory.search.configured`, and `memory.query.configured` - **AND** `memory.capturen templates) all evaluate to `false`
 
-#### Scenario: Missing placeholder rejected
+#### Scenario: Partial memory config is valid
 
-- **WHEN** `memory.store` is configured without a `{text}` placeholder
-- **THEN** `ito validate --strict` fails with an error naming the missing placeholder and the offending field
+- **WHEN** an Ito config declares `memory.capture` but omits `memory.search` and `memory.query`
+- **THEN** `ito validate --strict` succeeds
+- **AND** `memory.capture.configured` is `true` while `memory.search.configured` and `memory.query.configured` are `false`
 
-#### Scenario: Missing store/search rejected
+#### Scenario: Unknown operation key rejected
 
-- **WHEN** `memory.provider == "commands"` and either `store` or `search` is missing
+- **WHEN** an- **WHEnfig declares `memory.<unknown>` for a key that is not `capture`, `search`, or `query`
+- **THEN** `ito validate --strict` fails with a message listing the accepted operation keys
+
+### Requirement: Per-operation shape — skill or command
+
+For each operation entry present under `memory`, the entry SHALL take one
+of two shapes, chosen by a `kind` discriminator:
+
+- `{ "kind": "skill", "skill": "<skill-id>", "options": { … } }` — delegate
+  the operation to an installed skill. `options` is optional and is an
+  opaque JSON value passed through verbatim to the skill; Ito SHALL NOT
+  interpret its contents.
+- `{ "kind": "command", "command": "<template>" }` — render a shell
+  command line by substituting the operation's placeholders (see the
+  placeholder-semantics requirement below).
+
+Operations are configured independently: different operations MAY use
+different shapes in the same config.
+
+- **Requirement ID**: `agent-memory-abstraction:per-op-shape`
+
+#### Scenario: Mixed shapes across op#### Scenario: Mixed shapes acrmemory.capture` is `{ kind: "skill", skill: "ito-memory-markdown" }` and `memory.search` is `{ kind: "command", command: "rg "{query}" .ito/memories" }`
+- **THEN** `ito validate --strict` succeeds
+- **AND** `memory-capture` renders as a skill-delegation directive while `memory-search` renders as a command
+
+#### Scenario: Unknown kind rejected
+
+- **WHEN** an operation entry declares `kind` with a value that is not `skill` or `command`
+- **THEN** `ito validate --strict` fails with a message that lists the accepted kinds
+
+#### Scenario: Missing required field rejected
+
+- **WHEN** an operation entry declares `kind: "skill"` without a `skill` id, or `kind: "command"` without a `command` template
 - **THEN** `ito validate --strict` fails with a message identifying the missing field
 
-### Requirement: Memory provider shape — skill-based
+#### Scenario: Skill id must resolve
 
-When `memory.provider == "skill"`, the config SHALL reference an installed
-skill by id. Ito's memory instructions SHALL delegate memory operations to
-that skill rather than running a shell command.
+- **WHEN** `kind: "skill"` references an id that is not discoverable under `.agents/skills/`, `.claude/skills/`, or any other known skills directory
+- **THEN** `ito validate --strict` fails with a message naming the missing skill id and the directories it searched
 
-- **Requirement ID**: `agent-memory-abstraction:skill-provider`
+### Requirement: Operation input schemas are fixed per operation
 
-#### Scenario: Valid skill provider passes validation
+Each operation SHALL accept a fixed set of structured inputs from the
+calling agent. These inputs drive placeholder substitution (for `command`
+shape) and are passed through to the delegated skill (for `skill` shape).
+The schemas are fixed by Ito and are not provider-defined.
 
-- **WHEN** `memory` is `{ provider: "skill", skill: "byterover-explore" }` and a skill with that id is discoverable under `.agents/skills/` (or a harness-specific skills dir)
-- **THEN** `ito validate --strict` succeeds
-- **AND** `ito agent instruction memory-capture` emits guidance that tells the agent to invoke the named skill
+- `memory-capture` inputs: `context` (string, optional), `files`
+  (list of filesystem paths, optional, may repeat), `folders`
+  (list of filesystem paths, optional, may repeat).
+- `memory-search` inputs: `query` (string, required), `limit`
+  (positive integer, optional, default `10`), `scope` (string,
+  optional).
+- `memory-query` inputs: `query` (string, required).
 
-#### Scenario: Unknown skill id rejected
+- **Requirement ID**: `agent-memory-abstraction:operation-input-schemas`
 
-- **WHEN** `memory.provider == "skill"` and the referenced skill id is not discoverable in any known skills directory
-- **THEN** `ito validate --strict` fails with a message naming the missing skill id and listing searched paths
+#### Scenario: CLI accepts the documented flags per operation
 
-### Requirement: `ito agent instruction memory-capture` artifact
+- **WHEN** an agent invokes `ito agent instruction memory-capture --context "…" --file a.md --file b.md --folder docs/`
+- **THEN** the command exits 0
+- **AND** the `context`, `files=[a.md, b.md]`, and `folders=[docs/]` inputs reach the resolver
 
-The CLI SHALL support `ito agent instruction memory-capture` and emit
-instructions that tell an agent how to store a newly observed memory.
-The output MUST reflect the configured provider.
+#### Scenario: Required input missing is rejected
 
-- **Requirement ID**: `agent-memory-abstraction:memory-capture-artifact`
+- **WHEN** an agent invokes `ito agent instruction memory-search` without `--query`
+- **THEN** the command exits non-zero with a usage error naming the missing required input
 
-#### Scenario: Commands provider — renders store command
+### Requirement: Placeholder rendering for `command` shape
 
-- **WHEN** memory is configured with `provider: "commands"` and a valid `store` template
-- **THEN** `ito agent instruction memory-capture` prints the rendered command line (with the literal `{text}` placeholder preserved for the agent to substitute)
-- **AND** the output includes a one-line description of when to capture a memory (decisions, gotchas, patterns)
+When an operation is configured with `kind: "command"`, Ito SHALL render
+placeholders in the template at instruction-emission time using the
+caller-supplied inputs. The rendered output MUST be a shell command line
+that is executable as-is (no further substitution required by the agent).
 
-#### Scenario: Skill provider — renders skill invocation
+Rendering rules:
 
-- **WHEN** memory is configured with `provider: "skill"` and a valid `skill` id
-- **THEN** `ito agent instruction memory-capture` prints guidance that instructs the agent to invoke the named skill with the memory text as input
+- **Scalar string placeholder** (`{context}`, `{query}`, `{scope}`): the
+  value is substituted as a single shell-quoted token. Missing values
+  render as an empty string. Scalar-string placeholders are always
+  shell-quoted (e.g. `{query}` with value `foo bar` renders as `'foo bar'`).
+- **Scalar integer placeholder** (`{limit}`): the value is substituted as
+  a decimal integer literal. Missing values render as an empty string.
+- **List placeholder** (`{files}`, `{folders}`): the list is expanded as
+  repeated flags: `{files}` with values `a.md`, `b.md` renders as
+  `--file 'a.md' --file 'b.md'`. An empty list renders as an empty
+  string. The flag name is fixed by the placeholder (`{files}` uses
+  `--file`; `{folders}` uses `--folder`).
+- **Unknown placeholder** (e.g. `{foo}`): preserved literally in the
+  output. Ito SHALL NOT raise a validation error for unknown placeholders.
 
-#### Scenario: Not configured — renders setup guidance
+- **Requirement ID**: `agent-memory-abstraction:placeholder-rendering`
 
-- **WHEN** memory is not configured
-- **THEN** `ito agent instruction memory-capture` exits 0
-- **AND** the output states that memory is not configured and explains the two provider shapes (commands, skill) with a one-line example for each
+#### Scenario: List placeholder expands to repeated flags
 
-### Requirement: `ito agent instruction memory-search` artifact
+- **GIVEN** `memory.capture` is `{ kind: "command", command: "memory-tool capture {context} {files} {folders}" }`
+- **WHEN** an agent invokes `ito agent instruction memory-capture --context "decision X" --file a.md --file b.md --folder docs/`
+- **THEN** the emitted command line is `memory-tool capture 'decision X' --file 'a.md' --file 'b.md' --folder 'docs/'` (whitespace normalization aside)
 
-The CLI SHALL support `ito agent instruction memory-search` and emit
-instructions that tell an agent how to search stored memory for relevant
-context. The output MUST reflect the configured provider.
+#### Scenario: Missing optional scalar renders empty
 
-- **Requirement ID**: `agent-memory-abstraction:memory-search-artifact`
+- **GIVEN** `memory.search` is `{ kind: "command", command: "memory-tool search {query} --limit {limit} {scope}" }`
+- **WHEN** an agent invokes `ito agent instruction memory-search --query "coordination"`
+- **THEN** the emitted command line is `memory-tool search 'coordination' --limit 10` (no trailing scope token)
 
-#### Scenario: Commands provider — renders search command
+#### Scenario: Unknown placeholder passes through as literal
 
-- **WHEN** memory is configured with `provider: "commands"` and a valid `search` template
-- **THEN** `ito agent instruction memory-search` prints the rendered command line (with the literal `{query}` placeholder preserved for the agent to substitute)
+- **GIVEN** `memory.capture.command` contains the literal substring `{foo}`
+- **WHEN** `memory-capture` is rendered
+- **THEN** `{foo}` appears verbatim in the output
+- **AND** no validation error is raised
 
-#### Scenario: Skill provider — renders skill invocation
+#### Scenario: Shell metacharacters in inputs are quoted
 
-- **WHEN** memory is configured with `provider: "skill"` and a valid `skill` id
-- **THEN** `ito agent instruction memory-search` prints guidance that instructs the agent to invoke the named skill with the search query as input
+- **GIVEN** `memory.capture.command` uses `{context}`
+- **WHEN** the caller supplies a context containing spaces, quotes, or shell metacharacters
+- **THEN** the emitted command line includes the value as a single shell-quoted token
+- **AND** pasting the output into a POSIX shell preserves the original value byte-for-byte
 
-#### Scenario: Not configured — renders setup guidance
+### Requirement: Skill-shape inputs are passed as structured data
 
-- **WHEN** memory is not configured
-- **THEN** `ito agent instruction memory-search` exits 0
-- **AND** the output states that memory is not configured and explains how to configure it
+When an operation is configured with `kind: "skill"`, Ito's instruction
+artifact SHALL direct the agent to invoke the named skill with the
+operation's inputs as structured key/value pairs, not as a shell-rendered
+command line. Any `options` object from config SHALL be passed through
+verbatim alongside those inputs.
+
+- **Requirement ID**: `agent-memory-abstraction:skill-input-delegation`
+
+#### Scenario: Skill-shape output lists inputs by name
+
+- **GIVEN** `memory.capture` is `{ kind: "skill", skill: "ito-memory-markdown", options: { root: ".ito/memories" } }`
+- **WHEN** an agent invokes `ito agent instruction memory-capture --context "decision X" --file a.md`
+- **THEN** the emitt- **THEN** the emitt- **THEN** the emitt- **THEN** the emitt- **THEN** the emitt- **THEists the inputs as `context="decision X"`, `files=["a.md"]`, `folders=[]`
+- **AND** the output includes the `options` object verbatim
+
+### Requirement: Each memory-* instruction artifact has three render branches
+
+The CLI SHALL support `ito agent instruction memory-capture`,
+`ito agent instruction memory-search`, and `ito agent instruction
+memory-query`. Each artifact SHALL have three render branches keyed on
+the state of *its own operation entry*:
+
+- **Command branch** — the operation's `command` template is rendered
+  with substituted placeholders per the rendering rules.
+- **Skill branch** — the operation's skill invocation directive is
+  rendered with structured inputs and opaque `options`.
+- **Not-configured branch** — a short setup guide is printed that
+  describes both available shapes (`skill`, `command`), shows one
+  minimal example of each for this specific operation, and exits 0.
+
+- **Requirement ID**: `agent-memory-abstraction:three-branch-artifacts`
+
+#### Scenario: Capture not configured, search configured
+
+- **GIVEN** only `memory.search` is configured
+- **WHEN** an agent invokes `ito agent instruction memory-capture`
+- **THEN** the not-configured setup guidance for `capture` is printed
+- **AND** the exit code is 0
+
+#### Scenario: Command branch does not mention skills
+
+- **WHEN** an operation is configured with `kind: "command"` and the artifact is rendered
+- **THEN** the output contains the rendered command line
+- **AND** the output does not instruct the agent to invoke any skill
 
 ### Requirement: No default provider
 
 Ito SHALL NOT ship a default memory provider. A freshly-initialized Ito
-project with no memory config MUST behave identically to one with an
-explicit "memory absent" config.
+project with no memory config MUST behproject with no memory config MUST behprojemory: {}` empty config.
 
 - **Requirement ID**: `agent-memory-abstraction:no-default-provider`
 
@@ -126,19 +202,5 @@ explicit "memory absent" config.
 
 - **WHEN** `ito init` runs on a new project
 - **THEN** the resulting Ito config does not contain a `memory` section
-- **AND** `ito agent instruction memory-capture` renders the not-configured setup guidance
-
-### Requirement: Templating placeholders are well-defined
-
-The command-based provider SHALL support exactly two placeholders:
-`{text}` for store input and `{query}` for search input. Unknown or
-additional placeholders SHALL be treated as literal text.
-
-- **Requirement ID**: `agent-memory-abstraction:placeholder-semantics`
-
-#### Scenario: Unknown placeholder passes through as literal
-
-- **WHEN** a configured `store` template contains `{foo}`
-- **THEN** the rendered output preserves `{foo}` literally
-- **AND** no validation error is raised for unknown placeholders (they are treated as opaque command text)
+- **AND** all three `memory-*` instruction artifacts render the not-configured branch
 <!-- ITO:END -->

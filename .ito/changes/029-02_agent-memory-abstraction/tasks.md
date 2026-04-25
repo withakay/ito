@@ -19,25 +19,25 @@ ______________________________________________________________________
 
 - **Depends On**: None
 
-### Task 1.1: Add `MemoryConfig` type and JSON schema entry
+### Task 1.1: Add `MemoryConfig` type with per-operation shape
 
 - **Files**: `ito-rs/crates/ito-config/src/config/types.rs`, `schemas/ito-config.schema.json`
 - **Dependencies**: None
-- **Action**: Define `MemoryConfig` as a `#[serde(tag = "provider")]` enum with two variants: `commands { store: String, search: String }` and `skill { skill: String }`. Add `memory: Option<MemoryConfig>` to `ItoConfig`. Regenerate schema via `make config-schema` and commit.
-- **Verify**: `cargo test -p ito-config`; `make config-schema-check`.
-- **Done When**: Roundtrip tests for both variants pass; schema check green; existing configs without `memory` still load.
-- **Requirements**: `agent-memory-abstraction:optional-config`
+- **Action**: Define a `MemoryOpConfig` as a `#[serde(tag = "kind")]` enum with variants `skill { skill: String, options: Option<serde_json::Value> }` and `command { command: String }`. Define `MemoryConfig { capture: Option<MemoryOpConfig>, search: Option<MemoryOpConfig>, query: Option<MemoryOpConfig> }`. Add `memory: Option<MemoryConfig>` to `ItoConfig`. Regenerate schema via `make config-schema` and commit.
+- **Verify**: `cargo test -p ito-config`; `make config-schema-check`; roundtrip tests for both variants and for partial configs (capture only, search only, etc.).
+- **Done When**: Existing configs without `memory` still load unchanged; schema check green.
+- **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
-### Task 1.2: Validate `MemoryConfig` — placeholders, provider-specific fields, skill discoverability
+### Task 1.2: Validate `MemoryConfig` — shape, required fields, skill discoverability
 
 - **Files**: `ito-rs/crates/ito-core/src/config.rs` (or wherever `validate_config_value` lives)
-- **Dependencies**: Task 1.1
-- **Action**: Extend config validation to check: (a) `commands.store` contains `{text}`, (b) `commands.search` contains `{query}`, (c) `skill.skill` resolves to an installed skill in any known skills directory. Surface errors via the existing `validate_config_value` pathway with actionable messages.
-- **Verify**: Unit tests covering each failure mode and the success paths.
+- **Dependencies**: None
+- **Action**: Extend config validation to check: (a) only `capture`, `search`, `query` keys are accepted under `memory`; (b) for each present op, `kind` is `skill` or `command`; (c) required fields for each kind are present (`skill` for `kind: "skill"`, `command` for `kind: "command"`); (d) `kind: "skill"` references an id discoverable under `.agents/skills/`, `.claude/skills/`, or any other known skills directory. Surface errors via the existing `validate_config_value` pathway with actionable messages that name the offending op key and field.
+- **Verify**: Unit tests covering each failure mode (unknown op key, unknown kind, missing field per kind, missing skill) and the success paths (mixed shapes, partial configs).
 - **Done When**: `ito validate --strict` rejects bad configs with clear messages; valid configs pass.
-- **Requirements**: `agent-memory-abstraction:commands-provider`, `agent-memory-abstraction:skill-provider`
+- **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
@@ -49,23 +49,23 @@ ______________________________________________________________________
 
 ### Task 2.1: Implement memory resolver in `ito-core`
 
-- **Files**: `ito-rs/crates/ito-core/src/memory/mod.rs` (new)
+- **Files**: `ito-rs/crates/ito-core/src/memory/mod.rs` (new), `ito-rs/crates/ito-core/src/memory/rendering.rs` (new)
 - **Dependencies**: None
-- **Action**: Implement a small module that: (a) loads `MemoryConfig` from `ItoContext`, (b) exposes helpers that resolve the instruction to emit for store/search operations, where the rendered instruction is either a command template (commands provider) or a skill invocation hint (skill provider). Preserve literal `{text}` / `{query}` placeholders in instruction output (the agent substitutes them at execution time, not Ito). Treat unknown placeholders as opaque literal text.
-- **Verify**: Unit tests for both providers + not-configured case; property tests for placeholder rendering.
-- **Done When**: All tests pass; `cargo clippy` clean; the module has `#![warn(missing_docs)]` coverage.
-- **Requirements**: `agent-memory-abstraction:placeholder-semantics`
+- **Action**: Implement a `memory` module that: (a) loads the resolved `MemoryConfig` from `ItoContext`; (b) exposes three entry points — `render_capture(inputs: CaptureInputs)`, `render_search(inputs: SearchInputs)`, `render_query(inputs: QueryInputs)` — each returning a `RenderedInstruction` enum with variants `Command { line: String }`, `Skill { skill_id: String, inputs: StructuredInputs, options: serde_json::Value }`, and `NotConfigured { setup_hint: String }`; (c) for command-shape, applies placeholder rendering (scalar shell-quoting via `shell_quote`, list-flag expansion to `--file 'a' --file 'b'` / `--folder 'x'`, unknown placeholders preserved as literal); (d) for skill-shape, emits structured input key/value pairs plus the opaque `options` object verbatim.
+- **Verify**: Unit tests for each operation × each render branch × each placeholder edge case (list expansion, missing optional scalar, shell-metacharacter quoting, unknown placeholder pass-through). `cargo clippy` clean; `#![warn(missing_docs)]` coverage.
+- **Done When**: All tests pass; the three entry points return the expected render branches deterministically.
+- **Requirements**: `agent-memory-abstraction:placeholder-rendering`, `agent-memory-abstraction:skill-input-delegation`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
-### Task 2.2: Add `ito agent instruction memory-capture` and `memory-search` artifacts
+### Task 2.2: Add `memory-capture`, `memory-search`, `memory-query` CLI artifacts
 
-- **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/assets/instructions/agent/memory-capture.md.j2`, `ito-rs/crates/ito-templates/assets/instructions/agent/memory-search.md.j2`
-- **Dependencies**: Task 2.1
-- **Action**: Add two new instruction artifacts. Each template renders a section that dispatches on the resolved provider: commands → show the rendered command line; skill → show the "invoke this skill" guidance; absent → show setup hints with one-line examples for each provider shape.
-- **Verify**: Snapshot tests for each of the three branches (commands, skill, not-configured).
-- **Done When**: `ito agent instruction memory-capture` and `memory-search` produce the three expected outputs.
-- **Requirements**: `agent-memory-abstraction:memory-capture-artifact`, `agent-memory-abstraction:memory-search-artifact`
+- **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/assets/instructions/agent/memory-capture.md.j2`, `ito-rs/crates/ito-templates/assets/instructions/agent/memory-search.md.j2`, `ito-rs/crates/ito-templates/assets/instructions/agent/memory-query.md.j2`
+- **Dependencies**: None
+- **Action**: Add three new `ito agent instruction` subjects. Each CLI parser accepts its operation's inputs: `memory-capture` takes `--context`, repeatable `--file`, repeatable `--folder`; `memory-search` takes required `--query`, optional `--limit` (default 10), optional `--scope`; `memory-query` takes required `--query`. Each artifact delegates to the resolver from Task 2.1 and renders one of three template branches (command / skill / not-configured). Not-configured branch shows one minimal example of each shape (skill and command) tailored to that specific operation's placeholders.
+- **Verify**: Snapshot tests for every (operation, branch) cell of the 3×3 grid. Integration tests that assert the CLI usage error when required inputs are missing.
+- **Done When**: All nine snapshots stable; required-input validation returns non-zero with a usage message.
+- **Requirements**: `agent-memory-abstraction:three-branch-artifacts`, `agent-memory-abstraction:operation-input-schemas`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
@@ -75,23 +75,23 @@ ______________________________________________________________________
 
 - **Depends On**: Wave 2
 
-### Task 3.1: Add memory-capture reminder to `apply.md.j2`
+### Task 3.1: Append memory-capture reminder to `apply.md.j2`
 
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/apply.md.j2`
 - **Dependencies**: None
-- **Action**: Append a trailing section, guarded by `{% if memory.configured %}`, with heading `Capture memories`. The section directs the agent to review the session for useful items and run `ito agent instruction memory-capture` (or the rendered provider command/skill).
-- **Verify**: Snapshot tests cover both branches (configured / not configured). Existing apply snapshots updated if needed.
-- **Done When**: Snapshot suite green; reminder appears only when memory is configured.
-- **Requirements**: `agent-instructions:apply-memory-reminder`
+- **Action**: Append a trailing section, guarded by `{% if memory.capture.configured %}`, with heading `Capture memories`. The section directs the agent to review the session for useful items (decisions, gotchas, patterns) and to invoke `ito agent instruction memory-capture` with appropriate `--context`, `--file`, and/or `--folder` inputs.
+- **Verify**: Snapshot tests cover both configured and not-configured states for `memory.capture`. Existing apply snapshots updated only where the new section appears.
+- **Done When**: Snapshot suite green; reminder appears only when `memory.capture` is configured; search/query-only configs do not render the reminder.
+- **Requirements**: `agent-instructions:apply-memory-capture-reminder`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
-### Task 3.2: Add memory-capture + wrap-up reminders to `finish.md.j2`
+### Task 3.2: Append memory-capture + wrap-up reminders to `finish.md.j2`
 
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/finish.md.j2`
 - **Dependencies**: None
-- **Action**: Append two sections: (1) memory-capture reminder (guarded by `{% if memory.configured %}`), identical in intent to the apply version; (2) `Refresh archive and specs` reminder that always renders, always covers canonical specs + agent-facing docs, and references the archive step only when it is not already covered by the existing "Do you want to archive this change now?" prompt.
-- **Verify**: Snapshot tests for both memory states; dedupe assertion confirming the archive step is mentioned at most once per finish output.
+- **Action**: Append two sections. (1) A `Capture memories` reminder guarded by `{% if memory.capture.configured %}`, identical in intent to the apply version. (2) A `Refresh archive and specs` reminder that always renders, with three wrap-up checks: archive confirmation, specs reflect the delivered change, agent-facing docs up to date. Deduplicate the archive check against the existing "Do you want to archive this change now?" prompt: render the archive item only when the existing prompt is not rendered (the change is already archived). Specs and docs checks render unconditionally.
+- **Verify**: Snapshot tests for all four combinations of {capture configured | not} × {already archived | not}. Assertion that the archive step is mentioned at most once per finish output.
 - **Done When**: Snapshot suite green; dedupe assertion passes.
 - **Requirements**: `agent-instructions:finish-wrap-up-reminder`
 - **Updated At**: 2026-04-24
@@ -103,13 +103,13 @@ ______________________________________________________________________
 
 - **Depends On**: Wave 3
 
-### Task 4.1: Update config docs and examples
+### Task 4.1: Update config docs and architecture
 
-- **Files**: `docs/config.md`, `.ito/architecture.md` (if memory belongs in the architecture overview)
+- **Files**: `docs/config.md`, `.ito/architecture.md`
 - **Dependencies**: None
-- **Action**: Document the new `memory` section with one commands-provider example (generic, no specific backend) and one skill-provider example (generic skill id). Explicitly note that there is no default provider.
+- **Action**: Document the new `memory` section: three operation keys (`capture`, `search`, `query`), each optional, each with one of two shapes (`skill`, `command`). Include one worked example per shape for each operation — e.g. a `command` example using `brv` (cross-reference `029-01_add-byterover-integration`) and a `skill` example using a generic skill id. State explicitly that there is no default provider and that a freshly-initialized Ito project has no `memory` section.
 - **Verify**: Visual review; `make config-schema-check` still green.
-- **Done When**: Docs updated and committed.
+- **Done When**: Docs updated and committed; examples align with the spec's placeholder rendering rules.
 - **Requirements**: `agent-memory-abstraction:no-default-provider`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
@@ -117,11 +117,11 @@ ______________________________________________________________________
 ### Task 4.2: Run strict validation
 
 - **Files**: _(no changes)_
-- **Dependencies**: Task 4.1
+- **Dependencies**: 4.1
 - **Action**: Run `ito validate 029-02_agent-memory-abstraction --strict`. Address any findings.
 - **Verify**: Command exits 0.
 - **Done When**: Strict validation passes.
-- **Requirements**: `agent-memory-abstraction:optional-config`
+- **Requirements**: `agent-memory-abstraction:optional-per-op-config`
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 <!-- ITO:END -->

@@ -63,6 +63,17 @@ ______________________________________________________________________
 - **Updated At**: 2026-04-24
 - **Status**: [ ] pending
 
+### Task 1.7: Retrofit managed blocks into every templated markdown file
+
+- **Files**: all `*.md` under `ito-rs/crates/ito-templates/assets/{skills,commands,agents,default/project,instructions,adapters,schemas}/` that do not already contain `<!-- ITO:START -->` / `<!-- ITO:END -->`
+- **Dependencies**: None
+- **Action**: For every shipped markdown file that lacks managed markers, wrap its Ito-owned body in `<!-- ITO:START -->` / `<!-- ITO:END -->`. YAML frontmatter (if present) stays above the start marker. The `<!-- ITO:END -->` sits at the very end of the file (trailing newline preserved). No content re-ordering beyond the wrap. Add a unit test in `ito-templates` that iterates every `*.md` embedded asset and asserts each has exactly one `ITO:START` and one `ITO:END` on their own lines.
+- **Verify**: `cargo test -p ito-templates managed_markers_present` passes. `rg -L 'ITO:START' ito-rs/crates/ito-templates/assets --type md` returns zero lines.
+- **Done When**: Every markdown file in the templates bundle contains the managed-block pair; the CI test enforces this for new files.
+- **Requirements**: ito-managed-asset-versioning:managed-block-everywhere
+- **Updated At**: 2026-04-24
+- **Status**: [ ] pending
+
 ### Task 1.5: Implement version stamping in the install pipeline
 
 - **Files**: `ito-rs/crates/ito-templates/src/lib.rs`, `ito-rs/crates/ito-templates/src/project_templates.rs`, `ito-rs/crates/ito-core/src/templates/**`, relevant unit tests
