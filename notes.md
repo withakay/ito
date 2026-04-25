@@ -102,3 +102,12 @@ Creation-time copy/setup for `ito worktree ensure` is `worktrees.init.include` a
 Coordination worktree storage is separate: `changes.coordination_branch.storage = "worktree"` and optional `changes.coordination_branch.worktree_path` points to the shared coordination worktree that stores `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, and `.ito/audit` symlink targets. Do not confuse `changes.coordination_branch.worktree_path` with the feature worktree path prefix.
 
 Machine-specific coordination worktree absolute paths belong in ignored local config such as `.ito/config.local.json` or `.local/ito/config.json`, not committed `.ito/config.json`.
+
+
+---
+
+---
+## ByteRover Autonomous Approval Follow-Up
+## 2026-04-25 15:50:34 UTC
+
+Follow-up idea from `016-17_add-list-archive`: create a separate change for autonomous ByteRover approval review. Proposed shape: add an explicit repo policy for which ByteRover pending review operations may be agent-approved, then add a reviewer workflow/subagent that inspects `brv review pending --format json`, validates UPSERTs against touched files and existing memory, and only runs `brv review approve <taskId>` when the policy permits. Default should remain human approval for deletes, broad architecture/security guidance, conflicts, or unsupported claims.
