@@ -8,9 +8,11 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
+use regex::Regex;
 use serde::Serialize;
 
 use ito_common::paths;
@@ -48,9 +50,23 @@ pub const LEVEL_INFO: ValidationLevel = "INFO";
 const MIN_PURPOSE_LENGTH: usize = 50;
 const MIN_MODULE_PURPOSE_LENGTH: usize = 20;
 const MAX_DELTAS_PER_CHANGE: usize = 10;
+const MAX_SCENARIO_STEPS: usize = 8;
 const DELTA_SPECS_ARTIFACT_RULES: &[&str] = &["contract_refs", "scenario_grammar", "ui_mechanics"];
 const DELTA_SPECS_PROPOSAL_RULES: &[&str] = &["capabilities_consistency"];
 const TASKS_TRACKING_RULES: &[&str] = &["task_quality"];
+
+static UI_MECHANICS_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    [
+        r"(?i)\bclick\s+(?:on\s+|the\s+)?\w+",
+        r"(?i)\bwait\s+\d+\s*(?:ms|millisecond|second|s)\b",
+        r"(?i)\bsleep\s+\d+\b",
+        r"(?i)\bselector\s*[:=]",
+        r"(?i)\bcss\s+selector\b",
+    ]
+    .into_iter()
+    .map(|pattern| Regex::new(pattern).expect("valid UI mechanics regex"))
+    .collect()
+});
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One validation finding.
@@ -626,6 +642,19 @@ fn format_spec_for_validator(
     }
 }
 
+fn rule_issue(
+    validator_id: ValidatorId,
+    rule_name: &str,
+    level: ValidationLevel,
+    path: impl AsRef<str>,
+    message: impl Into<String>,
+) -> ValidationIssue {
+    with_format_spec(
+        with_rule_id(issue(level, path, message), rule_name),
+        format_spec_for_validator(validator_id),
+    )
+}
+
 fn run_configured_rules(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -699,16 +728,23 @@ fn supported_rules_for_target(
 }
 
 fn run_delta_specs_artifact_rule(
-    _rep: &mut ReportBuilder,
-    _change_repo: &(impl DomainChangeRepository + ?Sized),
-    _ctx: ArtifactValidatorContext<'_>,
+    rep: &mut ReportBuilder,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    ctx: ArtifactValidatorContext<'_>,
     rule_name: &str,
-    _level: ValidationLevelYaml,
+    level: ValidationLevelYaml,
 ) -> CoreResult<()> {
     match rule_name {
-        "contract_refs" | "scenario_grammar" | "ui_mechanics" => Ok(()),
-        _ => Ok(()),
+        "scenario_grammar" => rep.extend(validate_scenario_grammar_rule(
+            change_repo,
+            ctx.change_id,
+            level,
+        )?),
+        "ui_mechanics" => rep.extend(validate_ui_mechanics_rule(change_repo, ctx.change_id)?),
+        "contract_refs" => {}
+        _ => {}
     }
+    Ok(())
 }
 
 fn run_delta_specs_proposal_rule(
@@ -737,6 +773,146 @@ fn run_tasks_tracking_rule(
         "task_quality" => Ok(()),
         _ => Ok(()),
     }
+}
+
+fn validate_scenario_grammar_rule(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    change_id: &str,
+    level: ValidationLevelYaml,
+) -> CoreResult<Vec<ValidationIssue>> {
+    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
+    let mut issues = Vec::new();
+
+    for (delta_idx, delta) in show.deltas.iter().enumerate() {
+        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
+            for (scenario_idx, scenario) in requirement.scenarios.iter().enumerate() {
+                if scenario.raw_text.trim().is_empty() {
+                    continue;
+                }
+
+                let steps = extract_scenario_steps(&scenario.raw_text);
+                let has_given = steps.iter().any(|step| step.keyword == "GIVEN");
+                let has_when = steps.iter().any(|step| step.keyword == "WHEN");
+                let has_then = steps.iter().any(|step| step.keyword == "THEN");
+                let path = format!(
+                    "deltas[{delta_idx}].requirements[{requirement_idx}].scenarios[{scenario_idx}]"
+                );
+
+                if !has_when {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "scenario_grammar",
+                        level.as_level_str(),
+                        &path,
+                        "Scenario is missing WHEN step",
+                    ));
+                }
+                if !has_then {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "scenario_grammar",
+                        level.as_level_str(),
+                        &path,
+                        "Scenario is missing THEN step",
+                    ));
+                }
+                if !has_given {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "scenario_grammar",
+                        LEVEL_WARNING,
+                        &path,
+                        "Scenario is missing GIVEN step",
+                    ));
+                }
+                if steps.len() > MAX_SCENARIO_STEPS {
+                    issues.push(rule_issue(
+                        ValidatorId::DeltaSpecsV1,
+                        "scenario_grammar",
+                        LEVEL_WARNING,
+                        &path,
+                        format!(
+                            "Scenario has more than {MAX_SCENARIO_STEPS} steps; consider splitting it"
+                        ),
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(issues)
+}
+
+fn validate_ui_mechanics_rule(
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    change_id: &str,
+) -> CoreResult<Vec<ValidationIssue>> {
+    let show = parse_change_show_json(change_id, &read_change_delta_spec_files(change_repo, change_id)?);
+    let mut issues = Vec::new();
+
+    for (delta_idx, delta) in show.deltas.iter().enumerate() {
+        for (requirement_idx, requirement) in delta.requirements.iter().enumerate() {
+            if requirement.tags.iter().any(|tag| tag == "ui") {
+                continue;
+            }
+
+            for (scenario_idx, scenario) in requirement.scenarios.iter().enumerate() {
+                if scenario.raw_text.trim().is_empty() {
+                    continue;
+                }
+
+                let Some(pattern) = UI_MECHANICS_PATTERNS
+                    .iter()
+                    .find(|pattern| pattern.is_match(&scenario.raw_text))
+                else {
+                    continue;
+                };
+
+                issues.push(rule_issue(
+                    ValidatorId::DeltaSpecsV1,
+                    "ui_mechanics",
+                    LEVEL_WARNING,
+                    format!(
+                        "deltas[{delta_idx}].requirements[{requirement_idx}].scenarios[{scenario_idx}]"
+                    ),
+                    format!(
+                        "Scenario may be describing UI mechanics rather than behavior (matched pattern: {})",
+                        pattern.as_str()
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(issues)
+}
+
+#[derive(Debug, Clone)]
+struct ScenarioStep {
+    keyword: &'static str,
+}
+
+fn extract_scenario_steps(raw_text: &str) -> Vec<ScenarioStep> {
+    raw_text
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_start();
+            let upper = line.to_ascii_uppercase();
+            if upper.starts_with("- **GIVEN**") {
+                return Some(ScenarioStep { keyword: "GIVEN" });
+            }
+            if upper.starts_with("- **WHEN**") {
+                return Some(ScenarioStep { keyword: "WHEN" });
+            }
+            if upper.starts_with("- **THEN**") {
+                return Some(ScenarioStep { keyword: "THEN" });
+            }
+            if upper.starts_with("- **AND**") {
+                return Some(ScenarioStep { keyword: "AND" });
+            }
+            None
+        })
+        .collect()
 }
 
 /// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.

@@ -33,6 +33,10 @@ pub struct Requirement {
     #[serde(rename = "requirementId", skip_serializing_if = "Option::is_none")]
     pub requirement_id: Option<String>,
 
+    /// Optional requirement-level tags (normalized to lowercase).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+
     /// Scenario blocks associated with the requirement.
     pub scenarios: Vec<Scenario>,
 }
@@ -473,6 +477,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
     // Requirement statement: consume non-empty lines until we hit a scenario header or next requirement.
     let mut statement_lines: Vec<String> = Vec::new();
     let mut requirement_id: Option<String> = None;
+    let mut tags: Vec<String> = Vec::new();
     while i < lines.len() {
         let t = lines[i].trim_end();
         if t.starts_with("#### Scenario:")
@@ -489,6 +494,17 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
         {
             if !rest.is_empty() && requirement_id.is_none() {
                 requirement_id = Some(rest.to_string());
+            }
+            i += 1;
+            continue;
+        }
+        if let Some(rest) = t.trim().strip_prefix("- **Tags**:").map(str::trim) {
+            if !rest.is_empty() {
+                tags = rest
+                    .split(',')
+                    .map(|tag| tag.trim().to_ascii_lowercase())
+                    .filter(|tag| !tag.is_empty())
+                    .collect();
             }
             i += 1;
             continue;
@@ -533,6 +549,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
         Requirement {
             text,
             requirement_id,
+            tags,
             scenarios,
         },
         i,

@@ -837,6 +837,278 @@ proposal:
 }
 
 #[test]
+fn scenario_grammar_rule_reports_missing_when_then_and_given() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("schema.yaml"),
+        r#"
+name: scenario-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      scenario_grammar: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: scenario-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Missing when
+The system SHALL validate scenario steps.
+
+#### Scenario: Missing when step
+- **GIVEN** a request exists
+- **THEN** validation fails
+
+### Requirement: Missing then
+The system SHALL validate scenario steps.
+
+#### Scenario: Missing then step
+- **GIVEN** a request exists
+- **WHEN** validation runs
+
+### Requirement: Missing given
+The system SHALL validate scenario steps.
+
+#### Scenario: Missing given step
+- **WHEN** validation runs
+- **THEN** validation warns
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("scenario_grammar")
+            && issue.level == "ERROR"
+            && issue.message.contains("missing WHEN")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("scenario_grammar")
+            && issue.level == "ERROR"
+            && issue.message.contains("missing THEN")
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("scenario_grammar")
+            && issue.level == "WARNING"
+            && issue.message.contains("missing GIVEN")
+    }));
+}
+
+#[test]
+fn scenario_grammar_rule_warns_on_excessive_step_count() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("schema.yaml"),
+        r#"
+name: scenario-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      scenario_grammar: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: scenario-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Long scenario
+The system SHALL keep scenarios concise.
+
+#### Scenario: Too many steps
+- **GIVEN** step 1
+- **AND** step 2
+- **AND** step 3
+- **AND** step 4
+- **WHEN** step 5
+- **AND** step 6
+- **AND** step 7
+- **AND** step 8
+- **THEN** step 9
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("scenario_grammar")
+            && issue.level == "WARNING"
+            && issue.message.contains("more than 8 steps")
+    }));
+}
+
+#[test]
+fn scenario_grammar_rule_warns_on_ui_mechanics_but_respects_ui_tags() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("schema.yaml"),
+        r#"
+name: scenario-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      scenario_grammar: error
+      ui_mechanics: warning
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: scenario-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Non-ui mechanics
+The system SHALL focus scenarios on behavior.
+
+#### Scenario: Clicks save
+- **GIVEN** a draft exists
+- **WHEN** the user click the Save button
+- **THEN** the draft is stored
+
+### Requirement: Tagged ui flow
+The system SHALL allow UI-tagged steps.
+
+- **Tags**: ui
+
+#### Scenario: Clicks save in ui flow
+- **GIVEN** a draft exists
+- **WHEN** the user click the Save button
+- **THEN** the draft is stored
+
+### Requirement: Code token is safe
+The system SHALL ignore code-like tokens.
+
+#### Scenario: Talks about unwrap
+- **GIVEN** a code sample exists
+- **WHEN** the docs mention .unwrap() and [link](#anchor)
+- **THEN** validation does not flag UI mechanics
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    let ui_warnings: Vec<_> = report
+        .issues
+        .iter()
+        .filter(|issue| issue.rule_id.as_deref() == Some("ui_mechanics"))
+        .collect();
+    assert_eq!(ui_warnings.len(), 1, "expected one UI warning, got: {:?}", report.issues);
+    assert!(ui_warnings[0].message.contains("UI mechanics"));
+}
+
+#[test]
 fn validate_module_reports_missing_scope_and_short_purpose() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
