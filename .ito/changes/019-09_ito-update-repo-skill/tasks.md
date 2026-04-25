@@ -72,7 +72,7 @@ ______________________________________________________________________
 - **Done When**: Every markdown file in the templates bundle contains the managed-block pair; the CI test enforces this for new files.
 - **Requirements**: ito-managed-asset-versioning:managed-block-everywhere
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.5: Implement version stamping in the install pipeline
 
