@@ -508,6 +508,7 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
         if let Some(rest) = t
             .trim()
             .strip_prefix("- **Requirement ID**:")
+            .or_else(|| t.trim().strip_prefix("* **Requirement ID**:"))
             .map(str::trim)
         {
             if !rest.is_empty() && requirement_id.is_none() {
@@ -516,8 +517,13 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
             i += 1;
             continue;
         }
-        if let Some(rest) = t.trim().strip_prefix("- **Tags**:").map(str::trim) {
-            if !rest.is_empty() {
+        if let Some(rest) = t
+            .trim()
+            .strip_prefix("- **Tags**:")
+            .or_else(|| t.trim().strip_prefix("* **Tags**:"))
+            .map(str::trim)
+        {
+            if !rest.is_empty() && tags.is_empty() {
                 tags = rest
                     .split(',')
                     .map(|tag| tag.trim().to_ascii_lowercase())
@@ -527,8 +533,13 @@ fn parse_requirement_block(lines: &[&str], start: usize) -> (String, Requirement
             i += 1;
             continue;
         }
-        if let Some(rest) = t.trim().strip_prefix("- **Contract Refs**:").map(str::trim) {
-            if !rest.is_empty() {
+        if let Some(rest) = t
+            .trim()
+            .strip_prefix("- **Contract Refs**:")
+            .or_else(|| t.trim().strip_prefix("* **Contract Refs**:"))
+            .map(str::trim)
+        {
+            if !rest.is_empty() && contract_refs.is_empty() {
                 contract_refs = parse_contract_refs(rest);
             }
             i += 1;
