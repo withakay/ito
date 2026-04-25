@@ -27,3 +27,4 @@
 - [x] 001-30_proposal-viewer-html
 - [x] 001-31_tools-config-tmux
 - [ ] 001-32_add-planning-workflow
+- [ ] 001-33_enhance-spec-driven-workflow-validation
