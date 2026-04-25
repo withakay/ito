@@ -38,8 +38,8 @@ ______________________________________________________________________
 - **Verify**: Unit tests covering each failure mode (unknown op key, unknown kind, missing field per kind, missing skill) and the success paths (mixed shapes, partial configs).
 - **Done When**: `ito validate --strict` rejects bad configs with clear messages; valid configs pass.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
