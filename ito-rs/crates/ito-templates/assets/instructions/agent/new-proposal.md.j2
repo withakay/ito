@@ -13,6 +13,14 @@ Do NOT jump straight into creating files. First, make sure you understand what t
 
 If the user's request is already precise and well-scoped, a quick confirmation is enough — don't over-interview.
 
+## Step 0: Synchronize Coordination State
+
+`ito agent instruction proposal` refreshes coordination state before rendering this guide. If you are using this guide later, refresh again before listing modules or creating proposal state. `ito sync` is a no-op unless coordination-worktree storage is active, and it rate-limits pushes to avoid excessive remote updates.
+
+```bash
+ito sync
+```
+
 ## Step 1: Choose a Schema
 
 Before creating the change, pick the workflow schema.

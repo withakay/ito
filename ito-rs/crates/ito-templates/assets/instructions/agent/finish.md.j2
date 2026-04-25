@@ -16,6 +16,16 @@ Use this after a change branch has been integrated (PR merged or local merge) an
 - `worktrees.default_branch`: `{{ worktree.default_branch }}`
 - `changes.archive.main_integration_mode`: `{{ archive.main_integration_mode }}`
 
+{% if archive.coordination_storage == "worktree" %}
+### Coordination Sync
+
+`ito agent instruction finish` refreshes coordination state before rendering. If you are using these instructions later, refresh again before deciding whether to archive or clean up. `ito sync` rate-limits pushes, but still fetches coordination updates.
+
+```bash
+ito sync
+```
+
+{% endif %}
 ### Archive Prompt
 
 If this is a completed Ito change, ask the user:

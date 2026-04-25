@@ -1,5 +1,6 @@
 use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
+use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use ito_config::load_cascading_project_config;
 use ito_config::types::{ArchiveMainIntegrationMode, CoordinationStorage, ItoConfig};
@@ -103,6 +104,8 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let ito_path = rt.ito_path();
+    best_effort_sync_coordination(rt, "before archive");
+
     let changes_dir = core_paths::changes_dir(ito_path);
     let repository_runtime = rt.repository_runtime().map_err(to_cli_error)?;
 

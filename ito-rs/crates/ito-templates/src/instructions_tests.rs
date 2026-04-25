@@ -432,8 +432,15 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     assert!(out.contains(
         "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
-    assert!(out.contains("Before starting implementation, synchronize coordination state:"));
+    assert!(out.contains("refreshes coordination state before rendering"));
     assert!(out.contains("ito sync"));
+    let sync_pos = out.find("ito sync").expect("sync instruction");
+    let details_pos = out.find("<details>").expect("manual details");
+    assert!(
+        sync_pos < details_pos,
+        "sync should be in the recommended setup path"
+    );
+    assert_eq!(out[..details_pos].matches("\nito sync\n").count(), 2);
 }
 
 #[test]
@@ -475,6 +482,8 @@ fn archive_template_renders_generic_guidance_without_change() {
     .unwrap();
 
     assert!(out.contains("ito archive"));
+    assert!(out.contains("ito sync"));
+    assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile"));
     assert!(out.contains("Default archive main integration mode: `pull_request`"));
     // generic mode must NOT look like a targeted command
@@ -511,6 +520,8 @@ fn archive_template_renders_targeted_instruction_with_change() {
 
     assert!(out.contains("009-02_event-sourced-audit-log"));
     assert!(out.contains("ito archive 009-02_event-sourced-audit-log --yes"));
+    assert!(out.contains("ito sync"));
+    assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
     assert!(out.contains("Configured mode: `pull_request_auto_merge`"));
     assert!(out.contains("request auto-merge"));
@@ -561,6 +572,7 @@ fn finish_template_prompts_for_archive() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         main_integration_mode: &'static str,
+        coordination_storage: &'static str,
     }
 
     #[derive(Serialize)]
@@ -581,6 +593,7 @@ fn finish_template_prompts_for_archive() {
             },
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
+                coordination_storage: "worktree",
             },
             change: Some("025-09_add-worktree-sync-command".to_string()),
         },
@@ -588,6 +601,8 @@ fn finish_template_prompts_for_archive() {
     .unwrap();
 
     assert!(out.contains("Do you want to archive this change now?"));
+    assert!(out.contains("ito sync"));
+    assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(
         out.contains("ito agent instruction archive --change '025-09_add-worktree-sync-command'")
     );

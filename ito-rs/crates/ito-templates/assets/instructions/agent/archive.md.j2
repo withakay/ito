@@ -6,10 +6,13 @@
 Run the following to archive this change:
 
 ```bash
-# 1. Ensure audit log is in sync before archiving
+# 1. Refresh coordination state if you did not just generate these instructions
+ito sync
+
+# 2. Ensure audit log is in sync before archiving
 ito audit reconcile --change {{ change }}
 
-# 2. Archive the change (merges spec deltas into main specs)
+# 3. Archive the change (merges spec deltas into main specs)
 ito archive {{ change }} --yes
 ```
 
@@ -60,6 +63,9 @@ Mode `{{ archive.main_integration_mode }}` is unrecognized. Set a valid mode wit
 ### Commands
 
 ```bash
+# Refresh coordination state first if you did not just generate these instructions
+ito sync
+
 # Archive a specific change
 ito archive <change-id> --yes
 

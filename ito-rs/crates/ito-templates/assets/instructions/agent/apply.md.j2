@@ -15,6 +15,14 @@ Use the ito-continue-change skill to create these first.
 {% endfor %}
 
 {% endif %}
+### Coordination Sync
+
+`ito agent instruction apply` refreshes coordination state before rendering. If you are using these instructions later, or after switching worktrees, refresh again before editing. `ito sync` is a no-op unless coordination-worktree storage is active, and it rate-limits pushes to avoid excessive remote updates.
+
+```bash
+ito sync
+```
+
 {% if worktree.enabled and worktree.apply_enabled %}
 ### Worktree Setup
 
@@ -31,6 +39,13 @@ CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace(
 
 This creates the worktree (if absent), copies include files, and runs setup commands.
 All subsequent file operations should use `$CHANGE_DIR` as the working directory.
+
+After `ito worktree ensure`, run the sync from inside the change worktree if you did not just run it there:
+
+```bash
+cd "$CHANGE_DIR"
+ito sync
+```
 
 <details>
 <summary>Manual setup (alternative)</summary>
@@ -61,7 +76,7 @@ fi
 
 echo "Working directory: $CHANGE_DIR"
 ```
-Before starting implementation, synchronize coordination state:
+Synchronize coordination state from inside the change worktree before editing:
 
 ```bash
 cd "$CHANGE_DIR"
