@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Action**: Author the SKILL.md using the skill-coach progressive-disclosure pattern. Include the "when to use", "NOT for", the core shibboleth (update is additive, cleanup is separate), stepwise workflow, anti-patterns, and verification section. Frontmatter limited to `name` + `description`.
 - **Verify**: File exists; `ito-templates` builds (`cargo build -p ito-templates`). Manual smoke: `grep -q 'ito-update-repo' ito-rs/crates/ito-templates/assets/skills/ito-update-repo/SKILL.md`.
 - **Done When**: SKILL.md exists and documents update + orphan audit + approval workflow.
-- **Requirements**: ito-update-repo-skill:skill-entrypoint, ito-update-repo-skill:non-destructive, ito-update-repo-skill:orphan-audit, ito-update-repo-skill:approval-gate, ito-update-repo-skill:rerun-idempotent
+- **Requirements**: ito-update-repo-skill:skill-entrypoint, ito-update-repo-skill:non-destructive, ito-update-repo-skill:orphan-audit, ito-update-repo-skill:approval-gate, ito-update-repo-skill:rerun-idempotent, ito-managed-asset-naming:prefix-drives-ownership
 - **Updated At**: 2026-04-24
 - **Status**: [x] complete
 
