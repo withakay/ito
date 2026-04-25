@@ -100,13 +100,55 @@ Commonly useful subagents:
 - `perplexity-researcher` / `perplexity-researcher-pro` - web research with citations
 - `multi-agent` - explore multiple approaches and synthesize
 
-### ByteRover Memory (`.brv/`)
+### ByteRover BRV - Project Memory
 
-`.brv/` is repo-local memory, committed to git. Git is the only version control for it.
+Use ByteRover (`brv`) for project memory. Do not use Hivemind memory storage.
+
+Knowledge is stored in `.brv/context-tree/` as human-readable Markdown and queried or curated with the `brv` CLI.
+
+**Memories are repo-local only.** `.brv/` is committed to git and git is the single source of truth.
 
 - NEVER run `brv vc` or any of its subcommands (`status`, `push`, `pull`, `sync`, ...).
 - NEVER run `brv login` or any command that authenticates to the ByteRover cloud.
 - NEVER enable ByteRover cloud sync.
-- DO use `brv query`, `brv search`, `brv curate`, and `brv review pending` — these stay local.
 - `.brv/` must remain tracked in git (do not add it to `.gitignore`); release-plz/cargo dirty-checks fail when files are both tracked and ignored.
+
+#### When to Use
+
+- **BEFORE implementing** - run `brv query` or `brv search` to find existing project patterns, decisions, and architectural rules
+- **After solving hard problems** - run `brv curate` to store durable learnings for future sessions
+- **Debugging** - search for similar errors and known fixes
+- **Architecture decisions** - curate the reasoning, alternatives, and tradeoffs
+- **Project-specific patterns** - curate domain rules, gotchas, and workflow decisions
+
+#### Commands
+
+| Command | Purpose |
+|------|---------|
+| `brv query "..."` | Retrieve synthesized context from `.brv/context-tree/` |
+| `brv search "..."` | Fast BM25 search of context files without an LLM call |
+| `brv curate "..."` | Store durable knowledge, decisions, and patterns |
+| `brv review pending` | Check whether curation needs approval |
+
+#### Usage Pattern
+
+```bash
+# 1. Before starting work - query relevant memory
+brv query "<task keywords and project area>"
+
+# 2. If you need file paths rather than synthesis
+brv search "<task keywords>" --limit 5
+
+# 3. After solving a hard problem - store the learning
+brv curate "<what changed or was learned, including WHY it matters>"
+```
+
+#### Rules
+
+- Prefer `brv query` for synthesized project memory.
+- Prefer `brv search` for cheap path/excerpt lookup.
+- Prefer `brv curate` for durable knowledge only; do not curate transient chat notes.
+- Include WHY, not just WHAT, when curating.
+- Use `brv curate` in blocking mode by default. Only use `--detach` when the user explicitly says not to wait and no later step depends on the result.
+- If a curate operation reports pending review, use `brv review pending` and ask before approving/rejecting unless the user already authorized it.
 <!-- ITO:INTERNAL:END -->
