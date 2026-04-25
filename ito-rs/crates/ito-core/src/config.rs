@@ -3,13 +3,14 @@
 //! This module provides low-level functions for reading, writing, and
 //! manipulating JSON configuration files with dot-delimited path navigation.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::load_cascading_project_config;
 use ito_config::types::{
-    ArchiveMainIntegrationMode, IntegrationMode, RepositoryPersistenceMode, WorktreeStrategy,
+    ArchiveMainIntegrationMode, IntegrationMode, MemoryConfig, MemoryOpConfig,
+    RepositoryPersistenceMode, WorktreeStrategy,
 };
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
@@ -267,11 +268,252 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                 )));
             }
         }
+        path
+            if matches!(
+                parts,
+                ["memory", op, "kind"]
+                    if matches!(*op, "capture" | "search" | "query")
+            ) =>
+        {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: skill, command",
+                    path,
+                )));
+            };
+            if !matches!(s, "skill" | "command") {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: skill, command",
+                    s, path,
+                )));
+            }
+        }
+        path
+            if matches!(
+                parts,
+                ["memory", op, "skill"]
+                    if matches!(*op, "capture" | "search" | "query")
+            ) =>
+        {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a non-empty string skill id.",
+                    path,
+                )));
+            };
+            if s.trim().is_empty() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value for key '{}'. Provide a non-empty skill id.",
+                    path,
+                )));
+            }
+        }
+        path
+            if matches!(
+                parts,
+                ["memory", op, "command"]
+                    if matches!(*op, "capture" | "search" | "query")
+            ) =>
+        {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a non-empty string command template.",
+                    path,
+                )));
+            };
+            if s.trim().is_empty() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value for key '{}'. Provide a non-empty command template.",
+                    path,
+                )));
+            }
+        }
+        path
+            if matches!(parts, ["memory", op] if matches!(*op, "capture" | "search" | "query")) =>
+        {
+            let op_name = parts[1];
+            return validate_memory_op_value(op_name, value);
+        }
+        path if parts == ["memory"] => {
+            return validate_memory_section_value(value);
+        }
         // Wildcard: config keys are open-ended strings; only enum-constrained
         // keys are validated above. New constrained keys should be added here.
         _ => {}
     }
     Ok(())
+}
+
+/// Validate a structurally-set `memory` section value.
+///
+/// Accepts the leaf values for each operation (`capture`, `search`, `query`).
+/// Unknown operation keys are rejected here so that `ito config set memory <json>`
+/// surfaces typos like `curate` (instead of `capture`) with a clear message.
+fn validate_memory_section_value(value: &serde_json::Value) -> CoreResult<()> {
+    let Some(obj) = value.as_object() else {
+        return Err(CoreError::validation(
+            "Key 'memory' requires an object whose keys are operation names (capture, search, query).",
+        ));
+    };
+    for (key, child) in obj {
+        match key.as_str() {
+            "capture" | "search" | "query" => validate_memory_op_value(key, child)?,
+            other => {
+                return Err(CoreError::validation(format!(
+                    "Unknown memory operation '{}'. Valid keys: capture, search, query.",
+                    other
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Validate a structurally-set `memory.<op>` value.
+///
+/// `op_name` is `capture`, `search`, or `query`.
+fn validate_memory_op_value(op_name: &str, value: &serde_json::Value) -> CoreResult<()> {
+    let Some(obj) = value.as_object() else {
+        return Err(CoreError::validation(format!(
+            "Key 'memory.{}' requires an object describing the provider shape.",
+            op_name
+        )));
+    };
+
+    let Some(kind) = obj.get("kind").and_then(|v| v.as_str()) else {
+        return Err(CoreError::validation(format!(
+            "Key 'memory.{}' must include a string 'kind' field. Valid values: skill, command.",
+            op_name
+        )));
+    };
+
+    match kind {
+        "skill" => match obj.get("skill").and_then(|v| v.as_str()) {
+            Some(s) if !s.trim().is_empty() => Ok(()),
+            _ => Err(CoreError::validation(format!(
+                "Key 'memory.{}.skill' is required and must be a non-empty string when kind is 'skill'.",
+                op_name
+            ))),
+        },
+        "command" => match obj.get("command").and_then(|v| v.as_str()) {
+            Some(s) if !s.trim().is_empty() => Ok(()),
+            _ => Err(CoreError::validation(format!(
+                "Key 'memory.{}.command' is required and must be a non-empty string when kind is 'command'.",
+                op_name
+            ))),
+        },
+        other => Err(CoreError::validation(format!(
+            "Invalid 'kind' value '{}' for 'memory.{}'. Valid values: skill, command.",
+            other, op_name
+        ))),
+    }
+}
+
+/// Validate a deserialized [`MemoryConfig`].
+///
+/// Performs structural checks that serde alone cannot enforce — most notably
+/// that any operation configured with `kind: "skill"` references a skill id
+/// discoverable under one of the supplied search paths.
+///
+/// `search_paths` SHOULD be the list of skills directories returned by
+/// [`known_skills_search_paths`] for the active project.
+///
+/// # Errors
+///
+/// Returns [`CoreError::Validation`] for any operation whose skill id does
+/// not resolve to a directory containing `SKILL.md` under one of the
+/// supplied search paths. Lists the searched paths in the error message.
+pub fn validate_memory_config(
+    config: &MemoryConfig,
+    search_paths: &[PathBuf],
+) -> CoreResult<()> {
+    for (op_name, op) in [
+        ("capture", &config.capture),
+        ("search", &config.search),
+        ("query", &config.query),
+    ] {
+        let Some(MemoryOpConfig::Skill { skill, .. }) = op else {
+            continue;
+        };
+
+        if skill.trim().is_empty() {
+            return Err(CoreError::validation(format!(
+                "Key 'memory.{}.skill' must be a non-empty string when kind is 'skill'.",
+                op_name
+            )));
+        }
+
+        if !skill_id_resolves(skill, search_paths) {
+            let searched = search_paths
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(CoreError::validation(format!(
+                "memory.{op}: skill id '{skill}' was not found under any of the searched skills directories: [{searched}]. Install the skill or correct the id.",
+                op = op_name,
+                skill = skill,
+                searched = if searched.is_empty() { "(none configured)".to_string() } else { searched },
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Return the conventional skills directories Ito searches when resolving a
+/// skill id under [`MemoryOpConfig::Skill`].
+///
+/// Order is deterministic for stable error messages but does not imply any
+/// preference — a skill id matches as soon as any directory contains
+/// `<dir>/<skill-id>/SKILL.md` (or the skill id directly under
+/// `.agents/skills/<group>/<skill-id>/SKILL.md` for the shared layout used
+/// by ByteRover).
+pub fn known_skills_search_paths(project_root: &Path) -> Vec<PathBuf> {
+    [
+        ".agents/skills",
+        ".claude/skills",
+        ".codex/skills",
+        ".opencode/skills",
+        ".pi/skills",
+        ".github/skills",
+    ]
+    .into_iter()
+    .map(|p| project_root.join(p))
+    .collect()
+}
+
+/// Returns `true` if `skill_id` resolves to a directory containing
+/// `SKILL.md` under any of the supplied search paths.
+///
+/// Resolution accepts two layouts:
+/// - **Flat**: `<search-path>/<skill-id>/SKILL.md` (used by `.claude/skills/`,
+///   `.opencode/skills/`, etc.).
+/// - **Grouped**: `<search-path>/<group>/<skill-id>/SKILL.md` (used by
+///   `.agents/skills/<group>/<skill-id>/SKILL.md` — e.g. the ByteRover hub
+///   skills mirrored under `.agents/skills/byterover/`).
+pub fn skill_id_resolves(skill_id: &str, search_paths: &[PathBuf]) -> bool {
+    for base in search_paths {
+        if !base.is_dir() {
+            continue;
+        }
+        // Flat layout.
+        if base.join(skill_id).join("SKILL.md").is_file() {
+            return true;
+        }
+        // Grouped layout — one level deeper.
+        let Ok(entries) = std::fs::read_dir(base) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            if entry.path().join(skill_id).join("SKILL.md").is_file() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn is_valid_branch_name(value: &str) -> bool {
@@ -670,5 +912,167 @@ mod tests {
                 default_branch: "develop".to_string(),
             }
         );
+    }
+
+    // ---- memory config validation ------------------------------------------------
+
+    #[test]
+    fn validate_config_value_rejects_unknown_memory_kind() {
+        let parts = ["memory", "capture", "kind"];
+        let value = json!("delegate");
+        let err = validate_config_value(&parts, &value).expect_err("expected error");
+        let msg = err.to_string();
+        assert!(msg.contains("memory.capture.kind"), "msg = {msg}");
+        assert!(msg.contains("skill") && msg.contains("command"));
+    }
+
+    #[test]
+    fn validate_config_value_accepts_valid_memory_kind() {
+        for op in ["capture", "search", "query"] {
+            let parts = ["memory", op, "kind"];
+            for kind in ["skill", "command"] {
+                assert!(
+                    validate_config_value(&parts, &json!(kind)).is_ok(),
+                    "expected memory.{op}.kind = {kind} to validate"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn validate_config_value_rejects_empty_memory_skill_id() {
+        let parts = ["memory", "search", "skill"];
+        let err = validate_config_value(&parts, &json!("   ")).expect_err("expected error");
+        assert!(
+            err.to_string().contains("memory.search.skill"),
+            "msg = {err}"
+        );
+    }
+
+    #[test]
+    fn validate_config_value_rejects_empty_memory_command_template() {
+        let parts = ["memory", "query", "command"];
+        let err = validate_config_value(&parts, &json!("")).expect_err("expected error");
+        assert!(
+            err.to_string().contains("memory.query.command"),
+            "msg = {err}"
+        );
+    }
+
+    #[test]
+    fn validate_config_value_rejects_unknown_memory_op_key() {
+        let parts = ["memory"];
+        let value = json!({
+            "curate": { "kind": "command", "command": "noop" }
+        });
+        let err = validate_config_value(&parts, &value).expect_err("expected error");
+        let msg = err.to_string();
+        assert!(msg.contains("Unknown memory operation"), "msg = {msg}");
+        assert!(msg.contains("curate"), "msg = {msg}");
+    }
+
+    #[test]
+    fn validate_config_value_rejects_memory_op_missing_required_field() {
+        let parts = ["memory", "capture"];
+
+        let err = validate_config_value(&parts, &json!({ "kind": "skill" }))
+            .expect_err("skill variant requires `skill`");
+        assert!(err.to_string().contains("memory.capture.skill"));
+
+        let err = validate_config_value(&parts, &json!({ "kind": "command" }))
+            .expect_err("command variant requires `command`");
+        assert!(err.to_string().contains("memory.capture.command"));
+    }
+
+    #[test]
+    fn validate_config_value_rejects_memory_op_unknown_kind() {
+        let parts = ["memory", "search"];
+        let err = validate_config_value(
+            &parts,
+            &json!({ "kind": "magic", "command": "noop" }),
+        )
+        .expect_err("expected error");
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid 'kind' value 'magic'"), "msg = {msg}");
+        assert!(msg.contains("memory.search"), "msg = {msg}");
+    }
+
+    #[test]
+    fn validate_memory_config_passes_when_no_skill_provider() {
+        let config = MemoryConfig {
+            capture: Some(MemoryOpConfig::Command {
+                command: "brv curate \"{context}\"".to_string(),
+            }),
+            search: None,
+            query: None,
+        };
+        validate_memory_config(&config, &[]).expect("command-only config should validate");
+    }
+
+    #[test]
+    fn validate_memory_config_passes_when_skill_resolves_in_flat_layout() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let skill_dir = tmp.path().join(".claude/skills/my-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(skill_dir.join("SKILL.md"), "stub").unwrap();
+
+        let config = MemoryConfig {
+            capture: Some(MemoryOpConfig::Skill {
+                skill: "my-skill".to_string(),
+                options: None,
+            }),
+            search: None,
+            query: None,
+        };
+        let paths = known_skills_search_paths(tmp.path());
+        validate_memory_config(&config, &paths).expect("flat skill should resolve");
+    }
+
+    #[test]
+    fn validate_memory_config_passes_when_skill_resolves_in_grouped_layout() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let skill_dir = tmp.path().join(".agents/skills/byterover/byterover-explore");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(skill_dir.join("SKILL.md"), "stub").unwrap();
+
+        let config = MemoryConfig {
+            capture: Some(MemoryOpConfig::Skill {
+                skill: "byterover-explore".to_string(),
+                options: None,
+            }),
+            search: None,
+            query: None,
+        };
+        let paths = known_skills_search_paths(tmp.path());
+        validate_memory_config(&config, &paths)
+            .expect("grouped skill (.agents/skills/<group>/<id>) should resolve");
+    }
+
+    #[test]
+    fn validate_memory_config_rejects_missing_skill() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let config = MemoryConfig {
+            capture: None,
+            search: Some(MemoryOpConfig::Skill {
+                skill: "nonexistent".to_string(),
+                options: None,
+            }),
+            query: None,
+        };
+        let paths = known_skills_search_paths(tmp.path());
+        let err = validate_memory_config(&config, &paths)
+            .expect_err("missing skill should fail validation");
+        let msg = err.to_string();
+        assert!(msg.contains("memory.search"), "msg = {msg}");
+        assert!(msg.contains("nonexistent"), "msg = {msg}");
+        // Searched-paths list should include at least one of the conventional dirs.
+        assert!(msg.contains(".agents/skills") || msg.contains(".claude/skills"));
+    }
+
+    #[test]
+    fn skill_id_resolves_returns_false_when_no_paths_exist() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let paths = known_skills_search_paths(tmp.path());
+        assert!(!skill_id_resolves("anything", &paths));
     }
 }

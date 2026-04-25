@@ -83,6 +83,76 @@ pub struct ItoConfig {
     #[schemars(default, description = "Backend server configuration (multi-tenant)")]
     /// Backend server configuration for hosting the multi-tenant API.
     pub backend_server: BackendServerConfig,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Agent memory provider configuration (per-operation)")]
+    /// Agent memory provider configuration.
+    ///
+    /// Optional and additive. When absent, all `memory-*` instructions render
+    /// the not-configured branch. Each operation (`capture`, `search`, `query`)
+    /// is configured independently and can pick either a skill delegation or an
+    /// inline command template — see [`MemoryOpConfig`].
+    pub memory: Option<MemoryConfig>,
+}
+
+/// Agent memory configuration — per-operation provider selection.
+///
+/// Memory exposes three operations: `capture` (store / curate), `search`
+/// (structured ranked lookup), and `query` (synthesized natural-language
+/// answer). Each operation is independently optional and chooses its own
+/// shape via [`MemoryOpConfig`].
+///
+/// Unknown operation keys under `memory` are rejected at deserialization
+/// time (`deny_unknown_fields`), so typos like `curate` (instead of
+/// `capture`) surface as validation errors rather than silently disabling
+/// the operation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(description = "Agent memory provider configuration")]
+pub struct MemoryConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Provider for the `capture` (store / curate) operation")]
+    /// Provider for the `capture` (store / curate) operation.
+    pub capture: Option<MemoryOpConfig>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Provider for the `search` (ranked lookup) operation")]
+    /// Provider for the `search` (ranked lookup) operation.
+    pub search: Option<MemoryOpConfig>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Provider for the `query` (synthesized answer) operation")]
+    /// Provider for the `query` (synthesized answer) operation.
+    pub query: Option<MemoryOpConfig>,
+}
+
+/// Per-operation memory provider shape.
+///
+/// Each variant is selected by the `kind` discriminator:
+///
+/// - `kind: "skill"` — delegate the operation to an installed skill.
+///   `options` is an opaque JSON value passed through verbatim to the skill;
+///   Ito does not interpret its contents.
+/// - `kind: "command"` — render an inline shell command line by substituting
+///   the operation's input placeholders at instruction-emission time. See
+///   the `agent-memory-abstraction` spec for the placeholder rendering rules.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "lowercase", deny_unknown_fields)]
+#[schemars(description = "Per-operation memory provider shape")]
+pub enum MemoryOpConfig {
+    /// Delegate the operation to an installed skill.
+    Skill {
+        /// Identifier of an installed skill (resolvable under any known skills directory).
+        skill: String,
+        /// Opaque JSON options passed through verbatim to the skill.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        options: Option<Value>,
+    },
+    /// Render an inline shell command line with placeholder substitution.
+    Command {
+        /// Shell command template with `{placeholder}` substitution markers.
+        command: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1295,3 +1365,7 @@ mod coordination_storage_tests;
 #[cfg(test)]
 #[path = "worktree_init_tests.rs"]
 mod worktree_init_tests;
+
+#[cfg(test)]
+#[path = "memory_tests.rs"]
+mod memory_tests;
