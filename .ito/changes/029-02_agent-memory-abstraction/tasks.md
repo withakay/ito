@@ -111,8 +111,8 @@ ______________________________________________________________________
 - **Verify**: Visual review; `make config-schema-check` still green.
 - **Done When**: Docs updated and committed; examples align with the spec's placeholder rendering rules.
 - **Requirements**: `agent-memory-abstraction:no-default-provider`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 4.2: Run strict validation
 
