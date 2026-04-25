@@ -47,6 +47,13 @@ To enable worktrees for *this developer*, create/update {% if worktree.ito_root 
 {% else %}
 Use the commands below for the configured strategy.
 
+Change worktree rules:
+
+- Keep the main/control checkout clean; do not create proposals or implement changes there.
+- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
+- Do not reuse one worktree for two changes.
+- If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
 Helpful path commands:
 
 - `ito path project-root` (stable root shared across worktrees)
@@ -65,7 +72,7 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-BRANCH_NAME="<change-name>"
+BRANCH_NAME="<full-change-id>"
 WORKTREE_ROOT="$(ito path worktree-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
 mkdir -p "$WORKTREES_ROOT"
@@ -76,7 +83,7 @@ LAYOUT_DIR_NAME='{{ worktree.layout_dir_name | replace("'", "'\"'\"'") }}'
 WORKTREES_IGNORE="${LAYOUT_DIR_NAME%/}/"
 grep -qxF "$WORKTREES_IGNORE" "$GITIGNORE_PATH" 2>/dev/null || printf '%s\n' "$WORKTREES_IGNORE" >> "$GITIGNORE_PATH"
 
-git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}" "{{ worktree.default_branch }}"
 ```
 {% elif worktree.strategy == "checkout_siblings" %}
 #### Strategy: `checkout_siblings`
@@ -90,12 +97,12 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-BRANCH_NAME="<change-name>"
+BRANCH_NAME="<full-change-id>"
 WORKTREE_ROOT="$(ito path worktree-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
 mkdir -p "$WORKTREES_ROOT"
 
-git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}"
+git -C "$WORKTREE_ROOT" worktree add "$WORKTREES_ROOT/${BRANCH_NAME}" -b "${BRANCH_NAME}" "{{ worktree.default_branch }}"
 ```
 {% elif worktree.strategy == "bare_control_siblings" %}
 #### Strategy: `bare_control_siblings`
@@ -111,7 +118,7 @@ Worktree root: `{{ worktree.worktree_root }}`
 Run git worktree commands against the bare/control root, but create each change worktree from `{{ worktree.default_branch }}` rather than the bare placeholder `HEAD`.
 
 ```bash
-BRANCH_NAME="<change-name>"
+BRANCH_NAME="<full-change-id>"
 PROJECT_ROOT="$(ito path project-root)"
 WORKTREES_ROOT="$(ito path worktrees-root)"
 mkdir -p "$WORKTREES_ROOT"
@@ -131,7 +138,7 @@ Commit on the worktree branch, then merge into `{{ worktree.default_branch }}`.
 #### Cleanup
 
 ```bash
-ito agent instruction finish --change "<change-name>"
+ito agent instruction finish --change "<full-change-id>"
 ```
 
 If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks.

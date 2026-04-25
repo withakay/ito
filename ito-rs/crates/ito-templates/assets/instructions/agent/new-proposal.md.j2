@@ -118,6 +118,15 @@ Sub-modules group related changes within a module. Sub-module IDs use the format
 
 Only proceed here after the user has confirmed their module (or sub-module) choice.
 
+{% if worktree is defined and worktree.enabled %}
+Create the change ID first, then create and use a **new** worktree before editing proposal artifacts:
+
+- Keep the main/control checkout clean; do not edit proposal, spec, design, or task files there.
+- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
+- Do not reuse a worktree from another change.
+- If you need more than one worktree for the same change, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+{% endif %}
+
 ```bash
 # For a regular module:
 ito create change "<change-name>" --module <module-id> --schema <schema>
@@ -146,10 +155,18 @@ ito create change "add-oauth-provider" --sub-module 001.02
 After creating the change, get the canonical, change-scoped instructions:
 
 ```bash
+{% if worktree is defined and worktree.enabled %}
+CHANGE_DIR=$(ito worktree ensure --change "<change-id>")
+cd "$CHANGE_DIR"
+{% endif %}
 ito agent instruction proposal --change <change-id>
 ito agent instruction specs --change <change-id>
 ito agent instruction tasks --change <change-id>
 ```
+
+{% if worktree is defined and worktree.enabled %}
+Run all subsequent file operations from `$CHANGE_DIR`.
+{% endif %}
 
 Follow the printed instructions exactly.
 

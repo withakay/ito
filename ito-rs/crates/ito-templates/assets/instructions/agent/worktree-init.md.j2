@@ -11,7 +11,14 @@ Work directly in the current checkout.
 
 ### Ensure Worktree
 
-Run the following to create and initialize the change worktree (idempotent — safe to re-run):
+Run the following to create and initialize the dedicated change worktree (idempotent — safe to re-run):
+
+Worktree rules:
+
+- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Use the full change ID as the branch and primary worktree directory name.
+- Do not reuse one worktree for two changes.
+- Extra worktrees for the same change must start with the full change ID and add a suffix.
 
 ```bash
 {% if change %}
