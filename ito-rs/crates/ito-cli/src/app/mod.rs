@@ -4,6 +4,7 @@ mod entrypoint;
 mod grep;
 mod init;
 mod instructions;
+mod memory_instructions;
 mod list;
 mod run;
 mod show;

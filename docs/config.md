@@ -196,6 +196,122 @@ Change coordination settings live under `changes.coordination_branch`:
 - `changes.coordination_branch.enabled`
 - `changes.coordination_branch.name`
 
+### Agent memory
+
+Agent memory is configured under the optional top-level `memory` section,
+keyed by operation name. Each operation (`capture`, `search`, `query`) is
+*independently optional* and picks one of two shapes:
+
+- **`command` shape** — Ito renders a shell command line, substituting
+  the operation's input placeholders at instruction-emission time.
+- **`skill` shape** — Ito directs the agent to invoke an installed skill
+  with structured inputs and an opaque `options` payload.
+
+There is **no default provider**. A freshly initialized Ito project has
+no `memory` section; running `ito agent instruction memory-capture` (or
+`memory-search` / `memory-query`) on it prints provider-setup guidance
+rather than failing.
+
+#### Command-shape placeholder rules
+
+When `kind` is `"command"`, Ito substitutes a fixed set of placeholders
+into the configured `command` template:
+
+| Placeholder | Type | Render rule |
+| --- | --- | --- |
+| `{context}` | scalar string (capture) | shell-quoted, empty when unset |
+| `{query}` | scalar string (search, query) | shell-quoted |
+| `{scope}` | scalar string (search) | shell-quoted, empty when unset |
+| `{limit}` | integer (search) | decimal literal; default `10` for `memory-search` |
+| `{files}` | list of paths (capture) | expands to repeated `--file 'path'` flags |
+| `{folders}` | list of paths (capture) | expands to repeated `--folder 'path'` flags |
+
+Unknown `{placeholder}` tokens are preserved literally — Ito does not
+emit a validation error for them.
+
+The rendered output is executable as-is; the agent does not perform
+further substitution.
+
+#### Worked example: command shape (generic)
+
+```jsonc
+{
+  "memory": {
+    "capture": {
+      "kind": "command",
+      "command": "<your-cli> store \"{context}\" {files} {folders}"
+    },
+    "search": {
+      "kind": "command",
+      "command": "<your-cli> search \"{query}\" --limit {limit}"
+    },
+    "query": {
+      "kind": "command",
+      "command": "<your-cli> ask \"{query}\""
+    }
+  }
+}
+```
+
+(Replace `<your-cli>` with whatever the configured backend is — for
+example, the ByteRover integration shipped by change
+`029-01_add-byterover-integration` configures `brv curate / brv search /
+brv query` via this exact shape.)
+
+#### Worked example: skill shape (generic)
+
+```jsonc
+{
+  "memory": {
+    "capture": {
+      "kind": "skill",
+      "skill": "ito-memory-markdown",
+      "options": { "root": ".ito/memories" }
+    },
+    "search": {
+      "kind": "skill",
+      "skill": "ito-memory-markdown"
+    }
+  }
+}
+```
+
+Ito does not interpret the `options` map — it is passed through
+verbatim to the configured skill, so each skill defines its own option
+schema.
+
+#### Mixing shapes
+
+Operations are configured independently, so `capture` may use a skill
+while `search` and `query` use inline commands:
+
+```jsonc
+{
+  "memory": {
+    "capture": { "kind": "skill", "skill": "ito-memory-markdown" },
+    "search":  { "kind": "command", "command": "rg \"{query}\" .ito/memories" }
+    // query intentionally omitted — `memory-query` will print setup
+    // guidance until configured.
+  }
+}
+```
+
+#### Apply / finish reminders
+
+When `memory.capture` is configured, both
+`ito agent instruction apply --change <id>` and
+`ito agent instruction finish --change <id>` append a *Capture memories*
+reminder section. The reminder tells the agent what to capture
+(decisions, gotchas, patterns) and how to invoke
+`ito agent instruction memory-capture`. The reminder is omitted when
+`memory.capture` is unconfigured, regardless of whether `search` or
+`query` are configured.
+
+`finish` also always appends a *Refresh archive and specs* wrap-up
+reminder covering specs / docs / archive checks. The archive check is
+suppressed when finish has already prompted to run `ito archive`, so the
+agent never sees the archive step listed twice in one finish output.
+
 ## Ito Directory Name (`projectPath`)
 
 `projectPath` controls the Ito working directory name (defaults to `.ito`).

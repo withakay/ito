@@ -918,6 +918,96 @@
       },
       "type": "object"
     },
+    "MemoryConfig": {
+      "additionalProperties": false,
+      "description": "Agent memory provider configuration",
+      "properties": {
+        "capture": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MemoryOpConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provider for the `capture` (store / curate) operation"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MemoryOpConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provider for the `query` (synthesized answer) operation"
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MemoryOpConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provider for the `search` (ranked lookup) operation"
+        }
+      },
+      "type": "object"
+    },
+    "MemoryOpConfig": {
+      "description": "Per-operation memory provider shape",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Delegate the operation to an installed skill.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "skill"
+              ],
+              "type": "string"
+            },
+            "options": {
+              "description": "Opaque JSON options passed through verbatim to the skill."
+            },
+            "skill": {
+              "description": "Identifier of an installed skill (resolvable under any known skills directory).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "skill"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Render an inline shell command line with placeholder substitution.",
+          "properties": {
+            "command": {
+              "description": "Shell command template with `{placeholder}` substitution markers.",
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "command"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "command",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "OpenCodeHarnessConfig": {
       "description": "OpenCode harness configuration",
       "properties": {
@@ -1585,6 +1675,17 @@
         }
       },
       "description": "Logging configuration"
+    },
+    "memory": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/MemoryConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Agent memory provider configuration (per-operation)"
     },
     "projectPath": {
       "default": null,

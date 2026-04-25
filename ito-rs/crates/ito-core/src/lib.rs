@@ -112,6 +112,9 @@ pub mod installers;
 /// List/query project entities (modules, changes, tasks).
 pub mod list;
 
+/// Agent memory provider resolution and instruction rendering.
+pub mod memory;
+
 /// Filesystem-backed module repository implementation.
 pub mod module_repository;
 

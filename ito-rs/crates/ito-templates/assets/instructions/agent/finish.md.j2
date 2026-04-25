@@ -112,3 +112,31 @@ git -C "$PROJECT_ROOT" branch -d "$CHANGE_NAME"
 # git -C "$PROJECT_ROOT" push origin --delete "$CHANGE_NAME"
 ```
 {% endif %}
+{% if memory.capture.configured %}
+
+### Capture memories
+
+Before closing this change out, review what you learned and capture anything
+worth remembering across sessions: design decisions and rationale, non-obvious
+gotchas, recurring patterns, and architectural notes the next agent will want
+to surface.
+
+For each item, run the configured memory provider via:
+
+```bash
+ito agent instruction memory-capture \
+  --context "<one-paragraph summary of what to remember>" \
+  --file <path>            # repeatable
+  --folder <path>          # repeatable
+```
+{% endif %}
+
+### Refresh archive and specs
+
+Before declaring the change finished, walk the wrap-up checklist:
+
+{% if not archive_prompt_rendered %}
+- **Archive**: confirm `ito archive {% if change and change|trim != "" %}{{ change }}{% else %}<change-name>{% endif %} --yes` has run; if not, run it now.
+{% endif %}
+- **Specs**: open `.ito/specs/` and confirm the canonical specs reflect this change. Spec deltas under `.ito/changes/<change-id>/specs/` should already have been merged in by `ito archive`; if anything still looks out of date, fix it before reporting completion.
+- **Docs**: confirm agent-facing docs (`AGENTS.md`, `.ito/AGENTS.md`, harness-specific files) are up to date with whatever capability or behavior this change introduced.

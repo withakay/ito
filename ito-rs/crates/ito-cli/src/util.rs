@@ -192,6 +192,28 @@ pub(crate) fn parse_string_flag(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+/// Collect every value supplied for a repeatable flag (e.g. `--file a --file b`).
+///
+/// Accepts both `--key value` and `--key=value` forms. The returned vector
+/// preserves caller order. An empty vector is returned when the flag does
+/// not appear.
+pub(crate) fn parse_repeated_string_flag(args: &[String], key: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut iter = args.iter();
+    while let Some(a) = iter.next() {
+        if a == key {
+            if let Some(v) = iter.next() {
+                out.push(v.clone());
+            }
+            continue;
+        }
+        if let Some(v) = a.strip_prefix(&format!("{key}=")) {
+            out.push(v.to_string());
+        }
+    }
+    out
+}
+
 pub(crate) fn split_csv(raw: &str) -> Vec<String> {
     raw.split(',').map(|s| s.trim().to_string()).collect()
 }

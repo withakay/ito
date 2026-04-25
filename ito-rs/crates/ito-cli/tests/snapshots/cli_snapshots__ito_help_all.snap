@@ -532,6 +532,24 @@ Options:
       --json
           Output as JSON
 
+      --context <CONTEXT>
+          Free-form context for `memory-capture`
+
+      --file <FILE>
+          File path for `memory-capture` (repeatable)
+
+      --folder <FOLDER>
+          Folder path for `memory-capture` (repeatable)
+
+      --query <QUERY>
+          Search/query input for `memory-search` and `memory-query`
+
+      --limit <LIMIT>
+          Limit for `memory-search` (positive integer)
+
+      --scope <SCOPE>
+          Scope for `memory-search`
+
   -h, --help
           Print help
 

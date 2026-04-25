@@ -215,6 +215,27 @@ CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
 ito agent instruction finish --change "$CHANGE_NAME"
 ```
 {% endif %}
+{% if memory.capture.configured %}
+
+### Capture memories
+
+Before reporting completion, review what you learned during this change and
+capture anything worth remembering across sessions: design decisions and the
+reasons behind them, non-obvious gotchas, recurring patterns, and architectural
+rationale that the next agent (or you next time) would want to find.
+
+For each item, run the configured memory provider via:
+
+```bash
+ito agent instruction memory-capture \
+  --context "<one-paragraph summary of what to remember>" \
+  --file <path>            # repeatable; include reference files
+  --folder <path>          # repeatable; include reference folders
+```
+
+Ito will render the configured `command` template (or skill delegation) with
+the inputs you provide.
+{% endif %}
 
 {% if user_guidance %}
 ### User Guidance

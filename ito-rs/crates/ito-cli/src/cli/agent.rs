@@ -46,6 +46,31 @@ pub struct AgentInstructionArgs {
     /// Output as JSON
     #[arg(long)]
     pub json: bool,
+
+    // ---- memory-* artifact inputs --------------------------------------
+    /// Free-form context for `memory-capture`
+    #[arg(long)]
+    pub context: Option<String>,
+
+    /// File path for `memory-capture` (repeatable)
+    #[arg(long = "file", action = clap::ArgAction::Append)]
+    pub file: Vec<String>,
+
+    /// Folder path for `memory-capture` (repeatable)
+    #[arg(long = "folder", action = clap::ArgAction::Append)]
+    pub folder: Vec<String>,
+
+    /// Search/query input for `memory-search` and `memory-query`
+    #[arg(long)]
+    pub query: Option<String>,
+
+    /// Limit for `memory-search` (positive integer)
+    #[arg(long)]
+    pub limit: Option<u64>,
+
+    /// Scope for `memory-search`
+    #[arg(long)]
+    pub scope: Option<String>,
 }
 
 impl AgentInstructionArgs {
@@ -60,6 +85,12 @@ impl AgentInstructionArgs {
             tool,
             schema,
             json,
+            context,
+            file,
+            folder,
+            query,
+            limit,
+            scope,
         } = self;
 
         let mut argv = vec![artifact.clone()];
@@ -77,6 +108,30 @@ impl AgentInstructionArgs {
         }
         if *json {
             argv.push("--json".to_string());
+        }
+        if let Some(v) = context {
+            argv.push("--context".to_string());
+            argv.push(v.clone());
+        }
+        for v in file {
+            argv.push("--file".to_string());
+            argv.push(v.clone());
+        }
+        for v in folder {
+            argv.push("--folder".to_string());
+            argv.push(v.clone());
+        }
+        if let Some(v) = query {
+            argv.push("--query".to_string());
+            argv.push(v.clone());
+        }
+        if let Some(v) = limit {
+            argv.push("--limit".to_string());
+            argv.push(v.to_string());
+        }
+        if let Some(v) = scope {
+            argv.push("--scope".to_string());
+            argv.push(v.clone());
         }
         argv
     }
