@@ -109,8 +109,17 @@ fn view_proposal_unknown_viewer_is_rejected() {
 #[test]
 fn view_proposal_html_viewer_is_recognized() {
     // `--viewer html` should NOT produce "Unknown viewer" — it is a registered backend.
-    // It may still fail (pandoc not installed, or not available), but the key assertion
-    // is that it is not rejected as an unknown viewer name.
+    // Stub pandoc and the platform opener so this exercises viewer dispatch without
+    // prompting the OS to open a browser during test runs.
+    let stub_dir = tempfile::tempdir().expect("stub dir");
+    write_stub_script(stub_dir.path(), "pandoc", 0);
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    write_stub_script(stub_dir.path(), opener, 0);
+
     let repo = tempfile::tempdir().expect("repo");
     write(repo.path().join("README.md"), "# temp\n");
     write(
@@ -120,6 +129,7 @@ fn view_proposal_html_viewer_is_recognized() {
 
     let mut command = Command::cargo_bin("ito").unwrap();
     command.current_dir(repo.path());
+    command.env("PATH", stub_dir.path());
     command.args(["view", "proposal", "001-30_demo", "--viewer", "html"]);
 
     // The command may fail (pandoc not installed) but must never say "Unknown viewer".
