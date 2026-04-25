@@ -24,4 +24,4 @@
 - [x] 002-15_retriable-harness-crashes
 - [x] 002-16_ralph-worktree-awareness
 - [x] 002-17_opencode-loop-command
-- [ ] 002-18_extend-ralph-loop-orchestration
+- [x] 002-18_extend-ralph-loop-orchestration
