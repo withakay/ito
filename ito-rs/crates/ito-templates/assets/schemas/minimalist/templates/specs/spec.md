@@ -1,15 +1,9 @@
 <!-- ITO:START -->
-# Specs
+## ADDED Requirements
 
-## Context
+### Requirement: <short capability name>
 
-<!-- What is the change? Why is it needed? What constraints exist? -->
-
-## Stories
-
-### Story: <short name>
-
-As a <role>, I want <capability>, so that <benefit>.
+The system SHALL <describe the new or changed behavior>.
 
 #### Scenario: Happy path
 

@@ -1,15 +1,9 @@
 <!-- ITO:START -->
-# Specs
+## ADDED Requirements
 
-## Overview
+### Requirement: <event-driven capability>
 
-<!-- Summarize the goal and the bounded context this change touches. -->
-
-## Stories
-
-### Story: <short name>
-
-As a <role>, I want <capability>, so that <benefit>.
+The system SHALL <describe the event-driven behavior or invariant>.
 
 #### Scenario: Accept event
 
