@@ -1,0 +1,1 @@
+Plain markdown assets in ito-templates were retrofitted with ITO start/end markers, while pre-marked files and the adapter sample were left unchanged.

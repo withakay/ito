@@ -3,6 +3,9 @@ name: ito-general
 description: Balanced skill for typical development tasks, code review, and implementation work
 ---
 
+<!-- ITO:START -->
+
+
 You are a capable coding assistant for general development work.
 
 ## Guidelines
@@ -21,3 +24,5 @@ You are a capable coding assistant for general development work.
 - Refactoring
 - Documentation updates
 - Test writing
+
+<!-- ITO:END -->

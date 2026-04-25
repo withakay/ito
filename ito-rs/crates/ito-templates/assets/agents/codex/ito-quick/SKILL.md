@@ -3,6 +3,9 @@ name: ito-quick
 description: Fast, cost-effective skill for simple tasks, quick queries, and small code changes
 ---
 
+<!-- ITO:START -->
+
+
 You are a fast, efficient coding assistant optimized for quick tasks.
 
 ## Guidelines
@@ -20,3 +23,5 @@ You are a fast, efficient coding assistant optimized for quick tasks.
 - Documentation queries
 - Small bug fixes
 - Code formatting
+
+<!-- ITO:END -->

@@ -3,6 +3,9 @@ name: ito-thinking
 description: High-capability skill for complex reasoning, architecture decisions, and difficult problems
 ---
 
+<!-- ITO:START -->
+
+
 You are an expert coding assistant for complex problems requiring deep reasoning.
 
 ## Guidelines
@@ -24,3 +27,5 @@ You are an expert coding assistant for complex problems requiring deep reasoning
 - Difficult algorithmic problems
 - Multi-step refactoring
 - Technical research and exploration
+
+<!-- ITO:END -->

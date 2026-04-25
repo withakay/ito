@@ -277,6 +277,7 @@ fn install_project_templates(
     let state_rel = format!("{ito_dir}/planning/STATE.md");
     let config_json_rel = format!("{ito_dir}/config.json");
     let release_tag = release_tag();
+    let semver = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
 
@@ -307,6 +308,15 @@ fn install_project_templates(
             bytes = render_project_template(&bytes, ctx).map_err(|e| {
                 CoreError::Validation(format!("Failed to render template {rel}: {e}"))
             })?;
+        }
+
+        // Stamp every managed-block markdown file with the current CLI version.
+        if rel.ends_with(".md")
+            && !rel.ends_with(".md.j2")
+            && let Ok(text) = std::str::from_utf8(&bytes)
+            && text.contains(ito_templates::ITO_START_MARKER)
+        {
+            bytes = ito_templates::stamp_version(text, semver).into_bytes();
         }
 
         let ownership = classify_project_file_ownership(rel, ito_dir);
@@ -385,6 +395,88 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
     FileOwnership::ItoManaged
 }
 
+/// Returns `true` when the rendered template's managed block spans the entire
+/// file — i.e. nothing meaningful sits outside the `<!-- ITO:START -->` /
+/// `<!-- ITO:END -->` markers. Such files have no user-editable region, so on
+/// update they can be rewritten wholesale to drop stale content from previous
+/// versions.
+///
+/// The rendered template bytes come from embedded assets that always place
+/// markers on their own lines, so a raw `find` is sufficient here.
+fn template_is_entirely_managed(text: &str) -> bool {
+    let Some(start) = text.find(ito_templates::ITO_START_MARKER) else {
+        return false;
+    };
+    let Some(end) = text.find(ito_templates::ITO_END_MARKER) else {
+        return false;
+    };
+    let before = text[..start].trim();
+    let after = text[end + ito_templates::ITO_END_MARKER.len()..].trim();
+    before.is_empty() && after.is_empty()
+}
+
+/// Returns `true` when the rendered template has non-trivial content sitting
+/// **before** its managed block (typically YAML frontmatter). Used by the
+/// first-marker migration path: when an existing on-disk file has no markers
+/// and the template has frontmatter + markers, the marker-prepend strategy
+/// would re-order the existing frontmatter and corrupt the file. In that case
+/// the safer migration is to write the rendered template wholesale.
+fn template_has_prefix_outside_markers(text: &str) -> bool {
+    let Some(start) = text.find(ito_templates::ITO_START_MARKER) else {
+        return false;
+    };
+    !text[..start].trim().is_empty()
+}
+
+/// Render an agent template and stamp the managed block (if any) with the
+/// current CLI version. Used by both `Init` and `Update` paths so newly
+/// written agent files always carry an `ITO:VERSION` line consistent with the
+/// installer.
+fn render_and_stamp_agent(
+    contents: &[u8],
+    config: Option<&ito_templates::agents::AgentConfig>,
+    target: &Path,
+) -> Vec<u8> {
+    let semver = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    let rendered = match (std::str::from_utf8(contents), config) {
+        (Ok(template_str), Some(cfg)) => {
+            ito_templates::agents::render_agent_template(template_str, cfg).into_bytes()
+        }
+        _ => contents.to_vec(),
+    };
+    let path_str = target.to_string_lossy();
+    if !path_str.ends_with(".md") || path_str.ends_with(".md.j2") {
+        return rendered;
+    }
+    let Ok(text) = std::str::from_utf8(&rendered) else {
+        return rendered;
+    };
+    if !text.contains(ito_templates::ITO_START_MARKER) {
+        return rendered;
+    }
+    ito_templates::stamp_version(text, semver).into_bytes()
+}
+
+/// Refresh the `<!--ITO:VERSION:...-->` stamp inside an on-disk agent file.
+///
+/// Used after `update_agent_model_field` patches frontmatter so the file's
+/// stamp matches the CLI version even when only the model field changed. A
+/// no-op for files without managed markers.
+fn refresh_agent_version_stamp(target: &Path) -> CoreResult<()> {
+    let semver = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    let existing = ito_common::io::read_to_string_std(target)
+        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
+    if !existing.contains(ito_templates::ITO_START_MARKER) {
+        return Ok(());
+    }
+    let stamped = ito_templates::stamp_version(&existing, semver);
+    if stamped == existing {
+        return Ok(());
+    }
+    ito_common::io::write_std(target, stamped.into_bytes())
+        .map_err(|e| CoreError::io(format!("stamping {}", target.display()), e))
+}
+
 /// Writes a rendered template to `target`, handling Ito-managed marker blocks, overwrite/update semantics,
 /// and ownership rules.
 ///
@@ -399,7 +491,6 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
 /// Errors are returned for IO failures and for invalid marker states when an update is attempted
 /// (except when `opts.upgrade` is true, in which case a missing marker in an expected marker-managed
 /// file produces a warning and the existing file is preserved).
-///
 fn write_one(
     target: &Path,
     rendered_bytes: &[u8],
@@ -422,6 +513,18 @@ fn write_one(
                 ito_common::io::write_std(target, rendered_bytes)
                     .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
                 return Ok(());
+            }
+
+            // User-owned files keep their content untouched on update / non-forced
+            // init even when the template now ships managed markers. Updating the
+            // managed block here would clobber user edits to files Ito only seeds
+            // (e.g. .ito/project.md, .ito/user-prompts/*.md).
+            if ownership == FileOwnership::UserOwned {
+                let updating = mode == InstallMode::Update
+                    || (mode == InstallMode::Init && (opts.update || opts.upgrade));
+                if updating {
+                    return Ok(());
+                }
             }
 
             // Read the existing file once and check for both Ito markers.
@@ -459,8 +562,41 @@ fn write_one(
                     )));
                 }
 
-                // update mode (no upgrade): fall through to update_file_with_markers,
-                // which will produce a proper error on malformed marker state.
+                // update / `init --update` against an Ito-managed file that
+                // predates marker rollout. Only safe to wholesale-rewrite when
+                // the existing file is genuinely marker-free (a partial
+                // marker pair indicates the user has manually edited the
+                // managed region and we should error rather than overwrite).
+                let existing_has_no_markers = !existing.contains(ito_templates::ITO_START_MARKER)
+                    && !existing.contains(ito_templates::ITO_END_MARKER);
+                if existing_has_no_markers {
+                    // Decide between wholesale rewrite and marker-prepend
+                    // based on the template's shape:
+                    //
+                    // - If the template's managed block spans the entire
+                    //   file, there is no user-editable region; rewrite
+                    //   wholesale to drop stale content from the previous
+                    //   version.
+                    //
+                    // - If the template has a non-empty prefix (typically
+                    //   YAML frontmatter) above the managed block,
+                    //   marker-prepend would re-order the existing
+                    //   frontmatter and corrupt the file. Rewrite wholesale
+                    //   instead.
+                    //
+                    // - Otherwise (template has only markers, no surrounding
+                    //   content), fall through to `update_file_with_markers`
+                    //   which prepends the managed block to the existing
+                    //   file while preserving user content.
+                    if template_is_entirely_managed(text)
+                        || template_has_prefix_outside_markers(text)
+                    {
+                        ito_common::io::write_std(target, rendered_bytes).map_err(|e| {
+                            CoreError::io(format!("writing {}", target.display()), e)
+                        })?;
+                        return Ok(());
+                    }
+                }
             }
 
             update_file_with_markers(
@@ -664,9 +800,7 @@ fn install_agent_templates(
     mode: InstallMode,
     opts: &InitOptions,
 ) -> CoreResult<()> {
-    use ito_templates::agents::{
-        AgentTier, Harness, default_agent_configs, get_agent_files, render_agent_template,
-    };
+    use ito_templates::agents::{AgentTier, Harness, default_agent_configs, get_agent_files};
 
     let configs = default_agent_configs();
 
@@ -732,16 +866,8 @@ fn install_agent_templates(
                         }
                     }
 
-                    // Render full template
-                    let rendered = if let Some(cfg) = config {
-                        if let Ok(template_str) = std::str::from_utf8(contents) {
-                            render_agent_template(template_str, cfg).into_bytes()
-                        } else {
-                            contents.to_vec()
-                        }
-                    } else {
-                        contents.to_vec()
-                    };
+                    // Render full template (and stamp managed-block markdown)
+                    let rendered = render_and_stamp_agent(contents, config, &target);
 
                     // Ensure parent directory exists
                     if let Some(parent) = target.parent() {
@@ -757,15 +883,7 @@ fn install_agent_templates(
                     // During update: only update model in existing ito agent files
                     if !target.exists() {
                         // File doesn't exist, create it
-                        let rendered = if let Some(cfg) = config {
-                            if let Ok(template_str) = std::str::from_utf8(contents) {
-                                render_agent_template(template_str, cfg).into_bytes()
-                            } else {
-                                contents.to_vec()
-                            }
-                        } else {
-                            contents.to_vec()
-                        };
+                        let rendered = render_and_stamp_agent(contents, config, &target);
 
                         if let Some(parent) = target.parent() {
                             ito_common::io::create_dir_all_std(parent).map_err(|e| {
@@ -778,6 +896,10 @@ fn install_agent_templates(
                     } else if let Some(cfg) = config {
                         // File exists, only update model field in frontmatter
                         update_agent_model_field(&target, &cfg.model)?;
+                        // Refresh the managed-block stamp so the file's
+                        // ITO:VERSION reflects the current CLI even when
+                        // only the model field was patched.
+                        refresh_agent_version_stamp(&target)?;
                     }
                 }
             }

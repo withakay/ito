@@ -440,7 +440,7 @@ export const ItoPlugin = async ({ client, directory }) => {
 
 Load a skill with OpenCode's native \`skill\` tool. Start with:
 \`\`\`
-use skill tool to load using-ito-skills
+use skill tool to load ito-using-ito-skills
 \`\`\`
 
 Skills are installed to: \`${skillsDir}\``;

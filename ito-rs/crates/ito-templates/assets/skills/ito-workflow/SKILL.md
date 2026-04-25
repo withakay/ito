@@ -3,6 +3,9 @@ name: ito-workflow
 description: Ito workflow delegation - delegates all workflow content to Ito CLI instruction artifacts.
 ---
 
+<!-- ITO:START -->
+
+
 This skill delegates workflow operations to the Ito CLI.
 
 **Principle**: The Ito CLI is the source of truth for workflow instructions. Skills should be thin wrappers that invoke the CLI and follow its output.
@@ -68,3 +71,5 @@ ito tasks complete <change-id> <task-id>
 - `ito-archive` - Archive completed changes
 - `ito-tasks` - Manage tasks
 - `ito-commit` - Create commits
+
+<!-- ITO:END -->

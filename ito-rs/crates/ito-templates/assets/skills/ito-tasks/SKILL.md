@@ -3,6 +3,9 @@ name: ito-tasks
 description: Use Ito tasks CLI to manage tasks.md (status/next/start/complete/shelve/add).
 ---
 
+<!-- ITO:START -->
+
+
 Use the `ito tasks` CLI to track and update implementation tasks for a change.
 
 **Rules**
@@ -44,3 +47,5 @@ ito tasks show <change-id>
 - If a task is blocked, run `ito tasks status <change-id>` and either resolve blockers or shelve the task (enhanced only).
 - If `ito tasks shelve` fails because the file is checkbox-only, explain that checkbox compat mode does not support shelving.
 - If `ito tasks start` fails in compat mode, it is usually because the task id is not a 1-based index, or another task is already in-progress.
+
+<!-- ITO:END -->

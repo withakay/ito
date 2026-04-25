@@ -19,7 +19,7 @@ Copilot CLI (`gh copilot`) has no project-level instruction discovery; it is sta
 
 Prefer dedicated tools (Read, Write, Edit, Glob, Grep) over shell commands. Use subagents (ito-quick, ito-general, ito-thinking) to delegate independent subtasks to specialized agents with isolated context.
 
-Skills are in `.pi/skills/`, commands in `.pi/commands/`. Load a skill with `/skill:name` (e.g., `/skill:using-ito-skills`). The `/ito` command provided by the Ito extension runs Ito CLI commands directly (e.g., `/ito audit validate`). Subagent definitions are in `.pi/agents/` and require the `pi-subagents` package.
+Skills are in `.pi/skills/`, commands in `.pi/commands/`. Load a skill with `/skill:name` (e.g., `/skill:ito-using-ito-skills`). The `/ito` command provided by the Ito extension runs Ito CLI commands directly (e.g., `/ito audit validate`). Subagent definitions are in `.pi/agents/` and require the `pi-subagents` package.
 
 {% else %}
 ## Tool Notes

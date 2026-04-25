@@ -3,6 +3,9 @@ name: ito-fix
 description: Start a fix-oriented Ito change proposal with fix-biased intake and schema recommendations.
 ---
 
+<!-- ITO:START -->
+
+
 Use this when the user frames the work as a fix, regression, correction, or supporting platform/tooling/infrastructure change that should be handled like a fix.
 **If the user already provided a change ID**, skip to Step 5 (Continue with `ito-proposal`) — the change already exists.
 
@@ -31,3 +34,5 @@ Drive proposal creation through a fix-oriented intake lane without locking the u
 
 - `ito-fix` is an opinionated front door, not a separate schema.
 - The user may still override the recommended schema or continue through the neutral `ito-proposal` lane.
+
+<!-- ITO:END -->

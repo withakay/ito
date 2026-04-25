@@ -122,7 +122,7 @@ Diversity is good: for non-trivial changes, get at least two independent review 
 Commonly useful subagents:
 
 - `explore` - fast codebase navigation/search
-- `test-runner` - runs project tests/checks with curated output
+- `ito-test-runner` - runs project tests/checks with curated output
 - `rust-quality-checker` - Rust style/idioms/conventions checks
 - `rust-code-reviewer` - Rust-focused review (safety/idioms/architecture)
 - `rust-test-engineer` - test strategy and coverage design

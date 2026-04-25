@@ -3,6 +3,9 @@ name: ito-verification-before-completion
 description: Use before claiming work is complete, finished, fixed, or passing — requires running verification commands and confirming output before making success claims
 ---
 
+<!-- ITO:START -->
+
+
 # Verification Before Completion
 
 ## The Rule
@@ -45,3 +48,5 @@ This applies to:
 - Before `ito tasks complete`: verify the task's acceptance criteria
 - Before claiming a change is ready for review: run the full test suite
 - Before `ito archive`: confirm all specs are met with evidence
+
+<!-- ITO:END -->

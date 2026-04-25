@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Security Review
 
 ## Objective
@@ -50,3 +52,5 @@ Proactive security improvements beyond specific findings.
 - [ ] Approved for implementation
 - [ ] Requires changes before implementation
 - [ ] Needs significant redesign
+
+<!-- ITO:END -->

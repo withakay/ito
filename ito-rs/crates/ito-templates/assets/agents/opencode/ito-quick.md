@@ -12,6 +12,9 @@ tools:
   grep: true
 ---
 
+<!-- ITO:START -->
+
+
 You are a fast, efficient coding assistant optimized for quick tasks.
 
 ## Guidelines
@@ -29,3 +32,5 @@ You are a fast, efficient coding assistant optimized for quick tasks.
 - Documentation queries
 - Small bug fixes
 - Code formatting
+
+<!-- ITO:END -->

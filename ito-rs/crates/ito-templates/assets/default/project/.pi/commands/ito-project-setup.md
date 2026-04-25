@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 Run `ito agent instruction project-setup` and follow the guide to configure this project for Ito.
 
 ## Extension
@@ -38,3 +40,5 @@ Use ito-thinking to review the architecture and suggest improvements
 ```
 
 See `pi-subagents` documentation for parallel and chain modes.
+
+<!-- ITO:END -->

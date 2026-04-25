@@ -3,6 +3,9 @@ name: ito-orchestrator-workflow
 description: Repo-specific workflow conventions consumed by the orchestrator.
 ---
 
+<!-- ITO:START -->
+
+
 This is a living-document skill: keep it updated as your repo's tooling and conventions evolve.
 
 ## Goal
@@ -32,3 +35,5 @@ This skill SHOULD include:
 ### Project Notes
 
 - Add any repo-specific gotchas that help orchestrator coordination.
+
+<!-- ITO:END -->

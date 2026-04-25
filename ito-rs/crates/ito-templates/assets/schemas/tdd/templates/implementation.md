@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 ## Implementation Notes
 
 <!-- Technical implementation details -->
@@ -9,3 +11,5 @@
 ## Usage
 
 <!-- Usage examples -->
+
+<!-- ITO:END -->

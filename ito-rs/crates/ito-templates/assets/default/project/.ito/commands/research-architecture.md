@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Architecture Research
 
 ## Objective
@@ -43,3 +45,5 @@ Describe the recommended approach with diagram (ASCII or description).
 ### Integration Points
 
 List external systems and how to integrate.
+
+<!-- ITO:END -->

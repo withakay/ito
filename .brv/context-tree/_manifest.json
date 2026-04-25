@@ -1,0 +1,39 @@
+{
+  "active_context": [
+    {
+      "order": 3,
+      "path": "_index.md",
+      "tokens": 236,
+      "type": "summary"
+    },
+    {
+      "order": 2,
+      "path": "development/_index.md",
+      "tokens": 278,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/ito_templates/_index.md",
+      "tokens": 226,
+      "type": "summary"
+    },
+    {
+      "abstractPath": "development/ito_templates/template_bundle_retrofit.abstract.md",
+      "abstractTokens": 38,
+      "importance": 50,
+      "path": "development/ito_templates/template_bundle_retrofit.md",
+      "tokens": 38,
+      "type": "context"
+    }
+  ],
+  "generated_at": "2026-04-24T21:05:47.158Z",
+  "lane_tokens": {
+    "contexts": 38,
+    "stubs": 0,
+    "summaries": 740
+  },
+  "source_fingerprint": "d497283c1a7ed74d8abe2273d38025a9b730213cb7ea4718c65124b9517bf336",
+  "total_tokens": 778,
+  "version": 1
+}

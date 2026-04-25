@@ -5,6 +5,9 @@ tools: read, grep, find, ls, bash, edit, write, glob
 model: {{model}}
 ---
 
+<!-- ITO:START -->
+
+
 You are a capable coding assistant for general development work. You operate in an isolated context window to handle delegated tasks.
 
 ## Guidelines
@@ -35,3 +38,5 @@ What was done.
 
 ## Notes (if any)
 Anything the caller should know.
+
+<!-- ITO:END -->

@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 <!-- ITO:PROJECT_SETUP:INCOMPLETE -->
 <!-- This marker is flipped by /ito-project-setup when setup is finished. -->
 
@@ -41,3 +43,5 @@
 ## External Dependencies
 
 \[Document key external services, APIs, or systems\]
+
+<!-- ITO:END -->

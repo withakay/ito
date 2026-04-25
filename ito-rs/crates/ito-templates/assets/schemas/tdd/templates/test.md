@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 ## Test Plan
 
 <!-- Describe the testing strategy -->
@@ -9,3 +11,5 @@
 - **Given:** <!-- preconditions -->
 - **When:** <!-- action -->
 - **Then:** <!-- expected result -->
+
+<!-- ITO:END -->

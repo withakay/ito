@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Ito (Copilot CLI)
 
 Ito workflows are managed by the Ito CLI.
@@ -13,3 +15,5 @@ ito agent instruction bootstrap --tool github-copilot
 ```bash
 ito agent instruction context
 ```
+
+<!-- ITO:END -->

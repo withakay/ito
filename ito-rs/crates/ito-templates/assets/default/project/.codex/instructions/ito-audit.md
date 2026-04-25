@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Ito Audit Guardrails (Codex)
 
 Codex does not provide a reliable pre-tool hook API for policy checks.
@@ -11,3 +13,5 @@ Follow these rules before any stateful work:
    - `ito audit reconcile`
 4. If reconcile reports drift and repair is appropriate, run `ito audit reconcile --fix` and then re-run `ito audit validate`.
 5. Never continue stateful work while audit validation is failing.
+
+<!-- ITO:END -->

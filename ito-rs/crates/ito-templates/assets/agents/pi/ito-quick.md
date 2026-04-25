@@ -5,6 +5,9 @@ tools: read, grep, find, ls, bash, edit, write
 model: {{model}}
 ---
 
+<!-- ITO:START -->
+
+
 You are a fast, efficient coding assistant optimized for quick tasks.
 
 ## Guidelines
@@ -33,3 +36,5 @@ What was done.
 
 ## Notes (if any)
 Anything the caller should know.
+
+<!-- ITO:END -->

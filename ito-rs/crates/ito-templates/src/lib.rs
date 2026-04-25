@@ -274,6 +274,119 @@ pub const ITO_START_MARKER: &str = "<!-- ITO:START -->";
 /// End marker for Ito-managed file blocks.
 pub const ITO_END_MARKER: &str = "<!-- ITO:END -->";
 
+/// Canonical writer prefix for the version stamp (no internal whitespace).
+///
+/// Combined with the semver and [`ITO_VERSION_MARKER_SUFFIX`], this produces
+/// a stamp line of the form `<!--ITO:VERSION:1.2.3-->`. Readers tolerate
+/// whitespace variants via [`stamp_version`]'s recognition logic; the writer
+/// always emits the tight canonical form.
+pub const ITO_VERSION_MARKER_PREFIX: &str = "<!--ITO:VERSION:";
+
+/// Canonical writer suffix for the version stamp.
+pub const ITO_VERSION_MARKER_SUFFIX: &str = "-->";
+
+/// Inject (or refresh) the Ito version stamp inside a managed-block file.
+///
+/// Behaviour:
+///
+/// - If `content` does not contain [`ITO_START_MARKER`] on its own line, the
+///   input is returned unchanged.
+/// - If the line immediately following `<!-- ITO:START -->` already contains
+///   the canonical stamp `<!--ITO:VERSION:<version>-->`, the input is returned
+///   byte-identical (idempotent).
+/// - If that line contains a stamp in any recognised form (tight or with
+///   surrounding whitespace, e.g. `<!-- ITO:VERSION: 1.2.3 -->`) but with a
+///   different version OR a non-canonical shape, the line is rewritten in the
+///   canonical writer form for `version`.
+/// - If that line is anything else (no stamp), a new canonical stamp line is
+///   inserted between `<!-- ITO:START -->` and the existing first line of the
+///   managed block.
+///
+/// The rest of the file is preserved byte-for-byte.
+pub fn stamp_version(content: &str, version: &str) -> String {
+    let Some(start) = find_marker_index(content, ITO_START_MARKER, 0) else {
+        return content.to_string();
+    };
+    let after_start_line = line_end(content, start + ITO_START_MARKER.len());
+
+    let next_line_end = next_line_break(content, after_start_line);
+    let next_line = &content[after_start_line..next_line_end];
+    let canonical = format!("{ITO_VERSION_MARKER_PREFIX}{version}{ITO_VERSION_MARKER_SUFFIX}");
+
+    if is_stamp_line(next_line) {
+        // A stamp is already there (any whitespace shape). The canonical
+        // writer form has no leading whitespace, so we only consider the line
+        // already-canonical when its leading bytes are bare and trailing
+        // whitespace (carriage return, spaces, tabs) is absent. Anything else
+        // — leading indent, internal spaces, an old version — gets rewritten
+        // to the canonical form and the file then stabilises on the next run.
+        if next_line.trim_end_matches(['\r', ' ', '\t']) == canonical {
+            return content.to_string();
+        }
+        let line_break_end = line_end(content, next_line_end);
+        let mut out = String::with_capacity(content.len());
+        out.push_str(&content[..after_start_line]);
+        out.push_str(&canonical);
+        out.push_str(&content[next_line_end..line_break_end]);
+        if line_break_end == next_line_end {
+            out.push('\n');
+        }
+        out.push_str(&content[line_break_end..]);
+        return out;
+    }
+
+    let mut out = String::with_capacity(content.len() + canonical.len() + 1);
+    out.push_str(&content[..after_start_line]);
+    out.push_str(&canonical);
+    out.push('\n');
+    out.push_str(&content[after_start_line..]);
+    out
+}
+
+/// Recognise an Ito version stamp line in any whitespace shape.
+///
+/// Accepts `<!--ITO:VERSION:1.2.3-->`, `<!-- ITO:VERSION: 1.2.3 -->`, and any
+/// surrounding leading/trailing whitespace on the line. Rejects unrelated HTML
+/// comments and rejects empty version tokens. Tooling that wants the captured
+/// version should match the line against the regex
+/// `<!--\s*ITO:VERSION:\s*([^>\s]+)\s*-->` separately.
+fn is_stamp_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    let Some(body) = trimmed
+        .strip_prefix("<!--")
+        .and_then(|s| s.strip_suffix("-->"))
+    else {
+        return false;
+    };
+    let body = body.trim();
+    let Some(rest) = body.strip_prefix("ITO") else {
+        return false;
+    };
+    let Some(rest) = rest.trim_start().strip_prefix(':') else {
+        return false;
+    };
+    let Some(rest) = rest.trim_start().strip_prefix("VERSION") else {
+        return false;
+    };
+    let Some(version) = rest.trim_start().strip_prefix(':').map(str::trim) else {
+        return false;
+    };
+    !version.is_empty()
+}
+
+/// Return the byte index of the next `\n`, or `text.len()` if none.
+fn next_line_break(text: &str, from: usize) -> usize {
+    let bytes = text.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        if bytes[i] == b'\n' {
+            return i;
+        }
+        i += 1;
+    }
+    i
+}
+
 /// Extract the substring between [`ITO_START_MARKER`] and [`ITO_END_MARKER`].
 ///
 /// Returns `None` if the markers are not present *on their own lines*.
@@ -500,14 +613,14 @@ mod tests {
 
     #[test]
     fn tmux_skill_and_scripts_are_embedded() {
-        let skill = get_skill_file("tmux/SKILL.md").expect("tmux skill should exist");
+        let skill = get_skill_file("ito-tmux/SKILL.md").expect("ito-tmux skill should exist");
         let skill_text = std::str::from_utf8(skill).expect("skill should be utf8");
-        assert!(skill_text.starts_with("---\nname: tmux\n"));
+        assert!(skill_text.starts_with("---\nname: ito-tmux\n"));
         assert!(skill_text.contains("tmux -S \"$SOCKET\" send-keys"));
         assert!(skill_text.contains("wait-for-text.sh -S \"$SOCKET\""));
 
         let wait_for_text =
-            get_skill_file("tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
+            get_skill_file("ito-tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
         let wait_for_text = std::str::from_utf8(wait_for_text).expect("script should be utf8");
         assert!(wait_for_text.contains("-S|--socket-path"));
         assert!(wait_for_text.contains("tmux_cmd+=(-S \"$socket_path\")"));
@@ -516,13 +629,13 @@ mod tests {
         assert!(
             files
                 .iter()
-                .any(|f| f.relative_path == "tmux/scripts/wait-for-text.sh"),
+                .any(|f| f.relative_path == "ito-tmux/scripts/wait-for-text.sh"),
             "expected wait-for-text helper script to be embedded"
         );
         assert!(
             files
                 .iter()
-                .any(|f| f.relative_path == "tmux/scripts/find-sessions.sh"),
+                .any(|f| f.relative_path == "ito-tmux/scripts/find-sessions.sh"),
             "expected find-sessions helper script to be embedded"
         );
     }
@@ -684,5 +797,278 @@ mod tests {
     fn extract_managed_block_returns_empty_for_empty_inner() {
         let s = "<!-- ITO:START -->\n<!-- ITO:END -->\n";
         assert_eq!(extract_managed_block(s), Some(""));
+    }
+
+    // -------- stamp_version --------
+
+    #[test]
+    fn stamp_version_noop_without_marker() {
+        let s = "no markers here\n";
+        assert_eq!(stamp_version(s, "1.2.3"), s);
+    }
+
+    #[test]
+    fn stamp_version_inserts_when_missing() {
+        let s = "<!-- ITO:START -->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3");
+        assert_eq!(
+            out,
+            "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n"
+        );
+    }
+
+    #[test]
+    fn stamp_version_idempotent_on_canonical_match() {
+        let s = "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n";
+        assert_eq!(stamp_version(s, "1.2.3"), s);
+    }
+
+    #[test]
+    fn stamp_version_rewrites_spaced_form_to_canonical() {
+        let s = "<!-- ITO:START -->\n<!-- ITO:VERSION: 1.2.3 -->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3");
+        assert_eq!(
+            out,
+            "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n"
+        );
+    }
+
+    #[test]
+    fn stamp_version_rewrites_older_version() {
+        let s = "<!-- ITO:START -->\n<!--ITO:VERSION:0.9.0-->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3");
+        assert_eq!(
+            out,
+            "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n"
+        );
+    }
+
+    #[test]
+    fn stamp_version_preserves_frontmatter() {
+        let s = "---\nname: foo\n---\n\n<!-- ITO:START -->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3");
+        assert_eq!(
+            out,
+            "---\nname: foo\n---\n\n<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n"
+        );
+    }
+
+    #[test]
+    fn stamp_version_preserves_trailing_content() {
+        let s = "<!-- ITO:START -->\nbody\n<!-- ITO:END -->\nepilogue line\n";
+        let out = stamp_version(s, "9.9.9");
+        assert!(out.ends_with("<!-- ITO:END -->\nepilogue line\n"));
+        assert!(out.contains("<!--ITO:VERSION:9.9.9-->"));
+    }
+
+    #[test]
+    fn stamp_version_handles_prerelease_semver() {
+        let s = "<!-- ITO:START -->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3-asd");
+        assert!(out.contains("<!--ITO:VERSION:1.2.3-asd-->"));
+    }
+
+    #[test]
+    fn stamp_version_idempotent_on_canonical_with_trailing_whitespace() {
+        // Trailing CR / spaces / tabs after the canonical stamp should still
+        // be treated as canonical so the file is not rewritten.
+        let s = "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->  \nbody\n<!-- ITO:END -->\n";
+        assert_eq!(stamp_version(s, "1.2.3"), s);
+    }
+
+    #[test]
+    fn stamp_version_canonical_with_leading_whitespace_is_rewritten() {
+        // Leading whitespace makes the line non-canonical even if the version
+        // matches; the writer normalises to the tight form on next run.
+        let s = "<!-- ITO:START -->\n  <!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n";
+        let out = stamp_version(s, "1.2.3");
+        assert_eq!(
+            out,
+            "<!-- ITO:START -->\n<!--ITO:VERSION:1.2.3-->\nbody\n<!-- ITO:END -->\n"
+        );
+        // And then it's stable.
+        assert_eq!(stamp_version(&out, "1.2.3"), out);
+    }
+
+    #[test]
+    fn stamp_version_handles_crlf_line_endings() {
+        let s = "<!-- ITO:START -->\r\nbody\r\n<!-- ITO:END -->\r\n";
+        let out = stamp_version(s, "1.2.3");
+        assert!(out.contains("<!--ITO:VERSION:1.2.3-->"));
+        // Re-stamp must be a no-op even though the surrounding line endings
+        // are CRLF.
+        assert_eq!(stamp_version(&out, "1.2.3"), out);
+    }
+
+    #[test]
+    fn stamp_version_round_trip_on_real_skill() {
+        let bytes = get_skill_file("ito-feature/SKILL.md").expect("ito-feature skill exists");
+        let text = std::str::from_utf8(bytes).expect("skill is utf8");
+        let stamped = stamp_version(text, "1.2.3");
+        let restamped = stamp_version(&stamped, "1.2.3");
+        assert_eq!(stamped, restamped, "stamping must be idempotent");
+        assert!(stamped.contains("<!--ITO:VERSION:1.2.3-->"));
+        assert_eq!(
+            stamped.matches("<!--ITO:VERSION:").count(),
+            1,
+            "exactly one stamp must be present"
+        );
+    }
+
+    // -------- bundle invariants --------
+
+    #[test]
+    fn every_shipped_skill_has_ito_prefix() {
+        let mut violations: Vec<&'static str> = Vec::new();
+        for f in skills_files() {
+            let Some(top) = f.relative_path.split('/').next() else {
+                continue;
+            };
+            if top == "ito" || top.starts_with("ito-") {
+                continue;
+            }
+            violations.push(f.relative_path);
+        }
+        assert!(
+            violations.is_empty(),
+            "skills missing `ito-` prefix: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn every_shipped_command_has_ito_prefix() {
+        let mut violations: Vec<&'static str> = Vec::new();
+        for f in commands_files() {
+            let Some(name) = f.relative_path.split('/').next_back() else {
+                continue;
+            };
+            let stem = name.strip_suffix(".md").unwrap_or(name);
+            if stem == "ito" || stem.starts_with("ito-") {
+                continue;
+            }
+            violations.push(f.relative_path);
+        }
+        assert!(
+            violations.is_empty(),
+            "commands missing `ito-` prefix: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn every_shipped_agent_has_ito_prefix() {
+        let mut violations: Vec<String> = Vec::new();
+        let agent_dirs = AGENTS_DIR.dirs();
+        for harness_dir in agent_dirs {
+            for entry_file in harness_dir.files() {
+                let Some(name) = entry_file.path().file_name().and_then(|s| s.to_str()) else {
+                    continue;
+                };
+                let stem = name
+                    .strip_suffix(".md")
+                    .or_else(|| name.strip_suffix(".md.j2"))
+                    .unwrap_or(name);
+                if stem.starts_with("ito-") {
+                    continue;
+                }
+                violations.push(entry_file.path().display().to_string());
+            }
+            for nested in harness_dir.dirs() {
+                let Some(name) = nested.path().file_name().and_then(|s| s.to_str()) else {
+                    continue;
+                };
+                if name.starts_with("ito-") {
+                    continue;
+                }
+                violations.push(nested.path().display().to_string());
+            }
+        }
+        assert!(
+            violations.is_empty(),
+            "agents missing `ito-` prefix: {violations:?}"
+        );
+    }
+
+    fn count_marker_on_own_line(text: &str, marker: &str) -> usize {
+        let mut from = 0;
+        let mut count = 0;
+        while let Some(idx) = find_marker_index(text, marker, from) {
+            count += 1;
+            from = idx + marker.len();
+        }
+        count
+    }
+
+    #[test]
+    fn every_shipped_markdown_has_exactly_one_marker_pair() {
+        let mut violations: Vec<String> = Vec::new();
+        let mut all = Vec::new();
+        all.extend(default_project_files());
+        all.extend(default_home_files());
+        all.extend(skills_files());
+        all.extend(adapters_files());
+        all.extend(commands_files());
+        all.extend(schema_files());
+        all.extend(presets_files());
+        all.extend(dir_files(&AGENTS_DIR));
+        for f in all {
+            if !f.relative_path.ends_with(".md") {
+                continue;
+            }
+            let Ok(text) = std::str::from_utf8(f.contents) else {
+                continue;
+            };
+            let starts = count_marker_on_own_line(text, ITO_START_MARKER);
+            let ends = count_marker_on_own_line(text, ITO_END_MARKER);
+            if starts != 1 || ends != 1 {
+                violations.push(format!("{}: starts={starts} ends={ends}", f.relative_path));
+            }
+        }
+        assert!(
+            violations.is_empty(),
+            "expected exactly one ITO:START and one ITO:END per shipped markdown:\n  {}",
+            violations.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn every_shipped_markdown_has_managed_markers() {
+        let mut missing_start: Vec<&'static str> = Vec::new();
+        let mut missing_end: Vec<&'static str> = Vec::new();
+
+        let bundles: [&[EmbeddedFile]; 0] = [];
+        let _ = bundles;
+
+        let collect = || -> Vec<EmbeddedFile> {
+            let mut all = Vec::new();
+            all.extend(default_project_files());
+            all.extend(default_home_files());
+            all.extend(skills_files());
+            all.extend(adapters_files());
+            all.extend(commands_files());
+            all.extend(schema_files());
+            all.extend(presets_files());
+            all.extend(dir_files(&AGENTS_DIR));
+            all
+        };
+
+        for f in collect() {
+            if !f.relative_path.ends_with(".md") {
+                continue;
+            }
+            let Ok(text) = std::str::from_utf8(f.contents) else {
+                continue;
+            };
+            if find_marker_index(text, ITO_START_MARKER, 0).is_none() {
+                missing_start.push(f.relative_path);
+            }
+            if find_marker_index(text, ITO_END_MARKER, 0).is_none() {
+                missing_end.push(f.relative_path);
+            }
+        }
+
+        assert!(
+            missing_start.is_empty() && missing_end.is_empty(),
+            "markdown assets missing managed markers — start: {missing_start:?}, end: {missing_end:?}"
+        );
     }
 }

@@ -3,6 +3,9 @@ name: ito-research
 description: "Conduct structured research for feature development, technology evaluation, or problem investigation. Use when the user needs to explore options, analyze trade-offs, or investigate technical approaches."
 ---
 
+<!-- ITO:START -->
+
+
 # Ito Research
 
 Structured research skill for feature development, technology evaluation, and problem investigation.
@@ -111,3 +114,5 @@ Research outputs can feed into change proposals:
 2. Save findings to `$ITO_ROOT/research/{{topic}}/`
 3. Reference research in `proposal.md` or `design.md`
 4. Use research to inform `tasks.md` prioritization
+
+<!-- ITO:END -->

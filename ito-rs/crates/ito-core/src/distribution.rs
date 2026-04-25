@@ -229,6 +229,9 @@ pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
 /// rendered with the given worktree configuration before writing. Other skill
 /// files (which may contain `{{` as user-facing prompt placeholders) are written
 /// as-is.
+///
+/// Every `.md` file that contains an Ito managed block receives a version stamp
+/// immediately after `<!-- ITO:START -->` before being written to disk.
 pub fn install_manifests(
     manifests: &[FileManifest],
     worktree_ctx: Option<&ito_templates::project_templates::WorktreeTemplateContext>,
@@ -237,6 +240,9 @@ pub fn install_manifests(
 
     let default_ctx = WorktreeTemplateContext::default();
     let ctx = worktree_ctx.unwrap_or(&default_ctx);
+
+    // Source the version once for all manifests in this batch.
+    let version = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
 
     for manifest in manifests {
         let raw_bytes = match manifest.asset_type {
@@ -287,6 +293,9 @@ pub fn install_manifests(
             raw_bytes.to_vec()
         };
 
+        // Stamp every managed-block markdown file with the current CLI version.
+        let bytes = stamp_managed_markdown(bytes, &manifest.source, version);
+
         if let Some(parent) = manifest.dest.parent() {
             ito_common::io::create_dir_all_std(parent).map_err(|e| {
                 CoreError::io(format!("creating directory {}", parent.display()), e)
@@ -297,6 +306,28 @@ pub fn install_manifests(
         ensure_manifest_script_is_executable(manifest)?;
     }
     Ok(())
+}
+
+/// Inject a version stamp into `bytes` when the file is a managed-block markdown file.
+///
+/// Returns the (possibly modified) bytes.  The stamp is applied only when:
+/// - the relative path ends in `.md` (not `.md.j2`)
+/// - the bytes are valid UTF-8
+/// - the content contains `<!-- ITO:START -->`
+fn stamp_managed_markdown(bytes: Vec<u8>, rel_path: &str, version: &str) -> Vec<u8> {
+    if !rel_path.ends_with(".md") || rel_path.ends_with(".md.j2") {
+        return bytes;
+    }
+
+    let Ok(text) = std::str::from_utf8(&bytes) else {
+        return bytes;
+    };
+
+    if !text.contains(ito_templates::ITO_START_MARKER) {
+        return bytes;
+    }
+
+    ito_templates::stamp_version(text, version).into_bytes()
 }
 
 fn ensure_manifest_script_is_executable(manifest: &FileManifest) -> CoreResult<()> {

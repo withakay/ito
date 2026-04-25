@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Spec Compliance Reviewer Prompt Template
 
 Use this template when dispatching a spec compliance reviewer subagent.
@@ -59,3 +61,5 @@ Task tool (general-purpose):
     - ✅ Spec compliant (if everything matches after code inspection)
     - ❌ Issues found: [list specifically what's missing or extra, with file:line references]
 ```
+
+<!-- ITO:END -->

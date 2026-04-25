@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Stack Analysis Research
 
 ## Objective
@@ -37,3 +39,5 @@ List alternatives and when they might be preferred.
 ### References
 
 Include links to documentation, benchmarks, or comparisons consulted.
+
+<!-- ITO:END -->

@@ -1,3 +1,5 @@
+<!-- ITO:START -->
+
 # Edge Case Review
 
 ## Objective
@@ -58,3 +60,5 @@ Think like a chaos monkey. What happens when:
 - [ ] Edge cases adequately handled
 - [ ] Minor edge case improvements needed
 - [ ] Significant gaps in error handling
+
+<!-- ITO:END -->

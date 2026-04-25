@@ -3,6 +3,9 @@ name: ito-review
 description: Review and validate Ito changes, specs, or implementations. Use when the user wants a quality check, code review, or validation of project artifacts.
 ---
 
+<!-- ITO:START -->
+
+
 Run the CLI-generated review instructions for a specific change.
 
 This skill uses:
@@ -29,3 +32,5 @@ to generate a structured peer-review checklist before implementation.
 
    - Prefix each item with `[blocking]`, `[suggestion]`, or `[note]`.
    - End with `Verdict: approve`, `Verdict: request-changes`, or `Verdict: needs-discussion`.
+
+<!-- ITO:END -->
