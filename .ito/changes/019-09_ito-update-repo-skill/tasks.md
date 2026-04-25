@@ -49,8 +49,8 @@ ______________________________________________________________________
 - **Verify**: `rg -n "(?<!ito-)(^|/)(tmux|test-with-subagent|using-ito-skills|test-runner)(/|\.md|\"|\b)" ito-rs/crates/ito-templates/assets` returns no semantic hits.
 - **Done When**: Every asset basename under `assets/{skills,commands,agents}/` satisfies the prefix rule (`ito` or `ito-<suffix>`).
 - **Requirements**: ito-managed-asset-naming:prefix-rule, ito-managed-asset-naming:templates-enforce
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 1.4: Add CI guard for the prefix rule
 
