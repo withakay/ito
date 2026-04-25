@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-config`; `make config-schema-check`; roundtrip tests for both variants and for partial configs (capture only, search only, etc.).
 - **Done When**: Existing configs without `memory` still load unchanged; schema check green.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`, `agent-memory-abstraction:per-op-shape`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ### Task 1.2: Validate `MemoryConfig` — shape, required fields, skill discoverability
 
