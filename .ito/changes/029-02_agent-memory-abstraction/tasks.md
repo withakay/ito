@@ -122,6 +122,6 @@ ______________________________________________________________________
 - **Verify**: Command exits 0.
 - **Done When**: Strict validation passes.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 <!-- ITO:END -->
