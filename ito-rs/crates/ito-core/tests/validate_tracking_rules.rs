@@ -407,3 +407,55 @@ fn task_quality_rule_emits_single_rule_error_when_tracking_file_is_unreadable() 
             .contains("changes/001-01_demo/tasks.md")
     );
 }
+
+#[test]
+fn task_quality_rule_treats_gradle_files_as_implementation_work() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("schema.yaml"),
+        "name: tracking-rules\nversion: 1\nartifacts:\n  - id: specs\n    generates: specs/**/*.md\n    template: specs/spec.md\n    requires: []\napply:\n  tracks: tasks.md\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("tracking-rules")
+            .join("validation.yaml"),
+        "version: 1\nartifacts:\n  specs:\n    required: true\n    validate_as: ito.delta-specs.v1\ntracking:\n  source: apply_tracks\n  required: true\n  validate_as: ito.tasks-tracking.v1\n  rules:\n    task_quality: error\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: tracking-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Known requirement\nThe system SHALL track tasks.\n\n- **Requirement ID**: auth:known\n\n#### Scenario: Track tasks\n- **WHEN** validation runs\n- **THEN** task requirements resolve\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("tasks.md"),
+        "## Wave 1\n- **Depends On**: None\n\n### Task 1.1: Gradle change\n- **Files**: `build.gradle`\n- **Dependencies**: None\n- **Action**:\n  Update the build.\n- **Done When**: The Gradle change is complete.\n- **Requirements**: auth:known\n- **Status**: [ ] pending\n- **Updated At**: 2026-04-25\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("task_quality")
+            && issue.level == "ERROR"
+            && issue.message.contains("Missing Verify")
+    }));
+}

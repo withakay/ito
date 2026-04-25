@@ -11,8 +11,10 @@ use super::{
 };
 
 static IMPLEMENTATION_FILE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\.(rs|ts|tsx|js|py|go|toml|yaml|yml|json|sh)$")
-        .expect("valid implementation file regex")
+    Regex::new(
+        r"(?i)(\.rs|\.ts|\.tsx|\.jsx|\.js|\.mjs|\.cjs|\.py|\.go|\.toml|\.yaml|\.yml|\.json|\.sh|\.rb|\.java|\.kt|\.cs|\.cpp|\.cc|\.c|\.h|\.hpp|\.swift|\.php|\.scala|\.erl|\.ex|\.exs|\.zig|\.lua|\.dart|\.gradle|\.bazel|\.bzl|\.proto)$",
+    )
+    .expect("valid implementation file regex")
 });
 
 pub(super) fn rules() -> &'static [&'static str] {
