@@ -95,7 +95,7 @@ ______________________________________________________________________
 - **Done When**: Snapshot suite green; dedupe assertion passes.
 - **Requirements**: `agent-instructions:finish-wrap-up-reminder`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
