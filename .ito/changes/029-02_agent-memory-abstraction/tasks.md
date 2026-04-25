@@ -123,5 +123,5 @@ ______________________________________________________________________
 - **Done When**: Strict validation passes.
 - **Requirements**: `agent-memory-abstraction:optional-per-op-config`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
