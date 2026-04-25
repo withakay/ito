@@ -1,45 +1,48 @@
 {
-	"$schema": "https://opencode.ai/config.json",
-	"permission": {
-		"external_directory": {
-			"../ito-worktrees/**": "allow",
-			"../../ito/**": "allow"
-		}
-	},
-	"formatter": {
-		"cargofmt": {
-			"disabled": true
-		},
-		"rustfmt": {
-			"disabled": true
-		},
-		"prek-manual": {
-			"command": [
-				"prek",
-				"run",
-				"--config",
-				".pre-commit-opencode.yaml",
-				"--hook-stage",
-				"manual",
-				"--files",
-				"$FILE"
-			],
-			"extensions": [
-				".rs",
-				".md",
-				".txt",
-				".toml",
-				".lock",
-				".json",
-				".jsonc",
-				".yaml",
-				".yml",
-				".sh",
-				".py",
-				".editorconfig",
-				".gitignore",
-				".gitattributes"
-			]
-		}
-	}
+    "$schema": "https://opencode.ai/config.json",
+    "permission": {
+        "external_directory": {
+            "../ito-worktrees/**": "allow",
+            "../worktrees/**": "allow",
+            "../../ito/**": "allow",
+            "../**": "allow",
+            "~/.local/share/ito/withakay/ito/**": "allow",
+        },
+    },
+    "formatter": {
+        "cargofmt": {
+            "disabled": true,
+        },
+        "rustfmt": {
+            "disabled": true,
+        },
+        "prek-manual": {
+            "command": [
+                "prek",
+                "run",
+                "--config",
+                ".pre-commit-opencode.yaml",
+                "--hook-stage",
+                "manual",
+                "--files",
+                "$FILE",
+            ],
+            "extensions": [
+                ".rs",
+                ".md",
+                ".txt",
+                ".toml",
+                ".lock",
+                ".json",
+                ".jsonc",
+                ".yaml",
+                ".yml",
+                ".sh",
+                ".py",
+                ".editorconfig",
+                ".gitignore",
+                ".gitattributes",
+            ],
+        },
+    },
 }
