@@ -13,4 +13,4 @@
 - [x] 023-04_codex-audit-instructions
 - [x] 023-05_init-update-installer-parity
 - [x] 023-07_harness-context-inference
-- [ ] 023-09_marker-aware-manifest-installs
+- [x] 023-09_marker-aware-manifest-installs
