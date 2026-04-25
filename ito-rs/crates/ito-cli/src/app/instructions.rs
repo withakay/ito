@@ -332,6 +332,8 @@ then re-run:\n\n\
     }
 
     if artifact == "finish" {
+        best_effort_sync_coordination(rt, "before finish instructions");
+
         let ctx = rt.ctx();
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -363,6 +365,8 @@ then re-run:\n\n\
     }
 
     if artifact == "archive" {
+        best_effort_sync_coordination(rt, "before archive instructions");
+
         let runtime = rt.repository_runtime().map_err(to_cli_error)?;
         let ctx = rt.ctx();
         let ito_path = rt.ito_path();
@@ -439,6 +443,9 @@ then re-run:\n\n\
     }
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
+    if sync_before_change_resolution(artifact) {
+        best_effort_sync_coordination(rt, &format!("before {artifact} instructions"));
+    }
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let change_repo = runtime.repositories().changes.as_ref();
     let change = change.expect("checked above");
@@ -467,8 +474,6 @@ then re-run:\n\n\
     if artifact == "apply" {
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
-
-        best_effort_sync_coordination(rt, "before apply instructions");
 
         let apply = match core_templates::compute_apply_instructions(
             ito_path,
@@ -620,6 +625,10 @@ fn load_coordination_branch_settings(
     resolve_coordination_branch_settings(&merged)
 }
 
+fn sync_before_change_resolution(artifact: &str) -> bool {
+    artifact == "apply" || artifact == "proposal" || artifact == "review"
+}
+
 fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {
     let mut cur = root;
     for k in keys {
@@ -753,6 +762,8 @@ fn archive_instruction_config_from_merged(
 }
 
 fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
+    best_effort_sync_coordination(rt, "before proposal instructions");
+
     #[derive(serde::Serialize)]
     struct ModuleEntry {
         id: String,

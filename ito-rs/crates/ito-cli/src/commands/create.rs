@@ -30,13 +30,9 @@ fn guard_local_only(rt: &Runtime, operation: &str) -> CliResult<()> {
     Ok(())
 }
 
-fn auto_commit_after_change_creation(ito_path: &Path, change_id: &str) {
+fn auto_commit_after_coordination_mutation(ito_path: &Path, message: &str) {
     let project_root = ito_path.parent().unwrap_or(ito_path);
-    if let Err(err) = maybe_auto_commit_coordination(
-        project_root,
-        ito_path,
-        &format!("chore: create change {change_id}"),
-    ) {
+    if let Err(err) = maybe_auto_commit_coordination(project_root, ito_path, message) {
         eprintln!("Warning: auto-commit to coordination worktree failed: {err}");
     }
 }
@@ -221,6 +217,8 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 .unwrap_or_default();
             let description = parse_string_flag(args, "--description");
 
+            best_effort_sync_coordination(rt, "before module create");
+
             let r = core_create::create_module(
                 ito_path,
                 name,
@@ -250,6 +248,11 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
             println!("Created module: {}", r.folder_name);
             println!("  Path: {}", r.module_dir.display());
             println!("  Edit: {}", r.module_dir.join("module.md").display());
+            auto_commit_after_coordination_mutation(
+                ito_path,
+                &format!("chore: create module {}", r.folder_name),
+            );
+            best_effort_sync_coordination(rt, "after module create");
             Ok(())
         }
         "change" => {
@@ -383,7 +386,10 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                     }
 
                     // Best-effort auto-commit to coordination worktree.
-                    auto_commit_after_change_creation(ito_path, &r.change_id);
+                    auto_commit_after_coordination_mutation(
+                        ito_path,
+                        &format!("chore: create change {}", r.change_id),
+                    );
                     best_effort_sync_coordination(rt, "after create");
 
                     Ok(())
@@ -411,6 +417,8 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 name, parent_module
             );
 
+            best_effort_sync_coordination(rt, "before sub-module create");
+
             match create_sub_module(ito_path, name, parent_module, description.as_deref()) {
                 Ok(r) => {
                     eprintln!(
@@ -425,6 +433,11 @@ pub(crate) fn handle_create(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         r.sub_module_id
                     );
                     eprintln!("    2) ito show sub-module {}", r.sub_module_id);
+                    auto_commit_after_coordination_mutation(
+                        ito_path,
+                        &format!("chore: create sub-module {}", r.sub_module_id),
+                    );
+                    best_effort_sync_coordination(rt, "after sub-module create");
                     Ok(())
                 }
                 Err(e) => Err(to_cli_error(e)),
@@ -545,7 +558,10 @@ pub(crate) fn handle_new(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
 
             // Best-effort auto-commit to coordination worktree.
-            auto_commit_after_change_creation(ito_path, &r.change_id);
+            auto_commit_after_coordination_mutation(
+                ito_path,
+                &format!("chore: create change {}", r.change_id),
+            );
             best_effort_sync_coordination(rt, "after create");
 
             Ok(())
