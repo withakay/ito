@@ -9,5 +9,5 @@ Agent memory & knowledge stores. Provides memory provider integrations (e.g. Byt
 - knowledge
 
 ## Changes
-- [ ] 029-01_add-byterover-integration
+- [x] 029-01_add-byterover-integration
 - [ ] 029-02_agent-memory-abstraction
