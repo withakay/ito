@@ -745,6 +745,16 @@ mod tests {
     }
 
     #[test]
+    fn memory_skill_is_embedded() {
+        let skill = get_skill_file("ito-memory/SKILL.md").expect("ito-memory skill should exist");
+        let text = std::str::from_utf8(skill).expect("skill should be utf8");
+        assert!(text.starts_with("---\nname: ito-memory\n"));
+        assert!(text.contains("ito agent instruction memory-capture"));
+        assert!(text.contains("ito agent instruction memory-search"));
+        assert!(text.contains("ito agent instruction memory-query"));
+    }
+
+    #[test]
     fn default_project_agents_mentions_fix_and_feature_entrypoints() {
         let agents = default_project_files()
             .into_iter()

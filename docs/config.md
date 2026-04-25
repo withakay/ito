@@ -307,6 +307,18 @@ reminder section. The reminder tells the agent what to capture
 `memory.capture` is unconfigured, regardless of whether `search` or
 `query` are configured.
 
+#### Agent discoverability
+
+Ito installs a shared `ito-memory` skill with the normal skill bundle. The
+skill is provider-agnostic: it explains when to capture, search, and query
+memory, then routes agents through `ito agent instruction memory-capture`,
+`ito agent instruction memory-search`, and `ito agent instruction
+memory-query`.
+
+The memory instruction artifacts are also listed in `ito agent instruction
+--help`, which is the main low-context discovery surface for LLM agents. Use
+that help output when checking which instruction artifacts are available.
+
 `finish` also always appends a *Refresh archive and specs* wrap-up
 reminder covering specs / docs / archive checks. The archive check is
 suppressed when finish has already prompted to run `ito archive`, so the
