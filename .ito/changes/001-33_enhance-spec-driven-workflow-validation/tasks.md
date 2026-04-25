@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Built-in minimalist and event-driven spec templates parse as deltas; schema export includes `validation.yaml` for every built-in schema.
 - **Requirements**: cli-templates-schemas:template-validator-alignment, cli-templates-schemas:export-validation-assets
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Extend `validation.yaml` parsing with `rules:` and `proposal:`
 
