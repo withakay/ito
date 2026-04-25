@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.28] - 2026-04-25
+
+### 🚀 Features
+
+- *(029-02)* Agent memory abstraction (capture/search/query) ([#211](https://github.com/withakay/ito/pull/211))
+- *(016-17)* Add ito list-archive command ([#212](https://github.com/withakay/ito/pull/212))
 ## [0.1.27] - 2026-04-24
 
 ### 🚀 Features
