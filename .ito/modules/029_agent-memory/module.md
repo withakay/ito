@@ -11,4 +11,4 @@ Agent memory & knowledge stores. Provides memory provider integrations (e.g. Byt
 ## Changes
 - [x] 029-01_add-byterover-integration
 - [x] 029-02_agent-memory-abstraction
-- [ ] 029-03_memory-skill-discoverability
+- [x] 029-03_memory-skill-discoverability
