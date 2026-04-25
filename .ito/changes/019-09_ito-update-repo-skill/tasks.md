@@ -94,7 +94,7 @@ ______________________________________________________________________
 - **Done When**: Stamp-based classification drives the skill's report and no stale file is ever proposed for deletion.
 - **Requirements**: ito-managed-asset-versioning:stamp-readable, ito-update-repo-skill:orphan-audit
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
