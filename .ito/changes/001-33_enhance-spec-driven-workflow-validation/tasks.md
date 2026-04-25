@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Done When**: All scenarios in `cli-validate:proposal-capabilities-consistency` are exercised; parsing routes through repository abstractions, not direct filesystem reads.
 - **Requirements**: cli-validate:proposal-capabilities-consistency
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.3: Implement contract_refs rule (syntax-only v1)
 
