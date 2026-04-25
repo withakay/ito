@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: All guidance injection points affected by this proposal are listed before edits begin.
 - **Requirements**: cli-artifact-workflow:fresh-change-worktrees
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [x] complete
 
 ### Task 1.2: Update generated worktree guidance
 
