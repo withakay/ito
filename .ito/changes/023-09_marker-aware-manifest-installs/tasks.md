@@ -72,7 +72,7 @@ ______________________________________________________________________
 - **Done When**: All five scenarios are covered by passing tests.
 - **Requirements**: cli-update:harness-manifest-marker-scoped, cli-update:idempotent-non-destructive
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Update SKILL.md doc for ito-update-repo
 
