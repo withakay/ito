@@ -465,6 +465,9 @@ pub struct ValidationYaml {
     /// Per-artifact validation rules keyed by artifact id.
     pub artifacts: BTreeMap<String, ValidationArtifactYaml>,
     #[serde(default)]
+    /// Optional proposal artifact validation configuration.
+    pub proposal: Option<ValidationArtifactYaml>,
+    #[serde(default)]
     /// Optional tracking file validation configuration.
     pub tracking: Option<ValidationTrackingYaml>,
 }
@@ -529,6 +532,9 @@ pub struct ValidationArtifactYaml {
     #[serde(default)]
     /// Validator identifier (for example `ito.delta-specs.v1`).
     pub validate_as: Option<ValidatorId>,
+    #[serde(default)]
+    /// Optional rule overrides keyed by stable rule id.
+    pub rules: Option<BTreeMap<String, ValidationLevelYaml>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -542,6 +548,9 @@ pub struct ValidationTrackingYaml {
     pub required: bool,
     /// Validator identifier to apply to the tracking file.
     pub validate_as: ValidatorId,
+    #[serde(default)]
+    /// Optional rule overrides keyed by stable rule id.
+    pub rules: Option<BTreeMap<String, ValidationLevelYaml>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -591,5 +600,64 @@ tracking:
         assert_eq!(tracking.source, ValidationTrackingSourceYaml::ApplyTracks);
         assert!(tracking.required);
         assert_eq!(tracking.validate_as, ValidatorId::TasksTrackingV1);
+        assert!(tracking.rules.is_none());
+        assert!(parsed.proposal.is_none());
+    }
+
+    #[test]
+    fn validation_yaml_parses_rules_extension_without_breaking_existing_shape() {
+        let src = r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      scenario_grammar: error
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: warning
+"#;
+
+        let parsed: super::ValidationYaml = serde_yaml::from_str(src).expect("parse validation");
+        let artifact_rules = parsed
+            .artifacts
+            .get("specs")
+            .and_then(|artifact| artifact.rules.as_ref())
+            .expect("artifact rules");
+        assert_eq!(
+            artifact_rules.get("scenario_grammar"),
+            Some(&super::ValidationLevelYaml::Error)
+        );
+
+        let tracking = parsed.tracking.expect("tracking");
+        let tracking_rules = tracking.rules.expect("tracking rules");
+        assert_eq!(
+            tracking_rules.get("task_quality"),
+            Some(&super::ValidationLevelYaml::Warning)
+        );
+    }
+
+    #[test]
+    fn validation_yaml_parses_proposal_entry_with_rules() {
+        let src = r#"
+version: 1
+proposal:
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+"#;
+
+        let parsed: super::ValidationYaml = serde_yaml::from_str(src).expect("parse validation");
+        let proposal = parsed.proposal.expect("proposal");
+        assert_eq!(proposal.validate_as, Some(ValidatorId::DeltaSpecsV1));
+        let rules = proposal.rules.expect("proposal rules");
+        assert_eq!(
+            rules.get("capabilities_consistency"),
+            Some(&super::ValidationLevelYaml::Error)
+        );
     }
 }

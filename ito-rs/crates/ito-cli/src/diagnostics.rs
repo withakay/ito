@@ -133,6 +133,7 @@ mod tests {
             message: "missing purpose".to_string(),
             line: Some(10),
             column: Some(2),
+            rule_id: None,
             metadata: None,
         }];
 

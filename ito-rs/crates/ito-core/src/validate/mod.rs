@@ -6,6 +6,7 @@
 //! The primary consumer is the CLI and any APIs that need a structured report
 //! (`ValidationReport`) rather than a single error.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::error_bridge::IntoCoreResult;
@@ -29,7 +30,7 @@ mod repo_integrity;
 mod report;
 
 pub(crate) use issue::with_format_spec;
-pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
+pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata, with_rule_id};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
 pub use report::{ReportBuilder, report};
 
@@ -47,6 +48,9 @@ pub const LEVEL_INFO: ValidationLevel = "INFO";
 const MIN_PURPOSE_LENGTH: usize = 50;
 const MIN_MODULE_PURPOSE_LENGTH: usize = 20;
 const MAX_DELTAS_PER_CHANGE: usize = 10;
+const DELTA_SPECS_ARTIFACT_RULES: &[&str] = &["contract_refs", "scenario_grammar", "ui_mechanics"];
+const DELTA_SPECS_PROPOSAL_RULES: &[&str] = &["capabilities_consistency"];
+const TASKS_TRACKING_RULES: &[&str] = &["task_quality"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One validation finding.
@@ -63,6 +67,9 @@ pub struct ValidationIssue {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional 1-based column number.
     pub column: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional rule id when the issue came from an opt-in rule.
+    pub rule_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional structured metadata for tooling.
     pub metadata: Option<serde_json::Value>,
@@ -418,6 +425,14 @@ fn validate_change_against_schema_validation(
                     &schema_artifact.generates,
                     validator_id,
                 )?;
+                run_configured_rules(
+                    rep,
+                    change_repo,
+                    ctx,
+                    validator_id,
+                    ValidationRuleTarget::Artifact { id: artifact_id },
+                    cfg.rules.as_ref(),
+                )?;
             }
             continue;
         }
@@ -438,6 +453,56 @@ fn validate_change_against_schema_validation(
             &schema_artifact.generates,
             validator_id,
         )?;
+        run_configured_rules(
+            rep,
+            change_repo,
+            ctx,
+            validator_id,
+            ValidationRuleTarget::Artifact { id: artifact_id },
+            cfg.rules.as_ref(),
+        )?;
+    }
+
+    if let Some(proposal) = validation.proposal.as_ref() {
+        let report_path = format!("changes/{change_id}/proposal.md");
+        let abs_path = change_dir.join("proposal.md");
+        let present = abs_path.exists();
+
+        if proposal.required && !present {
+            rep.push(issue(
+                missing_level,
+                "proposal",
+                format!("Missing required proposal artifact: {report_path}"),
+            ));
+        }
+
+        if present {
+            if let Some(validator_id) = proposal.validate_as {
+                let ctx = ArtifactValidatorContext {
+                    ito_path,
+                    change_id,
+                    strict,
+                };
+                match validator_id {
+                    ValidatorId::DeltaSpecsV1 => {
+                        run_configured_rules(
+                            rep,
+                            change_repo,
+                            ctx,
+                            validator_id,
+                            ValidationRuleTarget::Proposal,
+                            proposal.rules.as_ref(),
+                        )?;
+                    }
+                    ValidatorId::TasksTrackingV1 => {
+                        rep.push(error(
+                            "schema.validation",
+                            "Validator 'ito.tasks-tracking.v1' is not valid for proposal artifacts",
+                        ));
+                    }
+                }
+            }
+        }
     }
 
     if let Some(tracking) = validation.tracking.as_ref() {
@@ -488,6 +553,22 @@ fn validate_change_against_schema_validation(
                             &report_path,
                             strict,
                         ));
+                        let ctx = ArtifactValidatorContext {
+                            ito_path,
+                            change_id,
+                            strict,
+                        };
+                        run_configured_rules(
+                            rep,
+                            change_repo,
+                            ctx,
+                            ValidatorId::TasksTrackingV1,
+                            ValidationRuleTarget::Tracking {
+                                path: &abs_path,
+                                report_path: &report_path,
+                            },
+                            tracking.rules.as_ref(),
+                        )?;
                     }
                     ValidatorId::DeltaSpecsV1 => {
                         rep.push(error(
@@ -501,6 +582,161 @@ fn validate_change_against_schema_validation(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ValidationRuleTarget<'a> {
+    Artifact { id: &'a str },
+    Proposal,
+    Tracking { path: &'a Path, report_path: &'a str },
+}
+
+impl ValidationRuleTarget<'_> {
+    fn config_path(self, rule_name: &str) -> String {
+        match self {
+            ValidationRuleTarget::Artifact { id } => {
+                format!("schema.validation.artifacts.{id}.rules.{rule_name}")
+            }
+            ValidationRuleTarget::Proposal => {
+                format!("schema.validation.proposal.rules.{rule_name}")
+            }
+            ValidationRuleTarget::Tracking { .. } => {
+                format!("schema.validation.tracking.rules.{rule_name}")
+            }
+        }
+    }
+
+    fn label(self) -> String {
+        match self {
+            ValidationRuleTarget::Artifact { id } => format!("artifact '{id}'"),
+            ValidationRuleTarget::Proposal => "proposal artifact".to_string(),
+            ValidationRuleTarget::Tracking { report_path, .. } => {
+                format!("tracking file '{report_path}'")
+            }
+        }
+    }
+}
+
+fn format_spec_for_validator(
+    validator_id: ValidatorId,
+) -> crate::validate::format_specs::FormatSpecRef {
+    match validator_id {
+        ValidatorId::DeltaSpecsV1 => format_specs::DELTA_SPECS_V1,
+        ValidatorId::TasksTrackingV1 => format_specs::TASKS_TRACKING_V1,
+    }
+}
+
+fn run_configured_rules(
+    rep: &mut ReportBuilder,
+    change_repo: &(impl DomainChangeRepository + ?Sized),
+    ctx: ArtifactValidatorContext<'_>,
+    validator_id: ValidatorId,
+    target: ValidationRuleTarget<'_>,
+    rules: Option<&BTreeMap<String, ValidationLevelYaml>>,
+) -> CoreResult<()> {
+    let Some(rules) = rules else {
+        return Ok(());
+    };
+
+    for (rule_name, level) in rules {
+        let supported_rules = supported_rules_for_target(validator_id, target);
+        if !supported_rules.iter().any(|supported| supported == rule_name) {
+            let supported = if supported_rules.is_empty() {
+                "none".to_string()
+            } else {
+                supported_rules.join(", ")
+            };
+            rep.push(with_format_spec(
+                warning(
+                    target.config_path(rule_name),
+                    format!(
+                        "Unknown validation rule '{rule_name}' for {} (validator: {}). Supported rules: {supported}",
+                        target.label(),
+                        validator_id.as_str()
+                    ),
+                ),
+                format_spec_for_validator(validator_id),
+            ));
+            continue;
+        }
+
+        match (validator_id, target) {
+            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
+                run_delta_specs_artifact_rule(rep, change_repo, ctx, rule_name, *level)?;
+            }
+            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {
+                run_delta_specs_proposal_rule(rep, change_repo, ctx, rule_name, *level)?;
+            }
+            (
+                ValidatorId::TasksTrackingV1,
+                ValidationRuleTarget::Tracking { path, report_path },
+            ) => {
+                run_tasks_tracking_rule(rep, change_repo, ctx, path, report_path, rule_name, *level)?;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn supported_rules_for_target(
+    validator_id: ValidatorId,
+    target: ValidationRuleTarget<'_>,
+) -> &'static [&'static str] {
+    match (validator_id, target) {
+        (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
+            DELTA_SPECS_ARTIFACT_RULES
+        }
+        (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {
+            DELTA_SPECS_PROPOSAL_RULES
+        }
+        (ValidatorId::TasksTrackingV1, ValidationRuleTarget::Tracking { .. }) => {
+            TASKS_TRACKING_RULES
+        }
+        _ => &[],
+    }
+}
+
+fn run_delta_specs_artifact_rule(
+    _rep: &mut ReportBuilder,
+    _change_repo: &(impl DomainChangeRepository + ?Sized),
+    _ctx: ArtifactValidatorContext<'_>,
+    rule_name: &str,
+    _level: ValidationLevelYaml,
+) -> CoreResult<()> {
+    match rule_name {
+        "contract_refs" | "scenario_grammar" | "ui_mechanics" => Ok(()),
+        _ => Ok(()),
+    }
+}
+
+fn run_delta_specs_proposal_rule(
+    _rep: &mut ReportBuilder,
+    _change_repo: &(impl DomainChangeRepository + ?Sized),
+    _ctx: ArtifactValidatorContext<'_>,
+    rule_name: &str,
+    _level: ValidationLevelYaml,
+) -> CoreResult<()> {
+    match rule_name {
+        "capabilities_consistency" => Ok(()),
+        _ => Ok(()),
+    }
+}
+
+fn run_tasks_tracking_rule(
+    _rep: &mut ReportBuilder,
+    _change_repo: &(impl DomainChangeRepository + ?Sized),
+    _ctx: ArtifactValidatorContext<'_>,
+    _path: &Path,
+    _report_path: &str,
+    rule_name: &str,
+    _level: ValidationLevelYaml,
+) -> CoreResult<()> {
+    match rule_name {
+        "task_quality" => Ok(()),
+        _ => Ok(()),
+    }
 }
 
 /// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.
@@ -626,6 +862,7 @@ fn validate_tasks_tracking_path(
                 message: d.message.clone(),
                 line: d.line.map(|l| l as u32),
                 column: None,
+                rule_id: None,
                 metadata: None,
             },
             TASKS_TRACKING_V1,
