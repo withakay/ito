@@ -121,8 +121,8 @@ ______________________________________________________________________
 - **Verify**: Dry-run output clearly distinguishes orphan / stale / missing-stamp / current; `git status` shows no deletions.
 - **Done When**: Dry-run output matches the orphan-audit and stamp-readable requirements simultaneously.
 - **Requirements**: ito-update-repo-skill:orphan-audit, ito-update-repo-skill:approval-gate, ito-managed-asset-versioning:stamp-readable, ito-managed-asset-naming:prefix-drives-ownership
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [-] shelved
 
 ### Task 2.3: End-to-end orphan cleanup apply
 
