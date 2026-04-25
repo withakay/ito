@@ -446,6 +446,27 @@ The system SHALL keep the first metadata values.
     assert_eq!(requirement.contract_refs[1].raw, "jsonschema:ItemsResponse");
 }
 
+#[test]
+fn parse_contract_refs_preserves_commas_inside_identifiers() {
+    let md = r#"
+## Requirements
+
+### Requirement: Preserve contract refs
+The system SHALL keep query-string commas inside a single contract ref.
+- **Contract Refs**: openapi:POST /v1/items?ids=1,2, jsonschema:ItemRequest
+"#;
+
+    let json = parse_spec_show_json("spec", md);
+    let requirement = &json.requirements[0];
+
+    assert_eq!(requirement.contract_refs.len(), 2);
+    assert_eq!(
+        requirement.contract_refs[0].identifier.as_deref(),
+        Some("POST /v1/items?ids=1,2")
+    );
+    assert_eq!(requirement.contract_refs[1].raw, "jsonschema:ItemRequest");
+}
+
 /// Ensures bundling main specs fails with an IO error when a spec directory is missing `spec.md`.
 ///
 /// # Examples

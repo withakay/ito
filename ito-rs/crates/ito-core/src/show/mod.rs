@@ -652,8 +652,10 @@ fn collapse_whitespace(input: &str) -> String {
 }
 
 fn parse_contract_refs(input: &str) -> Vec<ContractRef> {
+    // Split only on comma-space so query strings like `?ids=1,2` survive intact.
+    // This pragmatic parser does not treat bare commas as separators.
     input
-        .split(',')
+        .split(", ")
         .map(str::trim)
         .filter(|entry| !entry.is_empty())
         .map(|entry| {
