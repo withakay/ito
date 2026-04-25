@@ -208,3 +208,6 @@ ito-rs/.bacon/
 .ito/modules
 .ito/workflows
 .ito/audit
+
+# ByteRover local context tree (developer-local cache; cloud sync is out of scope)
+.brv/
