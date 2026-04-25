@@ -32,7 +32,7 @@ ______________________________________________________________________
 - **Done When**: CLI help output contains all three memory artifact names and at least one memory example with `--query`.
 - **Requirements**: `agent-memory-abstraction:memory-artifacts-in-help`
 - **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.3: Document memory skill discoverability
 
