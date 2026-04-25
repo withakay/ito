@@ -17,3 +17,4 @@ Add an optional Git worktree-based workspace layout so Ito can isolate changes i
 - [x] 012-05_worktree-lifecycle-and-init
 - [x] 012-06_enforce-worktree-change-guidance
 - [ ] 012-07_guard-opencode-worktree-path
+- [ ] 012-08_replace-raw-git-worktrees-with-worktrunk
