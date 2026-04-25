@@ -391,6 +391,22 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     }
 
     #[derive(Serialize)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+    impl Default for MemoryOpState {
+        fn default() -> Self {
+            Self { configured: false }
+        }
+    }
+
+    #[derive(Serialize)]
     struct Ctx {
         instructions: InstructionsCtx,
         context_files: Vec<&'static str>,
@@ -399,6 +415,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         tracking_warnings: Vec<&'static str>,
         testing_policy: TestingPolicyCtx,
         user_guidance: &'static str,
+        memory: MemoryCtx,
     }
 
     let ctx = Ctx {
@@ -435,6 +452,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
             coverage_target_percent: 80,
         },
         user_guidance: "",
+        memory: MemoryCtx::default(),
     };
 
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
@@ -584,11 +602,24 @@ fn finish_template_prompts_for_archive() {
         coordination_storage: &'static str,
     }
 
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+
     #[derive(Serialize)]
     struct Ctx {
         worktree: Worktree,
         archive: ArchiveCfg,
+        memory: MemoryCtx,
         change: Option<String>,
+        archive_prompt_rendered: bool,
     }
 
     let out = render_instruction_template(
@@ -604,7 +635,9 @@ fn finish_template_prompts_for_archive() {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
             },
+            memory: MemoryCtx::default(),
             change: Some("025-09_add-worktree-sync-command".to_string()),
+            archive_prompt_rendered: true,
         },
     )
     .unwrap();
@@ -616,4 +649,359 @@ fn finish_template_prompts_for_archive() {
         out.contains("ito agent instruction archive --change '025-09_add-worktree-sync-command'")
     );
     assert!(out.contains("`changes.archive.main_integration_mode`: `pull_request`"));
+    // Wrap-up reminder always renders specs/docs checks; archive is suppressed
+    // because the existing archive prompt covers it.
+    assert!(out.contains("### Refresh archive and specs"));
+    assert!(out.contains("**Specs**:"));
+    assert!(out.contains("**Docs**:"));
+    assert!(
+        !out.contains("**Archive**:"),
+        "archive item must be suppressed when prompt is rendered"
+    );
+    // Memory capture reminder is keyed on memory.capture.configured.
+    assert!(
+        !out.contains("### Capture memories"),
+        "capture reminder must be absent when memory.capture is unconfigured"
+    );
+}
+
+#[test]
+fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
+    #[derive(Serialize)]
+    struct Worktree {
+        enabled: bool,
+        strategy: &'static str,
+        layout_dir_name: &'static str,
+        default_branch: &'static str,
+    }
+    #[derive(Serialize)]
+    struct ArchiveCfg {
+        main_integration_mode: &'static str,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        worktree: Worktree,
+        archive: ArchiveCfg,
+        memory: MemoryCtx,
+        change: Option<String>,
+        archive_prompt_rendered: bool,
+    }
+
+    let out = render_instruction_template(
+        "agent/finish.md.j2",
+        &Ctx {
+            worktree: Worktree {
+                enabled: true,
+                strategy: "bare_control_siblings",
+                layout_dir_name: "ito-worktrees",
+                default_branch: "main",
+            },
+            archive: ArchiveCfg {
+                main_integration_mode: "pull_request",
+            },
+            memory: MemoryCtx {
+                capture: MemoryOpState { configured: true },
+                ..Default::default()
+            },
+            change: Some("000-01_test-change".to_string()),
+            archive_prompt_rendered: true,
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("### Capture memories"));
+    assert!(out.contains("ito agent instruction memory-capture"));
+    assert!(out.contains("### Refresh archive and specs"));
+}
+
+#[test]
+fn finish_template_includes_archive_check_when_prompt_suppressed() {
+    #[derive(Serialize)]
+    struct Worktree {
+        enabled: bool,
+        strategy: &'static str,
+        layout_dir_name: &'static str,
+        default_branch: &'static str,
+    }
+    #[derive(Serialize)]
+    struct ArchiveCfg {
+        main_integration_mode: &'static str,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        worktree: Worktree,
+        archive: ArchiveCfg,
+        memory: MemoryCtx,
+        change: Option<String>,
+        archive_prompt_rendered: bool,
+    }
+
+    let out = render_instruction_template(
+        "agent/finish.md.j2",
+        &Ctx {
+            worktree: Worktree {
+                enabled: true,
+                strategy: "bare_control_siblings",
+                layout_dir_name: "ito-worktrees",
+                default_branch: "main",
+            },
+            archive: ArchiveCfg {
+                main_integration_mode: "pull_request",
+            },
+            memory: MemoryCtx::default(),
+            change: Some("000-01_test-change".to_string()),
+            archive_prompt_rendered: false,
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("**Archive**:"));
+    assert!(out.contains("**Specs**:"));
+    assert!(out.contains("**Docs**:"));
+}
+
+#[test]
+fn apply_template_renders_capture_reminder_when_configured() {
+    use std::collections::BTreeMap;
+
+    #[derive(Serialize)]
+    struct ProgressCtx {
+        total: u64,
+        complete: u64,
+    }
+    #[derive(Serialize)]
+    struct InstructionsCtx {
+        #[serde(rename = "changeName")]
+        change_name: &'static str,
+        #[serde(rename = "schemaName")]
+        schema_name: &'static str,
+        state: &'static str,
+        #[serde(rename = "missingArtifacts")]
+        missing_artifacts: Vec<&'static str>,
+        instruction: &'static str,
+        #[serde(rename = "tracksFile")]
+        tracks_file: bool,
+        #[serde(rename = "tracksPath")]
+        tracks_path: &'static str,
+        #[serde(rename = "tracksFormat")]
+        tracks_format: &'static str,
+        progress: ProgressCtx,
+        tasks: Vec<&'static str>,
+    }
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+        apply_enabled: bool,
+        strategy: &'static str,
+        default_branch: &'static str,
+        layout_dir_name: &'static str,
+        integration_mode: &'static str,
+        copy_from_main: Vec<&'static str>,
+        setup_commands: Vec<&'static str>,
+    }
+    #[derive(Serialize)]
+    struct TestingPolicyCtx {
+        tdd_workflow: &'static str,
+        coverage_target_percent: u64,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+    #[derive(Serialize)]
+    struct Ctx {
+        instructions: InstructionsCtx,
+        context_files: Vec<&'static str>,
+        worktree: WorktreeCtx,
+        tracking_errors: Vec<&'static str>,
+        tracking_warnings: Vec<&'static str>,
+        testing_policy: TestingPolicyCtx,
+        user_guidance: &'static str,
+        memory: MemoryCtx,
+    }
+
+    let _ = BTreeMap::<String, String>::new();
+
+    let ctx = Ctx {
+        instructions: InstructionsCtx {
+            change_name: "029-02_agent-memory-abstraction",
+            schema_name: "spec-driven",
+            state: "ready",
+            missing_artifacts: Vec::new(),
+            instruction: "Implement.",
+            tracks_file: false,
+            tracks_path: "",
+            tracks_format: "",
+            progress: ProgressCtx {
+                total: 0,
+                complete: 0,
+            },
+            tasks: Vec::new(),
+        },
+        context_files: Vec::new(),
+        worktree: WorktreeCtx {
+            enabled: true,
+            apply_enabled: true,
+            strategy: "bare_control_siblings",
+            default_branch: "main",
+            layout_dir_name: "ito-worktrees",
+            integration_mode: "commit_pr",
+            copy_from_main: Vec::new(),
+            setup_commands: Vec::new(),
+        },
+        tracking_errors: Vec::new(),
+        tracking_warnings: Vec::new(),
+        testing_policy: TestingPolicyCtx {
+            tdd_workflow: "red-green-refactor",
+            coverage_target_percent: 80,
+        },
+        user_guidance: "",
+        memory: MemoryCtx {
+            capture: MemoryOpState { configured: true },
+            ..Default::default()
+        },
+    };
+
+    let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert!(out.contains("### Capture memories"));
+    assert!(out.contains("ito agent instruction memory-capture"));
+}
+
+#[test]
+fn apply_template_omits_capture_reminder_when_search_only_configured() {
+    #[derive(Serialize)]
+    struct ProgressCtx {
+        total: u64,
+        complete: u64,
+    }
+    #[derive(Serialize)]
+    struct InstructionsCtx {
+        #[serde(rename = "changeName")]
+        change_name: &'static str,
+        #[serde(rename = "schemaName")]
+        schema_name: &'static str,
+        state: &'static str,
+        #[serde(rename = "missingArtifacts")]
+        missing_artifacts: Vec<&'static str>,
+        instruction: &'static str,
+        #[serde(rename = "tracksFile")]
+        tracks_file: bool,
+        #[serde(rename = "tracksPath")]
+        tracks_path: &'static str,
+        #[serde(rename = "tracksFormat")]
+        tracks_format: &'static str,
+        progress: ProgressCtx,
+        tasks: Vec<&'static str>,
+    }
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+        apply_enabled: bool,
+        strategy: &'static str,
+        default_branch: &'static str,
+        layout_dir_name: &'static str,
+        integration_mode: &'static str,
+        copy_from_main: Vec<&'static str>,
+        setup_commands: Vec<&'static str>,
+    }
+    #[derive(Serialize)]
+    struct TestingPolicyCtx {
+        tdd_workflow: &'static str,
+        coverage_target_percent: u64,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryOpState {
+        configured: bool,
+    }
+    #[derive(Serialize, Default)]
+    struct MemoryCtx {
+        capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
+    }
+    #[derive(Serialize)]
+    struct Ctx {
+        instructions: InstructionsCtx,
+        context_files: Vec<&'static str>,
+        worktree: WorktreeCtx,
+        tracking_errors: Vec<&'static str>,
+        tracking_warnings: Vec<&'static str>,
+        testing_policy: TestingPolicyCtx,
+        user_guidance: &'static str,
+        memory: MemoryCtx,
+    }
+
+    let ctx = Ctx {
+        instructions: InstructionsCtx {
+            change_name: "test",
+            schema_name: "spec-driven",
+            state: "ready",
+            missing_artifacts: Vec::new(),
+            instruction: "Implement.",
+            tracks_file: false,
+            tracks_path: "",
+            tracks_format: "",
+            progress: ProgressCtx {
+                total: 0,
+                complete: 0,
+            },
+            tasks: Vec::new(),
+        },
+        context_files: Vec::new(),
+        worktree: WorktreeCtx {
+            enabled: true,
+            apply_enabled: true,
+            strategy: "bare_control_siblings",
+            default_branch: "main",
+            layout_dir_name: "ito-worktrees",
+            integration_mode: "commit_pr",
+            copy_from_main: Vec::new(),
+            setup_commands: Vec::new(),
+        },
+        tracking_errors: Vec::new(),
+        tracking_warnings: Vec::new(),
+        testing_policy: TestingPolicyCtx {
+            tdd_workflow: "red-green-refactor",
+            coverage_target_percent: 80,
+        },
+        user_guidance: "",
+        memory: MemoryCtx {
+            search: MemoryOpState { configured: true },
+            ..Default::default()
+        },
+    };
+
+    let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert!(
+        !out.contains("### Capture memories"),
+        "capture reminder must be absent when only search is configured"
+    );
 }

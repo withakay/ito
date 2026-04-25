@@ -3,7 +3,7 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
+use ito_config::types::{ItoConfig, MemoryConfig, MemoryOpConfig, WorktreeInitConfig, WorktreeStrategy};
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
@@ -340,6 +340,7 @@ then re-run:\n\n\
         let cfg = load_cascading_project_config(project_root, ito_path, ctx);
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
         let archive = archive_instruction_config_from_merged(&cfg.merged)?;
+        let memory = memory_template_config_from_merged(&cfg.merged);
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
@@ -348,7 +349,15 @@ then re-run:\n\n\
         struct Ctx {
             worktree: WorktreeConfig,
             archive: ArchiveInstructionConfig,
+            memory: MemoryTemplateConfig,
             change: Option<String>,
+            /// Always `true` today: the existing archive prompt always renders.
+            ///
+            /// Reserved for future logic that suppresses the prompt when the
+            /// change is already archived; templates SHOULD use this flag to
+            /// decide whether the wrap-up reminder also lists the archive
+            /// step (`{% if not archive_prompt_rendered %}`).
+            archive_prompt_rendered: bool,
         }
 
         let instruction = ito_templates::instructions::render_instruction_template(
@@ -356,7 +365,9 @@ then re-run:\n\n\
             &Ctx {
                 worktree,
                 archive,
+                memory,
                 change,
+                archive_prompt_rendered: true,
             },
         )
         .map_err(|e| to_cli_error(format!("failed to render finish instruction: {e}")))?;
@@ -506,11 +517,15 @@ then re-run:\n\n\
         }
 
         let worktree_config = load_worktree_config(project_root, ito_path, ctx);
+        let memory_template = memory_template_config_from_merged(
+            &load_cascading_project_config(project_root, ito_path, ctx).merged,
+        );
         print_apply_instructions_text(
             &apply,
             &testing_policy,
             user_guidance.as_deref(),
             &worktree_config,
+            memory_template,
         );
         return Ok(());
     }
@@ -1069,6 +1084,7 @@ fn print_apply_instructions_text(
     testing_policy: &TestingPolicy,
     user_guidance: Option<&str>,
     worktree_config: &WorktreeConfig,
+    memory: MemoryTemplateConfig,
 ) {
     #[derive(serde::Serialize)]
     struct Ctx {
@@ -1079,6 +1095,7 @@ fn print_apply_instructions_text(
         tracking_warnings: Option<usize>,
         user_guidance: Option<String>,
         worktree: WorktreeConfig,
+        memory: MemoryTemplateConfig,
     }
 
     let context_files = collect_context_files(&instructions.context_files);
@@ -1097,12 +1114,46 @@ fn print_apply_instructions_text(
         tracking_warnings,
         user_guidance,
         worktree: worktree_config.clone(),
+        memory,
     };
 
     let out = ito_templates::instructions::render_instruction_template("agent/apply.md.j2", &ctx)
         .expect("apply instruction template should render");
 
     print!("{out}");
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+struct MemoryOpTemplateState {
+    /// Whether this operation has a configured provider.
+    configured: bool,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+struct MemoryTemplateConfig {
+    capture: MemoryOpTemplateState,
+    search: MemoryOpTemplateState,
+    query: MemoryOpTemplateState,
+}
+
+fn memory_template_config_from_merged(merged: &serde_json::Value) -> MemoryTemplateConfig {
+    let typed: ItoConfig = serde::Deserialize::deserialize(merged).unwrap_or_default();
+    let memory: Option<MemoryConfig> = typed.memory;
+    let configured = |op: &Option<MemoryOpConfig>| op.is_some();
+    match memory {
+        Some(m) => MemoryTemplateConfig {
+            capture: MemoryOpTemplateState {
+                configured: configured(&m.capture),
+            },
+            search: MemoryOpTemplateState {
+                configured: configured(&m.search),
+            },
+            query: MemoryOpTemplateState {
+                configured: configured(&m.query),
+            },
+        },
+        None => MemoryTemplateConfig::default(),
+    }
 }
 
 fn collect_missing_dependencies(
