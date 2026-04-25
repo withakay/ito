@@ -23,11 +23,13 @@ Bring a project up to date with the Ito templates bundled in the installed CLI, 
 
 ## Core Shibboleth
 
-`ito init --update` and `ito update` are **additive and marker-scoped**. They install or refresh managed files but never delete skills, commands, or prompts that were installed by an older Ito version and have since been renamed or removed. Every update therefore leaves archaeology behind. Cleanup is a separate, deliberate step.
+`ito init --update` and `ito update` are **additive and marker-scoped**. They refresh the content inside `<!-- ITO:START -->` / `<!-- ITO:END -->` blocks for every Ito-installed markdown asset (project templates *and* harness skills/commands/prompts), but they never delete skills, commands, or prompts that were installed by an older Ito version and have since been renamed or removed. Every update therefore leaves archaeology behind. Cleanup is a separate, deliberate step.
+
+**Edits outside the managed block survive update.** If a user appends notes after `<!-- ITO:END -->` in an installed harness skill, command, or prompt, those notes are preserved across `ito update`. Edits *inside* the managed block are still overwritten on update — that content is owned by the Ito templates bundle.
 
 **The `ito-` prefix is how Ito claims ownership.** Every Ito-managed asset's basename starts with `ito-` (the bare root `ito` is the only exception). Treat anything without the prefix as user- or third-party-owned and leave it untouched. Treat a prefixed asset missing from the current templates bundle as an orphan candidate.
 
-**Version stamps signal staleness.** Managed markdown files carry `<!-- ITO:VERSION: <semver> -->` inside their managed block; managed YAML/JSON regions carry an `ito_version` field. A stamp older than the currently installed CLI means the file is *stale*, not *orphaned* — the fix is to rerun the update, not to delete the file.
+**Version stamps signal staleness.** Managed markdown files carry an HTML comment of the form `<!--ITO:VERSION:<semver>-->` on the line immediately after `<!-- ITO:START -->`. The Ito writer emits one canonical whitespace shape consistently; readers accept spaced variants too (match with `<!--\s*ITO:VERSION:\s*([^>\s]+)\s*-->`). A stamp older than the currently installed CLI means the file is *stale*, not *orphaned* — the fix is to rerun the update, not to delete the file. Non-markdown assets (YAML/JSON configuration, shell scripts) are not currently stamped.
 
 ## Inputs
 

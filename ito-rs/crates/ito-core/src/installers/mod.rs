@@ -477,6 +477,98 @@ fn refresh_agent_version_stamp(target: &Path) -> CoreResult<()> {
         .map_err(|e| CoreError::io(format!("stamping {}", target.display()), e))
 }
 
+/// Write a rendered managed-block markdown file with marker-scoped update
+/// semantics, suitable for installer paths that do not need the full
+/// `write_one` ownership/upgrade machinery (e.g. the harness manifest
+/// installer in `distribution.rs`).
+///
+/// Behaviour:
+///
+/// - **No target on disk** → write `rendered_bytes` verbatim.
+/// - **`mode == Init` && `opts.force`** → wholesale overwrite (matches the
+///   `--force` semantics in `write_one`).
+/// - **Template has no managed block** → wholesale overwrite (caller wanted
+///   plain replacement).
+/// - **Existing target has no markers** → wholesale overwrite. Treats the
+///   file as legacy from before managed markers were retrofitted; no user
+///   content is at risk because there was no marker boundary to honour.
+/// - **Existing target has markers** → marker-scoped update via
+///   `update_file_with_markers`, preserving everything outside the managed
+///   block byte-for-byte.
+///
+/// Returns `Ok(())` on success. Errors mirror `write_one` (IO + marker
+/// validation diagnostics).
+pub(crate) fn write_marker_aware_markdown(
+    target: &Path,
+    rendered_bytes: &[u8],
+    mode: InstallMode,
+    opts: &InitOptions,
+) -> CoreResult<()> {
+    if let Some(parent) = target.parent() {
+        ito_common::io::create_dir_all_std(parent)
+            .map_err(|e| CoreError::io(format!("creating directory {}", parent.display()), e))?;
+    }
+
+    let wholesale = |target: &Path| -> CoreResult<()> {
+        ito_common::io::write_std(target, rendered_bytes)
+            .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))
+    };
+
+    if !target.exists() {
+        return wholesale(target);
+    }
+
+    if mode == InstallMode::Init && opts.force {
+        return wholesale(target);
+    }
+
+    let Ok(text) = std::str::from_utf8(rendered_bytes) else {
+        return wholesale(target);
+    };
+    let Some(block) = ito_templates::extract_managed_block(text) else {
+        return wholesale(target);
+    };
+
+    let existing = ito_common::io::read_to_string_std(target)
+        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
+    let has_start = existing.contains(ito_templates::ITO_START_MARKER);
+    let has_end = existing.contains(ito_templates::ITO_END_MARKER);
+    match (has_start, has_end) {
+        (false, false) => return wholesale(target),
+        (true, true) => {}
+        (true, false) | (false, true) => {
+            // Partial marker pair indicates the user (or some other tool)
+            // damaged the managed region. Refusing to write here mirrors
+            // `update_file_with_markers`' error path and prevents silently
+            // clobbering user content. The user must restore the markers
+            // (or pass `--force`) before update can proceed.
+            return Err(CoreError::Validation(format!(
+                "Refusing to update {}: file has a partial Ito marker pair (start={has_start}, end={has_end}). \
+Restore both markers manually, or rerun with `--force` to overwrite the file wholesale.",
+                target.display()
+            )));
+        }
+    }
+
+    let _ = update_file_with_markers(
+        target,
+        block,
+        ito_templates::ITO_START_MARKER,
+        ito_templates::ITO_END_MARKER,
+    )
+    .map_err(|e| match e {
+        markers::FsEditError::Io(io_err) => {
+            CoreError::io(format!("updating markers in {}", target.display()), io_err)
+        }
+        markers::FsEditError::Marker(marker_err) => CoreError::Validation(format!(
+            "Failed to update markers in {}: {}",
+            target.display(),
+            marker_err
+        )),
+    })?;
+    Ok(())
+}
+
 /// Writes a rendered template to `target`, handling Ito-managed marker blocks, overwrite/update semantics,
 /// and ownership rules.
 ///
@@ -760,7 +852,7 @@ fn merge_json_values(existing: &mut Value, template: &Value) {
 
 fn install_adapter_files(
     project_root: &Path,
-    _mode: InstallMode,
+    mode: InstallMode,
     opts: &InitOptions,
     worktree_ctx: Option<&WorktreeTemplateContext>,
 ) -> CoreResult<()> {
@@ -769,23 +861,23 @@ fn install_adapter_files(
             TOOL_OPENCODE => {
                 let config_dir = project_root.join(".opencode");
                 let manifests = crate::distribution::opencode_manifests(&config_dir);
-                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx, mode, opts)?;
             }
             TOOL_CLAUDE => {
                 let manifests = crate::distribution::claude_manifests(project_root);
-                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx, mode, opts)?;
             }
             TOOL_CODEX => {
                 let manifests = crate::distribution::codex_manifests(project_root);
-                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx, mode, opts)?;
             }
             TOOL_GITHUB_COPILOT => {
                 let manifests = crate::distribution::github_manifests(project_root);
-                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx, mode, opts)?;
             }
             TOOL_PI => {
                 let manifests = crate::distribution::pi_manifests(project_root);
-                crate::distribution::install_manifests(&manifests, worktree_ctx)?;
+                crate::distribution::install_manifests(&manifests, worktree_ctx, mode, opts)?;
             }
             _ => {}
         }

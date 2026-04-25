@@ -2,8 +2,20 @@ use ito_core::distribution::{
     AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
     opencode_manifests,
 };
+use ito_core::installers::{InitOptions, InstallMode};
 use ito_templates::project_templates::WorktreeTemplateContext;
+use std::collections::BTreeSet;
 use std::path::Path;
+
+/// Default init mode + opts used by every legacy `install_manifests` test
+/// caller in this file. These tests originally pre-dated the mode/opts
+/// signature change in 023-09 and assume "fresh init, no force, no update".
+fn legacy_init_args() -> (InstallMode, InitOptions) {
+    (
+        InstallMode::Init,
+        InitOptions::new(BTreeSet::new(), false, false),
+    )
+}
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -214,7 +226,8 @@ fn install_manifests_writes_files_to_disk() {
     let config_dir = td.path().join(".opencode");
 
     let manifests = opencode_manifests(&config_dir);
-    install_manifests(&manifests, None).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, None, mode, &opts).unwrap();
 
     // Check plugin was installed
     assert!(
@@ -243,7 +256,8 @@ fn install_manifests_make_tmux_skill_scripts_executable() {
     let config_dir = td.path().join(".opencode");
 
     let manifests = opencode_manifests(&config_dir);
-    install_manifests(&manifests, None).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, None, mode, &opts).unwrap();
 
     let wait_for_text = config_dir.join("skills/ito-tmux/scripts/wait-for-text.sh");
     let find_sessions = config_dir.join("skills/ito-tmux/scripts/find-sessions.sh");
@@ -278,7 +292,8 @@ fn install_manifests_creates_parent_directories() {
     let deep_path = td.path().join("a").join("b").join("c").join(".claude");
 
     let manifests = claude_manifests(deep_path.parent().unwrap());
-    install_manifests(&manifests, None).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, None, mode, &opts).unwrap();
 
     // Parent directories should be created
     assert!(deep_path.join("session-start.sh").exists());
@@ -295,7 +310,8 @@ fn install_manifests_renders_worktree_skill_with_context() {
 
     // Install with a disabled worktree context (the most common case)
     let ctx = WorktreeTemplateContext::default();
-    install_manifests(&manifests, Some(&ctx)).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, Some(&ctx), mode, &opts).unwrap();
 
     // The using-git-worktrees skill should exist and be rendered (no Jinja2 syntax)
     let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
@@ -330,7 +346,8 @@ fn install_manifests_renders_worktree_skill_enabled() {
         default_branch: "main".to_string(),
         project_root: "/home/user/project".to_string(),
     };
-    install_manifests(&manifests, Some(&ctx)).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, Some(&ctx), mode, &opts).unwrap();
 
     let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
     let content = std::fs::read_to_string(&worktree_skill).unwrap();
@@ -351,7 +368,8 @@ fn install_manifests_keeps_non_worktree_placeholders_verbatim() {
 
     let manifests = claude_manifests(&project_root);
     let ctx = WorktreeTemplateContext::default();
-    install_manifests(&manifests, Some(&ctx)).unwrap();
+    let (mode, opts) = legacy_init_args();
+    install_manifests(&manifests, Some(&ctx), mode, &opts).unwrap();
 
     let research_skill = project_root.join(".claude/skills/ito-research/research-stack.md");
     assert!(
@@ -376,7 +394,10 @@ fn all_manifests_use_embedded_assets() {
     let oc = td.path().join("opencode");
     let manifests = opencode_manifests(&oc);
     assert!(
-        install_manifests(&manifests, None).is_ok(),
+        {
+            let (mode, opts) = legacy_init_args();
+            install_manifests(&manifests, None, mode, &opts).is_ok()
+        },
         "opencode manifests should install successfully"
     );
 
@@ -384,7 +405,10 @@ fn all_manifests_use_embedded_assets() {
     let claude = td.path().join("claude");
     let manifests = claude_manifests(&claude);
     assert!(
-        install_manifests(&manifests, None).is_ok(),
+        {
+            let (mode, opts) = legacy_init_args();
+            install_manifests(&manifests, None, mode, &opts).is_ok()
+        },
         "claude manifests should install successfully"
     );
 
@@ -392,7 +416,10 @@ fn all_manifests_use_embedded_assets() {
     let codex = td.path().join("codex");
     let manifests = codex_manifests(&codex);
     assert!(
-        install_manifests(&manifests, None).is_ok(),
+        {
+            let (mode, opts) = legacy_init_args();
+            install_manifests(&manifests, None, mode, &opts).is_ok()
+        },
         "codex manifests should install successfully"
     );
 
@@ -400,7 +427,10 @@ fn all_manifests_use_embedded_assets() {
     let github = td.path().join("github");
     let manifests = github_manifests(&github);
     assert!(
-        install_manifests(&manifests, None).is_ok(),
+        {
+            let (mode, opts) = legacy_init_args();
+            install_manifests(&manifests, None, mode, &opts).is_ok()
+        },
         "github manifests should install successfully"
     );
 }

@@ -235,6 +235,8 @@ pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
 pub fn install_manifests(
     manifests: &[FileManifest],
     worktree_ctx: Option<&ito_templates::project_templates::WorktreeTemplateContext>,
+    mode: crate::installers::InstallMode,
+    opts: &crate::installers::InitOptions,
 ) -> CoreResult<()> {
     use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
 
@@ -296,13 +298,33 @@ pub fn install_manifests(
         // Stamp every managed-block markdown file with the current CLI version.
         let bytes = stamp_managed_markdown(bytes, &manifest.source, version);
 
-        if let Some(parent) = manifest.dest.parent() {
-            ito_common::io::create_dir_all_std(parent).map_err(|e| {
-                CoreError::io(format!("creating directory {}", parent.display()), e)
-            })?;
+        // Markdown manifest entries that contain an Ito-managed block AND
+        // belong to an asset type whose update contract is "user content
+        // outside the managed block survives" go through the marker-scoped
+        // writer. Today that contract applies to skills and commands. Adapter
+        // markdown (e.g. the codex bootstrap) is still wholesale-refreshed
+        // because adapter content is owned end-to-end by Ito; preserving
+        // out-of-marker user edits there is not part of the contract. Shell
+        // scripts and other non-markdown manifest entries also stay
+        // wholesale-write.
+        let asset_supports_marker_scope =
+            matches!(manifest.asset_type, AssetType::Skill | AssetType::Command);
+        let is_managed_md = asset_supports_marker_scope
+            && is_plain_markdown_path(&manifest.source)
+            && std::str::from_utf8(&bytes)
+                .map(|t| t.contains(ito_templates::ITO_START_MARKER))
+                .unwrap_or(false);
+        if is_managed_md {
+            crate::installers::write_marker_aware_markdown(&manifest.dest, &bytes, mode, opts)?;
+        } else {
+            if let Some(parent) = manifest.dest.parent() {
+                ito_common::io::create_dir_all_std(parent).map_err(|e| {
+                    CoreError::io(format!("creating directory {}", parent.display()), e)
+                })?;
+            }
+            ito_common::io::write_std(&manifest.dest, &bytes)
+                .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
         }
-        ito_common::io::write_std(&manifest.dest, &bytes)
-            .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
         ensure_manifest_script_is_executable(manifest)?;
     }
     Ok(())
@@ -314,8 +336,15 @@ pub fn install_manifests(
 /// - the relative path ends in `.md` (not `.md.j2`)
 /// - the bytes are valid UTF-8
 /// - the content contains `<!-- ITO:START -->`
+/// True when `path` is a plain `.md` asset (excludes Jinja `.md.j2` templates
+/// which are rendered, not installed verbatim). Centralising this guard keeps
+/// the stamping and marker-scoping checks in one place.
+fn is_plain_markdown_path(path: &str) -> bool {
+    path.ends_with(".md") && !path.ends_with(".md.j2")
+}
+
 fn stamp_managed_markdown(bytes: Vec<u8>, rel_path: &str, version: &str) -> Vec<u8> {
-    if !rel_path.ends_with(".md") || rel_path.ends_with(".md.j2") {
+    if !is_plain_markdown_path(rel_path) {
         return bytes;
     }
 
