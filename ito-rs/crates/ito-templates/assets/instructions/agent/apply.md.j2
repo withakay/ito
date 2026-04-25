@@ -26,7 +26,14 @@ ito sync
 {% if worktree.enabled and worktree.apply_enabled %}
 ### Worktree Setup
 
-Strategy: `{{ worktree.strategy }}` | Branch: `{{ worktree.default_branch }}` | Dir: `{{ worktree.layout_dir_name }}`
+Strategy: `{{ worktree.strategy }}` | Default branch: `{{ worktree.default_branch }}` | Dir: `{{ worktree.layout_dir_name }}`
+
+Worktree rules for this change:
+
+- Keep the main/control checkout clean; do not implement change work there.
+- Use the full change ID as the branch and primary worktree directory name: `{{ instructions.changeName }}`.
+- Do not reuse one worktree for two changes.
+- Additional worktrees for this same change must start with `{{ instructions.changeName }}` and add a suffix, for example `{{ instructions.changeName }}-review`.
 
 **Recommended**: Use `ito worktree ensure` to create and initialize the worktree in one step:
 
@@ -37,7 +44,7 @@ CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace(
 }
 ```
 
-This creates the worktree (if absent), copies include files, and runs setup commands.
+This creates the dedicated change worktree (if absent), copies include files, and runs setup commands.
 All subsequent file operations should use `$CHANGE_DIR` as the working directory.
 
 After `ito worktree ensure`, run the sync from inside the change worktree if you did not just run it there:
@@ -70,7 +77,7 @@ if [ ! -d "$CHANGE_DIR" ]; then
 {% else %}
   WORKTREE_ROOT="$(ito path worktree-root)"
   mkdir -p "$(ito path worktrees-root)"
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME"
+  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME" "{{ worktree.default_branch }}"
 {% endif %}
 fi
 

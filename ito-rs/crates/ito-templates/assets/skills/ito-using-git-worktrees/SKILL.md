@@ -17,33 +17,40 @@ Git worktrees create isolated workspaces that share the same repository, allowin
 **Default branch:** `{{ default_branch }}`
 **Integration mode:** `{{ integration_mode }}`
 
+## Change Worktree Rules
+
+- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
+- Do not reuse one worktree for two changes.
+- If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
 ## Worktree Location
 
 {% if strategy == "checkout_subdir" %}
 Worktrees live under:
 
 ```bash
-.{{ layout_dir_name }}/<change-name>/
+.{{ layout_dir_name }}/<full-change-id>/
 ```
 
 Create a worktree:
 
 ```bash
 mkdir -p ".{{ layout_dir_name }}"
-git worktree add ".{{ layout_dir_name }}/<change-name>" -b <change-name>
+git worktree add ".{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
 ```
 {% elif strategy == "checkout_siblings" %}
 Worktrees live under a sibling directory:
 
 ```bash
-../<project-name>-{{ layout_dir_name }}/<change-name>/
+../<project-name>-{{ layout_dir_name }}/<full-change-id>/
 ```
 
 Create a worktree:
 
 ```bash
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
-git worktree add "../<project-name>-{{ layout_dir_name }}/<change-name>" -b <change-name>
+git worktree add "../<project-name>-{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
 ```
 {% elif strategy == "bare_control_siblings" %}
 Worktrees live under the bare/control layout:
@@ -51,14 +58,14 @@ Worktrees live under the bare/control layout:
 ```bash
 ../
 |-- {{ default_branch }}/
-`-- {{ layout_dir_name }}/<change-name>/
+`-- {{ layout_dir_name }}/<full-change-id>/
 ```
 
 Create a worktree:
 
 ```bash
 mkdir -p "../{{ layout_dir_name }}"
-git worktree add "../{{ layout_dir_name }}/<change-name>" -b <change-name> {{ default_branch }}
+git worktree add "../{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
 ```
 
 Always branch new change worktrees from `{{ default_branch }}`. Never use the bare/control repo placeholder `HEAD` as the checkout source.
@@ -85,10 +92,10 @@ If you need absolute paths (for logs, scripts, or agent instructions), use:
 
 ## Cleanup
 
-After the branch is merged:
+After the branch is merged, ask Ito for cleanup instructions:
 
 ```bash
-ito agent instruction finish --change "<branch-name>"
+ito agent instruction finish --change "<full-change-id>"
 ```
 
 If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks.

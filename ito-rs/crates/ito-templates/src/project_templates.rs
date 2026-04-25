@@ -185,11 +185,18 @@ mod tests {
 
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
+        assert!(text.contains("Keep the main/control checkout clean"));
         assert!(
-            text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>")
+            text.contains(
+                "Use the full change ID as the branch and primary worktree directory name"
+            )
         );
+        assert!(text.contains("Do not reuse one worktree for two changes"));
+        assert!(text.contains(
+            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+        ));
         assert!(
-            text.contains(".ito-worktrees/<change-name>/"),
+            text.contains(".ito-worktrees/<full-change-id>/"),
             "should contain repo-relative worktree path"
         );
         assert!(
@@ -217,11 +224,18 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("**Strategy:** `checkout_siblings`"));
+        assert!(text.contains("Keep the main/control checkout clean"));
+        assert!(
+            text.contains(
+                "Use the full change ID as the branch and primary worktree directory name"
+            )
+        );
+        assert!(text.contains("Do not reuse one worktree for two changes"));
         assert!(text.contains(
-            "git worktree add \"../<project-name>-worktrees/<change-name>\" -b <change-name>"
+            "git worktree add \"../<project-name>-worktrees/<full-change-id>\" -b <full-change-id> develop"
         ));
         assert!(
-            text.contains("../<project-name>-worktrees/<change-name>/"),
+            text.contains("../<project-name>-worktrees/<full-change-id>/"),
             "should contain repo-relative sibling worktree path"
         );
         assert!(
@@ -251,11 +265,9 @@ mod tests {
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
-        assert!(
-            text.contains(
-                "git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main"
-            )
-        );
+        assert!(text.contains(
+            "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+        ));
         assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
         let layout_line = text
             .lines()

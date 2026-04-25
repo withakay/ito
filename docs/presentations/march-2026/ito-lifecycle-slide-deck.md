@@ -1,6 +1,6 @@
 # Ito: Change-Driven Development for AI Agents
 
-### A structured workflow for long-running, multi-session AI coding via agents
+## A structured workflow for long-running, multi-session AI coding via agents
 
 ---
 

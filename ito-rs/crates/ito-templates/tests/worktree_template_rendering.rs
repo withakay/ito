@@ -204,7 +204,7 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 /// Verifies that AGENTS.md renders appropriate worktree instructions and paths for the `checkout_subdir` strategy.
 ///
 /// Ensures the rendered text includes the "Worktree Workflow" section, the configured strategy label,
-/// a repository-relative `.ito-worktrees/<change-name>/` worktree path and the corresponding `git worktree add` example,
+/// a repository-relative `.ito-worktrees/<full-change-id>/` worktree path and the corresponding `git worktree add` example,
 /// and that it does not contain raw template syntax, discovery heuristics, or an embedded absolute project root.
 ///
 /// # Examples
@@ -213,7 +213,7 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 /// let ctx = checkout_subdir_ctx();
 /// let text = render_text(agents_md_bytes(), &ctx);
 /// assert!(text.contains("**Strategy:** `checkout_subdir`"));
-/// assert!(text.contains(".ito-worktrees/<change-name>/"));
+/// assert!(text.contains(".ito-worktrees/<full-change-id>/"));
 /// ```
 #[test]
 fn agents_md_checkout_subdir() {
@@ -222,11 +222,20 @@ fn agents_md_checkout_subdir() {
 
     assert!(text.contains("## Worktree Workflow"));
     assert!(text.contains("**Strategy:** `checkout_subdir`"));
-    assert!(text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>"));
+    assert!(
+        text.contains(
+            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+        )
+    );
+    assert!(text.contains("Keep the main/control checkout clean"));
+    assert!(
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
+    );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_subdir");
     assert!(
-        text.contains(".ito-worktrees/<change-name>/"),
+        text.contains(".ito-worktrees/<full-change-id>/"),
         "should show repo-relative worktree path"
     );
     assert_no_absolute_project_root(&text, &ctx.project_root, "agents_md_checkout_subdir");
@@ -238,13 +247,18 @@ fn agents_md_checkout_siblings() {
     let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `checkout_siblings`"));
+    assert!(text.contains("Keep the main/control checkout clean"));
     assert!(
-        text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
+    assert!(text.contains(
+        "git worktree add \"../<project-name>-wt/<full-change-id>\" -b <full-change-id> develop"
+    ));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_checkout_siblings");
     assert!(
-        text.contains("../<project-name>-wt/<change-name>/"),
+        text.contains("../<project-name>-wt/<full-change-id>/"),
         "should show repo-relative sibling worktree path"
     );
     assert_no_absolute_project_root(&text, &ctx.project_root, "agents_md_checkout_siblings");
@@ -270,11 +284,16 @@ fn agents_md_bare_control_siblings() {
     let text = render_text(agents_md_bytes(), &ctx);
 
     assert!(text.contains("**Strategy:** `bare_control_siblings`"));
+    assert!(text.contains("Keep the main/control checkout clean"));
+    assert!(
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
+    );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(text.contains(".bare/"));
     assert!(text.contains("ito-worktrees/"));
-    assert!(
-        text.contains("git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main")
-    );
+    assert!(text.contains(
+        "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+    ));
     assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
@@ -309,7 +328,16 @@ fn skill_checkout_subdir() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_subdir`"));
-    assert!(text.contains("git worktree add \".ito-worktrees/<change-name>\" -b <change-name>"));
+    assert!(
+        text.contains(
+            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+        )
+    );
+    assert!(text.contains("Keep the main/control checkout clean"));
+    assert!(
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
+    );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_subdir");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_subdir");
@@ -321,9 +349,14 @@ fn skill_checkout_siblings() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_siblings`"));
+    assert!(text.contains("Keep the main/control checkout clean"));
     assert!(
-        text.contains("git worktree add \"../<project-name>-wt/<change-name>\" -b <change-name>")
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
+    assert!(text.contains(
+        "git worktree add \"../<project-name>-wt/<full-change-id>\" -b <full-change-id> develop"
+    ));
     assert!(!text.contains("{{"), "should not contain raw jinja");
     assert_no_discovery_heuristics(&text, "skill_checkout_siblings");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_siblings");
@@ -351,10 +384,15 @@ fn skill_bare_control_siblings() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
-    assert!(text.contains("ito-worktrees/"));
+    assert!(text.contains("Keep the main/control checkout clean"));
     assert!(
-        text.contains("git worktree add \"../ito-worktrees/<change-name>\" -b <change-name> main")
+        text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
+    assert!(text.contains("Do not reuse one worktree for two changes"));
+    assert!(text.contains("ito-worktrees/"));
+    assert!(text.contains(
+        "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
+    ));
     assert!(
         text.contains("Never use the bare/control repo placeholder `HEAD` as the checkout source")
     );

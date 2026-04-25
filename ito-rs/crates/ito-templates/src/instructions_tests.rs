@@ -293,6 +293,11 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
     };
 
     let out = render_instruction_template("agent/worktrees.md.j2", &ctx).unwrap();
+    assert!(out.contains("Keep the main/control checkout clean"));
+    assert!(
+        out.contains("Use the full change ID as the branch and primary worktree directory name")
+    );
+    assert!(out.contains("Do not reuse one worktree for two changes"));
     assert!(out.contains(
         "git -C \"$PROJECT_ROOT\" worktree add \"$WORKTREES_ROOT/${BRANCH_NAME}\" -b \"${BRANCH_NAME}\" \"develop\""
     ));
@@ -438,6 +443,11 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     };
 
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert!(out.contains("Use the full change ID as the branch and primary worktree directory name: `000-01_test-change`"));
+    assert!(out.contains("Do not reuse one worktree for two changes"));
+    assert!(out.contains(
+        "Additional worktrees for this same change must start with `000-01_test-change`"
+    ));
     assert!(out.contains(
         "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
@@ -450,6 +460,179 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         "sync should be in the recommended setup path"
     );
     assert_eq!(out[..details_pos].matches("\nito sync\n").count(), 2);
+}
+
+#[test]
+fn apply_template_checkout_subdir_branches_from_default_branch() {
+    #[derive(Serialize)]
+    struct InstructionsCtx {
+        #[serde(rename = "changeName")]
+        change_name: &'static str,
+        #[serde(rename = "schemaName")]
+        schema_name: &'static str,
+        state: &'static str,
+        #[serde(rename = "missingArtifacts")]
+        missing_artifacts: Vec<&'static str>,
+        instruction: &'static str,
+        #[serde(rename = "tracksFile")]
+        tracks_file: bool,
+        #[serde(rename = "tracksPath")]
+        tracks_path: &'static str,
+        #[serde(rename = "tracksFormat")]
+        tracks_format: &'static str,
+        progress: ProgressCtx,
+        tasks: Vec<&'static str>,
+    }
+
+    #[derive(Serialize)]
+    struct ProgressCtx {
+        total: usize,
+        complete: usize,
+    }
+
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+        apply_enabled: bool,
+        strategy: &'static str,
+        default_branch: &'static str,
+        layout_dir_name: &'static str,
+        integration_mode: &'static str,
+        copy_from_main: Vec<&'static str>,
+        setup_commands: Vec<&'static str>,
+    }
+
+    #[derive(Serialize)]
+    struct TestingPolicyCtx {
+        tdd_workflow: &'static str,
+        coverage_target_percent: u64,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        instructions: InstructionsCtx,
+        context_files: Vec<&'static str>,
+        worktree: WorktreeCtx,
+        tracking_errors: Vec<&'static str>,
+        tracking_warnings: Vec<&'static str>,
+        testing_policy: TestingPolicyCtx,
+        user_guidance: &'static str,
+    }
+
+    let ctx = Ctx {
+        instructions: InstructionsCtx {
+            change_name: "000-01_test-change",
+            schema_name: "spec-driven",
+            state: "ready",
+            missing_artifacts: Vec::new(),
+            instruction: "Implement the change.",
+            tracks_file: false,
+            tracks_path: "",
+            tracks_format: "",
+            progress: ProgressCtx {
+                total: 0,
+                complete: 0,
+            },
+            tasks: Vec::new(),
+        },
+        context_files: Vec::new(),
+        worktree: WorktreeCtx {
+            enabled: true,
+            apply_enabled: true,
+            strategy: "checkout_subdir",
+            default_branch: "develop",
+            layout_dir_name: "ito-worktrees",
+            integration_mode: "commit_pr",
+            copy_from_main: Vec::new(),
+            setup_commands: Vec::new(),
+        },
+        tracking_errors: Vec::new(),
+        tracking_warnings: Vec::new(),
+        testing_policy: TestingPolicyCtx {
+            tdd_workflow: "red-green-refactor",
+            coverage_target_percent: 80,
+        },
+        user_guidance: "",
+    };
+
+    let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+    assert!(out.contains("Default branch: `develop`"));
+    assert!(out.contains(
+        "git -C \"$WORKTREE_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
+    ));
+}
+
+#[test]
+fn new_proposal_template_moves_to_worktree_after_create() {
+    #[derive(Serialize)]
+    struct ModuleCtx {
+        id: &'static str,
+        name: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        modules: Vec<ModuleCtx>,
+        worktree: WorktreeCtx,
+    }
+
+    let out = render_instruction_template(
+        "agent/new-proposal.md.j2",
+        &Ctx {
+            modules: vec![ModuleCtx {
+                id: "012",
+                name: "git-worktrees",
+            }],
+            worktree: WorktreeCtx { enabled: true },
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("Create the change ID first"));
+    assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change <change-id>)"));
+    assert!(out.contains("cd \"$CHANGE_DIR\""));
+    assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
+}
+
+#[test]
+fn worktree_init_template_includes_fresh_worktree_rules() {
+    #[derive(Serialize)]
+    struct WorktreeCtx {
+        enabled: bool,
+        init_include: Vec<&'static str>,
+        init_setup: Vec<&'static str>,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        worktree: WorktreeCtx,
+        change: &'static str,
+    }
+
+    let out = render_instruction_template(
+        "agent/worktree-init.md.j2",
+        &Ctx {
+            worktree: WorktreeCtx {
+                enabled: true,
+                init_include: Vec::new(),
+                init_setup: Vec::new(),
+            },
+            change: "012-06_example-change",
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("Worktree rules:"));
+    assert!(
+        out.contains("Use the full change ID as the branch and primary worktree directory name")
+    );
+    assert!(out.contains("Do not reuse one worktree for two changes"));
+    assert!(out.contains("WORKTREE_PATH=$(ito worktree ensure --change '012-06_example-change')"));
 }
 
 #[test]
