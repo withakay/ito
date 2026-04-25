@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Done When**: Diagnostics fire for each canonical case; markdown anchors and CSS-shaped tokens like `.unwrap` from code phrases do not trigger UI-mechanics warnings; rule is silent unless enabled in `validation.yaml`.
 - **Requirements**: cli-validate:scenario-grammar-validation
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Implement capabilities_consistency rule
 
