@@ -84,7 +84,7 @@ ______________________________________________________________________
 - **Done When**: Snapshot suite green; reminder appears only when `memory.capture` is configured; search/query-only configs do not render the reminder.
 - **Requirements**: `agent-instructions:apply-memory-capture-reminder`
 - **Updated At**: 2026-04-25
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Append memory-capture + wrap-up reminders to `finish.md.j2`
 
