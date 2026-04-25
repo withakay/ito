@@ -99,4 +99,14 @@ Commonly useful subagents:
 - `code-quality-squad` - parallel quality workflows
 - `perplexity-researcher` / `perplexity-researcher-pro` - web research with citations
 - `multi-agent` - explore multiple approaches and synthesize
+
+### ByteRover Memory (`.brv/`)
+
+`.brv/` is repo-local memory, committed to git. Git is the only version control for it.
+
+- NEVER run `brv vc` or any of its subcommands (`status`, `push`, `pull`, `sync`, ...).
+- NEVER run `brv login` or any command that authenticates to the ByteRover cloud.
+- NEVER enable ByteRover cloud sync.
+- DO use `brv query`, `brv search`, `brv curate`, and `brv review pending` — these stay local.
+- `.brv/` must remain tracked in git (do not add it to `.gitignore`); release-plz/cargo dirty-checks fail when files are both tracked and ignored.
 <!-- ITO:INTERNAL:END -->
