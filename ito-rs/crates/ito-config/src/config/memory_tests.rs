@@ -104,10 +104,13 @@ fn memory_section_supports_mixed_per_op_shapes() {
     let memory = parsed.memory.expect("memory section present");
 
     assert!(matches!(memory.capture, Some(MemoryOpConfig::Skill { .. })));
-    assert!(matches!(
-        memory.search,
-        Some(MemoryOpConfig::Command { .. })
-    ));
+    let Some(search) = memory.search else {
+        panic!("expected memory.search to be present");
+    };
+    match search {
+        MemoryOpConfig::Command { command: _ } => {}
+        MemoryOpConfig::Skill { .. } => panic!("expected memory.search to be a command op"),
+    }
     assert!(matches!(memory.query, Some(MemoryOpConfig::Command { .. })));
 }
 
@@ -137,10 +140,13 @@ fn memory_section_round_trips_full_config() {
         roundtripped.search,
         Some(MemoryOpConfig::Command { ref command }) if command.contains("{query}")
     ));
-    assert!(matches!(
-        roundtripped.query,
-        Some(MemoryOpConfig::Command { .. })
-    ));
+    let Some(query) = roundtripped.query else {
+        panic!("expected roundtripped.query to be present");
+    };
+    match query {
+        MemoryOpConfig::Command { command: _ } => {}
+        MemoryOpConfig::Skill { .. } => panic!("expected roundtripped.query to be a command op"),
+    }
 }
 
 #[test]

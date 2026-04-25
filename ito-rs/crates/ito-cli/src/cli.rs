@@ -98,7 +98,7 @@ pub enum Commands {
     #[command(visible_alias = "ls", verbatim_doc_comment)]
     List(ListArgs),
 
-    /// List archived changes
+    /// List archived changes (use --json for machine-readable output)
     #[command(visible_alias = "la")]
     ListArchive(ListArchiveArgs),
 
@@ -873,6 +873,7 @@ pub struct ListArgs {
     pub json: bool,
 }
 
+/// Arguments for `ito list-archive`.
 #[derive(Args, Debug, Clone)]
 pub struct ListArchiveArgs {
     /// Output as JSON

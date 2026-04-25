@@ -528,6 +528,8 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
     #[derive(Serialize, Default)]
     struct MemoryCtx {
         capture: MemoryOpState,
+        search: MemoryOpState,
+        query: MemoryOpState,
     }
 
     #[derive(Serialize)]

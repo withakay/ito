@@ -63,10 +63,12 @@ fn list_archive_json_lists_archived_changes_only() {
         .get("archived")
         .and_then(|value| value.as_array())
         .expect(&out.stdout);
-    let names: Vec<&str> = archived
-        .iter()
-        .filter_map(|value| value.get("name").and_then(|name| name.as_str()))
-        .collect();
+    let mut names: Vec<&str> = Vec::with_capacity(archived.len());
+    for value in archived {
+        if let Some(name) = value.get("name").and_then(|name| name.as_str()) {
+            names.push(name);
+        }
+    }
 
     assert_eq!(names, vec!["000-02_archived", "000-03_done"]);
 }
@@ -75,6 +77,15 @@ fn list_archive_json_lists_archived_changes_only() {
 fn list_archive_reports_empty_archives() {
     let base = tempfile::tempdir().expect("repo");
     fixtures::write(base.path().join("README.md"), "# temp\n");
+    // Create an initialized .ito project with an empty archive directory so
+    // this test exercises the empty-archive case rather than an uninitialized
+    // project. Keep an active change present so the project is recognised.
+    fixtures::write(
+        base.path().join(".ito/changes/000-01_active/proposal.md"),
+        "## Why\nActive fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+    fixtures::write(base.path().join(".ito/changes/archive/.gitkeep"), "");
+
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");

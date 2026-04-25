@@ -9,7 +9,7 @@ Usage: ito [OPTIONS] [COMMAND]
 Commands:
   create        Create a new module or change proposal [aliases: cr]
   list          List changes, specs, or modules with status summaries [aliases: ls]
-  list-archive  List archived changes [aliases: la]
+  list-archive  List archived changes (use --json for machine-readable output) [aliases: la]
   show          Display details of a change, spec, or module [aliases: sh]
   status        Check completion status of change artifacts [aliases: st]
   validate      Check changes, specs, and modules for errors and warnings [aliases: va]

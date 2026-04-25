@@ -330,13 +330,6 @@ pub fn install_manifests(
     Ok(())
 }
 
-/// Inject a version stamp into `bytes` when the file is a managed-block markdown file.
-///
-/// Returns the (possibly modified) bytes.  The stamp is applied only when:
-/// - the relative path ends in `.md` (not `.md.j2`)
-/// - the bytes are valid UTF-8
-/// - the content contains `<!-- ITO:START -->`
-///
 /// True when `path` is a plain `.md` asset (excludes Jinja `.md.j2` templates
 /// which are rendered, not installed verbatim). Centralising this guard keeps
 /// the stamping and marker-scoping checks in one place.
@@ -344,6 +337,12 @@ fn is_plain_markdown_path(path: &str) -> bool {
     path.ends_with(".md") && !path.ends_with(".md.j2")
 }
 
+/// Inject a version stamp into `bytes` when the file is a managed-block markdown file.
+///
+/// Returns the (possibly modified) bytes.  The stamp is applied only when:
+/// - the relative path ends in `.md` (not `.md.j2`)
+/// - the bytes are valid UTF-8
+/// - the content contains `<!-- ITO:START -->`
 fn stamp_managed_markdown(bytes: Vec<u8>, rel_path: &str, version: &str) -> Vec<u8> {
     if !is_plain_markdown_path(rel_path) {
         return bytes;
