@@ -8,8 +8,8 @@ use regex::Regex;
 
 use super::rules_engine::rule_issue;
 use super::{
-    ArtifactValidatorContext, CoreResult, DomainChangeRepository, LEVEL_INFO, LEVEL_WARNING,
-    ValidationIssue, ValidationLevelYaml, ValidatorId, parse_change_show_json,
+    ArtifactValidatorContext, CoreResult, DomainChangeRepository, LEVEL_ERROR, LEVEL_INFO,
+    LEVEL_WARNING, ValidationIssue, ValidationLevelYaml, ValidatorId, parse_change_show_json,
     read_change_delta_spec_files,
 };
 
@@ -53,7 +53,11 @@ pub(super) fn run_artifact_rule(
             ctx.change_id,
             level,
         )?),
-        "ui_mechanics" => rep.extend(validate_ui_mechanics_rule(change_repo, ctx.change_id)?),
+        "ui_mechanics" => rep.extend(validate_ui_mechanics_rule(
+            change_repo,
+            ctx.change_id,
+            level,
+        )?),
         "contract_refs" => rep.extend(validate_contract_refs_rule(
             change_repo,
             ctx.change_id,
@@ -156,6 +160,7 @@ fn validate_scenario_grammar_rule(
 fn validate_ui_mechanics_rule(
     change_repo: &(impl DomainChangeRepository + ?Sized),
     change_id: &str,
+    level: ValidationLevelYaml,
 ) -> CoreResult<Vec<ValidationIssue>> {
     let show = parse_change_show_json(
         change_id,
@@ -184,7 +189,7 @@ fn validate_ui_mechanics_rule(
                 issues.push(rule_issue(
                     ValidatorId::DeltaSpecsV1,
                     "ui_mechanics",
-                    LEVEL_WARNING,
+                    ui_mechanics_issue_level(level, LEVEL_WARNING),
                     format!(
                         "deltas[{delta_idx}].requirements[{requirement_idx}].scenarios[{scenario_idx}]"
                     ),
@@ -198,6 +203,18 @@ fn validate_ui_mechanics_rule(
     }
 
     Ok(issues)
+}
+
+fn ui_mechanics_issue_level(
+    configured_level: ValidationLevelYaml,
+    table_level: &'static str,
+) -> &'static str {
+    // Opt-in rule severity is a floor: users can turn rule errors down to warnings,
+    // but setting the rule to `error` does not promote advisory rows into errors.
+    if configured_level == ValidationLevelYaml::Warning && table_level == LEVEL_ERROR {
+        return LEVEL_WARNING;
+    }
+    table_level
 }
 
 #[derive(Debug, Clone)]

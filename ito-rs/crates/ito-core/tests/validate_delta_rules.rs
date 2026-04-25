@@ -288,6 +288,87 @@ The system SHALL ignore code-like tokens.
 }
 
 #[test]
+fn ui_mechanics_rule_keeps_advisories_as_warnings_when_configured_error() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("schema.yaml"),
+        r#"
+name: scenario-rules
+version: 1
+artifacts:
+  - id: specs
+    generates: specs/**/*.md
+    template: specs/spec.md
+    requires: []
+"#,
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("scenario-rules")
+            .join("validation.yaml"),
+        r#"
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      ui_mechanics: error
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: scenario-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("specs")
+            .join("auth")
+            .join("spec.md"),
+        r#"
+## ADDED Requirements
+
+### Requirement: Non-ui mechanics
+The system SHALL focus scenarios on behavior.
+
+#### Scenario: Clicks save
+- **GIVEN** a draft exists
+- **WHEN** the user click the Save button
+- **THEN** the draft is stored
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    let ui_warnings: Vec<_> = report
+        .issues
+        .iter()
+        .filter(|issue| issue.rule_id.as_deref() == Some("ui_mechanics"))
+        .collect();
+    assert_eq!(
+        ui_warnings.len(),
+        1,
+        "expected one UI warning, got: {:?}",
+        report.issues
+    );
+    assert_eq!(ui_warnings[0].level, "WARNING");
+}
+
+#[test]
 fn capabilities_consistency_rule_errors_for_listed_capability_without_delta() {
     let td = tempfile::tempdir().unwrap();
     let project_root = td.path();
