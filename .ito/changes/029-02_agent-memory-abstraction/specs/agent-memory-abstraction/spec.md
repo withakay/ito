@@ -104,8 +104,10 @@ Rendering rules:
 
 - **Scalar string placeholder** (`{context}`, `{query}`, `{scope}`): the
   value is substituted as a single shell-quoted token. Missing values
-  render as an empty string. Scalar-string placeholders are always
-  shell-quoted (e.g. `{query}` with value `foo bar` renders as `'foo bar'`).
+  render as the empty quoted token `''`. Scalar-string placeholders are
+  always shell-quoted (e.g. `{query}` with value `foo bar` renders as
+  `'foo bar'`; an unset `{scope}` renders as `''` so flag-prefixed
+  templates like `--scope {scope}` always emit a valid shell argument).
 - **Scalar integer placeholder** (`{limit}`): the value is substituted as
   a decimal integer literal. Missing values render as an empty string.
 - **List placeholder** (`{files}`, `{folders}`): the list is expanded as
@@ -124,11 +126,11 @@ Rendering rules:
 - **WHEN** an agent invokes `ito agent instruction memory-capture --context "decision X" --file a.md --file b.md --folder docs/`
 - **THEN** the emitted command line is `memory-tool capture 'decision X' --file 'a.md' --file 'b.md' --folder 'docs/'` (whitespace normalization aside)
 
-#### Scenario: Missing optional scalar renders empty
+#### Scenario: Missing optional scalar renders empty quoted token
 
-- **GIVEN** `memory.search` is `{ kind: "command", command: "memory-tool search {query} --limit {limit} {scope}" }`
+- **GIVEN** `memory.search` is `{ kind: "command", command: "memory-tool search {query} --limit {limit} --scope {scope}" }`
 - **WHEN** an agent invokes `ito agent instruction memory-search --query "coordination"`
-- **THEN** the emitted command line is `memory-tool search 'coordination' --limit 10` (no trailing scope token)
+- **THEN** the emitted command line is `memory-tool search 'coordination' --limit 10 --scope ''` (the unset `{scope}` placeholder renders as `''` so the `--scope` flag remains a valid shell argument)
 
 #### Scenario: Unknown placeholder passes through as literal
 
