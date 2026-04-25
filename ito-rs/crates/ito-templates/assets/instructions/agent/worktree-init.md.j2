@@ -15,7 +15,8 @@ Run the following to create and initialize the dedicated change worktree (idempo
 
 Worktree rules:
 
-- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
+- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no Ito change ID exists yet, create a temporary proposal worktree first, run change creation there, then move into the final change worktree before editing generated artifacts.
 - Use the full change ID as the branch and primary worktree directory name.
 - Do not reuse one worktree for two changes.
 - Extra worktrees for the same change must start with the full change ID and add a suffix.

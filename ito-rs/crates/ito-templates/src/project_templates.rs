@@ -99,6 +99,16 @@ fn contains_jinja2_syntax(text: &str) -> bool {
 mod tests {
     use super::*;
 
+    const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
+    const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+    const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
+
+    fn assert_main_worktree_guardrails(text: &str) {
+        assert!(text.contains(READ_ONLY_MAIN_RULE));
+        assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE));
+        assert!(text.contains(NO_MAIN_WRITE_RULE));
+    }
+
     #[test]
     fn render_project_template_passes_plain_text_through() {
         let bytes = b"Hello, this is plain text.";
@@ -185,7 +195,7 @@ mod tests {
 
         assert!(text.contains("## Worktree Workflow"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
-        assert!(text.contains("Keep the main/control checkout clean"));
+        assert_main_worktree_guardrails(&text);
         assert!(
             text.contains(
                 "Use the full change ID as the branch and primary worktree directory name"
@@ -224,7 +234,7 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("**Strategy:** `checkout_siblings`"));
-        assert!(text.contains("Keep the main/control checkout clean"));
+        assert_main_worktree_guardrails(&text);
         assert!(
             text.contains(
                 "Use the full change ID as the branch and primary worktree directory name"
@@ -263,7 +273,7 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("**Strategy:** `bare_control_siblings`"));
-        assert!(text.contains("Keep the main/control checkout clean"));
+        assert_main_worktree_guardrails(&text);
         assert!(
             text.contains(
                 "Use the full change ID as the branch and primary worktree directory name"
