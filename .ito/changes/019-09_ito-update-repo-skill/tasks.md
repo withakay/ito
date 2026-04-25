@@ -93,8 +93,8 @@ ______________________________________________________________________
 - **Verify**: Invoking the skill against a project that contains one stale file and one orphan skill produces a report that distinguishes them.
 - **Done When**: Stamp-based classification drives the skill's report and no stale file is ever proposed for deletion.
 - **Requirements**: ito-managed-asset-versioning:stamp-readable, ito-update-repo-skill:orphan-audit
-- **Updated At**: 2026-04-24
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-25
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
