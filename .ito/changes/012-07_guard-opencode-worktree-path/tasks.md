@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: The command contract is reflected in CLI parsing tests or command-level tests.
 - **Requirements**: cli-config:validate-current-change-worktree
 - **Updated At**: 2026-04-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement worktree validation logic
 

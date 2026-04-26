@@ -1586,3 +1586,359 @@ test result: ok. 23 passed; 0 failed; 29 ignored; 0 measured; 0 filtered out; fi
 
 all doctests ran in 0.64s; merged doctests compilation took 0.25s
 ```
+
+After review, added a direct ownership unit assertion for .ito/wiki/index.md alongside the integration preservation tests.
+
+```bash
+cargo test -p ito-core installers::json_tests::classify_project_file_ownership_handles_user_owned_paths && cargo test -p ito-core --test wiki_install
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (target/debug/deps/ito_core-97a60e89e32a20a6)
+
+running 1 test
+test installers::json_tests::classify_project_file_ownership_handles_user_owned_paths ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 588 filtered out; finished in 0.00s
+
+     Running tests/archive.rs (target/debug/deps/archive-bb908e19f60ab3de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/audit_mirror.rs (target/debug/deps/audit_mirror-e0f2007be96afc56)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/audit_storage.rs (target/debug/deps/audit_storage-d1066ef9170e3525)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/backend_archive.rs (target/debug/deps/backend_archive-7d213b5a86171714)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/backend_auth.rs (target/debug/deps/backend_auth-f62b4033e87eb880)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/backend_auth_service.rs (target/debug/deps/backend_auth_service-d4ae41eb0dbebf8d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/backend_client_mode.rs (target/debug/deps/backend_client_mode-4feccb8304cdd0e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/backend_module_repository.rs (target/debug/deps/backend_module_repository-142fb0a15ad04557)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/backend_sub_module_support.rs (target/debug/deps/backend_sub_module_support-b6cbe69060670271)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/change_repository_lifecycle.rs (target/debug/deps/change_repository_lifecycle-3ad7a416a1aedd7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/change_repository_orchestrate_metadata.rs (target/debug/deps/change_repository_orchestrate_metadata-3b7eeb07eb743455)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/change_repository_parity.rs (target/debug/deps/change_repository_parity-35ea3d4714a6ad6a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/change_target_resolution_parity.rs (target/debug/deps/change_target_resolution_parity-421699c569d2d487)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/coordination_worktree.rs (target/debug/deps/coordination_worktree-5975c00a55b1bb53)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/create.rs (target/debug/deps/create-5ac295c2581c09f9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/distribution.rs (target/debug/deps/distribution-f9b9a052767379fb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/event_forwarding.rs (target/debug/deps/event_forwarding-c6970aa933776f62)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/grep_scopes.rs (target/debug/deps/grep_scopes-9f15bca114771057)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/harness_context.rs (target/debug/deps/harness_context-545831b8623ed23b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/harness_opencode.rs (target/debug/deps/harness_opencode-6f5c13f4dd80d54c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/harness_streaming.rs (target/debug/deps/harness_streaming-1c0b5d5428cea5bc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/harness_stub.rs (target/debug/deps/harness_stub-c30f2a7613933814)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/import.rs (target/debug/deps/import-f1b2c7ccf7d0ce7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/io.rs (target/debug/deps/io-2236f3068a97b57f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/orchestrate_run_state.rs (target/debug/deps/orchestrate_run_state-55a74a408992e8da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/planning_init.rs (target/debug/deps/planning_init-89cbafa119c3ee0a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/ralph.rs (target/debug/deps/ralph-be5f667b52cc59cc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.00s
+
+     Running tests/repo_index.rs (target/debug/deps/repo_index-fd4e043b4d94b0ca)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/repo_integrity.rs (target/debug/deps/repo_integrity-2d3b3a3e061715a9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/repo_paths.rs (target/debug/deps/repo_paths-fb1f07c85698c734)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/repository_runtime.rs (target/debug/deps/repository_runtime-be4c763d081a4e20)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/repository_runtime_config_validation.rs (target/debug/deps/repository_runtime_config_validation-960aa3cc8f00a101)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/show.rs (target/debug/deps/show-22113dd2550b37fc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/spec_repository_backends.rs (target/debug/deps/spec_repository_backends-c6818389cc643375)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/spec_show_repository.rs (target/debug/deps/spec_show_repository-b1904cdaddfc9087)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/sqlite_archive_mirror.rs (target/debug/deps/sqlite_archive_mirror-d956e7d08092e7de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/sqlite_task_mutations.rs (target/debug/deps/sqlite_task_mutations-0b7bbed8ba1f98e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/stats.rs (target/debug/deps/stats-67eda39bc41dbd37)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/task_repository_summary.rs (target/debug/deps/task_repository_summary-95f5bd2fb9f29729)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/tasks_api.rs (target/debug/deps/tasks_api-bd8ead6872f8b435)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/tasks_checkbox_format.rs (target/debug/deps/tasks_checkbox_format-48281f0d57319aea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/tasks_orchestration.rs (target/debug/deps/tasks_orchestration-3999942f641c0981)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.00s
+
+     Running tests/templates_apply_instructions.rs (target/debug/deps/templates_apply_instructions-9f2019f85720f737)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/templates_change_status.rs (target/debug/deps/templates_change_status-35a12530eba5e6f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/templates_review_context.rs (target/debug/deps/templates_review_context-97f6e8db807d81a0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/templates_schema_resolution.rs (target/debug/deps/templates_schema_resolution-36c0da440e7dbadb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/templates_schemas_listing.rs (target/debug/deps/templates_schemas_listing-f2f679d65100a642)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/templates_user_guidance.rs (target/debug/deps/templates_user_guidance-cf81a0bcce9439ca)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/traceability_e2e.rs (target/debug/deps/traceability_e2e-8fc11d42d04ae5a6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/validate.rs (target/debug/deps/validate-254d2cfeabee182c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+
+     Running tests/validate_delta_rules.rs (target/debug/deps/validate_delta_rules-6892e9025fcc274c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/validate_rules_extension.rs (target/debug/deps/validate_rules_extension-f05e7c13a4efe547)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/validate_tracking_rules.rs (target/debug/deps/validate_tracking_rules-4408fcfe66def8db)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/wiki_install.rs (target/debug/deps/wiki_install-f1869aceda4b9d20)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/worktree_ensure_e2e.rs (target/debug/deps/worktree_ensure_e2e-415d396e3697aff4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.16s
+     Running tests/wiki_install.rs (target/debug/deps/wiki_install-f1869aceda4b9d20)
+
+running 2 tests
+test update_preserves_existing_wiki_content_and_installs_missing_scaffold ... ok
+test init_upgrade_preserves_existing_wiki_content ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+```
