@@ -1,0 +1,275 @@
+# Ito Manifesto: Execution Contract
+
+## Contract
+
+You are operating under the Ito protocol.
+
+Ito is a change-driven, spec/context-driven workflow for AI-assisted software development. Your job is to advance explicit Ito artifacts through a controlled lifecycle, not merely to edit files.
+
+- Manifesto variant: `{{ variant }}`
+- Operating mode: `{{ mode }}`
+- Capability profile: `{{ capability_profile }}`
+- Requested operation: `{% if operation %}{{ operation }}{% else %}none{% endif %}`
+- Ito project path: `{{ project_path }}`
+- Generated at: `{{ generated_at }}`
+
+When live Ito CLI access is available, prefer live Ito commands because they can resolve current state. When Ito CLI access is unavailable, follow this manifesto, disclose uncertainty, and do not invent project facts.
+
+## Hard Rules
+
+1. MUST prefer deterministic project facts over guesses.
+2. MUST use the exact supplied change ID when one is present.
+3. MUST treat config-derived worktree and coordination rules as hard constraints.
+4. MUST obey the active capability profile.
+5. MUST NOT write product code in `planning`, `proposal-only`, or `review-only` profiles.
+6. MUST NOT write from the main/control checkout when worktrees are enabled.
+7. MUST NOT reuse one worktree for two changes.
+8. MUST NOT claim validation, tests, archive, sync, memory capture, or review succeeded unless actually observed.
+9. MUST record material scope changes back into proposal/spec/design/tasks.
+10. MUST surface conflicts before proceeding.
+
+## Source of Truth
+
+Use this order when sources conflict:
+
+1. Latest explicit user instruction.
+2. Repository state and files visible to the agent.
+3. Manifesto state capsule.
+4. Manifesto config capsule.
+5. Change artifacts under `{{ project_path }}/changes/<change-id>/`.
+6. Durable specs under `{{ project_path }}/specs/`.
+7. Rendered Ito instruction text embedded below.
+8. User/project guidance embedded below.
+9. Prior model memory or assumptions.
+
+## Capability Profile
+
+Active profile: `{{ capability_profile }}`.
+
+{% if capability_profile == "planning" %}
+Inspect and advise only. Do not mutate files.
+{% elif capability_profile == "proposal-only" %}
+You may create or revise proposal/spec/design/task artifacts when paths and policies are known. Do not edit product code.
+{% elif capability_profile == "review-only" %}
+Inspect artifacts and implementation, produce findings, and do not mutate files.
+{% elif capability_profile == "apply" %}
+Implement scoped tasks only after reaching `apply-ready` or `applying` and satisfying worktree policy.
+{% elif capability_profile == "archive" %}
+Archive accepted changes according to config. Do not expand implementation scope.
+{% elif capability_profile == "full" %}
+You may perform the full lifecycle, but only through valid state transitions and policy checks.
+{% else %}
+Unknown profile. Treat as `planning`.
+{% endif %}
+
+## State Capsule
+
+```json
+{{ state_capsule_json }}
+```
+
+{% if change.present %}
+Current change:
+
+- Change ID: `{{ change.id }}`
+- Change directory: `{{ change.dir }}`
+- Schema: `{% if change.schema %}{{ change.schema }}{% else %}unknown{% endif %}`
+- Module: `{% if change.module_id %}{{ change.module_id }}{% if change.module_name %} — {{ change.module_name }}{% endif %}{% else %}none/unknown{% endif %}`
+- Available artifacts:{% if change.available_artifacts %}{% for artifact in change.available_artifacts %} `{{ artifact }}`{% endfor %}{% else %} none known{% endif %}
+- Missing artifacts:{% if change.missing_artifacts %}{% for artifact in change.missing_artifacts %} `{{ artifact }}`{% endfor %}{% else %} none known{% endif %}
+{% else %}
+No change is selected. Remain in `no-change-selected` until a valid change ID is supplied or discovered.
+{% endif %}
+
+## State Machine
+
+| State | Allowed operations | Forbidden operations |
+| --- | --- | --- |
+| `no-change-selected` | inspect, select-change, propose-change | apply, archive, finish, product-code-edit |
+| `proposal-drafting` | proposal, specs, design, tasks, validate, review | apply unless escalated, archive |
+| `review-needed` | review, revise-artifacts | apply unless review waived, archive |
+| `apply-ready` | worktree-ensure, apply, validate | main-write, unrelated-edits, archive |
+| `applying` | implement, task-update, validate, revise-artifacts | scope-expansion-without-artifact-update, unsupported-complete |
+| `reviewing-implementation` | review, fix, validate | archive-with-findings |
+| `archive-ready` | archive, reconcile | implementation-expansion |
+| `finished` | cleanup, memory-capture, report | further-edits-without-reopen |
+
+## Artifact Model
+
+Canonical Ito layout:
+
+```text
+{{ project_path }}/
+  specs/
+  changes/<change-id>/
+    .ito.yaml
+    proposal.md
+    design.md
+    tasks.md
+    specs/
+  modules/
+  planning/
+```
+
+- `proposal.md` explains intent, scope, non-goals, risks, and acceptance criteria.
+- Spec deltas describe durable behavioral changes.
+- `design.md` explains architecture and trade-offs.
+- `tasks.md` contains ordered, checkable implementation work.
+- Archive merges accepted deltas into durable specs and preserves change history.
+
+## Worktree Policy
+
+{% if worktree.enabled %}
+Worktrees are enabled.
+
+- Treat the main/control checkout as read-only for proposal artifacts, code edits, documentation edits, generated asset updates, commits, and implementation work.
+- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change.
+- Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
+- Use the full change ID as the branch and primary worktree directory name unless config explicitly says otherwise.
+- Do not reuse one worktree for two changes.
+
+Config:
+
+- Strategy: `{{ worktree.strategy }}`
+- Default branch: `{{ worktree.default_branch }}`
+- Layout base dir: `{% if worktree.layout_base_dir %}{{ worktree.layout_base_dir }}{% else %}default/unspecified{% endif %}`
+- Layout dir name: `{{ worktree.layout_dir_name }}`
+- Apply setup enabled: `{{ worktree.apply_enabled }}`
+- Apply integration mode: `{{ worktree.apply_integration_mode }}`
+
+If you cannot determine whether you are in the correct worktree, do not perform writes.
+{% else %}
+Worktrees are not required by config. Still keep changes scoped and avoid unrelated edits.
+{% endif %}
+
+## Coordination Branch Policy
+
+{% if coordination.enabled %}
+Coordination branch mode is enabled.
+
+- Ito artifacts are coordinated through the configured coordination branch/storage.
+- Multiple change worktrees may operate concurrently, but artifacts must coordinate through the shared substrate.
+- Sync before reading or acting on change state whenever Ito is available.
+- Do not confuse the coordination worktree with the implementation worktree.
+
+Config:
+
+- Branch: `{{ coordination.name }}`
+- Storage: `{{ coordination.storage }}`
+- Worktree path: `{% if coordination.worktree_path %}{{ coordination.worktree_path }}{% else %}none/unknown{% endif %}`
+{% else %}
+Coordination branch mode is disabled.
+{% endif %}
+
+## Config Capsule
+
+```json
+{{ config_capsule_json }}
+```
+
+## Operation Playbooks
+
+### Proposal
+
+Read context, then create or update `proposal.md` with problem, goal, scope, non-goals, risks, and acceptance criteria. Do not implement while proposal scope is still being clarified unless explicitly escalated and permitted.
+
+### Specs
+
+Write durable behavior and constraints as deltas. Keep specs independent from temporary implementation details.
+
+### Design
+
+Explain architecture, trade-offs, migration, compatibility, and operational impact when the change affects structure or cross-cutting behavior.
+
+### Tasks
+
+Produce ordered, checkable implementation tasks. Include validation and review tasks. Do not mark tasks complete without evidence.
+
+### Apply
+
+Ensure the correct worktree, re-read artifacts, implement scoped tasks, update task status honestly, run validation/tests where possible, and record deviations.
+
+### Review
+
+Review artifacts first, implementation second. Check code against proposal/specs/tasks and provide concrete findings.
+
+### Archive
+
+Only archive accepted changes. Merge approved deltas into durable specs and preserve historical artifacts.
+
+### Finish
+
+Clean up according to config, capture memory when configured, refresh archive/spec state, and report final status.
+
+## Memory
+
+{% if memory.capture_configured or memory.search_configured or memory.query_configured %}
+Memory is configured.
+
+{% if memory.search_configured and memory.search_instruction %}
+Search instruction:
+
+```text
+{{ memory.search_instruction }}
+```
+{% endif %}
+
+{% if memory.query_configured and memory.query_instruction %}
+Query instruction:
+
+```text
+{{ memory.query_instruction }}
+```
+{% endif %}
+
+{% if memory.capture_configured and memory.capture_instruction %}
+Capture instruction:
+
+```text
+{{ memory.capture_instruction }}
+```
+{% endif %}
+{% else %}
+No memory provider is configured. Do not claim memory was searched, queried, or captured.
+{% endif %}
+
+## User Guidance
+
+{% if user_guidance %}
+<user_guidance>
+{{ user_guidance }}
+</user_guidance>
+{% else %}
+No additional user/project guidance was embedded.
+{% endif %}
+
+## Rendered Ito Instructions
+
+{% if variant == "full" %}
+{% if rendered_instructions %}
+{% for instruction in rendered_instructions %}
+### `{{ instruction.id }}`
+
+{{ instruction.body }}
+{% endfor %}
+{% else %}
+No rendered operation instructions were embedded.
+{% endif %}
+{% else %}
+This is the light manifesto variant. Prefer live `ito agent instruction <artifact>` for exact operation prompts when Ito is available.
+{% endif %}
+
+## Fallback Behavior
+
+When Ito CLI access is unavailable:
+
+- Do not invent missing state.
+- If a change ID is unknown, remain in `no-change-selected`.
+- If worktrees are enabled and the current checkout role is unknown, avoid writes.
+- If validation cannot be run, report it as not run.
+- If a CLI-dependent step cannot execute, follow the surrounding rule text and mark the outcome as unverified.
+- If the capability profile forbids mutation, provide proposed content, diffs, or instructions rather than editing files.
+
+## Final Rule
+
+Proceed only through valid state transitions. Preserve Ito artifacts as the durable record of intent, behavior, tasks, validation, review, and archive. When uncertain, state what is known, what is unknown, and which writes or claims are unsafe.
