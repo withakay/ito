@@ -12,8 +12,8 @@
 - **Done When**: New Ito projects receive a valid wiki scaffold with stable entry points.
 
 ### Task 1.2: Define ownership and upgrade preservation semantics
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-26
 - **Description**: Ensure `.ito/wiki/**` scaffold installation preserves existing LLM-authored/user-owned content on `ito init --upgrade`, `ito update`, and non-force refreshes. Document any marker-managed sections explicitly.
 - **Files**: `ito-rs/crates/ito-core/src/installers/mod.rs`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/schema.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/config.yaml`, `ito-rs/crates/ito-templates/tests/`
 - **Dependencies**: Task 1.1
