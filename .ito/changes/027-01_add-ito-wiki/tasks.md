@@ -33,7 +33,7 @@
 - **Depends On**: Wave 1
 
 ### Task 2.1: Add Ito wiki maintenance and lint skill
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-04-26
 - **Description**: Add a shared skill that tells the harness how to set up, refresh, ingest into, repair, and lint the `.ito/wiki/` knowledge layer while respecting the configured write boundary and warn-and-update behavior.
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-wiki/SKILL.md`
