@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use super::event::AuditEvent;
+use super::event::{AuditEvent, ops};
 
 /// Key for uniquely identifying an entity in the materialized state.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -48,7 +48,9 @@ pub fn materialize_state(events: &[AuditEvent]) -> AuditState {
         // as a sentinel value (e.g., "archived").
         if let Some(to) = &event.to {
             entities.insert(key, to.clone());
-        } else if event.op == "archive" {
+        } else if event.op == ops::RECONCILED {
+            entities.remove(&key);
+        } else if event.op == ops::CHANGE_ARCHIVE {
             entities.insert(key, "archived".to_string());
         }
     }
@@ -84,6 +86,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: EventContext {
                 session_id: "test".to_string(),
                 harness_session_id: None,
@@ -244,6 +247,37 @@ mod tests {
         };
 
         assert_eq!(state.entities.get(&key), Some(&"complete".to_string()));
+    }
+
+    #[test]
+    fn reconciled_event_without_to_tombstones_state() {
+        let events = vec![
+            make_event(
+                "task",
+                "1.1",
+                Some("change-1"),
+                "create",
+                None,
+                Some("pending"),
+            ),
+            make_event(
+                "task",
+                "1.1",
+                Some("change-1"),
+                "reconciled",
+                Some("pending"),
+                None,
+            ),
+        ];
+
+        let state = materialize_state(&events);
+        let key = EntityKey {
+            entity: "task".to_string(),
+            entity_id: "1.1".to_string(),
+            scope: Some("change-1".to_string()),
+        };
+
+        assert_eq!(state.entities.get(&key), None);
     }
 
     #[test]

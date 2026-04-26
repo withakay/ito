@@ -59,6 +59,7 @@ fn make_event() -> AuditEvent {
         actor: "cli".to_string(),
         by: "@test".to_string(),
         meta: None,
+        count: 1,
         ctx: EventContext {
             session_id: "sid".to_string(),
             harness_session_id: None,

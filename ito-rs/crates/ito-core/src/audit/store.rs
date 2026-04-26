@@ -438,6 +438,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: EventContext {
                 session_id: "test-sid".to_string(),
                 harness_session_id: None,

@@ -187,6 +187,13 @@ pub(crate) fn handle_audit_clap(rt: &Runtime, args: &AuditArgs) -> CliResult<()>
                 }
             }
 
+            if *fix && !report.drifts.is_empty() {
+                return fail(format!(
+                    "audit reconciliation still has {} drift item(s) after --fix; no further automatic fixes should be appended until the drift is resolved manually",
+                    report.drifts.len()
+                ));
+            }
+
             Ok(())
         }
         AuditAction::Validate { change, json } => {

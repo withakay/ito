@@ -210,6 +210,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: test_ctx(),
         }
     }

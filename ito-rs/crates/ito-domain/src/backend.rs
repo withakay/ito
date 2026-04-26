@@ -415,6 +415,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: crate::audit::event::EventContext {
                 session_id: "sid".to_string(),
                 harness_session_id: None,

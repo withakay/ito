@@ -326,6 +326,7 @@ branch refs/heads/feature-b
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: ito_domain::audit::event::EventContext {
                 session_id: "test".to_string(),
                 harness_session_id: None,

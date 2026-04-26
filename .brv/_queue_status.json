@@ -1,1 +1,6 @@
-{"failed":0,"pending":0,"processed":1,"processing":false}
+{
+  "failed": 0,
+  "pending": 0,
+  "processed": 1,
+  "processing": false
+}

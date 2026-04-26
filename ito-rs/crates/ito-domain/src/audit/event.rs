@@ -41,8 +41,19 @@ pub struct AuditEvent {
     /// Optional operation-specific metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
+    /// Number of equivalent adjacent events represented by this event.
+    #[serde(default = "default_count", skip_serializing_if = "is_default_count")]
+    pub count: u64,
     /// Session and git context for traceability.
     pub ctx: EventContext,
+}
+
+fn is_default_count(count: &u64) -> bool {
+    *count <= 1
+}
+
+fn default_count() -> u64 {
+    1
 }
 
 /// Known entity types for the audit log.
@@ -327,6 +338,7 @@ impl AuditEventBuilder {
             actor: actor.as_str().to_string(),
             by,
             meta: self.meta,
+            count: 1,
             ctx,
         })
     }
@@ -366,6 +378,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@jack".to_string(),
             meta: None,
+            count: 1,
             ctx: test_ctx(),
         };
 
@@ -388,6 +401,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: test_ctx(),
         };
 
@@ -409,6 +423,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: EventContext {
                 session_id: "sid".to_string(),
                 harness_session_id: None,
@@ -423,10 +438,56 @@ mod tests {
         assert!(!json.contains("from"));
         assert!(!json.contains("\"to\""));
         assert!(!json.contains("meta"));
+        assert!(!json.contains("count"));
         assert!(!json.contains("harness_session_id"));
         assert!(!json.contains("branch"));
         assert!(!json.contains("worktree"));
         assert!(!json.contains("commit"));
+    }
+
+    #[test]
+    fn missing_count_deserializes_as_one() {
+        let json = r#"{
+            "v": 1,
+            "ts": "2026-02-08T14:30:00.000Z",
+            "entity": "task",
+            "entity_id": "1.1",
+            "op": "create",
+            "actor": "cli",
+            "by": "@test",
+            "ctx": { "session_id": "sid" }
+        }"#;
+
+        let event: AuditEvent = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(event.count, 1);
+    }
+
+    #[test]
+    fn count_serializes_when_greater_than_one() {
+        let event = AuditEvent {
+            v: 1,
+            ts: "2026-02-08T14:30:00.000Z".to_string(),
+            entity: "task".to_string(),
+            entity_id: "1.1".to_string(),
+            scope: None,
+            op: "reconciled".to_string(),
+            from: None,
+            to: None,
+            actor: "reconcile".to_string(),
+            by: "@reconcile".to_string(),
+            meta: None,
+            count: 2,
+            ctx: EventContext {
+                session_id: "sid".to_string(),
+                harness_session_id: None,
+                branch: None,
+                worktree: None,
+                commit: None,
+            },
+        };
+
+        let json = serde_json::to_string(&event).expect("serialize");
+        assert!(json.contains("\"count\":2"));
     }
 
     #[test]

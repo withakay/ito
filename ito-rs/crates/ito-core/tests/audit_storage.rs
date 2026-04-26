@@ -50,6 +50,7 @@ fn event(entity: &str, entity_id: &str, scope: Option<&str>, op: &str) -> AuditE
         actor: "cli".to_string(),
         by: "@test".to_string(),
         meta: None,
+        count: 1,
         ctx: EventContext {
             session_id: "s1".to_string(),
             harness_session_id: None,

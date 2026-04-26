@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use ito_domain::audit::context::resolve_context;
+use ito_domain::audit::event::AuditEvent;
 use ito_domain::audit::materialize::{EntityKey, materialize_state};
 use ito_domain::audit::reconcile::{Drift, FileState, compute_drift, generate_compensating_events};
 use ito_domain::tasks::{TaskStatus, parse_tasks_tracking_file};
@@ -78,7 +79,7 @@ pub fn run_reconcile(ito_path: &Path, change_id: Option<&str>, fix: bool) -> Rec
 
     let audit_state = materialize_state(&scoped_events);
     let file_state = build_file_state(ito_path, change_id);
-    let drifts = compute_drift(&audit_state.entities, &file_state);
+    let mut drifts = compute_drift(&audit_state.entities, &file_state);
 
     let events_written = if fix && !drifts.is_empty() {
         let ctx = resolve_context(ito_path);
@@ -86,9 +87,24 @@ pub fn run_reconcile(ito_path: &Path, change_id: Option<&str>, fix: bool) -> Rec
         let writer = default_audit_store(ito_path);
         let mut written = 0;
         for event in &compensating {
+            if has_equivalent_compensating_event(&scoped_events, event) {
+                continue;
+            }
             if writer.append(event).is_ok() {
                 written += 1;
             }
+        }
+        if written > 0 {
+            let all_events = read_audit_events(ito_path);
+            let mut scoped_events = Vec::new();
+            for event in &all_events {
+                if event.scope.as_deref() == Some(change_id) && event.entity == "task" {
+                    scoped_events.push(event.clone());
+                }
+            }
+            let audit_state = materialize_state(&scoped_events);
+            let file_state = build_file_state(ito_path, change_id);
+            drifts = compute_drift(&audit_state.entities, &file_state);
         }
         written
     } else {
@@ -100,6 +116,19 @@ pub fn run_reconcile(ito_path: &Path, change_id: Option<&str>, fix: bool) -> Rec
         events_written,
         scoped_to: change_id.to_string(),
     }
+}
+
+fn has_equivalent_compensating_event(events: &[AuditEvent], event: &AuditEvent) -> bool {
+    events.iter().any(|existing| {
+        existing.entity == event.entity
+            && existing.entity_id == event.entity_id
+            && existing.scope == event.scope
+            && existing.op == event.op
+            && existing.from == event.from
+            && existing.to == event.to
+            && existing.actor == event.actor
+            && existing.by == event.by
+    })
 }
 
 /// Project-wide reconciliation across all active changes.
@@ -170,6 +199,7 @@ mod tests {
             actor: "cli".to_string(),
             by: "@test".to_string(),
             meta: None,
+            count: 1,
             ctx: test_ctx(),
         }
     }
@@ -312,7 +342,7 @@ mod tests {
             .unwrap();
 
         let report = run_reconcile(&ito_path, Some("ch"), true);
-        assert_eq!(report.drifts.len(), 1);
+        assert!(report.drifts.is_empty());
         assert_eq!(report.events_written, 1);
 
         // Read events to verify compensating event was written
@@ -352,5 +382,24 @@ mod tests {
         let report = run_reconcile(&ito_path, Some("ch"), false);
         // Task in log but not in files -> Extra
         assert_eq!(report.drifts.len(), 1);
+    }
+
+    #[test]
+    fn reconcile_fix_clears_extra_task_drift() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let ito_path = tmp.path().join(".ito");
+
+        let writer = default_audit_store(&ito_path);
+        writer
+            .append(&make_event("1.1", "ch", "create", Some("pending")))
+            .unwrap();
+
+        let report = run_reconcile(&ito_path, Some("ch"), true);
+        assert!(report.drifts.is_empty());
+        assert_eq!(report.events_written, 1);
+
+        let report = run_reconcile(&ito_path, Some("ch"), true);
+        assert!(report.drifts.is_empty());
+        assert_eq!(report.events_written, 0);
     }
 }
