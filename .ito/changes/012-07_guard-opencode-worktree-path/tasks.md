@@ -38,8 +38,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core worktree` and `cargo test -p ito-cli worktree`
 - **Done When**: Validation passes for matching worktrees, fails for main/control, reports mismatches, and no-ops when worktrees are disabled.
 - **Requirements**: cli-config:validate-current-change-worktree
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-26
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
