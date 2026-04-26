@@ -17,6 +17,8 @@ ______________________________________________________________________
 
 ## Wave 1
 
+- **Depends On**: None
+
 ### Task 1.1: Add manifesto CLI surface
 
 - **Files**: `ito-rs/crates/ito-cli/src/cli/agent.rs`, `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-cli/tests/help.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
@@ -25,6 +27,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, and request parsing covers the new flags.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ### Task 1.2: Define manifesto rendering context
@@ -35,6 +38,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test instructions_more`
 - **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ______________________________________________________________________
@@ -51,6 +55,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates instructions_tests`
 - **Done When**: Variant-specific output is deterministic, compact in `light`, and complete enough in `full` without leaking sensitive values.
 - **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`, `agent-instructions:manifesto-variant-rendering`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ### Task 2.2: Compose embedded instructions for full mode
@@ -61,6 +66,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test agent_instruction_context --test instructions_more`
 - **Done When**: Full-mode manifesto output embeds the right instruction content for the requested scope and preserves manifesto precedence over embedded text.
 - **Requirements**: `agent-instructions:manifesto-variant-rendering`, `agent-instructions:manifesto-discoverability`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ______________________________________________________________________
@@ -77,6 +83,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test instructions_more --test agent_instruction_context && cargo test -p ito-core coordination_worktree`
 - **Done When**: Change-scoped rendering resolves authoritative coordination state and profile restrictions are enforced in rendered manifesto output.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-state-and-profile`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ### Task 3.2: Add redaction and discoverability coverage
@@ -87,6 +94,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: Sensitive values are redacted by default and users can discover manifesto support through the standard instruction interfaces.
 - **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`
+- **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
 ______________________________________________________________________
