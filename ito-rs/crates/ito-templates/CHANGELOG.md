@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.29] - 2026-04-26
+
+### 🚀 Features
+
+- *(memory)* Add Ito memory skill discovery
+
+### 🐛 Bug Fixes
+
+- *(templates)* Enforce worktree write isolation ([#214](https://github.com/withakay/ito/pull/214))
+
+### 💼 Other
+
+- 029-03 memory skill discoverability
 ## [0.1.28] - 2026-04-25
 
 ### 🚀 Features
