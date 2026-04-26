@@ -10,3 +10,4 @@ Centralized local execution logging and privacy-preserving usage stats for debug
 - [ ] 009-01_central-logging-and-telemetry
 - [x] 009-02_event-sourced-audit-log
 - [x] 009-03_move-audit-storage-off-work-branches
+- [ ] 009-04_fix-audit-reconcile-loop-and-prune-audit-mirror
