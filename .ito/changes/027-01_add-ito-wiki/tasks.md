@@ -21,8 +21,8 @@
 - **Done When**: Automated tests prove existing wiki content is not overwritten blindly and missing scaffold files can be installed safely.
 
 ### Task 1.3: Document wiki source boundaries, page model, and authority metadata
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-26
 - **Description**: Write the wiki schema/config so the source boundary is `.ito`-first and every durable page can declare page type, authority, source references, freshness, known gaps, and cross-links.
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/schema.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/config.yaml`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/status.md`
 - **Dependencies**: Task 1.1
