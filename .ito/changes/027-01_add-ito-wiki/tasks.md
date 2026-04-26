@@ -41,8 +41,8 @@
 - **Done When**: The installed skill teaches agents to maintain the wiki incrementally, update topic pages first, record source/freshness metadata, lint health issues, and update index/log/status after meaningful changes.
 
 ### Task 2.2: Add wiki search skill
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-26
 - **Description**: Add a shared skill focused on searching and answering from the wiki first, using `index.md` as the entry point and falling back to raw Ito artifacts when wiki coverage is missing, stale, or contradictory.
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-wiki-search/SKILL.md`
 - **Dependencies**: Task 2.1
