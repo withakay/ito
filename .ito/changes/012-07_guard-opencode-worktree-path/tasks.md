@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli worktree -- --nocapture`
 - **Done When**: The command contract is reflected in CLI parsing tests or command-level tests.
 - **Requirements**: cli-config:validate-current-change-worktree
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-26
+- **Status**: [>] in-progress
 
 ### Task 1.2: Implement worktree validation logic
 
