@@ -55,8 +55,8 @@ ______________________________________________________________________
 - **Verify**: Run the plugin unit or fixture tests for `ito-skills.js`, or add focused tests if no coverage exists.
 - **Done When**: The plugin blocks or warns from main/control, allows matching change worktrees, and remains fast through TTL caching.
 - **Requirements**: cli-artifact-workflow:opencode-worktree-pretool-guard
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-26
+- **Status**: [>] in-progress
 
 ### Task 2.2: Update installed guidance and setup notes
 
