@@ -4,8 +4,8 @@
 - **Depends On**: none
 
 ### Task 1.1: Add `.ito/wiki/` scaffold to project templates
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-26
 - **Description**: Add the initial wiki root to the default project template, including `index.md`, `log.md`, `overview.md`, `_meta/config.yaml`, `_meta/schema.md`, and `_meta/status.md`. Keep the scaffold Obsidian-friendly, plain-markdown-first, and clearly Ito-scoped.
 - **Files**: `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/index.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/log.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/overview.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/config.yaml`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/schema.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/wiki/_meta/status.md`
 - **Verify**: `cargo test -p ito-templates`
