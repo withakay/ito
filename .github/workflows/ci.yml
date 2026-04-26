@@ -18,7 +18,7 @@ jobs:
   autofix:
     name: Autofix (lint & format)
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     timeout-minutes: 10
     permissions:
       contents: write
@@ -193,7 +193,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     #runs-on: withakay-selfhosted
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     timeout-minutes: 10
 
     steps:
@@ -242,7 +242,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     # runs-on: withakay-selfhosted
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -301,7 +301,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     # runs-on: withakay-selfhosted
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -344,7 +344,7 @@ jobs:
 
   docs:
     name: Docs Site
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -397,7 +397,7 @@ jobs:
   required-checks-pr:
     name: All checks passed
     # runs-on: ubuntu-latest
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     needs: [autofix, test, lint, arch_guardrails, docs, powershell]
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -435,7 +435,7 @@ jobs:
   required-checks-main:
     name: All checks passed
     # runs-on: withakay-selfhosted
-    runs-on: namespace-profile-linux-amd64-4c8gb
+    runs-on: withakay-self-hosted-arm
     needs: [test, lint, arch_guardrails, docs, powershell]
     if: always() && github.event_name != 'pull_request'
     steps:
