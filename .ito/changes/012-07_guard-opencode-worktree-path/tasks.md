@@ -67,7 +67,7 @@ ______________________________________________________________________
 - **Done When**: Installed OpenCode guidance accurately describes the new guard.
 - **Requirements**: cli-artifact-workflow:opencode-worktree-pretool-guard
 - **Updated At**: 2026-04-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
