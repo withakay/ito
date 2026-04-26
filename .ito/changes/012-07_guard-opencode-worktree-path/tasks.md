@@ -84,5 +84,5 @@ ______________________________________________________________________
 - **Done When**: The proposal validates and project checks pass or have documented follow-up blockers.
 - **Requirements**: cli-config:validate-current-change-worktree, cli-artifact-workflow:opencode-worktree-pretool-guard
 - **Updated At**: 2026-04-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
