@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: The plugin blocks or warns from main/control, allows matching change worktrees, and remains fast through TTL caching.
 - **Requirements**: cli-artifact-workflow:opencode-worktree-pretool-guard
 - **Updated At**: 2026-04-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Update installed guidance and setup notes
 
