@@ -50,8 +50,8 @@
 - **Done When**: The installed skill gives a predictable query workflow for cited wiki answers, distinguishes chat answers from durable wiki artifacts, and calls out stale or missing coverage.
 
 ### Task 2.3: Verify skill distribution across harnesses
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-26
 - **Description**: Ensure the new wiki skills are embedded and distributed through all supported harness install paths without requiring harness-specific duplicate implementations.
 - **Files**: `ito-rs/crates/ito-core/src/distribution.rs`, `ito-rs/crates/ito-templates/src/lib.rs`, `ito-rs/crates/ito-templates/tests/`, `ito-rs/crates/ito-core/tests/distribution.rs`
 - **Dependencies**: Task 2.1, Task 2.2
