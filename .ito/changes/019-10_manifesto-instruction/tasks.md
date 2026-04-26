@@ -1,0 +1,100 @@
+<!-- ITO:START -->
+# Tasks for: 019-10_manifesto-instruction
+
+## Execution Notes
+
+- **Tracking**: Use `ito tasks` CLI for status updates
+- **Status legend**: `[ ] pending` · `[>] in-progress` · `[x] complete` · `[-] shelved`
+
+```bash
+ito tasks status 019-10_manifesto-instruction
+ito tasks next 019-10_manifesto-instruction
+ito tasks start 019-10_manifesto-instruction 1.1
+ito tasks complete 019-10_manifesto-instruction 1.1
+```
+
+______________________________________________________________________
+
+## Wave 1
+
+### Task 1.1: Add manifesto CLI surface
+
+- **Files**: `ito-rs/crates/ito-cli/src/cli/agent.rs`, `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-cli/tests/help.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
+- **Dependencies**: None
+- **Action**: Add `manifesto` as a supported `ito agent instruction` artifact and parse the new variant, profile, change, and optional operation inputs into the instruction request path.
+- **Verify**: `cargo test -p ito-cli --test help --test instructions_more`
+- **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, and request parsing covers the new flags.
+- **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`
+- **Status**: [ ] pending
+
+### Task 1.2: Define manifesto rendering context
+
+- **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-templates/src/lib.rs`
+- **Dependencies**: Task 1.1
+- **Action**: Build the typed render context that resolves merged config, worktree and coordination settings, memory configuration, user guidance, and optional change state for manifesto rendering.
+- **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test instructions_more`
+- **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables.
+- **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`
+- **Status**: [ ] pending
+
+______________________________________________________________________
+
+## Wave 2
+
+- **Depends On**: Wave 1
+
+### Task 2.1: Wire light and full manifesto rendering
+
+- **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/manifesto.md.j2`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions_tests.rs`
+- **Dependencies**: None
+- **Action**: Render the manifesto template in `light` and `full` variants with explicit source-of-truth ordering, state-machine sections, profile restrictions, and redacted config and state capsules.
+- **Verify**: `cargo test -p ito-templates instructions_tests`
+- **Done When**: Variant-specific output is deterministic, compact in `light`, and complete enough in `full` without leaking sensitive values.
+- **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`, `agent-instructions:manifesto-variant-rendering`
+- **Status**: [ ] pending
+
+### Task 2.2: Compose embedded instructions for full mode
+
+- **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-cli/tests/agent_instruction_context.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
+- **Dependencies**: Task 2.1
+- **Action**: Reuse existing instruction-rendering paths to embed relevant instruction artifacts in `full` mode while ensuring manifesto-level hard rules remain authoritative.
+- **Verify**: `cargo test -p ito-cli --test agent_instruction_context --test instructions_more`
+- **Done When**: Full-mode manifesto output embeds the right instruction content for the requested scope and preserves manifesto precedence over embedded text.
+- **Requirements**: `agent-instructions:manifesto-variant-rendering`, `agent-instructions:manifesto-discoverability`
+- **Status**: [ ] pending
+
+______________________________________________________________________
+
+## Wave 3
+
+- **Depends On**: Wave 2
+
+### Task 3.1: Add profile and change-state regression coverage
+
+- **Files**: `ito-rs/crates/ito-cli/tests/instructions_more.rs`, `ito-rs/crates/ito-cli/tests/agent_instruction_context.rs`, `ito-rs/crates/ito-core/tests/coordination_worktree.rs`
+- **Dependencies**: None
+- **Action**: Add regression tests for project-wide versus change-scoped rendering, profile-specific mutation restrictions, and coordination-backed state resolution.
+- **Verify**: `cargo test -p ito-cli --test instructions_more --test agent_instruction_context && cargo test -p ito-core coordination_worktree`
+- **Done When**: Change-scoped rendering resolves authoritative coordination state and profile restrictions are enforced in rendered manifesto output.
+- **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-state-and-profile`
+- **Status**: [ ] pending
+
+### Task 3.2: Add redaction and discoverability coverage
+
+- **Files**: `ito-rs/crates/ito-templates/src/instructions_tests.rs`, `ito-rs/crates/ito-cli/tests/help.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
+- **Dependencies**: Task 3.1
+- **Action**: Add regression coverage for secret and local-path redaction plus final discoverability checks in help and machine-readable responses.
+- **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test help --test instructions_more`
+- **Done When**: Sensitive values are redacted by default and users can discover manifesto support through the standard instruction interfaces.
+- **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`
+- **Status**: [ ] pending
+
+______________________________________________________________________
+
+## Wave Guidelines
+
+- Waves group tasks that can run in parallel within the wave
+- Wave N depends on all prior waves completing
+- Task dependencies within a wave are fine; cross-wave deps use the wave dependency
+- Checkpoint waves require human approval before proceeding
+<!-- ITO:END -->
