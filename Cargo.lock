@@ -1290,7 +1290,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-backend"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "ito-cli"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1346,14 +1346,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1364,7 +1364,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "assert-struct",
  "base64",
@@ -1398,7 +1398,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1414,7 +1414,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "chrono",
  "hex",
@@ -1429,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "axum",
  "axum-extra",
