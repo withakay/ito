@@ -1,4 +1,5 @@
 use ito_config::ConfigContext;
+use ito_core::templates::resolve_instructions;
 use ito_core::templates::{SchemaListResponse, list_schemas_detail};
 
 fn default_ctx() -> ConfigContext {
@@ -108,4 +109,41 @@ fn list_schemas_detail_spec_driven_has_expected_artifacts() {
     assert!(spec_driven.artifacts.contains(&"specs".to_string()));
     assert!(spec_driven.artifacts.contains(&"design".to_string()));
     assert!(spec_driven.artifacts.contains(&"tasks".to_string()));
+}
+
+#[test]
+fn built_in_minimalist_and_event_driven_spec_templates_use_delta_shape() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/demo-change")).expect("create change dir");
+
+    let ctx = ConfigContext {
+        project_dir: Some(root.path().to_path_buf()),
+        ..Default::default()
+    };
+
+    for schema in ["minimalist", "event-driven"] {
+        let out = resolve_instructions(&ito_path, "demo-change", Some(schema), "specs", &ctx)
+            .unwrap_or_else(|error| panic!("{schema} spec template should resolve: {error}"));
+        assert!(
+            out.template.contains("## ADDED Requirements"),
+            "{schema} spec template should use delta headings"
+        );
+        assert!(
+            out.template.contains("### Requirement:"),
+            "{schema} spec template should contain requirement headings"
+        );
+        assert!(
+            out.template.contains("#### Scenario:"),
+            "{schema} spec template should contain scenario headings"
+        );
+        assert!(
+            !out.template.contains("## Stories"),
+            "{schema} spec template should not use story headings"
+        );
+        assert!(
+            !out.template.contains("### Story:"),
+            "{schema} spec template should not use story items"
+        );
+    }
 }

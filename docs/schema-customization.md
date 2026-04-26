@@ -24,6 +24,7 @@ ito templates schemas export -f ".ito/templates/schemas"
 The export writes one directory per schema, each containing:
 
 - `schema.yaml`
+- `validation.yaml` when the built-in schema ships validator configuration
 - `templates/*.md`
 
 Example output layout:
@@ -32,6 +33,7 @@ Example output layout:
 .ito/templates/schemas/
   spec-driven/
     schema.yaml
+    validation.yaml
     templates/
       proposal.md
       spec.md
@@ -63,8 +65,46 @@ ito templates schemas export -f ".ito/templates/schemas" --force
 
 1. Export built-ins into project-local path.
 2. Edit `.ito/templates/schemas/<name>/schema.yaml` and template files.
-3. Commit project-local schema overrides if they are team conventions.
-4. Keep personal-only customizations in `${XDG_DATA_HOME}/ito/schemas/`.
+3. If you want opt-in validation rules, edit `.ito/templates/schemas/<name>/validation.yaml`.
+4. Commit project-local schema overrides if they are team conventions.
+5. Keep personal-only customizations in `${XDG_DATA_HOME}/ito/schemas/`.
+
+## Validation Rules Extension
+
+Schema validation configs can opt into additional checks without changing validator IDs. Add a `rules:` map under an artifact entry, and use the optional top-level `proposal:` entry when proposal-only checks are needed.
+
+```yaml
+version: 1
+artifacts:
+  specs:
+    required: true
+    validate_as: ito.delta-specs.v1
+    rules:
+      scenario_grammar: error
+      ui_mechanics: warning
+      contract_refs: warning
+proposal:
+  required: true
+  validate_as: ito.delta-specs.v1
+  rules:
+    capabilities_consistency: error
+tracking:
+  source: apply_tracks
+  required: true
+  validate_as: ito.tasks-tracking.v1
+  rules:
+    task_quality: error
+```
+
+Current v1 rule names:
+
+- `scenario_grammar`: require `WHEN`/`THEN`, recommend `GIVEN`, and warn on oversized scenarios
+- `ui_mechanics`: warn when non-UI requirements describe click/wait/selector mechanics
+- `contract_refs`: validate requirement-level `Contract Refs` syntax and related proposal anchors
+- `capabilities_consistency`: compare proposal capability lists against change-local deltas and baseline `.ito/specs/`
+- `task_quality`: enforce enhanced-task quality checks for `Files`, `Action`, `Verify`, `Done When`, `Requirements`, `Status`, and `Updated At`
+
+Built-in `spec-driven` defaults stay quiet in v1: the shipped schema exports the rule machinery, but it does not enable any of these new rules until you opt in through a project-local `validation.yaml` override.
 
 ## Notes
 

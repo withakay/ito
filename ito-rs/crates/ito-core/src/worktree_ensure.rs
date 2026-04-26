@@ -1,6 +1,6 @@
 //! Change worktree ensure: verify or create the correct worktree for a change.
 //!
-//! The [`ensure_worktree`] function is the primary entrypoint used by
+//! The `ensure_worktree` function is the primary entrypoint used by
 //! `ito worktree ensure --change <id>`. It resolves the expected path, creates
 //! the worktree if absent, runs initialization (file copy + setup), and returns
 //! the resolved absolute path.

@@ -421,6 +421,52 @@ Then the user is authenticated
     );
 }
 
+#[test]
+fn parse_requirement_metadata_prefers_first_values_and_accepts_asterisk_bullets() {
+    let md = r#"
+## Requirements
+
+### Requirement: Preserve metadata
+The system SHALL keep the first metadata values.
+* **Requirement ID**: REQ-001
+- **Requirement ID**: REQ-002
+* **Tags**: ui, api
+- **Tags**: backend
+* **Contract Refs**: openapi:GET /v1/items, jsonschema:ItemsResponse
+- **Contract Refs**: asyncapi:item.created
+"#;
+
+    let json = parse_spec_show_json("spec", md);
+    let requirement = &json.requirements[0];
+
+    assert_eq!(requirement.requirement_id.as_deref(), Some("REQ-001"));
+    assert_eq!(requirement.tags, vec!["ui", "api"]);
+    assert_eq!(requirement.contract_refs.len(), 2);
+    assert_eq!(requirement.contract_refs[0].raw, "openapi:GET /v1/items");
+    assert_eq!(requirement.contract_refs[1].raw, "jsonschema:ItemsResponse");
+}
+
+#[test]
+fn parse_contract_refs_preserves_commas_inside_identifiers() {
+    let md = r#"
+## Requirements
+
+### Requirement: Preserve contract refs
+The system SHALL keep query-string commas inside a single contract ref.
+- **Contract Refs**: openapi:POST /v1/items?ids=1,2, jsonschema:ItemRequest
+"#;
+
+    let json = parse_spec_show_json("spec", md);
+    let requirement = &json.requirements[0];
+
+    assert_eq!(requirement.contract_refs.len(), 2);
+    assert_eq!(
+        requirement.contract_refs[0].identifier.as_deref(),
+        Some("POST /v1/items?ids=1,2")
+    );
+    assert_eq!(requirement.contract_refs[1].raw, "jsonschema:ItemRequest");
+}
+
 /// Ensures bundling main specs fails with an IO error when a spec directory is missing `spec.md`.
 ///
 /// # Examples

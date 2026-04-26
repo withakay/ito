@@ -177,6 +177,8 @@ Run all subsequent file operations from `$CHANGE_DIR`.
 
 Follow the printed instructions exactly.
 
+When the selected schema is `spec-driven`, use the optional proposal `## Change Shape` block only when it adds signal (for example: public API work, higher risk, stateful behavior, or uncertainty about whether a design doc is needed). If you want proposal/spec/task validation beyond the built-in defaults, export the schema and opt into rules through `.ito/templates/schemas/<name>/validation.yaml`.
+
 ## Step 5: Validate
 
 ```bash
