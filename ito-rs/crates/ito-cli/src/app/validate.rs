@@ -441,6 +441,7 @@ fn validate_audit_consistency(
             line: None,
             column: None,
             message: format!("Audit drift: {drift}"),
+            rule_id: None,
             metadata: None,
         });
     }

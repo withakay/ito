@@ -32,6 +32,7 @@ pub fn issue(
         message: message.into(),
         line: None,
         column: None,
+        rule_id: None,
         metadata: None,
     }
 }
@@ -85,6 +86,12 @@ pub fn with_metadata(mut i: ValidationIssue, metadata: serde_json::Value) -> Val
     i
 }
 
+/// Attach a stable rule id to an existing issue.
+pub fn with_rule_id(mut i: ValidationIssue, rule_id: impl Into<String>) -> ValidationIssue {
+    i.rule_id = Some(rule_id.into());
+    i
+}
+
 /// Attach a stable validator id and spec path reference.
 pub(crate) fn with_format_spec(mut i: ValidationIssue, spec: FormatSpecRef) -> ValidationIssue {
     let mut obj = match i.metadata.take() {
@@ -104,6 +111,12 @@ pub(crate) fn with_format_spec(mut i: ValidationIssue, spec: FormatSpecRef) -> V
         "spec_path".to_string(),
         serde_json::Value::String(spec.spec_path.to_string()),
     );
+    if let Some(rule_id) = i.rule_id.as_ref() {
+        obj.insert(
+            "rule_id".to_string(),
+            serde_json::Value::String(rule_id.clone()),
+        );
+    }
     i.metadata = Some(serde_json::Value::Object(obj));
 
     if !i.message.contains(spec.validator_id) {
@@ -158,6 +171,21 @@ mod tests {
         let enriched = with_metadata(base, metadata.clone());
 
         assert_eq!(enriched.metadata, Some(metadata));
+    }
+
+    #[test]
+    fn rule_id_helper_marks_issue_and_is_reflected_in_metadata() {
+        let base = with_rule_id(error("spec.md", "invalid scenario"), "scenario_grammar");
+        let out = with_format_spec(base, super::super::format_specs::DELTA_SPECS_V1);
+
+        assert_eq!(out.rule_id.as_deref(), Some("scenario_grammar"));
+        let Some(meta) = out.metadata.as_ref().and_then(|m| m.as_object()) else {
+            panic!("expected metadata object");
+        };
+        assert_eq!(
+            meta.get("rule_id").and_then(|value| value.as_str()),
+            Some("scenario_grammar")
+        );
     }
 
     #[test]

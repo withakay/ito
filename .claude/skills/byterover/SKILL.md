@@ -12,8 +12,8 @@ Knowledge is stored in `.brv/context-tree/` as human-readable Markdown files.
 **No authentication needed.** `brv query`, `brv curate`, and `brv vc` (local version control) work out of the box. Login is only required for remote sync (`brv vc push`/`brv vc pull`).
 
 ## Workflow
-1.  **Before Thinking:** Run `brv query` to understand existing patterns.
-2.  **After Implementing:** Run `brv curate` to save new patterns/decisions.
+1. **Before Thinking:** Run `brv query` to understand existing patterns.
+2. **After Implementing:** Run `brv curate` to save new patterns/decisions.
 
 ## Commands
 

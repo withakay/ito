@@ -23,13 +23,16 @@ use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
+mod delta_rules;
 mod format_specs;
 mod issue;
 mod repo_integrity;
 mod report;
+mod rules_engine;
+mod tracking_rules;
 
 pub(crate) use issue::with_format_spec;
-pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata};
+pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata, with_rule_id};
 pub use repo_integrity::validate_change_dirs_repo_integrity;
 pub use report::{ReportBuilder, report};
 
@@ -63,6 +66,9 @@ pub struct ValidationIssue {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional 1-based column number.
     pub column: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional rule id when the issue came from an opt-in rule.
+    pub rule_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional structured metadata for tooling.
     pub metadata: Option<serde_json::Value>,
@@ -174,28 +180,8 @@ pub fn validate_spec(ito_path: &Path, spec_id: &str, strict: bool) -> CoreResult
     Ok(validate_spec_markdown(&markdown, strict))
 }
 
-/// Validate a change and produce a ValidationReport describing any issues found.
-///
-/// The function resolves the change's schema (when available) and runs schema-driven
-/// validation if the schema provides a validation.yaml. For legacy delta-driven
-/// schemas or when schema resolution/validation is unavailable it falls back to
-/// delta-specs and tasks-tracking validations. The `strict` flag influences severity
-/// handling and the report's final `valid` value.
-///
-/// # Returns
-///
-/// A `ValidationReport` summarizing all discovered issues and an aggregate summary,
-/// wrapped in `CoreResult`. The error variant is used for IO or repository access
-/// failures that prevent performing the validations.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::path::Path;
-/// // let change_repo = ...; // impl DomainChangeRepository
-/// // let report = validate_change(&change_repo, Path::new("/path/to/ito"), "change-123", true).unwrap();
-/// // println!("Valid: {}", report.valid);
-/// ```
+/// Validate a change using schema-driven rules when available, with legacy
+/// delta/task fallback for older schemas.
 pub fn validate_change(
     change_repo: &(impl DomainChangeRepository + ?Sized),
     ito_path: &Path,
@@ -418,6 +404,14 @@ fn validate_change_against_schema_validation(
                     &schema_artifact.generates,
                     validator_id,
                 )?;
+                rules_engine::run_artifact_rules(
+                    rep,
+                    change_repo,
+                    ctx,
+                    validator_id,
+                    artifact_id,
+                    cfg.rules.as_ref(),
+                )?;
             }
             continue;
         }
@@ -438,6 +432,53 @@ fn validate_change_against_schema_validation(
             &schema_artifact.generates,
             validator_id,
         )?;
+        rules_engine::run_artifact_rules(
+            rep,
+            change_repo,
+            ctx,
+            validator_id,
+            artifact_id,
+            cfg.rules.as_ref(),
+        )?;
+    }
+
+    if let Some(proposal) = validation.proposal.as_ref() {
+        let report_path = format!("changes/{change_id}/proposal.md");
+        let abs_path = change_dir.join("proposal.md");
+        let present = abs_path.exists();
+
+        if proposal.required && !present {
+            rep.push(issue(
+                missing_level,
+                "proposal",
+                format!("Missing required proposal artifact: {report_path}"),
+            ));
+        }
+
+        if present && let Some(validator_id) = proposal.validate_as {
+            let ctx = ArtifactValidatorContext {
+                ito_path,
+                change_id,
+                strict,
+            };
+            match validator_id {
+                ValidatorId::DeltaSpecsV1 => {
+                    rules_engine::run_proposal_rules(
+                        rep,
+                        change_repo,
+                        ctx,
+                        validator_id,
+                        proposal.rules.as_ref(),
+                    )?;
+                }
+                ValidatorId::TasksTrackingV1 => {
+                    rep.push(error(
+                        "schema.validation",
+                        "Validator 'ito.tasks-tracking.v1' is not valid for proposal artifacts",
+                    ));
+                }
+            }
+        }
     }
 
     if let Some(tracking) = validation.tracking.as_ref() {
@@ -488,6 +529,20 @@ fn validate_change_against_schema_validation(
                             &report_path,
                             strict,
                         ));
+                        let ctx = ArtifactValidatorContext {
+                            ito_path,
+                            change_id,
+                            strict,
+                        };
+                        rules_engine::run_tracking_rules(
+                            rep,
+                            change_repo,
+                            ctx,
+                            ValidatorId::TasksTrackingV1,
+                            &abs_path,
+                            &report_path,
+                            tracking.rules.as_ref(),
+                        )?;
                     }
                     ValidatorId::DeltaSpecsV1 => {
                         rep.push(error(
@@ -503,39 +558,7 @@ fn validate_change_against_schema_validation(
     Ok(())
 }
 
-/// Dispatches and runs the appropriate artifact validator, extending `rep` with any issues found.
-///
-/// This function selects a validator by `validator_id` and runs it for the artifact identified by
-/// `artifact_id` and its declared `generates` outputs. Validation results are appended to
-/// `rep`. Returns `Ok(())` on successful dispatch and execution of the chosen validator; validation
-/// failures are reported via `rep`.
-///
-/// # Parameters
-///
-/// - `rep`: report builder to receive produced validation issues.
-/// - `change_repo`: repository used by validators that need change data.
-/// - `ctx`: validation context carrying `ito_path`, `change_id`, and `strict`.
-/// - `artifact_id`: identifier of the artifact being validated (used in reported issue paths).
-/// - `generates`: artifact's declared output pattern or path.
-/// - `validator_id`: selects which validator to execute.
-///
-/// # Returns
-///
-/// `Ok(())` if the validator was dispatched and executed (or a non-fatal condition was reported
-/// into `rep`); underlying repository or validation errors are propagated as `CoreResult` errors.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Illustrative usage (types omitted for brevity)
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # use std::path::Path;
-/// // let mut rep = ReportBuilder::new(false);
-/// // let change_repo = ...; // implements DomainChangeRepository
-/// // let ctx = ArtifactValidatorContext { ito_path: Path::new("."), change_id: "C001", strict: true };
-/// // run_validator_for_artifact(&mut rep, &change_repo, ctx, "artifactA", "outputs/tasks.md", ValidatorId::TasksTrackingV1)?;
-/// # Ok(()) }
-/// ```
+/// Dispatch the configured validator for one artifact and append any findings.
 fn run_validator_for_artifact(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -626,6 +649,7 @@ fn validate_tasks_tracking_path(
                 message: d.message.clone(),
                 line: d.line.map(|l| l as u32),
                 column: None,
+                rule_id: None,
                 metadata: None,
             },
             TASKS_TRACKING_V1,
@@ -634,30 +658,7 @@ fn validate_tasks_tracking_path(
     issues
 }
 
-/// Validate delta-spec files for a change and append any findings to the provided report.
-///
-/// This function reads the change's delta spec files, performs structural and content checks
-/// (descriptions, requirements, scenarios, and size limits), and runs traceability analysis
-/// against the change's tasks when at least one requirement exposes an ID. Validation issues
-/// are pushed into `rep`. Returns an error only for underlying repository or IO failures.
-///
-/// # Parameters
-///
-/// - `rep`: report builder to receive validation issues.
-/// - `change_repo`: repository used to read change data (delta spec files and change tasks).
-/// - `change_id`: identifier of the change to validate.
-/// - `strict`: when `true`, uncovered requirements from traceability are reported as errors;
-///   when `false`, they are reported as warnings.
-///
-/// # Examples
-///
-/// ```
-/// // Setup placeholders appropriate for your test harness:
-/// // let mut rep = ReportBuilder::new(false);
-/// // let change_repo = MyChangeRepo::new(...);
-/// // let change_id = "CHG-001";
-/// // assert!(validate_change_delta_specs(&mut rep, &change_repo, change_id, true).is_ok());
-/// ```
+/// Validate a change's delta specs, including structural checks and traceability.
 fn validate_change_delta_specs(
     rep: &mut ReportBuilder,
     change_repo: &(impl DomainChangeRepository + ?Sized),
@@ -839,9 +840,6 @@ pub struct ResolvedModule {
 }
 
 /// Resolve a module directory name from user input.
-///
-/// Input can be a full directory name (`NNN_slug`) or the numeric module id
-/// (`NNN`). Empty input returns `Ok(None)`.
 pub fn resolve_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
@@ -877,12 +875,7 @@ pub fn resolve_module(
     }
 }
 
-/// Validate a module's `module.md` for minimal required sections.
-///
-/// Also validates all sub-modules under the module: each `sub/SS_name/`
-/// directory must have a valid `module.md` with a Purpose section.
-///
-/// Returns the resolved module directory name along with the report.
+/// Validate a module's `module.md` and any discovered sub-modules.
 pub fn validate_module(
     module_repo: &(impl DomainModuleRepository + ?Sized),
     ito_path: &Path,
@@ -930,11 +923,6 @@ pub fn validate_module(
 }
 
 /// Validate all sub-modules belonging to a parent module.
-///
-/// Uses the repository to iterate recognized sub-modules and validates their
-/// `module.md` (presence and Purpose section). Additionally scans `sub/`
-/// for any directories that the repository did not recognize — those have
-/// invalid naming and are reported as errors.
 fn validate_sub_modules_under_module(
     rep: &mut ReportBuilder,
     module_repo: &(impl DomainModuleRepository + ?Sized),
@@ -1064,7 +1052,7 @@ fn extract_section(markdown: &str, header: &str) -> String {
     out
 }
 
-/// Validate a change's tasks.md file and return any issues found.
+/// Validate a change's tracking file and return any issues found.
 pub fn validate_tasks_file(
     ito_path: &Path,
     change_id: &str,

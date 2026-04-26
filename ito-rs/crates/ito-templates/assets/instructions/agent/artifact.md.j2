@@ -42,6 +42,31 @@ Read these files for context before creating this artifact:
 - override_files (low -> high): ito.json, .ito.json, .ito/config.json, $PROJECT_DIR/config.json
 </testing_policy>
 
+<guidance>
+- Use the optional `## Change Shape` block only when it helps clarify type, risk, statefulness, public contract surface, or whether a design doc is warranted.
+- `Public Contract` should name exposed contract families only when a requirement will later anchor them with `Contract Refs`.
+- Change Shape is advisory. New validation rules stay opt-in through project-local `validation.yaml` overrides after schema export.
+</guidance>
+
+{% elif instructions.artifactId == "specs" %}
+<guidance>
+- Add `Tags` only when the requirement needs an explicit facet such as `ui` or `stateful`.
+- Add `Contract Refs` when the requirement depends on an external interface instead of copying large contract snippets inline.
+- Use `Rules / Invariants` and `State Transitions` only when they materially clarify behavior; leave them out when they would be empty noise.
+</guidance>
+
+{% elif instructions.artifactId == "design" %}
+<guidance>
+- Use the expanded sections to capture approach, interfaces, state, verification, and migration only when those facets matter for this change.
+- Keep the design decision-focused and avoid full code examples or implementation-level over-prescription.
+</guidance>
+
+{% elif instructions.artifactId == "tasks" %}
+<guidance>
+- Keep `Files`, `Action`, `Verify`, `Done When`, `Requirements`, `Status`, and `Updated At` concrete so task-quality validation can reason about the work.
+- Prefer specific verification commands over vague placeholders such as "run tests" or "check it works".
+</guidance>
+
 {% endif %}
 
 <output>

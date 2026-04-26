@@ -73,6 +73,7 @@ mod tests {
             message: message.to_string(),
             line: None,
             column: None,
+            rule_id: None,
             metadata: None,
         }
     }

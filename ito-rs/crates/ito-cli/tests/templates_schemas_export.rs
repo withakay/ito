@@ -34,6 +34,13 @@ fn templates_schemas_export_writes_embedded_files() {
     assert!(target.join("spec-driven/templates/proposal.md").exists());
     assert!(target.join("tdd/schema.yaml").exists());
     assert!(target.join("tdd/validation.yaml").exists());
+
+    for schema in ["spec-driven", "minimalist", "event-driven", "tdd"] {
+        assert!(
+            target.join(schema).join("validation.yaml").exists(),
+            "{schema} should export validation.yaml when bundled"
+        );
+    }
 }
 
 /// Ensures exporting embedded template schemas does not overwrite existing files unless `--force` is used, and that using `--force` restores embedded defaults.
