@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Validation passes for matching worktrees, fails for main/control, reports mismatches, and no-ops when worktrees are disabled.
 - **Requirements**: cli-config:validate-current-change-worktree
 - **Updated At**: 2026-04-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
