@@ -104,13 +104,17 @@ State resolution SHALL follow this order:
 1. If no valid change is in scope, resolve `no-change-selected`.
 2. If the change is already archived, resolve `finished`.
 3. If required proposal-phase artifacts are missing or change validation fails, resolve `proposal-drafting`.
-4. If authoritative change metadata explicitly marks the proposal package as not yet approved for implementation, including pending approval or changes requested, resolve `review-needed`.
+4. If an optional normalized `review_status` field in manifesto context is `pending-approval` or `changes-requested`, resolve `review-needed`.
 5. If implementation tasks show any in-progress work or any completed work while remaining tasks still exist, resolve `applying`.
 6. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render does not pass or is unavailable for that render, resolve `reviewing-implementation`.
 7. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render passes, resolve `archive-ready`.
 8. If required proposal-phase artifacts are present, validation passes, and no implementation task progress has started, resolve `apply-ready`.
 
-Authoritative change metadata for `review-needed` means a machine-readable change-state input provided by the host workflow or repository backend that explicitly marks the proposal package as not yet approved for implementation, including pending-approval and changes-requested states. The renderer SHALL NOT infer `review-needed` from heuristics alone.
+The optional `review_status` input SHALL use this normalized enum: `unknown`, `pending-approval`, `changes-requested`, `approved`.
+
+- In local-only repositories that do not provide review metadata, `review_status` SHALL be `unknown`.
+- In backend-backed or host-integrated renders, `review_status` MAY be populated from authoritative change-state metadata before manifesto rendering.
+- The renderer SHALL NOT infer `review_status` from heuristics alone.
 
 - **Requirement ID**: `agent-instructions:manifesto-state-and-profile`
 

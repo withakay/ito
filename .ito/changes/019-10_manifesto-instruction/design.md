@@ -74,6 +74,10 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: Render-time validation avoids stale cached status and keeps `reviewing-implementation` versus `archive-ready` decisions tied to the same invocation that produced the manifesto.
   Alternatives considered: Reusing a historical validation result was rejected because it could be stale and would make state resolution nondeterministic.
 
+- Decision: Approval-sensitive state resolution consumes an optional normalized `review_status` field in manifesto context with values `unknown`, `pending-approval`, `changes-requested`, or `approved`.
+  Rationale: This gives the renderer a stable integration contract across local-only, host-provided, and backend-backed environments without requiring heuristics.
+  Alternatives considered: Reading tool-specific review records directly inside the renderer was rejected because it would couple manifesto generation to one storage backend.
+
 - Decision: Redact secrets and local-only paths by default in config and state capsules.
   Rationale: The manifesto is meant to be portable and may be shared with systems that should not receive machine-local details.
   Alternatives considered: Raw config dumps were rejected because they risk leaking secrets and environment-specific paths.

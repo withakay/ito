@@ -34,7 +34,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-templates/src/lib.rs`
 - **Dependencies**: Task 1.1
-- **Action**: Build the typed render context that resolves merged config, worktree and coordination settings, memory configuration, user guidance, optional change state, and the restrictive intersection of profile, scope, and resolved workflow state.
+- **Action**: Build the typed render context that resolves merged config, worktree and coordination settings, memory configuration, user guidance, optional change state, normalized `review_status`, and the restrictive intersection of profile, scope, and resolved workflow state.
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test instructions_more`
 - **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables, and unresolved changes fail before rendering fabricated state.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`
