@@ -67,7 +67,7 @@ ______________________________________________________________________
 - **Done When**: Full-mode manifesto output embeds the correct instruction content for the requested scope and operation selection, rejects incompatible operation requests, and preserves manifesto precedence over embedded text.
 - **Requirements**: `agent-instructions:manifesto-variant-rendering`, `agent-instructions:manifesto-discoverability`
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
