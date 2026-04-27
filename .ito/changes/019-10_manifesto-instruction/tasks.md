@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, request parsing covers the new flags, and invalid or incompatible request combinations fail clearly.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`, `agent-instructions:manifesto-variant-rendering`
-- **Updated At**: 2026-04-26
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-27
+- **Status**: [>] in-progress
 
 ### Task 1.2: Define manifesto rendering context
 
