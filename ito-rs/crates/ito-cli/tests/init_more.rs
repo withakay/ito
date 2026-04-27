@@ -527,6 +527,10 @@ fn init_opencode_installs_audit_hook_plugin() {
     assert!(plugin.contains("tool.execute.before"));
     assert!(plugin.contains("ito audit validate"));
     assert!(plugin.contains("ito audit reconcile"));
+    assert!(plugin.contains("ito worktree validate"));
+    assert!(plugin.contains("maybeRunWorktreeGuard"));
+    assert!(plugin.contains("ITO_OPENCODE_WORKTREE_GUARD_DISABLED"));
+    assert!(plugin.contains("ITO_OPENCODE_WORKTREE_GUARD_TTL_MS"));
 }
 
 #[test]

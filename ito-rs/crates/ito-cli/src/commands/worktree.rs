@@ -5,9 +5,13 @@ use ito_config::{ConfigContext, load_cascading_project_config};
 use ito_core::repo_paths::{resolve_env, resolve_worktree_paths};
 use ito_core::worktree_ensure::ensure_worktree;
 use ito_core::worktree_init::run_worktree_setup;
+use ito_core::worktree_validate::{
+    WorktreeValidation, WorktreeValidationStatus, validate_change_worktree,
+};
+use std::path::Path;
 
-use crate::cli::{WorktreeArgs, WorktreeCommand};
-use crate::cli_error::{CliError, CliResult, fail};
+use crate::cli::{WorktreeArgs, WorktreeCommand, WorktreeValidateArgs};
+use crate::cli_error::{CliError, CliResult, fail, silent_fail, to_cli_error};
 use crate::runtime::Runtime;
 
 /// Dispatch `ito worktree` sub-commands.
@@ -15,6 +19,7 @@ pub(crate) fn handle_worktree_clap(rt: &Runtime, args: &WorktreeArgs) -> CliResu
     match &args.command {
         WorktreeCommand::Ensure(change_args) => handle_ensure(rt, &change_args.change),
         WorktreeCommand::Setup(change_args) => handle_setup(rt, &change_args.change),
+        WorktreeCommand::Validate(validate_args) => handle_validate(rt, validate_args),
     }
 }
 
@@ -83,6 +88,34 @@ fn handle_setup(rt: &Runtime, change_id: &str) -> CliResult<()> {
     Ok(())
 }
 
+/// Handle `ito worktree validate --change <id> [--json]`.
+fn handle_validate(rt: &Runtime, args: &WorktreeValidateArgs) -> CliResult<()> {
+    let change_id = &args.change_args.change;
+    validate_change_id(change_id)?;
+
+    let env = resolve_env(rt.ctx()).map_err(to_cli_error)?;
+    let worktree_paths = resolve_worktree_paths(&env, rt.ctx()).map_err(to_cli_error)?;
+    let current_branch = current_git_branch(&env.worktree_root);
+    let validation = validate_change_worktree(
+        change_id,
+        &env.worktree_root,
+        &worktree_paths,
+        current_branch.as_deref(),
+    );
+
+    emit_validation(&validation, args.json)?;
+
+    // `Mismatch` is advisory-only by design: the CLI surfaces a machine-readable
+    // mismatch status so hook callers can warn without hard-blocking same-session
+    // recovery work. Only the main/control checkout is a hard failure here.
+    match validation.status {
+        WorktreeValidationStatus::MainCheckout => silent_fail(),
+        WorktreeValidationStatus::Ok
+        | WorktreeValidationStatus::Disabled
+        | WorktreeValidationStatus::Mismatch => Ok(()),
+    }
+}
+
 /// Validate that a change ID is safe to use as a path segment.
 ///
 /// Rejects IDs that are empty, contain path traversal sequences (`..`),
@@ -115,4 +148,42 @@ fn load_resolved_config(
         ))
     })?;
     Ok(config)
+}
+
+fn emit_validation(validation: &WorktreeValidation, json: bool) -> CliResult<()> {
+    if json {
+        let rendered = serde_json::to_string_pretty(validation).map_err(to_cli_error)?;
+        println!("{rendered}");
+        return Ok(());
+    }
+
+    match validation.status {
+        WorktreeValidationStatus::MainCheckout => eprintln!("{}", validation.message),
+        WorktreeValidationStatus::Ok
+        | WorktreeValidationStatus::Disabled
+        | WorktreeValidationStatus::Mismatch => println!("{}", validation.message),
+    }
+
+    Ok(())
+}
+
+fn current_git_branch(cwd: &Path) -> Option<String> {
+    let mut command = std::process::Command::new("git");
+    command.args(["branch", "--show-current"]).current_dir(cwd);
+
+    command.env_remove("GIT_DIR");
+    command.env_remove("GIT_WORK_TREE");
+    command.env_remove("GIT_COMMON_DIR");
+
+    let output = command.output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if branch.is_empty() || branch == "HEAD" {
+        return None;
+    }
+
+    Some(branch)
 }
