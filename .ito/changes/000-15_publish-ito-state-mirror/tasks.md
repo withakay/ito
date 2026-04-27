@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: The config model resolves the default mirror path and accepts a custom override.
 - **Requirements**: ito-config-crate:published-mirror-path
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement mirror rendering contract
 
