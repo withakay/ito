@@ -84,7 +84,7 @@ ______________________________________________________________________
 - **Done When**: Change-scoped rendering resolves authoritative coordination state, no-change-selected rendering is constrained correctly, and profile restrictions are enforced in rendered manifesto output.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-state-and-profile`
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Add redaction and discoverability coverage
 
