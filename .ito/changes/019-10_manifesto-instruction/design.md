@@ -34,9 +34,21 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: The output size and fidelity trade-off is central to the feature, and explicit variants make behavior predictable for humans and tests.
   Alternatives considered: Auto-sizing the output based on environment hints was rejected because it would be hard to test and easy to misinterpret.
 
+- Decision: Treat `variant` and `profile` as orthogonal dimensions even though both expose a `full` value.
+  Rationale: `variant=full` controls output detail, while `profile=full` controls lifecycle permissions. The renderer and help output must preserve both names but describe them as separate axes.
+  Alternatives considered: Renaming one axis was rejected for this change because the existing proposal and template vocabulary already use `full`; explicit disambiguation is sufficient and less disruptive.
+
 - Decision: In `full` mode, embed relevant existing rendered instruction artifacts, but keep manifesto-level MUST and MUST NOT rules authoritative.
   Rationale: Existing templates stay canonical while the manifesto still acts as the hard execution contract for prompt-only environments.
   Alternatives considered: Duplicating instruction content inside the manifesto template was rejected because it would drift from the live instruction artifacts.
+
+- Decision: When `variant=full`, `--operation` is optional. If provided, embed only the requested operation's rendered instruction. If omitted, embed the fixed ordered set of artifact instructions allowed by the intersection of scope, resolved state, and active profile.
+  Rationale: This keeps output deterministic, avoids underdefined "relevant" behavior, and still supports both scoped and broad full renders.
+  Alternatives considered: Requiring `--operation` for every full render was rejected because the proposal explicitly supports project-wide full renders.
+
+- Decision: State and scope restrictions always narrow profile permissions; they never expand them.
+  Rationale: A requested profile expresses the maximum lifecycle permission, while the resolved state and presence or absence of a change determine what is currently legal.
+  Alternatives considered: Letting profile override state was rejected because it would undermine the manifesto's strictness.
 
 - Decision: Redact secrets and local-only paths by default in config and state capsules.
   Rationale: The manifesto is meant to be portable and may be shared with systems that should not receive machine-local details.
@@ -48,19 +60,19 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
 - Embedded instruction text can drift from manifesto-level rules -> Treat manifesto rules as the authoritative layer and compose live instruction renders instead of hand-copying content.
 - Change-scoped output can become stale if coordination state is not resolved correctly -> Always resolve change data from the coordination-backed repository path used by the current project wiring.
 - Redaction can hide useful debugging context -> Prefer structured capsules that preserve intent while removing secrets and local-only details.
+- The dual use of `full` can confuse users -> Keep CLI help and rendered output explicit that variant controls detail and profile controls permissions.
 
 ## Migration Plan
 
 1. Extend CLI argument parsing and instruction dispatch to accept the manifesto artifact and its variant, profile, and optional operation inputs.
 2. Build and test `ManifestoContext` assembly from merged config, worktree and coordination settings, user guidance, memory config, and optional change state.
 3. Wire the existing `manifesto.md.j2` template into the renderer for `light` and `full` modes.
-4. Add rendering and regression tests for profiles, redaction, change-scoped state, and embedded-instruction precedence.
+4. Add rendering and regression tests for profiles, redaction, change-scoped state, incompatible request failures, and embedded-instruction precedence.
 
 Rollback is straightforward because the feature is additive: remove the CLI surface, the render path, and the new template wiring if the contract proves too unstable.
 
 ## Open Questions
 
-- Should `--operation` remain optional metadata or become required for some `full` renders to limit output size?
 - Which config fields should be summarized versus shown verbatim in redacted capsules?
 - Should help and JSON output expose supported profiles and variants directly, or only surface the artifact name at first?
 <!-- ITO:END -->

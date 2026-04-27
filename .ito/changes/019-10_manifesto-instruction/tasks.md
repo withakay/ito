@@ -23,9 +23,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/src/cli/agent.rs`, `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-cli/tests/help.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
 - **Dependencies**: None
-- **Action**: Add `manifesto` as a supported `ito agent instruction` artifact and parse the new variant, profile, change, and optional operation inputs into the instruction request path.
+- **Action**: Add `manifesto` as a supported `ito agent instruction` artifact and parse the new variant, profile, change, and optional operation inputs into the instruction request path, including unsupported-combination errors.
 - **Verify**: `cargo test -p ito-cli --test help --test instructions_more`
-- **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, and request parsing covers the new flags.
+- **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, request parsing covers the new flags, and invalid or incompatible request combinations fail clearly.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
@@ -34,9 +34,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-templates/src/lib.rs`
 - **Dependencies**: Task 1.1
-- **Action**: Build the typed render context that resolves merged config, worktree and coordination settings, memory configuration, user guidance, and optional change state for manifesto rendering.
+- **Action**: Build the typed render context that resolves merged config, worktree and coordination settings, memory configuration, user guidance, optional change state, and the restrictive intersection of profile, scope, and resolved workflow state.
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test instructions_more`
-- **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables.
+- **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables, and unresolved changes fail before rendering fabricated state.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
@@ -62,9 +62,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`, `ito-rs/crates/ito-templates/src/instructions.rs`, `ito-rs/crates/ito-cli/tests/agent_instruction_context.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
 - **Dependencies**: Task 2.1
-- **Action**: Reuse existing instruction-rendering paths to embed relevant instruction artifacts in `full` mode while ensuring manifesto-level hard rules remain authoritative.
+- **Action**: Reuse existing instruction-rendering paths to embed deterministically selected instruction artifacts in `full` mode, with `--operation` filtering when provided and manifesto-level hard rules remaining authoritative.
 - **Verify**: `cargo test -p ito-cli --test agent_instruction_context --test instructions_more`
-- **Done When**: Full-mode manifesto output embeds the right instruction content for the requested scope and preserves manifesto precedence over embedded text.
+- **Done When**: Full-mode manifesto output embeds the correct instruction content for the requested scope and operation selection, rejects incompatible operation requests, and preserves manifesto precedence over embedded text.
 - **Requirements**: `agent-instructions:manifesto-variant-rendering`, `agent-instructions:manifesto-discoverability`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
@@ -79,9 +79,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/tests/instructions_more.rs`, `ito-rs/crates/ito-cli/tests/agent_instruction_context.rs`, `ito-rs/crates/ito-core/tests/coordination_worktree.rs`
 - **Dependencies**: None
-- **Action**: Add regression tests for project-wide versus change-scoped rendering, profile-specific mutation restrictions, and coordination-backed state resolution.
+- **Action**: Add regression tests for project-wide versus change-scoped rendering, profile-specific mutation restrictions, coordination-backed state resolution, and state narrowing of requested profiles.
 - **Verify**: `cargo test -p ito-cli --test instructions_more --test agent_instruction_context && cargo test -p ito-core coordination_worktree`
-- **Done When**: Change-scoped rendering resolves authoritative coordination state and profile restrictions are enforced in rendered manifesto output.
+- **Done When**: Change-scoped rendering resolves authoritative coordination state, no-change-selected rendering is constrained correctly, and profile restrictions are enforced in rendered manifesto output.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-state-and-profile`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
@@ -90,9 +90,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/src/instructions_tests.rs`, `ito-rs/crates/ito-cli/tests/help.rs`, `ito-rs/crates/ito-cli/tests/instructions_more.rs`
 - **Dependencies**: Task 3.1
-- **Action**: Add regression coverage for secret and local-path redaction plus final discoverability checks in help and machine-readable responses.
+- **Action**: Add regression coverage for secret and local-path redaction, full/profile disambiguation, and final discoverability checks in help and machine-readable responses.
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test help --test instructions_more`
-- **Done When**: Sensitive values are redacted by default and users can discover manifesto support through the standard instruction interfaces.
+- **Done When**: Sensitive values are redacted by default, `variant=full` and `profile=full` are clearly distinguished in output, and users can discover manifesto support through the standard instruction interfaces.
 - **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
