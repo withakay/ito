@@ -61,7 +61,7 @@ repos:
         additional_dependencies: [markdownlint-cli2@0.20.0]
         args: [--config, .markdownlint-cli2.yaml]
         files: \.md$
-        exclude: (^\.ito/|AGENTS\.md$)
+        exclude: (^\.ito/|^\.brv/|AGENTS\.md$)
 
       - id: cargo-fmt
         name: cargo fmt (ito-rs)

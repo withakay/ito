@@ -60,6 +60,8 @@ skip = [
     { crate = "bitflags@1", reason = "portable-pty transitive" },
     # tempfile 3.25 pulls getrandom 0.4 while rand/uuid currently use 0.3
     { crate = "getrandom@0.4", reason = "tempfile transitive" },
+    # wasip3 pins wit-bindgen 0.51 while wasip2 currently uses 0.57
+    { crate = "wit-bindgen@0.51", reason = "wasip3 transitive" },
     # getrandom 0.3 (used by rand 0.9/tungstenite) pulls r-efi 5.x;
     # getrandom 0.4 (used by tempfile/uuid) pulls r-efi 6.x
     { crate = "r-efi@5", reason = "getrandom 0.3 transitive (rand/tungstenite)" },
