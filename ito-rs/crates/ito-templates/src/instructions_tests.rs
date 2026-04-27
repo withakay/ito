@@ -885,6 +885,10 @@ fn new_proposal_template_moves_to_worktree_after_create() {
     assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change \"<change-id>\")"));
     assert!(out.contains("cd \"$CHANGE_DIR\""));
     assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
+    assert!(out.contains("## Step 0.5: Consult the Ito Wiki When Present"));
+    assert!(out.contains(".ito/wiki/index.md"));
+    assert!(out.contains("briefly warn"));
+    assert!(out.contains("fall back to `.ito/specs/`"));
 }
 
 #[test]
@@ -1051,6 +1055,9 @@ fn archive_template_renders_targeted_instruction_with_change() {
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
     assert!(out.contains("Configured mode: `pull_request_auto_merge`"));
     assert!(out.contains("request auto-merge"));
+    assert!(out.contains("refresh relevant `.ito/wiki/` topic pages"));
+    assert!(out.contains("Prefer updating existing topic pages"));
+    assert!(out.contains("not an archive blocker"));
 }
 
 #[test]

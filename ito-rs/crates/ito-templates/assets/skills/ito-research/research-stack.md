@@ -17,4 +17,8 @@ Evaluate technology choices and stack options for: **{{topic}}**
 
 Write markdown with: requirements, an options table (`Option | Pros | Cons | Maturity | Community`), recommendation, alternatives, and references.
 
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this research produced durable stack decisions or reusable trade-offs, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this source research file as the cited investigation record.
+
 <!-- ITO:END -->

@@ -52,4 +52,8 @@ Proactive improvements beyond specific findings.
 - [ ] Requires changes before implementation
 - [ ] Needs significant redesign
 
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this review found reusable security lessons, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this review file as the cited source of the finding.
+
 <!-- ITO:END -->

@@ -27,6 +27,14 @@ Do NOT jump straight into creating files. Confirm the change shape first:
 
 Only proceed to Step 1 once you and the user agree on what the change is and why it matters.
 
+**Step 0.5: Consult the Ito wiki when present**
+
+If `.ito/wiki/index.md` exists, read it early to find relevant topic pages, specs, modules, research syntheses, archived-change summaries, and workflow notes.
+
+- Treat wiki pages as synthesized navigation and context; raw specs, active changes, research artifacts, modules, and project guidance remain authoritative when they conflict.
+- Warn or call out the risk when wiki coverage is missing, stale, or contradictory, then continue from raw Ito sources rather than blocking proposal work.
+- When the proposal process creates durable synthesis, update the relevant `.ito/wiki/` topic page, `index.md`, `log.md`, or `_meta/status.md` so future planning can reuse it.
+
 **Step 1: Choose a schema**
 
 ```bash
