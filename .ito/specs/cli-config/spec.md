@@ -1,41 +1,49 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Configure coordination sync interval
+### Requirement: Validate current change worktree
 
-The config command SHALL allow setting and retrieving `changes.coordination_branch.sync_interval_seconds` as the coordination-worktree sync interval in seconds.
+The CLI SHALL provide a fast validation command that determines whether the current working directory is an acceptable worktree for a supplied change ID when worktrees are enabled.
 
-- **Requirement ID**: `cli-config:coordination-sync-interval`
+- **Requirement ID**: cli-config:validate-current-change-worktree
 
-#### Scenario: Set the coordination sync interval
+#### Scenario: Validation passes in matching change worktree
 
-- **WHEN** the user executes `ito config set changes.coordination_branch.sync_interval_seconds 300`
-- **THEN** Ito stores `300` as the coordination sync interval
+- **GIVEN** `worktrees.enabled=true`
+- **AND** the current working directory is inside a git worktree whose path or branch contains `012-07_guard-opencode-worktree-path`
+- **WHEN** the user runs the validation command for `012-07_guard-opencode-worktree-path`
+- **THEN** the command succeeds
+- **AND** it emits machine-readable details suitable for hook callers
 
-#### Scenario: Reject invalid sync interval values
+#### Scenario: Validation fails on main or control checkout
 
-- **WHEN** the user executes `ito config set changes.coordination_branch.sync_interval_seconds 0`
-- **THEN** the command fails with a validation error because the sync interval must be a positive integer number of seconds
+- **GIVEN** `worktrees.enabled=true`
+- **AND** the current working directory is the main/control checkout or the configured default worktree path
+- **WHEN** the user runs the validation command for `012-07_guard-opencode-worktree-path`
+- **THEN** the command fails quickly
+- **AND** the output explains that change work must run from a dedicated change worktree
+- **AND** the output includes the expected worktree path when it can be resolved
 
-### Requirement: Configure archive main integration mode
+#### Scenario: Validation warns on missing change ID in branch or path
 
-The config command SHALL allow setting and retrieving `changes.archive.main_integration_mode` as the default policy for integrating archived changes into `main`.
+- **GIVEN** `worktrees.enabled=true`
+- **AND** the current working directory is not main/control
+- **AND** neither the branch name nor the worktree path contains `012-07_guard-opencode-worktree-path`
+- **WHEN** the user runs the validation command for `012-07_guard-opencode-worktree-path`
+- **THEN** the command reports a mismatch
+- **AND** the message explains that the branch or path should include the full change ID
 
-- **Requirement ID**: `cli-config:archive-main-integration-mode`
+#### Scenario: Validation is disabled when worktrees are disabled
 
-#### Scenario: Set archive integration mode to direct merge
+- **GIVEN** `worktrees.enabled=false`
+- **WHEN** the user runs the validation command for any change ID
+- **THEN** the command succeeds without enforcing worktree path or branch checks
+- **AND** the output states that worktree validation is disabled by configuration
 
-- **WHEN** the user executes `ito config set changes.archive.main_integration_mode direct_merge`
-- **THEN** Ito stores `direct_merge` as the archive integration mode
+#### Scenario: Same-change suffix worktree is accepted
 
-#### Scenario: Set archive integration mode to pull request auto merge
-
-- **WHEN** the user executes `ito config set changes.archive.main_integration_mode pull_request_auto_merge`
-- **THEN** Ito stores `pull_request_auto_merge` as the archive integration mode
-
-#### Scenario: Reject unsupported archive integration modes
-
-- **WHEN** the user executes `ito config set changes.archive.main_integration_mode <value>`
-- **AND** `<value>` is not one of `direct_merge`, `pull_request`, `pull_request_auto_merge`, or `coordination_only`
-- **THEN** the command fails with a validation error
+- **GIVEN** `worktrees.enabled=true`
+- **AND** the current working directory is inside a worktree named `012-07_guard-opencode-worktree-path-review`
+- **WHEN** the user runs the validation command for `012-07_guard-opencode-worktree-path`
+- **THEN** the command succeeds because the worktree name starts with the full change ID
 <!-- ITO:END -->

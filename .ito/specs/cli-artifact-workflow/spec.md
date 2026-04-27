@@ -1,47 +1,41 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Worktree-enabled changes use fresh change-named worktrees
+### Requirement: OpenCode pre-tool hook guards worktree path
 
-When worktrees are enabled in configuration, generated agent instructions SHALL direct proposal and implementation work for each change to occur in a newly created change worktree rather than in the main/control checkout.
+When worktrees are enabled, the OpenCode Ito plugin SHALL run a quick pre-tool validation before relevant tool execution to reduce the chance that agents modify main/control or the wrong worktree.
 
-- **Requirement ID**: cli-artifact-workflow:fresh-change-worktrees
+- **Requirement ID**: cli-artifact-workflow:opencode-worktree-pretool-guard
 
-#### Scenario: Proposal guidance requires a new worktree
-
-- **GIVEN** `worktrees.enabled=true`
-- **WHEN** an agent generates proposal instructions for change `012-06_example-change`
-- **THEN** the instructions tell the agent to create or switch into a worktree dedicated to `012-06_example-change` before doing proposal work
-- **AND** the instructions state that the main/control checkout must remain clean and must not be used for change work
-
-#### Scenario: Apply guidance requires a new worktree
+#### Scenario: Pre-tool hook rejects main checkout for change work
 
 - **GIVEN** `worktrees.enabled=true`
-- **WHEN** an agent generates apply instructions for change `012-06_example-change`
-- **THEN** the instructions tell the agent to create a new worktree for that change rather than reusing an unrelated or previous change worktree
-- **AND** the instructions state that implementation commands must run from the change worktree path
+- **AND** the active change ID is `012-07_guard-opencode-worktree-path`
+- **AND** OpenCode is running from the main/control checkout
+- **WHEN** a tool invocation would read, write, edit, or run commands for change work
+- **THEN** the plugin invokes the worktree validation command before allowing the tool
+- **AND** the plugin prevents or warns against the tool use with instructions to move to the correct worktree
 
-#### Scenario: Worktree and branch names align with change ID
-
-- **GIVEN** `worktrees.enabled=true`
-- **AND** the change ID is `012-06_example-change`
-- **WHEN** generated instructions show branch or worktree naming guidance
-- **THEN** the branch name and primary worktree directory name use `012-06_example-change`
-- **AND** names preserve the module and sub-module prefix from the full change ID
-
-#### Scenario: One worktree is not reused for two changes
+#### Scenario: Pre-tool hook allows matching worktree
 
 - **GIVEN** `worktrees.enabled=true`
-- **AND** a worktree already exists for change `012-06_example-change`
-- **WHEN** an agent starts work for change `012-07_other-change`
-- **THEN** the instructions require a separate worktree for `012-07_other-change`
-- **AND** the instructions prohibit using the `012-06_example-change` worktree for the new change
+- **AND** the active change ID is `012-07_guard-opencode-worktree-path`
+- **AND** OpenCode is running from a branch or path containing `012-07_guard-opencode-worktree-path`
+- **WHEN** a relevant tool invocation occurs
+- **THEN** the plugin allows the tool without additional user interaction
 
-#### Scenario: Multiple worktrees for one change remain identifiable
+#### Scenario: Hook remains fast
+
+- **GIVEN** the OpenCode pre-tool hook is enabled
+- **WHEN** multiple tool invocations occur in the same session
+- **THEN** the plugin caches successful validation briefly
+- **AND** it avoids expensive repository scans on every tool invocation
+
+#### Scenario: Missing active change is advisory
 
 - **GIVEN** `worktrees.enabled=true`
-- **AND** an agent needs an additional worktree for change `012-06_example-change`
-- **WHEN** generated guidance describes acceptable naming
-- **THEN** the additional branch or worktree name starts with `012-06_example-change`
-- **AND** the name may append a classifier such as `012-06_example-change-review` or `012-06_example-change-experiment`
+- **AND** the plugin cannot determine an active change ID from the current instruction context or environment
+- **WHEN** a relevant tool invocation occurs outside main/control
+- **THEN** the plugin does not block solely because the change ID is unknown
+- **AND** it may emit advisory guidance asking the agent to validate the current change worktree explicitly
 <!-- ITO:END -->
