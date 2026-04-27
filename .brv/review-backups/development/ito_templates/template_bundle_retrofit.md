@@ -1,10 +1,10 @@
 ---
-createdAt: '2026-04-24T21:05:41.424Z'
-keywords: []
-related: [development/ito_templates/template_bundle_retrofit.abstract.md, development/ito_templates/template_bundle_retrofit.overview.md]
+title: Template Bundle Retrofit
 summary: Plain markdown files under ito-templates/assets were retrofitted with ITO start/end markers; pre-marked files remained unchanged and no adapter sample was modified.
 tags: []
-title: Template Bundle Retrofit
+related: []
+keywords: []
+createdAt: '2026-04-24T21:05:41.424Z'
 updatedAt: '2026-04-24T21:05:41.424Z'
 ---
 ## Reason
