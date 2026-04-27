@@ -67,5 +67,5 @@ ______________________________________________________________________
 - **Done When**: The proposal implementation has clear docs explaining that coordination state is writable truth and the published mirror is committed read-only output.
 - **Requirements**: published-ito-mirror:plain-checkout-visibility, published-ito-mirror:generated-read-only-output
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
