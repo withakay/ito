@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Generated mirror content is emitted to the resolved path and includes the required Ito state without relying on symlinked `.ito` access.
 - **Requirements**: published-ito-mirror:plain-checkout-visibility, published-ito-mirror:default-and-configurable-path
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
