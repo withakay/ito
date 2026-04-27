@@ -38,6 +38,10 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: The light variant is the safest portable default for output size, while the full profile best represents the unrestricted lifecycle contract before state narrowing is applied.
   Alternatives considered: Defaulting to `planning` was rejected because it would understate the lifecycle contract for ordinary CLI users, and defaulting to `variant=full` was rejected because it would make flagless output unnecessarily large.
 
+- Decision: Help and machine-readable instruction responses expose supported variants and profiles directly.
+  Rationale: The manifesto introduces new request dimensions, so discoverability should cover not just the artifact name but also its legal selectors and the active resolved values.
+  Alternatives considered: Surfacing only the artifact name was rejected because downstream users and tools would still need to guess the selector contract.
+
 - Decision: Treat `variant` and `profile` as orthogonal dimensions even though both expose a `full` value.
   Rationale: `variant=full` controls output detail, while `profile=full` controls lifecycle permissions. The renderer and help output must preserve both names but describe them as separate axes.
   Alternatives considered: Renaming one axis was rejected for this change because the existing proposal and template vocabulary already use `full`; explicit disambiguation is sufficient and less disruptive.
@@ -66,6 +70,10 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: The repository can reliably expose artifact presence, task progress, validation status, and archived state, but it may not always expose a separate approval marker.
   Alternatives considered: Always inferring `review-needed` or `archive-ready` heuristically was rejected because it would overstate certainty.
 
+- Decision: Validation-sensitive state resolution uses the validation result observed during the current manifesto render.
+  Rationale: Render-time validation avoids stale cached status and keeps `reviewing-implementation` versus `archive-ready` decisions tied to the same invocation that produced the manifesto.
+  Alternatives considered: Reusing a historical validation result was rejected because it could be stale and would make state resolution nondeterministic.
+
 - Decision: Redact secrets and local-only paths by default in config and state capsules.
   Rationale: The manifesto is meant to be portable and may be shared with systems that should not receive machine-local details.
   Alternatives considered: Raw config dumps were rejected because they risk leaking secrets and environment-specific paths.
@@ -93,5 +101,5 @@ Rollback is straightforward because the feature is additive: remove the CLI surf
 
 ## Open Questions
 
-- Should help and JSON output expose supported profiles and variants directly, or only surface the artifact name at first?
+- None.
 <!-- ITO:END -->

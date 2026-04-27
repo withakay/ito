@@ -104,10 +104,13 @@ State resolution SHALL follow this order:
 1. If no valid change is in scope, resolve `no-change-selected`.
 2. If the change is already archived, resolve `finished`.
 3. If required proposal-phase artifacts are missing or change validation fails, resolve `proposal-drafting`.
-4. If implementation tasks show any in-progress work or any completed work while remaining tasks still exist, resolve `applying`.
-5. If all implementation tasks are complete and the change is not archived, resolve `reviewing-implementation` unless authoritative approval-to-archive state is available.
-6. If required proposal-phase artifacts are present, validation passes, and no implementation task progress has started, resolve `apply-ready` unless authoritative proposal-review state indicates `review-needed`.
-7. Resolve `review-needed` or `archive-ready` only when authoritative host or repository state explicitly indicates those phases.
+4. If authoritative change metadata explicitly marks proposal review as needing changes, resolve `review-needed`.
+5. If implementation tasks show any in-progress work or any completed work while remaining tasks still exist, resolve `applying`.
+6. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render does not pass or is unavailable for that render, resolve `reviewing-implementation`.
+7. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render passes, resolve `archive-ready`.
+8. If required proposal-phase artifacts are present, validation passes, and no implementation task progress has started, resolve `apply-ready`.
+
+Authoritative change metadata for `review-needed` means a machine-readable change-state input provided by the host workflow or repository backend that explicitly marks the proposal package as not yet approved for implementation. The renderer SHALL NOT infer `review-needed` from heuristics alone.
 
 - **Requirement ID**: `agent-instructions:manifesto-state-and-profile`
 
@@ -212,7 +215,7 @@ The system SHALL support at least `light` and `full` manifesto variants. `light`
 
 ### Requirement: Manifesto artifact is discoverable through instruction interfaces
 
-The instruction system SHALL expose `manifesto` as a supported agent-instruction artifact anywhere users inspect available instruction artifacts, including CLI help and machine-readable instruction responses.
+The instruction system SHALL expose `manifesto` as a supported agent-instruction artifact anywhere users inspect available instruction artifacts, including CLI help and machine-readable instruction responses. Discoverability for manifesto SHALL include the supported profile and variant selector values plus the active resolved values in machine-readable output.
 
 - **Requirement ID**: `agent-instructions:manifesto-discoverability`
 
@@ -221,9 +224,16 @@ The instruction system SHALL expose `manifesto` as a supported agent-instruction
 - **WHEN** the user inspects `ito agent instruction` help output
 - **THEN** `manifesto` appears as an available artifact
 
+#### Scenario: Help output shows manifesto selectors
+
+- **WHEN** the user inspects help output for the manifesto instruction surface
+- **THEN** the supported `--variant` values are visible
+- **AND** the supported `--profile` values are visible
+
 #### Scenario: Machine-readable response identifies manifesto artifact
 
 - **WHEN** the system returns a machine-readable instruction response for the manifesto artifact
 - **THEN** the response identifies the artifact as `manifesto`
+- **AND** the response includes the active resolved `variant`, `profile`, and workflow `state`
 - **AND** the response structure is consistent with other agent-instruction artifacts
 <!-- ITO:END -->
