@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: Mirror publication updates committed main-facing content and direct mirror edits are treated as generated-output drift.
 - **Requirements**: published-ito-mirror:generated-read-only-output, published-ito-mirror:main-publication-workflow
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Document and expose the mirror for plain consumers
 
