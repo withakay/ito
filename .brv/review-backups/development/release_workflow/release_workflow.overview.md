@@ -1,6 +1,3 @@
----
-related: [development/release_workflow/release_workflow.md, development/release_workflow/release_workflow.abstract.md]
----
 ## Key points
 - The Ito release process is split between **release-plz** for versioning/publishing and **cargo-dist** for building release artifacts and GitHub Releases.
 - A typical flow is: **merge release PR → release-plz publishes crates and tags `vX.Y.Z` → cargo-dist builds and creates GitHub Release → Homebrew formula is updated → release notes are polished**.

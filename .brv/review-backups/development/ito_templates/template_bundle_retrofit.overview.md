@@ -1,6 +1,3 @@
----
-related: [development/ito_templates/template_bundle_retrofit.md, development/ito_templates/template_bundle_retrofit.abstract.md]
----
 ## Key points
 - Plain markdown files under `ito-rs/crates/ito-templates/assets` were retrofitted with `<!-- ITO:START -->` and `<!-- ITO:END -->` markers.
 - Files that were already pre-marked were intentionally left unchanged.

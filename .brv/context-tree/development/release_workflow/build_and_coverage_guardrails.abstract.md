@@ -1,0 +1,1 @@
+Build and coverage guardrails now infer LLVM tools from rustup for mixed Homebrew setups, track existing oversized Rust files via a max-lines baseline, and allow wit-bindgen@0.51 as a specific cargo-deny duplicate.

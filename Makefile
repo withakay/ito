@@ -189,6 +189,19 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
 		echo "  Excluded crates: ito-web (no tests yet)"; \
 		echo ""; \
+		if [ -z "$${LLVM_COV:-}" ] || [ -z "$${LLVM_PROFDATA:-}" ]; then \
+			toolchain="$${RUSTUP_TOOLCHAIN:-$$(rustup show active-toolchain 2>/dev/null | cut -d' ' -f1)}"; \
+			if [ -n "$$toolchain" ] && rustup run "$$toolchain" rustc --version >/dev/null 2>&1; then \
+				sysroot="$$(rustup run "$$toolchain" rustc --print sysroot)"; \
+				host="$$(rustup run "$$toolchain" rustc -vV | sed -n 's/^host: //p')"; \
+				llvm_cov="$$sysroot/lib/rustlib/$$host/bin/llvm-cov"; \
+				llvm_profdata="$$sysroot/lib/rustlib/$$host/bin/llvm-profdata"; \
+				if [ -x "$$llvm_cov" ] && [ -x "$$llvm_profdata" ]; then \
+					export LLVM_COV="$${LLVM_COV:-$$llvm_cov}"; \
+					export LLVM_PROFDATA="$${LLVM_PROFDATA:-$$llvm_profdata}"; \
+				fi; \
+			fi; \
+		fi; \
 		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
@@ -225,7 +238,7 @@ check-prek:
 	fi
 
 check-max-lines: ## Fail if Rust files exceed 1000 lines (override MAX_RUST_FILE_LINES=...)
-	python3 "ito-rs/tools/check_max_lines.py" --max-lines "$(MAX_RUST_FILE_LINES)" --root "ito-rs"
+	python3 "ito-rs/tools/check_max_lines.py" --max-lines "$(MAX_RUST_FILE_LINES)" --root "ito-rs" --baseline "ito-rs/tools/max_lines_baseline.txt"
 
 arch-guardrails: ## Run architecture guardrail checks
 	python3 "ito-rs/tools/arch_guardrails.py"

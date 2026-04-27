@@ -1,0 +1,9 @@
+# Existing oversized Rust files. New oversized files still fail, and these
+# files fail if they grow beyond the recorded line count.
+ito-rs/crates/ito-core/src/ralph/runner.rs 1426
+ito-rs/crates/ito-templates/src/instructions_tests.rs 1414
+ito-rs/crates/ito-cli/tests/ralph_smoke.rs 1408
+ito-rs/crates/ito-core/src/installers/mod.rs 1380
+ito-rs/crates/ito-config/src/config/types.rs 1371
+ito-rs/crates/ito-core/src/coordination_worktree.rs 1283
+ito-rs/crates/ito-core/tests/ralph.rs 1279

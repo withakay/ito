@@ -1,4 +1,1 @@
----
-related: [development/ito_templates/template_bundle_retrofit.md, development/ito_templates/template_bundle_retrofit.overview.md]
----
 Plain markdown assets in ito-templates were retrofitted with ITO start/end markers, while pre-marked files and the adapter sample were left unchanged.

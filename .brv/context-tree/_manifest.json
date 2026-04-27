@@ -3,19 +3,19 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 659,
+      "tokens": 720,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "development/_index.md",
-      "tokens": 768,
+      "tokens": 860,
       "type": "summary"
     },
     {
       "order": 1,
       "path": "development/ito_templates/_index.md",
-      "tokens": 226,
+      "tokens": 331,
       "type": "summary"
     },
     {
@@ -26,10 +26,18 @@
     },
     {
       "abstractPath": "development/ito_templates/template_bundle_retrofit.abstract.md",
-      "abstractTokens": 38,
+      "abstractTokens": 72,
       "importance": 50,
       "path": "development/ito_templates/template_bundle_retrofit.md",
-      "tokens": 38,
+      "tokens": 72,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/release_workflow/build_and_coverage_guardrails.abstract.md",
+      "abstractTokens": 54,
+      "importance": 50,
+      "path": "development/release_workflow/build_and_coverage_guardrails.md",
+      "tokens": 54,
       "type": "context"
     },
     {
@@ -42,20 +50,20 @@
     },
     {
       "abstractPath": "development/release_workflow/release_workflow.abstract.md",
-      "abstractTokens": 53,
+      "abstractTokens": 85,
       "importance": 50,
       "path": "development/release_workflow/release_workflow.md",
-      "tokens": 53,
+      "tokens": 85,
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-26T20:51:22.634Z",
+  "generated_at": "2026-04-27T09:45:00.000Z",
   "lane_tokens": {
-    "contexts": 138,
+    "contexts": 258,
     "stubs": 0,
-    "summaries": 1988
+    "summaries": 2246
   },
-  "source_fingerprint": "cca6ebb169685390ba6314266189a5d5481404aaad52879864895cdbd5f0c07a",
-  "total_tokens": 2126,
+  "source_fingerprint": "merged-worktree-validation-and-release-guardrails",
+  "total_tokens": 2504,
   "version": 1
 }

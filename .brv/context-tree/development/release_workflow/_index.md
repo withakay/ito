@@ -1,55 +1,65 @@
 ---
-children_hash: 8dfa1c9e7b005d132861f12134db1cbe4a6d5cba634d678bd482424649707fb8
-compression_ratio: 0.8241965973534972
+children_hash: d842e3c81cd6824d909f2daf7b1bc04f4c168edf33c0a1ba94ae948cacc82c16
+compression_ratio: 0.650749063670412
 condensation_order: 1
-covers: [release_workflow.md]
-covers_token_total: 529
+covers: [build_and_coverage_guardrails.md, release_workflow.md]
+covers_token_total: 1068
 summary_level: d1
-token_count: 436
+token_count: 695
 type: summary
 ---
-# Release Workflow
+# development/release_workflow
 
-Ito’s release pipeline is split across two coordinated systems: **release-plz** handles versioning, publishing to crates.io, and tagging, while **cargo-dist** builds artifacts from version tags and publishes GitHub Releases. The workflow also includes **Homebrew tap updates** via `withakay/homebrew-ito`, plus release-note polishing in CI.
+This domain covers the Ito release pipeline and its build/verification guardrails. The main workflow is split between versioned publishing, artifact distribution, and release-quality checks; see **release_workflow.md** for the end-to-end release process and **build_and_coverage_guardrails.md** for CI/build safeguards.
 
-## Core Flow
-- **release-plz** merges the release PR
-- It publishes crates and creates `vX.Y.Z` tags
-- **cargo-dist** consumes version tags to build and publish the GitHub Release
-- Homebrew formula updates are pushed after release publication
-- Release notes are polished at the end of the pipeline
+## Core release pipeline
 
-## Key Configuration Files
+**release_workflow.md** documents the main release chain:
+
+- `release-plz` merges the release PR, publishes crates.io releases, and creates `vX.Y.Z` tags
+- `cargo-dist` consumes version tags to build artifacts and create GitHub Releases
+- Homebrew formula updates are pushed to `withakay/homebrew-ito`
+- Release notes are polished after the release steps complete
+
+Key files coordinating this automation:
+
 - `.github/workflows/release-plz.yml`
 - `.github/workflows/v-release.yml`
 - `.github/workflows/polish-release-notes.yml`
 - `dist-workspace.toml`
 - `release-plz.toml`
 
-## Dependencies and Integrations
-- GitHub Actions
-- release-plz
-- cargo-dist
-- crates.io token
-- Homebrew tap token
-- Optional Claude Code OAuth for release-note polishing
+### Important rules and dependencies
 
-## Important Rules
-- **Do not set `git_only = true` in `release-plz.toml`**; it can miscalculate repository paths during diff/worktree operations.
-- The `publish-homebrew-formula` job fails if the generated formula already includes a `service do` block.
+- `release-plz.toml` must **not** set `git_only = true`; this can break repository path calculation during diff/worktree operations
+- The `publish-homebrew-formula` job fails if the generated formula already contains a `service do` block
+- The workflow depends on GitHub Actions, `release-plz`, `cargo-dist`, a crates.io token, a Homebrew tap token, and optionally Claude Code OAuth for release-note polishing
 
-## Release Outputs and Capabilities
+### Notable outputs
+
 - GitHub Releases
-- Cross-platform installer artifacts
-- Homebrew formula publishing
-- Local installation via the `withakay/ito` tap
+- cross-platform installer artifacts
+- Homebrew formula updates
+- local installation support via the `withakay/ito` tap
 
-## Local Install Notes
-- `brew install withakay/ito/ito`
-- `brew upgrade ito`
-- `brew unlink ito-cli`
-- `brew link ito`
-- Verify with `/opt/homebrew/bin/ito --version`
+## Build and coverage guardrails
 
-## Drill-Down
-- See **release_workflow.md** for the full pipeline, CI coordination, and release configuration details.
+**build_and_coverage_guardrails.md** captures build-system fixes and verification policy:
+
+- `make check` now resolves `LLVM_COV` and `LLVM_PROFDATA` from the active `rustup` toolchain when unset, making coverage more resilient in mixed Homebrew/rustup environments
+- `ito-rs/tools/max_lines_baseline.txt` records existing oversized Rust files so the max-lines guardrail fails only on regressions or new violations
+- `cargo-deny` allows `wit-bindgen@0.51` as a specific wasip3 transitive duplicate
+
+### Build/coverage flow
+
+`make check` → coverage target resolves LLVM toolchain vars → `cargo-llvm-cov` runs → max-lines check compares against baseline → `cargo-deny` accepts the `wit-bindgen@0.51` duplicate
+
+### Key relationships
+
+- Coverage behavior depends on `rustup` LLVM tools when `LLVM_COV` and `LLVM_PROFDATA` are not explicitly provided
+- Line-limit enforcement depends on `max_lines_baseline.txt`
+- The `wit-bindgen@0.51` exception is narrowly scoped to a wasip3 transitive dependency
+
+### Why it matters
+
+These guardrails prevent coverage failures caused by mixed toolchain discovery, keep oversized-file enforcement actionable, and avoid over-broad dependency-deny noise.
