@@ -78,7 +78,7 @@
 - **Done When**: Research workflows distinguish source research artifacts from wiki synthesis and specify when to update the wiki.
 
 ### Task 3.3: Integrate archive-triggered topic-page refresh guidance
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-04-27
 - **Description**: Update archive-facing instruction and skill assets so that after successful archive/spec sync, agents refresh relevant topic pages with links to archived changes, specs, modules, research, architecture notes, and documentation.
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/archive.md.j2`, `ito-rs/crates/ito-templates/assets/skills/ito-archive/SKILL.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/AGENTS.md`, `ito-rs/crates/ito-templates/assets/default/project/AGENTS.md`
