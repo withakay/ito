@@ -85,12 +85,3 @@ test agent_instruction_manifesto_uses_default_variant_and_profile ... ok
 test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
 
 ```
-
-```bash
-target/debug/ito agent instruction manifesto --change 000-01_test-change --variant full --operation proposal
-```
-
-```output
-
-✖ Error: Requested operation 'proposal' is not allowed for state 'finished' and profile 'full'.
-```
