@@ -94,8 +94,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: Sensitive values are redacted by default, `variant=full` and `profile=full` are clearly distinguished in output, and users can discover manifesto support through the standard instruction interfaces.
 - **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`, `agent-instructions:manifesto-variant-rendering`
-- **Updated At**: 2026-04-26
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-27
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
