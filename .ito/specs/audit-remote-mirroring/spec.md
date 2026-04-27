@@ -1,32 +1,28 @@
-## MODIFIED Requirements
+<!-- ITO:START -->
+## ADDED Requirements
 
-### Requirement: Audit events use a dedicated internal branch for local durable storage
+### Requirement: Bounded Internal Audit Mirror
 
-The system SHALL store local durable audit history on a dedicated internal git branch rather than on user-facing working branches.
+The internal audit branch SHALL store a bounded audit log by retaining only parseable audit events within 30 days of the newest merged event and no more than the newest 1000 retained events.
 
-#### Scenario: Internal branch defaults are applied
+#### Scenario: Events older than retention window are pruned
+- **WHEN** audit mirror sync merges events with timestamps older than 30 days relative to the newest event
+- **THEN** the Git-stored audit log excludes those older events
 
-- **WHEN** local durable audit storage is enabled without explicit branch override
-- **THEN** the system stores audit events on `ito/internal/audit`
+#### Scenario: Event count exceeds cap
+- **WHEN** audit mirror sync would store more than 1000 retained events
+- **THEN** the Git-stored audit log keeps only the newest 1000 events
 
-#### Scenario: Internal audit branch is independent of change coordination
+### Requirement: Aggregated Reconcile Noise
 
-- **WHEN** both change coordination and local audit storage are enabled
-- **THEN** audit history writes only to the configured internal audit branch
-- **AND** change coordination continues to use its own configured branch
+The internal audit branch SHALL aggregate adjacent equivalent `reconciled` events by storing a single event with `count` greater than 1 instead of repeated lines that differ only by timestamp or execution context.
 
-### Requirement: Internal audit branch failures are best-effort
+#### Scenario: Equivalent reconcile events repeat sequentially
+- **WHEN** audit mirror sync observes adjacent equivalent `reconciled` events
+- **THEN** the Git-stored audit log increments the first event's `count`
+- **AND** does not append a duplicate event line
 
-Failures writing or syncing the internal audit branch MUST NOT cause core CLI commands to fail.
-
-#### Scenario: Internal branch update fails due to git conflict
-
-- **WHEN** an internal audit branch write encounters a non-fast-forward or similar git conflict
-- **THEN** the command still completes with its normal outcome
-- **AND** the system emits a warning with remediation guidance
-
-#### Scenario: Internal branch storage is unavailable
-
-- **WHEN** local internal audit storage is unavailable
-- **THEN** audit events are routed to the configured fallback local store
-- **AND** the command still completes with its normal outcome
+#### Scenario: Different event separates reconcile events
+- **WHEN** a different event occurs between two equivalent `reconciled` events
+- **THEN** the later `reconciled` event is stored as a separate line
+<!-- ITO:END -->

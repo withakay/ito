@@ -1,48 +1,26 @@
+<!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Audit storage is routed by persistence mode
+### Requirement: Reconcile Tombstone Semantics
 
-Ito SHALL route audit event writes and reads to a storage backend appropriate for the current operating mode instead of always using a tracked JSONL file on the current branch.
+Audit materialization SHALL treat a `reconciled` event without a `to` value as a tombstone for the referenced entity so reconciliation can clear audit entries that no longer have a corresponding file entry.
 
-#### Scenario: Local mode uses non-branch-polluting storage
+#### Scenario: Extra task is reconciled
+- **WHEN** a task exists in audit state but no longer exists in the tracking file
+- **AND** reconciliation writes a `reconciled` event without a `to` value
+- **THEN** subsequent audit materialization removes that task from current audit state
+- **AND** a subsequent reconcile run reports no drift for that task
 
-- **WHEN** Ito runs without backend mode enabled
-- **THEN** audit writes SHALL be directed to an internal Ito branch/repository when available
-- **AND** Ito SHALL NOT append tracked audit JSONL events onto the current working branch
+### Requirement: Reconcile Fix Verification
 
-#### Scenario: Backend mode uses server-side audit storage
+`ito audit reconcile --fix` SHALL verify the resulting drift state after writing compensating events and report failure when drift remains.
 
-- **WHEN** backend mode is enabled
-- **THEN** Ito SHALL write audit events only to backend-managed project storage
-- **AND** Ito SHALL NOT require a tracked local audit JSONL file on the working branch
+#### Scenario: Fix clears drift
+- **WHEN** `ito audit reconcile --fix` writes compensating events that resolve all detected drift
+- **THEN** the command reports no remaining drift
 
-### Requirement: Audit commands read from routed storage
-
-Audit read/validate/reconcile workflows SHALL consume the routed audit storage backend rather than assuming `.ito/.state/audit/events.jsonl` on the current branch.
-
-#### Scenario: Validation works in backend mode without local tracked JSONL
-
-- **GIVEN** backend mode is enabled
-- **AND** no tracked `.ito/.state/audit/events.jsonl` exists on the working branch
-- **WHEN** the user runs `ito audit validate`
-- **THEN** Ito SHALL validate against backend-managed audit storage
-
-#### Scenario: Validation works in local mode with internal audit branch storage
-
-- **GIVEN** backend mode is disabled
-- **AND** audit history is stored on an internal Ito branch/repository
-- **WHEN** the user runs `ito audit reconcile` or `ito audit validate`
-- **THEN** Ito SHALL read the audit stream from that internal storage location
-
-### Requirement: Audit storage falls back without polluting working branches
-
-If the preferred local internal audit repository/branch cannot be used, Ito MUST avoid falling back to a tracked JSONL file on the current branch.
-
-#### Scenario: Internal branch unavailable
-
-- **GIVEN** backend mode is disabled
-- **AND** the internal audit branch/repository cannot be opened or written
-- **WHEN** Ito records an audit event
-- **THEN** Ito SHALL use an untracked local fallback store
-- **AND** normal commands SHALL continue to run
-- **AND** Ito SHALL surface a warning that durable internal audit storage is unavailable
+#### Scenario: Fix cannot clear drift
+- **WHEN** `ito audit reconcile --fix` cannot clear detected drift
+- **THEN** the command exits with failure
+- **AND** callers can stop automatic repair attempts instead of appending repeated no-op events
+<!-- ITO:END -->
