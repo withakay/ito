@@ -55,8 +55,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates instructions_tests`
 - **Done When**: Variant-specific output is deterministic, compact in `light`, and complete enough in `full` without leaking sensitive values.
 - **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`, `agent-instructions:manifesto-variant-rendering`
-- **Updated At**: 2026-04-26
-- **Status**: [ ] pending
+- **Updated At**: 2026-04-27
+- **Status**: [>] in-progress
 
 ### Task 2.2: Compose embedded instructions for full mode
 
