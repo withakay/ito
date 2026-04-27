@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, request parsing covers the new flags, and invalid or incompatible request combinations fail clearly.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`, `agent-instructions:manifesto-variant-rendering`
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Define manifesto rendering context
 
