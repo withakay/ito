@@ -172,6 +172,9 @@ pub mod worktree_ensure;
 /// Change worktree initialization: file copy-over and include-pattern resolution.
 pub mod worktree_init;
 
+/// Read-only validation of whether the current checkout matches an expected change worktree.
+pub mod worktree_validate;
+
 /// Schema templates execution and planning.
 pub mod templates;
 
