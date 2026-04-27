@@ -6,7 +6,7 @@ Ito can already compile deterministic agent instructions when an agent can run t
 ## What Changes
 
 - Add `ito agent instruction manifesto` as a first-class instruction artifact for both project-wide and change-scoped use.
-- Support `light` and `full` manifesto variants plus profile-restricted operating modes such as `planning`, `proposal-only`, `review-only`, `apply`, `archive`, and `full`, with explicit separation between output detail (`variant`) and lifecycle permission (`profile`).
+- Support `light` and `full` manifesto variants plus profile-restricted operating modes such as `planning`, `proposal-only`, `review-only`, `apply`, `archive`, and `full`, with explicit separation between output detail (`variant`) and lifecycle permission (`profile`), and defaults of `variant=light` and `profile=full`.
 - Render a state-aware manifesto that includes redacted config and state capsules, source-of-truth ordering, worktree and coordination rules, and operation playbooks.
 - In full mode, compose a deterministic set of existing Ito instruction artifacts so current templates remain the source of truth while manifesto-level rules still take precedence.
 - Define strict handling for unresolved changes, incompatible requested operations, and restrictive intersections between requested profile and resolved workflow state.

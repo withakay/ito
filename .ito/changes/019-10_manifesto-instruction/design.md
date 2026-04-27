@@ -34,6 +34,10 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: The output size and fidelity trade-off is central to the feature, and explicit variants make behavior predictable for humans and tests.
   Alternatives considered: Auto-sizing the output based on environment hints was rejected because it would be hard to test and easy to misinterpret.
 
+- Decision: Default to `variant=light` and `profile=full` when the user omits both flags.
+  Rationale: The light variant is the safest portable default for output size, while the full profile best represents the unrestricted lifecycle contract before state narrowing is applied.
+  Alternatives considered: Defaulting to `planning` was rejected because it would understate the lifecycle contract for ordinary CLI users, and defaulting to `variant=full` was rejected because it would make flagless output unnecessarily large.
+
 - Decision: Treat `variant` and `profile` as orthogonal dimensions even though both expose a `full` value.
   Rationale: `variant=full` controls output detail, while `profile=full` controls lifecycle permissions. The renderer and help output must preserve both names but describe them as separate axes.
   Alternatives considered: Renaming one axis was rejected for this change because the existing proposal and template vocabulary already use `full`; explicit disambiguation is sufficient and less disruptive.

@@ -5,6 +5,8 @@
 
 The agent instruction system SHALL render a first-class `manifesto` artifact for project-wide use and SHALL support optional change-scoped rendering for an exact change ID. When a requested change cannot be resolved from the authoritative project state, the request SHALL fail with an actionable error instead of fabricating state.
 
+When the user does not provide `--profile`, the system SHALL use `full` as the active profile. When the user does not provide `--variant`, the system SHALL use `light` as the active variant.
+
 - **Requirement ID**: `agent-instructions:manifesto-artifact-availability`
 
 #### Scenario: Project-wide manifesto render
@@ -12,6 +14,8 @@ The agent instruction system SHALL render a first-class `manifesto` artifact for
 - **WHEN** the user runs `ito agent instruction manifesto`
 - **THEN** the system renders a manifesto document without requiring a change ID
 - **AND** the output describes Ito operating constraints using the effective project configuration
+- **AND** the active profile defaults to `full`
+- **AND** the active variant defaults to `light`
 
 #### Scenario: Change-scoped manifesto render
 
@@ -80,7 +84,7 @@ The state operation sets are:
 - `applying`: `implement`, `task-update`, `validate`, `revise-artifacts`
 - `reviewing-implementation`: `review`, `fix`, `validate`
 - `archive-ready`: `archive`, `reconcile`
-- `finished`: `cleanup`, `memory-capture`, `report`
+- `finished`: `finish`, `cleanup`, `memory-capture`, `report`
 
 The profile operation sets are:
 
@@ -88,7 +92,7 @@ The profile operation sets are:
 - `proposal-only`: `proposal`, `specs`, `design`, `tasks`, `validate`, `review`, `revise-artifacts`, `report`
 - `review-only`: `inspect`, `review`, `report`
 - `apply`: `worktree-ensure`, `apply`, `implement`, `task-update`, `validate`, `review`, `fix`, `revise-artifacts`, `report`
-- `archive`: `archive`, `reconcile`, `cleanup`, `memory-capture`, `report`
+- `archive`: `archive`, `finish`, `reconcile`, `cleanup`, `memory-capture`, `report`
 - `full`: union of all profile operation sets above
 
 The allowed operations rendered by the manifesto SHALL be the intersection of the active profile operation set and the resolved workflow state's operation set.
@@ -109,7 +113,7 @@ State resolution SHALL follow this order:
 
 #### Scenario: Proposal-only profile forbids implementation work
 
-- **WHEN** the user runs `ito agent instruction manifesto --profile proposal-only`
+- **WHEN** the user runs `ito agent instruction manifesto --profile proposal-only --change <change-id>`
 - **THEN** the rendered manifesto states that proposal, spec, design, and task artifacts may be created or revised
 - **AND** the rendered manifesto forbids product-code edits and implementation claims
 
