@@ -794,6 +794,22 @@ mod tests {
     }
 
     #[test]
+    fn wiki_skills_are_embedded() {
+        let wiki = get_skill_file("ito-wiki/SKILL.md").expect("ito-wiki skill should exist");
+        let wiki = std::str::from_utf8(wiki).expect("skill should be utf8");
+        assert!(wiki.starts_with("---\nname: ito-wiki\n"));
+        assert!(wiki.contains("## Maintenance Workflow"));
+        assert!(wiki.contains("## Lint Checklist"));
+
+        let search =
+            get_skill_file("ito-wiki-search/SKILL.md").expect("ito-wiki-search skill should exist");
+        let search = std::str::from_utf8(search).expect("skill should be utf8");
+        assert!(search.starts_with("---\nname: ito-wiki-search\n"));
+        assert!(search.contains("## Search Workflow"));
+        assert!(search.contains("## Answer Rules"));
+    }
+
+    #[test]
     fn default_project_agents_mentions_fix_and_feature_entrypoints() {
         let agents = default_project_files()
             .into_iter()
