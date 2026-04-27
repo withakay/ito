@@ -26,7 +26,7 @@ ______________________________________________________________________
 - **Action**: Add `manifesto` as a supported `ito agent instruction` artifact and parse the new variant, profile, change, and optional operation inputs into the instruction request path, including unsupported-combination errors.
 - **Verify**: `cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: The CLI accepts manifesto requests, help output exposes the artifact, request parsing covers the new flags, and invalid or incompatible request combinations fail clearly.
-- **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`
+- **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-discoverability`, `agent-instructions:manifesto-variant-rendering`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 
@@ -93,7 +93,7 @@ ______________________________________________________________________
 - **Action**: Add regression coverage for secret and local-path redaction, full/profile disambiguation, and final discoverability checks in help and machine-readable responses.
 - **Verify**: `cargo test -p ito-templates instructions_tests && cargo test -p ito-cli --test help --test instructions_more`
 - **Done When**: Sensitive values are redacted by default, `variant=full` and `profile=full` are clearly distinguished in output, and users can discover manifesto support through the standard instruction interfaces.
-- **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`
+- **Requirements**: `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-discoverability`, `agent-instructions:manifesto-variant-rendering`
 - **Updated At**: 2026-04-26
 - **Status**: [ ] pending
 

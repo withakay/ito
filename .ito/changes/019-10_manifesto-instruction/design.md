@@ -42,17 +42,33 @@ The project now uses worktree-backed coordination storage, so change-scoped rend
   Rationale: Existing templates stay canonical while the manifesto still acts as the hard execution contract for prompt-only environments.
   Alternatives considered: Duplicating instruction content inside the manifesto template was rejected because it would drift from the live instruction artifacts.
 
-- Decision: When `variant=full`, `--operation` is optional. If provided, embed only the requested operation's rendered instruction. If omitted, embed the fixed ordered set of artifact instructions allowed by the intersection of scope, resolved state, and active profile.
+- Decision: When `variant=full`, `--operation` is optional. If provided, embed only the requested operation's rendered instruction. If omitted, embed the allowed subset of this fixed ordered artifact list: `proposal`, `specs`, `design`, `tasks`, `apply`, `review`, `archive`, `finish`.
   Rationale: This keeps output deterministic, avoids underdefined "relevant" behavior, and still supports both scoped and broad full renders.
   Alternatives considered: Requiring `--operation` for every full render was rejected because the proposal explicitly supports project-wide full renders.
+
+- Decision: `--operation` is only valid with `variant=full`.
+  Rationale: `light` is the compact contract form and should not accept an operation selector that implies embedded operation-specific detail.
+  Alternatives considered: Silently ignoring `--operation` for `light` was rejected because it would hide invalid requests.
 
 - Decision: State and scope restrictions always narrow profile permissions; they never expand them.
   Rationale: A requested profile expresses the maximum lifecycle permission, while the resolved state and presence or absence of a change determine what is currently legal.
   Alternatives considered: Letting profile override state was rejected because it would undermine the manifesto's strictness.
 
+- Decision: Embedded instruction selection uses only artifact-mapped operations.
+  Rationale: Generic verbs such as `inspect`, `report`, `implement`, and `fix` are useful for the state machine but do not correspond to standalone `ito agent instruction <artifact>` bodies.
+  Alternatives considered: Treating every verb as embeddable was rejected because it would invent instruction artifacts that do not exist.
+
+- Decision: State resolution uses explicit repository facts first and only emits review/approval-sensitive states when authoritative signals exist.
+  Rationale: The repository can reliably expose artifact presence, task progress, validation status, and archived state, but it may not always expose a separate approval marker.
+  Alternatives considered: Always inferring `review-needed` or `archive-ready` heuristically was rejected because it would overstate certainty.
+
 - Decision: Redact secrets and local-only paths by default in config and state capsules.
   Rationale: The manifesto is meant to be portable and may be shared with systems that should not receive machine-local details.
   Alternatives considered: Raw config dumps were rejected because they risk leaking secrets and environment-specific paths.
+
+- Decision: Render project-scoped paths relative to the project root and replace all non-project absolute paths with placeholders.
+  Rationale: Portable manifesto output should never require or reveal a machine-specific absolute path to remain useful.
+  Alternatives considered: Allowing project-scoped absolute paths was rejected because it still leaks machine-local path structure.
 
 ## Risks / Trade-offs
 
@@ -73,6 +89,5 @@ Rollback is straightforward because the feature is additive: remove the CLI surf
 
 ## Open Questions
 
-- Which config fields should be summarized versus shown verbatim in redacted capsules?
 - Should help and JSON output expose supported profiles and variants directly, or only surface the artifact name at first?
 <!-- ITO:END -->
