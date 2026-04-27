@@ -126,6 +126,7 @@ export const ItoPlugin = async ({ client, directory }) => {
   let lastWorktreeValidationAt = 0;
   let lastWorktreeValidation = null;
   let lastWorktreeValidationChangeId = null;
+  let worktreeNoChangeAdvisorySent = false;
 
   let bootstrapToastSent = false;
   let worktreeToastSent = false;
@@ -322,6 +323,7 @@ export const ItoPlugin = async ({ client, directory }) => {
     if (ctx?.target?.kind === 'change' && typeof ctx?.target?.id === 'string') {
       const id = ctx.target.id.trim();
       if (id) {
+        worktreeNoChangeAdvisorySent = false;
         return id;
       }
     }
@@ -479,6 +481,10 @@ export const ItoPlugin = async ({ client, directory }) => {
 
     const changeId = inferActiveChangeId();
     if (!changeId) {
+      if (worktreeNoChangeAdvisorySent) {
+        return null;
+      }
+      worktreeNoChangeAdvisorySent = true;
       return {
         status: 'advisory',
         message: '[Ito Worktree] No active change ID was inferred. If you are doing change work, validate the current worktree explicitly with `ito worktree validate --change <id>`.'
