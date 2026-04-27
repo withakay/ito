@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Manifesto rendering receives structured context for project-wide and change-scoped requests without relying on ad hoc template variables, and unresolved changes fail before rendering fabricated state.
 - **Requirements**: `agent-instructions:manifesto-artifact-availability`, `agent-instructions:manifesto-config-redaction`, `agent-instructions:manifesto-state-and-profile`
 - **Updated At**: 2026-04-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
