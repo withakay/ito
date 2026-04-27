@@ -62,8 +62,8 @@
 - **Depends On**: Wave 2
 
 ### Task 3.1: Integrate warn-and-update wiki guidance into proposal instructions
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-27
 - **Description**: Update proposal-facing instruction/guidance assets so agents consult `.ito/wiki/index.md` early when it exists, warn on stale or contradictory coverage, fall back to raw Ito sources, and update the wiki when proposal work creates durable synthesis.
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/new-proposal.md.j2`, `ito-rs/crates/ito-templates/assets/skills/ito-proposal/SKILL.md`, `ito-rs/crates/ito-templates/assets/default/project/.ito/AGENTS.md`
 - **Verify**: `cargo test -p ito-templates && cargo test -p ito-cli`
