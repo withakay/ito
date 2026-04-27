@@ -70,8 +70,8 @@
 - **Done When**: Proposal workflows mention the wiki at the right time without making stale/absent wiki coverage a hard blocker.
 
 ### Task 3.2: Integrate wiki guidance into research instructions
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [>] in-progress
+- **Updated At**: 2026-04-27
 - **Description**: Update research-facing instructions so durable findings can be filed back into topic pages or query artifacts while the original research output remains in `.ito/research/` or change review directories.
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-research/SKILL.md`, `ito-rs/crates/ito-templates/assets/skills/ito-research/*.md`
 - **Verify**: `cargo test -p ito-templates`
