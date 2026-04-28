@@ -13,6 +13,7 @@ import fs from 'fs';
 import { execFileSync } from 'child_process';
 
 const DEFAULT_AUDIT_TTL_MS = 10000;
+const DEFAULT_WORKTREE_GUARD_TTL_MS = 5000;
 const ITO_EXEC_TIMEOUT_MS = 20000;
 const ITO_CONTEXT_TTL_MS = 5000;
 const ITO_TOAST_TIMEOUT_MS = 1500;
@@ -49,6 +50,19 @@ const MUTATING_TOOLS = new Set([
 
 const FILE_EDITING_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'apply_patch']);
 
+const RELEVANT_WORKTREE_GUARD_TOOLS = new Set([
+  'Bash',
+  'Edit',
+  'Write',
+  'MultiEdit',
+  'apply_patch',
+  'Read',
+  'Grep',
+  'Glob',
+  'Task',
+  'TodoWrite'
+]);
+
 export const ItoPlugin = async ({ client, directory }) => {
   const homeDir = os.homedir();
   const envConfigDir = process.env.OPENCODE_CONFIG_DIR?.trim();
@@ -58,6 +72,11 @@ export const ItoPlugin = async ({ client, directory }) => {
   const auditTtlMs = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : DEFAULT_AUDIT_TTL_MS;
   const autoFixDrift = process.env.ITO_OPENCODE_AUDIT_FIX !== '0';
   const disableAuditHook = process.env.ITO_OPENCODE_AUDIT_DISABLED === '1';
+  const disableWorktreeGuard = process.env.ITO_OPENCODE_WORKTREE_GUARD_DISABLED === '1';
+  const worktreeGuardTtlMsRaw = Number.parseInt(process.env.ITO_OPENCODE_WORKTREE_GUARD_TTL_MS || '', 10);
+  const worktreeGuardTtlMs = Number.isFinite(worktreeGuardTtlMsRaw) && worktreeGuardTtlMsRaw > 0
+    ? worktreeGuardTtlMsRaw
+    : DEFAULT_WORKTREE_GUARD_TTL_MS;
 
   const debugEnabled = process.env.ITO_OPENCODE_DEBUG === '1';
   const disableToasts = process.env.ITO_OPENCODE_TOAST_DISABLED === '1';
@@ -104,6 +123,10 @@ export const ItoPlugin = async ({ client, directory }) => {
   let lastAuditAt = 0;
   let lastAudit = null;
   let pendingAuditNotice = null;
+  let lastWorktreeValidationAt = 0;
+  let lastWorktreeValidation = null;
+  let lastWorktreeValidationChangeId = null;
+  let worktreeNoChangeAdvisorySent = false;
 
   let bootstrapToastSent = false;
   let worktreeToastSent = false;
@@ -221,6 +244,18 @@ export const ItoPlugin = async ({ client, directory }) => {
     return null;
   };
 
+  const parseJsonOutput = (text) => {
+    if (typeof text !== 'string' || !text.trim()) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  };
+
   const loadContext = () => {
     if (disableContext) {
       return null;
@@ -281,6 +316,19 @@ export const ItoPlugin = async ({ client, directory }) => {
       variant: 'info',
       duration: 5000
     });
+  };
+
+  const inferActiveChangeId = () => {
+    const ctx = loadContext();
+    if (ctx?.target?.kind === 'change' && typeof ctx?.target?.id === 'string') {
+      const id = ctx.target.id.trim();
+      if (id) {
+        worktreeNoChangeAdvisorySent = false;
+        return id;
+      }
+    }
+
+    return '';
   };
 
   const detectDrift = (reconcileResult) => {
@@ -426,6 +474,58 @@ export const ItoPlugin = async ({ client, directory }) => {
     return lastAudit;
   };
 
+  const maybeRunWorktreeGuard = (toolName) => {
+    if (disableWorktreeGuard || !RELEVANT_WORKTREE_GUARD_TOOLS.has(toolName)) {
+      return null;
+    }
+
+    const changeId = inferActiveChangeId();
+    if (!changeId) {
+      if (worktreeNoChangeAdvisorySent) {
+        return null;
+      }
+      worktreeNoChangeAdvisorySent = true;
+      return {
+        status: 'advisory',
+        message: '[Ito Worktree] No active change ID was inferred. If you are doing change work, validate the current worktree explicitly with `ito worktree validate --change <id>`.'
+      };
+    }
+
+    const now = Date.now();
+    const cacheValid = lastWorktreeValidation
+      && lastWorktreeValidationChangeId === changeId
+      && now - lastWorktreeValidationAt <= worktreeGuardTtlMs
+      && (lastWorktreeValidation.status === 'ok' || lastWorktreeValidation.status === 'disabled');
+
+    if (cacheValid) {
+      return lastWorktreeValidation;
+    }
+
+    const result = runIto(['worktree', 'validate', '--change', changeId, '--json']);
+    const parsed = parseJsonOutput(result.stdout);
+    if (!parsed || typeof parsed.status !== 'string' || typeof parsed.message !== 'string') {
+      return {
+        status: 'warning',
+        message: `[Ito Worktree] Worktree validation for '${changeId}' could not be parsed: ${summarize(result)}`
+      };
+    }
+
+    const validation = {
+      status: parsed.status,
+      changeId,
+      message: parsed.message,
+      expectedPath: typeof parsed.expectedPath === 'string' ? parsed.expectedPath : ''
+    };
+
+    if (validation.status === 'ok' || validation.status === 'disabled') {
+      lastWorktreeValidation = validation;
+      lastWorktreeValidationChangeId = changeId;
+      lastWorktreeValidationAt = now;
+    }
+
+    return validation;
+  };
+
   // Get bootstrap content from Ito CLI
   const getBootstrapContent = () => {
     try {
@@ -508,10 +608,6 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
     },
 
     'tool.execute.before': async (input, output) => {
-      if (disableAuditHook) {
-        return;
-      }
-
       const toolName = input?.tool?.name || input?.toolName || '';
 
       if (pendingContinuationNotice) {
@@ -523,15 +619,33 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
         maybeWarnForManagedFileWrites(toolName, input, output);
       }
 
-      const audit = maybeRunAudit(toolName);
+      if (!disableAuditHook) {
+        const audit = maybeRunAudit(toolName);
 
-      if (audit?.hardFailure) {
-        throw new Error(`${audit.message}. Run \`ito audit validate\` and \`ito audit reconcile --fix\`.`);
+        if (audit?.hardFailure) {
+          throw new Error(`${audit.message}. Run \`ito audit validate\` and \`ito audit reconcile --fix\`.`);
+        }
+
+        if (audit?.notice) {
+          pendingAuditNotice = audit.notice;
+          addSystemNotice(output, audit.notice);
+        }
       }
 
-      if (audit?.notice) {
-        pendingAuditNotice = audit.notice;
-        addSystemNotice(output, audit.notice);
+      const worktreeGuard = maybeRunWorktreeGuard(toolName);
+      if (!worktreeGuard) {
+        return;
+      }
+
+      if (worktreeGuard.status === 'main_checkout') {
+        const suffix = worktreeGuard.expectedPath
+          ? ` Move to '${worktreeGuard.expectedPath}' or run \`ito worktree ensure --change ${worktreeGuard.changeId}\`.`
+          : '';
+        throw new Error(`${worktreeGuard.message}${suffix}`);
+      }
+
+      if (worktreeGuard.status === 'mismatch' || worktreeGuard.status === 'advisory' || worktreeGuard.status === 'warning') {
+        addSystemNotice(output, worktreeGuard.message);
       }
     },
 

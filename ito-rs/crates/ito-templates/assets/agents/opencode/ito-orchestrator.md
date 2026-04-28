@@ -1,6 +1,5 @@
 ---
 description: Coordinator-only agent for orchestrating multi-change runs
-mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
 temperature: 0.2

@@ -1,6 +1,5 @@
 ---
 description: High-capability agent for complex reasoning, architecture decisions, and difficult problems
-mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
 temperature: 0.5

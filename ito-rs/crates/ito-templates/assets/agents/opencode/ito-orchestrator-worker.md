@@ -3,7 +3,6 @@ description: Implements Ito orchestration work packets and remediation tasks
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
-temperature: 0.3
 tools:
   read: true
   edit: true

@@ -104,6 +104,7 @@ fn update_refreshes_opencode_plugin_and_preserves_user_config() {
     let plugin = std::fs::read_to_string(&plugin_path).unwrap();
     assert!(plugin.contains("tool.execute.before"));
     assert!(!plugin.contains("stale plugin"));
+    assert!(plugin.contains("ito worktree validate"));
 
     let config = std::fs::read_to_string(repo.path().join(".opencode/config.json")).unwrap();
     assert!(config.contains("\"userOwned\": true"));

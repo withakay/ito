@@ -1,11 +1,11 @@
 ---
 children_hash: 5ef7ed8726e18b6877338e2bb3679bd34d678365c5465d3f90956b9969d384cc
-compression_ratio: 0.4515738498789346
+compression_ratio: 0.47
 condensation_order: 1
 covers: [build_and_coverage_guardrails.md, manifesto_instruction_implementation_notes.md, release_workflow.md]
 covers_token_total: 1652
 summary_level: d1
-token_count: 746
+token_count: 780
 type: summary
 ---
 # Development Release Workflow and Guardrails
@@ -16,17 +16,12 @@ This area captures the Ito release pipeline plus build/verification guardrails. 
 See **release_workflow.md**
 
 - Release-plz handles release PRs, publishes crates.io releases, and creates version tags.
-- cargo-dist consumes version tags to build and publish GitHub Releases.
+- Cargo-dist consumes version tags to build and publish GitHub Releases.
 - Homebrew formula updates are pushed to `withakay/homebrew-ito`.
-- Supporting workflow files:
-  - `.github/workflows/release-plz.yml`
-  - `.github/workflows/v-release.yml`
-  - `.github/workflows/polish-release-notes.yml`
-  - `dist-workspace.toml`
-  - `release-plz.toml`
+- Supporting workflow files include `.github/workflows/release-plz.yml`, `.github/workflows/v-release.yml`, `.github/workflows/polish-release-notes.yml`, `dist-workspace.toml`, and `release-plz.toml`.
 
 ### Key relationships and rules
-- Pipeline order: merge release PR → release-plz publishes crates and tags `vX.Y.Z` → cargo-dist builds/releases → Homebrew update → release notes polished.
+- Pipeline order: merge release PR -> release-plz publishes crates and tags `vX.Y.Z` -> cargo-dist builds/releases -> Homebrew update -> release notes polished.
 - `release-plz.toml` must not set `git_only = true`; it can miscalculate repository paths in diff/worktree flows.
 - `publish-homebrew-formula` fails if the generated formula already includes a service `do` block.
 - Local Homebrew usage is documented via `withakay/ito` install, upgrade, unlink/link, and version verification commands.
@@ -34,7 +29,7 @@ See **release_workflow.md**
 ## Build and coverage guardrails
 See **build_and_coverage_guardrails.md**
 
-- The `Makefile` test-coverage target now resolves `LLVM_COV` and `LLVM_PROFDATA` from the active rustup toolchain when unset.
+- The `Makefile` test-coverage target resolves `LLVM_COV` and `LLVM_PROFDATA` from the active rustup toolchain when unset.
 - `ito-rs/tools/max_lines_baseline.txt` tracks existing oversized Rust files so the line-limit guardrail fails only on regressions or new violations.
 - `cargo-deny` explicitly allows `wit-bindgen@0.51` as a wasip3 transitive duplicate.
 

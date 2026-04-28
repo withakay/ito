@@ -3,7 +3,7 @@ description: Plans Ito orchestration runs from change metadata and gates
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
-temperature: 0.2
+temperature: 0.4
 tools:
   read: true
   edit: false

@@ -1,9 +1,7 @@
 ---
 description: Balanced agent for typical development tasks, code review, and implementation work
-mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
-temperature: 0.3
 tools:
   read: true
   edit: true

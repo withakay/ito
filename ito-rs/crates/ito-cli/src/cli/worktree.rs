@@ -29,6 +29,15 @@ pub enum WorktreeCommand {
     /// an existing worktree without recreating it or re-copying files.
     #[command(verbatim_doc_comment)]
     Setup(WorktreeChangeArgs),
+
+    /// Validate that the current checkout is an acceptable worktree for a change
+    ///
+    /// This fast read-only check is designed for humans and hook callers. When
+    /// worktrees are enabled, it rejects the main/control checkout, reports
+    /// mismatches when the current branch/path does not include the full change
+    /// ID, and accepts same-change suffix worktrees such as `foo-review`.
+    #[command(verbatim_doc_comment)]
+    Validate(WorktreeValidateArgs),
 }
 
 /// Arguments shared by worktree sub-commands that target a change.
@@ -37,4 +46,15 @@ pub struct WorktreeChangeArgs {
     /// Change ID to target (e.g. `012-05_my-change`)
     #[arg(long)]
     pub change: String,
+}
+
+/// Arguments for validating the current checkout against a change worktree.
+#[derive(Args, Debug, Clone)]
+pub struct WorktreeValidateArgs {
+    #[command(flatten)]
+    pub change_args: WorktreeChangeArgs,
+
+    /// Emit machine-readable JSON for hook callers.
+    #[arg(long)]
+    pub json: bool,
 }

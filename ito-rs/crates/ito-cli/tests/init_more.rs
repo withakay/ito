@@ -17,6 +17,16 @@ fn expected_release_tag() -> String {
     format!("v{version}")
 }
 
+fn expected_opencode_general_model() -> String {
+    use ito_templates::agents::{AgentTier, Harness, default_agent_configs};
+
+    default_agent_configs()
+        .get(&(Harness::OpenCode, AgentTier::General))
+        .expect("opencode general config")
+        .model
+        .clone()
+}
+
 #[test]
 fn init_requires_tools_when_non_interactive() {
     let repo = tempfile::tempdir().expect("work");
@@ -84,6 +94,185 @@ fn init_with_tools_opencode_installs_orchestrator_agent_template() {
     assert!(!contents.contains("{{model}}"));
     assert!(!contents.contains("{{variant}}"));
     assert!(contents.contains("model:"));
+}
+
+#[test]
+fn init_update_with_tools_all_installs_all_orchestrator_agent_templates() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = ["init", repo_path.as_ref(), "--tools", "all", "--update"];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let expected = [
+        ".opencode/agent/ito-orchestrator.md",
+        ".opencode/agent/ito-orchestrator-planner.md",
+        ".opencode/agent/ito-orchestrator-researcher.md",
+        ".opencode/agent/ito-orchestrator-worker.md",
+        ".opencode/agent/ito-orchestrator-reviewer.md",
+        ".claude/agents/ito-orchestrator.md",
+        ".claude/agents/ito-orchestrator-planner.md",
+        ".claude/agents/ito-orchestrator-researcher.md",
+        ".claude/agents/ito-orchestrator-worker.md",
+        ".claude/agents/ito-orchestrator-reviewer.md",
+        ".github/agents/ito-orchestrator.md",
+        ".github/agents/ito-orchestrator-planner.md",
+        ".github/agents/ito-orchestrator-researcher.md",
+        ".github/agents/ito-orchestrator-worker.md",
+        ".github/agents/ito-orchestrator-reviewer.md",
+        ".pi/agents/ito-orchestrator.md",
+        ".pi/agents/ito-orchestrator-planner.md",
+        ".pi/agents/ito-orchestrator-researcher.md",
+        ".pi/agents/ito-orchestrator-worker.md",
+        ".pi/agents/ito-orchestrator-reviewer.md",
+        ".agents/skills/ito-orchestrator/SKILL.md",
+        ".agents/skills/ito-orchestrator-planner/SKILL.md",
+        ".agents/skills/ito-orchestrator-researcher/SKILL.md",
+        ".agents/skills/ito-orchestrator-worker/SKILL.md",
+        ".agents/skills/ito-orchestrator-reviewer/SKILL.md",
+    ];
+
+    for rel in expected {
+        assert!(repo.path().join(rel).exists(), "expected {rel} to install");
+    }
+
+    let contents = std::fs::read_to_string(repo.path().join(".opencode/agent/ito-orchestrator.md"))
+        .expect("read opencode orchestrator");
+    assert!(!contents.contains("{{model}}"));
+    assert!(!contents.contains("{{variant}}"));
+}
+
+#[test]
+fn init_update_refreshes_existing_opencode_orchestrator_agent_template() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    fixtures::write(
+        &agent_path,
+        r#"---
+model: "old-model"
+---
+
+custom prefix
+
+<!-- ITO:START -->
+stale orchestrator body
+<!-- ITO:END -->
+
+custom suffix
+"#,
+    );
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = [
+        "init",
+        repo_path.as_ref(),
+        "--tools",
+        "opencode",
+        "--update",
+    ];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let contents = std::fs::read_to_string(agent_path).expect("read agent");
+    assert!(contents.contains("custom prefix"));
+    assert!(contents.contains("custom suffix"));
+    assert!(contents.contains("You are an orchestrator."));
+    assert!(!contents.contains("stale orchestrator body"));
+    assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
+}
+
+#[test]
+fn init_update_preserves_existing_markerless_opencode_agent_template_body() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    fixtures::write(
+        &agent_path,
+        r#"---
+model: "old-model"
+---
+
+legacy custom orchestrator body
+"#,
+    );
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = [
+        "init",
+        repo_path.as_ref(),
+        "--tools",
+        "opencode",
+        "--update",
+    ];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let contents = std::fs::read_to_string(agent_path).expect("read agent");
+    assert!(contents.contains("legacy custom orchestrator body"));
+    assert!(!contents.contains("You are an orchestrator."));
+    assert!(!contents.contains("old-model"));
+    assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
+}
+
+#[test]
+fn init_update_preserves_existing_partial_marker_opencode_agent_template_body() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    fixtures::write(
+        &agent_path,
+        r#"---
+model: "old-model"
+---
+
+legacy partial-marker orchestrator body
+<!-- ITO:START -->
+"#,
+    );
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = [
+        "init",
+        repo_path.as_ref(),
+        "--tools",
+        "opencode",
+        "--update",
+    ];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stderr.contains("partial Ito marker pair"),
+        "expected partial marker warning, got {}",
+        out.stderr
+    );
+
+    let contents = std::fs::read_to_string(agent_path).expect("read agent");
+    assert!(contents.contains("legacy partial-marker orchestrator body"));
+    assert!(!contents.contains("You are an orchestrator."));
+    assert!(!contents.contains("old-model"));
+    assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
 }
 
 #[test]
@@ -527,6 +716,10 @@ fn init_opencode_installs_audit_hook_plugin() {
     assert!(plugin.contains("tool.execute.before"));
     assert!(plugin.contains("ito audit validate"));
     assert!(plugin.contains("ito audit reconcile"));
+    assert!(plugin.contains("ito worktree validate"));
+    assert!(plugin.contains("maybeRunWorktreeGuard"));
+    assert!(plugin.contains("ITO_OPENCODE_WORKTREE_GUARD_DISABLED"));
+    assert!(plugin.contains("ITO_OPENCODE_WORKTREE_GUARD_TTL_MS"));
 }
 
 #[test]

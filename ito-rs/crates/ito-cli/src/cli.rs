@@ -24,7 +24,7 @@ pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
 pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
-pub use worktree::{WorktreeArgs, WorktreeCommand};
+pub use worktree::{WorktreeArgs, WorktreeCommand, WorktreeValidateArgs};
 
 #[cfg(feature = "backend")]
 pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};

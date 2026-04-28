@@ -5,5 +5,6 @@ ito-rs/crates/ito-templates/src/instructions_tests.rs 1414
 ito-rs/crates/ito-cli/tests/ralph_smoke.rs 1408
 ito-rs/crates/ito-core/src/installers/mod.rs 1380
 ito-rs/crates/ito-config/src/config/types.rs 1371
+ito-rs/crates/ito-cli/tests/init_more.rs 1336
 ito-rs/crates/ito-core/src/coordination_worktree.rs 1283
 ito-rs/crates/ito-core/tests/ralph.rs 1279

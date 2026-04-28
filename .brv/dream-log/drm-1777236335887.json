@@ -1,0 +1,16 @@
+{
+  "completedAt": 1777236335894,
+  "id": "drm-1777236335887",
+  "operations": [],
+  "startedAt": 1777236335887,
+  "status": "completed",
+  "summary": {
+    "consolidated": 0,
+    "errors": 0,
+    "flaggedForReview": 0,
+    "pruned": 0,
+    "synthesized": 0
+  },
+  "taskId": "106a5189-6435-45b0-b8c7-55fa84f440ee",
+  "trigger": "agent-idle"
+}
