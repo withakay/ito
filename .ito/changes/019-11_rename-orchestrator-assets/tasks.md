@@ -62,7 +62,7 @@ ______________________________________________________________________
 ### Task 2.1: Run formatting, checks, reviews, and demo capture
 
 - **Files**: repository-wide; `.ito/changes/019-11_rename-orchestrator-assets/demos`
-- **Dependencies**: Task 1.3
+- **Dependencies**: None
 - **Action**: Run formatting and verification, create Showboat demo evidence for the logical batch, and complete the required code-quality-squad review remediation.
 - **Verify**: `cargo fmt --check && make check`
 - **Done When**: Verification passes or pre-existing unrelated failures are documented, Showboat demo documents exist, and review feedback is addressed.
