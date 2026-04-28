@@ -457,26 +457,6 @@ fn render_and_stamp_agent(
     ito_templates::stamp_version(text, semver).into_bytes()
 }
 
-/// Refresh the `<!--ITO:VERSION:...-->` stamp inside an on-disk agent file.
-///
-/// Used after `update_agent_model_field` patches frontmatter so the file's
-/// stamp matches the CLI version even when only the model field changed. A
-/// no-op for files without managed markers.
-fn refresh_agent_version_stamp(target: &Path) -> CoreResult<()> {
-    let semver = option_env!("ITO_WORKSPACE_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-    let existing = ito_common::io::read_to_string_std(target)
-        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
-    if !existing.contains(ito_templates::ITO_START_MARKER) {
-        return Ok(());
-    }
-    let stamped = ito_templates::stamp_version(&existing, semver);
-    if stamped == existing {
-        return Ok(());
-    }
-    ito_common::io::write_std(target, stamped.into_bytes())
-        .map_err(|e| CoreError::io(format!("stamping {}", target.display()), e))
-}
-
 /// Write a rendered managed-block markdown file with marker-scoped update
 /// semantics, suitable for installer paths that do not need the full
 /// `write_one` ownership/upgrade machinery (e.g. the harness manifest
@@ -945,57 +925,68 @@ fn install_agent_templates(
             match mode {
                 InstallMode::Init => {
                     if target.exists() {
-                        if opts.update {
-                            // --update: only update model field in existing agent files
-                            if let Some(cfg) = config {
-                                update_agent_model_field(&target, &cfg.model)?;
+                        if !opts.force {
+                            if opts.update {
+                                let rendered = render_and_stamp_agent(contents, config, &target);
+                                update_existing_agent_template(
+                                    &target, &rendered, mode, opts, config,
+                                )?;
                             }
                             continue;
                         }
-                        if !opts.force {
-                            // Default init: skip existing files
-                            continue;
-                        }
                     }
 
-                    // Render full template (and stamp managed-block markdown)
                     let rendered = render_and_stamp_agent(contents, config, &target);
-
-                    // Ensure parent directory exists
-                    if let Some(parent) = target.parent() {
-                        ito_common::io::create_dir_all_std(parent).map_err(|e| {
-                            CoreError::io(format!("creating directory {}", parent.display()), e)
-                        })?;
-                    }
-
-                    ito_common::io::write_std(&target, rendered)
-                        .map_err(|e| CoreError::io(format!("writing {}", target.display()), e))?;
+                    write_marker_aware_markdown(&target, &rendered, mode, opts)?;
                 }
                 InstallMode::Update => {
-                    // During update: only update model in existing ito agent files
-                    if !target.exists() {
-                        // File doesn't exist, create it
-                        let rendered = render_and_stamp_agent(contents, config, &target);
-
-                        if let Some(parent) = target.parent() {
-                            ito_common::io::create_dir_all_std(parent).map_err(|e| {
-                                CoreError::io(format!("creating directory {}", parent.display()), e)
-                            })?;
-                        }
-                        ito_common::io::write_std(&target, rendered).map_err(|e| {
-                            CoreError::io(format!("writing {}", target.display()), e)
-                        })?;
-                    } else if let Some(cfg) = config {
-                        // File exists, only update model field in frontmatter
-                        update_agent_model_field(&target, &cfg.model)?;
-                        // Refresh the managed-block stamp so the file's
-                        // ITO:VERSION reflects the current CLI even when
-                        // only the model field was patched.
-                        refresh_agent_version_stamp(&target)?;
+                    let rendered = render_and_stamp_agent(contents, config, &target);
+                    if target.exists() {
+                        update_existing_agent_template(&target, &rendered, mode, opts, config)?;
+                    } else {
+                        write_marker_aware_markdown(&target, &rendered, mode, opts)?;
                     }
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+/// Updates an existing agent template without clobbering user-owned bodies.
+///
+/// Files with complete Ito markers get their managed block refreshed. Legacy
+/// markerless files keep their body and only receive frontmatter model updates.
+/// Partial marker pairs are treated like damaged managed regions: preserve the
+/// body for compatibility, but warn so the user can repair the file.
+fn update_existing_agent_template(
+    target: &Path,
+    rendered: &[u8],
+    mode: InstallMode,
+    opts: &InitOptions,
+    config: Option<&ito_templates::agents::AgentConfig>,
+) -> CoreResult<()> {
+    let existing = ito_common::io::read_to_string_std(target)
+        .map_err(|e| CoreError::io(format!("reading {}", target.display()), e))?;
+    let has_start = existing.contains(ito_templates::ITO_START_MARKER);
+    let has_end = existing.contains(ito_templates::ITO_END_MARKER);
+
+    match (has_start, has_end) {
+        (true, true) => write_marker_aware_markdown(target, rendered, mode, opts)?,
+        (false, false) => {}
+        (true, false) | (false, true) => {
+            eprintln!(
+                "warning: skipping marker update for {}: file has a partial Ito marker pair \
+                (start={has_start}, end={has_end}). Restore both markers manually, or rerun \
+                with `--force` to overwrite the file wholesale.",
+                target.display()
+            );
+        }
+    }
+
+    if let Some(cfg) = config {
+        update_agent_model_field(target, &cfg.model)?;
     }
 
     Ok(())
