@@ -1,45 +1,56 @@
 ---
-children_hash: c7f89b92ea0278526ffa8a7235f5ec33a661971eaaaadf5d453e208937298198
-compression_ratio: 0.5981067125645438
+children_hash: 0caf8195d6f4b500d1136a6a96d297271952452446ad82e825524f7d59ef1b65
+compression_ratio: 0.6979591836734694
 condensation_order: 2
 covers: [ito_templates/_index.md, release_workflow/_index.md]
-covers_token_total: 1162
+covers_token_total: 1225
 summary_level: d2
-token_count: 695
+token_count: 855
 type: summary
 ---
-# d2 Structural Summary
+# Development Knowledge Overview
 
-## development
+This d2 summary covers the release pipeline, build/coverage guardrails, manifesto instruction implementation notes, and template marker retrofit. The main pattern across the area is controlled transformation: preserve already-correct artifacts, enforce guardrails with explicit baselines, and make release behavior depend on well-defined workflow states.
 
-The development domain is organized around two operational concerns: template asset normalization and release/build reliability. The child entries show a clear pattern of enforcing invariants during automation rather than rewriting already-correct artifacts.
+## Template bundle retrofit
+See **ito_templates/_index.md** and drill into **template_bundle_retrofit.md** for details.
 
-### ito_templates
-**Drill down:** `ito_templates/_index.md` → `template_bundle_retrofit.md`, `template_bundle_retrofit.abstract.md`, `template_bundle_retrofit.overview.md`
+- Applies to `ito-rs/crates/ito-templates/assets`.
+- Core rule: **plain markdown** files receive `<!-- ITO:START -->` / `<!-- ITO:END -->` markers; **already marked** files are left unchanged.
+- Adapter assets are verified separately; no unmarked plain markdown was found in `ito-rs/crates/ito-templates/assets/adapters`, so no adapter sample changed.
+- Structural process: `scan assets -> retrofit plain markdown -> preserve pre-marked files -> verify adapter status`.
 
-- The template bundle retrofit standardizes markdown assets under `ito-rs/crates/ito-templates/assets`.
-- Core rule: plain `.md` files get `<!-- ITO:START -->` / `<!-- ITO:END -->` markers; already pre-marked files remain unchanged.
-- Verification treated `ito-rs/crates/ito-templates/assets/adapters` as a separate check and found no unmarked plain markdown there, so no adapter sample was modified.
-- Structural pattern: `scan assets -> add markers to plain markdown -> leave pre-marked files unchanged -> verify adapter sample status`.
-- Main concern is compliance preservation without altering already valid files.
+## Release workflow
+See **release_workflow.md** under **release_workflow/_index.md** for the end-to-end pipeline.
 
-### release_workflow
-**Drill down:** `release_workflow/_index.md` → `release_workflow.md`, `build_and_coverage_guardrails.md`
-
-- This topic covers the Ito release pipeline plus build and coverage guardrails.
-- The release chain is:
-  - `release-plz` merges the release PR, publishes crates.io releases, and creates `vX.Y.Z` tags
-  - `cargo-dist` consumes tags to build artifacts and publish GitHub Releases
-  - Homebrew formula updates go to `withakay/homebrew-ito`
-  - Release notes are polished after release steps complete
-- Coordinating files include `.github/workflows/release-plz.yml`, `.github/workflows/v-release.yml`, `.github/workflows/polish-release-notes.yml`, `dist-workspace.toml`, and `release-plz.toml`
+- Release-plz manages release PRs, publishes crates.io releases, and creates version tags.
+- cargo-dist consumes version tags to produce GitHub Releases.
+- Homebrew updates are pushed to `withakay/homebrew-ito`.
+- Supporting files: `.github/workflows/release-plz.yml`, `.github/workflows/v-release.yml`, `.github/workflows/polish-release-notes.yml`, `dist-workspace.toml`, `release-plz.toml`.
+- Workflow order: merge release PR -> release-plz publishes and tags `vX.Y.Z` -> cargo-dist releases -> Homebrew update -> release notes polishing.
 - Important rules:
-  - `release-plz.toml` must not set `git_only = true`
-  - `publish-homebrew-formula` fails if the generated formula already contains a `service do` block
-- Dependencies include GitHub Actions, `release-plz`, `cargo-dist`, crates.io token, Homebrew tap token, and optionally Claude Code OAuth for release-note polishing
-- Build/coverage guardrails add:
-  - `make check` resolves `LLVM_COV` and `LLVM_PROFDATA` from the active `rustup` toolchain when unset
-  - `ito-rs/tools/max_lines_baseline.txt` defines existing oversized Rust files so failures only flag regressions
-  - `cargo-deny` allows `wit-bindgen@0.51` as a narrowly scoped wasip3 transitive duplicate
-- Guardrail flow: `make check -> LLVM toolchain resolution -> cargo-llvm-cov -> max-lines baseline check -> cargo-deny exception`
-- Overall purpose: keep release automation, coverage, and dependency checks reliable without introducing broad exceptions or brittle toolchain assumptions.
+  - `release-plz.toml` must not set `git_only = true`; it can miscalculate repo paths in diff/worktree flows.
+  - `publish-homebrew-formula` fails if the generated formula includes a service `do` block.
+- Local Homebrew operations are documented via install/upgrade/unlink-link/version verification steps.
+
+## Build and coverage guardrails
+See **build_and_coverage_guardrails.md**.
+
+- The `Makefile` coverage target resolves `LLVM_COV` and `LLVM_PROFDATA` from the active rustup toolchain when unset.
+- `ito-rs/tools/max_lines_baseline.txt` is the baseline for existing oversized Rust files; the line-limit guardrail should fail only on regressions or new violations.
+- `cargo-deny` allows the exact duplicate `wit-bindgen@0.51` as a wasip3 transitive duplicate.
+- The guardrail pattern is baseline-driven: distinguish legacy exceptions from new breakage.
+
+## Manifesto instruction implementation notes
+See **manifesto_instruction_implementation_notes.md**.
+
+- `synced_at_generation` is set only when coordination sync returns `Synchronized`.
+- `RateLimited` means no sync was observed during generation and must not be treated as fresh success.
+- Full `--operation` requires `--change`.
+- Embedded operation instructions are scoped to the resolved change state.
+- Unconfigured operations render as `null`.
+
+## Cross-cutting structure
+- Release behavior is stateful and tool-driven: release-plz for versioning, cargo-dist for artifact publication, Homebrew for distribution updates.
+- Validation is conservative: preserve existing correct files, baseline known violations, and only fail on new regressions.
+- Several rules are path- and config-sensitive, especially `release-plz.toml`, `dist-workspace.toml`, `Makefile`, and `ito-rs/tools/max_lines_baseline.txt`.

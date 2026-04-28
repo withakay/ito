@@ -3,13 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 662,
+      "tokens": 795,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "development/_index.md",
-      "tokens": 695,
+      "tokens": 855,
       "type": "summary"
     },
     {
@@ -35,6 +35,14 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/release_workflow/manifesto_instruction_implementation_notes.abstract.md",
+      "abstractTokens": 54,
+      "importance": 50,
+      "path": "development/release_workflow/manifesto_instruction_implementation_notes.md",
+      "tokens": 54,
+      "type": "context"
+    },
+    {
       "abstractPath": "development/release_workflow/release_workflow.abstract.md",
       "abstractTokens": 85,
       "importance": 50,
@@ -43,13 +51,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-27T08:33:19.413Z",
+  "generated_at": "2026-04-28T05:20:03.680Z",
   "lane_tokens": {
-    "contexts": 211,
+    "contexts": 265,
     "stubs": 0,
-    "summaries": 1688
+    "summaries": 1981
   },
-  "source_fingerprint": "7507fd5e271d1a9e6de61862d6d13fc48b42ec3ec67bb4465cd8d6990c1bff86",
-  "total_tokens": 1899,
+  "source_fingerprint": "9eef5f304074da900ce3b3a72af84c83300624948304051898d9fa7e14d08104",
+  "total_tokens": 2246,
   "version": 1
 }

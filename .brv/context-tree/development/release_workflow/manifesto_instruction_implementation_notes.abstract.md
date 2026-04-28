@@ -1,0 +1,1 @@
+Manifesto instruction rendering records synced_at_generation only for Synchronized syncs, treats RateLimited as no fresh success, requires --change for full --operation, and renders unconfigured operations as null.

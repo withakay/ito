@@ -1,65 +1,58 @@
 ---
-children_hash: d842e3c81cd6824d909f2daf7b1bc04f4c168edf33c0a1ba94ae948cacc82c16
-compression_ratio: 0.650749063670412
+children_hash: 5ef7ed8726e18b6877338e2bb3679bd34d678365c5465d3f90956b9969d384cc
+compression_ratio: 0.4515738498789346
 condensation_order: 1
-covers: [build_and_coverage_guardrails.md, release_workflow.md]
-covers_token_total: 1068
+covers: [build_and_coverage_guardrails.md, manifesto_instruction_implementation_notes.md, release_workflow.md]
+covers_token_total: 1652
 summary_level: d1
-token_count: 695
+token_count: 746
 type: summary
 ---
-# development/release_workflow
+# Development Release Workflow and Guardrails
 
-This domain covers the Ito release pipeline and its build/verification guardrails. The main workflow is split between versioned publishing, artifact distribution, and release-quality checks; see **release_workflow.md** for the end-to-end release process and **build_and_coverage_guardrails.md** for CI/build safeguards.
+This area captures the Ito release pipeline plus build/verification guardrails. The release path is split between versioning/publishing, artifact release creation, and post-release packaging, while the build side adds coverage resilience, line-limit enforcement, and dependency exception handling. See **release_workflow.md** for the end-to-end release process and **build_and_coverage_guardrails.md** for validation and CI guardrails.
 
-## Core release pipeline
+## Release workflow
+See **release_workflow.md**
 
-**release_workflow.md** documents the main release chain:
+- Release-plz handles release PRs, publishes crates.io releases, and creates version tags.
+- cargo-dist consumes version tags to build and publish GitHub Releases.
+- Homebrew formula updates are pushed to `withakay/homebrew-ito`.
+- Supporting workflow files:
+  - `.github/workflows/release-plz.yml`
+  - `.github/workflows/v-release.yml`
+  - `.github/workflows/polish-release-notes.yml`
+  - `dist-workspace.toml`
+  - `release-plz.toml`
 
-- `release-plz` merges the release PR, publishes crates.io releases, and creates `vX.Y.Z` tags
-- `cargo-dist` consumes version tags to build artifacts and create GitHub Releases
-- Homebrew formula updates are pushed to `withakay/homebrew-ito`
-- Release notes are polished after the release steps complete
-
-Key files coordinating this automation:
-
-- `.github/workflows/release-plz.yml`
-- `.github/workflows/v-release.yml`
-- `.github/workflows/polish-release-notes.yml`
-- `dist-workspace.toml`
-- `release-plz.toml`
-
-### Important rules and dependencies
-
-- `release-plz.toml` must **not** set `git_only = true`; this can break repository path calculation during diff/worktree operations
-- The `publish-homebrew-formula` job fails if the generated formula already contains a `service do` block
-- The workflow depends on GitHub Actions, `release-plz`, `cargo-dist`, a crates.io token, a Homebrew tap token, and optionally Claude Code OAuth for release-note polishing
-
-### Notable outputs
-
-- GitHub Releases
-- cross-platform installer artifacts
-- Homebrew formula updates
-- local installation support via the `withakay/ito` tap
+### Key relationships and rules
+- Pipeline order: merge release PR → release-plz publishes crates and tags `vX.Y.Z` → cargo-dist builds/releases → Homebrew update → release notes polished.
+- `release-plz.toml` must not set `git_only = true`; it can miscalculate repository paths in diff/worktree flows.
+- `publish-homebrew-formula` fails if the generated formula already includes a service `do` block.
+- Local Homebrew usage is documented via `withakay/ito` install, upgrade, unlink/link, and version verification commands.
 
 ## Build and coverage guardrails
+See **build_and_coverage_guardrails.md**
 
-**build_and_coverage_guardrails.md** captures build-system fixes and verification policy:
+- The `Makefile` test-coverage target now resolves `LLVM_COV` and `LLVM_PROFDATA` from the active rustup toolchain when unset.
+- `ito-rs/tools/max_lines_baseline.txt` tracks existing oversized Rust files so the line-limit guardrail fails only on regressions or new violations.
+- `cargo-deny` explicitly allows `wit-bindgen@0.51` as a wasip3 transitive duplicate.
 
-- `make check` now resolves `LLVM_COV` and `LLVM_PROFDATA` from the active `rustup` toolchain when unset, making coverage more resilient in mixed Homebrew/rustup environments
-- `ito-rs/tools/max_lines_baseline.txt` records existing oversized Rust files so the max-lines guardrail fails only on regressions or new violations
-- `cargo-deny` allows `wit-bindgen@0.51` as a specific wasip3 transitive duplicate
+### Key relationships and rules
+- Coverage execution is designed to work in mixed Homebrew/rustup environments.
+- Guardrail enforcement depends on the baseline file for distinguishing legacy oversize files from new growth.
+- The cargo-deny exception is narrowly scoped to the exact duplicate version `^wit-bindgen@0.51$`.
 
-### Build/coverage flow
+## Manifesto instruction implementation notes
+See **manifesto_instruction_implementation_notes.md**
 
-`make check` → coverage target resolves LLVM toolchain vars → `cargo-llvm-cov` runs → max-lines check compares against baseline → `cargo-deny` accepts the `wit-bindgen@0.51` duplicate
+- `synced_at_generation` is only populated when coordination sync returns `Synchronized`.
+- `RateLimited` means no sync was observed during generation and must not be treated as fresh success.
+- Full `--operation` requires `--change`.
+- Embedded operation instructions are scoped to the resolved change state.
+- Unconfigured operations render as `null`.
 
-### Key relationships
-
-- Coverage behavior depends on `rustup` LLVM tools when `LLVM_COV` and `LLVM_PROFDATA` are not explicitly provided
-- Line-limit enforcement depends on `max_lines_baseline.txt`
-- The `wit-bindgen@0.51` exception is narrowly scoped to a wasip3 transitive dependency
-
-### Why it matters
-
-These guardrails prevent coverage failures caused by mixed toolchain discovery, keep oversized-file enforcement actionable, and avoid over-broad dependency-deny noise.
+### Key relationships and rules
+- Sync reporting is tied directly to generation-time coordination results.
+- Operation visibility depends on whether a change is resolved.
+- Memory instruction rendering exposes configured operations only; missing configuration stays null.
