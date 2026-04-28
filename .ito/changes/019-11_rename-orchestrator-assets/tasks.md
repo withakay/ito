@@ -40,7 +40,7 @@ ______________________________________________________________________
 - **Done When**: No scoped source or managed asset emits the old specialist names, and excluded orchestrator assets remain unchanged.
 - **Requirements**: `template-assets:orchestration-asset-names`
 - **Updated At**: 2026-04-28
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.3: Update tests and expectations for concise specialist names
 
