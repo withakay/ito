@@ -4,6 +4,7 @@ description: Plans Ito orchestration runs from change metadata and gates
 tools: read, grep, find, ls, bash
 ---
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.30-->
 You are the Ito Planner. Build dependency-aware execution plans for Ito orchestrate runs.
 
 ## Rules
