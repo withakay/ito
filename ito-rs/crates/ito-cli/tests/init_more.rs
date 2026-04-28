@@ -84,7 +84,7 @@ fn init_with_tools_opencode_installs_orchestrator_agent_template() {
     let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
-    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    let agent_path = repo.path().join(".opencode/agents/ito-orchestrator.md");
     assert!(
         agent_path.exists(),
         "expected ito-orchestrator agent template"
@@ -111,11 +111,11 @@ fn init_update_with_tools_all_installs_all_orchestrator_agent_templates() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
     let expected = [
-        ".opencode/agent/ito-orchestrator.md",
-        ".opencode/agent/ito-orchestrator-planner.md",
-        ".opencode/agent/ito-orchestrator-researcher.md",
-        ".opencode/agent/ito-orchestrator-worker.md",
-        ".opencode/agent/ito-orchestrator-reviewer.md",
+        ".opencode/agents/ito-orchestrator.md",
+        ".opencode/agents/ito-orchestrator-planner.md",
+        ".opencode/agents/ito-orchestrator-researcher.md",
+        ".opencode/agents/ito-orchestrator-worker.md",
+        ".opencode/agents/ito-orchestrator-reviewer.md",
         ".claude/agents/ito-orchestrator.md",
         ".claude/agents/ito-orchestrator-planner.md",
         ".claude/agents/ito-orchestrator-researcher.md",
@@ -141,9 +141,9 @@ fn init_update_with_tools_all_installs_all_orchestrator_agent_templates() {
     for rel in expected {
         assert!(repo.path().join(rel).exists(), "expected {rel} to install");
     }
-
-    let contents = std::fs::read_to_string(repo.path().join(".opencode/agent/ito-orchestrator.md"))
-        .expect("read opencode orchestrator");
+    assert!(!repo.path().join(".opencode/agent").exists());
+    let contents =
+        std::fs::read_to_string(repo.path().join(expected[0])).expect("read opencode orchestrator");
     assert!(!contents.contains("{{model}}"));
     assert!(!contents.contains("{{variant}}"));
 }
@@ -157,7 +157,7 @@ fn init_update_refreshes_existing_opencode_orchestrator_agent_template() {
 
     fixtures::reset_repo(repo.path(), base.path());
 
-    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    let agent_path = repo.path().join(".opencode/agents/ito-orchestrator.md");
     fixtures::write(
         &agent_path,
         r#"---
@@ -202,7 +202,7 @@ fn init_update_preserves_existing_markerless_opencode_agent_template_body() {
 
     fixtures::reset_repo(repo.path(), base.path());
 
-    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    let agent_path = repo.path().join(".opencode/agents/ito-orchestrator.md");
     fixtures::write(
         &agent_path,
         r#"---
@@ -240,7 +240,7 @@ fn init_update_preserves_existing_partial_marker_opencode_agent_template_body() 
 
     fixtures::reset_repo(repo.path(), base.path());
 
-    let agent_path = repo.path().join(".opencode/agent/ito-orchestrator.md");
+    let agent_path = repo.path().join(".opencode/agents/ito-orchestrator.md");
     fixtures::write(
         &agent_path,
         r#"---
