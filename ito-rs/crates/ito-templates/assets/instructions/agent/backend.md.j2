@@ -131,6 +131,13 @@ All project-scoped endpoints require authentication.
 
 When backend mode is enabled, treat the CLI as the primary interface for active work.
 
+Command conventions used below:
+
+- `ito patch change ...` means: apply an incremental patch to an existing active-work artifact.
+- `ito write change ...` means: replace or set the full contents of an active-work artifact.
+- In command examples, `<proposal|design|tasks>` means choose exactly one of `proposal`, `design`, or `tasks`.
+- `<capability>` means the capability directory name under the change's `specs/` directory, for example `backend-agent-instructions` in `.ito/changes/<change-id>/specs/backend-agent-instructions/spec.md`.
+
 - Local `.ito/changes/*` and `.ito/specs/*` content may be absent by design; do not create markdown manually to compensate.
 - Use `ito show <change-or-spec>` and `ito show specs` for reads.
 - Use `ito patch change <change-id> <proposal|design|tasks>` and `ito write change <change-id> <proposal|design|tasks>` for active-work artifact mutations.
