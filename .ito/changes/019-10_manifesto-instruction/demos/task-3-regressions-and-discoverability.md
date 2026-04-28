@@ -534,3 +534,63 @@ Examples:
   ito agent instruction memory-search --query "archive workflow" --limit 5
   ito agent instruction memory-query --query "How should agents capture memories?"
 ```
+
+Final review fixes tightened manifesto sync claims, operation scoping, memory instruction rendering, and discoverability snapshots.
+
+```bash
+cargo test -p ito-cli --test help --test instructions_more
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.22s
+     Running tests/help.rs (target/debug/deps/help-53f622028539378a)
+
+running 7 tests
+test agent_instruction_help_shows_instruction_details ... ok
+test help_prints_usage ... ok
+test help_shows_navigation_footer ... ok
+test help_all_global_flag_works ... ok
+test dash_h_help_matches_dash_dash_help ... ok
+test help_all_json_outputs_valid_json ... ok
+test help_all_shows_complete_reference ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/instructions_more.rs (target/debug/deps/instructions_more-0c35447a48df1fac)
+
+running 31 tests
+test agent_instruction_finish_with_change_prompts_for_archive ... ok
+test agent_instruction_apply_text_is_compact_and_has_trailing_newline ... ok
+test agent_instruction_archive_with_change_prints_targeted_instruction ... ok
+test agent_instruction_archive_with_invalid_change_fails ... ok
+test agent_instruction_change_flag_reports_ambiguous_target ... ok
+test agent_instruction_change_flag_supports_slug_query ... ok
+test agent_instruction_archive_without_change_prints_generic_guidance ... ok
+test agent_instruction_change_flag_supports_shorthand ... ok
+test agent_instruction_manifesto_full_variant_rejects_incompatible_operation ... ok
+test agent_instruction_manifesto_change_scope_json_reports_state ... ok
+test agent_instruction_manifesto_full_variant_embeds_allowed_default_set ... ok
+test agent_instruction_manifesto_full_variant_embeds_requested_proposal_instruction ... ok
+test agent_instruction_manifesto_change_scope_reports_applying_state ... ok
+test agent_instruction_manifesto_full_variant_renders_full_section ... ok
+test agent_instruction_manifesto_rejects_operation_for_light_variant ... ok
+test agent_instruction_manifesto_change_scope_reports_apply_ready_state ... ok
+test agent_instruction_manifesto_change_scope_includes_change_state ... ok
+test agent_instruction_manifesto_redacts_explicit_coordination_path ... ok
+test agent_instruction_review_requires_change_flag ... ok
+test agent_instruction_manifesto_rejects_operation_without_change ... ok
+test agent_instruction_proposal_honors_testing_policy_override ... ok
+test agent_instruction_text_output_renders_artifact_envelope ... ok
+test agent_instruction_proposal_without_change_prints_new_proposal_guide ... ok
+test agent_instruction_manifesto_memory_config_embeds_operation_instructions ... ok
+test agent_instruction_manifesto_full_variant_supports_finish_for_archived_change ... ok
+test agent_instruction_manifesto_planning_profile_is_advisory ... ok
+test agent_instruction_manifesto_planning_profile_embeds_no_mutating_artifacts ... ok
+test agent_instruction_manifesto_json_includes_resolved_defaults ... ok
+test agent_instruction_proposal_without_change_supports_json_output ... ok
+test agent_instruction_review_renders_review_template ... ok
+test agent_instruction_manifesto_uses_default_variant_and_profile ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+```
