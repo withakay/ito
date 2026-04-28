@@ -68,5 +68,5 @@ ______________________________________________________________________
 - **Done When**: Verification passes or pre-existing unrelated failures are documented, Showboat demo documents exist, and review feedback is addressed.
 - **Requirements**: `template-assets:orchestration-asset-names`
 - **Updated At**: 2026-04-28
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
