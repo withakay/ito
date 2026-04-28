@@ -51,7 +51,7 @@ ______________________________________________________________________
 - **Done When**: Focused template/install tests pass against the renamed specialist assets.
 - **Requirements**: `template-assets:orchestration-asset-names`
 - **Updated At**: 2026-04-28
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
