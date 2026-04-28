@@ -1,10 +1,10 @@
 ---
-title: Build and Coverage Guardrails
+createdAt: '2026-04-27T08:33:03.473Z'
+keywords: []
+related: [development/release_workflow/release_workflow.md, development/release_workflow/manifesto_instruction_implementation_notes.md]
 summary: Build workflow fixes mixed Homebrew/rustup coverage execution, tracks oversized Rust files via a baseline, and permits wit-bindgen@0.51 as a wasip3 transitive duplicate.
 tags: []
-related: []
-keywords: []
-createdAt: '2026-04-27T08:33:03.473Z'
+title: Build and Coverage Guardrails
 updatedAt: '2026-04-27T08:33:03.473Z'
 ---
 ## Reason

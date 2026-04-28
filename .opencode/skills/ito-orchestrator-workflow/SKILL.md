@@ -4,7 +4,7 @@ description: Repo-specific workflow conventions consumed by the orchestrator.
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 
 This is a living-document skill: keep it updated as your repo's tooling and conventions evolve.

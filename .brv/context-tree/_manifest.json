@@ -3,31 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1500,
-      "type": "summary"
-    },
-    {
-      "order": 2,
-      "path": "development/_index.md",
-      "tokens": 1450,
+      "tokens": 1295,
       "type": "summary"
     },
     {
       "order": 1,
       "path": "development/ito_templates/_index.md",
       "tokens": 331,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/ito_workflow/_index.md",
-      "tokens": 581,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/release_workflow/_index.md",
-      "tokens": 780,
       "type": "summary"
     },
     {
@@ -39,9 +21,17 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.abstract.md",
+      "abstractTokens": 45,
+      "importance": 50,
+      "path": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md",
+      "tokens": 45,
+      "type": "context"
+    },
+    {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
-      "tokens": 84,
+      "tokens": 106,
       "type": "context"
     },
     {
@@ -50,6 +40,14 @@
       "importance": 50,
       "path": "development/ito_workflow/published_ito_mirror.md",
       "tokens": 50,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
+      "abstractTokens": 48,
+      "importance": 50,
+      "path": "development/ito_workflow/worktree_validation_flow.md",
+      "tokens": 48,
       "type": "context"
     },
     {
@@ -69,14 +67,6 @@
       "type": "context"
     },
     {
-      "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
-      "abstractTokens": 47,
-      "importance": 50,
-      "path": "development/ito_workflow/worktree_validation_flow.md",
-      "tokens": 47,
-      "type": "context"
-    },
-    {
       "abstractPath": "development/release_workflow/release_workflow.abstract.md",
       "abstractTokens": 85,
       "importance": 50,
@@ -85,13 +75,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-28T06:55:00.000Z",
+  "generated_at": "2026-04-28T17:12:36.884Z",
   "lane_tokens": {
-    "contexts": 446,
+    "contexts": 514,
     "stubs": 0,
-    "summaries": 4642
+    "summaries": 1626
   },
-  "source_fingerprint": "merged-worktree-validation-release-guardrails-manifesto-notes-and-published-mirror",
-  "total_tokens": 5088,
+  "source_fingerprint": "163901ec0f04d29a5b3852cb9b9c4476a5ccd719c46c8dde40b2adc45c84f63d",
+  "total_tokens": 2140,
   "version": 1
 }

@@ -1,10 +1,10 @@
 ---
-title: Manifesto Instruction Implementation Notes
+createdAt: '2026-04-28T05:19:48.096Z'
+keywords: []
+related: [development/release_workflow/build_and_coverage_guardrails.md, development/release_workflow/release_workflow.md]
 summary: Manifesto instruction rendering only reports synced_at_generation on Synchronized syncs; RateLimited is not fresh success; full --operation requires --change; unconfigured operations render null.
 tags: []
-related: []
-keywords: []
-createdAt: '2026-04-28T05:19:48.096Z'
+title: Manifesto Instruction Implementation Notes
 updatedAt: '2026-04-28T05:19:48.096Z'
 ---
 ## Reason

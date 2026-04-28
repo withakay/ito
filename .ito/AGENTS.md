@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 # Ito Instructions
 
@@ -162,7 +162,7 @@ After deployment, create separate PR to:
 
 - When `backend.enabled=true` or repository persistence is remote, local active-work markdown may be absent by design.
 - Do not create or edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually just to make remote mode work.
-- Use CLI/repository-backed flows for active work: `ito show <item>`, `ito show specs`, `ito tasks ...`, `ito tasks sync pull <change-id>`, and `ito archive <change-id>`.
+- Use CLI/repository-backed flows for active work: `ito show <item>`, `ito show specs`, `ito patch ...`, `ito write ...`, `ito tasks ...`, `ito tasks sync pull <change-id>`, and `ito archive <change-id>`.
 - Treat local Git/projected files as read-oriented scan and backup surfaces; mutations must go through the CLI-backed repository path.
 
 ### CLI Commands
@@ -177,6 +177,8 @@ ito list --completed       # List completed changes
 ito list --specs          # List specifications
 ito show [item]           # Display change or spec
 ito validate [item]       # Validate changes or specs
+ito patch change <id> proposal            # Patch an active change artifact from stdin
+ito write change <id> design              # Replace an active change artifact from stdin
 ito archive <change-id> [--yes|-y]   # Archive after deployment (add --yes for non-interactive runs)
 ito trace <change-id>     # Show requirement traceability coverage (--json for machine-readable)
 

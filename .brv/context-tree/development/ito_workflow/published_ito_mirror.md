@@ -1,10 +1,10 @@
 ---
-title: Published Ito Mirror
+createdAt: '2026-04-27T22:08:14.176Z'
+keywords: []
+related: [development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md, development/ito_workflow/worktree_validation_flow.md]
 summary: Ito publish mirrors coordination-backed state into a read-only docs/ito tree with safe path resolution, drift detection, and symlink skipping.
 tags: []
-related: []
-keywords: []
-createdAt: '2026-04-27T22:08:14.176Z'
+title: Published Ito Mirror
 updatedAt: '2026-04-27T22:08:14.176Z'
 ---
 ## Reason

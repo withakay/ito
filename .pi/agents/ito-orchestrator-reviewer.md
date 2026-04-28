@@ -5,7 +5,7 @@ tools: read, grep, find, ls, bash, glob
 model: "claude-sonnet-4-6"
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 You are the Ito Orchestrator Reviewer. Review worker output against the assigned change, gate, and project rules.
 
 ## Rules

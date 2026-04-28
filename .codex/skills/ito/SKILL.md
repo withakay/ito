@@ -4,7 +4,7 @@ description: Unified entry point for ito commands with intelligent skill-first r
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 
 Route ito commands to the best handler.

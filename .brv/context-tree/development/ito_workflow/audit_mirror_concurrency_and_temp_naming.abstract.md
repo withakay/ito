@@ -1,0 +1,1 @@
+Audit mirror sync uses unique pid/timestamp/atomic-counter temp worktree and orphan branch names, dedupes and truncates JSONL logs, and retries push or ref update conflicts once.

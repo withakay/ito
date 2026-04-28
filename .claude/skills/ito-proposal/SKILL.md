@@ -4,7 +4,7 @@ description: Use when creating and writing an Ito change proposal (new change or
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 
 Collaborate with the user to understand their intent, then create a change and generate proposal artifacts.

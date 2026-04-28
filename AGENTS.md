@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 # Ito Instructions
 
@@ -45,7 +45,8 @@ Use `ito path ...` to get absolute paths at runtime (do not hardcode absolute pa
 
 Worktree rules:
 
-- Keep the main/control checkout clean; do not create proposal artifacts or implement change work there.
+- Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
+- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no Ito change ID exists yet, create a temporary proposal worktree first, run change creation there, then move into the final change worktree before editing generated artifacts.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse one worktree for two changes.
 - If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
@@ -85,6 +86,11 @@ ito agent instruction finish --change "<full-change-id>"
 
 <!-- ITO:INTERNAL:START -->
 ## Project Guidance
+
+### Code Search
+
+- Prefer the Zoekt code search tool (`zoekt_search`) before `grep`, `rg`, `find`, or broad file scans when looking across the repository for code, references, definitions, symbols, or file-filtered matches.
+- Use targeted file reads once Zoekt identifies the relevant files or locations.
 
 ### Subagent Collaboration
 

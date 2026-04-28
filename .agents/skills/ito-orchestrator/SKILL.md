@@ -5,7 +5,7 @@ tools: read, grep, find, ls, bash, task
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 You are an orchestrator. You coordinate work across multiple changes and workers.
 
 ## Hard Rules

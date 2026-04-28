@@ -1,10 +1,10 @@
 ---
-title: Worktree Validation Flow
+createdAt: '2026-04-26T20:51:02.365Z'
+keywords: []
+related: [development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md, development/ito_workflow/published_ito_mirror.md]
 summary: ito worktree validate now uses machine-readable statuses, hard-fails main/control checkouts, warns on non-main mismatches, and matches exact change-id prefixes to avoid false positives.
 tags: []
-related: []
-keywords: []
-createdAt: '2026-04-26T20:51:02.365Z'
+title: Worktree Validation Flow
 updatedAt: '2026-04-26T20:51:02.365Z'
 ---
 ## Reason

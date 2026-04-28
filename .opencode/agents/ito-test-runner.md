@@ -10,6 +10,10 @@ tools:
   bash: true
 ---
 
+<!-- ITO:START -->
+<!--ITO:VERSION:0.1.30-->
+
+
 You are the Test Runner, a focused subagent that executes tests and reports only relevant outcomes.
 
 ## Mission
@@ -68,3 +72,5 @@ If no AGENTS guidance exists, include:
 - Do not run destructive commands.
 - Keep retries minimal and only when they add diagnostic value.
 - If multiple commands are needed, keep output curated across all commands.
+
+<!-- ITO:END -->
