@@ -8,11 +8,18 @@ use ito_core::coordination_worktree::{CoordinationSyncOutcome, sync_coordination
 /// Runs the sync synchronously and swallows errors (prints a warning to
 /// stderr on failure). Use this when the caller needs coordination data to
 /// be up-to-date before proceeding (e.g. before reading apply instructions).
-pub(crate) fn best_effort_sync_coordination(rt: &Runtime, context: &str) {
+pub(crate) fn best_effort_sync_coordination(
+    rt: &Runtime,
+    context: &str,
+) -> Option<CoordinationSyncOutcome> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
-    if let Err(err) = sync_coordination_worktree(project_root, ito_path, false) {
-        eprintln!("Warning: failed to sync coordination state {context}: {err}");
+    match sync_coordination_worktree(project_root, ito_path, false) {
+        Ok(outcome) => Some(outcome),
+        Err(err) => {
+            eprintln!("Warning: failed to sync coordination state {context}: {err}");
+            None
+        }
     }
 }
 

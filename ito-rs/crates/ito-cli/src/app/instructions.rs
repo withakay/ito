@@ -333,6 +333,10 @@ then re-run:\n\n\
         return emit_instruction(want_json, artifact, instruction);
     }
 
+    if artifact == "manifesto" {
+        return super::manifesto_instructions::handle_manifesto_instruction(rt, args, want_json);
+    }
+
     if artifact == "finish" {
         best_effort_sync_coordination(rt, "before finish instructions");
 
@@ -522,13 +526,14 @@ then re-run:\n\n\
         let memory_template = memory_template_config_from_merged(
             &load_cascading_project_config(project_root, ito_path, ctx).merged,
         );
-        print_apply_instructions_text(
+        let out = render_apply_instructions_text(
             &apply,
             &testing_policy,
             user_guidance.as_deref(),
             &worktree_config,
             memory_template,
         );
+        print!("{out}");
         return Ok(());
     }
 
@@ -587,18 +592,20 @@ then re-run:\n\n\
         println!("{rendered}");
         return Ok(());
     }
-    print_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)?;
+    let out =
+        render_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)?;
+    print!("{out}");
 
     Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-struct TestingPolicy {
+pub(super) struct TestingPolicy {
     tdd_workflow: String,
     coverage_target_percent: u64,
 }
 
-fn load_testing_policy(
+pub(super) fn load_testing_policy(
     project_root: &Path,
     ito_path: &Path,
     ctx: &ito_config::ConfigContext,
@@ -637,7 +644,7 @@ fn load_testing_policy(
     out
 }
 
-fn load_coordination_branch_settings(
+pub(super) fn load_coordination_branch_settings(
     project_root: &Path,
     ito_path: &Path,
     ctx: &ito_config::ConfigContext,
@@ -679,7 +686,6 @@ pub(crate) fn handle_agent_clap(rt: &Runtime, args: &AgentArgs) -> CliResult<()>
     result
 }
 
-/// Reconstruct the raw CLI arguments from the parsed `AgentArgs`.
 fn reconstruct_agent_args(args: &AgentArgs) -> Vec<String> {
     let mut raw = vec!["agent".to_string()];
     match &args.command {
@@ -699,7 +705,6 @@ fn handle_agent_instruction_clap(rt: &Runtime, args: &AgentInstructionArgs) -> C
     handle_agent_instruction(rt, &args.to_argv())
 }
 
-/// Emit an agent instruction as either a JSON `AgentInstructionResponse` or plain text.
 fn emit_instruction(want_json: bool, artifact_id: &str, instruction: String) -> CliResult<()> {
     if want_json {
         let response = core_templates::AgentInstructionResponse {
@@ -746,12 +751,12 @@ fn generate_repo_sweep_instruction() -> CliResult<String> {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-struct ArchiveInstructionConfig {
+pub(super) struct ArchiveInstructionConfig {
     coordination_storage: String,
     main_integration_mode: String,
 }
 
-fn archive_instruction_config_from_merged(
+pub(super) fn archive_instruction_config_from_merged(
     merged: &serde_json::Value,
 ) -> CliResult<ArchiveInstructionConfig> {
     let typed: ItoConfig = serde::Deserialize::deserialize(merged).map_err(|e| {
@@ -811,11 +816,11 @@ fn handle_new_proposal_guide(rt: &Runtime, want_json: bool) -> CliResult<()> {
     emit_instruction(want_json, "new-proposal", instruction)
 }
 
-fn print_artifact_instructions_text(
+pub(super) fn render_artifact_instructions_text(
     instructions: &core_templates::InstructionsResponse,
     user_guidance: Option<&str>,
     testing_policy: &TestingPolicy,
-) -> CliResult<()> {
+) -> CliResult<String> {
     #[derive(Debug, Clone, serde::Serialize)]
     struct TemplateDependency {
         id: String,
@@ -888,26 +893,22 @@ fn print_artifact_instructions_text(
         user_guidance,
     };
 
-    let out =
-        ito_templates::instructions::render_instruction_template("agent/artifact.md.j2", &ctx)
-            .map_err(|e| to_cli_error(format!("rendering artifact instruction: {e}")))?;
-
-    print!("{out}");
-    Ok(())
+    ito_templates::instructions::render_instruction_template("agent/artifact.md.j2", &ctx)
+        .map_err(|e| to_cli_error(format!("rendering artifact instruction: {e}")))
 }
 
 /// Worktree configuration serialized for the apply instruction template.
 #[derive(Debug, Clone, serde::Serialize)]
-struct WorktreeConfig {
-    enabled: bool,
-    strategy: WorktreeStrategy,
-    layout_base_dir: Option<String>,
-    layout_dir_name: String,
-    apply_enabled: bool,
-    integration_mode: String,
+pub(super) struct WorktreeConfig {
+    pub(super) enabled: bool,
+    pub(super) strategy: WorktreeStrategy,
+    pub(super) layout_base_dir: Option<String>,
+    pub(super) layout_dir_name: String,
+    pub(super) apply_enabled: bool,
+    pub(super) integration_mode: String,
     copy_from_main: Vec<String>,
     setup_commands: Vec<String>,
-    default_branch: String,
+    pub(super) default_branch: String,
     /// Glob patterns from `worktrees.init.include` for worktree initialization.
     init_include: Vec<String>,
     /// Setup commands from `worktrees.init.setup` for worktree initialization.
@@ -949,9 +950,6 @@ fn resolve_bare_repo_root(project_root: &Path) -> Option<PathBuf> {
     Path::new(&common_dir).parent().map(Path::to_path_buf)
 }
 
-/// Build a WorktreeConfig from a merged project JSON configuration, using an optional
-/// project_root to resolve absolute paths required by templates.
-///
 /// This reads the `worktrees` section (if present) and populates fields such as
 /// `enabled`, `strategy`, `layout_base_dir`, `layout_dir_name`, `apply_enabled`,
 /// `integration_mode`, `copy_from_main`, `setup_commands`, and `default_branch`.
@@ -1074,7 +1072,7 @@ fn worktree_config_from_merged(
     out
 }
 
-fn worktree_config_from_merged_with_paths(
+pub(super) fn worktree_config_from_merged_with_paths(
     merged: &serde_json::Value,
     project_root: &Path,
     ito_path: &Path,
@@ -1089,7 +1087,7 @@ fn worktree_config_from_merged_with_paths(
 ///
 /// The returned WorktreeConfig is populated from the merged cascading configuration for `project_root` and `ito_path`.
 /// Its `worktree_root` and `ito_root` fields are set to the provided `project_root` and `ito_path` (converted to strings).
-fn load_worktree_config(
+pub(super) fn load_worktree_config(
     project_root: &Path,
     ito_path: &Path,
     ctx: &ito_config::ConfigContext,
@@ -1104,13 +1102,13 @@ fn load_worktree_config(
 /// `instructions`, `testing_policy`, optional `user_guidance`, and `worktree_config`, then writes
 /// the rendered text to standard output. The provided `user_guidance` is trimmed and ignored if
 /// empty.
-fn print_apply_instructions_text(
+pub(super) fn render_apply_instructions_text(
     instructions: &core_templates::ApplyInstructionsResponse,
     testing_policy: &TestingPolicy,
     user_guidance: Option<&str>,
     worktree_config: &WorktreeConfig,
     memory: MemoryTemplateConfig,
-) {
+) -> String {
     #[derive(serde::Serialize)]
     struct Ctx {
         instructions: core_templates::ApplyInstructionsResponse,
@@ -1142,10 +1140,8 @@ fn print_apply_instructions_text(
         memory,
     };
 
-    let out = ito_templates::instructions::render_instruction_template("agent/apply.md.j2", &ctx)
-        .expect("apply instruction template should render");
-
-    print!("{out}");
+    ito_templates::instructions::render_instruction_template("agent/apply.md.j2", &ctx)
+        .expect("apply instruction template should render")
 }
 
 fn collect_missing_dependencies(

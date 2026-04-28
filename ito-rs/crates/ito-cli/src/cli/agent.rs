@@ -9,6 +9,7 @@ const AGENT_INSTRUCTION_AFTER_HELP: &str = concat!(
     "  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates\n",
     "  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n",
     "  orchestrate                        Orchestrate applying a set of changes via an orchestrator agent\n",
+    "  manifesto                          Generate a strict Ito manifesto for prompt-only execution\n",
     "  proposal                           Show the change proposal\n",
     "  specs                              Show the specification deltas\n",
     "  tasks                              Show the implementation task list\n",
@@ -28,6 +29,9 @@ const AGENT_INSTRUCTION_AFTER_HELP: &str = concat!(
     "  ito agent instruction repo-sweep\n",
     "  ito agent instruction migrate-to-coordination-worktree\n",
     "  ito agent instruction orchestrate\n",
+    "  ito agent instruction manifesto\n",
+    "  ito agent instruction manifesto --variant full --profile proposal-only\n",
+    "  ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply\n",
     "  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n",
     "  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n",
     "  ito agent instruction archive\n",
@@ -83,6 +87,18 @@ pub struct AgentInstructionArgs {
     #[arg(long)]
     pub json: bool,
 
+    /// Manifesto output variant (light|full)
+    #[arg(long)]
+    pub variant: Option<String>,
+
+    /// Manifesto capability profile (planning|proposal-only|review-only|apply|archive|full)
+    #[arg(long)]
+    pub profile: Option<String>,
+
+    /// Manifesto operation selector for full renders
+    #[arg(long)]
+    pub operation: Option<String>,
+
     // ---- memory-* artifact inputs --------------------------------------
     /// Free-form context for `memory-capture`
     #[arg(long)]
@@ -121,6 +137,9 @@ impl AgentInstructionArgs {
             tool,
             schema,
             json,
+            variant,
+            profile,
+            operation,
             context,
             file,
             folder,
@@ -144,6 +163,18 @@ impl AgentInstructionArgs {
         }
         if *json {
             argv.push("--json".to_string());
+        }
+        if let Some(v) = variant {
+            argv.push("--variant".to_string());
+            argv.push(v.clone());
+        }
+        if let Some(v) = profile {
+            argv.push("--profile".to_string());
+            argv.push(v.clone());
+        }
+        if let Some(v) = operation {
+            argv.push("--operation".to_string());
+            argv.push(v.clone());
         }
         if let Some(v) = context {
             argv.push("--context".to_string());

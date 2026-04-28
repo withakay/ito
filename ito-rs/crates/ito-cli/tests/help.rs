@@ -28,7 +28,11 @@ fn agent_instruction_help_shows_instruction_details() {
         // Should show instruction help (with Artifacts section), not agent help
         .stdout(contains("Artifacts:"))
         .stdout(contains("bootstrap"))
-        .stdout(contains("apply"));
+        .stdout(contains("apply"))
+        .stdout(contains("manifesto"))
+        .stdout(contains("--variant"))
+        .stdout(contains("--profile"))
+        .stdout(contains("--operation"));
 }
 
 #[test]
