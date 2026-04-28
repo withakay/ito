@@ -242,6 +242,8 @@ fn backend_instruction_is_cli_first_for_remote_mode() {
 
     assert!(instruction.contains("do not create markdown manually"));
     assert!(instruction.contains("ito show specs"));
+    assert!(instruction.contains("ito patch change <change-id> <proposal|design|tasks>"));
+    assert!(instruction.contains("ito write change <change-id> spec <capability>"));
     assert!(instruction.contains("ito tasks sync pull <change-id>"));
     assert!(instruction.contains("ito archive <change-id>"));
 }

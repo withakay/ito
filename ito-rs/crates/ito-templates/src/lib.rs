@@ -765,6 +765,47 @@ mod tests {
         assert!(text.contains("`ito-fix`"));
         assert!(text.contains("`ito-feature`"));
         assert!(text.contains("`ito-brainstorming`"));
+        assert!(text.contains("ito patch change <id> proposal"));
+        assert!(text.contains("ito write change <id> design"));
+    }
+
+    #[test]
+    fn agent_templates_remind_harnesses_to_use_ito_patch_and_write_for_active_artifacts() {
+        use crate::agents::{Harness, get_agent_files};
+
+        let expected = [
+            "ito-general",
+            "ito-quick",
+            "ito-thinking",
+            "ito-orchestrator-worker",
+        ];
+
+        for harness in Harness::all() {
+            let files = get_agent_files(*harness);
+            for name in expected {
+                let path = if *harness == Harness::Codex {
+                    format!("{name}/SKILL.md")
+                } else {
+                    format!("{name}.md")
+                };
+                let contents = files
+                    .iter()
+                    .find(|(file_name, _)| *file_name == path)
+                    .unwrap_or_else(|| {
+                        panic!("missing agent template {path} for harness {:?}", harness)
+                    })
+                    .1;
+                let text = std::str::from_utf8(contents).expect("template should be utf8");
+                assert!(
+                    text.contains("ito patch"),
+                    "missing ito patch guidance in {path}"
+                );
+                assert!(
+                    text.contains("ito write"),
+                    "missing ito write guidance in {path}"
+                );
+            }
+        }
     }
 
     #[test]

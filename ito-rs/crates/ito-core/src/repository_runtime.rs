@@ -11,6 +11,10 @@ use ito_config::ito_dir::{absolutize_and_normalize, lexical_normalize};
 use ito_config::types::{ItoConfig, RepositoryPersistenceMode};
 use ito_config::{ConfigContext, load_cascading_project_config};
 
+use crate::artifact_mutations::{
+    BundleBackedChangeArtifactMutationService, FsChangeArtifactMutationService,
+    RemoteChangeArtifactBundleClient, SqliteChangeArtifactBundleClient,
+};
 use crate::backend_change_repository::BackendChangeRepository;
 use crate::backend_client::{BackendRuntime, resolve_backend_runtime};
 use crate::backend_http::BackendHttpClient;
@@ -24,6 +28,7 @@ use crate::spec_repository::FsSpecRepository;
 use crate::sqlite_project_store::SqliteBackendProjectStore;
 use crate::task_mutations::{FsTaskMutationService, boxed_fs_task_mutation_service};
 use crate::task_repository::FsTaskRepository;
+use ito_domain::changes::ChangeArtifactMutationService;
 use ito_domain::changes::ChangeRepository;
 use ito_domain::modules::ModuleRepository;
 use ito_domain::specs::SpecRepository;
@@ -73,6 +78,7 @@ pub struct RepositoryRuntime {
     backend_runtime: Option<BackendRuntime>,
     sqlite_runtime: Option<SqliteRuntime>,
     repositories: RepositorySet,
+    change_artifact_mutations: Arc<dyn ChangeArtifactMutationService + Send + Sync>,
 }
 
 impl RepositoryRuntime {
@@ -99,6 +105,11 @@ impl RepositoryRuntime {
     /// Selected repository bundle.
     pub fn repositories(&self) -> &RepositorySet {
         &self.repositories
+    }
+
+    /// Selected active-change artifact mutation service.
+    pub fn change_artifact_mutations(&self) -> &(dyn ChangeArtifactMutationService + Send + Sync) {
+        self.change_artifact_mutations.as_ref()
     }
 }
 
@@ -173,39 +184,53 @@ impl RepositoryRuntimeBuilder {
     pub fn build(self) -> CoreResult<RepositoryRuntime> {
         match self.mode {
             PersistenceMode::Filesystem => {
-                let repositories = filesystem_repository_set(&self.ito_path);
+                let ito_path = self.ito_path;
+                let repositories = filesystem_repository_set(&ito_path);
                 Ok(RepositoryRuntime {
                     mode: PersistenceMode::Filesystem,
-                    ito_path: self.ito_path,
+                    ito_path: ito_path.clone(),
                     backend_runtime: None,
                     sqlite_runtime: None,
                     repositories,
+                    change_artifact_mutations: Arc::new(FsChangeArtifactMutationService::new(
+                        ito_path,
+                    )),
                 })
             }
             PersistenceMode::Sqlite => {
+                let ito_path = self.ito_path;
                 let runtime = self.sqlite_runtime.ok_or_else(|| {
                     CoreError::validation("sqlite mode requires sqlite runtime".to_string())
                 })?;
                 let repositories = sqlite_repository_set(&runtime)?;
+                let artifact_mutations = Arc::new(BundleBackedChangeArtifactMutationService::new(
+                    SqliteChangeArtifactBundleClient::new(&runtime),
+                ));
                 Ok(RepositoryRuntime {
                     mode: PersistenceMode::Sqlite,
-                    ito_path: self.ito_path,
+                    ito_path,
                     backend_runtime: None,
                     sqlite_runtime: Some(runtime),
                     repositories,
+                    change_artifact_mutations: artifact_mutations,
                 })
             }
             PersistenceMode::Remote => {
+                let ito_path = self.ito_path;
                 let runtime = self.backend_runtime.ok_or_else(|| {
                     CoreError::validation("remote mode requires backend runtime".to_string())
                 })?;
                 let repositories = self.remote_factory.build(&runtime)?;
+                let artifact_mutations = Arc::new(BundleBackedChangeArtifactMutationService::new(
+                    RemoteChangeArtifactBundleClient::new(BackendHttpClient::new(runtime.clone())),
+                ));
                 Ok(RepositoryRuntime {
                     mode: PersistenceMode::Remote,
-                    ito_path: self.ito_path,
+                    ito_path,
                     backend_runtime: Some(runtime),
                     sqlite_runtime: None,
                     repositories,
+                    change_artifact_mutations: artifact_mutations,
                 })
             }
         }

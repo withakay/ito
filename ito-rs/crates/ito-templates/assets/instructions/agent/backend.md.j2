@@ -133,6 +133,8 @@ When backend mode is enabled, treat the CLI as the primary interface for active 
 
 - Local `.ito/changes/*` and `.ito/specs/*` content may be absent by design; do not create markdown manually to compensate.
 - Use `ito show <change-or-spec>` and `ito show specs` for reads.
+- Use `ito patch change <change-id> <proposal|design|tasks>` and `ito write change <change-id> <proposal|design|tasks>` for active-work artifact mutations.
+- Use `ito patch change <change-id> spec <capability>` and `ito write change <change-id> spec <capability>` for change-local spec delta updates.
 - Use `ito tasks ...` for task mutations and `ito tasks sync pull <change-id>` when you need a local working copy for grep/diff.
 - Use `ito archive <change-id>` to promote specs and archive changes; this updates both the backend mirror and local Git projection.
 - Treat Git-projected files as scan/backup surfaces, not the source of truth for active mutations.

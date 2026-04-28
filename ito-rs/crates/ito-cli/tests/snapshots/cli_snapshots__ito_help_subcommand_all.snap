@@ -20,6 +20,8 @@ Commands:
   status        Check completion status of change artifacts [aliases: st]
   validate      Check changes, specs, and modules for errors and warnings [aliases: va]
   archive       Move a completed change to archive and update main specs [aliases: ar]
+  patch         Apply a targeted patch to an active change artifact
+  write         Replace an active change artifact completely
   sync          Validate and synchronize coordination worktree state
   grep          Search Ito change artifacts using a regular expression [aliases: gr]
   tasks         Manage implementation tasks for a change [aliases: ts]
@@ -300,6 +302,56 @@ Options:
       --no-validate
           Skip validation checks
 
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito patch
+---------
+Apply a targeted patch to an active change artifact
+
+Uses repository-runtime-selected persistence to patch an active-work
+change artifact such as `proposal.md`, `design.md`, the tracking
+artifact, or a change-local spec delta.
+
+Examples:
+  printf '%s' '`<patch>`' | ito patch change 025-11_repository-backed-artifact-mutations proposal
+  printf '%s' '`<patch>`' | ito patch change 025-11_repository-backed-artifact-mutations spec backend-agent-instructions
+
+Usage: ito patch <COMMAND>
+
+Commands:
+  change  Mutate an artifact inside an active change
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+--------------------------------------------------------------------------------
+
+ito write
+---------
+Replace an active change artifact completely
+
+Uses repository-runtime-selected persistence to write an active-work
+change artifact such as `proposal.md`, `design.md`, the tracking
+artifact, or a change-local spec delta.
+
+Examples:
+  printf '%s' '`<content>`' | ito write change 025-11_repository-backed-artifact-mutations proposal
+  printf '%s' '`<content>`' | ito write change 025-11_repository-backed-artifact-mutations spec backend-agent-instructions
+
+Usage: ito write <COMMAND>
+
+Commands:
+  change  Mutate an artifact inside an active change
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
   -h, --help
           Print help (see a summary with '-h')
 

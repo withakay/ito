@@ -33,6 +33,7 @@ grep-regex = { workspace = true }
 grep-searcher = { workspace = true }
 ureq = { workspace = true }
 tempfile = { workspace = true }
+diffy = { workspace = true }
 
 [dev-dependencies]
 assert-struct = "0.2"

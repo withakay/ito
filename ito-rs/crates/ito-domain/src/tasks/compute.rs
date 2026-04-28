@@ -42,7 +42,11 @@ pub fn compute_ready_and_blocked(
             .filter(|t| t.status == TaskStatus::Pending)
             .cloned()
             .collect();
+<<<<<<< HEAD
         ready.sort_by_key(|task| task.header_line_index);
+=======
+        ready.sort_by_key(|a| a.header_line_index);
+>>>>>>> a84c6b98 (feat(cli): add repository-backed artifact mutation commands)
         return (ready, Vec::new());
     }
 

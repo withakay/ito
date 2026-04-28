@@ -171,6 +171,21 @@ Use `ito tasks` CLI commands for all task state changes (emits audit events auto
 Avoid editing `tasks.md` directly, but if you do, run `ito audit reconcile --change {{ instructions.changeName }} --fix` immediately after.
 Run `ito audit reconcile --change {{ instructions.changeName }}` before archiving.
 
+### Ito Artifact Mutation
+
+When you need to change Ito active-work artifacts for this change, use Ito's artifact mutation commands instead of direct file edits:
+
+```bash
+ito patch change {{ instructions.changeName }} proposal
+ito write change {{ instructions.changeName }} design
+ito patch change {{ instructions.changeName }} tasks
+ito write change {{ instructions.changeName }} spec <capability>
+```
+
+- Use `ito patch` for targeted diffs against an existing artifact.
+- Use `ito write` for complete replacement of an artifact's contents.
+- Keep using ordinary file-edit tools for non-Ito project code.
+
 ### Instruction
 {{ instructions.instruction }}
 {% if worktree.enabled and worktree.apply_enabled %}

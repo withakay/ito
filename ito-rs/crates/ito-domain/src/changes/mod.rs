@@ -3,8 +3,13 @@
 //! This module provides domain models for Ito changes and a repository
 //! for loading and querying change data.
 
+mod mutations;
 mod repository;
 
+pub use mutations::{
+    ChangeArtifactKind, ChangeArtifactMutationError, ChangeArtifactMutationResult,
+    ChangeArtifactMutationService, ChangeArtifactMutationServiceResult, ChangeArtifactRef,
+};
 pub use repository::{
     ChangeLifecycleFilter, ChangeRepository, ChangeTargetResolution, ResolveTargetOptions,
 };

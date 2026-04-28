@@ -5,30 +5,33 @@ use clap::builder::styling::{AnsiColor, Color, Style};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod agent;
+mod artifact;
+#[cfg(feature = "backend")]
+mod backend;
 mod grep;
 mod path;
 mod ralph;
 mod split;
+mod status_args;
 mod util;
 mod validate;
 mod worktree;
-
-#[cfg(feature = "backend")]
-mod backend;
-
 pub use crate::app::trace::TraceArgs;
 pub use agent::{AgentArgs, AgentCommand, AgentInstructionArgs};
+pub use artifact::{
+    ChangeArtifactSelector, ChangeArtifactTargetArgs, ChangeArtifactTargetCommand, PatchArgs,
+    WriteArgs,
+};
+#[cfg(feature = "backend")]
+pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
 pub use grep::GrepArgs;
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
 pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
+pub use status_args::{StatusArgs, SyncArgs};
 pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
 pub use validate::{ValidateCommand, ValidateItemType};
 pub use worktree::{WorktreeArgs, WorktreeCommand, WorktreeValidateArgs};
-
-#[cfg(feature = "backend")]
-pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
-
 #[cfg(test)]
 #[path = "cli_tests.rs"]
 mod cli_tests;
@@ -147,6 +150,30 @@ pub enum Commands {
     ///   ito archive 005-01_add-auth -y --skip-specs
     #[command(verbatim_doc_comment, visible_alias = "ar")]
     Archive(ArchiveArgs),
+
+    /// Apply a targeted patch to an active change artifact
+    ///
+    /// Uses repository-runtime-selected persistence to patch an active-work
+    /// change artifact such as `proposal.md`, `design.md`, the tracking
+    /// artifact, or a change-local spec delta.
+    ///
+    /// Examples:
+    ///   printf '%s' '`<patch>`' | ito patch change 025-11_repository-backed-artifact-mutations proposal
+    ///   printf '%s' '`<patch>`' | ito patch change 025-11_repository-backed-artifact-mutations spec backend-agent-instructions
+    #[command(verbatim_doc_comment)]
+    Patch(PatchArgs),
+
+    /// Replace an active change artifact completely
+    ///
+    /// Uses repository-runtime-selected persistence to write an active-work
+    /// change artifact such as `proposal.md`, `design.md`, the tracking
+    /// artifact, or a change-local spec delta.
+    ///
+    /// Examples:
+    ///   printf '%s' '`<content>`' | ito write change 025-11_repository-backed-artifact-mutations proposal
+    ///   printf '%s' '`<content>`' | ito write change 025-11_repository-backed-artifact-mutations spec backend-agent-instructions
+    #[command(verbatim_doc_comment)]
+    Write(WriteArgs),
 
     /// Validate and synchronize coordination worktree state
     ///
@@ -1109,34 +1136,6 @@ pub struct ArchiveArgs {
     /// Skip validation checks
     #[arg(long = "no-validate")]
     pub no_validate: bool,
-}
-
-/// Synchronize coordination worktree state.
-#[derive(Args, Debug, Clone, Default)]
-pub struct SyncArgs {
-    /// Bypass redundant-push suppression for this invocation
-    #[arg(long)]
-    pub force: bool,
-
-    /// Output as JSON when supported by the handler
-    #[arg(long)]
-    pub json: bool,
-}
-
-/// Display artifact completion status for a change.
-#[derive(Args, Debug, Clone)]
-pub struct StatusArgs {
-    /// Change id (directory name)
-    #[arg(short = 'c', long)]
-    pub change: Option<String>,
-
-    /// Workflow schema name
-    #[arg(long)]
-    pub schema: Option<String>,
-
-    /// Output as JSON
-    #[arg(long)]
-    pub json: bool,
 }
 
 /// Validate changes, specs, and modules.

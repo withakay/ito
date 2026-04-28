@@ -68,6 +68,7 @@ grep-searcher = "0.1"
 pulldown-cmark = "0.11.3"
 minijinja = "1"
 schemars = "0.8.22"
+diffy = "0.5.0"
 
 [workspace.dependencies.insta]
 version = "1.42.0"

@@ -12,6 +12,9 @@
 /// Archive completed changes and update specifications.
 pub mod archive;
 
+/// Active change artifact mutation services for runtime-selected persistence.
+pub mod artifact_mutations;
+
 /// Backend server authentication setup and token resolution.
 pub mod backend_auth;
 
@@ -186,7 +189,9 @@ pub use ito_domain::backend::{
     EventBatch, EventIngestResult, LeaseConflict, PushResult, ReleaseResult, RevisionConflict,
 };
 pub use ito_domain::changes::{
-    Change, ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
+    Change, ChangeArtifactKind, ChangeArtifactMutationError, ChangeArtifactMutationResult,
+    ChangeArtifactMutationService, ChangeArtifactMutationServiceResult, ChangeArtifactRef,
+    ChangeLifecycleFilter, ChangeRepository, ChangeSummary, ChangeTargetResolution,
 };
 pub use ito_domain::errors::DomainError;
 pub use ito_domain::modules::{Module, ModuleRepository, ModuleSummary};

@@ -1,3 +1,4 @@
+pub(crate) mod artifacts;
 pub(crate) mod audit;
 #[cfg(feature = "backend")]
 pub(crate) mod backend;
@@ -20,6 +21,7 @@ pub(crate) mod util;
 pub(crate) mod view;
 pub(crate) mod worktree;
 
+pub(crate) use artifacts::{handle_patch_clap, handle_write_clap};
 pub(crate) use audit::handle_audit_clap;
 #[cfg(feature = "backend")]
 pub(crate) use backend::handle_backend_clap;
