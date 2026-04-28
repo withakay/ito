@@ -3,13 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 880,
+      "tokens": 1500,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "development/_index.md",
-      "tokens": 940,
+      "tokens": 1450,
       "type": "summary"
     },
     {
@@ -21,7 +21,13 @@
     {
       "order": 1,
       "path": "development/ito_workflow/_index.md",
-      "tokens": 335,
+      "tokens": 581,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/release_workflow/_index.md",
+      "tokens": 780,
       "type": "summary"
     },
     {
@@ -30,6 +36,20 @@
       "importance": 50,
       "path": "development/ito_templates/template_bundle_retrofit.md",
       "tokens": 72,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "development/ito_workflow/context.md",
+      "tokens": 84,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/published_ito_mirror.abstract.md",
+      "abstractTokens": 50,
+      "importance": 50,
+      "path": "development/ito_workflow/published_ito_mirror.md",
+      "tokens": 50,
       "type": "context"
     },
     {
@@ -67,11 +87,11 @@
   ],
   "generated_at": "2026-04-28T06:55:00.000Z",
   "lane_tokens": {
-    "contexts": 312,
+    "contexts": 446,
     "stubs": 0,
-    "summaries": 2155
+    "summaries": 4642
   },
-  "source_fingerprint": "merged-worktree-validation-release-guardrails-manifesto-notes",
-  "total_tokens": 2467,
+  "source_fingerprint": "merged-worktree-validation-release-guardrails-manifesto-notes-and-published-mirror",
+  "total_tokens": 5088,
   "version": 1
 }

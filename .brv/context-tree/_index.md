@@ -1,27 +1,29 @@
 ---
-children_hash: merged-development-index
+children_hash: merged-development-index-published-mirror-manifesto
 compression_ratio: 0.78
 condensation_order: 3
 covers: [development/_index.md]
-covers_token_total: 1100
+covers_token_total: 1900
 summary_level: d3
-token_count: 880
+token_count: 1500
 type: summary
 ---
 # Development Overview
 
-This domain groups operational knowledge for Ito template retrofits, worktree validation, manifesto instruction behavior, and release/build orchestration. Across all areas, the common pattern is safe automation with explicit machine-readable outcomes while preserving already-correct artifacts.
+This domain groups operational knowledge for Ito template retrofits, workflow publication and validation, release/build governance, and manifesto instruction behavior. Across all areas, the common pattern is safe automation with explicit machine-readable outcomes while preserving already-correct artifacts and keeping writable coordination state authoritative.
 
 ## ITO Templates - `template_bundle_retrofit.md`
 - Standardizes plain markdown assets under `ito-rs/crates/ito-templates/assets` by adding `<!-- ITO:START -->` / `<!-- ITO:END -->` markers.
 - Only unmarked `.md` files are eligible; already marked files are left unchanged.
 - Verification confirmed no unmarked adapter samples in `ito-rs/crates/ito-templates/assets/adapters`, so no adapter markdown was modified.
 
-## ITO Workflow - `worktree_validation_flow.md`
-- Uses `ito worktree validate --change <id> [--json]` as a dedicated read-only validation path for change work.
-- Produces machine-readable status for OpenCode pre-tool hooks so they can distinguish unsafe states from recoverable mismatches.
-- Hard-fail rule: main/control checkouts are failures.
-- Advisory rule: non-main mismatches are not fatal; they return guidance and recovery instructions.
+## ITO Workflow - `published_ito_mirror.md` / `worktree_validation_flow.md`
+- Covers two complementary concerns: publishing a read-only mirror of coordination-backed state and validating worktrees safely during change work.
+- Authoritative writable state remains in coordination storage; `docs/ito` is generated as a consumable read-only mirror for plain GitHub/main checkouts.
+- Mirror path handling is safety-first: project-relative, configurable, and strictly validated before generation.
+- The published mirror is deterministic and excludes symlinks, making it safe for consumption without exposing writable state.
+- `ito worktree validate --change <id> [--json]` emits machine-readable status for hooks.
+- Main/control checkouts are hard failures; non-main mismatches are advisory and include recovery guidance.
 - Matching uses exact change-id prefixes to avoid false positives, including suffix worktrees such as `<change>-review`.
 
 ## Release Workflow - `release_workflow.md` / `build_and_coverage_guardrails.md`

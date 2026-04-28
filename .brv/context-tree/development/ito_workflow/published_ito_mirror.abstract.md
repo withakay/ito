@@ -1,0 +1,1 @@
+Ito publish mirrors coordination-backed state into a read-only docs/ito tree with safe path validation, deterministic generation, symlink skipping, and drift-detecting replacement from the publish CLI.
