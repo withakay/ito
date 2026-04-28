@@ -29,7 +29,7 @@ ______________________________________________________________________
 - **Done When**: The scoped rename surface is identified without including top-level `ito-orchestrator` or `ito-orchestrator-workflow`.
 - **Requirements**: `template-assets:orchestration-asset-names`
 - **Updated At**: 2026-04-28
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Rename source templates, manifests, and managed assets
 
