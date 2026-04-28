@@ -87,3 +87,7 @@ fn collect_paths(dir: &'static Dir<'static>, out: &mut Vec<&'static str>) {
 #[cfg(test)]
 #[path = "instructions_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "instructions_manifesto_tests.rs"]
+mod manifesto_tests;

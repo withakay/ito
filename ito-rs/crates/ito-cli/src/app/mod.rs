@@ -5,6 +5,7 @@ mod grep;
 mod init;
 mod instructions;
 mod list;
+mod manifesto_instructions;
 mod memory_instructions;
 mod run;
 mod show;

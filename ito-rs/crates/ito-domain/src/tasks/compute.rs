@@ -42,7 +42,7 @@ pub fn compute_ready_and_blocked(
             .filter(|t| t.status == TaskStatus::Pending)
             .cloned()
             .collect();
-        ready.sort_by(|a, b| a.header_line_index.cmp(&b.header_line_index));
+        ready.sort_by_key(|task| task.header_line_index);
         return (ready, Vec::new());
     }
 

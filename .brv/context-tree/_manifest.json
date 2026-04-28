@@ -3,13 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 720,
+      "tokens": 880,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "development/_index.md",
-      "tokens": 860,
+      "tokens": 940,
       "type": "summary"
     },
     {
@@ -41,6 +41,14 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/release_workflow/manifesto_instruction_implementation_notes.abstract.md",
+      "abstractTokens": 54,
+      "importance": 50,
+      "path": "development/release_workflow/manifesto_instruction_implementation_notes.md",
+      "tokens": 54,
+      "type": "context"
+    },
+    {
       "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
       "abstractTokens": 47,
       "importance": 50,
@@ -57,13 +65,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-27T09:45:00.000Z",
+  "generated_at": "2026-04-28T06:55:00.000Z",
   "lane_tokens": {
-    "contexts": 258,
+    "contexts": 312,
     "stubs": 0,
-    "summaries": 2246
+    "summaries": 2155
   },
-  "source_fingerprint": "merged-worktree-validation-and-release-guardrails",
-  "total_tokens": 2504,
+  "source_fingerprint": "merged-worktree-validation-release-guardrails-manifesto-notes",
+  "total_tokens": 2467,
   "version": 1
 }

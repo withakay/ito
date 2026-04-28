@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 133
 expression: "snapshot(&[\"agent\", \"instruction\", \"-h\"])"
 ---
 Generate enriched instructions
@@ -11,19 +10,22 @@ Arguments:
   <ARTIFACT>  Artifact id (e.g. bootstrap, apply, proposal)
 
 Options:
-  -c, --change <CHANGE>    Change id (directory name)
-      --no-color           Disable color output
-      --help-all           Print the full CLI reference (equivalent to `ito help --all`)
-      --tool <TOOL>        Tool name for bootstrap (opencode|claude|codex)
-      --schema <SCHEMA>    Workflow schema name
-      --json               Output as JSON
-      --context <CONTEXT>  Free-form context for `memory-capture`
-      --file <FILE>        File path for `memory-capture` (repeatable)
-      --folder <FOLDER>    Folder path for `memory-capture` (repeatable)
-      --query <QUERY>      Search/query input for `memory-search` and `memory-query`
-      --limit <LIMIT>      Limit for `memory-search` (positive integer)
-      --scope <SCOPE>      Scope for `memory-search`
-  -h, --help               Print help
+  -c, --change <CHANGE>        Change id (directory name)
+      --no-color               Disable color output
+      --help-all               Print the full CLI reference (equivalent to `ito help --all`)
+      --tool <TOOL>            Tool name for bootstrap (opencode|claude|codex)
+      --schema <SCHEMA>        Workflow schema name
+      --json                   Output as JSON
+      --variant <VARIANT>      Manifesto output variant (light|full)
+      --profile <PROFILE>      Manifesto capability profile (planning|proposal-only|review-only|apply|archive|full)
+      --operation <OPERATION>  Manifesto operation selector for full renders
+      --context <CONTEXT>      Free-form context for `memory-capture`
+      --file <FILE>            File path for `memory-capture` (repeatable)
+      --folder <FOLDER>        Folder path for `memory-capture` (repeatable)
+      --query <QUERY>          Search/query input for `memory-search` and `memory-query`
+      --limit <LIMIT>          Limit for `memory-search` (positive integer)
+      --scope <SCOPE>          Scope for `memory-search`
+  -h, --help                   Print help
 
 Artifacts:
   bootstrap                          Generate a tool bootstrap preamble
@@ -33,6 +35,7 @@ Artifacts:
   repo-sweep                         Scan for old-only ID format assumptions in prompts and templates
   migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage
   orchestrate                        Orchestrate applying a set of changes via an orchestrator agent
+  manifesto                          Generate a strict Ito manifesto for prompt-only execution
   proposal                           Show the change proposal
   specs                              Show the specification deltas
   tasks                              Show the implementation task list
@@ -52,6 +55,9 @@ Examples:
   ito agent instruction repo-sweep
   ito agent instruction migrate-to-coordination-worktree
   ito agent instruction orchestrate
+  ito agent instruction manifesto
+  ito agent instruction manifesto --variant full --profile proposal-only
+  ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
   ito agent instruction archive

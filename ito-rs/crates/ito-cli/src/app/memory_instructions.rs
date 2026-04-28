@@ -248,6 +248,26 @@ fn emit_rendered(rendered: RenderedInstruction, artifact: &str, want_json: bool)
     }
 }
 
+pub(crate) fn render_memory_instruction_text(
+    rendered: &RenderedInstruction,
+    artifact: &str,
+) -> Option<String> {
+    match rendered {
+        RenderedInstruction::Command { line } => Some(render_command_text(artifact, line)),
+        RenderedInstruction::Skill {
+            skill_id,
+            inputs,
+            options,
+        } => Some(render_skill_text(
+            artifact,
+            skill_id,
+            inputs,
+            options.as_ref(),
+        )),
+        RenderedInstruction::NotConfigured { operation: _ } => None,
+    }
+}
+
 fn render_command_text(artifact: &str, line: &str) -> String {
     let header = match artifact {
         "memory-capture" => "Capture this memory by running:",

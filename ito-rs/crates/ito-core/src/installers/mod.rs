@@ -924,16 +924,12 @@ fn install_agent_templates(
 
             match mode {
                 InstallMode::Init => {
-                    if target.exists() {
-                        if !opts.force {
-                            if opts.update {
-                                let rendered = render_and_stamp_agent(contents, config, &target);
-                                update_existing_agent_template(
-                                    &target, &rendered, mode, opts, config,
-                                )?;
-                            }
-                            continue;
+                    if target.exists() && !opts.force {
+                        if opts.update {
+                            let rendered = render_and_stamp_agent(contents, config, &target);
+                            update_existing_agent_template(&target, &rendered, mode, opts, config)?;
                         }
+                        continue;
                     }
 
                     let rendered = render_and_stamp_agent(contents, config, &target);
