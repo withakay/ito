@@ -5,7 +5,7 @@ tools: read, grep, find, ls, glob
 model: "claude-sonnet-4-6"
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 You are the Ito Orchestrator Researcher. Gather context for an orchestrator without changing the repository.
 
 ## Rules

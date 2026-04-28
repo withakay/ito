@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{DateTime, Duration, Utc};
@@ -14,6 +15,7 @@ use super::writer::audit_log_path;
 
 const MAX_GIT_AUDIT_EVENTS: usize = 1000;
 const MAX_GIT_AUDIT_AGE_DAYS: i64 = 30;
+static TEMP_NAME_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Failure details from an audit mirror sync attempt.
 #[derive(Debug, thiserror::Error)]
@@ -790,20 +792,22 @@ fn render_output(out: &crate::process::ProcessOutput) -> String {
 
 fn unique_temp_worktree_path() -> PathBuf {
     let pid = std::process::id();
+    let sequence = TEMP_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
     let nanos = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => duration.as_nanos(),
         Err(_) => 0,
     };
-    std::env::temp_dir().join(format!("ito-audit-mirror-{pid}-{nanos}"))
+    std::env::temp_dir().join(format!("ito-audit-mirror-{pid}-{nanos}-{sequence}"))
 }
 
 fn unique_orphan_branch_name() -> String {
     let pid = std::process::id();
+    let sequence = TEMP_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
     let nanos = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(duration) => duration.as_nanos(),
         Err(_) => 0,
     };
-    format!("ito-audit-mirror-orphan-{pid}-{nanos}")
+    format!("ito-audit-mirror-orphan-{pid}-{nanos}-{sequence}")
 }
 
 struct WorktreeCleanup {

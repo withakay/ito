@@ -11,7 +11,7 @@ tools:
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 
 You are the Test Runner, a focused subagent that executes tests and reports only relevant outcomes.

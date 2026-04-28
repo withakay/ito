@@ -4,7 +4,7 @@ description: Read-only researcher for Ito orchestration context gathering
 tools: read, grep, find, ls
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 You are the Ito Orchestrator Researcher. Gather context for an orchestrator without changing the repository.
 
 ## Rules

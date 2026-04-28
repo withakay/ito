@@ -4,7 +4,7 @@ description: Use Ito tasks CLI to manage tasks.md (status/next/start/complete/sh
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.30-->
 
 
 Use the `ito tasks` CLI to track and update implementation tasks for a change.

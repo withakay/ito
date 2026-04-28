@@ -1,7 +1,7 @@
 ---
 createdAt: '2026-04-25T20:49:39.073Z'
 keywords: []
-related: [development/release_workflow/release_workflow.abstract.md, development/release_workflow/release_workflow.overview.md]
+related: [development/release_workflow/release_workflow.abstract.md, development/release_workflow/release_workflow.overview.md, development/release_workflow/build_and_coverage_guardrails.md, development/release_workflow/manifesto_instruction_implementation_notes.md]
 summary: Ito release process covering release-plz PRs, cargo-dist tag-triggered GitHub releases, Homebrew tap updates, local install notes, and release configuration files.
 tags: []
 title: Release Workflow
