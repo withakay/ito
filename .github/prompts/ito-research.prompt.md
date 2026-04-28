@@ -10,7 +10,7 @@ $ARGUMENTS
 </Topic>
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 Load and follow the `ito-research` skill. Pass the <Topic> block as input.
 

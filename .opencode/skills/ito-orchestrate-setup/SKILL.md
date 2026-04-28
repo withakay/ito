@@ -4,7 +4,7 @@ description: Set up orchestration defaults, presets, and workflow guidance for a
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 
 Set up the project to use the orchestrator.

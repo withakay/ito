@@ -4,7 +4,7 @@ description: Ito workflow delegation - delegates all workflow content to Ito CLI
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 
 This skill delegates workflow operations to the Ito CLI.

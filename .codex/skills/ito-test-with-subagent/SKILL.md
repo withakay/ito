@@ -4,7 +4,7 @@ description: Use when tests need to be run with minimal output noise and delegat
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 
 # Ito Test With Subagent

@@ -4,7 +4,7 @@ description: Create atomic git commits aligned to Ito changes. Use when you want
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 Create atomic git commits aligned to Ito changes.
 

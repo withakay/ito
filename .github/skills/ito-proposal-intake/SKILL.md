@@ -4,7 +4,7 @@ description: Clarify a requested change before scaffolding a proposal, then reco
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 
 Use this before proposal scaffolding when the request is underspecified or when starting from an intent-biased entrypoint such as `ito-fix` or `ito-feature`.

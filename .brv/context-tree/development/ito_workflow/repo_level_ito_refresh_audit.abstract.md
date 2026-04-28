@@ -1,0 +1,1 @@
+Repo-level Ito refresh audits define managed assets under ito-rs/crates/ito-templates/assets/skills and assets/commands plus ito-project-setup, confirm no ito-* orphans, and verify reruns are idempotent.

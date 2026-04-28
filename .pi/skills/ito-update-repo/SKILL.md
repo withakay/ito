@@ -4,7 +4,7 @@ description: Refresh Ito-managed assets in a project and prune stray skills/comm
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 # Skill: ito-update-repo
 

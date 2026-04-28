@@ -1,30 +1,35 @@
 ---
-children_hash: 38404905b38580e4f234bd3c73a78549167c24824ddea9ce6e88005137f16d39
-compression_ratio: 0.6504854368932039
+children_hash: 1679a12bedaeb4588be6b1cf411664756ea0c992690cdeb1895e02e4b5ef2fa8
+compression_ratio: 0.3681632653061224
 condensation_order: 1
-covers: [worktree_validation_flow.md]
-covers_token_total: 515
+covers: [repo_level_ito_refresh_audit.md, worktree_validation_flow.md]
+covers_token_total: 1225
 summary_level: d1
-token_count: 335
+token_count: 451
 type: summary
 ---
-## Worktree Validation Flow
+# Development / Ito Workflow
 
-The worktree validation knowledge centers on a dedicated read-only validation path for change work, documented in **worktree_validation_flow.md**. The key design shift is that `ito worktree validate --change <id> [--json]` now emits machine-readable status for OpenCode pre-tool hooks, enabling them to distinguish unsafe states from recoverable ones.
+This level groups two related workflow notes for the Ito repo: one about **repo-level refresh auditing** and one about **worktree validation behavior**. Together they describe how the Ito tooling stays safe and repeatable across managed harness assets and change-specific worktrees.
 
-### Core behavior
-- **Hard-fail policy:** main/control checkouts are treated as hard failures.
-- **Advisory policy:** mismatches outside main are not fatal; they return guidance and recovery instructions.
-- **Matching rule:** validation uses exact change-id prefixes to avoid false positives, including suffix worktrees such as `<change>-review`.
+## repo_level_ito_refresh_audit.md
+- Defines the scope of **managed Ito harness assets** for refreshes:
+  - `ito-rs/crates/ito-templates/assets/skills`
+  - `ito-rs/crates/ito-templates/assets/commands`
+  - default project command: `ito-project-setup`
+- Establishes the refresh flow:
+  - refresh harness assets -> audit for `ito-*` orphans -> skip user-owned entries -> rerun `ito init --update --tools all` -> confirm unchanged git diff hash
+- Key outcome: **no `ito-*` orphan skills or commands remained**, and rerunning the refresh was **idempotent**.
+- Important boundary: non-Ito files such as `.claude/skills/byterover*` and `.opencode/commands/compare-workflow-tool.md` are **user-owned** and must not be touched.
+- Drill down for details on audit scope, idempotence, and ownership rules.
 
-### Structural relationship
-- The validation command produces status output consumed by **OpenCode pre-tool hooks**, which rely on the machine-readable format to gate execution correctly.
-- The flow is explicitly separated into:
-  1. validate worktree
-  2. emit machine-readable status
-  3. hard-fail on main/control checkout
-  4. otherwise return advisory mismatch guidance
-  5. match exact change-id prefixes
-
-### Key takeaway
-This entry documents a safer validation model that blocks only dangerous main/control cases while reducing false positives and preserving actionable guidance for non-main mismatches.
+## worktree_validation_flow.md
+- Documents the dedicated **read-only worktree validation flow** used by `ito worktree validate --change <id> [--json]`.
+- Validation behavior:
+  - emits **machine-readable status**
+  - **hard-fails** main/control checkouts
+  - returns **advisory mismatch guidance** for non-main mismatches
+  - matches on **exact change-id prefixes** to avoid false positives
+- Key relationship: OpenCode **pre-tool hooks** depend on the machine-readable status to gate execution correctly.
+- Important nuance: suffix worktrees like `<change>-review` are handled by prefix matching, not broad substring matching.
+- Drill down for the CLI policy, failure modes, and matching rules.

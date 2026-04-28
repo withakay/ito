@@ -10,7 +10,7 @@ $ARGUMENTS
 </UserRequest>
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 Load and follow the `ito-apply` skill. Pass the <UserRequest> block as input.
 

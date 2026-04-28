@@ -4,7 +4,7 @@ description: Start a fix-oriented Ito change proposal with fix-biased intake and
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.27-->
+<!--ITO:VERSION:0.1.29-->
 
 
 Use this when the user frames the work as a fix, regression, correction, or supporting platform/tooling/infrastructure change that should be handled like a fix.

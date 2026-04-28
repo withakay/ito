@@ -3,25 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 720,
+      "tokens": 954,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "development/_index.md",
-      "tokens": 860,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/ito_templates/_index.md",
-      "tokens": 331,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/ito_workflow/_index.md",
-      "tokens": 335,
+      "tokens": 960,
       "type": "summary"
     },
     {
@@ -33,19 +21,27 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/ito_workflow/repo_level_ito_refresh_audit.abstract.md",
+      "abstractTokens": 51,
+      "importance": 50,
+      "path": "development/ito_workflow/repo_level_ito_refresh_audit.md",
+      "tokens": 51,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
+      "abstractTokens": 48,
+      "importance": 50,
+      "path": "development/ito_workflow/worktree_validation_flow.md",
+      "tokens": 48,
+      "type": "context"
+    },
+    {
       "abstractPath": "development/release_workflow/build_and_coverage_guardrails.abstract.md",
       "abstractTokens": 54,
       "importance": 50,
       "path": "development/release_workflow/build_and_coverage_guardrails.md",
       "tokens": 54,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
-      "abstractTokens": 47,
-      "importance": 50,
-      "path": "development/ito_workflow/worktree_validation_flow.md",
-      "tokens": 47,
       "type": "context"
     },
     {
@@ -57,13 +53,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-27T09:45:00.000Z",
+  "generated_at": "2026-04-28T04:27:11.339Z",
   "lane_tokens": {
-    "contexts": 258,
+    "contexts": 310,
     "stubs": 0,
-    "summaries": 2246
+    "summaries": 1914
   },
-  "source_fingerprint": "merged-worktree-validation-and-release-guardrails",
-  "total_tokens": 2504,
+  "source_fingerprint": "8ccf2b7bdde4711a2914035748803648048334fd4b02b493a5a8bd0e6afd6eb3",
+  "total_tokens": 2224,
   "version": 1
 }
