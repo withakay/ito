@@ -132,11 +132,8 @@ async fn handle_socket(socket: WebSocket, state: Arc<TerminalState>) {
                     break;
                 }
             }
-            Message::Binary(data) => {
-                if writer.write_all(&data).is_err() {
-                    break;
-                }
-            }
+            Message::Binary(data) if writer.write_all(&data).is_err() => break,
+            Message::Binary(_) => {}
             Message::Close(_) => break,
             _ => {}
         }
