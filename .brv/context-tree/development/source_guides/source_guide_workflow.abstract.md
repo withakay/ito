@@ -1,0 +1,1 @@
+Ito uses source-guide.md files as a code atlas: check nearby guides, refresh stale ones, verify claims against source, and update guides after structural changes.
