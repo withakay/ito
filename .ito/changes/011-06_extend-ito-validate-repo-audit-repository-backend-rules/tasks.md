@@ -92,7 +92,7 @@ ______________________________________________________________________
 - **Done When**: Snapshots are checked in and stable across reruns; `ito validate repo --list-rules` includes the seven new rule ids in deterministic order.
 - **Requirements**: validate-repo-audit-rules:mirror-branch-distinct-from-coordination, validate-repo-repository-rules:sqlite-db-not-committed, validate-repo-backend-rules:url-scheme-valid, validate-repo-backend-rules:project-org-repo-set
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
