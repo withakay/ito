@@ -189,6 +189,7 @@ This project uses **[prek](https://github.com/j178/prek)** (NOT `pre-commit`):
 
 ```bash
 prek install -t commit-msg              # Conventional commit message check
+prek install -t pre-commit              # Lightweight repo validation (ito validate repo --staged --strict)
 prek install -t pre-push                # Full quality gate
 prek run --all-files --stage pre-push   # Run full gate locally
 ```
@@ -197,7 +198,11 @@ prek run --all-files --stage pre-push   # Run full gate locally
 
 - `commit-msg`: conventional commit message validation
 - `pre-push`: full quality gate (format, lint, docs, tests, coverage, guardrails, etc.)
-- `pre-commit`: intentionally no-op via `ito-rs/tools/hooks/pre-commit`
+- `pre-commit`: lightweight repository validation via `ito validate repo --staged --strict`
+  (config-aware rule engine; the script lives at `ito-rs/tools/hooks/pre-commit` and is
+  wired into `.pre-commit-config.yaml` as the `ito-validate-repo` local hook). The heavier
+  quality gates remain at pre-push. To bypass for an emergency commit:
+  `git commit --no-verify`.
 
 ### Agent Commit Workflow
 

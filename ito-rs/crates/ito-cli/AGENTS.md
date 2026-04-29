@@ -18,9 +18,13 @@ src/
 ├── diagnostics.rs          # Diagnostic formatting helpers
 ├── runtime.rs              # Tokio runtime setup
 ├── util.rs                 # CLI utility functions
-├── app/                    # Command implementations (archive, init, list, show, validate, etc.)
+├── app/                    # Command implementations (archive, init, list, show, validate, validate_repo, etc.)
 └── commands/               # Subcommand modules (audit, config, create, tasks, workflow, etc.)
 ```
+
+`app/validate_repo.rs` is the adapter for `ito validate repo`, which dispatches to the
+`ito-core::validate_repo` engine. See [`.ito/architecture.md`](../../../.ito/architecture.md#repository-validation-rules)
+for the rule registry and gating model.
 
 ## Workspace Dependencies
 

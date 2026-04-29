@@ -422,7 +422,21 @@ fn deserialize_config(cfg_value: &serde_json::Value, context: &str) -> CoreResul
         .map_err(|e| CoreError::serde(context.to_string(), e.to_string()))
 }
 
-fn resolved_coordination_worktree_path(
+/// Resolve the on-disk path of the coordination worktree.
+///
+/// Resolution order: explicit `coord.worktree_path` override → `<org>/<repo>`
+/// from `backend.project` or the `origin` remote → (when
+/// `allow_local_fallback`) a deterministic hash-derived local path.
+///
+/// Pass `allow_local_fallback = true` when the call must succeed even
+/// without a remote (for example, the `validate_repo` engine surfacing a
+/// targeted "not configured" diagnostic). Pass `false` when the call
+/// cannot proceed without real remote-derived paths (for example, the
+/// `sync` flow, which writes to that directory).
+///
+/// `pub(crate)` so [`crate::validate_repo`] rules can compute the same
+/// path the lifecycle commands use.
+pub(crate) fn resolved_coordination_worktree_path(
     project_root: &Path,
     ito_path: &Path,
     typed: &ItoConfig,

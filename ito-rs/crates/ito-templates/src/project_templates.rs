@@ -100,7 +100,8 @@ mod tests {
     use super::*;
 
     const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
-    const MAIN_BRANCH_EXCLUSIVE_RULE: &str = "The main worktree is the only worktree that may check out";
+    const MAIN_BRANCH_EXCLUSIVE_RULE: &str =
+        "The main worktree is the only worktree that may check out";
     const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
     const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
 
