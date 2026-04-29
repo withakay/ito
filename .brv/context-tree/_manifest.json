@@ -3,13 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1295,
+      "tokens": 849,
       "type": "summary"
     },
     {
-      "order": 1,
-      "path": "development/ito_templates/_index.md",
-      "tokens": 331,
+      "order": 2,
+      "path": "development/_index.md",
+      "tokens": 890,
       "type": "summary"
     },
     {
@@ -32,6 +32,14 @@
       "importance": 50,
       "path": "development/ito_workflow/context.md",
       "tokens": 106,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/obsolete_specialist_cleanup.abstract.md",
+      "abstractTokens": 50,
+      "importance": 50,
+      "path": "development/ito_workflow/obsolete_specialist_cleanup.md",
+      "tokens": 50,
       "type": "context"
     },
     {
@@ -75,13 +83,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-28T17:12:36.884Z",
+  "generated_at": "2026-04-29T07:19:33.916Z",
   "lane_tokens": {
-    "contexts": 514,
+    "contexts": 564,
     "stubs": 0,
-    "summaries": 1626
+    "summaries": 1739
   },
-  "source_fingerprint": "163901ec0f04d29a5b3852cb9b9c4476a5ccd719c46c8dde40b2adc45c84f63d",
-  "total_tokens": 2140,
+  "source_fingerprint": "3670a0a72545cd3295f8582a215462b8c6ad439f18d136d2a46fd3361359f49c",
+  "total_tokens": 2303,
   "version": 1
 }

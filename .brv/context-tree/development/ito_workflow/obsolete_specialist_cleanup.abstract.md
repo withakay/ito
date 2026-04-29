@@ -1,0 +1,1 @@
+Installer cleanup now pre-removes obsolete ito-orchestrator specialist files and broken symlinks on update or forceful init/reinstall, while preserving coordinator assets and user files on plain init.
