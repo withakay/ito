@@ -197,7 +197,7 @@ ______________________________________________________________________
 - **Done When**: All harness command shells mention pre-commit setup; no harness shell drifts from the canonical version.
 - **Requirements**: ito-update-repo-skill:harness-discoverability
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 5.3: Update project-setup instruction
 
