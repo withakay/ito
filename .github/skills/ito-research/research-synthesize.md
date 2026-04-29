@@ -9,12 +9,7 @@ Combine all research findings into actionable recommendations.
 
 ## Inputs
 
-Read all investigation files and synthesize:
-
-- Stack analysis
-- Feature landscape
-- Architecture patterns
-- Pitfalls research
+Read all investigation files and synthesize stack analysis, feature landscape, architecture patterns, and pitfalls research.
 
 ## Output Format
 
@@ -33,15 +28,12 @@ Read all investigation files and synthesize:
 ## Feature Prioritization
 
 ### Phase 1 (MVP)
-
 - Feature list for initial release
 
 ### Phase 2
-
 - Features for next iteration
 
 ### Future
-
 - Long-term features
 
 ## Architecture Decision
@@ -52,7 +44,7 @@ Read all investigation files and synthesize:
 
 ## Risk Mitigation
 
-Top pitfalls and how we'll avoid them:
+Top pitfalls and mitigations:
 
 1. Risk → Mitigation
 1. Risk → Mitigation
@@ -65,6 +57,6 @@ Top pitfalls and how we'll avoid them:
 
 ## Open Questions
 
-Questions requiring further investigation or stakeholder input.
+Questions needing more research or stakeholder input.
 
 <!-- ITO:END -->

@@ -9,8 +9,7 @@ Find security vulnerabilities in the proposed changes for: **{{change_id}}**
 
 ## Perspective
 
-You are a security researcher. Assume attackers are sophisticated and motivated.
-Find ways to exploit, bypass, or abuse the proposed system.
+Assume motivated attackers and look for ways to exploit, bypass, or abuse the proposed system.
 
 ## Process
 
@@ -46,7 +45,7 @@ List entry points and trust boundaries.
 
 ## Recommendations
 
-Proactive security improvements beyond specific findings.
+Proactive improvements beyond specific findings.
 
 ## Verdict
 

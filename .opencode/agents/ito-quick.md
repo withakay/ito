@@ -1,7 +1,7 @@
 ---
 description: Fast, cost-effective agent for simple tasks, quick queries, and small code changes
 mode: subagent
-model: "anthropic/claude-sonnet-4-6"
+model: "anthropic/claude-haiku-4-5"
 temperature: 0.3
 tools:
   read: true

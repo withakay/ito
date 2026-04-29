@@ -1,10 +1,10 @@
 ---
-createdAt: '2026-04-29T11:07:01.673Z'
-keywords: []
-related: [development/release_workflow/release_workflow.md, development/release_workflow/build_and_coverage_guardrails.md, development/release_workflow/manifesto_instruction_implementation_notes.md]
+title: Release-plz Guardrails
 summary: Release-plz runs from repo root with allow_dirty disabled, workspace changelog updates enabled, and the release workflow must keep .ito coordination paths gitignored while untracking any already tracked ignored files.
 tags: []
-title: Release-plz Guardrails
+related: [development/release_workflow/release_workflow.md]
+keywords: []
+createdAt: '2026-04-29T11:07:01.673Z'
 updatedAt: '2026-04-29T11:07:01.673Z'
 ---
 ## Reason

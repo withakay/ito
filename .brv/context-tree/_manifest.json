@@ -1,21 +1,9 @@
 {
   "active_context": [
     {
-      "order": 1,
-      "path": "development/ito_templates/_index.md",
-      "tokens": 331,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/ito_workflow/_index.md",
-      "tokens": 1037,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "development/source_guides/_index.md",
-      "tokens": 260,
+      "order": 3,
+      "path": "_index.md",
+      "tokens": 1791,
       "type": "summary"
     },
     {
@@ -105,13 +93,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-29T11:07:44.742Z",
+  "generated_at": "2026-04-29T11:31:14.809Z",
   "lane_tokens": {
     "contexts": 664,
     "stubs": 0,
-    "summaries": 1628
+    "summaries": 1791
   },
-  "source_fingerprint": "fc3c321c681871886bb9ef385f3c896add498d9d3b16975edbde2a0a33d69bf6",
-  "total_tokens": 2292,
+  "source_fingerprint": "190ca07c1b844758d115e825644198d18fa447c2d979046283511bb13b04e662",
+  "total_tokens": 2455,
   "version": 1
 }
