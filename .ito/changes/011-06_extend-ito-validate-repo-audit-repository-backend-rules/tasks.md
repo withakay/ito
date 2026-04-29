@@ -41,7 +41,7 @@ ______________________________________________________________________
 - **Done When**: All four scenarios in `validate-repo-repository-rules:*` are covered by fixture-based tests including the filesystem-mode skip path.
 - **Requirements**: validate-repo-repository-rules:sqlite-db-path-set, validate-repo-repository-rules:sqlite-db-not-committed
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.3: Add per-layer config access for backend/token-not-committed
 
