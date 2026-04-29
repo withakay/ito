@@ -1,6 +1,36 @@
 #!/usr/bin/env bash
-# Pre-commit hook intentionally does nothing.
+# Pre-commit hook for `ito` — runs the repository validation engine
+# against staged files and aborts the commit on any ERROR-level issue.
 #
-# The repo's quality gates run at pre-push (via `prek`) and manually via
-# `make check` before creating a batch of commits.
-exit 0
+# Validation is fast (config-aware rule engine, no compilation) and
+# only inspects the staging area, so this is a safe addition to the
+# commit path. The heavier quality gates (`cargo clippy`, `cargo test`,
+# `cargo doc`, `cargo deny`) still run at pre-push via `prek`.
+#
+# See the `pre-commit-hooks` capability spec under
+# `.ito/specs/` for the contract this script implements.
+#
+# To bypass for an emergency commit: `git commit --no-verify`.
+
+set -e
+
+# Locate the `ito` binary. Prefer a project-local debug build when one
+# exists (faster iteration during Ito development); fall back to the
+# system PATH. Both `target/debug/ito` (workspace root) and
+# `ito-rs/target/debug/ito` (legacy path) are checked.
+if [ -x "target/debug/ito" ]; then
+    ITO_BIN="target/debug/ito"
+elif [ -x "ito-rs/target/debug/ito" ]; then
+    ITO_BIN="ito-rs/target/debug/ito"
+elif command -v ito >/dev/null 2>&1; then
+    ITO_BIN="ito"
+else
+    # No `ito` available — skip validation rather than block the commit
+    # so a fresh checkout that has not yet been built can still commit.
+    echo "[ito-hook] ito binary not found on PATH; skipping repo validation." >&2
+    exit 0
+fi
+
+# `--staged` reads the git index, `--strict` promotes warnings to
+# failures so the operator sees them at commit time.
+"$ITO_BIN" validate repo --staged --strict

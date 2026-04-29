@@ -197,7 +197,11 @@ prek run --all-files --stage pre-push   # Run full gate locally
 
 - `commit-msg`: conventional commit message validation
 - `pre-push`: full quality gate (format, lint, docs, tests, coverage, guardrails, etc.)
-- `pre-commit`: intentionally no-op via `ito-rs/tools/hooks/pre-commit`
+- `pre-commit`: lightweight repository validation via `ito validate repo --staged --strict`
+  (config-aware rule engine; the script lives at `ito-rs/tools/hooks/pre-commit` and is
+  wired into `.pre-commit-config.yaml` as the `ito-validate-repo` local hook). The heavier
+  quality gates remain at pre-push. To bypass for an emergency commit:
+  `git commit --no-verify`.
 
 ### Agent Commit Workflow
 

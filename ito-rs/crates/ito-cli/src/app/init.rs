@@ -250,7 +250,77 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     print_post_init_guidance(target_path, ctx);
 
+    print_repo_validation_advisory(target_path, ctx);
+
     Ok(())
+}
+
+/// Print a brief advisory pointing at the `ito-update-repo` skill when at
+/// least one repository validation rule is active and no `ito validate repo`
+/// pre-commit hook is detected.
+///
+/// The advisory is **purely informational**: it never modifies
+/// `.pre-commit-config.yaml`, `.husky/`, `lefthook.yml`, or any other file.
+/// Wiring is left to the `ito-update-repo` skill so downstream projects opt
+/// in by running the skill explicitly.
+fn print_repo_validation_advisory(target_path: &std::path::Path, ctx: &ConfigContext) {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+
+    // Best-effort: if the config cannot be loaded or deserialized, suppress
+    // the advisory rather than fail init.
+    let cfg_value = load_cascading_project_config(target_path, &ito_path, ctx).merged;
+    let Ok(config) = serde_json::from_value::<ito_config::types::ItoConfig>(cfg_value) else {
+        return;
+    };
+
+    let rules = ito_core::validate_repo::list_active_rules(&config);
+    let any_active = rules.iter().any(|r| r.active);
+    if !any_active {
+        return;
+    }
+
+    if pre_commit_config_already_wires_ito_validate_repo(target_path) {
+        return;
+    }
+
+    let detected = ito_core::validate_repo::detect_pre_commit_system(target_path);
+
+    eprintln!();
+    eprintln!("Tip: `ito validate repo` is not wired into your pre-commit hook.");
+    eprintln!(
+        "    Detected pre-commit system: {detected}. {} active validation rule(s) would run.",
+        rules.iter().filter(|r| r.active).count(),
+    );
+    eprintln!(
+        "    Run the `ito-update-repo` skill to wire it (proposes a diff, asks before applying)."
+    );
+}
+
+/// True when the project already has a hook entry for `ito validate repo`
+/// in any of the supported pre-commit framework config files.
+///
+/// Substring scan: cheap and good enough for an advisory that errs on the
+/// side of staying silent.
+fn pre_commit_config_already_wires_ito_validate_repo(target_path: &std::path::Path) -> bool {
+    let candidates = [
+        target_path.join(".pre-commit-config.yaml"),
+        target_path.join(".pre-commit-config.yml"),
+        target_path.join("lefthook.yml"),
+        target_path.join("lefthook.yaml"),
+        target_path.join(".lefthook.yml"),
+        target_path.join(".lefthook.yaml"),
+        target_path.join(".husky").join("pre-commit"),
+    ];
+    for path in &candidates {
+        let Ok(body) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        // Match either the canonical hook id or a literal command line.
+        if body.contains("ito-validate-repo") || body.contains("ito validate repo") {
+            return true;
+        }
+    }
+    false
 }
 
 /// Prints post-initialization guidance showing where Ito was initialized and suggested next steps.
@@ -618,5 +688,68 @@ fn worktree_template_context(
             .unwrap_or(defaults.integration_mode),
         default_branch: defaults.default_branch,
         project_root,
+    }
+}
+
+#[cfg(test)]
+mod repo_validation_advisory_tests {
+    //! Unit tests for the `ito init` repo-validation advisory helpers.
+    //!
+    //! These cover the cheap, pure-filesystem helpers; full advisory
+    //! triggering is exercised by integration tests that invoke `ito init`.
+
+    use super::pre_commit_config_already_wires_ito_validate_repo as already_wired;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn returns_false_for_empty_project() {
+        let tmp = TempDir::new().unwrap();
+        assert!(!already_wired(tmp.path()));
+    }
+
+    #[test]
+    fn detects_pre_commit_yaml_with_hook_id() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join(".pre-commit-config.yaml"),
+            "repos:\n  - repo: local\n    hooks:\n      - id: ito-validate-repo\n",
+        )
+        .unwrap();
+        assert!(already_wired(tmp.path()));
+    }
+
+    #[test]
+    fn detects_husky_pre_commit_script_with_command_line() {
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir_all(tmp.path().join(".husky")).unwrap();
+        fs::write(
+            tmp.path().join(".husky").join("pre-commit"),
+            "#!/usr/bin/env bash\nito validate repo --staged --strict\n",
+        )
+        .unwrap();
+        assert!(already_wired(tmp.path()));
+    }
+
+    #[test]
+    fn detects_lefthook_config() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("lefthook.yml"),
+            "pre-commit:\n  commands:\n    ito-validate-repo:\n      run: ito validate repo --staged --strict\n",
+        )
+        .unwrap();
+        assert!(already_wired(tmp.path()));
+    }
+
+    #[test]
+    fn ignores_unrelated_pre_commit_yaml() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join(".pre-commit-config.yaml"),
+            "repos:\n  - repo: local\n    hooks:\n      - id: cargo-fmt\n",
+        )
+        .unwrap();
+        assert!(!already_wired(tmp.path()));
     }
 }
