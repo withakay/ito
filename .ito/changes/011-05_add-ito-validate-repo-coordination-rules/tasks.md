@@ -236,7 +236,7 @@ ______________________________________________________________________
 - **Done When**: New module is discoverable from the top-level architecture doc and both adapter / core AGENTS.md tables.
 - **Requirements**: ito-init:repo-validation-advisory
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 6.3: Final quality gate
 
