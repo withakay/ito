@@ -186,7 +186,7 @@ ______________________________________________________________________
 - **Done When**: The skill prose covers all `ito-update-repo-skill:*` scenarios; the file size stays under the 1000-line soft cap.
 - **Requirements**: ito-update-repo-skill:pre-commit-step, ito-update-repo-skill:dry-run-default, ito-update-repo-skill:verify-after-install
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 5.2: Sync ito-update-repo harness command shells
 
