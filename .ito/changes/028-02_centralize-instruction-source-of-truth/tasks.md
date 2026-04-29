@@ -78,7 +78,7 @@ ______________________________________________________________________
 - **Done When**: New worktrees can be repaired automatically when safe, and unsafe cases produce exact path/target guidance.
 - **Requirements**: coordination-worktree:exact-sync-wiring
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Verify generated installs and full quality gate
 
