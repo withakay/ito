@@ -3,7 +3,7 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1295,
+      "tokens": 1566,
       "type": "summary"
     },
     {
@@ -73,15 +73,23 @@
       "path": "development/release_workflow/release_workflow.md",
       "tokens": 85,
       "type": "context"
+    },
+    {
+      "abstractPath": "development/source_guides/source_guide_workflow.abstract.md",
+      "abstractTokens": 41,
+      "importance": 50,
+      "path": "development/source_guides/source_guide_workflow.md",
+      "tokens": 41,
+      "type": "context"
     }
   ],
-  "generated_at": "2026-04-28T17:12:36.884Z",
+  "generated_at": "2026-04-28T20:08:56.488Z",
   "lane_tokens": {
-    "contexts": 514,
+    "contexts": 555,
     "stubs": 0,
-    "summaries": 1626
+    "summaries": 1897
   },
-  "source_fingerprint": "163901ec0f04d29a5b3852cb9b9c4476a5ccd719c46c8dde40b2adc45c84f63d",
-  "total_tokens": 2140,
+  "source_fingerprint": "96297c7556ea2b5e41f4c8f6fac27949ca68d3d20bff30ccb2322a4144ec5169",
+  "total_tokens": 2452,
   "version": 1
 }

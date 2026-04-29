@@ -11,6 +11,10 @@ This file is for optional, user-authored guidance specific to `ito agent instruc
 
 ## Your Apply Guidance
 
+## Source Guide Atlas
+
+Before implementing an Ito change, check whether `source-guide.md` files exist near the code you will edit. If they are missing, stale, or too sparse for the affected subsystem, use the `source-guide` skill to set up or refresh the code atlas before making behavioral changes. Read the nearest guide first, treat it as orientation rather than authority, verify important claims against source, and update affected guides after structural changes.
+
 After completing any logical batch of tasks (including checkbox-only task lists),
 you MUST run @code-quality-squad review before reporting completion.
 Treat the entire change as one wave if no wave sections exist.
