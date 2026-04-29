@@ -35,10 +35,16 @@ use ito_config::types::ItoConfig;
 use crate::process::ProcessRunner;
 use crate::validate::{ValidationReport, report, with_rule_id};
 
+pub mod coordination_rules;
+pub mod pre_commit_detect;
 pub mod registry;
 pub mod rule;
 pub mod staged;
+pub mod worktrees_rules;
 
+pub use pre_commit_detect::{
+    PreCommitSystem, detect_pre_commit_system,
+};
 pub use registry::{ActiveRule, RuleRegistry, list_active_rules, list_active_rules_for};
 pub use rule::{Rule, RuleContext, RuleId, RuleSeverity};
 pub use staged::StagedFiles;
@@ -100,44 +106,68 @@ pub fn run_repo_validation(
 
 #[cfg(test)]
 mod tests {
-    //! Smoke tests for the engine scaffold.
+    //! Engine smoke tests.
     //!
-    //! Wave 1 only verifies the module compiles and the stub returns a clean
-    //! report when the built-in registry is empty. Per-rule tests live in
-    //! subsequent waves alongside the rule modules they cover.
+    //! Per-rule behaviour is exercised in each rule module's own `tests`
+    //! submodule; these tests focus on the engine's gate-filtering and
+    //! report-merging behaviour.
 
     use super::*;
     use crate::process::SystemProcessRunner;
-    use ito_config::types::ItoConfig;
+    use ito_config::types::{CoordinationStorage, ItoConfig};
     use std::path::Path;
 
+    fn embedded_config() -> ItoConfig {
+        // Worktree-storage gates leave most rules inactive in this
+        // configuration; only the always-active rules (e.g.
+        // `coordination/branch-name-set`) can emit.
+        let mut cfg = ItoConfig::default();
+        cfg.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+        cfg.worktrees.enabled = false;
+        cfg
+    }
+
     #[test]
-    fn run_repo_validation_with_empty_registry_returns_empty_report() {
-        let config = ItoConfig::default();
+    fn run_repo_validation_skips_inactive_rules() {
+        let config = embedded_config();
         let runner = SystemProcessRunner;
         let staged = StagedFiles::empty();
 
         let report = run_repo_validation(&config, Path::new("/"), &staged, &runner, false);
 
-        assert!(report.valid, "empty-registry report must be valid");
+        // The default coordination branch name `ito/internal/changes`
+        // satisfies `coordination/branch-name-set`, and every other rule
+        // is gated off by the embedded/disabled config. Result: a clean
+        // report.
         assert!(
-            report.issues.is_empty(),
-            "empty-registry report must have no issues"
+            report.valid,
+            "expected valid report; issues: {:?}",
+            report.issues
         );
-        assert_eq!(report.summary.errors, 0);
-        assert_eq!(report.summary.warnings, 0);
-        assert_eq!(report.summary.info, 0);
+        assert!(report.issues.is_empty());
     }
 
     #[test]
-    fn run_repo_validation_strict_with_empty_registry_still_empty() {
-        let config = ItoConfig::default();
+    fn run_repo_validation_strict_promotes_warnings_to_errors() {
+        // Branch name does not start with `ito/internal/` → branch-name-set
+        // emits a WARNING. With `strict = true`, the report should be
+        // invalid because warnings count as errors.
+        let mut config = embedded_config();
+        config.changes.coordination_branch.name = "coordination/foo".to_string();
         let runner = SystemProcessRunner;
         let staged = StagedFiles::empty();
 
-        let report = run_repo_validation(&config, Path::new("/"), &staged, &runner, true);
+        let lenient = run_repo_validation(&config, Path::new("/"), &staged, &runner, false);
+        assert!(!lenient.issues.is_empty(), "warning expected");
+        assert!(
+            lenient.valid,
+            "lenient mode: warning should not invalidate the report"
+        );
 
-        assert!(report.valid);
-        assert!(report.issues.is_empty());
+        let strict = run_repo_validation(&config, Path::new("/"), &staged, &runner, true);
+        assert!(
+            !strict.valid,
+            "strict mode: warning should invalidate the report"
+        );
     }
 }

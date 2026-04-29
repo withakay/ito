@@ -58,13 +58,24 @@ impl RuleRegistry {
 
     /// Construct a registry pre-populated with every built-in rule.
     ///
-    /// Wave 1 returns an empty registry; later waves push their rules in.
+    /// Wave 2 registers the `coordination/*` and `worktrees/*` rules.
+    /// Change `011-06` adds the `audit/*`, `repository/*`, and `backend/*`
+    /// rules. Order of registration does not matter —
+    /// [`list_active_rules`] sorts by `RuleId` for deterministic output.
     #[must_use]
     pub fn built_in() -> Self {
-        // Rules are registered here in subsequent waves. Order does not
-        // matter — `list_active_rules` sorts by `RuleId` for deterministic
-        // output.
+        use super::coordination_rules::{
+            BranchNameSetRule, GitignoreEntriesRule, StagedSymlinkedPathsRule, SymlinksWiredRule,
+        };
+        use super::worktrees_rules::{LayoutConsistentRule, NoWriteOnControlRule};
+
         Self::empty()
+            .with_rule(Box::new(SymlinksWiredRule))
+            .with_rule(Box::new(GitignoreEntriesRule))
+            .with_rule(Box::new(StagedSymlinkedPathsRule))
+            .with_rule(Box::new(BranchNameSetRule))
+            .with_rule(Box::new(NoWriteOnControlRule))
+            .with_rule(Box::new(LayoutConsistentRule))
     }
 
     /// Register a rule with this registry.
@@ -206,11 +217,26 @@ mod tests {
     }
 
     #[test]
-    fn built_in_registry_compiles_against_empty_rule_list() {
+    fn built_in_registry_contains_all_wave2_rules() {
         let registry = RuleRegistry::built_in();
-        // Wave 1 invariant: built-in registry is empty until Wave 2 lands.
-        // Subsequent tasks update this assertion as they register rules.
-        assert!(registry.is_empty());
+        // Six rules ship in Wave 2 of change 011-05:
+        // - coordination/{symlinks-wired,gitignore-entries,staged-symlinked-paths,branch-name-set}
+        // - worktrees/{no-write-on-control,layout-consistent}
+        let ids: Vec<_> = registry.iter().map(|r| r.id().as_str()).collect();
+        assert_eq!(ids.len(), 6, "expected 6 built-in rules, got {ids:?}");
+        for expected in [
+            "coordination/branch-name-set",
+            "coordination/gitignore-entries",
+            "coordination/staged-symlinked-paths",
+            "coordination/symlinks-wired",
+            "worktrees/layout-consistent",
+            "worktrees/no-write-on-control",
+        ] {
+            assert!(
+                ids.contains(&expected),
+                "built-in registry missing `{expected}`; have: {ids:?}",
+            );
+        }
     }
 
     #[test]
@@ -280,8 +306,18 @@ mod tests {
     #[test]
     fn public_list_active_rules_delegates_to_built_in_registry() {
         let config = ItoConfig::default();
-        // Built-in registry is empty until Wave 2; this test pins the
-        // current behaviour and serves as a canary when rules are added.
-        assert!(list_active_rules(&config).is_empty());
+        // After Wave 2 the built-in registry is non-empty and rules are
+        // sorted by id.
+        let rules = list_active_rules(&config);
+        assert!(!rules.is_empty(), "built-in registry should be non-empty");
+
+        // Rules are sorted lexicographically by RuleId.
+        let mut sorted_ids: Vec<_> = rules.iter().map(|r| r.rule_id.as_str()).collect();
+        let original = sorted_ids.clone();
+        sorted_ids.sort();
+        assert_eq!(
+            original, sorted_ids,
+            "list_active_rules must return sorted output"
+        );
     }
 }
