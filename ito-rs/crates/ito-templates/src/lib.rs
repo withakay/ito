@@ -705,17 +705,17 @@ mod tests {
             let expected = match harness {
                 Harness::Codex => [
                     "ito-orchestrator/SKILL.md",
-                    "ito-orchestrator-planner/SKILL.md",
-                    "ito-orchestrator-researcher/SKILL.md",
-                    "ito-orchestrator-worker/SKILL.md",
-                    "ito-orchestrator-reviewer/SKILL.md",
+                    "ito-planner/SKILL.md",
+                    "ito-researcher/SKILL.md",
+                    "ito-worker/SKILL.md",
+                    "ito-reviewer/SKILL.md",
                 ],
                 Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => [
                     "ito-orchestrator.md",
-                    "ito-orchestrator-planner.md",
-                    "ito-orchestrator-researcher.md",
-                    "ito-orchestrator-worker.md",
-                    "ito-orchestrator-reviewer.md",
+                    "ito-planner.md",
+                    "ito-researcher.md",
+                    "ito-worker.md",
+                    "ito-reviewer.md",
                 ],
             };
 
@@ -773,12 +773,7 @@ mod tests {
     fn agent_templates_remind_harnesses_to_use_ito_patch_and_write_for_active_artifacts() {
         use crate::agents::{Harness, get_agent_files};
 
-        let expected = [
-            "ito-general",
-            "ito-quick",
-            "ito-thinking",
-            "ito-orchestrator-worker",
-        ];
+        let expected = ["ito-general", "ito-quick", "ito-thinking", "ito-worker"];
 
         for harness in Harness::all() {
             let files = get_agent_files(*harness);

@@ -3,6 +3,8 @@ mod fixtures;
 
 use ito_test_support::run_rust_candidate;
 
+use crate::fixtures::installed_orchestrator_agent_paths;
+
 // PTY-based interactive tests are skipped on Windows due to platform differences
 // in terminal handling that can cause hangs.
 #[cfg(unix)]
@@ -110,40 +112,13 @@ fn init_update_with_tools_all_installs_all_orchestrator_agent_templates() {
     let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
-    let expected = [
-        ".opencode/agents/ito-orchestrator.md",
-        ".opencode/agents/ito-orchestrator-planner.md",
-        ".opencode/agents/ito-orchestrator-researcher.md",
-        ".opencode/agents/ito-orchestrator-worker.md",
-        ".opencode/agents/ito-orchestrator-reviewer.md",
-        ".claude/agents/ito-orchestrator.md",
-        ".claude/agents/ito-orchestrator-planner.md",
-        ".claude/agents/ito-orchestrator-researcher.md",
-        ".claude/agents/ito-orchestrator-worker.md",
-        ".claude/agents/ito-orchestrator-reviewer.md",
-        ".github/agents/ito-orchestrator.md",
-        ".github/agents/ito-orchestrator-planner.md",
-        ".github/agents/ito-orchestrator-researcher.md",
-        ".github/agents/ito-orchestrator-worker.md",
-        ".github/agents/ito-orchestrator-reviewer.md",
-        ".pi/agents/ito-orchestrator.md",
-        ".pi/agents/ito-orchestrator-planner.md",
-        ".pi/agents/ito-orchestrator-researcher.md",
-        ".pi/agents/ito-orchestrator-worker.md",
-        ".pi/agents/ito-orchestrator-reviewer.md",
-        ".agents/skills/ito-orchestrator/SKILL.md",
-        ".agents/skills/ito-orchestrator-planner/SKILL.md",
-        ".agents/skills/ito-orchestrator-researcher/SKILL.md",
-        ".agents/skills/ito-orchestrator-worker/SKILL.md",
-        ".agents/skills/ito-orchestrator-reviewer/SKILL.md",
-    ];
-
-    for rel in expected {
+    let expected = installed_orchestrator_agent_paths();
+    for rel in &expected {
         assert!(repo.path().join(rel).exists(), "expected {rel} to install");
     }
     assert!(!repo.path().join(".opencode/agent").exists());
-    let contents =
-        std::fs::read_to_string(repo.path().join(expected[0])).expect("read opencode orchestrator");
+    let contents = std::fs::read_to_string(repo.path().join(&expected[0]))
+        .expect("read opencode orchestrator");
     assert!(!contents.contains("{{model}}"));
     assert!(!contents.contains("{{variant}}"));
 }
