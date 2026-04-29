@@ -41,7 +41,7 @@ ______________________________________________________________________
 - **Done When**: The function compiles, returns deterministic ordering by `RuleId`, and is fully covered by tests.
 - **Requirements**: validate-repo-engine:list-active-rules
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Implement StagedFiles snapshot reader
 
