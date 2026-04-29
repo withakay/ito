@@ -1,43 +1,63 @@
-# Spec: ito-init
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: ito init emits a repo-validation advisory when at least one rule activates
 
-Define the `ito-init` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Tool-Specific Installation via ito init).
+After `ito init` and `ito init --upgrade` complete their primary work, the system SHALL emit a post-install advisory **only when** the resolved `ItoConfig` would activate at least one rule in the `ito validate repo` engine. The advisory SHALL be skipped on a fully-set-up project where no rule activates and a pre-commit hook for `ito validate repo` is already present.
 
-## Requirements
+- **Requirement ID**: ito-init:repo-validation-advisory
 
-### Requirement: Tool-Specific Installation via ito init
+#### Scenario: Coordination-worktree project sees the advisory
 
-The `ito init` command SHALL support installing tool-specific adapters and explicit upgrade workflows for managed prompt/template assets.
+- **GIVEN** `changes.coordination_branch.storage = "worktree"`
+- **AND** no pre-commit hook for `ito validate repo` is configured
+- **WHEN** `ito init` finishes
+- **THEN** the command SHALL print an advisory mentioning `ito validate repo`
+- **AND** the advisory SHALL recommend running the `ito-update-repo` skill in the user's harness to finish setup
 
-#### Scenario: Install with tools flag
+#### Scenario: Embedded-storage project with no worktrees skips the advisory
 
-- **GIVEN** the user runs `ito init --tools opencode,claude,codex`
-- **WHEN** the command executes
-- **THEN** it SHALL fetch and install adapter files for the specified tools
+- **GIVEN** `changes.coordination_branch.storage = "embedded"`
+- **AND** `worktrees.enabled = false`
+- **AND** `audit.mirror.enabled = false`
+- **AND** `repository.mode = "filesystem"`
+- **AND** `backend.enabled = false`
+- **WHEN** `ito init` finishes
+- **THEN** the command SHALL NOT print the repo-validation advisory
 
-#### Scenario: Default tool selection
+#### Scenario: --upgrade also surfaces the advisory
 
-- **GIVEN** the user runs `ito init` without `--tools` flag
-- **WHEN** the command executes
-- **THEN** it SHALL prompt for tool selection or use a sensible default
+- **GIVEN** an already-initialized project with `worktrees.enabled = true`
+- **WHEN** the user runs `ito init --upgrade`
+- **THEN** the command SHALL emit the advisory once after the upgrade completes
 
-#### Scenario: Worktree wizard runs before template installation
+### Requirement: Advisory names the detected pre-commit system
 
-- **GIVEN** the user runs `ito init` interactively
-- **WHEN** the worktree wizard completes
-- **THEN** the worktree configuration SHALL be resolved and available before `install_default_templates()` is called
-- **AND** the resolved config SHALL be passed to the template installer for rendering AGENTS.md and skills
+The advisory SHALL invoke `detect_pre_commit_system(project_root)` and include the detected system in its message so the user knows what the agent will configure on their behalf.
 
-#### Scenario: Explicit upgrade mode refreshes managed template content
+- **Requirement ID**: ito-init:advisory-detected-system
 
-- **GIVEN** the user runs `ito init --upgrade`
-- **WHEN** the command executes in an already-initialized project
-- **THEN** it SHALL refresh managed prompt/template content using installer merge policy
-- **AND** preserve user-authored content outside Ito-managed markers
+#### Scenario: Advisory states the detected prek system
 
-#### Scenario: Legacy update flag remains compatible
+- **GIVEN** the repo root contains `.pre-commit-config.yaml` and a prek toolchain marker
+- **WHEN** `ito init` emits the advisory
+- **THEN** the message SHALL state that the detected pre-commit system is `prek`
 
-- **GIVEN** the user runs `ito init --update`
-- **WHEN** the command executes
-- **THEN** it SHALL perform the same managed upgrade behavior as `ito init --upgrade`
+#### Scenario: Advisory states None when no system is detected
+
+- **GIVEN** the repo has no supported pre-commit framework markers
+- **WHEN** `ito init` emits the advisory
+- **THEN** the message SHALL state that no pre-commit system was detected
+- **AND** the message SHALL list the supported systems so the user can choose one
+
+### Requirement: Advisory references the ito-update-repo skill rather than a new slash command
+
+The advisory SHALL direct the user to invoke the existing `ito-update-repo` skill / slash command in their harness; it SHALL NOT introduce a new harness command for pre-commit setup.
+
+- **Requirement ID**: ito-init:advisory-references-update-repo
+
+#### Scenario: Advisory text mentions ito-update-repo
+
+- **WHEN** `ito init` emits the advisory
+- **THEN** the printed message SHALL contain the literal string `ito-update-repo` (or the configured slash-command alias)
+<!-- ITO:END -->
