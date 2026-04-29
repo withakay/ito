@@ -247,7 +247,7 @@ ______________________________________________________________________
 - **Done When**: The change is ready for `ito archive 011-05_add-ito-validate-repo-coordination-rules`.
 - **Requirements**: validate-repo-cli-surface:exit-codes
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
