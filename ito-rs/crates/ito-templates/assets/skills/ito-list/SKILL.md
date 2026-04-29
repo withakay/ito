@@ -8,11 +8,7 @@ description: List Ito changes, archived changes, specs, or modules with status s
 
 Use `ito list` and `ito list-archive` to display project items and interpret the results for the user.
 
-**Goal**
-
-Run the appropriate `ito list` command, present the output clearly, and offer
-context-aware suggestions based on the results (e.g., which changes are ready
-for implementation, which are partially complete, or what to work on next).
+Goal: run the right listing command, summarize the output clearly, and suggest the next sensible action.
 
 **CLI Reference**
 
@@ -36,7 +32,7 @@ Other options:
   --json          Output as JSON
 ```
 
-**Steps**
+## Steps
 
 1. **Parse user intent** from the arguments:
    - Determine if they want changes, archived changes, specs, or modules
@@ -54,8 +50,7 @@ Other options:
    - For specs: note requirement counts
    - For modules: show change counts per module
    - For archived changes: list the archived change IDs for follow-up inspection
-   - If the list is empty, explain what that means and suggest next steps
-     (e.g., "No ready changes found. Run `ito list --partial` to see in-progress work.")
+    - If the list is empty, explain what that means and suggest the next step
 
 4. **Suggest next actions** based on the results:
    - Ready changes: suggest running `/ito-apply <change-id>` to start implementing
@@ -63,7 +58,7 @@ Other options:
    - Completed changes: suggest archiving with `/ito-archive <change-id>`
    - No changes at all: suggest creating one with `ito create change`
 
-**Examples**
+## Examples
 
 ```bash
 # List all changes (default)
@@ -88,7 +83,7 @@ ito list --modules
 ito list-archive
 ```
 
-**Guardrails**
+## Guardrails
 
 - Always use `--json` when you need to programmatically interpret results.
 - Progress filters (`--ready`, `--completed`, `--partial`, `--pending`) only apply to changes, not specs or modules.

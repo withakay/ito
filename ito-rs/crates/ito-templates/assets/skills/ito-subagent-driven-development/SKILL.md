@@ -7,58 +7,44 @@ description: Use when executing implementation plans with independent tasks in t
 
 # Subagent-Driven Development
 
-Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+Execute one plan in the current session by using a fresh implementer subagent per task, followed by spec review and code-quality review before moving on.
 
-**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
-
-## When to Use
+## Use When
 
 - Have an implementation plan (ito change with tasks.md)
 - Tasks are mostly independent
 - Want to stay in this session (vs. parallel session with `ito-apply`)
 
-**vs. ito-apply:**
-- Same session (no context switch)
-- Fresh subagent per task (no context pollution)
-- Two-stage review after each task
-- Faster iteration (no human-in-loop between tasks)
+Compared with `ito-apply`: same session, fresh context per task, mandatory two-stage review, and faster iteration.
 
-## The Process
+## Workflow
 
-1. **Setup**: Read plan, extract all tasks, set up tracking
-2. **Per Task**:
-   - Dispatch implementer subagent
-   - Answer any questions
-   - Implementer implements, tests, commits, self-reviews
-   - Dispatch spec reviewer subagent
-   - If issues: implementer fixes, re-review
-   - Dispatch code quality reviewer subagent
-   - If issues: implementer fixes, re-review
-   - Mark task complete: `ito tasks complete <change-id> <task-id>`
-3. **Completion**: Dispatch final code reviewer, then use `ito-finish`
+1. Setup: load change context, read the full task list, prepare tracking.
+2. Per task: start task → dispatch implementer → run spec review → run quality review → complete task.
+3. Finish: run one final review, then use `ito-finish`.
 
 ## Setup
 
 ```bash
-# Get the change context
+# Get change context
 ito agent instruction apply --change <change-id>
 
 # Read tasks.md
    ITO_ROOT="$(ito path ito-root)"
    cat "$ITO_ROOT/changes/<change-id>/tasks.md"
 
-# Extract all tasks with full text and context upfront
+# Extract full task text and context upfront
 ```
 
 ## Per Task Workflow
 
-### 1. Mark Task Started
+### 1. Mark task started
 
 ```bash
 ito tasks start <change-id> <task-id>
 ```
 
-### 2. Dispatch Implementer Subagent
+### 2. Dispatch implementer
 
 Provide:
 - Full task text (not just reference)
@@ -66,55 +52,39 @@ Provide:
 - Relevant file paths
 - Expected outcome
 
-Pick an implementer agent tier based on task complexity:
+Choose agent tier by task complexity:
 
 - `ito-quick`: small, localized changes
 - `ito-general`: most tasks (default)
 - `ito-thinking`: complex refactors, tricky bugs, high-risk edits
 
-Implementer uses TDD:
-1. Write failing test
-2. Run to confirm failure
-3. Implement
-4. Run to confirm pass
-5. Commit
+Require TDD when appropriate: failing test → confirm failure → implement → confirm pass → self-review/report.
 
-### 3. Spec Compliance Review
+### 3. Spec compliance review
 
 Dispatch spec reviewer subagent with:
 - The task specification
 - Git diff of changes
 
-Reviewer checks:
-- All spec requirements met?
-- No extra functionality added?
-- Correct files modified?
+Reviewer verifies: all requirements met, no unrequested behavior added, correct files touched. If issues exist, send the task back to the implementer and re-review until approved.
 
-If issues: implementer subagent fixes, re-review until ✅
-
-### 4. Code Quality Review
+### 4. Code quality review
 
 Dispatch code quality reviewer subagent with:
 - Git SHAs for review
 - Code review template
 
-Reviewer checks:
-- Code quality
-- Test coverage
-- Style/conventions
+Reviewer checks quality, tests, and conventions. If issues exist, send the task back to the implementer and re-review until approved.
 
-If issues: implementer subagent fixes, re-review until ✅
-
-### 5. Mark Task Complete
+### 5. Mark task complete
 
 ```bash
 ito tasks complete <change-id> <task-id>
 ```
 
-### 6. Next Task or Finish
+### 6. Next task or finish
 
-If more tasks: repeat from step 1
-If done: dispatch final reviewer, then use `ito-finish`
+If more tasks remain, repeat. When all tasks are done, run a final review and then use `ito-finish`.
 
 ## Prompt Templates
 
@@ -122,9 +92,9 @@ If done: dispatch final reviewer, then use `ito-finish`
 - `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
 - `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
 
-## Red Flags
+## Guardrails
 
-**Never:**
+Never:
 - Start implementation on main/master without explicit user consent
 - Skip reviews (spec compliance OR code quality)
 - Proceed with unfixed issues
@@ -135,27 +105,20 @@ If done: dispatch final reviewer, then use `ito-finish`
 - Start code quality review before spec compliance is ✅
 - Move to next task while either review has open issues
 
-**If subagent asks questions:**
-- Answer clearly and completely
-- Provide additional context if needed
-
-**If reviewer finds issues:**
-- Implementer fixes them
-- Reviewer reviews again
-- Repeat until approved
+If subagents ask questions, answer clearly and fully. If reviewers find issues, send the task back for fixes and rerun the same review.
 
 ## Integration
 
-**Required workflow skills:**
+Required workflow skills:
 - `ito-using-git-worktrees` - Set up isolated workspace before starting
 - `ito-proposal` - Creates the plan this skill executes
 - `ito-requesting-code-review` - Code review template for reviewer subagents
 - `ito-finish` - Complete development after all tasks
 
-**Subagents should use:**
+Subagents should use:
 - `ito-test-driven-development` - Subagents follow TDD for each task
 
-**Alternative workflow:**
+Alternative workflow:
 - `ito-apply` - Use for human-in-loop execution with batch checkpoints
 
 <!-- ITO:END -->

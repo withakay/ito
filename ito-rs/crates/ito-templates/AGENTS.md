@@ -1,12 +1,12 @@
 # ito-templates — Layer 1 (Domain)
 
-Embedded assets for `ito init` / `ito update`. Packages default project and home templates, shared skills, adapters, commands, agents, and instruction templates as compile-time embedded assets.
+Canonical source for files installed by `ito init` / `ito update`: project/home templates, shared skills, adapter bootstraps, commands, agents, and instruction templates.
 
-For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
+For broader workspace guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architecture see [`.ito/architecture.md`](../../../.ito/architecture.md).
 
 ## Purpose
 
-Own the canonical source files for everything `ito init` installs. Templates are compiled into the binary via `include_dir!` so `ito init` works without runtime filesystem dependencies for template content.
+Keep every installed template in one crate. Assets are embedded with `include_dir!`, so `ito init` works without runtime filesystem reads for template content.
 
 ## Key Exports
 
@@ -38,7 +38,7 @@ assets/
 
 ## Workspace Dependencies
 
-None — this is a standalone crate with only external dependencies (`include_dir`, `minijinja`, `serde`).
+None — only external deps (`include_dir`, `minijinja`, `serde`).
 
 ## Architectural Constraints
 
@@ -56,12 +56,12 @@ None — this is a standalone crate with only external dependencies (`include_di
 
 ## Critical Rules for Editing Templates
 
-1. **Never edit repo-root `.claude/`, `.opencode/`, `.github/`, `.ito/` directly** — those are outputs of `ito init`. Edit the source templates here.
-2. **When adding or modifying a command/prompt**, update ALL harness versions for feature parity (each has its own frontmatter format).
-3. **Skills are shared** from `assets/skills/` and don't need per-harness maintenance.
-4. **OpenCode uses plural directory names**: `.opencode/skills/`, `.opencode/commands/`, `.opencode/plugins/`.
-5. **Skill directories may bundle helper assets** such as `scripts/` alongside `SKILL.md`; keep those files under the same skill directory in `assets/skills/` so harness distribution installs them together.
-6. **Executable helper scripts** (for example `.sh` files under `skills/*/scripts/`) must be installed with executable permissions so agents can invoke them directly after `ito init` / `ito update`.
+1. **Edit template sources here, not installed outputs** such as repo-root `.claude/`, `.opencode/`, `.github/`, or `.ito/`.
+2. **Keep harness variants equivalent** when changing commands or agent prompts; only frontmatter/tool syntax should differ.
+3. **Skills live once** under `assets/skills/`; do not create per-harness copies unless the harness truly requires it.
+4. **Do not compact change-proposal templates** named `spec.md`, `design.md`, `proposal.md`, or `tasks.md`.
+5. **Preserve managed markers, placeholders, and code fences** in prompt assets.
+6. **Keep helper assets together** inside each skill directory, and preserve executable bits for bundled scripts.
 
 ## Verifying Changes
 
@@ -70,6 +70,4 @@ make install
 ito init --force --tools all
 ```
 
-Then inspect installed files to confirm they match expectations.
-
-Use the `documentation-police` subagent to verify that any new templates include adequate documentation. Use the `rust-quality-checker` subagent for changes to the Rust source code in this crate.
+Then inspect installed outputs. Use `documentation-police` for template docs and `rust-quality-checker` for Rust code in this crate.
