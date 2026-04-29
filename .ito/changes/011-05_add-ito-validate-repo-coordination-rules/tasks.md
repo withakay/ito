@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Done When**: Reader handles empty index, paths with newlines (zero-byte separator), and missing-git error, each with a regression test.
 - **Requirements**: validate-repo-engine:staged-context
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
