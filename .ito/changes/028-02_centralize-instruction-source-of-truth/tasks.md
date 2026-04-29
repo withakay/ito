@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Done When**: Focused tests and `make check` pass, and installed template content matches the source-of-truth and agent-surface taxonomy design.
 - **Requirements**: instruction-source-of-truth:harness-template-boundary, instruction-source-of-truth:canonical-surface-inventory, agent-surface-taxonomy:activation-mode, agent-surface-taxonomy:orchestration-consolidation, coordination-worktree:exact-sync-wiring
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
