@@ -81,7 +81,7 @@ ______________________________________________________________________
 - **Done When**: The matrix covers all gate combinations introduced by this change.
 - **Requirements**: validate-repo-audit-rules:mirror-branch-set, validate-repo-repository-rules:sqlite-db-path-set, validate-repo-backend-rules:token-not-committed
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: CLI snapshot tests for rule output
 
