@@ -1,5 +1,6 @@
 ---
 description: Plans Ito orchestration runs from change metadata and gates
+activation: delegated
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"

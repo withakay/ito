@@ -76,12 +76,12 @@ fn read_link_opt(path: &Path) -> io::Result<Option<PathBuf>> {
 /// For each directory in [`COORDINATION_DIRS`] the function applies the
 /// following logic:
 ///
-/// 1. **Already a correct symlink** — skip (idempotent).
-/// 2. **Real directory with content** — create the target directory in the
-///    worktree, move all entries across, remove the now-empty source directory,
-///    then create the symlink.
+/// 1. **Already a correct symlink** — ensure the target exists, then skip.
+/// 2. **Wrong symlink** — fail with explicit actual/expected target guidance.
 /// 3. **Real directory that is empty** — remove it and create the symlink.
-/// 4. **Does not exist** — create the symlink directly.
+/// 4. **Real directory with content** — fail so duplicate state is not merged
+///    implicitly.
+/// 5. **Does not exist** — create the symlink directly.
 ///
 /// # Errors
 ///
@@ -116,24 +116,53 @@ pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> 
             let resolved_dst = lexical_normalize(&dst);
 
             if resolved_target == resolved_dst || target == dst {
-                // Already wired correctly — nothing to do.
+                // Already wired correctly. Recreate the target directory if it
+                // was removed, repairing a broken-but-correct link.
+                fs::create_dir_all(&dst).map_err(|e| {
+                    CoreError::io(
+                        format!(
+                            "cannot create coordination directory '{}' for existing symlink '{}': ensure the worktree path is writable",
+                            dst.display(),
+                            src.display()
+                        ),
+                        e,
+                    )
+                })?;
                 continue;
             }
 
-            // Symlink exists but points somewhere else — remove it so we can
-            // re-create it pointing at the right place.
-            remove_symlink_path(&src).map_err(|e| {
+            return Err(CoreError::process(format!(
+                "Coordination symlink '{}' points to '{}' but should point to '{}'. Delete or move the wrong symlink manually, then run `ito init` again.",
+                src.display(),
+                resolved_target.display(),
+                resolved_dst.display()
+            )));
+        } else if src.exists() {
+            if !src.is_dir() {
+                return Err(CoreError::process(format!(
+                    "Coordination path '{}' exists but is not a directory or symlink. Move it aside, then run `ito init` again to wire '{}'.",
+                    src.display(),
+                    dst.display()
+                )));
+            }
+
+            if !is_dir_empty(&src)? {
+                return Err(CoreError::process(format!(
+                    "Coordination path '{}' is a non-empty directory, not a symlink to '{}'. Move or merge its contents manually, remove the directory, then run `ito init` again.",
+                    src.display(),
+                    dst.display()
+                )));
+            }
+
+            fs::remove_dir(&src).map_err(|e| {
                 CoreError::io(
                     format!(
-                        "cannot remove stale symlink '{}': delete it manually and retry",
+                        "cannot remove empty coordination directory '{}': remove it manually and retry",
                         src.display()
                     ),
                     e,
                 )
             })?;
-        } else if src.exists() {
-            // `src` is a real directory (possibly with content).
-            migrate_dir_to_worktree(&src, &dst)?;
         }
         // `src` does not exist at this point — create the symlink.
 
@@ -167,136 +196,18 @@ pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> 
     Ok(())
 }
 
-/// Move all entries from `src_dir` into `dst_dir`, then remove `src_dir`.
-///
-/// `dst_dir` is created if it does not already exist.
-///
-/// # Cross-filesystem moves
-///
-/// `fs::rename` is attempted first.  When the source and destination reside on
-/// different filesystems the OS returns `EXDEV` ("Invalid cross-device link").
-/// In that case the function falls back to a recursive copy followed by
-/// deletion of the source, so migration works even when the XDG data directory
-/// (or any other configured path) is on a separate partition or mount point.
-fn migrate_dir_to_worktree(src_dir: &Path, dst_dir: &Path) -> CoreResult<()> {
-    fs::create_dir_all(dst_dir).map_err(|e| {
+fn is_dir_empty(path: &Path) -> CoreResult<bool> {
+    let mut entries = fs::read_dir(path).map_err(|e| {
         CoreError::io(
             format!(
-                "cannot create target directory '{}' for content migration: ensure the \
-                 worktree path is writable",
-                dst_dir.display()
+                "cannot read coordination directory '{}' to verify it is empty: check filesystem permissions",
+                path.display()
             ),
             e,
         )
     })?;
 
-    let entries = fs::read_dir(src_dir).map_err(|e| {
-        CoreError::io(
-            format!(
-                "cannot read directory '{}' for migration: check filesystem permissions",
-                src_dir.display()
-            ),
-            e,
-        )
-    })?;
-
-    for entry in entries {
-        let entry = entry.map_err(|e| {
-            CoreError::io(
-                format!(
-                    "cannot read directory entry in '{}' during migration",
-                    src_dir.display()
-                ),
-                e,
-            )
-        })?;
-        let from = entry.path();
-        let to = dst_dir.join(entry.file_name());
-
-        let rename_err = match fs::rename(&from, &to) {
-            Ok(()) => continue,
-            Err(e) => e,
-        };
-
-        // Fall back to copy-then-delete when `rename` fails with EXDEV (cross-
-        // device link), which happens when `src_dir` and `dst_dir` are on
-        // different filesystems.
-        let is_cross_device = rename_err.kind() == io::ErrorKind::CrossesDevices;
-        if !is_cross_device {
-            return Err(CoreError::io(
-                format!(
-                    "cannot move '{}' to '{}' during coordination migration: ensure both \
-                     paths are accessible and retry",
-                    from.display(),
-                    to.display()
-                ),
-                rename_err,
-            ));
-        }
-
-        let file_type = entry.file_type().map_err(|e| {
-            CoreError::io(
-                format!(
-                    "cannot determine file type of '{}' during cross-filesystem migration",
-                    from.display()
-                ),
-                e,
-            )
-        })?;
-
-        if file_type.is_symlink() {
-            copy_symlink(&from, &to)?;
-            remove_copied_symlink(&from)?;
-        } else if file_type.is_dir() {
-            copy_dir_recursive(&from, &to)?;
-            fs::remove_dir_all(&from).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "cannot remove source directory '{}' after cross-filesystem copy: \
-                         remove it manually and retry",
-                        from.display()
-                    ),
-                    e,
-                )
-            })?;
-        } else {
-            fs::copy(&from, &to).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "cannot copy '{}' to '{}' during cross-filesystem migration: ensure \
-                         '{}' is writable",
-                        from.display(),
-                        to.display(),
-                        dst_dir.display()
-                    ),
-                    e,
-                )
-            })?;
-            fs::remove_file(&from).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "cannot remove source file '{}' after cross-filesystem copy: \
-                         remove it manually and retry",
-                        from.display()
-                    ),
-                    e,
-                )
-            })?;
-        }
-    }
-
-    fs::remove_dir(src_dir).map_err(|e| {
-        CoreError::io(
-            format!(
-                "cannot remove now-empty directory '{}' after migration: remove it manually \
-                 and retry",
-                src_dir.display()
-            ),
-            e,
-        )
-    })?;
-
-    Ok(())
+    Ok(entries.next().is_none())
 }
 
 /// Recursively copy the directory tree rooted at `src` into `dst`.

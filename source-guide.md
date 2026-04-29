@@ -24,11 +24,13 @@ Ito is a Rust workspace for change-driven development workflows: proposals, spec
 5. Optional adapters expose the same behavior over HTTP (`ito-backend`) or a browser UI (`ito-web`).
 
 ## Directory Summary
+
 | Directory | Responsibility | Guide |
 |---|---|---|
 | `ito-rs/` | Rust workspace source tree. | `ito-rs/source-guide.md` |
 | `ito-rs/crates/` | Crate-by-crate architecture index. | `ito-rs/crates/source-guide.md` |
 | `.ito/` | Ito workflow specs, changes, modules, prompts, and project config. | Ito instructions |
+
 
 ## Gotchas
 - Main/control checkout is read-only for Ito change work; use a dedicated worktree.

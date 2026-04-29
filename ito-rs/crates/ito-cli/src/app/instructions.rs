@@ -6,6 +6,7 @@ use crate::util::parse_string_flag;
 use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
 use super::memory_instructions::{MemoryTemplateConfig, memory_template_config_from_merged};
+use ito_common::harness::detect_harness_name;
 use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
@@ -146,6 +147,7 @@ then re-run:\n\n\
             gate_order: &'a [String],
             recommended_skills: &'a [String],
             coordinator_agent_name: &'a str,
+            harness_name: &'a str,
             agent_roles_md: &'a str,
         }
 
@@ -174,6 +176,7 @@ then re-run:\n\n\
             agent_roles.push(format!("  - `{role}`: `{agent}`"));
         }
         let agent_roles_md = agent_roles.join("\n");
+        let harness_name = detect_harness_name();
 
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/orchestrate.md.j2",
@@ -185,6 +188,7 @@ then re-run:\n\n\
                 gate_order: &preset.gate_order,
                 recommended_skills: &preset.recommended_skills,
                 coordinator_agent_name: "ito-orchestrator",
+                harness_name,
                 agent_roles_md: &agent_roles_md,
             },
         )

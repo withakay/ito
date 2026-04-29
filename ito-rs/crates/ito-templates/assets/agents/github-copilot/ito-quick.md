@@ -1,6 +1,7 @@
 ---
 name: ito-quick
 description: Fast, cost-effective agent for simple tasks, quick queries, and small code changes
+activation: delegated
 tools:
   - read
   - search

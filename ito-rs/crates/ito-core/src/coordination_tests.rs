@@ -75,24 +75,25 @@ fn wire_is_idempotent() {
 
 #[test]
 #[cfg(unix)]
-fn wire_migrates_real_dir_content() {
+fn wire_fails_for_non_empty_real_dir() {
     let (_tmp, ito, worktree_ito) = make_dirs();
     let changes_dir = ito.join("changes");
     fs::create_dir_all(&changes_dir).unwrap();
     let sentinel = changes_dir.join("sentinel.md");
     fs::write(&sentinel, "hello").unwrap();
 
-    wire_coordination_symlinks(&ito, &worktree_ito).expect("wire should succeed");
+    let err = wire_coordination_symlinks(&ito, &worktree_ito).expect_err("wire should fail");
+    let message = err.to_string();
 
-    let link = ito.join("changes");
-    assert!(fs::read_link(&link).is_ok(), "changes should be a symlink");
-    let migrated = worktree_ito.join("changes").join("sentinel.md");
-    assert!(migrated.exists(), "sentinel.md should be in the worktree");
-    assert_eq!(fs::read_to_string(&migrated).unwrap(), "hello");
-    let via_link = link.join("sentinel.md");
+    assert!(message.contains(&changes_dir.display().to_string()));
+    assert!(message.contains(&worktree_ito.join("changes").display().to_string()));
     assert!(
-        via_link.exists(),
-        "sentinel.md should be accessible via symlink"
+        sentinel.exists(),
+        "local content should not be moved implicitly"
+    );
+    assert!(
+        fs::read_link(&changes_dir).is_err(),
+        "directory should remain real"
     );
 }
 
@@ -107,6 +108,45 @@ fn wire_handles_empty_real_dir() {
 
     let link = ito.join("specs");
     assert!(fs::read_link(&link).is_ok(), "specs should be a symlink");
+}
+
+#[test]
+#[cfg(unix)]
+fn wire_repairs_correct_symlink_with_missing_target() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+
+    wire_coordination_symlinks(&ito, &worktree_ito).expect("wire");
+    let target = worktree_ito.join("changes");
+    fs::remove_dir_all(&target).unwrap();
+
+    wire_coordination_symlinks(&ito, &worktree_ito).expect("repair should succeed");
+
+    assert!(
+        target.is_dir(),
+        "missing target directory should be recreated"
+    );
+    let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
+    assert_eq!(status, CoordinationHealthStatus::Healthy);
+}
+
+#[test]
+#[cfg(unix)]
+fn wire_fails_for_wrong_symlink_target() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    let wrong_root = ito.parent().unwrap().join("other-worktree").join(".ito");
+    fs::create_dir_all(wrong_root.join("changes")).unwrap();
+    std::os::unix::fs::symlink(wrong_root.join("changes"), ito.join("changes")).unwrap();
+
+    let err = wire_coordination_symlinks(&ito, &worktree_ito).expect_err("wire should fail");
+    let message = err.to_string();
+
+    assert!(message.contains(&ito.join("changes").display().to_string()));
+    assert!(message.contains(&wrong_root.join("changes").display().to_string()));
+    assert!(message.contains(&worktree_ito.join("changes").display().to_string()));
+    assert_eq!(
+        fs::read_link(ito.join("changes")).unwrap(),
+        wrong_root.join("changes")
+    );
 }
 
 #[test]

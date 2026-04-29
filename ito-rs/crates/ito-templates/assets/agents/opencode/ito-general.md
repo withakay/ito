@@ -1,5 +1,6 @@
 ---
 description: Balanced agent for typical development tasks, code review, and implementation work
+activation: direct
 model: "{{model}}"
 variant: "{{variant}}"
 tools:

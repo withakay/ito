@@ -50,7 +50,7 @@ Other options:
    - For specs: note requirement counts
    - For modules: show change counts per module
    - For archived changes: list the archived change IDs for follow-up inspection
-    - If the list is empty, explain what that means and suggest the next step
+   - If the list is empty, explain what that means and suggest the next step
 
 4. **Suggest next actions** based on the results:
    - Ready changes: suggest running `/ito-apply <change-id>` to start implementing

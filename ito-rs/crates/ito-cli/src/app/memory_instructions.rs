@@ -275,7 +275,8 @@ fn render_command_text(artifact: &str, line: &str) -> String {
         "memory-query" => "Query memory by running:",
         _ => "Run this command:",
     };
-    format!("{header}\n\n```bash\n{line}\n```\n")
+    let guidance = provider_operation_guidance(artifact, "command");
+    format!("{guidance}{header}\n\n```bash\n{line}\n```\n")
 }
 
 fn render_skill_text(
@@ -290,7 +291,10 @@ fn render_skill_text(
         "memory-query" => "Query memory by invoking the configured skill:",
         _ => "Invoke the configured skill:",
     };
-    let mut out = format!("{header}\n\n- Skill: `{skill_id}`\n- Inputs:\n");
+    let guidance = provider_operation_guidance(artifact, "skill");
+    let mut out = format!(
+        "{guidance}{header}\n\n- Invoke the skill exactly as named; pass inputs/options without inventing provider-specific defaults.\n- Skill: `{skill_id}`\n- Inputs:\n"
+    );
     for (key, value) in inputs {
         let pretty = serde_json::to_string(value).unwrap_or_else(|_| "<unrenderable>".to_string());
         out.push_str(&format!("  - `{key}` = `{pretty}`\n"));
@@ -309,6 +313,8 @@ fn render_skill_text(
 
 fn render_not_configured_text(operation: Operation) -> String {
     let op = operation.as_key();
+    let artifact = artifact_for_operation(operation);
+    let guidance = provider_operation_guidance(artifact, "not-configured");
     let (cmd_example, skill_example) = match operation {
         Operation::Capture => (
             "{ \"kind\": \"command\", \"command\": \"brv curate \\\"{context}\\\" {files} {folders}\" }",
@@ -325,13 +331,47 @@ fn render_not_configured_text(operation: Operation) -> String {
     };
 
     format!(
-        "Memory `{op}` is not configured.\n\n\
+        "{guidance}Memory `{op}` is not configured.\n\n\
 Configure it by adding `memory.{op}` to your Ito config (`.ito/config.json`).\
  The value picks one of two shapes:\n\n\
 - **Command** template — Ito renders a shell command line:\n\n\
 ```json\n\"memory\": {{ \"{op}\": {cmd_example} }}\n```\n\n\
 - **Skill** delegation — Ito directs the agent to invoke an installed skill:\n\n\
 ```json\n\"memory\": {{ \"{op}\": {skill_example} }}\n```\n\n\
-There is no default provider; an unconfigured operation always renders this guidance.\n",
+There is no default provider; an unconfigured operation always renders this guidance.\n\n\
+## Fallback guidance\n\n\
+Continue with normal repository inspection when this operation is unavailable, and mention that Ito memory `{op}` is not configured if it affects the task.\n",
     )
+}
+
+fn provider_operation_guidance(artifact: &str, branch: &str) -> String {
+    let (operation, required_inputs) = match artifact {
+        "memory-capture" => (
+            "capture",
+            "Required inputs: `--context`; optional repeatable `--file` and `--folder`",
+        ),
+        "memory-search" => (
+            "search",
+            "Required inputs: `--query`; optional `--limit` and `--scope`",
+        ),
+        "memory-query" => ("query", "Required inputs: `--query`"),
+        _ => ("unknown", "Required inputs: see the artifact help"),
+    };
+
+    format!(
+        "## Provider Operation Guidance\n\n\
+- Artifact: `{artifact}`\n\
+- Operation: `{operation}`\n\
+- Configured branch: `{branch}`\n\
+- Provider routing is resolved from `.ito/config.json` (`memory.{operation}`).\n\
+- {required_inputs}\n\n"
+    )
+}
+
+fn artifact_for_operation(operation: Operation) -> &'static str {
+    match operation {
+        Operation::Capture => "memory-capture",
+        Operation::Search => "memory-search",
+        Operation::Query => "memory-query",
+    }
 }

@@ -1,6 +1,7 @@
 ---
 name: ito-general
 description: Balanced agent for typical development tasks, code review, and implementation work
+activation: direct
 tools:
   - read
   - search

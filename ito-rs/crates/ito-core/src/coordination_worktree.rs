@@ -353,21 +353,23 @@ pub(crate) fn sync_coordination_worktree_with_runner(
 
     let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, false)?;
     let worktree_ito_path = worktree_path.join(".ito");
+    wire_coordination_symlinks(ito_path, &worktree_ito_path)?;
     let status = check_coordination_health(ito_path, &worktree_ito_path, &coord.storage);
     if let Some(message) = format_health_message(&status) {
         return Err(CoreError::process(message));
     }
 
-    // Always fetch first so remote changes are visible even when rate-limiting
-    // skips the push. Fetch is generally fast and ensures the coordination
-    // worktree stays up-to-date with teammate contributions.
-    if let Err(err) = fetch_coordination_branch_with_runner(runner, project_root, &coord.name)
-        && err.kind != CoordinationGitErrorKind::RemoteMissing
-    {
-        return Err(CoreError::process(format!(
-            "coordination fetch failed: {}",
-            err.message
-        )));
+    // Always fetch first so remote changes are visible even when rate-limiting skips the push.
+    if let Err(err) = fetch_coordination_branch_with_runner(runner, project_root, &coord.name) {
+        if err.kind == CoordinationGitErrorKind::RemoteNotConfigured {
+            return Ok(CoordinationSyncOutcome::RateLimited);
+        }
+        if err.kind != CoordinationGitErrorKind::RemoteMissing {
+            return Err(CoreError::process(format!(
+                "coordination fetch failed: {}",
+                err.message
+            )));
+        }
     }
 
     // Fast-forward the local branch to include remote changes before committing
@@ -1221,8 +1223,6 @@ fn fnv1a_hash(data: &[u8]) -> u64 {
     }
     hash
 }
-
-// ── Shared utilities ──────────────────────────────────────────────────────────
 
 fn render_output(output: &crate::process::ProcessOutput) -> String {
     let stderr = output.stderr.trim();

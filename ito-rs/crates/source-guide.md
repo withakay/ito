@@ -4,6 +4,7 @@
 This directory contains all Rust workspace crates. Use this file to pick the right crate before opening deeper code.
 
 ## Entry Points
+
 | Crate | Responsibility | Guide |
 |---|---|---|
 | `ito-cli` | CLI parsing, command dispatch, user-facing terminal behavior. | `ito-cli/source-guide.md` |

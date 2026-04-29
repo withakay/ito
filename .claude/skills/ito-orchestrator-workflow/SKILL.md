@@ -1,40 +1,19 @@
 ---
 name: ito-orchestrator-workflow
-description: Repo-specific workflow conventions consumed by the orchestrator.
+description: Optional repo-specific supplement for orchestrators after `ito agent instruction orchestrate` has been loaded.
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
 
+This is an optional, repo-specific supplement for the rendered orchestrator instruction.
 
-This is a living-document skill: keep it updated as your repo's tooling and conventions evolve.
+Use it only for local conventions that cannot be inferred from `ito agent instruction orchestrate`, such as:
 
-## Goal
+- Repository-specific verification commands
+- Services or environment variables required before gates run
+- Local reviewer expectations or escalation contacts
+- Known project gotchas for worker dispatch
 
-Provide repo-specific workflow guidance that the orchestrator can load by convention.
-
-This skill SHOULD include:
-
-- The commands to run for format/lint/tests
-- Any preconditions (services to start, env vars, etc)
-- What constitutes "done" for reviewer gates
-- Remediation expectations (what to include in a remediation packet)
-
-## Suggested Content
-
-### Gate Commands
-
-- format: `<repo command>`
-- lint: `<repo command>`
-- tests: `<repo command>`
-
-### Review Guidelines
-
-- Code-review: prioritize correctness and regressions
-- Security-review: prioritize secrets, injection, unsafe deserialization, auth boundaries
-
-### Project Notes
-
-- Add any repo-specific gotchas that help orchestrator coordination.
+Do not copy generic Ito gate order, run-state schema, or remediation packet rules into this skill. Keep those in the generated orchestrate instruction.
 
 <!-- ITO:END -->

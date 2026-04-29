@@ -1,5 +1,6 @@
 ---
 description: Runs project tests with AGENTS.md guidance, prefers make targets, and returns noise-stripped results
+activation: delegated
 mode: subagent
 model: "github-copilot/gpt-5-mini"
 temperature: 0.1

@@ -163,7 +163,7 @@ custom suffix
     let contents = std::fs::read_to_string(agent_path).expect("read agent");
     assert!(contents.contains("custom prefix"));
     assert!(contents.contains("custom suffix"));
-    assert!(contents.contains("You are an orchestrator."));
+    assert!(contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("stale orchestrator body"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
 }
@@ -201,7 +201,7 @@ legacy custom orchestrator body
 
     let contents = std::fs::read_to_string(agent_path).expect("read agent");
     assert!(contents.contains("legacy custom orchestrator body"));
-    assert!(!contents.contains("You are an orchestrator."));
+    assert!(!contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("old-model"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
 }
@@ -245,7 +245,7 @@ legacy partial-marker orchestrator body
 
     let contents = std::fs::read_to_string(agent_path).expect("read agent");
     assert!(contents.contains("legacy partial-marker orchestrator body"));
-    assert!(!contents.contains("You are an orchestrator."));
+    assert!(!contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("old-model"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
 }
@@ -732,7 +732,7 @@ fn init_github_copilot_installs_audit_preflight_assets() {
     let prompt_path = repo.path().join(".github/prompts/ito-apply.prompt.md");
     assert!(prompt_path.exists(), "copilot prompt should be installed");
     let prompt = std::fs::read_to_string(prompt_path).unwrap();
-    assert!(prompt.contains("Audit guardrail"));
+    assert!(prompt.contains("Before stateful Ito actions"));
     assert!(prompt.contains("ito audit validate"));
 }
 

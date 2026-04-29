@@ -1,9 +1,21 @@
 {
   "active_context": [
     {
-      "order": 3,
-      "path": "_index.md",
-      "tokens": 1791,
+      "order": 1,
+      "path": "development/ito_templates/_index.md",
+      "tokens": 331,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/ito_workflow/_index.md",
+      "tokens": 1280,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/source_guides/_index.md",
+      "tokens": 260,
       "type": "summary"
     },
     {
@@ -26,6 +38,14 @@
       "importance": 50,
       "path": "development/ito_workflow/context.md",
       "tokens": 106,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/coordination_symlink_repair_and_sync.abstract.md",
+      "abstractTokens": 51,
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_symlink_repair_and_sync.md",
+      "tokens": 51,
       "type": "context"
     },
     {
@@ -93,13 +113,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-29T11:31:14.809Z",
+  "generated_at": "2026-04-29T19:38:44.148Z",
   "lane_tokens": {
-    "contexts": 664,
+    "contexts": 715,
     "stubs": 0,
-    "summaries": 1791
+    "summaries": 1871
   },
-  "source_fingerprint": "190ca07c1b844758d115e825644198d18fa447c2d979046283511bb13b04e662",
-  "total_tokens": 2455,
+  "source_fingerprint": "6496f0890d6a7beac170d10e9e7c557521302d185dd66a497977b5a7b3a3acd0",
+  "total_tokens": 2586,
   "version": 1
 }

@@ -1,5 +1,6 @@
 ---
 description: High-capability agent for complex reasoning, architecture decisions, and difficult problems
+activation: direct
 model: "{{model}}"
 variant: "{{variant}}"
 temperature: 0.5

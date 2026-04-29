@@ -1,6 +1,7 @@
 ---
 name: ito-planner
 description: Plans Ito orchestration runs from change metadata and gates
+activation: delegated
 tools: read, grep, find, ls, bash, glob
 model: {{model}}
 ---

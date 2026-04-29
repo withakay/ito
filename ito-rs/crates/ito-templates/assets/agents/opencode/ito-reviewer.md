@@ -1,5 +1,6 @@
 ---
 description: Reviews Ito orchestration gate results and worker changes
+activation: delegated
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"
