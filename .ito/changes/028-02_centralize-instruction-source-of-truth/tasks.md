@@ -50,7 +50,7 @@ ______________________________________________________________________
 - **Done When**: Supported harness templates expose `ito-general` and `ito-orchestrator` for direct activation and delegated role agents remain narrowly scoped sub-agents.
 - **Requirements**: agent-surface-taxonomy:activation-mode, agent-surface-taxonomy:direct-general-orchestrator, agent-surface-taxonomy:delegated-role-agents, instruction-source-of-truth:harness-template-boundary
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.4: Thin and consolidate orchestration skills and prompts
 

@@ -467,3 +467,32 @@ test init_update_with_tools_all_preserves_agent_activation_contract ... ok
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
 
 ```
+
+Full repository verification passed after fixing markdownlint issues surfaced by make check.
+
+```bash
+DEVELOPER_DIR=/Library/Developer/CommandLineTools make check
+```
+
+```output
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+check toml...............................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+fix end of files.........................................................Passed
+mixed line ending........................................................Passed
+trim trailing whitespace.................................................Passed
+pretty format json.......................................................Passed
+yamllint.................................................................Passed
+markdownlint-cli2........................................................Passed
+cargo fmt (ito-rs).......................................................Passed
+forbid local version metadata in Cargo.toml..............................Passed
+cargo clippy (ito-rs)....................................................Passed
+cargo doc warnings as errors (ito-rs)....................................Passed
+cargo test with coverage (ito-rs)........................................Passed
+cargo test affected (ito-rs).............................................Passed
+check max lines (ito-rs).................................................Passed
+architecture guardrails..................................................Passed
+cargo deny (license/advisory checks).....................................Passed
+```
