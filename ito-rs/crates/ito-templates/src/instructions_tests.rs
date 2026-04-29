@@ -198,7 +198,7 @@ fn orchestrate_template_renders() {
             gate_order: vec!["apply-complete", "tests"],
             recommended_skills: vec![],
             coordinator_agent_name: "ito-orchestrator",
-            agent_roles_md: "  - `apply-worker`: `ito-orchestrator-worker`",
+            agent_roles_md: "  - `apply-worker`: `ito-worker`",
         },
     )
     .unwrap();
@@ -209,7 +209,7 @@ fn orchestrate_template_renders() {
     assert!(rendered.contains("Coordinator agent"));
     assert!(rendered.contains("ito-orchestrator"));
     assert!(rendered.contains("Preset"));
-    assert!(rendered.contains("ito-orchestrator-worker"));
+    assert!(rendered.contains("ito-worker"));
 }
 
 #[test]
