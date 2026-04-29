@@ -169,7 +169,7 @@ ______________________________________________________________________
 - **Done When**: The hook runs as part of `prek install -t pre-commit` and CI's `make check` mirror.
 - **Requirements**: pre-commit-hooks:repo-pre-commit-stage, pre-commit-hooks:replace-no-op-stub
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
