@@ -1,65 +1,66 @@
 ---
-children_hash: 674f8ea33efbe5a607b857d5f0b24cc4b69680bf796f6b38511d1257287dbc5e
-compression_ratio: 0.4017017465293327
+children_hash: 40c4439d9a38c7645aceb442fba084e5ffafbd4174e84f746edf7cd5105a9872
+compression_ratio: 0.35574614065180105
 condensation_order: 1
-covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, published_ito_mirror.md, worktree_validation_flow.md]
-covers_token_total: 2233
+covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, obsolete_specialist_cleanup.md, published_ito_mirror.md, worktree_validation_flow.md]
+covers_token_total: 2915
 summary_level: d1
-token_count: 897
+token_count: 1037
 type: summary
 ---
 # ito_workflow
 
-## Overview
-This topic covers how Ito publishes, validates, and safely synchronizes coordination-backed state into a read-only `docs/ito` mirror. The three child entries form a related set: `published_ito_mirror.md` defines the mirror generation and path-safety model, `worktree_validation_flow.md` defines read-only worktree validation behavior, and `audit_mirror_concurrency_and_temp_naming.md` defines the audit mirror’s concurrency, merge, and retry protections.
+Covers how Ito publishes, validates, and maintains its coordination-backed workflow assets, with a strong emphasis on safety, drift control, and concurrent-update resilience.
 
-## Key Structure and Relationships
-- **Source of truth vs. published output**
-  - Coordination-backed Ito state remains the writable source of truth.
-  - `docs/ito` is generated as a read-only mirror for consumption in plain GitHub/main checkouts.
-  - `published_ito_mirror.md` documents this relationship and the drift-replacement flow.
-- **Worktree safety and validation**
-  - `worktree_validation_flow.md` splits unsafe main/control checkout cases from advisory mismatches elsewhere.
-  - Validation emits machine-readable status for OpenCode pre-tool hooks.
-  - Change matching uses exact change-id prefixes to avoid false positives, including suffix worktrees like `<change>-review`.
-- **Audit mirror synchronization**
-  - `audit_mirror_concurrency_and_temp_naming.md` documents `mirror.rs` behavior for syncing audit JSONL into an internal branch.
-  - It uses unique temp worktree and orphan branch names, JSONL deduplication, bounded retention, and conflict retries.
+## Core themes
 
-## Child Entry Drill-Down
+- **Published mirror generation** — `published_ito_mirror.md`
+  - Ito generates a **read-only `docs/ito` mirror** from coordination-backed state.
+  - The mirror path is configurable via `changes.published_mirror.path` and defaults to `docs/ito`.
+  - Path resolution is intentionally strict: it rejects empty paths, absolute paths, parent traversal, and project-root-only paths.
+  - The renderer skips symlinks and emits a deterministic output layout under `README.md`, `changes/active`, `changes/archive`, and `specs`.
+  - The `ito publish` CLI compares generated output against the existing mirror, detects drift, and replaces the mirror from the coordination source of truth.
 
-### `published_ito_mirror.md`
-Focuses on the published mirror implementation:
-- Safe path resolution for `changes.published_mirror.path`
-- Default mirror path: `docs/ito`
-- Read-only output layout under `README.md`, `changes/active`, `changes/archive`, and `specs`
-- Symlink skipping during generation
-- Drift detection by comparing generated output to the existing mirror
-- Replacement behavior driven by the `ito publish` CLI
+- **Audit mirror concurrency and temp naming** — `audit_mirror_concurrency_and_temp_naming.md`
+  - Audit mirror sync uses **unique temp worktree and orphan branch names** to avoid collisions under parallel writes.
+  - Naming pattern includes **PID + SystemTime timestamp (`nanos`) + atomic sequence counter**:
+    - `ito-audit-mirror-{pid}-{nanos}-{sequence}`
+    - `ito-audit-mirror-orphan-{pid}-{nanos}-{sequence}`
+  - The mirror flow is: detect git worktree → create temp worktree → fetch/checkout branch or orphan → merge JSONL → stage/commit → push/update ref → retry on conflict.
+  - JSONL merge behavior dedupes identical lines, preserves order, and collapses adjacent reconciled events by incrementing count.
+  - Retention is bounded by **age (30 days from newest event)** and **count (1000 events)**.
+  - Conflict handling retries once for push/ref conflicts, with best-effort behavior restricted to Git worktrees only.
 
-### `worktree_validation_flow.md`
-Focuses on read-only validation for change worktrees:
-- Command: `ito worktree validate --change <id> [--json]`
-- Hard-fails main/control checkouts
-- Returns advisory mismatch guidance outside main
-- Produces machine-readable status for hooks
-- Uses exact change-id prefix matching to avoid substring-based false positives
+- **Worktree validation flow** — `worktree_validation_flow.md`
+  - `ito worktree validate --change <id> [--json]` now emits **machine-readable status** for pre-tool hooks.
+  - Validation distinguishes:
+    - **Hard failures** for main/control checkouts
+    - **Advisory mismatches** for non-main cases, with recovery guidance
+  - Matching is done on **exact change-id prefixes**, preventing false positives such as suffix worktrees like `<change>-review`.
 
-### `audit_mirror_concurrency_and_temp_naming.md`
-Focuses on audit mirror concurrency and Git conflict handling:
-- Temp worktree naming pattern: `ito-audit-mirror-{pid}-{nanos}-{sequence}`
-- Orphan branch naming pattern: `ito-audit-mirror-orphan-{pid}-{nanos}-{sequence}`
-- Atomic sequence counter prevents collisions when multiple processes share the same timestamp
-- JSONL merge dedupes identical lines, preserves order, and collapses adjacent reconciled events by count
-- Retention policy truncates logs to 30 days from newest event and caps at 1000 events
-- Retry policy:
-  - internal branch appends retry once on conflict
-  - pushes retry after non-fast-forward by refetching and merging again
-- Only runs inside a Git worktree; missing remote branches fall back to an orphan branch
+- **Obsolete specialist cleanup** — `obsolete_specialist_cleanup.md`
+  - Installer flows now pre-clean obsolete **ito-orchestrator specialist assets** during **update** and **force reinstall/init** paths.
+  - Cleanup is performed as a **harness-level pre-pass** before writing new assets.
+  - Broken legacy symlinks are removed using `symlink_metadata`.
+  - Removed legacy paths include `ito-orchestrator-planner`, `ito-orchestrator-researcher`, `ito-orchestrator-reviewer`, and `ito-orchestrator-worker` markdown/SKILL files.
+  - **Coordinator assets are preserved**, including `ito-orchestrator.md` and `ito-orchestrator-workflow`.
+  - Plain init intentionally leaves untouched user files in place.
 
-## Shared Design Patterns
-- **Safety first**: path validation, worktree checks, and conflict detection prevent destructive writes.
-- **Read-only output generation**: published artifacts are derived, not edited directly.
-- **Deterministic reconciliation**: drift detection and JSONL deduplication preserve stable outputs.
-- **Bounded growth**: retention limits prevent audit mirror accumulation from growing without limit.
-- **Retry with constraints**: conflicts are retried once, then surfaced as failures or retryable results.
+## Shared structure and relationships
+
+- `context.md` defines the domain-level scope for `ito_workflow`:
+  - safe project-relative mirror resolution
+  - read-only mirror generation
+  - drift detection
+  - coordination-backed source of truth
+- The subtopics are tightly linked:
+  - `published_ito_mirror.md` and `audit_mirror_concurrency_and_temp_naming.md` both center on safe mirror generation and state synchronization.
+  - `worktree_validation_flow.md` complements the mirror workflow by guarding change-related operations through read-only validation.
+  - `obsolete_specialist_cleanup.md` addresses migration safety during installer/init flows after orchestrator asset renames.
+
+## Cross-cutting patterns
+
+- **Safety first**: strict path validation, read-only published output, and guarded validation of worktrees.
+- **Concurrency resilience**: atomic counters plus time-based naming prevent temp resource collisions.
+- **Drift/control management**: mirror publishing and validation both rely on explicit reconciliation and machine-readable status.
+- **Migration hygiene**: installer cleanup removes obsolete specialist assets while preserving coordinator-level assets.

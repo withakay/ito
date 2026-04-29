@@ -56,6 +56,10 @@ This d2 summary groups the current knowledge into three operational areas: **tem
   - retention: 30 days from newest event and max 1000 events
   - retry policy: internal branch append retries once; push retries after non-fast-forward by refetching and merging again
   - runs only inside a Git worktree; missing remote branches fall back to an orphan branch
+- **`obsolete_specialist_cleanup.md`**
+  - update and force reinstall/init pre-clean legacy `ito-orchestrator-*` specialist assets
+  - only planner/researcher/reviewer/worker assets are migrated to `ito-*`
+  - coordinator-level assets keep their existing names
 
 ### Shared patterns
 - Safety first: path validation, worktree checks, conflict detection
@@ -63,6 +67,7 @@ This d2 summary groups the current knowledge into three operational areas: **tem
 - Deterministic reconciliation via drift detection and JSONL deduplication
 - Bounded growth via retention limits
 - Retry with constraints: conflicts are retried once, then surfaced
+- Migration hygiene removes obsolete specialist files without disturbing coordinator assets
 
 ## 3) Release workflow, guardrails, and manifesto rendering
 **`release_workflow/_index.md`** summarizes the release pipeline plus two supporting rule sets.
