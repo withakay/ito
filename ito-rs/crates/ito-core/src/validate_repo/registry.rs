@@ -58,24 +58,41 @@ impl RuleRegistry {
 
     /// Construct a registry pre-populated with every built-in rule.
     ///
-    /// Wave 2 registers the `coordination/*` and `worktrees/*` rules.
-    /// Change `011-06` adds the `audit/*`, `repository/*`, and `backend/*`
-    /// rules. Order of registration does not matter —
-    /// [`list_active_rules`] sorts by `RuleId` for deterministic output.
+    /// Order of registration does not matter — [`list_active_rules`] sorts
+    /// by `RuleId` for deterministic output.
+    ///
+    /// Built-in rules:
+    ///
+    /// - `coordination/*` and `worktrees/*` — change 011-05.
+    /// - `audit/*`, `repository/*`, `backend/*` — change 011-06.
     #[must_use]
     pub fn built_in() -> Self {
+        use super::audit_rules::{MirrorBranchDistinctRule, MirrorBranchSetRule};
+        use super::backend_rules::{
+            ProjectOrgRepoSetRule, TokenNotCommittedRule, UrlSchemeValidRule,
+        };
         use super::coordination_rules::{
             BranchNameSetRule, GitignoreEntriesRule, StagedSymlinkedPathsRule, SymlinksWiredRule,
         };
+        use super::repository_rules::{SqliteDbNotCommittedRule, SqliteDbPathSetRule};
         use super::worktrees_rules::{LayoutConsistentRule, NoWriteOnControlRule};
 
         Self::empty()
+            // 011-05: coordination/*, worktrees/*
             .with_rule(Box::new(SymlinksWiredRule))
             .with_rule(Box::new(GitignoreEntriesRule))
             .with_rule(Box::new(StagedSymlinkedPathsRule))
             .with_rule(Box::new(BranchNameSetRule))
             .with_rule(Box::new(NoWriteOnControlRule))
             .with_rule(Box::new(LayoutConsistentRule))
+            // 011-06: audit/*, repository/*, backend/*
+            .with_rule(Box::new(MirrorBranchSetRule))
+            .with_rule(Box::new(MirrorBranchDistinctRule))
+            .with_rule(Box::new(SqliteDbPathSetRule))
+            .with_rule(Box::new(SqliteDbNotCommittedRule))
+            .with_rule(Box::new(TokenNotCommittedRule))
+            .with_rule(Box::new(UrlSchemeValidRule))
+            .with_rule(Box::new(ProjectOrgRepoSetRule))
     }
 
     /// Register a rule with this registry.
@@ -217,18 +234,31 @@ mod tests {
     }
 
     #[test]
-    fn built_in_registry_contains_all_wave2_rules() {
+    fn built_in_registry_contains_every_built_in_rule() {
         let registry = RuleRegistry::built_in();
-        // Six rules ship in Wave 2 of change 011-05:
-        // - coordination/{symlinks-wired,gitignore-entries,staged-symlinked-paths,branch-name-set}
-        // - worktrees/{no-write-on-control,layout-consistent}
+        // Thirteen rules ship after changes 011-05 + 011-06:
+        // - 011-05: coordination/{symlinks-wired,gitignore-entries,
+        //   staged-symlinked-paths,branch-name-set} + worktrees/{
+        //   no-write-on-control,layout-consistent} = 6.
+        // - 011-06: audit/{mirror-branch-set,
+        //   mirror-branch-distinct-from-coordination} +
+        //   repository/{sqlite-db-path-set,sqlite-db-not-committed} +
+        //   backend/{token-not-committed,url-scheme-valid,
+        //   project-org-repo-set} = 7.
         let ids: Vec<_> = registry.iter().map(|r| r.id().as_str()).collect();
-        assert_eq!(ids.len(), 6, "expected 6 built-in rules, got {ids:?}");
+        assert_eq!(ids.len(), 13, "expected 13 built-in rules, got {ids:?}");
         for expected in [
+            "audit/mirror-branch-distinct-from-coordination",
+            "audit/mirror-branch-set",
+            "backend/project-org-repo-set",
+            "backend/token-not-committed",
+            "backend/url-scheme-valid",
             "coordination/branch-name-set",
             "coordination/gitignore-entries",
             "coordination/staged-symlinked-paths",
             "coordination/symlinks-wired",
+            "repository/sqlite-db-not-committed",
+            "repository/sqlite-db-path-set",
             "worktrees/layout-consistent",
             "worktrees/no-write-on-control",
         ] {

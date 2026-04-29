@@ -264,6 +264,23 @@ pub struct CascadingProjectConfig {
     pub merged: Value,
     /// Paths that were successfully loaded and merged.
     pub loaded_from: Vec<PathBuf>,
+    /// Per-layer breakdown, in precedence order (low → high).
+    ///
+    /// Each entry carries the source path and the parsed JSON value of
+    /// that single layer (before merging). Validation rules that need to
+    /// distinguish "value came from a committed file" from "value came
+    /// from a gitignored override" inspect this list rather than the
+    /// merged view.
+    pub layers: Vec<ResolvedConfigLayer>,
+}
+
+#[derive(Debug, Clone)]
+/// A single configuration layer that contributed to the merged view.
+pub struct ResolvedConfigLayer {
+    /// Absolute path of the layer's source file.
+    pub path: PathBuf,
+    /// Parsed JSON of this layer, before merging.
+    pub value: Value,
 }
 
 /// Alias used by consumers who only care about the resolved config output.
@@ -352,6 +369,7 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
 ) -> CascadingProjectConfig {
     let mut merged = defaults::default_config_json();
     let mut loaded_from: Vec<PathBuf> = Vec::new();
+    let mut layers: Vec<ResolvedConfigLayer> = Vec::new();
 
     let paths = project_config_paths(project_root, ito_path, ctx);
     for path in paths {
@@ -362,6 +380,10 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
         // the new key names participate in the normal merge process and
         // override defaults correctly.
         migrate_legacy_worktree_keys(&mut v);
+        layers.push(ResolvedConfigLayer {
+            path: path.clone(),
+            value: v.clone(),
+        });
         merge_json(&mut merged, v);
         loaded_from.push(path);
     }
@@ -369,6 +391,7 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
     CascadingProjectConfig {
         merged,
         loaded_from,
+        layers,
     }
 }
 
@@ -526,6 +549,30 @@ mod tests {
                 ito_path.join("config.json"),
                 project_dir.path().join("config.json"),
             ]
+        );
+
+        // The new `layers` field is precedence-ordered (low → high) and
+        // each entry carries the un-merged value of that layer alone.
+        let layer_paths: Vec<_> = r.layers.iter().map(|l| &l.path).collect();
+        assert_eq!(
+            layer_paths,
+            vec![
+                &repo.path().join("ito.json"),
+                &repo.path().join(".ito.json"),
+                &ito_path.join("config.json"),
+                &project_dir.path().join("config.json"),
+            ]
+        );
+
+        // The first layer (`ito.json`) only set `obj.a = 1`, `arr = [1]`,
+        // and `x = "repo"` — its raw value must NOT include the
+        // higher-precedence overrides applied later.
+        let first = &r.layers[0].value;
+        assert_eq!(first.get("x").unwrap(), &serde_json::json!("repo"));
+        assert_eq!(first.get("obj").unwrap(), &serde_json::json!({"a": 1}));
+        assert!(
+            first.get("z").is_none(),
+            "layer 0 must not see ito_dir keys"
         );
     }
 
