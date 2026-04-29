@@ -3,7 +3,7 @@
 
 ### Requirement: Orchestrate instruction artifact type
 
-The system SHALL support `orchestrate` as a first-class artifact type for `ito agent instruction`, rendering a complete authoritative orchestrator instruction document from baked-in orchestration policy, the project's `orchestrate.md` user prompt, per-change metadata, and detected run context. Skills and orchestrator agent prompts SHALL treat this rendered instruction as the source of truth for orchestration behavior.
+The system SHALL support `orchestrate` as a first-class artifact type for `ito agent instruction`, rendering a complete authoritative orchestrator instruction document from baked-in orchestration policy, the project's `orchestrate.md` user prompt, per-change metadata, detected run context, and the canonical agent surface taxonomy. Skills and orchestrator agent prompts SHALL treat this rendered instruction as the source of truth for orchestration behavior.
 
 - **Requirement ID**: orchestrate-instruction:artifact-type
 
@@ -27,8 +27,15 @@ The system SHALL support `orchestrate` as a first-class artifact type for `ito a
 #### Scenario: Complete orchestrator policy is rendered
 
 - **WHEN** `ito agent instruction orchestrate` renders successfully
-- **THEN** the output includes canonical guidance for orchestration source-of-truth precedence, coordinator responsibilities, planner/researcher/worker/reviewer roles, dependency planning, gate order, run state files, event logging, failure policy, remediation packets, and resume behavior
+- **THEN** the output includes canonical guidance for orchestration source-of-truth precedence, coordinator responsibilities, planner/researcher/worker/reviewer/test-runner roles, dependency planning, gate order, run state files, event logging, failure policy, remediation packets, and resume behavior
 - **AND** skills and agent prompts can remain thin because the rendered instruction contains the canonical workflow detail
+
+#### Scenario: Direct orchestrator and delegated roles are rendered
+
+- **WHEN** `ito agent instruction orchestrate` renders successfully
+- **THEN** the output identifies `ito-orchestrator` as the direct coordinator entrypoint
+- **AND** identifies planner, researcher, worker, reviewer, and test-runner agents as delegated roles dispatched by the orchestrator
+- **AND** does not describe `ito-orchestrator` or `ito-general` as ordinary delegated worker sub-agents
 
 #### Scenario: Project guidance is additive only
 

@@ -17,7 +17,7 @@ When Ito provides a baked-in `ito agent instruction <artifact>` workflow for a c
 
 - **WHEN** an installed Ito agent prompt coordinates or executes a workflow that has a matching `ito agent instruction <artifact>` command
 - **THEN** the agent prompt directs the agent to render and follow that instruction artifact before relying on role-local guidance
-- **AND** role-local guidance is limited to role boundaries, reporting format, and safety constraints not already covered by the instruction artifact
+- **AND** role-local guidance is limited to activation mode, role boundaries, reporting format, and safety constraints not already covered by the instruction artifact
 
 ### Requirement: Skills and agents remain thin adapters
 
@@ -47,5 +47,23 @@ Ito SHALL install harness command, skill, and agent templates that consistently 
 
 - **WHEN** `ito init`, `ito init --upgrade`, or `ito update` installs Ito-managed skills, commands, or agents for a supported harness
 - **THEN** files for workflows with baked-in instruction artifacts include the instruction invocation as their canonical first step
-- **AND** they do not contain conflicting gate order, state model, remediation, or provider-operation policy
+- **AND** they do not contain conflicting gate order, state model, remediation, activation-mode, or provider-operation policy
+
+### Requirement: Generated workflow surfaces have a canonical inventory
+
+Ito-managed generated commands, skills, and agents SHALL be covered by a canonical surface inventory when they participate in orchestration, multi-agent execution, memory, or instruction-rendered workflows.
+
+- **Requirement ID**: instruction-source-of-truth:canonical-surface-inventory
+
+#### Scenario: Overlapping surfaces are merged or justified
+
+- **WHEN** two Ito-managed skills, commands, or agent prompts contain overlapping orchestration or multi-agent workflow policy
+- **THEN** the overlap is resolved by moving canonical policy into the relevant instruction artifact
+- **AND** each remaining generated surface has a distinct purpose in the canonical inventory
+
+#### Scenario: Template test detects unclassified generated surface
+
+- **WHEN** a new Ito-managed orchestration, multi-agent, memory, or instruction-backed command, skill, or agent template is added
+- **THEN** generated-template verification requires it to be classified as a direct entrypoint, delegated role, workflow adapter, project-guidance surface, or deprecated/removed surface
+- **AND** validation fails if it duplicates canonical policy without an explicit inventory justification
 <!-- ITO:END -->
