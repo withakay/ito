@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Done When**: Module compiles, public types are documented (`#![warn(missing_docs)]`), and the `Rule` trait + registry compile against an empty rule list.
 - **Requirements**: validate-repo-engine:gate-filtering, validate-repo-engine:reuse-envelope, validate-repo-engine:gate-metadata
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement list_active_rules introspection
 
