@@ -20,6 +20,26 @@ fn write(path: impl AsRef<Path>, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
+/// Run a `git` command in the given directory and panic with a useful
+/// message on either spawn failure (e.g. git missing from PATH) or
+/// non-zero exit. Used by tests that need a real git repository for
+/// `git ls-files --error-unmatch` / `git check-ignore` to behave
+/// correctly.
+fn run_git(cwd: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to spawn `git {}`: {e}", args.join(" ")));
+    assert!(
+        output.status.success(),
+        "`git {}` exited non-zero (code: {:?})\nstderr: {}",
+        args.join(" "),
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
 /// Minimal initialised project: `.ito/` directory with an empty config file.
 /// Sufficient for `ito validate repo --list-rules` and similar non-rule paths.
 fn make_minimal_project() -> tempfile::TempDir {
@@ -299,30 +319,15 @@ fn validate_repo_backend_token_not_committed_fails_when_token_in_config() {
     );
     // Initialise a real git repo so `git ls-files --error-unmatch` can
     // actually classify the config file as tracked.
-    let _ = std::process::Command::new("git")
-        .args(["init", "--initial-branch=main"])
-        .current_dir(project.path())
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(project.path())
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["config", "user.name", "test"])
-        .current_dir(project.path())
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["config", "commit.gpgsign", "false"])
-        .current_dir(project.path())
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", ".ito/config.json"])
-        .current_dir(project.path())
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["commit", "--no-verify", "-m", "init"])
-        .current_dir(project.path())
-        .output();
+    run_git(project.path(), &["init", "--initial-branch=main"]);
+    run_git(
+        project.path(),
+        &["config", "user.email", "test@example.com"],
+    );
+    run_git(project.path(), &["config", "user.name", "test"]);
+    run_git(project.path(), &["config", "commit.gpgsign", "false"]);
+    run_git(project.path(), &["add", ".ito/config.json"]);
+    run_git(project.path(), &["commit", "--no-verify", "-m", "init"]);
 
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
