@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Done When**: Each rule has positive and negative fixtures plus a "skipped" fixture covering the disabled-mirror branch.
 - **Requirements**: validate-repo-audit-rules:mirror-branch-set, validate-repo-audit-rules:mirror-branch-distinct-from-coordination
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Implement repository rules
 
