@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Done When**: The accessor is documented (`#![warn(missing_docs)]`), and tests cover at least three layers (committed `.ito/config.json`, gitignored `.ito/config.local.json`, env-var override).
 - **Requirements**: validate-repo-backend-rules:token-not-committed
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.4: Implement backend rules
 
