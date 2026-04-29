@@ -69,7 +69,7 @@ ______________________________________________________________________
 - **Done When**: `update_gitignore_for_symlinks` and the new rule both consume the same canonical list and there is no duplicated literal.
 - **Requirements**: validate-repo-coordination-rules:gitignore-entries
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Implement coordination rules
 
