@@ -80,7 +80,7 @@ ______________________________________________________________________
 - **Done When**: Each rule has at least one passing-fixture and one failing-fixture test, and the embedded-storage skip path is covered.
 - **Requirements**: validate-repo-coordination-rules:symlinks-wired, validate-repo-coordination-rules:gitignore-entries, validate-repo-coordination-rules:staged-symlinked-paths, validate-repo-coordination-rules:branch-name-set
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.3: Implement worktrees rules
 
