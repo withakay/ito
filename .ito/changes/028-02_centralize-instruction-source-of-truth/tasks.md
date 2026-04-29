@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Rendered instructions contain the authoritative workflow detail currently spread across skills/agents and tests cover direct entrypoints, delegated roles, and expected sections.
 - **Requirements**: instruction-source-of-truth:authoritative-artifacts, orchestrate-instruction:artifact-type, agent-memory-abstraction:installed-ito-memory-skill, agent-surface-taxonomy:direct-general-orchestrator, agent-surface-taxonomy:delegated-role-agents
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Reclassify generated agent templates
 
