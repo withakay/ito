@@ -62,7 +62,12 @@ impl Rule for MirrorBranchSetRule {
         let mut issues = Vec::new();
 
         if branch.is_empty() {
-            let issue = warning(".ito/config.json", "`audit.mirror.branch` is empty.");
+            let issue = warning(
+                ".ito/config.json",
+                "`audit.mirror.branch` is empty. \
+                 Without a branch name the audit subsystem cannot push mirror \
+                 commits and the mirror feature is effectively disabled.",
+            );
             let issue = with_rule_id(issue, MIRROR_BRANCH_SET_ID.as_str());
             issues.push(with_metadata(
                 issue,

@@ -53,10 +53,17 @@ impl Rule for TokenNotCommittedRule {
     fn is_active(&self, config: &ItoConfig) -> bool {
         config.backend.enabled
     }
-
     fn check(&self, ctx: &RuleContext<'_>) -> Result<Vec<ValidationIssue>, CoreError> {
-        // Reload the cascading config with per-layer breakdown. The
-        // engine's merged `ItoConfig` does not carry layer provenance.
+        // We reload the cascading config here rather than receiving it via
+        // `RuleContext` because the engine's merged `ItoConfig` discards
+        // per-layer provenance and we need to know which layer set the
+        // token. The extra disk I/O is acceptable for an infrequent
+        // validation pass; the TOCTOU window between engine init and rule
+        // execution is negligible in practice.
+        //
+        // `ConfigContext::from_process_env()` matches the CLI's view of
+        // the layer set (XDG / HOME / PROJECT_DIR), so the rule reports
+        // what an operator running `ito validate repo` actually sees.
         let cfg_ctx = ConfigContext::from_process_env();
         let ito_path = ctx.project_root.join(".ito");
         let cascading = load_cascading_project_config(ctx.project_root, &ito_path, &cfg_ctx);
@@ -176,7 +183,8 @@ impl Rule for UrlSchemeValidRule {
         let url = ctx.config.backend.url.trim();
         if url.is_empty() {
             return Ok(vec![issue_for_url_problem(
-                "`backend.url` is empty while `backend.enabled = true`.",
+                "`backend.url` is empty while `backend.enabled = true`. \
+                 The backend client requires an addressable endpoint to connect to.",
                 "Set `backend.url` to the backend endpoint, for example `https://api.example.com`.",
             )]);
         }
@@ -192,6 +200,10 @@ impl Rule for UrlSchemeValidRule {
 
         match scheme {
             "http" | "https" => {}
+            // `scheme` is a free-form string from `split_once`; we cannot
+            // exhaustively enumerate every possible value, so a catch-all
+            // arm is the only option here. (See `.agents/skills/rust-style`
+            // — wildcards are allowed when the matched type is open.)
             other => {
                 return Ok(vec![issue_for_url_problem(
                     format!(
@@ -452,6 +464,24 @@ mod tests {
     }
 
     #[test]
+    fn url_scheme_fails_for_scheme_only_no_host() {
+        // Edge case: scheme is valid but `://` is followed by nothing.
+        let cfg = config(true, "https://", Some("a"), Some("b"));
+        let tmp = TempDir::new().unwrap();
+        let runner = ScriptedRunner::new(ok_output(false, 1));
+        let staged = StagedFiles::empty();
+        let issues = UrlSchemeValidRule
+            .check(&ctx_for(&cfg, &tmp, &runner, &staged))
+            .unwrap();
+        assert_eq!(issues.len(), 1);
+        assert!(
+            issues[0].message.contains("no host"),
+            "expected 'no host' message; got: {}",
+            issues[0].message,
+        );
+    }
+
+    #[test]
     fn url_scheme_fails_for_empty() {
         let cfg = config(true, "", Some("a"), Some("b"));
         let tmp = TempDir::new().unwrap();
@@ -577,11 +607,11 @@ mod tests {
     }
 
     #[test]
-    fn token_not_committed_severity_unaffected_by_strict_mode() {
-        // The rule emits ERROR severity directly; strict mode is applied
-        // by the engine at report-build time but cannot weaken an
-        // already-ERROR issue. This test pins the severity contract so a
-        // future refactor that changes it is caught.
+    fn token_not_committed_emits_error_severity_directly() {
+        // The rule constructs ERROR-level issues via `error()` rather than
+        // returning WARNINGs that strict mode would promote. This test
+        // pins the severity contract so a future refactor can't silently
+        // demote the rule to WARNING.
         let cfg = config(true, "https://x", Some("a"), Some("b"));
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(tmp.path().join(".ito")).unwrap();
@@ -598,7 +628,51 @@ mod tests {
             .unwrap();
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].level, "ERROR");
-        // Rule's nominal severity is ERROR.
         assert_eq!(TokenNotCommittedRule.severity(), RuleSeverity::Error);
+    }
+
+    #[test]
+    fn token_not_committed_strict_flag_does_not_weaken_severity() {
+        // End-to-end check: run the rule through the engine path with
+        // both `strict = false` and `strict = true` and confirm the
+        // emitted issue has level "ERROR" in both cases. The engine's
+        // strict flag promotes WARNINGs to errors but never demotes an
+        // existing ERROR.
+        use crate::validate_repo::run_repo_validation;
+
+        let mut cfg = config(true, "https://x", Some("a"), Some("b"));
+        // Disable every other gated rule so only `backend/*` rules fire
+        // under this fixture.
+        cfg.changes.coordination_branch.storage = ito_config::types::CoordinationStorage::Embedded;
+        cfg.worktrees.enabled = false;
+
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".ito")).unwrap();
+        std::fs::write(
+            tmp.path().join(".ito/config.json"),
+            r#"{"backend": {"token": "leak"}}"#,
+        )
+        .unwrap();
+        let runner = ScriptedRunner::new(ok_output(false, 1))
+            .with_rule(&["ls-files", "--error-unmatch"], ok_output(true, 0));
+        let staged = StagedFiles::empty();
+
+        for strict in [false, true] {
+            let report = run_repo_validation(&cfg, tmp.path(), &staged, &runner, strict);
+            let token_issues: Vec<_> = report
+                .issues
+                .iter()
+                .filter(|i| i.rule_id.as_deref() == Some(TOKEN_NOT_COMMITTED_ID.as_str()))
+                .collect();
+            assert_eq!(
+                token_issues.len(),
+                1,
+                "expected one token issue (strict={strict}); got {token_issues:?}",
+            );
+            assert_eq!(
+                token_issues[0].level, "ERROR",
+                "token-not-committed must always emit ERROR (strict={strict})",
+            );
+        }
     }
 }

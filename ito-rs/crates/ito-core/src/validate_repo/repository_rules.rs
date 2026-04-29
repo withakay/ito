@@ -46,15 +46,68 @@ fn resolve_db_path(config: &ItoConfig, project_root: &Path) -> Option<PathBuf> {
     }
 }
 
-/// True when `path` is inside `root` (after lexical normalization).
+/// True when `path` is inside `root` after both lexical normalization
+/// (collapsing `..` and `.` components) AND, when possible, OS-level
+/// canonicalization (resolving symlinks).
+///
+/// `Path::starts_with` is component-based and does NOT resolve `..`, so a
+/// fallback that uses it directly would let `<root>/.ito/state/../../etc/passwd`
+/// claim to be "inside the root". The lexical normalisation below
+/// closes that hole when the file does not yet exist (so
+/// `Path::canonicalize` is unavailable).
 fn path_inside_root(path: &Path, root: &Path) -> bool {
-    let Ok(canonical_root) = root.canonicalize() else {
-        return path.starts_with(root);
-    };
-    if let Ok(canonical_path) = path.canonicalize() {
-        return canonical_path.starts_with(&canonical_root);
+    let canonical_root = root.canonicalize().ok();
+
+    // Best case: canonicalize both. Resolves symlinks too.
+    if let Some(canonical_root) = canonical_root.as_ref()
+        && let Ok(canonical_path) = path.canonicalize()
+    {
+        return canonical_path.starts_with(canonical_root);
     }
-    path.starts_with(root)
+
+    // File doesn't exist yet (or root cannot be canonicalised). Lexically
+    // normalise `path`, then compare against the canonicalised root (when
+    // available) AND the original root — handles macOS where `/var` →
+    // `/private/var` so a path under `/var/...` would not literally
+    // start with `/private/var`.
+    let normalized = lexical_normalize(path);
+    if let Some(canonical_root) = canonical_root.as_ref()
+        && normalized.starts_with(canonical_root)
+    {
+        return true;
+    }
+    normalized.starts_with(root)
+}
+
+/// Collapse `.` and `..` components without touching the filesystem.
+///
+/// Unlike `Path::canonicalize`, this is purely lexical — `..` after a
+/// regular component pops the previous component; `..` after `..` or at
+/// the start is kept (we cannot know what the parent of an unknown root
+/// is).
+fn lexical_normalize(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out: Vec<Component<'_>> = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                let pops_prior_normal = match out.last() {
+                    Some(Component::Normal(_)) => true,
+                    Some(_) | None => false,
+                };
+                if pops_prior_normal {
+                    out.pop();
+                } else {
+                    out.push(component);
+                }
+            }
+            Component::CurDir => {}
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                out.push(component);
+            }
+        }
+    }
+    out.iter().collect()
 }
 
 // ── repository/sqlite-db-path-set ────────────────────────────────────────
@@ -132,7 +185,9 @@ impl Rule for SqliteDbPathSetRule {
             let issue = warning(
                 ".ito/config.json",
                 format!(
-                    "`repository.sqlite.db_path` parent directory does not exist: `{parent}`.",
+                    "`repository.sqlite.db_path` parent directory does not exist: `{parent}`. \
+                     SQLite cannot create parent directories on its own; the database open \
+                     will fail at runtime if the directory is still missing.",
                     parent = parent.display(),
                 ),
             );
@@ -413,6 +468,34 @@ mod tests {
         let issues = SqliteDbPathSetRule.check(&ctx).unwrap();
         assert_eq!(issues.len(), 1);
         assert!(issues[0].message.contains("outside the project root"));
+    }
+
+    #[test]
+    fn sqlite_db_path_set_errors_when_path_escapes_root_via_dotdot() {
+        // Regression test for a `..` traversal bypass in path_inside_root:
+        // `Path::starts_with` is component-based and does not resolve `..`,
+        // so a path of `.ito/state/../../../etc/passwd` could appear to
+        // "start with" the project root while actually escaping it.
+        let cfg = config(
+            RepositoryPersistenceMode::Sqlite,
+            Some(".ito/state/../../../etc/passwd"),
+        );
+        let tmp = TempDir::new().unwrap();
+        let runner = ScriptedRunner::new(ok_output(false, 1));
+        let staged = StagedFiles::empty();
+        let ctx = RuleContext::new(&cfg, tmp.path(), &staged, &runner);
+
+        let issues = SqliteDbPathSetRule.check(&ctx).unwrap();
+        assert_eq!(
+            issues.len(),
+            1,
+            "expected one error for `..` traversal escape; got {issues:?}",
+        );
+        assert!(
+            issues[0].message.contains("outside the project root"),
+            "expected outside-root message; got: {}",
+            issues[0].message,
+        );
     }
 
     #[test]
