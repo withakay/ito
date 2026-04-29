@@ -126,6 +126,10 @@ fn validate_repo_list_rules_json_returns_array() {
         .get("rules")
         .and_then(|r| r.as_array())
         .expect("rules array");
+    // Exact count is intentional: when change 011-06 adds the
+    // `audit/*`, `repository/*`, and `backend/*` rules, this assertion
+    // fails loudly so the test (and any docs that quote the rule count)
+    // get updated together.
     assert_eq!(rules.len(), 6, "expected 6 built-in rules, got {rules:#?}");
 }
 

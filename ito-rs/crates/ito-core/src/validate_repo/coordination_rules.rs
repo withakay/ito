@@ -39,10 +39,10 @@ const COORD_BRANCH_PREFIX: &str = "ito/internal/";
 
 /// True when coordination storage requires worktree wiring.
 fn storage_is_worktree(config: &ItoConfig) -> bool {
-    matches!(
-        config.changes.coordination_branch.storage,
-        CoordinationStorage::Worktree,
-    )
+    match config.changes.coordination_branch.storage {
+        CoordinationStorage::Worktree => true,
+        CoordinationStorage::Embedded => false,
+    }
 }
 
 // ── coordination/symlinks-wired ──────────────────────────────────────────
@@ -263,7 +263,10 @@ impl Rule for StagedSymlinkedPathsRule {
             };
             let segment = match first {
                 std::path::Component::Normal(s) => s.to_string_lossy(),
-                _ => continue,
+                std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+                | std::path::Component::CurDir
+                | std::path::Component::ParentDir => continue,
             };
             if !COORDINATION_DIRS.iter().any(|dir| *dir == segment.as_ref()) {
                 continue;
@@ -621,7 +624,8 @@ mod tests {
         assert_eq!(only.level, "ERROR");
         assert_eq!(only.rule_id.as_deref(), Some(SYMLINKS_WIRED_ID.as_str()));
         assert!(
-            only.message.contains("Cannot resolve the coordination worktree path"),
+            only.message
+                .contains("Cannot resolve the coordination worktree path"),
             "expected resolution-failure message; got: {}",
             only.message,
         );

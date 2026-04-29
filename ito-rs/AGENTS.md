@@ -189,6 +189,7 @@ This project uses **[prek](https://github.com/j178/prek)** (NOT `pre-commit`):
 
 ```bash
 prek install -t commit-msg              # Conventional commit message check
+prek install -t pre-commit              # Lightweight repo validation (ito validate repo --staged --strict)
 prek install -t pre-push                # Full quality gate
 prek run --all-files --stage pre-push   # Run full gate locally
 ```

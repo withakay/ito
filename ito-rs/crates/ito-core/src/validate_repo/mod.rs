@@ -42,9 +42,7 @@ pub mod rule;
 pub mod staged;
 pub mod worktrees_rules;
 
-pub use pre_commit_detect::{
-    PreCommitSystem, detect_pre_commit_system,
-};
+pub use pre_commit_detect::{PreCommitSystem, detect_pre_commit_system};
 pub use registry::{ActiveRule, RuleRegistry, list_active_rules, list_active_rules_for};
 pub use rule::{Rule, RuleContext, RuleId, RuleSeverity};
 pub use staged::StagedFiles;

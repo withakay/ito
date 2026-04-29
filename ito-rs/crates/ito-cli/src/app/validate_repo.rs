@@ -202,6 +202,10 @@ fn recompute_summary(report: &mut core_validate::ValidationReport, strict: bool)
             "ERROR" => errors += 1,
             "WARNING" => warnings += 1,
             "INFO" => info += 1,
+            // ValidationLevel is a `&'static str` (not an enum), so we
+            // cannot exhaustively match all variants. Unknown levels are
+            // ignored rather than counted; a future enum-based level
+            // refactor would let us drop this arm.
             _ => {}
         }
     }

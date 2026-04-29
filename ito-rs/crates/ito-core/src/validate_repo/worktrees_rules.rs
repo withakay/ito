@@ -167,10 +167,12 @@ impl Rule for LayoutConsistentRule {
             ));
         }
 
-        if matches!(
-            ctx.config.worktrees.strategy,
-            WorktreeStrategy::CheckoutSubdir,
-        ) && !dir_name.is_empty()
+        let strategy_requires_gitignore_entry = match ctx.config.worktrees.strategy {
+            WorktreeStrategy::CheckoutSubdir => true,
+            WorktreeStrategy::CheckoutSiblings | WorktreeStrategy::BareControlSiblings => false,
+        };
+        if strategy_requires_gitignore_entry
+            && !dir_name.is_empty()
             && !gitignore_contains_dir(ctx.project_root, dir_name)?
         {
             let issue = warning(
@@ -195,6 +197,14 @@ impl Rule for LayoutConsistentRule {
 
 /// True when `.gitignore` at `project_root` contains a line matching
 /// `{dir_name}/` or `{dir_name}` (trimmed).
+///
+/// This is a deliberate substring match — it does not parse `.gitignore`
+/// syntax (comments starting with `#`, negation patterns starting with
+/// `!`, or glob patterns). For the WARNING-level
+/// `worktrees/layout-consistent` rule that consumes it, false positives
+/// (i.e. claiming an entry exists when a comment-only line matches) are
+/// preferable to false negatives (silently letting drift through), and
+/// the canonical entry is always a literal directory name.
 fn gitignore_contains_dir(project_root: &Path, dir_name: &str) -> Result<bool, CoreError> {
     let gitignore = project_root.join(".gitignore");
     if !gitignore.exists() {
