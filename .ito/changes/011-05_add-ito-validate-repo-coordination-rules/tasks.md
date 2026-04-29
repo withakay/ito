@@ -158,7 +158,7 @@ ______________________________________________________________________
 - **Done When**: The script invokes the new command; the previous "intentionally no-op" comment is replaced by a short rationale plus a link to the `pre-commit-hooks` capability spec.
 - **Requirements**: pre-commit-hooks:replace-no-op-stub
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 4.3: Wire pre-commit hook into pre-commit-config
 
