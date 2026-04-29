@@ -30,6 +30,7 @@ Define the core semantics of every Ito command without owning the CLI argument s
 | `stats` | Statistics collection |
 | `tasks` | Task-focused orchestration use-cases |
 | `validate` | Validation of on-disk state, repo integrity |
+| `validate_repo` | Config-aware repository validation engine (`coordination/*`, `worktrees/*`, pre-commit detection) |
 | `workflow` | Workflow execution and planning |
 
 ## Workspace Dependencies
