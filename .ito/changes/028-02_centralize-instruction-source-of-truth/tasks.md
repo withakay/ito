@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: The generated surface inventory identifies `ito-general` and `ito-orchestrator` as direct entrypoints, planner/researcher/worker/reviewer/test-runner as delegated roles, and every orchestration-adjacent skill/prompt has a non-overlapping classification.
 - **Requirements**: instruction-source-of-truth:canonical-surface-inventory, agent-surface-taxonomy:activation-mode, agent-surface-taxonomy:direct-general-orchestrator, agent-surface-taxonomy:delegated-role-agents
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Expand authoritative instruction templates
 
