@@ -64,7 +64,7 @@ ______________________________________________________________________
 - **Done When**: All scenarios from `validate-repo-backend-rules:*` are covered by fixture tests, including the env-var-passes case and the strict-flag-does-not-weaken-severity case.
 - **Requirements**: validate-repo-backend-rules:token-not-committed, validate-repo-backend-rules:url-scheme-valid, validate-repo-backend-rules:project-org-repo-set
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
