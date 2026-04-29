@@ -20,6 +20,26 @@ fn write(path: impl AsRef<Path>, contents: &str) {
     std::fs::write(path, contents).unwrap();
 }
 
+/// Run a `git` command in the given directory and panic with a useful
+/// message on either spawn failure (e.g. git missing from PATH) or
+/// non-zero exit. Used by tests that need a real git repository for
+/// `git ls-files --error-unmatch` / `git check-ignore` to behave
+/// correctly.
+fn run_git(cwd: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to spawn `git {}`: {e}", args.join(" ")));
+    assert!(
+        output.status.success(),
+        "`git {}` exited non-zero (code: {:?})\nstderr: {}",
+        args.join(" "),
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
 /// Minimal initialised project: `.ito/` directory with an empty config file.
 /// Sufficient for `ito validate repo --list-rules` and similar non-rule paths.
 fn make_minimal_project() -> tempfile::TempDir {
@@ -93,12 +113,21 @@ fn validate_repo_list_rules_enumerates_built_in_rules() {
     );
     assert_eq!(out.code, 0, "--list-rules must exit 0");
     for id in &[
+        // 011-05
         "coordination/branch-name-set",
         "coordination/gitignore-entries",
         "coordination/staged-symlinked-paths",
         "coordination/symlinks-wired",
         "worktrees/layout-consistent",
         "worktrees/no-write-on-control",
+        // 011-06
+        "audit/mirror-branch-distinct-from-coordination",
+        "audit/mirror-branch-set",
+        "backend/project-org-repo-set",
+        "backend/token-not-committed",
+        "backend/url-scheme-valid",
+        "repository/sqlite-db-not-committed",
+        "repository/sqlite-db-path-set",
     ] {
         assert!(
             out.stdout.contains(id),
@@ -126,11 +155,15 @@ fn validate_repo_list_rules_json_returns_array() {
         .get("rules")
         .and_then(|r| r.as_array())
         .expect("rules array");
-    // Exact count is intentional: when change 011-06 adds the
-    // `audit/*`, `repository/*`, and `backend/*` rules, this assertion
-    // fails loudly so the test (and any docs that quote the rule count)
-    // get updated together.
-    assert_eq!(rules.len(), 6, "expected 6 built-in rules, got {rules:#?}");
+    // Exact count is intentional: when more rules are added, this
+    // assertion fails loudly so the test (and any docs that quote the
+    // rule count) get updated together. Currently 13 rules ship: 6 from
+    // 011-05 + 7 from 011-06.
+    assert_eq!(
+        rules.len(),
+        13,
+        "expected 13 built-in rules, got {rules:#?}"
+    );
 }
 
 #[test]
@@ -237,6 +270,140 @@ fn validate_repo_json_emits_validation_report_envelope() {
     assert_eq!(summary.get("errors"), Some(&serde_json::json!(0)));
     assert_eq!(summary.get("warnings"), Some(&serde_json::json!(0)));
     assert_eq!(summary.get("info"), Some(&serde_json::json!(0)));
+}
+
+#[test]
+fn validate_repo_explain_audit_mirror_distinct_rule() {
+    // 011-06: explain output for one of the new rules, demonstrating
+    // that the registry surfaces description and gate metadata.
+    let project = make_minimal_project();
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "validate",
+            "repo",
+            "--explain",
+            "audit/mirror-branch-distinct-from-coordination",
+        ],
+        project.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0);
+    assert!(out.stdout.contains("severity: ERROR"));
+    assert!(out.stdout.contains("audit.mirror.enabled"));
+    assert!(out.stdout.contains("coordination_branch.storage"));
+}
+
+#[test]
+fn validate_repo_backend_token_not_committed_fails_when_token_in_config() {
+    // 011-06 security check: write a project that has backend.enabled =
+    // true and a backend.token set in `.ito/config.json`. The CLI
+    // command should exit 1 with the token-not-committed rule firing.
+    let project = tempfile::tempdir().expect("project");
+    write(
+        project.path().join(".ito/config.json"),
+        r#"{
+  "changes": { "coordination_branch": { "storage": "embedded" } },
+  "worktrees": { "enabled": false },
+  "backend": {
+    "enabled": true,
+    "url": "https://api.example.com",
+    "token": "leaked-secret",
+    "project": { "org": "withakay", "repo": "ito" }
+  }
+}
+"#,
+    );
+    // Initialise a real git repo so `git ls-files --error-unmatch` can
+    // actually classify the config file as tracked.
+    run_git(project.path(), &["init", "--initial-branch=main"]);
+    run_git(
+        project.path(),
+        &["config", "user.email", "test@example.com"],
+    );
+    run_git(project.path(), &["config", "user.name", "test"]);
+    run_git(project.path(), &["config", "commit.gpgsign", "false"]);
+    run_git(project.path(), &["add", ".ito/config.json"]);
+    run_git(project.path(), &["commit", "--no-verify", "-m", "init"]);
+
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["validate", "repo", "--json"],
+        project.path(),
+        home.path(),
+    );
+    assert_eq!(
+        out.code, 1,
+        "expected exit 1 (validation failure); stdout: {}",
+        out.stdout,
+    );
+
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("--json output");
+    let issues = v
+        .get("issues")
+        .and_then(|i| i.as_array())
+        .expect("issues array");
+    let token_issues: Vec<_> = issues
+        .iter()
+        .filter(|i| {
+            i.get("rule_id").and_then(|r| r.as_str()) == Some("backend/token-not-committed")
+        })
+        .collect();
+    assert_eq!(
+        token_issues.len(),
+        1,
+        "expected one token-not-committed issue; got: {issues:#?}",
+    );
+    assert_eq!(
+        token_issues[0].get("level").and_then(|l| l.as_str()),
+        Some("ERROR"),
+    );
+}
+
+#[test]
+fn validate_repo_url_scheme_valid_fails_for_non_http_scheme() {
+    // 011-06: enabling the backend with an ftp URL should fail with the
+    // url-scheme-valid rule.
+    let project = tempfile::tempdir().expect("project");
+    write(
+        project.path().join(".ito/config.json"),
+        r#"{
+  "changes": { "coordination_branch": { "storage": "embedded" } },
+  "worktrees": { "enabled": false },
+  "backend": {
+    "enabled": true,
+    "url": "ftp://files.example.com",
+    "project": { "org": "withakay", "repo": "ito" }
+  }
+}
+"#,
+    );
+
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["validate", "repo"],
+        project.path(),
+        home.path(),
+    );
+    assert_eq!(
+        out.code, 1,
+        "expected exit 1 for ftp scheme; stdout: {}",
+        out.stdout,
+    );
+    assert!(
+        out.stdout.contains("backend/url-scheme-valid"),
+        "stdout should mention the failing rule; got:\n{}",
+        out.stdout,
+    );
 }
 
 #[test]

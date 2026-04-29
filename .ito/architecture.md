@@ -162,16 +162,15 @@ See [`specs/cli-archive`](specs/cli-archive/spec.md) and [`specs/cli-validate`](
 
 Beyond per-artifact validation (`ito validate <change-id>`), Ito ships a **config-aware repository validation engine** at `ito-core::validate_repo` exposed as `ito validate repo`. The engine iterates a registry of small, gated rules and merges their findings into the standard `ValidationReport` envelope.
 
-Built-in rule namespaces (this change):
+Built-in rule namespaces (13 rules in five namespaces, each gated on a
+specific `ItoConfig` predicate so the rule is silently skipped when the
+feature is off):
 
-- `coordination/*` — gates on `changes.coordination_branch.storage == worktree`. Checks symlink wiring, canonical `.gitignore` lines, and that staged paths do not live under coordination directories.
-- `worktrees/*` — gates on `worktrees.enabled == true`. Catches commits made on the control / default-branch worktree and layout drift.
-
-Added by change `011-06` (extends the same registry):
-
-- `audit/*` — mirror branch invariants.
-- `repository/*` — sqlite path / commit policy when `repository.mode == sqlite`.
-- `backend/*` — token-not-committed, URL scheme, and project org/repo presence.
+- `coordination/*` (4 rules) — gates on `changes.coordination_branch.storage == worktree`. Checks symlink wiring, canonical `.gitignore` lines, and that staged paths do not live under coordination directories. The `coordination/branch-name-set` rule is always active.
+- `worktrees/*` (2 rules) — gates on `worktrees.enabled == true`. Catches commits made on the control / default-branch worktree and worktree layout drift.
+- `audit/*` (2 rules) — gates on `audit.mirror.enabled == true`. Enforces a non-empty mirror branch following the `ito/internal/*` convention; the distinct-from-coordination rule additionally requires `coordination_branch.storage == worktree` to fire.
+- `repository/*` (2 rules) — gates on `repository.mode == sqlite`. The `db_path` must resolve inside the project root, have an existing parent directory, and the database file must be untracked AND covered by `.gitignore`.
+- `backend/*` (3 rules) — gates on `backend.enabled == true`. The security-critical `backend/token-not-committed` inspects the cascading config layer-by-layer and emits an `ERROR` (regardless of `--strict`) if a token is set in any tracked-by-git layer.
 
 The `pre-commit` git hook installed by `ito-update-repo` runs `ito validate repo --staged --strict`, so every commit gets a fast, configuration-aware sanity check. The heavier `cargo` quality gates remain at `pre-push`.
 

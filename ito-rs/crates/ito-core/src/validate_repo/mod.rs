@@ -35,9 +35,12 @@ use ito_config::types::ItoConfig;
 use crate::process::ProcessRunner;
 use crate::validate::{ValidationReport, report, with_rule_id};
 
+pub mod audit_rules;
+pub mod backend_rules;
 pub mod coordination_rules;
 pub mod pre_commit_detect;
 pub mod registry;
+pub mod repository_rules;
 pub mod rule;
 pub mod staged;
 pub mod worktrees_rules;

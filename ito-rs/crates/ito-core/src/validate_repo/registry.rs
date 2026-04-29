@@ -58,24 +58,41 @@ impl RuleRegistry {
 
     /// Construct a registry pre-populated with every built-in rule.
     ///
-    /// Wave 2 registers the `coordination/*` and `worktrees/*` rules.
-    /// Change `011-06` adds the `audit/*`, `repository/*`, and `backend/*`
-    /// rules. Order of registration does not matter —
-    /// [`list_active_rules`] sorts by `RuleId` for deterministic output.
+    /// Order of registration does not matter — [`list_active_rules`] sorts
+    /// by `RuleId` for deterministic output.
+    ///
+    /// Built-in rules:
+    ///
+    /// - `coordination/*` and `worktrees/*` — change 011-05.
+    /// - `audit/*`, `repository/*`, `backend/*` — change 011-06.
     #[must_use]
     pub fn built_in() -> Self {
+        use super::audit_rules::{MirrorBranchDistinctRule, MirrorBranchSetRule};
+        use super::backend_rules::{
+            ProjectOrgRepoSetRule, TokenNotCommittedRule, UrlSchemeValidRule,
+        };
         use super::coordination_rules::{
             BranchNameSetRule, GitignoreEntriesRule, StagedSymlinkedPathsRule, SymlinksWiredRule,
         };
+        use super::repository_rules::{SqliteDbNotCommittedRule, SqliteDbPathSetRule};
         use super::worktrees_rules::{LayoutConsistentRule, NoWriteOnControlRule};
 
         Self::empty()
+            // 011-05: coordination/*, worktrees/*
             .with_rule(Box::new(SymlinksWiredRule))
             .with_rule(Box::new(GitignoreEntriesRule))
             .with_rule(Box::new(StagedSymlinkedPathsRule))
             .with_rule(Box::new(BranchNameSetRule))
             .with_rule(Box::new(NoWriteOnControlRule))
             .with_rule(Box::new(LayoutConsistentRule))
+            // 011-06: audit/*, repository/*, backend/*
+            .with_rule(Box::new(MirrorBranchSetRule))
+            .with_rule(Box::new(MirrorBranchDistinctRule))
+            .with_rule(Box::new(SqliteDbPathSetRule))
+            .with_rule(Box::new(SqliteDbNotCommittedRule))
+            .with_rule(Box::new(TokenNotCommittedRule))
+            .with_rule(Box::new(UrlSchemeValidRule))
+            .with_rule(Box::new(ProjectOrgRepoSetRule))
     }
 
     /// Register a rule with this registry.
@@ -217,18 +234,31 @@ mod tests {
     }
 
     #[test]
-    fn built_in_registry_contains_all_wave2_rules() {
+    fn built_in_registry_contains_every_built_in_rule() {
         let registry = RuleRegistry::built_in();
-        // Six rules ship in Wave 2 of change 011-05:
-        // - coordination/{symlinks-wired,gitignore-entries,staged-symlinked-paths,branch-name-set}
-        // - worktrees/{no-write-on-control,layout-consistent}
+        // Thirteen rules ship after changes 011-05 + 011-06:
+        // - 011-05: coordination/{symlinks-wired,gitignore-entries,
+        //   staged-symlinked-paths,branch-name-set} + worktrees/{
+        //   no-write-on-control,layout-consistent} = 6.
+        // - 011-06: audit/{mirror-branch-set,
+        //   mirror-branch-distinct-from-coordination} +
+        //   repository/{sqlite-db-path-set,sqlite-db-not-committed} +
+        //   backend/{token-not-committed,url-scheme-valid,
+        //   project-org-repo-set} = 7.
         let ids: Vec<_> = registry.iter().map(|r| r.id().as_str()).collect();
-        assert_eq!(ids.len(), 6, "expected 6 built-in rules, got {ids:?}");
+        assert_eq!(ids.len(), 13, "expected 13 built-in rules, got {ids:?}");
         for expected in [
+            "audit/mirror-branch-distinct-from-coordination",
+            "audit/mirror-branch-set",
+            "backend/project-org-repo-set",
+            "backend/token-not-committed",
+            "backend/url-scheme-valid",
             "coordination/branch-name-set",
             "coordination/gitignore-entries",
             "coordination/staged-symlinked-paths",
             "coordination/symlinks-wired",
+            "repository/sqlite-db-not-committed",
+            "repository/sqlite-db-path-set",
             "worktrees/layout-consistent",
             "worktrees/no-write-on-control",
         ] {
@@ -301,6 +331,193 @@ mod tests {
             Some("changes.coordination_branch.storage == worktree"),
             "gate metadata should be surfaced verbatim",
         );
+    }
+
+    /// Activation matrix for the full built-in rule set.
+    ///
+    /// Each row is a config permutation and the rule ids that should be
+    /// `active = true` for it. Rules not listed are expected to be
+    /// inactive. This test catches accidental gate changes by enforcing
+    /// the entire matrix at once rather than one rule at a time.
+    #[test]
+    fn list_active_rules_matrix_matches_specification() {
+        use ito_config::types::{
+            AuditConfig, AuditMirrorConfig, BackendApiConfig, BackendProjectConfig, ChangesConfig,
+            CoordinationBranchConfig, CoordinationStorage, RepositoryPersistenceMode,
+            RepositoryRuntimeConfig, RepositorySqliteConfig, WorktreesConfig,
+        };
+
+        struct Case {
+            label: &'static str,
+            mutate: fn(&mut ItoConfig),
+            expected_active: &'static [&'static str],
+        }
+
+        // Always-active rule applies to every row.
+        const ALWAYS: &[&str] = &["coordination/branch-name-set"];
+
+        let cases = [
+            Case {
+                label: "minimal: embedded coord, worktrees off, fs repo, backend/audit off",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = false;
+                    c.backend.enabled = false;
+                },
+                expected_active: ALWAYS,
+            },
+            Case {
+                label: "coordination_worktree only",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = false;
+                    c.backend.enabled = false;
+                },
+                expected_active: &[
+                    "coordination/branch-name-set",
+                    "coordination/gitignore-entries",
+                    "coordination/staged-symlinked-paths",
+                    "coordination/symlinks-wired",
+                ],
+            },
+            Case {
+                label: "worktrees enabled only",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+                    c.worktrees.enabled = true;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = false;
+                    c.backend.enabled = false;
+                },
+                expected_active: &[
+                    "coordination/branch-name-set",
+                    "worktrees/layout-consistent",
+                    "worktrees/no-write-on-control",
+                ],
+            },
+            Case {
+                label: "audit mirror enabled, embedded coord (distinct rule still skipped)",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = true;
+                    c.backend.enabled = false;
+                },
+                expected_active: &["audit/mirror-branch-set", "coordination/branch-name-set"],
+            },
+            Case {
+                label: "audit mirror + worktree coord (both audit rules active)",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = true;
+                    c.backend.enabled = false;
+                },
+                expected_active: &[
+                    "audit/mirror-branch-distinct-from-coordination",
+                    "audit/mirror-branch-set",
+                    "coordination/branch-name-set",
+                    "coordination/gitignore-entries",
+                    "coordination/staged-symlinked-paths",
+                    "coordination/symlinks-wired",
+                ],
+            },
+            Case {
+                label: "sqlite repo only",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Sqlite;
+                    c.audit.mirror.enabled = false;
+                    c.backend.enabled = false;
+                },
+                expected_active: &[
+                    "coordination/branch-name-set",
+                    "repository/sqlite-db-not-committed",
+                    "repository/sqlite-db-path-set",
+                ],
+            },
+            Case {
+                label: "backend enabled only",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+                    c.worktrees.enabled = false;
+                    c.repository.mode = RepositoryPersistenceMode::Filesystem;
+                    c.audit.mirror.enabled = false;
+                    c.backend.enabled = true;
+                },
+                expected_active: &[
+                    "backend/project-org-repo-set",
+                    "backend/token-not-committed",
+                    "backend/url-scheme-valid",
+                    "coordination/branch-name-set",
+                ],
+            },
+            Case {
+                label: "everything on (all 13 rules active)",
+                mutate: |c| {
+                    c.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+                    c.worktrees.enabled = true;
+                    c.repository.mode = RepositoryPersistenceMode::Sqlite;
+                    c.audit.mirror.enabled = true;
+                    c.backend.enabled = true;
+                },
+                expected_active: &[
+                    "audit/mirror-branch-distinct-from-coordination",
+                    "audit/mirror-branch-set",
+                    "backend/project-org-repo-set",
+                    "backend/token-not-committed",
+                    "backend/url-scheme-valid",
+                    "coordination/branch-name-set",
+                    "coordination/gitignore-entries",
+                    "coordination/staged-symlinked-paths",
+                    "coordination/symlinks-wired",
+                    "repository/sqlite-db-not-committed",
+                    "repository/sqlite-db-path-set",
+                    "worktrees/layout-consistent",
+                    "worktrees/no-write-on-control",
+                ],
+            },
+        ];
+
+        // Suppress unused warnings when the matrix references types that
+        // some compilation units may not exercise.
+        let _ = (
+            AuditConfig::default(),
+            AuditMirrorConfig::default(),
+            BackendApiConfig::default(),
+            BackendProjectConfig::default(),
+            ChangesConfig::default(),
+            CoordinationBranchConfig::default(),
+            RepositoryRuntimeConfig::default(),
+            RepositorySqliteConfig::default(),
+            WorktreesConfig::default(),
+        );
+
+        for case in &cases {
+            let mut cfg = ItoConfig::default();
+            (case.mutate)(&mut cfg);
+
+            let active_ids: Vec<_> = list_active_rules(&cfg)
+                .into_iter()
+                .filter(|r| r.active)
+                .map(|r| r.rule_id.as_str())
+                .collect();
+
+            let expected: Vec<&str> = case.expected_active.to_vec();
+            assert_eq!(
+                active_ids,
+                expected,
+                "case `{label}`: active set mismatch",
+                label = case.label,
+            );
+        }
     }
 
     #[test]
