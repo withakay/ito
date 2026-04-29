@@ -61,7 +61,7 @@ ______________________________________________________________________
 - **Done When**: Skills and prompts consistently defer to rendered instruction artifacts, duplicate orchestration/multi-agent policy is removed, and any retained specialized skill has a distinct documented trigger.
 - **Requirements**: instruction-source-of-truth:thin-adapters, instruction-source-of-truth:harness-template-boundary, instruction-source-of-truth:canonical-surface-inventory, agent-surface-taxonomy:orchestration-consolidation
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
