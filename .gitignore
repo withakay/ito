@@ -211,3 +211,4 @@ ito-rs/.bacon/
 
 # ByteRover local context tree (tracked in-repo; release-plz/cargo dirty-check
 # fails on tracked-but-ignored files, so do not ignore .brv/).
+.zoekt/

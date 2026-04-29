@@ -3,7 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1791,
+      "tokens": 1581,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/ito_templates/_index.md",
+      "tokens": 331,
       "type": "summary"
     },
     {
@@ -26,6 +32,14 @@
       "importance": 50,
       "path": "development/ito_workflow/context.md",
       "tokens": 106,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/ito_orchestration_consolidation.abstract.md",
+      "abstractTokens": 52,
+      "importance": 50,
+      "path": "development/ito_workflow/ito_orchestration_consolidation.md",
+      "tokens": 52,
       "type": "context"
     },
     {
@@ -93,13 +107,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-29T11:31:14.809Z",
+  "generated_at": "2026-04-29T11:58:48.065Z",
   "lane_tokens": {
-    "contexts": 664,
+    "contexts": 716,
     "stubs": 0,
-    "summaries": 1791
+    "summaries": 1912
   },
-  "source_fingerprint": "190ca07c1b844758d115e825644198d18fa447c2d979046283511bb13b04e662",
-  "total_tokens": 2455,
+  "source_fingerprint": "05cdc9dca4d581547a4174424d7f743f3806e10f98f8f6f296aaf761ec097db0",
+  "total_tokens": 2628,
   "version": 1
 }

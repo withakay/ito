@@ -1,0 +1,1 @@
+Ito orchestration consolidation folds into change 028-02, adds an agent-surface taxonomy, and makes ito agent instruction orchestrate the authoritative source for overlapping orchestration prompts and skills.
