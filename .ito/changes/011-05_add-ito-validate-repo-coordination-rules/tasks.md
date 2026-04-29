@@ -130,7 +130,7 @@ ______________________________________________________________________
 - **Done When**: All scenarios from `validate-repo-cli-surface` are covered by integration tests; `ito validate repo --json` matches the `ValidationReport` JSON envelope used elsewhere.
 - **Requirements**: validate-repo-cli-surface:repo-subcommand, validate-repo-cli-surface:hook-flags, validate-repo-cli-surface:exit-codes
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
