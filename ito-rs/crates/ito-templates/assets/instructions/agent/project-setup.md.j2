@@ -186,8 +186,20 @@ When the interview + scaffolding is done, update `.ito/project.md`:
 - Replace `<!-- ITO:PROJECT_SETUP:INCOMPLETE -->` with `<!-- ITO:PROJECT_SETUP:COMPLETE -->`.
 - If there is no setup marker yet, add `<!-- ITO:PROJECT_SETUP:COMPLETE -->` near the top of the file.
 
-## Step 8: Verify and Next Steps
+## Step 8: Wire the `ito validate repo` pre-commit hook
+
+Once the rest of setup is done, run the `ito-update-repo` skill to wire `ito validate repo --staged --strict` into the project's pre-commit hook. The skill detects the framework in use (`prek` / `pre-commit` / `Husky` / `lefthook`) — see the detection table in the skill's "Pre-commit hook setup" section — and proposes the appropriate edit, requiring approval before applying.
+
+Skip this step when:
+
+- `ito validate repo --list-rules --json` reports zero active rules; or
+- the project's existing pre-commit config already wires `ito validate repo`.
+
+The catch this gives you (broken coordination symlinks, missing gitignore entries, staged commits in the wrong worktree) is fast — the engine is config-aware and only inspects the staging area.
+
+## Step 9: Verify and Next Steps
 
 1. Run `ito list` to verify Ito is working.
 2. Run the new dev commands (`make test` or the stack equivalent) to confirm they work.
-3. Offer to create the first change proposal.
+3. If the pre-commit hook was wired in Step 8, stage a fixture file and run `ito validate repo --staged --strict` (or `prek run --hook-stage pre-commit ito-validate-repo`) to confirm it works.
+4. Offer to create the first change proposal.
