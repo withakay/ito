@@ -422,19 +422,6 @@ fn deserialize_config(cfg_value: &serde_json::Value, context: &str) -> CoreResul
         .map_err(|e| CoreError::serde(context.to_string(), e.to_string()))
 }
 
-/// Resolve the on-disk path of the coordination worktree for the given
-/// project.
-///
-/// Mirrors the resolution order used by `sync` and the lifecycle commands:
-///
-/// 1. Explicit `coord.worktree_path` override, when set and non-empty.
-/// 2. `<org>/<repo>` resolved from `backend.project` or the `origin` remote.
-/// 3. When `allow_local_fallback` is `true`, a deterministic local path
-///    derived from a hash of the project root.
-///
-/// Promoted from private to `pub(crate)` so repo-validation rules in
-/// [`crate::validate_repo`] can compute the same worktree location without
-/// re-implementing this resolution.
 pub(crate) fn resolved_coordination_worktree_path(
     project_root: &Path,
     ito_path: &Path,
