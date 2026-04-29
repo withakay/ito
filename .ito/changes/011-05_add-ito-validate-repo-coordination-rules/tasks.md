@@ -102,7 +102,7 @@ ______________________________________________________________________
 - **Done When**: Each `PreCommitSystem` variant has at least one positive and one negative fixture; the detector is byte-equivalent before/after the call.
 - **Requirements**: pre-commit-hook-detection:detector-api, pre-commit-hook-detection:prek-vs-precommit, pre-commit-hook-detection:husky-and-lefthook, pre-commit-hook-detection:none-default, pre-commit-hook-detection:read-only
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
