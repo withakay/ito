@@ -74,80 +74,22 @@ ito agent instruction finish --change "<full-change-id>"
 <!-- ITO:INTERNAL:START -->
 ## Project Guidance
 
-### Code Search
+[Code Search]|prefer zoekt_search before grep/rg/find/broad scans for cross-repo code, refs, defs, symbols
+|use targeted file reads once Zoekt identifies relevant files
 
-- Prefer the Zoekt code search tool (`zoekt_search`) before `grep`, `rg`, `find`, or broad file scans when looking across the repository for code, references, definitions, symbols, or file-filtered matches.
-- Use targeted file reads once Zoekt identifies the relevant files or locations.
+[Subagents]|first-class tools; delegate independent work in parallel; synthesize results
+|non-trivial changes: ≥2 independent review passes (e.g. Rust-focused + general diff)
+|explore: codebase nav/search |test-runner: make test/check curated output
+|rust-quality-checker: style/idioms |rust-code-reviewer: safety/idioms/arch
+|rust-test-engineer: test strategy |codex-review: diff correctness+edge cases
+|documentation-police: docs quality |code-simplifier: refactor for clarity
+|code-quality-squad: parallel quality |perplexity-researcher[-pro]: web research+citations
+|multi-agent: explore multiple approaches and synthesize
 
-### Subagent Collaboration
-
-Subagents are first-class tools. Prefer delegating independent work to specialist subagents (often in parallel), then synthesize the results.
-
-Diversity is good: for non-trivial changes, get at least two independent review passes (for example: a Rust-focused reviewer plus a general diff reviewer).
-
-Commonly useful subagents:
-
-- `explore` - fast codebase navigation/search
-- `test-runner` - runs project tests/checks with curated output
-- `rust-quality-checker` - Rust style/idioms/conventions checks
-- `rust-code-reviewer` - Rust-focused review (safety/idioms/architecture)
-- `rust-test-engineer` - test strategy and coverage design
-- `codex-review` - diff review for correctness and edge cases
-- `documentation-police` - docs coverage/quality
-- `code-simplifier` - refactor for clarity and maintainability
-- `code-quality-squad` - parallel quality workflows
-- `perplexity-researcher` / `perplexity-researcher-pro` - web research with citations
-- `multi-agent` - explore multiple approaches and synthesize
-
-### ByteRover BRV - Project Memory
-
-Use ByteRover (`brv`) for project memory. Do not use Hivemind memory storage.
-
-Knowledge is stored in `.brv/context-tree/` as human-readable Markdown and queried or curated with the `brv` CLI.
-
-**Memories are repo-local only.** `.brv/` is committed to git and git is the single source of truth.
-
-- NEVER run `brv vc` or any of its subcommands (`status`, `push`, `pull`, `sync`, ...).
-- NEVER run `brv login` or any command that authenticates to the ByteRover cloud.
-- NEVER enable ByteRover cloud sync.
-- `.brv/` must remain tracked in git (do not add it to `.gitignore`); release-plz/cargo dirty-checks fail when files are both tracked and ignored.
-
-#### When to Use
-
-- **BEFORE implementing** - run `brv query` or `brv search` to find existing project patterns, decisions, and architectural rules
-- **After solving hard problems** - run `brv curate` to store durable learnings for future sessions
-- **Debugging** - search for similar errors and known fixes
-- **Architecture decisions** - curate the reasoning, alternatives, and tradeoffs
-- **Project-specific patterns** - curate domain rules, gotchas, and workflow decisions
-
-#### Commands
-
-| Command | Purpose |
-|------|---------|
-| `brv query "..."` | Retrieve synthesized context from `.brv/context-tree/` |
-| `brv search "..."` | Fast BM25 search of context files without an LLM call |
-| `brv curate "..."` | Store durable knowledge, decisions, and patterns |
-| `brv review pending` | Check whether curation needs approval |
-
-#### Usage Pattern
-
-```bash
-# 1. Before starting work - query relevant memory
-brv query "<task keywords and project area>"
-
-# 2. If you need file paths rather than synthesis
-brv search "<task keywords>" --limit 5
-
-# 3. After solving a hard problem - store the learning
-brv curate "<what changed or was learned, including WHY it matters>"
-```
-
-#### Rules
-
-- Prefer `brv query` for synthesized project memory.
-- Prefer `brv search` for cheap path/excerpt lookup.
-- Prefer `brv curate` for durable knowledge only; do not curate transient chat notes.
-- Include WHY, not just WHAT, when curating.
-- Use `brv curate` in blocking mode by default. Only use `--detach` when the user explicitly says not to wait and no later step depends on the result.
-- If a curate operation reports pending review, use `brv review pending` and ask before approving/rejecting unless the user already authorized it.
+[BRV - Project Memory]|brv = ByteRover; repo-local only; .brv/ committed to git; NEVER brv vc/login/cloud-sync
+|.brv/ must remain tracked (not in .gitignore); cargo dirty-checks fail if ignored+tracked
+|BEFORE implementing: brv query "<keywords>" or brv search "<keywords>" --limit 5
+|after hard problems: brv curate "<what+WHY>" (blocking by default; --detach only if no step depends on it)
+|if curate reports pending: brv review pending → ask before approve/reject
+|brv query: synthesized memory |brv search: cheap path/excerpt lookup |brv curate: durable knowledge only (no transient notes)
 <!-- ITO:INTERNAL:END -->

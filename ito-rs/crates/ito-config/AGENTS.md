@@ -1,47 +1,24 @@
-# ito-config — Layer 0 (Foundation)
+# ito-config — L0 (Foundation)
 
-Configuration loading and normalization. Resolves the Ito directory, reads repo-local and global config, and exposes `ItoContext` for each CLI invocation.
-
-For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
-
-## Purpose
-
-Own the logic for reading configuration files (repo-local and global), applying precedence rules, and exposing a single resolved view to the rest of the workspace. Intentionally small — does not perform domain operations.
+Configuration loading and normalization. Resolves Ito dir, reads repo-local+global config, exposes `ItoContext` per invocation.
+See [`ito-rs/AGENTS.md`](../../AGENTS.md). See [`.ito/architecture.md`](../../../.ito/architecture.md).
 
 ## Modules
+|config: load, defaults, schema, types (re-exported) |context: ItoContext — resolved per invocation (config dir, project root, ito path, config)
+|ito_dir: resolve .ito working directory name+path |output: console/UI behaviour (color, interactivity) from CLI flags+env
 
-| Module | Responsibility |
-|---|---|
-| `config` (re-exported) | Configuration loading, defaults, schema, and types |
-| `context` | `ItoContext` — resolved context for a single invocation (config dir, project root, ito path, resolved config) |
-| `ito_dir` | Resolve the Ito working directory name and path |
-| `output` | Console/UI behaviour (color, interactivity) derived from CLI flags and environment |
+## Dependencies
+|ito-common only
 
-## Workspace Dependencies
+## Constraints
+**MUST NOT:** perform domain ops (no change/module/task logic) | depend on ito-domain/ito-core/ito-cli/ito-web | parse/manipulate markdown | contain business logic/workflow orchestration
+**MUST:** remain thin config layer | keep #![warn(missing_docs)] | only depend on ito-common
 
-- `ito-common` only
+## Gotchas
+|config changes → schema+test updates |backend/worktree settings are contract-sensitive (templates render them) |keep path values portable in committed templates
 
-## Architectural Constraints
-
-### MUST NOT
-
-- Perform domain operations (no change/module/task logic)
-- Depend on `ito-domain`, `ito-core`, `ito-cli`, or `ito-web`
-- Parse or manipulate markdown content
-- Contain business logic or workflow orchestration
-
-### MUST
-
-- Remain a thin configuration layer
-- Keep `#![warn(missing_docs)]` enabled
-- Only depend on `ito-common` from the workspace
-
-## Quality Checks
-
+## Quality
 ```bash
-make check              # fmt + clippy
-make test               # all workspace tests
-make arch-guardrails    # verify dependency rules
+make check && make test && make arch-guardrails
 ```
-
-Use the `rust-quality-checker` subagent to verify style compliance and the `rust-code-reviewer` subagent to catch architectural drift.
+|rust-quality-checker: style |rust-code-reviewer: catch architectural drift

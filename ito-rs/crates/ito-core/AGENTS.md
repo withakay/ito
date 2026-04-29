@@ -1,74 +1,35 @@
-# ito-core — Layer 2 (Core)
+# ito-core — L2 (Core)
 
-Business logic and orchestration. Implements the repository adapters, archive, audit, create, list, show, validate, workflow, harness integrations, and installers. **"Policy heavy, UI light."**
-
-For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
-
-## Purpose
-
-Define the core semantics of every Ito command without owning the CLI argument surface or output formatting. This is the thickest crate in the workspace — it holds the real logic.
+Business logic and orchestration. Repository adapters, archive, audit, create, list, show, validate, workflow, harness integrations, installers. **"Policy heavy, UI light."**
+See [`ito-rs/AGENTS.md`](../../AGENTS.md) for workspace guidance. See [`.ito/architecture.md`](../../../.ito/architecture.md) for arch context.
 
 ## Key Modules
+|change_repository: fs-backed ChangeRepository |module_repository: fs-backed ModuleRepository |task_repository: fs-backed TaskRepository
+|archive: archive completed changes + update specs |audit: log writer/reader/reconcile/validate
+|config: JSON config CRUD |create: scaffold modules+changes |errors: CoreError wrapping DomainError
+|harness: OpencodeHarness, StubHarness |installers: ito init/update templates
+|list: query entities |planning_init: planning dir init |process: process execution boundary
+|ralph: AI agent loop support |show: display+inspection |stats: statistics |tasks: task orchestration
+|validate: on-disk state + repo integrity |validate_repo: config-aware repo validation engine (coordination/*, worktrees/*, pre-commit detection)
+|workflow: execution + planning
 
-| Module | Responsibility |
-|---|---|
-| `change_repository` | Filesystem-backed `ChangeRepository` implementation |
-| `module_repository` | Filesystem-backed `ModuleRepository` implementation |
-| `task_repository` | Filesystem-backed `TaskRepository` implementation |
-| `archive` | Archive completed changes, update specifications |
-| `audit` | Audit log infrastructure: writer, reader, reconciliation, validation |
-| `config` | JSON configuration file CRUD |
-| `create` | Scaffold new modules and changes |
-| `errors` | `CoreError` wrapping `DomainError` |
-| `harness` | Harness trait and implementations (`OpencodeHarness`, `StubHarness`) |
-| `installers` | Install project/home templates and harness assets |
-| `list` | List/query project entities |
-| `planning_init` | Planning directory initialization |
-| `process` | Process execution boundary |
-| `ralph` | AI agent loop support |
-| `show` | Display and inspection |
-| `stats` | Statistics collection |
-| `tasks` | Task-focused orchestration use-cases |
-| `validate` | Validation of on-disk state, repo integrity |
-| `validate_repo` | Config-aware repository validation engine (`coordination/*`, `worktrees/*`, pre-commit detection) |
-| `workflow` | Workflow execution and planning |
+## Dependencies
+|ito-common (L0), ito-config (L0), ito-domain (L1, required edge), ito-templates (L1)
 
-## Workspace Dependencies
+## Constraints
+**MUST NOT:** depend on ito-cli/ito-web | own CLI arg parsing or output formatting | contain presentation logic | carry presentation in CoreError
+**MUST:** depend on ito-domain (required edge) | implement repo traits from ito-domain | keep #![warn(missing_docs)]
 
-- `ito-common` (Layer 0)
-- `ito-config` (Layer 0)
-- `ito-domain` (Layer 1) — **required edge**
-- `ito-templates` (Layer 1)
+## Common Mistakes
+|CLI-specific formatting → belongs in ito-cli (core returns structured data; adapters format it)
+|depending on ito-cli → design is inverted
+|bypassing repo abstractions → use ChangeRepository/ModuleRepository/TaskRepository
+|adding dialoguer/crossterm → adapter-layer concerns
 
-## Architectural Constraints
-
-### MUST NOT
-
-- Depend on `ito-cli` or `ito-web` (enforced by `make arch-guardrails`)
-- Own CLI argument parsing or output formatting — that belongs in the adapter layer
-- Contain presentation logic (colours, terminal output, interactive prompts)
-- Carry presentation logic in `CoreError` — adapter layers convert it to `miette` reports
-
-### MUST
-
-- Depend on `ito-domain` (required edge, enforced by guardrails)
-- Implement repository traits defined in `ito-domain` (repository adapters live here)
-- Keep `#![warn(missing_docs)]` enabled
-- Own `CoreError` which wraps `DomainError`
-
-## Common Mistakes to Watch For
-
-1. **Adding CLI-specific formatting** — if you're writing code that decides how output looks, it belongs in `ito-cli`. Core returns structured data; adapters format it.
-2. **Depending on `ito-cli`** — if you need to call CLI code from core, the design is inverted. Core should expose functions that the CLI calls.
-3. **Bypassing repository abstractions** — don't parse markdown files directly. Use `ChangeRepository`, `ModuleRepository`, or `TaskRepository`.
-4. **Adding `dialoguer` or `crossterm`** — interactive prompts are adapter-layer concerns.
-
-## Quality Checks
-
+## Quality
 ```bash
-make check              # fmt + clippy
-make test               # all workspace tests
-make arch-guardrails    # verify no forbidden dependencies
+make check && make test && make arch-guardrails
 ```
-
-This is the largest crate. Use the `rust-quality-checker` subagent proactively as you work. Use the `rust-code-reviewer` subagent after completing features — especially to verify that business logic hasn't leaked into presentation concerns or vice versa. Use the `rust-test-engineer` subagent when designing tests for complex orchestration logic.
+|rust-quality-checker: proactively while working (largest crate)
+|rust-code-reviewer: after features (verify no logic leaked to/from presentation)
+|rust-test-engineer: complex orchestration logic tests

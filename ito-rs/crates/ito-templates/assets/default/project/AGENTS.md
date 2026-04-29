@@ -106,21 +106,11 @@ Worktrees are not configured for this project.
 <!-- ITO:INTERNAL:START -->
 ## Project Guidance
 
-### Subagent Collaboration
-
-Prefer specialist subagents for independent work, often in parallel. For non-trivial changes, get at least two independent review passes.
-
-Commonly useful subagents:
-
-- `explore` - fast codebase navigation/search
-- `ito-test-runner` - runs project tests/checks with curated output
-- `rust-quality-checker` - Rust style/idioms/conventions checks
-- `rust-code-reviewer` - Rust-focused review (safety/idioms/architecture)
-- `rust-test-engineer` - test strategy and coverage design
-- `codex-review` - diff review for correctness and edge cases
-- `documentation-police` - docs coverage/quality
-- `code-simplifier` - refactor for clarity and maintainability
-- `code-quality-squad` - parallel quality workflows
-- `perplexity-researcher` / `perplexity-researcher-pro` - web research with citations
-- `multi-agent` - explore multiple approaches and synthesize
+[Subagents]|first-class tools; delegate independent work in parallel; ≥2 review passes for non-trivial changes
+|explore: codebase nav/search |ito-test-runner: project tests/checks curated output
+|rust-quality-checker: style/idioms |rust-code-reviewer: safety/idioms/arch
+|rust-test-engineer: test strategy |codex-review: diff correctness+edge cases
+|documentation-police: docs quality |code-simplifier: refactor for clarity
+|code-quality-squad: parallel quality |perplexity-researcher[-pro]: web research+citations
+|multi-agent: explore multiple approaches and synthesize
 <!-- ITO:INTERNAL:END -->
