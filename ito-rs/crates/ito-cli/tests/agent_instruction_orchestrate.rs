@@ -60,10 +60,10 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
     assert!(out.stdout.contains("ito-orchestrator-workflow"));
     assert!(out.stdout.contains("Coordinator agent"));
     assert!(out.stdout.contains("ito-orchestrator"));
-    assert!(out.stdout.contains("ito-orchestrator-planner"));
-    assert!(out.stdout.contains("ito-orchestrator-researcher"));
-    assert!(out.stdout.contains("ito-orchestrator-worker"));
-    assert!(out.stdout.contains("ito-orchestrator-reviewer"));
+    assert!(out.stdout.contains("ito-planner"));
+    assert!(out.stdout.contains("ito-researcher"));
+    assert!(out.stdout.contains("ito-worker"));
+    assert!(out.stdout.contains("ito-reviewer"));
     let plan = out.stdout.find("plan-worker").expect("plan role");
     let apply = out.stdout.find("apply-worker").expect("apply role");
     assert!(plan < apply, "expected plan role before apply role");
@@ -105,8 +105,8 @@ fn orchestrate_surfaces_recommended_skills_from_preset() {
         "expected rust preset agent roles to be listed; stdout was:\n{}",
         out.stdout
     );
-    assert!(out.stdout.contains("ito-orchestrator-planner"));
-    assert!(out.stdout.contains("ito-orchestrator-researcher"));
+    assert!(out.stdout.contains("ito-planner"));
+    assert!(out.stdout.contains("ito-researcher"));
 }
 
 #[test]

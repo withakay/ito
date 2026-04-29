@@ -208,6 +208,47 @@ pub(crate) fn args_to_strs(args: &[String]) -> Vec<&str> {
     args.iter().map(|s| s.as_str()).collect()
 }
 
+const SPECIALIST_ROLES: &[&str] = &["planner", "researcher", "worker", "reviewer"];
+const HARNESS_SPECIALIST_ROOTS: &[(&str, &str)] = &[
+    (".opencode/agents", ".md"),
+    (".claude/agents", ".md"),
+    (".github/agents", ".md"),
+    (".pi/agents", ".md"),
+];
+
+fn specialist_asset_paths(prefix: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    for (root, suffix) in HARNESS_SPECIALIST_ROOTS {
+        for role in SPECIALIST_ROLES {
+            paths.push(format!("{root}/{prefix}{role}{suffix}"));
+        }
+    }
+    for role in SPECIALIST_ROLES {
+        paths.push(format!(".agents/skills/{prefix}{role}/SKILL.md"));
+    }
+    paths
+}
+
+pub(crate) fn obsolete_specialist_asset_paths() -> Vec<String> {
+    specialist_asset_paths("ito-orchestrator-")
+}
+
+pub(crate) fn installed_specialist_asset_paths() -> Vec<String> {
+    specialist_asset_paths("ito-")
+}
+
+pub(crate) fn installed_orchestrator_agent_paths() -> Vec<String> {
+    let mut paths = vec![
+        ".opencode/agents/ito-orchestrator.md".to_string(),
+        ".claude/agents/ito-orchestrator.md".to_string(),
+        ".github/agents/ito-orchestrator.md".to_string(),
+        ".pi/agents/ito-orchestrator.md".to_string(),
+        ".agents/skills/ito-orchestrator/SKILL.md".to_string(),
+    ];
+    paths.extend(installed_specialist_asset_paths());
+    paths
+}
+
 /// Runs a git command in the given repository directory and asserts it completed successfully.
 ///
 /// The command is executed with the working directory set to `repo` and with `GIT_DIR` and

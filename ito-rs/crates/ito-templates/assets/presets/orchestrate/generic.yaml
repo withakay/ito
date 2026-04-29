@@ -21,8 +21,8 @@ gates:
 recommended_skills: []
 
 agent_roles:
-  plan-worker: "ito-orchestrator-planner"
-  research-worker: "ito-orchestrator-researcher"
-  apply-worker: "ito-orchestrator-worker"
-  review-worker: "ito-orchestrator-reviewer"
+  plan-worker: "ito-planner"
+  research-worker: "ito-researcher"
+  apply-worker: "ito-worker"
+  review-worker: "ito-reviewer"
   security-worker: ""

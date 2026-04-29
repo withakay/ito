@@ -5,9 +5,11 @@ use chrono::Utc;
 use serde_json::{Map, Value};
 
 use crate::errors::{CoreError, CoreResult};
+use agents_cleanup::remove_obsolete_specialist_agents;
 
 use markers::update_file_with_markers;
 
+mod agents_cleanup;
 mod markers;
 
 use ito_config::ConfigContext;
@@ -891,6 +893,14 @@ fn install_agent_templates(
         }
 
         let agent_dir = project_root.join(harness.project_agent_path());
+        // Update-style installs and forceful re-inits should both clear the
+        // legacy `ito-orchestrator-*` specialist assets before writing the new
+        // `ito-*` names. Plain init keeps untouched user files in place.
+        let should_remove_obsolete_specialists =
+            mode == InstallMode::Update || opts.update || opts.force;
+        if should_remove_obsolete_specialists {
+            remove_obsolete_specialist_agents(&agent_dir)?;
+        }
 
         // Get agent template files for this harness
         let files = get_agent_files(harness);
@@ -949,7 +959,6 @@ fn install_agent_templates(
 
     Ok(())
 }
-
 /// Updates an existing agent template without clobbering user-owned bodies.
 ///
 /// Files with complete Ito markers get their managed block refreshed. Legacy
