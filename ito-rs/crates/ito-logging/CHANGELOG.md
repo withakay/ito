@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.31] - 2026-04-29
+
+### 📚 Documentation
+
+- Add source guide atlas ([#224](https://github.com/withakay/ito/pull/224))
+- Compress AGENTS.md and codemap files for token efficiency
 ## [0.1.30] - 2026-04-28
 ## [0.1.29] - 2026-04-26
 ## [0.1.28] - 2026-04-25
