@@ -45,10 +45,12 @@ impl Harness {
         }
     }
 
-    /// Get the target installation path for project agents
+    /// Get the harness-specific directory where init/update install project agents.
+    ///
+    /// OpenCode expects project agents in `.opencode/agents`.
     pub fn project_agent_path(&self) -> &'static str {
         match self {
-            Self::OpenCode => ".opencode/agent",
+            Self::OpenCode => ".opencode/agents",
             Self::ClaudeCode => ".claude/agents",
             Self::Codex => ".agents/skills",
             Self::GitHubCopilot => ".github/agents",
