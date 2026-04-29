@@ -147,7 +147,7 @@ ______________________________________________________________________
 - **Done When**: All `ito-init:*` scenarios pass; the advisory is silent when no rules activate and a hook is already installed; `ito init` is verified by test to leave `.pre-commit-config.yaml` byte-identical.
 - **Requirements**: ito-init:repo-validation-advisory, ito-init:advisory-detected-system, ito-init:advisory-references-update-repo, pre-commit-hooks:opt-in-downstream
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 4.2: Replace pre-commit no-op stub
 
