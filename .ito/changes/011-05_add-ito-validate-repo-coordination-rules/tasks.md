@@ -208,7 +208,7 @@ ______________________________________________________________________
 - **Done When**: The rendered instruction includes the reference and downstream consumers see it via `ito agent instruction project-setup`.
 - **Requirements**: ito-init:advisory-references-update-repo, ito-update-repo-skill:pre-commit-step
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
