@@ -2,11 +2,7 @@
 
 # Code Quality Reviewer Prompt Template
 
-Use this template when dispatching a code quality reviewer subagent.
-
-**Purpose:** Verify implementation is well-built (clean, tested, maintainable)
-
-**Only dispatch after spec compliance review passes.**
+Use this when dispatching a code quality reviewer. Only dispatch it after spec compliance passes.
 
 ## Reviewer Prompt
 
@@ -28,6 +24,6 @@ Review the diff and report:
 3. **Assessment** — APPROVE, APPROVE_WITH_SUGGESTIONS, or REQUEST_CHANGES
 ```
 
-**If REQUEST_CHANGES:** fix critical/important issues before proceeding.
+If `REQUEST_CHANGES`, fix critical/important issues before proceeding.
 
 <!-- ITO:END -->

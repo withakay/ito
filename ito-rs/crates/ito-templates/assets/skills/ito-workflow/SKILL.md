@@ -6,9 +6,7 @@ description: Ito workflow delegation - delegates all workflow content to Ito CLI
 <!-- ITO:START -->
 
 
-This skill delegates workflow operations to the Ito CLI.
-
-**Principle**: The Ito CLI is the source of truth for workflow instructions. Skills should be thin wrappers that invoke the CLI and follow its output.
+Delegate workflow operations to the Ito CLI. The CLI is the source of truth; skills should stay thin and follow the printed instructions.
 
 ## Available CLI Commands
 
@@ -56,10 +54,10 @@ ito tasks complete <change-id> <task-id>
 
 ## Workflow Pattern
 
-1. Run the appropriate `ito agent instruction` command
-2. Read the output carefully
-3. Follow the printed instructions exactly
-4. Use `ito tasks` to track progress
+1. Run the appropriate `ito agent instruction` command.
+2. Read the output carefully.
+3. Follow it exactly.
+4. Use `ito tasks` to track progress.
 
 ## Related Skills
 

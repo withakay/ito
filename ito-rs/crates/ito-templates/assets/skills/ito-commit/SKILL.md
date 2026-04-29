@@ -7,9 +7,7 @@ description: Create atomic git commits aligned to Ito changes. Use when you want
 
 Create atomic git commits aligned to Ito changes.
 
-**Concept:** In Ito-driven workflows, you typically make progress by creating/applying a change. After applying and verifying a change, you should usually create a git commit that corresponds to that change.
-
-**Key behavior**
+## Core Rules
 
 - Prefer 1 commit per applied Ito change (or a small number of commits if the change is large).
 - Include the Ito change id in the commit message when practical (e.g. `001-02_add-tasks`).
@@ -43,9 +41,9 @@ When invoking this skill, check for these parameters in context:
    - If `change_id` not provided, run `ito list --json` and ask user to select
    - Then inspect the change: `ito status --change "<change-id>"`
 
-3. Confirm the change is in a good commit state:
+3. Confirm the change is in a reasonable commit state:
    - Ensure artifacts/tasks are complete enough that a commit makes sense
-   - If the change is unfinished, ask user whether to commit "WIP" or wait
+   - If unfinished, ask whether to commit `WIP` or wait
 
 ## Commit Message Format
 
@@ -61,11 +59,11 @@ Examples:
 - `feat(todo): add task model and parsing (001-02_add-task-core)`
 - `fix(storage): persist tasks atomically (002-01_storage-save)`
 
-## Pre-commit Safety (Agents)
+## Pre-commit Safety
 
 prek (the pre-commit runner) stashes unstaged changes before running hooks during `git commit`. If another process modifies the working tree mid-run, the stash pop can conflict or lose work.
 
-**Agents MUST use the check-then-commit pattern to avoid stash races:**
+Agents MUST use the check-then-commit pattern to avoid stash races:
 
 ```bash
 # 1. Run all checks WITHOUT stashing (operates on all files, no stash involved)
@@ -78,9 +76,9 @@ git add <files>
 git commit --no-verify -m "type(scope): description"
 ```
 
-**Why `--no-verify`?** The `make check` run already validated the code. Running the hook again during commit would re-stash and re-introduce the race condition. The `--no-verify` flag is safe here because validation already happened.
+Why `--no-verify`? `make check` already validated the code; rerunning the hook would re-stash and recreate the race.
 
-**Advisory lock:** When the pre-commit hook does run (human commits), it acquires an advisory lock at `<gitdir>/precommit.lock`. Before modifying the working tree, agents SHOULD check for this lock:
+When the pre-commit hook does run (for example a human commit), it acquires an advisory lock at `<gitdir>/precommit.lock`. Before modifying the working tree, agents SHOULD check for it:
 
 ```bash
 # Check if a pre-commit hook is currently running
@@ -100,9 +98,9 @@ fi
 
 3. Stage files for the selected change (prefer staging only files touched by that change)
 
-4. Decide commit messages:
+4. Decide the message:
    - If `auto_mode` is true: commit immediately
-   - Otherwise: present recommended message + alternatives, ask user to confirm
+   - Otherwise: present a recommended message plus alternatives and ask for confirmation
 
 5. Commit with `--no-verify` flag: `git commit --no-verify -m "<message>"`
 

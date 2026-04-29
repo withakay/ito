@@ -8,29 +8,29 @@ description: "Use when implementation is complete, all tests pass, and you need 
 
 # Finishing a Development Branch
 
-Verify tests, present options, execute choice, clean up.
+Verify tests, offer the right integration option, execute it safely, then clean up.
 
-## Step 1: Verify Tests
+## 1. Verify Tests
 
-Run the project's test suite before offering any options. If tests fail, stop — fix them first.
+Run the project's test suite before offering options. If tests fail, stop.
 
-## Step 2: Determine Base Branch
+## 2. Determine Base Branch
 
 ```bash
 git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
 ```
 
-Or ask: "This branch split from main — is that correct?"
+If detection is unclear, ask the user.
 
-## Step 3: Detect Ito Change
+## 3. Detect Ito Change
 
 ```bash
 ito list --changes 2>/dev/null
 ```
 
-If an Ito change is detected, include Option 5 (Archive).
+If an Ito change is present, include Option 5.
 
-## Step 4: Present Options
+## 4. Present Options
 
 ```
 Implementation complete. What would you like to do?
@@ -44,13 +44,21 @@ Implementation complete. What would you like to do?
 Which option?
 ```
 
-Keep options concise. Don't add explanation.
+Keep options concise.
 
-## Step 5: Execute Choice
+## 5. Execute Choice
 
-### Option 1: Merge Locally
+| Option | Action | Key rules |
+|---|---|---|
+| 1 | Merge locally | Merge from the main worktree when worktrees are in use; re-run tests on the merged result |
+| 2 | Push + PR | Push branch, open PR, keep worktree if still needed |
+| 3 | Keep as-is | Report branch + worktree path; no cleanup |
+| 4 | Discard | Require typed `discard` confirmation before deleting branch |
+| 5 | Archive Ito change | Run `ito agent instruction archive --change <change-id>` and follow it |
 
-**Important:** If using worktrees, perform the merge from the main worktree, not the feature worktree.
+### Option 1: Merge locally
+
+If using worktrees, merge from the main worktree, not the feature worktree.
 
 ```bash
 # From the main worktree:
@@ -58,9 +66,9 @@ git merge <feature-branch>
 <test command>          # verify on merged result
 ```
 
-Then: Cleanup (Step 6).
+Then continue to cleanup.
 
-### Option 2: Push and Create PR
+### Option 2: Push and create PR
 
 ```bash
 git push -u origin <feature-branch>
@@ -71,17 +79,15 @@ EOF
 )"
 ```
 
-Then: Cleanup (Step 6). Keep worktree until PR merges if needed.
+Then continue to cleanup; keep the worktree if the PR still needs it.
 
 ### Option 3: Keep As-Is
 
-Report: "Keeping branch `<name>`. Worktree preserved at `<path>`."
-
-No cleanup.
+Report: `Keeping branch <name>. Worktree preserved at <path>.`
 
 ### Option 4: Discard
 
-**Require typed confirmation:**
+Require typed confirmation:
 ```
 This will permanently delete branch <name> and all commits.
 Type 'discard' to confirm.
@@ -92,7 +98,7 @@ After confirmation:
 git branch -D <feature-branch>
 ```
 
-Then: Cleanup (Step 6).
+Then continue to cleanup.
 
 ### Option 5: Archive Ito Change
 
@@ -100,38 +106,28 @@ Then: Cleanup (Step 6).
 ito agent instruction archive --change <change-id>
 ```
 
-Follow printed instructions. Then: Cleanup (Step 6).
+Follow the printed instructions, then continue to cleanup.
 
-## Step 6: Cleanup Worktree
+## 6. Cleanup Worktree
 
-For Options 1 and 5 — use the CLI-generated cleanup instructions (source of truth):
+For Options 1 and 5, use the CLI-generated cleanup instructions:
 
 ```bash
 ito agent instruction finish --change <feature-branch>
 ```
 
-If the worktree is locked, assume the user locked it intentionally and keep it.
+If the worktree is locked, assume that was intentional and keep it.
 
-For Options 2 and 3 — keep the worktree.
-
-## Quick Reference
-
-| Option | Merge | Push | Archive | Keep Worktree | Delete Branch |
-|--------|-------|------|---------|---------------|---------------|
-| 1. Merge | Yes | - | - | No | Yes |
-| 2. PR | - | Yes | - | Optional | No |
-| 3. Keep | - | - | - | Yes | No |
-| 4. Discard | - | - | - | No | Yes (force) |
-| 5. Archive | - | - | Yes | No | Yes |
+For Options 2 and 3, keep the worktree.
 
 ## Rules
 
-- Never proceed with failing tests
-- Never merge without verifying tests on the result
-- Never delete work without typed confirmation
-- Never force-push without explicit request
-- If a worktree is locked, assume it was locked on purpose; do NOT unlock/remove it unless the user explicitly asks
-- Always detect Ito changes and include the archive option
-- Always present structured options, not open-ended questions
+- Never proceed with failing tests.
+- Never merge without re-verifying the merged result.
+- Never delete work without typed confirmation.
+- Never force-push without explicit request.
+- If a worktree is locked, do NOT unlock/remove it unless the user explicitly asks.
+- Always include the archive option when an Ito change is present.
+- Always present the structured option list, not an open-ended question.
 
 <!-- ITO:END -->

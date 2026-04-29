@@ -6,9 +6,7 @@ description: Use Ito's configured memory provider to capture, search, and query 
 <!-- ITO:START -->
 # Ito Memory
 
-Use this skill when you need to work with Ito's configured agent memory provider.
-
-Ito memory has three operations:
+Use this skill when you need Ito's configured memory provider. It has three operations:
 
 - `capture`: store durable knowledge from the current work.
 - `search`: retrieve ranked matching memory entries.
@@ -18,7 +16,7 @@ Do not call a concrete provider directly unless the rendered instruction tells y
 
 ## Capture
 
-Capture only durable knowledge that should help future sessions: decisions, rationale, gotchas, recurring patterns, architecture rules, or important workflow discoveries.
+Capture only durable knowledge: decisions, rationale, gotchas, recurring patterns, architecture rules, or important workflow discoveries.
 
 ```bash
 ito agent instruction memory-capture \
@@ -27,9 +25,9 @@ ito agent instruction memory-capture \
   --folder <path>
 ```
 
-- `--context` is the memory summary.
-- `--file` is repeatable and should point to supporting files.
-- `--folder` is repeatable and should point to supporting folders.
+- `--context`: memory summary
+- `--file`: repeatable supporting files
+- `--folder`: repeatable supporting folders
 
 Run the command printed by Ito, or invoke the skill named by Ito if the project uses a skill-backed provider.
 
@@ -55,7 +53,7 @@ Treat memory as guidance, not the source of truth. If memory conflicts with spec
 
 ## Provider Not Configured
 
-If Ito reports that an operation is not configured, do not fail the user request. Continue with normal repo inspection and mention that Ito memory is not configured for that operation.
+If an operation is not configured, continue with normal repo inspection and mention that Ito memory is unavailable for that operation.
 
 ## Good Captures
 
