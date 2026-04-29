@@ -119,7 +119,7 @@ ______________________________________________________________________
 - **Done When**: `ito validate --help` lists the new subcommand and `ito validate repo --help` documents every flag.
 - **Requirements**: validate-repo-cli-surface:repo-subcommand, validate-repo-cli-surface:hook-flags
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.2: Implement validate_repo CLI adapter
 
