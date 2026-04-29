@@ -37,3 +37,16 @@ Built-in repository validation rules:
   [x] worktrees/layout-consistent                      WARNING  worktrees.enabled == true
   [x] worktrees/no-write-on-control                    ERROR    worktrees.enabled == true
 ```
+
+```bash
+make check-max-lines 2>&1 | tail -3 ; echo exit=$?
+```
+
+```output
+  - ito-rs/crates/ito-core/src/templates/mod.rs: 1015 (consider splitting)
+  - ito-rs/crates/ito-core/tests/validate.rs: 1010 (consider splitting)
+  - ito-rs/crates/ito-core/src/audit/mirror.rs: 1003 (consider splitting)
+exit=0
+```
+
+Final gate (6.3): cargo build/clippy/doc/test all clean, make arch-guardrails pass, make check-max-lines pass, cargo deny pass. 18/18 tasks complete. Pre-existing init_more failure on main is unrelated to this change.
