@@ -1,86 +1,86 @@
 ---
-children_hash: a050e2ad5a92bdf695a8d8de77ecb84a35d10d0454e3097f41084cc78b4b7266
-compression_ratio: 0.5707736389684813
+children_hash: ff028bbf98a1bd3f0723ce4b8625649e305eb4a860bd42252fc40e4e43757750
+compression_ratio: 0.4179588892895781
 condensation_order: 1
-covers: [build_and_coverage_guardrails.md, manifesto_instruction_implementation_notes.md, release_workflow.md]
-covers_token_total: 1745
+covers: [build_and_coverage_guardrails.md, manifesto_instruction_implementation_notes.md, release_plz_guardrails.md, release_workflow.md]
+covers_token_total: 2773
 summary_level: d1
-token_count: 996
+token_count: 1159
 type: summary
 ---
-# Release Workflow
+## Release Workflow Guardrails and Implementation Notes
 
-This level summarizes the release and verification knowledge captured in three child entries:
+This level groups the release pipeline, release-plz configuration, and build/verification guardrails for Ito. The entries are tightly connected: **release_workflow.md** describes the end-to-end publishing flow, while **build_and_coverage_guardrails.md**, **release_plz_guardrails.md**, and **manifesto_instruction_implementation_notes.md** capture specific constraints that keep releases, coverage checks, and rendered instructions consistent.
 
-- **Release Workflow** — end-to-end Ito release automation and publishing pipeline
-- **Build and Coverage Guardrails** — verification guardrails for coverage, file-size regression control, and cargo-deny exceptions
-- **Manifesto Instruction Implementation Notes** — rendering and sync-status rules for manifesto instruction output
+### Core release pipeline
+- **release_workflow.md** defines the main release sequence:
+  - `release-plz` merges release PRs, publishes crates.io releases, and creates `vX.Y.Z` tags.
+  - `cargo-dist` consumes version tags to build artifacts and create GitHub Releases.
+  - Homebrew formula updates are pushed to `withakay/homebrew-ito`.
+- Key automation files:
+  - `.github/workflows/release-plz.yml`
+  - `.github/workflows/v-release.yml`
+  - `.github/workflows/polish-release-notes.yml`
+  - `dist-workspace.toml`
+  - `release-plz.toml`
+- Important rule from **release_workflow.md**: do not set `git_only = true` in `release-plz.toml`, because it can miscalculate repository paths during diff/worktree operations.
 
-## Core release pipeline
+### Release-plz guardrails and coordination paths
+- **release_plz_guardrails.md** documents how `release-plz` should run from the repo root with dirty publishing disabled:
+  - `allow_dirty = false`
+  - `publish_allow_dirty = false`
+  - workspace changelog updates enabled
+  - workspace dependency updates enabled
+  - `cliff.toml` used as changelog config
+  - git tags enabled only for `ito-cli`
+- Coordination-branch behavior is centered on `.ito/` paths:
+  - `.ito/changes`
+  - `.ito/specs`
+  - `.ito/modules`
+  - `.ito/workflows`
+  - `.ito/audit`
+- These paths must remain gitignored. If tracked ignored files appear, the fix is to remove them from Git tracking with `git rm --cached` while keeping local files on disk.
+- The GitHub Actions release workflow uses:
+  - a GitHub App token
+  - checkout with `fetch-depth: 0`
+  - build-essential installation
+  - mise toolchain setup
+  - Rust cache
+  - `release-plz/action@v0.5`
+  - `CARGO_REGISTRY_TOKEN` for publishing
 
-The release process is split across **release-plz** and **cargo-dist**:
+### Build and coverage guardrails
+- **build_and_coverage_guardrails.md** focuses on making verification resilient in mixed toolchain environments.
+- Main fixes:
+  - `Makefile` test-coverage target now derives `LLVM_COV` and `LLVM_PROFDATA` from the active rustup toolchain when unset.
+  - `ito-rs/tools/max_lines_baseline.txt` tracks existing oversized Rust files so the guardrail only fails on regressions or new violations.
+  - `wit-bindgen@0.51` is allowed as a cargo-deny duplicate because it is a wasip3 transitive dependency.
+- The documented flow is:
+  - `make check`
+  - coverage target resolves LLVM toolchain vars
+  - `cargo-llvm-cov` runs
+  - max-lines guardrail compares against the baseline
+  - `cargo-deny` accepts the `wit-bindgen@0.51` duplicate
+- This entry ties directly to the release workflow by ensuring CI verification remains stable across Homebrew/rustup mixes.
 
-- **release-plz** merges the release PR, publishes crates.io releases, and creates version tags
-- **cargo-dist** consumes tags to build and publish GitHub Releases
-- Homebrew formula updates are pushed to **withakay/homebrew-ito**
-- Release notes are polished after release publication
+### Manifesto instruction implementation notes
+- **manifesto_instruction_implementation_notes.md** captures rendering rules for manifesto sync status and operation visibility.
+- Key constraints:
+  - `synced_at_generation` should only be set when coordination sync returns `Synchronized`.
+  - `RateLimited` means no sync was observed during generation and must not be reported as fresh success.
+  - `full --operation` requires `--change`.
+  - Embedded operation instructions are scoped to the resolved change state.
+  - Unconfigured operations render as `null`.
+- This entry is about how generation output should reflect sync outcomes, not about release mechanics directly, but it shares the same coordination and workflow discipline as the other release-related files.
 
-Key automation files referenced by **Release Workflow**:
-- `.github/workflows/release-plz.yml`
-- `.github/workflows/v-release.yml`
-- `.github/workflows/polish-release-notes.yml`
-- `dist-workspace.toml`
-- `release-plz.toml`
+### Cross-entry relationships
+- **release_workflow.md** is the umbrella release process.
+- **release_plz_guardrails.md** narrows the release-plz behavior for repo-root execution, dirty checks, and `.ito` coordination paths.
+- **build_and_coverage_guardrails.md** protects the verification side of the release pipeline.
+- **manifesto_instruction_implementation_notes.md** defines how sync-related instruction output should be rendered during generation.
 
-### Important rules and constraints
-- Do **not** set `git_only = true` in `release-plz.toml`; it can miscalculate repository paths during diff/worktree operations
-- The `publish-homebrew-formula` job fails if the generated formula already contains a `service do` block
-- Local installation supports the `withakay/ito` tap, including `brew install`, `brew upgrade`, `brew unlink`, and `brew link` flows
-
-## Build and verification guardrails
-
-**Build and Coverage Guardrails** documents the release-side verification path:
-
-- `make check` now resolves `LLVM_COV` and `LLVM_PROFDATA` from the active **rustup** toolchain when unset
-- This avoids failures caused by mixed **Homebrew/rustup** environments
-- `cargo-llvm-cov` runs after toolchain resolution
-- Oversized Rust files are governed by `ito-rs/tools/max_lines_baseline.txt`
-- `cargo-deny` permits `wit-bindgen@0.51` as a specific **wasip3** transitive duplicate
-
-### Guardrail flow
-`make check -> coverage target resolves LLVM toolchain vars -> cargo-llvm-cov runs -> max-lines guardrail compares against baseline -> cargo-deny accepts wit-bindgen@0.51 duplicate`
-
-### Key preservation points
-- The line-limit policy is baseline-driven: pre-existing oversized files are tolerated, regressions are not
-- The cargo-deny exception is narrowly scoped to `^wit-bindgen@0.51$`
-
-## Manifesto instruction rendering and sync behavior
-
-**Manifesto Instruction Implementation Notes** defines how sync and operation instructions are represented:
-
-- `synced_at_generation` is only populated when coordination sync returns **Synchronized**
-- **RateLimited** means no sync was observed during generation and must **not** be treated as fresh success
-- `full --operation` requires `--change`
-- Embedded operation instructions are scoped to the resolved change state
-- Unconfigured operations render as `null`
-
-### Summary of behavior
-- Successful sync only: `synced_at_generation`
-- No observed sync: `RateLimited`
-- Full operation visibility: only when paired with a resolved change
-- Missing configuration: render `null`
-
-## Relationships between entries
-
-- **Release Workflow** is the parent operational pipeline
-- **Build and Coverage Guardrails** supports release confidence and CI reliability
-- **Manifesto Instruction Implementation Notes** constrains how release/coordination state is rendered and reported
-- Both child entries relate back to release automation correctness and observability, but cover different layers:
-  - build/test verification
-  - instruction rendering and sync semantics
-
-## Drill-down references
-
-- **Release Workflow** for release-plz, cargo-dist, GitHub Releases, and Homebrew publishing
-- **Build and Coverage Guardrails** for `make check`, LLVM env resolution, max-lines baseline, and cargo-deny exception handling
-- **Manifesto Instruction Implementation Notes** for `Synchronized` / `RateLimited` semantics, `full --operation`, and null rendering rules
+### Drill-down references
+- Release pipeline and publishing: **release_workflow.md**
+- release-plz repo-root and gitignore rules: **release_plz_guardrails.md**
+- Coverage, max-lines, and cargo-deny fixes: **build_and_coverage_guardrails.md**
+- Manifesto sync and operation rendering rules: **manifesto_instruction_implementation_notes.md**

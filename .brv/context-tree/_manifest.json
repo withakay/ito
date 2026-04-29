@@ -1,15 +1,21 @@
 {
   "active_context": [
     {
-      "order": 3,
-      "path": "_index.md",
-      "tokens": 1566,
+      "order": 1,
+      "path": "development/ito_templates/_index.md",
+      "tokens": 331,
       "type": "summary"
     },
     {
-      "order": 2,
-      "path": "development/_index.md",
-      "tokens": 890,
+      "order": 1,
+      "path": "development/ito_workflow/_index.md",
+      "tokens": 1037,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/source_guides/_index.md",
+      "tokens": 260,
       "type": "summary"
     },
     {
@@ -75,6 +81,14 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/release_workflow/release_plz_guardrails.abstract.md",
+      "abstractTokens": 59,
+      "importance": 50,
+      "path": "development/release_workflow/release_plz_guardrails.md",
+      "tokens": 59,
+      "type": "context"
+    },
+    {
       "abstractPath": "development/release_workflow/release_workflow.abstract.md",
       "abstractTokens": 85,
       "importance": 50,
@@ -91,13 +105,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-28T20:08:56.488Z",
+  "generated_at": "2026-04-29T11:07:44.742Z",
   "lane_tokens": {
-    "contexts": 555,
+    "contexts": 664,
     "stubs": 0,
-    "summaries": 1897
+    "summaries": 1628
   },
-  "source_fingerprint": "96297c7556ea2b5e41f4c8f6fac27949ca68d3d20bff30ccb2322a4144ec5169",
-  "total_tokens": 2452,
+  "source_fingerprint": "fc3c321c681871886bb9ef385f3c896add498d9d3b16975edbde2a0a33d69bf6",
+  "total_tokens": 2292,
   "version": 1
 }

@@ -1,0 +1,1 @@
+Release-plz is configured from the repo root with dirty publishes disabled and workspace changelog/dependency updates enabled, while .ito coordination paths must stay gitignored and any tracked ignored files removed with git rm --cached.
