@@ -109,7 +109,7 @@ ______________________________________________________________________
 - **Done When**: The change is ready for `ito archive 011-06_extend-ito-validate-repo-audit-repository-backend-rules`.
 - **Requirements**: validate-repo-audit-rules:mirror-branch-set, validate-repo-repository-rules:sqlite-db-path-set, validate-repo-backend-rules:token-not-committed
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
