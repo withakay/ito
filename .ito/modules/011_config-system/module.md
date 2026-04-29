@@ -10,3 +10,4 @@
 - [ ] 011-01_cascading-config-merging
 - [ ] 011-02_cascading-config-merging
 - [ ] 011-04_ito-init-update
+- [ ] 011-05_add-ito-validate-repo-coordination-rules
