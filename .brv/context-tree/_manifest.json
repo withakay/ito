@@ -7,9 +7,9 @@
       "type": "summary"
     },
     {
-      "order": 1,
-      "path": "development/ito_templates/_index.md",
-      "tokens": 331,
+      "order": 2,
+      "path": "development/_index.md",
+      "tokens": 890,
       "type": "summary"
     },
     {
@@ -32,6 +32,14 @@
       "importance": 50,
       "path": "development/ito_workflow/context.md",
       "tokens": 106,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/obsolete_specialist_cleanup.abstract.md",
+      "abstractTokens": 50,
+      "importance": 50,
+      "path": "development/ito_workflow/obsolete_specialist_cleanup.md",
+      "tokens": 50,
       "type": "context"
     },
     {

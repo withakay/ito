@@ -57,6 +57,10 @@ Drill down: `template_bundle_retrofit.md`, `template_bundle_retrofit.abstract.md
   - retention: 30 days from newest event and max 1000 events
   - retry policy: one internal branch append retry; push retries after non-fast-forward via refetch and merge
   - runs only inside a Git worktree; missing remote branches fall back to an orphan branch
+- **`obsolete_specialist_cleanup.md`**
+  - update and force reinstall/init paths pre-clean legacy `ito-orchestrator-*` specialist assets
+  - only planner/researcher/reviewer/worker assets are renamed to `ito-*`
+  - top-level `ito-orchestrator` and `ito-orchestrator-workflow` assets remain unchanged
 
 ### Shared patterns
 - Safety-first validation, conflict detection, and path checks
@@ -64,6 +68,7 @@ Drill down: `template_bundle_retrofit.md`, `template_bundle_retrofit.abstract.md
 - Deterministic reconciliation via drift detection and JSONL deduplication
 - Bounded growth through retention limits
 - Conflicts are retried once, then surfaced
+- Migration hygiene preserves coordinator assets while clearing obsolete specialist files
 
 ## Release workflow, guardrails, and manifesto rendering
 **`release_workflow/_index.md`** summarizes the release pipeline and supporting rules.
