@@ -510,7 +510,7 @@ mod tests {
                 .map(|r| r.rule_id.as_str())
                 .collect();
 
-            let expected: Vec<&str> = case.expected_active.iter().copied().collect();
+            let expected: Vec<&str> = case.expected_active.to_vec();
             assert_eq!(
                 active_ids,
                 expected,
