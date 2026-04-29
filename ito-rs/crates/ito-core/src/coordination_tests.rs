@@ -403,3 +403,27 @@ fn format_message_wrong_target_contains_paths_and_hint() {
     assert!(msg.contains(&expected.display().to_string()));
     assert!(msg.contains("ito init"));
 }
+
+#[test]
+fn gitignore_entries_match_coordination_dirs() {
+    // The canonical gitignore entries must stay in lockstep with
+    // COORDINATION_DIRS so `update_gitignore_for_symlinks` and the
+    // `coordination/gitignore-entries` rule never diverge.
+    let entries = gitignore_entries();
+    assert_eq!(entries.len(), COORDINATION_DIRS.len());
+
+    for (entry, dir) in entries.iter().zip(COORDINATION_DIRS.iter()) {
+        let expected = format!(".ito/{dir}");
+        assert_eq!(*entry, expected.as_str());
+    }
+}
+
+#[test]
+fn gitignore_entries_returns_static_slice() {
+    // Two calls return references to the same underlying memory;
+    // serves as a regression test if someone changes the function to
+    // allocate a new Vec each call.
+    let a = gitignore_entries();
+    let b = gitignore_entries();
+    assert_eq!(a.as_ptr(), b.as_ptr());
+}

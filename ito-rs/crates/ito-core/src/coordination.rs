@@ -19,6 +19,31 @@ use crate::errors::{CoreError, CoreResult};
 /// Subdirectories of `.ito/` that are wired to the coordination worktree.
 pub const COORDINATION_DIRS: &[&str] = &["changes", "specs", "modules", "workflows", "audit"];
 
+/// Canonical `.gitignore` entries for the coordination-worktree symlinks.
+///
+/// Each entry corresponds to one directory in [`COORDINATION_DIRS`]
+/// prefixed with `.ito/`. Both [`update_gitignore_for_symlinks`] and the
+/// `coordination/gitignore-entries` rule consume this list, so any changes
+/// stay in lockstep.
+const COORDINATION_GITIGNORE_ENTRIES: &[&str] = &[
+    ".ito/changes",
+    ".ito/specs",
+    ".ito/modules",
+    ".ito/workflows",
+    ".ito/audit",
+];
+
+/// Return the canonical `.gitignore` entries for coordination-worktree
+/// symlinks.
+///
+/// The slice contents are guaranteed to match `.ito/<dir>` for each
+/// `<dir>` in [`COORDINATION_DIRS`] (verified by a unit test in this
+/// module).
+#[must_use]
+pub fn gitignore_entries() -> &'static [&'static str] {
+    COORDINATION_GITIGNORE_ENTRIES
+}
+
 // ── Platform-abstracted symlink creation ─────────────────────────────────────
 
 /// Create a directory symlink `dst` → `src` in a platform-appropriate way.
@@ -452,17 +477,11 @@ pub fn update_gitignore_for_symlinks(project_root: &Path) -> CoreResult<()> {
         String::new()
     };
 
-    // Build the lines we want to ensure are present.
-    let desired_lines: Vec<String> = COORDINATION_DIRS
+    // Collect canonical lines that are genuinely missing.
+    let missing: Vec<&str> = gitignore_entries()
         .iter()
-        .map(|dir| format!(".ito/{dir}"))
-        .collect();
-
-    // Collect lines that are genuinely missing.
-    let missing: Vec<&str> = desired_lines
-        .iter()
-        .filter(|line| !existing.lines().any(|l| l.trim() == line.as_str()))
-        .map(String::as_str)
+        .copied()
+        .filter(|line| !existing.lines().any(|l| l.trim() == *line))
         .collect();
 
     if missing.is_empty() {
