@@ -225,7 +225,7 @@ ______________________________________________________________________
 - **Done When**: The demo doc is committed and `make check` is clean from the change worktree.
 - **Requirements**: validate-repo-cli-surface:exit-codes, ito-update-repo-skill:verify-after-install, pre-commit-hooks:repo-pre-commit-stage
 - **Updated At**: 2026-04-29
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 6.2: Documentation pass
 
