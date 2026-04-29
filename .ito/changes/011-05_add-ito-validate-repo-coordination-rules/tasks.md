@@ -91,7 +91,7 @@ ______________________________________________________________________
 - **Done When**: Tests cover the active/inactive matrix for `worktrees.enabled`, all `WorktreeStrategy` variants, and the empty/non-empty staged context.
 - **Requirements**: validate-repo-worktrees-rules:no-write-on-control, validate-repo-worktrees-rules:layout-consistent
 - **Updated At**: 2026-04-29
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.4: Implement detect_pre_commit_system
 
