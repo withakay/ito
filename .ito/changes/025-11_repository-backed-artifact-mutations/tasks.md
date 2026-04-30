@@ -5,7 +5,7 @@
 - Keep task lifecycle commands semantic (`ito tasks ...`) even while broadening the artifact mutation surface.
 
 ## 1. Proposal and interface definition
-- [ ] 1.1 Finalize the artifact target model and CLI command shape for `ito patch` and `ito write`
+- [~] 1.1 Finalize the artifact target model and CLI command shape for `ito patch` and `ito write`
 - [ ] 1.2 Add spec deltas covering runtime-selected artifact mutation services and generated instruction behavior
 - [ ] 1.3 Validate the change proposal with `ito validate 025-11_repository-backed-artifact-mutations --strict`
 
