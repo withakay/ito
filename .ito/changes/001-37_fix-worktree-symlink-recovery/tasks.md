@@ -32,10 +32,10 @@ ______________________________________________________________________
 
 ### Task 1.2: Formalize repair behavior for existing unwired worktrees
 
-- **Files**: `ito-rs/crates/ito-core/src/coordination.rs`, `ito-rs/crates/ito-cli/src/app/init.rs`, `ito-rs/crates/ito-cli/tests/init_more.rs`
+- **Files**: `ito-rs/crates/ito-core/src/coordination.rs`, `ito-rs/crates/ito-cli/src/app/init.rs`, `ito-rs/crates/ito-cli/tests/init_coordination.rs`
 - **Dependencies**: Task 1.1
 - **Action**: Make the worktree-local repair path explicit so `ito init --update` on an existing worktree rewires missing or stale coordination symlinks in worktree mode and is covered by tests.
-- **Verify**: `cargo test -p ito-cli --test init_more`
+- **Verify**: `cargo test -p ito-cli --test init_coordination`
 - **Done When**: The repair path used in the reproduction is contractually supported and regression-tested.
 - **Requirements**: `coordination-worktree:repair-current-worktree-links`, `cli-init:repair-coordination-links-in-existing-worktree`
 - **Updated At**: 2026-04-30
@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Files**: `ito-rs/crates/ito-core/tests/worktree_ensure_e2e.rs`, `ito-rs/crates/ito-cli/tests/`
 - **Dependencies**: Task 2.1
 - **Action**: Add regression coverage for the exact sequence captured in `issues.md`, including a fresh worktree, missing links, repair, and change creation.
-- **Verify**: `cargo test -p ito-core --test worktree_ensure_e2e && cargo test -p ito-cli --test init_more`
+- **Verify**: `cargo test -p ito-core --test worktree_ensure_e2e && cargo test -p ito-cli --test init_coordination`
 - **Done When**: The observed symlink-recovery failure sequence is encoded as a stable regression test.
 - **Requirements**: `worktree-lifecycle:ensure-wires-coordination-links`, `cli-init:repair-coordination-links-in-existing-worktree`, `change-creation:missing-coordination-wiring-recovery`
 - **Updated At**: 2026-04-30
@@ -91,7 +91,7 @@ ______________________________________________________________________
 - **Files**: `.ito/changes/001-37_fix-worktree-symlink-recovery/`, affected Rust and template files
 - **Dependencies**: Task 3.1
 - **Action**: Run strict Ito validation and the targeted Rust quality checks for worktree wiring, init recovery, and create-change behavior.
-- **Verify**: `ito validate 001-37_fix-worktree-symlink-recovery --strict && cargo test -p ito-core --test worktree_ensure_e2e && cargo test -p ito-cli --test init_more`
+- **Verify**: `ito validate 001-37_fix-worktree-symlink-recovery --strict && cargo test -p ito-core --test worktree_ensure_e2e && cargo test -p ito-cli --test init_coordination`
 - **Done When**: The change validates strictly and the targeted worktree regressions pass.
 - **Requirements**:
 - **Updated At**: 2026-04-30
