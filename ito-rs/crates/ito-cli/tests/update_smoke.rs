@@ -290,7 +290,7 @@ fn update_refreshes_github_copilot_audit_assets() {
 
     let prompt =
         std::fs::read_to_string(repo.path().join(".github/prompts/ito-apply.prompt.md")).unwrap();
-    assert!(prompt.contains("Audit guardrail"));
+    assert!(prompt.contains("Before stateful Ito actions"));
     assert!(prompt.contains("ito audit validate"));
     assert!(!prompt.contains("stale prompt"));
 }

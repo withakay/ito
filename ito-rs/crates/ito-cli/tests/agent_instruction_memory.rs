@@ -101,6 +101,17 @@ fn memory_capture_command_branch_renders_executable_command_line() {
         "stdout={}",
         out.stdout
     );
+    assert!(out.stdout.contains("Provider Operation Guidance"));
+    assert!(out.stdout.contains("Artifact: `memory-capture`"));
+    assert!(out.stdout.contains("Configured branch: `command`"));
+    assert!(
+        out.stdout
+            .contains("Provider routing is resolved from `.ito/config.json`")
+    );
+    assert!(
+        out.stdout
+            .contains("Required inputs: `--context`; optional repeatable `--file` and `--folder`")
+    );
     assert!(
         out.stdout
             .contains("brv curate 'decision X' --file 'a.md' --file 'b.md' --folder 'docs/'"),
@@ -137,6 +148,8 @@ fn memory_capture_skill_branch_emits_structured_inputs() {
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Skill: `ito-memory-markdown`"));
+    assert!(out.stdout.contains("Configured branch: `skill`"));
+    assert!(out.stdout.contains("Invoke the skill exactly as named"));
     assert!(out.stdout.contains("`context` = `\"note\"`"));
     assert!(out.stdout.contains("`files` = `[\"x.md\"]`"));
     assert!(out.stdout.contains("\"root\""));
@@ -156,6 +169,8 @@ fn memory_capture_not_configured_branch_renders_setup_guidance() {
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Memory `capture` is not configured"));
+    assert!(out.stdout.contains("Configured branch: `not-configured`"));
+    assert!(out.stdout.contains("Fallback guidance"));
     assert!(out.stdout.contains("\"kind\": \"command\""));
     assert!(out.stdout.contains("\"kind\": \"skill\""));
     assert!(out.stdout.contains("There is no default provider"));
@@ -187,6 +202,11 @@ fn memory_search_command_branch_substitutes_query_and_default_limit() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Artifact: `memory-search`"));
+    assert!(
+        out.stdout
+            .contains("Required inputs: `--query`; optional `--limit` and `--scope`")
+    );
     assert!(out.stdout.contains("brv search 'coordination' --limit 10"));
 }
 
@@ -304,6 +324,8 @@ fn memory_query_command_branch_substitutes_query() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Artifact: `memory-query`"));
+    assert!(out.stdout.contains("Required inputs: `--query`"));
     assert!(
         out.stdout
             .contains("brv query 'How does coordination work?'")

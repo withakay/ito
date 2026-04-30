@@ -888,6 +888,67 @@ fn sync_coordination_worktree_returns_error_when_links_point_to_wrong_target() {
 
 #[test]
 #[cfg(unix)]
+fn sync_coordination_worktree_repairs_empty_generated_dirs_before_git() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let coord_wt = tmp.path().join("coord-wt");
+    let coord_ito = coord_wt.join(".ito");
+    let git_common_dir = tmp.path().join("git-common");
+
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::create_dir_all(&coord_ito).unwrap();
+    std::fs::create_dir_all(&git_common_dir).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(ito_path.join(subdir)).unwrap();
+    }
+
+    let json = serde_json::json!({
+        "changes": {
+            "coordination_branch": {
+                "storage": "worktree",
+                "name": "ito/internal/changes",
+                "worktree_path": coord_wt.to_str().unwrap()
+            }
+        }
+    });
+    std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
+    let stored = serde_json::json!({
+        "synced_at_epoch_seconds": super::now_epoch_seconds(),
+        "head": "abc123"
+    });
+    std::fs::write(
+        git_common_dir.join("ito-sync-state.json"),
+        stored.to_string(),
+    )
+    .unwrap();
+
+    let runner = StubRunner::with_outputs(vec![
+        ok(""),                               // fetch
+        ok(""),                               // merge --ff-only
+        ok("abc123\n"),                       // rev-parse HEAD
+        ok(""),                               // status --porcelain (clean)
+        ok(git_common_dir.to_str().unwrap()), // rev-parse --git-common-dir
+    ]);
+
+    let outcome = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect("sync should repair safe wiring and succeed");
+
+    assert_eq!(outcome, CoordinationSyncOutcome::RateLimited);
+    for subdir in ITO_SUBDIRS {
+        assert_eq!(
+            std::fs::read_link(ito_path.join(subdir)).unwrap(),
+            coord_ito.join(subdir)
+        );
+    }
+    assert_eq!(
+        runner.calls.borrow()[0],
+        ["fetch", "origin", "ito/internal/changes"]
+    );
+}
+
+#[test]
+#[cfg(unix)]
 fn sync_coordination_worktree_rate_limits_when_recent_and_clean() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path();

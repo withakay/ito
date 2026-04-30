@@ -1,6 +1,7 @@
 ---
 name: ito-reviewer
 description: Reviews Ito orchestration gate results and worker changes
+activation: delegated
 tools:
   - read
   - search

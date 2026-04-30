@@ -26,3 +26,6 @@ pub mod paths;
 
 /// Git remote URL parsing utilities.
 pub mod git_url;
+
+/// Harness session environment detection.
+pub mod harness;

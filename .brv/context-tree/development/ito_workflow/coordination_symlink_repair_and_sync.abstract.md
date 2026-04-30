@@ -1,0 +1,1 @@
+Coordination worktree init/sync now repairs missing or broken correct `.ito` symlinks, fails on wrong-target or ambiguous duplicate state, and treats missing remote config as non-fatal after local repair.

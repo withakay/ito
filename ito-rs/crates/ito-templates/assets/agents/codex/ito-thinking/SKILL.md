@@ -1,6 +1,7 @@
 ---
 name: ito-thinking
 description: High-capability skill for complex reasoning, architecture decisions, and difficult problems
+activation: direct
 ---
 
 <!-- ITO:START -->

@@ -1,6 +1,7 @@
 ---
 name: ito-planner
 description: Plans Ito orchestration runs from change metadata and gates
+activation: delegated
 tools: Read, Glob, Grep, Bash, TodoWrite
 model: sonnet
 ---

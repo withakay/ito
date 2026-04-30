@@ -5,10 +5,12 @@ use chrono::Utc;
 use serde_json::{Map, Value};
 
 use crate::errors::{CoreError, CoreResult};
+use agent_frontmatter::{update_agent_activation_field_from_rendered, update_agent_model_field};
 use agents_cleanup::remove_obsolete_specialist_agents;
 
 use markers::update_file_with_markers;
 
+mod agent_frontmatter;
 mod agents_cleanup;
 mod markers;
 
@@ -993,88 +995,9 @@ fn update_existing_agent_template(
     if let Some(cfg) = config {
         update_agent_model_field(target, &cfg.model)?;
     }
+    update_agent_activation_field_from_rendered(target, rendered)?;
 
     Ok(())
-}
-
-/// Update only the model field in an existing agent file's frontmatter
-fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
-    let content = ito_common::io::read_to_string_or_default(path);
-
-    // Only update files with frontmatter
-    if !content.starts_with("---") {
-        return Ok(());
-    }
-
-    // Find frontmatter boundaries
-    let rest = &content[3..];
-    let Some(end_idx) = rest.find("\n---") else {
-        return Ok(());
-    };
-
-    let frontmatter = &rest[..end_idx];
-    let body = &rest[end_idx + 4..]; // Skip "\n---"
-
-    // Update model field in frontmatter and scrub stale OpenCode-only subagent metadata.
-    let updated_frontmatter = update_model_in_yaml(
-        frontmatter,
-        new_model,
-        should_strip_opencode_subagent_mode(path),
-    );
-
-    // Reconstruct file
-    let updated = format!("---{}\n---{}", updated_frontmatter, body);
-    ito_common::io::write_std(path, updated)
-        .map_err(|e| CoreError::io(format!("writing {}", path.display()), e))?;
-
-    Ok(())
-}
-
-fn should_strip_opencode_subagent_mode(path: &Path) -> bool {
-    let Some(parent) = path.parent() else {
-        return false;
-    };
-    let Some(agent_dir) = parent.file_name().and_then(|name| name.to_str()) else {
-        return false;
-    };
-    let Some(opencode_dir) = parent
-        .parent()
-        .and_then(|ancestor| ancestor.file_name())
-        .and_then(|name| name.to_str())
-    else {
-        return false;
-    };
-
-    agent_dir == "agents" && opencode_dir == ".opencode"
-}
-
-/// Replace or insert the `model` field in YAML frontmatter.
-fn update_model_in_yaml(yaml: &str, new_model: &str, strip_subagent_mode: bool) -> String {
-    let mut lines = Vec::new();
-    let mut found = false;
-
-    for line in yaml.lines() {
-        let trimmed = line.trim_start();
-        if strip_subagent_mode
-            && (trimmed == "mode: subagent" || trimmed.starts_with("subagent:"))
-        {
-            continue;
-        }
-        if trimmed.starts_with("model:") {
-            lines.push(format!("model: \"{}\"", new_model));
-            found = true;
-            continue;
-        }
-
-        lines.push(line.to_string());
-    }
-
-    // If no model field found, add it
-    if !found {
-        lines.push(format!("model: \"{}\"", new_model));
-    }
-
-    lines.join("\n")
 }
 
 #[cfg(test)]
@@ -1234,51 +1157,6 @@ mod tests {
     fn release_tag_is_prefixed_with_v() {
         let tag = release_tag();
         assert!(tag.starts_with('v'));
-    }
-
-    #[test]
-    fn update_model_in_yaml_replaces_or_inserts() {
-        let yaml = "name: test\nmodel: \"old\"\n";
-        let updated = update_model_in_yaml(yaml, "new", false);
-        assert!(updated.contains("model: \"new\""));
-
-        let yaml = "name: test\n";
-        let updated = update_model_in_yaml(yaml, "new", false);
-        assert!(updated.contains("model: \"new\""));
-    }
-
-    #[test]
-    fn update_model_in_yaml_strips_stale_opencode_subagent_fields_when_requested() {
-        let yaml = "description: test\nmode: subagent\nsubagent: true\nmodel: \"old\"\n";
-        let updated = update_model_in_yaml(yaml, "new", true);
-        assert!(updated.contains("model: \"new\""));
-        assert!(!updated.contains("mode: subagent"));
-        assert!(!updated.contains("subagent:"));
-    }
-
-    #[test]
-    fn should_strip_opencode_subagent_mode_matches_opencode_agents_only() {
-        let td = tempfile::tempdir().unwrap();
-        let opencode = td.path().join(".opencode/agents/ito-general.md");
-        let claude = td.path().join(".claude/agents/ito-general.md");
-        assert!(should_strip_opencode_subagent_mode(&opencode));
-        assert!(!should_strip_opencode_subagent_mode(&claude));
-    }
-
-    #[test]
-    fn update_agent_model_field_updates_frontmatter_when_present() {
-        let td = tempfile::tempdir().unwrap();
-        let path = td.path().join("agent.md");
-        std::fs::write(&path, "---\nname: test\nmodel: \"old\"\n---\nbody\n").unwrap();
-        update_agent_model_field(&path, "new").unwrap();
-        let s = std::fs::read_to_string(&path).unwrap();
-        assert!(s.contains("model: \"new\""));
-
-        let path = td.path().join("no-frontmatter.md");
-        std::fs::write(&path, "no frontmatter\n").unwrap();
-        update_agent_model_field(&path, "newer").unwrap();
-        let s = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(s, "no frontmatter\n");
     }
 
     #[test]
