@@ -1,11 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Installed Ito memory skill
 
-Ito SHALL install a shared `ito-memory` skill that explains how agents capture, search, and query project memory through the configured memory provider abstraction.
+Ito SHALL install a shared `ito-memory` skill that explains how agents capture, search, and query project memory through the configured memory provider abstraction. The skill SHALL be a thin entrypoint that routes agents to `ito agent instruction memory-capture`, `ito agent instruction memory-search`, and `ito agent instruction memory-query` as the authoritative memory workflow instructions.
 
-- **Requirement ID**: `agent-memory-abstraction:installed-ito-memory-skill`
+- **Requirement ID**: agent-memory-abstraction:installed-ito-memory-skill
 
 #### Scenario: Skill is installed by Ito template distribution
 
@@ -20,21 +20,9 @@ Ito SHALL install a shared `ito-memory` skill that explains how agents capture, 
 - **AND** it directs the agent to use `ito agent instruction memory-capture`, `ito agent instruction memory-search`, and `ito agent instruction memory-query`
 - **AND** it does not require a specific provider such as ByteRover
 
-### Requirement: Memory instruction artifacts are discoverable in CLI help
+#### Scenario: Memory operation detail comes from instruction artifacts
 
-The `ito agent instruction` help surface SHALL list the memory instruction artifacts and include examples for them so agents can discover the memory workflow without prior artifact-name knowledge.
-
-- **Requirement ID**: `agent-memory-abstraction:memory-artifacts-in-help`
-
-#### Scenario: Agent instruction help lists memory artifacts
-
-- **WHEN** a user or agent runs `ito agent instruction --help`
-- **THEN** the artifact list includes `memory-capture`, `memory-search`, and `memory-query`
-- **AND** the descriptions distinguish capture, ranked search, and synthesized query behavior
-
-#### Scenario: Agent instruction help includes memory examples
-
-- **WHEN** a user or agent reads the `ito agent instruction --help` examples
-- **THEN** the examples include at least one memory artifact invocation
-- **AND** the examples show the required `--query` argument for search or query artifacts
+- **WHEN** an agent needs to capture, search, or query memory through Ito
+- **THEN** the `ito-memory` skill directs the agent to render the corresponding memory instruction artifact
+- **AND** provider routing, required flags, output expectations, and fallback guidance are sourced from the rendered instruction rather than duplicated in the skill
 <!-- ITO:END -->
