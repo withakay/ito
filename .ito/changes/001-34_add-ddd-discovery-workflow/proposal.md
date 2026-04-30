@@ -13,7 +13,7 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 - Reuse event-storming concepts outside the `event-driven` schema when they clarify behavior, so `spec-driven` changes can still extract commands, domain events, policies, actors, aggregates, read models, and invariants before drafting specs.
 - Make the workflow explicitly distinguish bounded contexts from Ito modules and capabilities, and require cross-context changes to declare ownership, relationships, and translation boundaries.
 - Carry resolved domain language into existing `CONTEXT.md` / `CONTEXT-MAP.md` style docs lazily when those files exist or when the first durable term is resolved, and offer ADR capture only for consequential decisions.
-- Add optional validation and review hooks for domain-language consistency and boundary consistency so discovery outputs stay connected to proposals, specs, and tasks without forcing DDD ceremony onto routine changes.
+- Add optional validation and review hooks for domain-language consistency, boundary consistency, and the `domain_documentation_consistency` rule so discovery outputs stay connected to proposals, specs, tasks, and proposed docs without forcing DDD ceremony onto routine changes.
 
 ## Change Shape
 
@@ -34,7 +34,12 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 
 - `workflow-convergence`: Extend the canonical instruction-and-skill workflow so ambiguous or architectural work can pass through a domain discovery lane before proposal scaffolding.
 - `ito-schemas`: Support reusable discovery artifacts and proposal handoff conventions that bridge planning outputs into spec-driven and event-driven change creation.
-- `cli-validate`: Add opt-in validators for ubiquitous-language consistency and cross-context boundary consistency.
+- `cli-validate`: Add opt-in validators for `ubiquitous_language_consistency`, `context_boundary_consistency`, and `domain_documentation_consistency`.
+
+## Dependencies
+
+- Coordinate with `001-32_add-planning-workflow` before implementing guidance that targets `ito-plan` assets.
+- Coordinate with `001-33_enhance-spec-driven-workflow-validation` before implementing quiet-default schema validation hooks.
 
 ## Impact
 

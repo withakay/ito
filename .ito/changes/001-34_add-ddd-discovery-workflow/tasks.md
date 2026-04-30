@@ -5,6 +5,7 @@
 
 - **Tracking**: Use `ito tasks` CLI for status updates
 - **Status legend**: `[ ] pending` · `[>] in-progress` · `[x] complete` · `[-] shelved`
+- **Prerequisites**: Coordinate with `001-32_add-planning-workflow` before editing `ito-plan` assets and with `001-33_enhance-spec-driven-workflow-validation` before adding quiet-default schema validators.
 
 ```bash
 ito tasks status 001-34_add-ddd-discovery-workflow
@@ -52,7 +53,7 @@ ______________________________________________________________________
 - **Files**: `ito-rs/crates/ito-core/src/validate/`, `ito-rs/crates/ito-core/tests/validate.rs`
 - **Dependencies**: None
 - **Action**: Add opt-in rules that compare canonical domain terms and proposed context/ADR updates against the canonical discovery handoff.
-- **Verify**: `cargo test -p ito-core --test validate ubiquitous_language_consistency_rule domain_documentation_consistency_rule`
+- **Verify**: `cargo test -p ito-core --test validate ubiquitous_language_consistency_rule && cargo test -p ito-core --test validate domain_documentation_consistency_rule`
 - **Done When**: Validation can warn on term drift, undefined aliases, glossary mismatches, or conflicting documentation updates without blocking simple changes by default.
 - **Requirements**: `cli-validate:ubiquitous-language-consistency`, `cli-validate:domain-documentation-consistency`
 - **Updated At**: 2026-04-30
@@ -79,10 +80,10 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/review.md.j2`, `docs/agent-workflow.md`, `docs/presentations/march-2026/ito-workflow-diagram.mmd`
 - **Dependencies**: None
-- **Action**: Teach review instructions and human-facing workflow docs to look for discovery outputs, language drift, evidence checks, proposed context/ADR updates, technique-fit decisions, and cross-context ambiguity before implementation begins.
+- **Action**: Teach review, apply, archive, finish, and human-facing workflow docs to look for discovery outputs, language drift, evidence checks, proposed context/ADR updates, technique-fit decisions, cross-context ambiguity, and post-approval domain-doc promotion.
 - **Verify**: `make docs`
-- **Done When**: Review guidance and workflow docs explain when to invoke DDD discovery and how its outputs feed proposal quality.
-- **Requirements**: `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:lazy-domain-documentation-capture`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `workflow-convergence:domain-docs-change-scope`
+- **Done When**: Review and lifecycle guidance explain when to invoke DDD discovery, how its outputs feed proposal quality, and how approved context/ADR updates are promoted.
+- **Requirements**: `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:lazy-domain-documentation-capture`, `domain-discovery-workflow:approved-domain-documentation-promotion`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `workflow-convergence:domain-docs-change-scope`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 
@@ -93,7 +94,7 @@ ______________________________________________________________________
 - **Action**: Run change validation and targeted tests for instruction rendering, schema loading, and validation rules.
 - **Verify**: `ito validate 001-34_add-ddd-discovery-workflow --strict && cargo test -p ito-core --test validate && cargo test -p ito-cli instructions`
 - **Done When**: The change validates strictly and the targeted workflow tests pass.
-- **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:domain-grill-interview-mode`, `domain-discovery-workflow:glossary-conflict-challenge`, `domain-discovery-workflow:scenario-boundary-probing`, `domain-discovery-workflow:code-documentation-cross-check`, `domain-discovery-workflow:ubiquitous-language-glossary`, `domain-discovery-workflow:bounded-context-map`, `domain-discovery-workflow:technique-fit-triage`, `domain-discovery-workflow:event-storming-technique-fit`, `domain-discovery-workflow:proposal-handoff-summary`, `domain-discovery-workflow:context-map-distinguishes-module-and-capability`, `domain-discovery-workflow:lazy-domain-documentation-capture`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `workflow-convergence:domain-docs-change-scope`, `ito-schemas:domain-discovery-artifacts`, `ito-schemas:canonical-discovery-summary-contract`, `ito-schemas:domain-documentation-location-discovery`, `ito-schemas:cross-schema-discovery-vocabulary`, `ito-schemas:discovery-artifact-optionality`, `cli-validate:ubiquitous-language-consistency`, `cli-validate:context-boundary-consistency`, `cli-validate:domain-documentation-consistency`
+- **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:domain-grill-interview-mode`, `domain-discovery-workflow:glossary-conflict-challenge`, `domain-discovery-workflow:scenario-boundary-probing`, `domain-discovery-workflow:code-documentation-cross-check`, `domain-discovery-workflow:ubiquitous-language-glossary`, `domain-discovery-workflow:bounded-context-map`, `domain-discovery-workflow:technique-fit-triage`, `domain-discovery-workflow:event-storming-technique-fit`, `domain-discovery-workflow:proposal-handoff-summary`, `domain-discovery-workflow:context-map-distinguishes-module-and-capability`, `domain-discovery-workflow:lazy-domain-documentation-capture`, `domain-discovery-workflow:approved-domain-documentation-promotion`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `workflow-convergence:domain-docs-change-scope`, `ito-schemas:domain-discovery-artifacts`, `ito-schemas:canonical-discovery-summary-contract`, `ito-schemas:domain-documentation-location-discovery`, `ito-schemas:cross-schema-discovery-vocabulary`, `ito-schemas:discovery-artifact-optionality`, `cli-validate:ubiquitous-language-consistency`, `cli-validate:context-boundary-consistency`, `cli-validate:domain-documentation-consistency`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 <!-- ITO:END -->

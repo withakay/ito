@@ -15,7 +15,7 @@ The system SHALL provide a DDD-oriented discovery bundle for ambiguous, architec
 
 ### Requirement: Canonical discovery handoff
 
-The discovery workflow SHALL produce a canonical discovery handoff that downstream proposal, spec, task, review, and validation steps can consume. The handoff MUST use stable headings or fields for canonical terms, rejected aliases, bounded contexts, context relationships, selected techniques, candidate capabilities, and open questions.
+The discovery workflow SHALL produce a canonical discovery handoff that downstream proposal, spec, task, review, and validation steps can consume. The handoff MUST use stable headings or fields for canonical terms, rejected aliases, bounded contexts, context relationships, selected techniques, candidate capabilities, evidence checked, proposed documentation updates, and open questions.
 
 - **Requirement ID**: `domain-discovery-workflow:canonical-discovery-handoff`
 
@@ -23,7 +23,7 @@ The discovery workflow SHALL produce a canonical discovery handoff that downstre
 
 - **WHEN** proposal scaffolding, review guidance, or validation needs discovery context
 - **THEN** it reads the canonical discovery handoff or embedded `Domain Discovery Summary` section
-- **AND** it can identify glossary, context, technique-fit, and open-question fields without relying on free-form prose
+- **AND** it can identify glossary, context, technique-fit, evidence, proposed-documentation, and open-question fields without relying on free-form prose
 
 ### Requirement: Domain grill interview mode
 
@@ -182,4 +182,24 @@ The discovery workflow SHALL update or propose updates to durable domain documen
 - **WHEN** a decision is hard to reverse, surprising without context, and the result of a real trade-off
 - **THEN** the workflow offers an ADR in the appropriate system-wide or context-specific `docs/adr/` location
 - **AND** it does not create an ADR for ordinary naming, formatting, or low-consequence implementation details
+
+### Requirement: Approved domain documentation promotion
+
+The discovery workflow SHALL define how proposed `CONTEXT.md`, `CONTEXT-MAP.md`, and ADR updates are promoted after approval. Promotion MUST happen only through the apply/archive/finish path for an approved change, and proposed documentation updates MUST remain non-canonical until that point.
+
+- **Requirement ID**: `domain-discovery-workflow:approved-domain-documentation-promotion`
+
+#### Scenario: Approved change promotes proposed domain docs
+
+- **GIVEN** an approved change includes proposed context or ADR updates from discovery
+- **WHEN** the change is applied or archived according to the selected workflow
+- **THEN** the proposed updates are written to the appropriate root or context-specific documentation locations
+- **AND** the canonical discovery handoff remains traceable to the promoted documentation
+
+#### Scenario: Unapproved discovery does not change canonical docs
+
+- **GIVEN** discovery captured proposed domain documentation updates
+- **WHEN** the change is not yet approved or is abandoned
+- **THEN** those updates remain in the change package or worktree only
+- **AND** they are not treated as accepted project domain language
 <!-- ITO:END -->

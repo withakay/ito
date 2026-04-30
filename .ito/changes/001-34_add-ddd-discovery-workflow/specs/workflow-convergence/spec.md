@@ -40,8 +40,8 @@ Ito SHALL extend review guidance so reviewers can check whether proposals that u
 #### Scenario: Review checks discovery handoff alignment
 
 - **WHEN** a proposal includes a domain-discovery handoff summary
-- **THEN** review guidance asks reviewers to compare proposal, spec, design, and task language against the handoff
-- **AND** it asks reviewers to flag missing context relationships or unaddressed domain questions before implementation begins
+- **THEN** review guidance asks reviewers to compare proposal, spec, design, task language, evidence checked, and proposed documentation updates against the handoff
+- **AND** it asks reviewers to flag missing context relationships, missing evidence, conflicting documentation updates, or unaddressed domain questions before implementation begins
 
 ### Requirement: Domain documentation remains change-scoped until approved
 
@@ -54,4 +54,10 @@ Ito SHALL ensure domain-documentation updates produced by discovery follow the s
 - **WHEN** discovery resolves a durable term, bounded context, or ADR-worthy decision during proposal work
 - **THEN** Ito records the proposed documentation update in the active change package or change worktree
 - **AND** canonical project documentation is not treated as accepted truth until the change is reviewed and approved
+
+#### Scenario: Approved documentation updates are promoted through workflow guidance
+
+- **WHEN** an approved change contains proposed `CONTEXT.md`, `CONTEXT-MAP.md`, or ADR updates
+- **THEN** apply/archive/finish guidance includes the documentation promotion step
+- **AND** rejected or abandoned changes do not update canonical domain docs
 <!-- ITO:END -->

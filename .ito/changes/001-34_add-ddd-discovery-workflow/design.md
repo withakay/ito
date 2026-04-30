@@ -19,6 +19,15 @@ The problem is that the default workflow is still artifact-first rather than dom
 
 That leaves a gap: domain discovery is available, but it is not the default mental model for ambiguous or cross-cutting work.
 
+## Dependencies
+
+This change should be implemented as a follow-on to two adjacent workflow changes:
+
+- `001-32_add-planning-workflow`, because domain-grill discovery targets planning and `ito-plan` entrypoints.
+- `001-33_enhance-spec-driven-workflow-validation`, because the proposed validators follow that change's quiet-default validation model.
+
+If those changes are not merged first, implementation should either stack on their branches or replace the referenced assets with the final names introduced by those changes.
+
 ## Current Workflow Model
 
 ```mermaid
@@ -179,6 +188,7 @@ Documentation capture rules:
 - `CONTEXT-MAP.md` captures bounded contexts and where their local docs live.
 - ADRs are offered only when the decision is hard to reverse, surprising without context, and based on a real trade-off.
 - During proposal work, documentation updates are proposed in the active change/worktree and are not canonical truth until reviewed and approved.
+- After approval, apply/archive/finish guidance promotes proposed domain-doc updates to the discovered `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` locations.
 
 ## Integrated Skill Ideas and Conflicts
 
@@ -215,6 +225,12 @@ Conflicts to avoid:
 - **Chosen**: discover and propose updates to `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs within the change flow.
 - **Alternatives considered**: update canonical documentation immediately during discovery.
 - **Rationale**: immediate capture is valuable, but canonical docs should follow Ito's review/approval boundary so unapproved proposal language does not become project truth.
+
+### Decision: Promote domain docs only after approval
+
+- **Chosen**: include context/ADR promotion in apply/archive/finish guidance after a change is approved.
+- **Alternatives considered**: leave proposed documentation updates in the discovery handoff indefinitely.
+- **Rationale**: discovery needs a safe proposal-only capture point, but accepted domain language must eventually land in durable docs or the handoff becomes a dead-end artifact.
 
 ### Decision: Reuse event-storming concepts across schemas
 
