@@ -1,52 +1,23 @@
-# ito-common — Layer 0 (Foundation)
+# ito-common — L0 (Foundation)
 
-Shared utilities used across Ito crates. This is a **leaf crate** — it has zero workspace dependencies and zero domain knowledge.
-
-For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
-
-## Purpose
-
-Foundational building blocks reused across the workspace: filesystem abstraction, ID parsing/validation, path builders, fuzzy matching, and I/O wrappers.
+Shared utilities. **Leaf crate — zero workspace dependencies, zero domain knowledge.**
+See [`ito-rs/AGENTS.md`](../../AGENTS.md). See [`.ito/architecture.md`](../../../.ito/architecture.md).
 
 ## Modules
+|fs: FileSystem trait (testable I/O) |id: ID parsing+validation (change, module, spec)
+|io: file I/O wrappers |match_: fuzzy matching |paths: .ito/ path builders (changes_dir, specs_dir, etc.)
 
-| Module | Responsibility |
-|---|---|
-| `fs` | `FileSystem` trait abstraction for testable I/O |
-| `id` | Parsing and validation of Ito identifiers (change, module, spec IDs) |
-| `io` | Convenience wrappers around common file I/O operations |
-| `match_` | Simple fuzzy matching utilities |
-| `paths` | Canonical `.ito/` path builders (`changes_dir`, `specs_dir`, etc.) |
+## Constraints
+**MOST RESTRICTED CRATE — violations cascade everywhere**
+**MUST NOT:** depend on ANY workspace crate | contain domain types (no Change/Module/Task) | contain business logic/policy
+**MUST:** remain small+boring — pure utility | keep #![warn(missing_docs)] | provide FileSystem trait for ito-domain testability
 
-## Architectural Constraints
+## When to Add Here
+"Is this utility reusable across multiple crates with no domain knowledge?" If yes → here. If needs Change/Module/Task/Spec knowledge → ito-domain or ito-core.
 
-**This crate is the most restricted in the workspace. Violations here cascade everywhere.**
-
-### MUST NOT
-
-- Depend on **any** other workspace crate (leaf crate — enforced by `make arch-guardrails`)
-- Contain domain-specific behaviour or domain models (no `Change`, `Module`, `Task` types)
-- Contain business logic or policy decisions
-- Depend on `ito-domain`, `ito-core`, `ito-cli`, or `ito-web`
-
-### MUST
-
-- Remain small and boring — pure utility code only
-- Keep `#![warn(missing_docs)]` enabled
-- Provide the `FileSystem` trait that `ito-domain` depends on for testability
-
-## When Adding Code Here
-
-Ask: "Is this utility genuinely reusable across multiple crates, with no domain knowledge required?" If yes, it belongs here. If it needs to know about Changes, Modules, Tasks, or Specs, it belongs in `ito-domain` or `ito-core`.
-
-## Quality Checks
-
-After modifying this crate, run:
-
+## Quality
 ```bash
-make check              # fmt + clippy
-make test               # all workspace tests (changes here can break anything)
-make arch-guardrails    # verify no forbidden dependencies crept in
+make check && make test && make arch-guardrails
 ```
-
-Use the `rust-quality-checker` subagent to verify style compliance and the `rust-code-reviewer` subagent to catch architectural drift.
+ID parser changes affect CLI UX, validation, and backend routes — test carefully.
+|rust-quality-checker: style |rust-code-reviewer: catch architectural drift

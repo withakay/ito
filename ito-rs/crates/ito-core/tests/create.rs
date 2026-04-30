@@ -389,3 +389,63 @@ fn create_change_in_sub_module_rejects_missing_sub_module_dir() {
         "expected SubModuleNotFound, got {err:?}"
     );
 }
+
+#[test]
+#[cfg(unix)]
+fn create_change_repairs_missing_coordination_links_before_module_lookup() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    std::fs::create_dir_all(&ito).expect("create ito dir");
+
+    let coordination_root = td.path().join("coordination-worktree");
+    let coordination_ito = coordination_root.join(".ito");
+    for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+        std::fs::create_dir_all(coordination_ito.join(dir)).expect("create coordination dirs");
+    }
+    write(
+        coordination_ito.join("modules/001_demo/module.md"),
+        "# Demo\n\n## Purpose\nfixture\n\n## Scope\n- fixture\n\n## Changes\n<!-- Changes will be listed here as they are created -->\n",
+    );
+
+    write(
+        ito.join("config.json"),
+        &format!(
+            "{{\n  \"changes\": {{\n    \"coordination_branch\": {{\n      \"storage\": \"worktree\",\n      \"worktree_path\": \"{}\"\n    }}\n  }}\n}}\n",
+            coordination_root.display()
+        ),
+    );
+
+    let created = create_change(&ito, "repair-me", "spec-driven", Some("001"), None)
+        .expect("create change should repair coordination links first");
+    assert_eq!(created.change_id, "001-01_repair-me");
+
+    let modules_link = std::fs::read_link(ito.join("modules")).expect("modules symlink");
+    assert_eq!(modules_link, coordination_ito.join("modules"));
+}
+
+#[test]
+fn create_change_reports_actionable_error_when_coordination_worktree_missing() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    std::fs::create_dir_all(&ito).expect("create ito dir");
+
+    let missing_coordination_root = td.path().join("missing-coordination-worktree");
+    write(
+        ito.join("config.json"),
+        &format!(
+            "{{\n  \"changes\": {{\n    \"coordination_branch\": {{\n      \"storage\": \"worktree\",\n      \"worktree_path\": \"{}\"\n    }}\n  }}\n}}\n",
+            missing_coordination_root.display()
+        ),
+    );
+
+    let err = create_change(&ito, "needs-wiring", "spec-driven", Some("001"), None)
+        .expect_err("missing coordination worktree should fail");
+    let CreateError::CoordinationWiring(message) = err else {
+        panic!("expected CoordinationWiring, got {err:?}");
+    };
+    assert!(message.contains("Current worktree is missing required Ito coordination wiring"));
+    assert!(message.contains("ito init --update --tools none"));
+    assert!(message.contains(missing_coordination_root.to_string_lossy().as_ref()));
+}

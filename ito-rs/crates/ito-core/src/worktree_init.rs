@@ -122,7 +122,9 @@ pub fn copy_include_files(
 /// 2. Run setup commands from `config.init.setup` in `dest_root` (if configured).
 ///
 /// Coordination symlink wiring is handled separately by the caller because it
-/// requires the `.ito/` path context which this function does not own.
+/// requires the `.ito/` path context which this function does not own. Today
+/// that means `ito worktree ensure` wires new and partially initialized
+/// worktrees, while `ito init --update` can repair the current worktree.
 ///
 /// # Errors
 ///

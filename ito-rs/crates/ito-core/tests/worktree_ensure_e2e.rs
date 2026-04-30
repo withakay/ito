@@ -34,7 +34,8 @@ fn run_git(cwd: &Path, args: &[&str]) {
 #[test]
 fn ensure_worktree_creates_and_initializes_with_include_files() {
     use ito_config::types::{
-        ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
+        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig,
+        WorktreeStrategy,
     };
     use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
@@ -47,10 +48,18 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     fs::write(project_root.join(".env"), "SECRET=test123").unwrap();
 
     let worktrees_root = tmp.path().join("ito-worktrees");
+    let coordination_root = tmp.path().join("coordination");
+    let coordination_ito = coordination_root.join(".ito");
+    for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+        fs::create_dir_all(coordination_ito.join(dir)).unwrap();
+    }
 
     let mut config = ItoConfig::default();
     config.worktrees.enabled = true;
     config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
+    config.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+    config.changes.coordination_branch.worktree_path =
+        Some(coordination_root.to_string_lossy().to_string());
     config.worktrees.layout = WorktreeLayoutConfig {
         base_dir: None,
         dir_name: "ito-worktrees".to_string(),
@@ -86,9 +95,79 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     assert!(env_file.exists(), ".env should be copied to worktree");
     assert_eq!(fs::read_to_string(&env_file).unwrap(), "SECRET=test123");
 
+    if cfg!(unix) {
+        for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+            let path = wt_path.join(".ito").join(dir);
+            let target = fs::read_link(&path).unwrap_or_else(|err| {
+                panic!("{dir} should be a coordination symlink: {err}");
+            });
+            assert_eq!(target, coordination_ito.join(dir));
+        }
+    }
+
     // Second call: idempotent — returns the same path without error.
     let result2 = ensure_worktree("test-change", &config, &env, &paths, &project_root);
     assert_eq!(result2.unwrap(), wt_path);
+}
+
+#[test]
+#[cfg(unix)]
+fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
+    use ito_config::types::{
+        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig,
+        WorktreeStrategy,
+    };
+    use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
+    use ito_core::worktree_ensure::ensure_worktree;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    init_git_repo(&project_root);
+
+    let worktrees_root = tmp.path().join("ito-worktrees");
+    let coordination_root = tmp.path().join("coordination");
+    let coordination_ito = coordination_root.join(".ito");
+    for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+        fs::create_dir_all(coordination_ito.join(dir)).unwrap();
+    }
+
+    let mut config = ItoConfig::default();
+    config.worktrees.enabled = true;
+    config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
+    config.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+    config.changes.coordination_branch.worktree_path =
+        Some(coordination_root.to_string_lossy().to_string());
+    config.worktrees.layout = WorktreeLayoutConfig {
+        base_dir: None,
+        dir_name: "ito-worktrees".to_string(),
+    };
+    config.worktrees.init = WorktreeInitConfig {
+        include: vec![],
+        setup: None,
+    };
+
+    let env = ResolvedEnv {
+        worktree_root: project_root.clone(),
+        project_root: project_root.clone(),
+        ito_root: project_root.join(".ito"),
+        git_repo_kind: GitRepoKind::NonBare,
+    };
+
+    let paths = ResolvedWorktreePaths {
+        feature: WorktreeFeature::Enabled,
+        strategy: WorktreeStrategy::CheckoutSiblings,
+        worktrees_root: Some(worktrees_root.clone()),
+        main_worktree_root: Some(project_root.clone()),
+    };
+
+    let wt_path = ensure_worktree("repair-test", &config, &env, &paths, &project_root).unwrap();
+    std::fs::remove_file(wt_path.join(".ito/modules")).expect("remove broken symlink");
+
+    let repaired = ensure_worktree("repair-test", &config, &env, &paths, &project_root).unwrap();
+    assert_eq!(repaired, wt_path);
+
+    let target = std::fs::read_link(wt_path.join(".ito/modules")).expect("modules symlink restored");
+    assert_eq!(target, coordination_ito.join("modules"));
 }
 
 #[test]
@@ -121,7 +200,8 @@ fn ensure_worktree_disabled_returns_cwd() {
 #[test]
 fn ensure_worktree_with_setup_script() {
     use ito_config::types::{
-        ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeSetupConfig, WorktreeStrategy,
+        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig,
+        WorktreeSetupConfig, WorktreeStrategy,
     };
     use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
@@ -135,6 +215,7 @@ fn ensure_worktree_with_setup_script() {
     let mut config = ItoConfig::default();
     config.worktrees.enabled = true;
     config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
+    config.changes.coordination_branch.storage = CoordinationStorage::Embedded;
     config.worktrees.layout = WorktreeLayoutConfig {
         base_dir: None,
         dir_name: "ito-worktrees".to_string(),

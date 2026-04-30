@@ -224,3 +224,80 @@ fn init_with_git_remote_creates_coordination_worktree() {
         "config.json should contain worktree storage mode; got:\n{config}"
     );
 }
+
+/// Verifies that `ito init --update` repairs missing coordination links in an
+/// existing worktree-backed repo.
+#[test]
+#[cfg(unix)]
+fn init_update_repairs_missing_coordination_symlink() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::git_init_with_initial_commit(repo.path());
+
+    let remote = fixtures::make_bare_remote();
+    fixtures::add_origin(repo.path(), remote.path());
+
+    let push = std::process::Command::new("git")
+        .args(["push", "origin", "HEAD:main"])
+        .current_dir(repo.path())
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git push should run");
+    assert!(
+        push.status.success(),
+        "git push failed: {}",
+        String::from_utf8_lossy(&push.stderr)
+    );
+
+    fixtures::write(
+        repo.path().join(".ito/config.json"),
+        "{\n  \"backend\": { \"project\": { \"org\": \"testorg\", \"repo\": \"testrepo\" } }\n}\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--update",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "initial init --update failed: {}", out.stderr);
+
+    let modules_link = repo.path().join(".ito/modules");
+    let metadata = std::fs::symlink_metadata(&modules_link).expect("modules symlink metadata");
+    assert!(
+        metadata.file_type().is_symlink(),
+        ".ito/modules should exist as a symlink after initial init --update"
+    );
+    std::fs::remove_file(&modules_link).expect("remove modules symlink");
+    assert!(!modules_link.exists(), "modules symlink should be removed");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "init",
+            repo.path().to_string_lossy().as_ref(),
+            "--tools",
+            "none",
+            "--update",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "repair init --update failed: {}", out.stderr);
+
+    assert!(
+        std::fs::read_link(&modules_link).is_ok(),
+        ".ito/modules should be restored as a coordination symlink"
+    );
+}

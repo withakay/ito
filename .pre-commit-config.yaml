@@ -6,6 +6,10 @@ default_language_version:
 # This avoids `prek` stashing/unstashing during `git commit` (a common source of
 # worktree index corruption in worktree-based setups) and keeps `git commit`
 # fast. Developers should run `make check` before creating a batch of commits.
+#
+# Exception: `ito-validate-repo` runs at pre-commit. The validator is
+# config-aware, fast, and only inspects the staging area, so it is safe to
+# run on every commit. See `.ito/changes/011-05_…/specs/pre-commit-hooks/`.
 default_stages: [pre-push]
 exclude: ^\.brv/
 
@@ -55,6 +59,15 @@ repos:
 
   - repo: local
     hooks:
+      - id: ito-validate-repo
+        name: ito validate repo (staged)
+        entry: ito-rs/tools/hooks/pre-commit
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        # Always runs — the engine itself is config-aware and skips rules
+        # whose gates do not match.
+
       - id: markdownlint-cli2
         name: markdownlint-cli2
         entry: markdownlint-cli2

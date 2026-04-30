@@ -87,15 +87,20 @@ fn init_with_tools_opencode_installs_orchestrator_agent_template() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
     let agent_path = repo.path().join(".opencode/agents/ito-orchestrator.md");
+    let general_path = repo.path().join(".opencode/agents/ito-general.md");
     assert!(
         agent_path.exists(),
         "expected ito-orchestrator agent template"
     );
+    assert!(general_path.exists(), "expected ito-general agent template");
 
     let contents = std::fs::read_to_string(agent_path).expect("read agent");
+    let general = std::fs::read_to_string(general_path).expect("read general agent");
     assert!(!contents.contains("{{model}}"));
     assert!(!contents.contains("{{variant}}"));
     assert!(contents.contains("model:"));
+    assert!(!contents.contains("mode: subagent"));
+    assert!(!general.contains("mode: subagent"));
 }
 
 #[test]
@@ -121,6 +126,7 @@ fn init_update_with_tools_all_installs_all_orchestrator_agent_templates() {
         .expect("read opencode orchestrator");
     assert!(!contents.contains("{{model}}"));
     assert!(!contents.contains("{{variant}}"));
+    assert!(!contents.contains("mode: subagent"));
 }
 
 #[test]
@@ -136,6 +142,7 @@ fn init_update_refreshes_existing_opencode_orchestrator_agent_template() {
     fixtures::write(
         &agent_path,
         r#"---
+mode: subagent
 model: "old-model"
 ---
 
@@ -166,6 +173,7 @@ custom suffix
     assert!(contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("stale orchestrator body"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
+    assert!(!contents.contains("mode: subagent"));
 }
 
 #[test]
@@ -181,6 +189,7 @@ fn init_update_preserves_existing_markerless_opencode_agent_template_body() {
     fixtures::write(
         &agent_path,
         r#"---
+mode: subagent
 model: "old-model"
 ---
 
@@ -204,6 +213,7 @@ legacy custom orchestrator body
     assert!(!contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("old-model"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
+    assert!(!contents.contains("mode: subagent"));
 }
 
 #[test]
@@ -219,6 +229,7 @@ fn init_update_preserves_existing_partial_marker_opencode_agent_template_body() 
     fixtures::write(
         &agent_path,
         r#"---
+mode: subagent
 model: "old-model"
 ---
 
@@ -248,6 +259,7 @@ legacy partial-marker orchestrator body
     assert!(!contents.contains("You are an Ito orchestrator."));
     assert!(!contents.contains("old-model"));
     assert!(contents.contains(&format!("model: \"{}\"", expected_opencode_general_model())));
+    assert!(!contents.contains("mode: subagent"));
 }
 
 #[test]

@@ -104,7 +104,19 @@ pub fn validate_change_worktree(
     }
 }
 
-fn is_main_checkout(
+/// True when `current_path` is the configured main / control checkout.
+///
+/// `main_worktree_root` is the configured main worktree root (typically
+/// `<base>/<default_branch>` for `bare_control_siblings`, or the project
+/// root itself for in-checkout strategies). `worktrees_root` is the
+/// directory that holds change worktrees; paths under it are NOT classified
+/// as "main".
+///
+/// `pub(crate)` so other repo-validation rules in [`crate::validate_repo`]
+/// can reuse the same definition without re-implementing it. Promote to
+/// `pub` only when an external consumer needs it.
+#[must_use]
+pub(crate) fn is_main_checkout(
     current_path: &Path,
     main_worktree_root: Option<&Path>,
     worktrees_root: Option<&Path>,

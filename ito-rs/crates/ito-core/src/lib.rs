@@ -169,6 +169,9 @@ pub mod stats;
 /// Validation utilities for on-disk state.
 pub mod validate;
 
+/// Repository-level validation rules driven by `ito_config::types::ItoConfig`.
+pub mod validate_repo;
+
 /// Change worktree ensure: verify or create the correct worktree for a change.
 pub mod worktree_ensure;
 

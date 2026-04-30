@@ -1,51 +1,25 @@
-# ito-logging — Layer 1 (Domain)
+# ito-logging — L1 (Domain)
 
-Append-only telemetry logging to JSONL files. Records low-volume execution events with anonymized project identification.
-
-For workspace-wide guidance see [`ito-rs/AGENTS.md`](../../AGENTS.md). For architectural context see [`.ito/architecture.md`](../../../.ito/architecture.md).
-
-## Purpose
-
-Record coarse command execution metadata (start/end events, durations, outcomes) to a JSONL file under the user's config directory. Designed to be resilient — telemetry failures must never break the main command flow.
+Append-only JSONL telemetry. **Resilience invariant: logging failures MUST NEVER crash or slow down a command.**
+See [`ito-rs/AGENTS.md`](../../AGENTS.md). See [`.ito/architecture.md`](../../../.ito/architecture.md).
 
 ## Key Exports
+|Logger: append-only logger with write_start()/write_end()
+|Outcome: Success or Error enum for command outcomes
 
-| Export | Responsibility |
-|---|---|
-| `Logger` | Append-only telemetry logger with `write_start()` / `write_end()` |
-| `Outcome` | `Success` or `Error` enum for command outcomes |
+## Design
+|all I/O failures silently swallowed (debug-logged only) |anonymized via SHA-256+per-user salt — no file paths/user-identifiable data
+|append-only JSONL; no rotation, no DB, no background threads |opt-out: ITO_DISABLE_LOGGING env var
 
-## Design Principles
+## Dependencies
+|none (standalone crate, external deps only)
 
-- **Resilience**: All I/O failures are silently swallowed (debug-logged only). Telemetry must never crash or slow down a command.
-- **Privacy**: Project IDs are anonymized via SHA-256 with a per-user salt. No file paths, content, or user-identifiable data is logged.
-- **Simplicity**: Append-only JSONL — no rotation, no database, no background threads.
-- **Opt-out**: Disabled via `ITO_DISABLE_LOGGING` environment variable.
+## Constraints
+**MUST NOT:** depend on any workspace crate | allow telemetry failures to propagate | log user-identifiable data/file paths/content
+**MUST:** remain resilient (best-effort, never blocking) | keep #![warn(missing_docs)]
 
-## Workspace Dependencies
-
-None — this is a standalone crate with only external dependencies.
-
-## Architectural Constraints
-
-### MUST NOT
-
-- Depend on any other workspace crate
-- Depend on `ito-core`, `ito-cli`, or `ito-web`
-- Allow telemetry failures to propagate — all errors must be handled gracefully
-- Log user-identifiable data, file paths, or file content
-
-### MUST
-
-- Remain resilient — logging is best-effort, never blocking
-- Keep `#![warn(missing_docs)]` enabled
-
-## Quality Checks
-
+## Quality
 ```bash
-make check              # fmt + clippy
-make test               # all workspace tests
-make arch-guardrails    # verify dependency rules
+make check && make test && make arch-guardrails
 ```
-
-Use the `rust-quality-checker` subagent for style verification. Use the `rust-code-reviewer` subagent to ensure resilience invariants are maintained — pay special attention to any new I/O paths that could panic or propagate errors.
+|rust-quality-checker: style |rust-code-reviewer: resilience invariants — pay attention to new I/O paths that could panic or propagate errors

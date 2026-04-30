@@ -1,31 +1,39 @@
 ---
-children_hash: 2b9fe0b2a6a099b721e20c064e673d5b4e2e05bb78fc3bdcdb74085498a586f0
-compression_ratio: 0.36775106082036774
+children_hash: 973e78f9e3195411dc6c679d8855f9fd76921af86b6cdbe95f60ea78fd57cc1f
+compression_ratio: 0.47426981919332406
 condensation_order: 1
 covers: [source_guide_workflow.md]
-covers_token_total: 707
+covers_token_total: 719
 summary_level: d1
-token_count: 260
+token_count: 341
 type: summary
 ---
 # Source Guide Workflow
 
-Ito’s source-guide system is a code map/code atlas workflow used during apply work. The central pattern is: check nearby `source-guide.md` files, refresh missing or stale guides, read them for orientation, verify claims against source, and update affected guides after structural changes.
+## Overview
+Ito apply work uses `source-guide.md` files as a code map / code atlas. The workflow is centered on keeping nearby guides current before changes, using them for orientation, and verifying important claims against source rather than treating the guides as authoritative. See **source_guide_workflow.md** for the full workflow.
 
-## Structural model
-- Guide coverage spans multiple levels:
+## Structural pattern
+- Guide hierarchy spans:
   - root `source-guide.md`
   - `ito-rs/source-guide.md`
   - `ito-rs/crates/source-guide.md`
   - per-crate `source-guide.md` files
-- `source-guide.json` tracks guide freshness.
+- Freshness is tracked in `source-guide.json`.
+- The guide layer is meant to support navigation and context during apply work, not replace source truth.
 
-## Operational rules
-- Before implementing an Ito apply change, agents should inspect nearby guides.
-- The `source-guide` skill is used to set up or refresh guide files when needed.
-- Guides are orientation aids, not the final authority.
-- Important implementation claims must be verified against source.
-- After structural changes, affected guides must be updated.
+## Core workflow
+1. Check for nearby `source-guide.md` files before Ito apply work.
+2. Refresh or create missing/stale guides using the source-guide skill.
+3. Read guides for orientation.
+4. Verify important implementation claims against source.
+5. Update affected guides after structural changes.
 
-## Drill-down
-- `source_guide_workflow.md` — full workflow, guide hierarchy, freshness tracking, and verification rules
+## Key rules and decisions
+- Guides are orientation aids, not final authority.
+- Source verification is required for important claims.
+- Guide updates are part of structural change follow-up.
+- The workflow is explicitly tied to Ito apply changes.
+
+## Related entry
+- **source_guide_workflow.md** — canonical description of the source-guide atlas workflow and its rules.

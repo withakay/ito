@@ -1,120 +1,51 @@
 ---
-children_hash: 1706ab678c68984a7f4cd8762e1856b14160bdd59f60621a217f117d97c3d32e
-compression_ratio: 0.34060670569451834
+children_hash: e33eb998885795c0da9736e6d03af6fb5277578a60ba84bd906f3b1cbf45e09b
+compression_ratio: 0.27887571365832237
 condensation_order: 1
-covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, coordination_symlink_repair_and_sync.md, obsolete_specialist_cleanup.md, published_ito_mirror.md, worktree_validation_flow.md]
-covers_token_total: 3758
+covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, ddd_discovery_workflow.md, ito_orchestration_consolidation.md, obsolete_specialist_cleanup.md, published_ito_mirror.md, worktree_validation_flow.md]
+covers_token_total: 4554
 summary_level: d1
-token_count: 1280
+token_count: 1270
 type: summary
 ---
 # ito_workflow
 
-This topic covers how Ito keeps coordination-backed state synchronized, published, validated, and cleaned up across worktrees and mirror outputs. The child entries form a pipeline around safe publication, synchronization repair, validation, and installer cleanup.
+Core workflow knowledge for Ito centers on publishing coordination-backed state into a read-only mirror, validating worktree safety, handling audit mirror synchronization safely, consolidating orchestration sources, and defining discovery behavior for DDD work.
 
-## Core architecture
+## Mirror publishing and validation
+- **Published Ito Mirror**: `published_ito_mirror.md` defines the read-only `docs/ito` mirror generated from coordination-backed state.
+  - Key facts: configurable `changes.published_mirror.path` defaulting to `docs/ito`; safe path resolution rejects empty, absolute, parent-traversal, and project-root-only paths; renderer skips symlinks; output layout includes `README.md`, `changes/active`, `changes/archive`, and `specs`.
+  - Flow: configure mirror path → validate path → generate read-only mirror → detect drift → replace from coordination state.
+  - Relationship: docs/ito is readable output; coordination state remains writable source of truth.
 
-- **`context.md`** establishes the top-level scope: Ito publishes a **read-only mirror** of coordination-backed state into `docs/ito` and keeps it synchronized safely.
-- The main source of truth remains **coordination-backed writable state**; published output is generated for read-only consumption in plain GitHub/main checkouts.
-- Key concepts across the topic:
-  - `published_mirror.path` configuration
-  - safe project-relative path resolution
-  - drift detection
-  - coordination-backed source of truth
-  - read-only mirror generation
+- **Worktree Validation Flow**: `worktree_validation_flow.md` documents `ito worktree validate --change <id> [--json]`.
+  - Key facts: dedicated read-only validation flow; main/control checkouts hard-fail; non-main mismatches are advisory with recovery guidance; exact change-id prefix matching avoids false positives, including suffix worktrees like `<change>-review`.
+  - Dependency: OpenCode pre-tool hooks rely on machine-readable status output.
 
-## Publication and mirror management
+- **Audit Mirror Concurrency and Temp Naming**: `audit_mirror_concurrency_and_temp_naming.md` covers the audit mirror sync path in `mirror.rs`.
+  - Key facts: temporary worktree and orphan branch names include `pid`, `SystemTime` timestamp, and atomic counter; JSONL merge dedupes identical lines, preserves order, and collapses adjacent reconciled events; logs are truncated to the newest 30 days and max 1000 events; push/ref update conflicts retry once.
+  - Flow: detect git worktree → create temp worktree → fetch/checkout branch or orphan → merge JSONL → stage/commit → push or update ref → retry on conflict.
+  - Rules: only runs inside a Git worktree; missing remote branch uses orphan branch; non-fast-forward pushes refetch and retry once.
 
-### `published_ito_mirror.md`
-Defines the published mirror implementation:
-- Mirror path defaults to **`docs/ito`** via `changes.published_mirror.path`.
-- Path resolution rejects unsafe inputs: empty paths, absolute paths, parent traversal, and project-root-only paths.
-- The renderer outputs a deterministic read-only tree, including:
-  - `README.md`
-  - `changes/active`
-  - `changes/archive`
-  - `specs`
-- The publish CLI loads cascading config, compares generated output with the existing mirror, detects drift, and replaces the mirror from coordination-backed state.
-- Symlinks are skipped during generation.
+## Orchestration and agent surface
+- **Ito Orchestration Consolidation**: `ito_orchestration_consolidation.md` folds orchestration work into change `028-02_centralize-instruction-source-of-truth`.
+  - Key decision: overlapping orchestration and multi-agent skills/prompts are centralized behind `ito agent instruction orchestrate` as the authoritative source.
+  - Architectural distinction: entrypoint agents (`ito-general`, `ito-orchestrator`) are separated from delegated sub-agents (`planner`, `researcher`, `worker`, `reviewer`, `test-runner`).
+  - Relationship: this topic is the consolidation target for orchestration overlap and should be treated as the single source of truth.
 
-### `audit_mirror_concurrency_and_temp_naming.md`
-Covers the audit mirror sync path and its concurrency protections:
-- Uses unique temp worktree and orphan branch names built from:
-  - process ID
-  - `SystemTime` timestamp
-  - atomic counter
-- JSONL merge behavior:
-  - dedupes identical lines
-  - preserves order
-  - collapses adjacent reconciled events by incrementing count
-- Retention policy bounds logs by:
-  - age: **30 days**
-  - count: **1000 events**
-- Conflict handling retries once for:
-  - non-fast-forward push conflicts
-  - ref update conflicts
-- Sync flow: detect git worktree -> create temp worktree -> fetch/checkout branch or orphan -> merge JSONL -> stage/commit -> push or update ref -> retry on conflict
+- **Obsolete Specialist Cleanup**: `obsolete_specialist_cleanup.md` captures installer cleanup behavior for renamed orchestrator assets.
+  - Key facts: cleanup runs on update and forceful init/reinstall paths; harness-level pre-pass removes legacy assets before writing new ones; broken symlinks are removed via `symlink_metadata`; plain init preserves untouched user files.
+  - Scope: removes obsolete `ito-orchestrator-*` specialist markdown and `SKILL.md` assets while preserving coordinator assets like `ito-orchestrator.md` and `ito-orchestrator-workflow`.
 
-## Worktree synchronization and repair
+## Discovery workflow
+- **DDD Discovery Workflow**: `ddd_discovery_workflow.md` defines discovery behavior for `001-34_add-ddd-discovery-workflow`.
+  - Key facts: integrates grill-with-docs ideas into Ito domain discovery; requires repository evidence before asking user questions; adds focused domain-grill questioning for ambiguous/cross-context work; includes glossary conflict challenges, scenario-based boundary probes, optional queries, consistency requirements, and named-or-provisional context relationships.
+  - Lifecycle: reference material → consensus concepts → discovery depth gate → capability boundary check → context relationship patterns → consistency and optional queries → boundary-smell probes → gated domain-grill recommendation.
+  - Lazy capture artifacts: `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs are used before post-approval domain-doc promotion.
+  - Rule: rigorous domain-grill is gated, but auto-recommended for high-impact ambiguity or explicit user opt-in.
 
-### `coordination_symlink_repair_and_sync.md`
-Describes coordination worktree init/sync behavior:
-- Repairs missing `.ito/` links and correct symlinks whose targets were removed.
-- Treats empty generated `.ito/` directories as safe to replace.
-- Fails explicitly on:
-  - wrong symlink targets
-  - non-empty duplicate `.ito/` directories
-- Symlinks are wired **before** health checks during sync.
-- Missing origin/remote configuration is treated as non-fatal `RateLimited` after local repair.
-- Coordination worktree responsibilities:
-  - symlink creation/repair/teardown
-  - worktree provisioning
-  - auto-commit
-  - sync-state persistence
-  - fetch/fast-forward orchestration
-- The sync flow is:
-  provision/init -> resolve worktree path -> create or reuse worktree -> wire `.ito` symlinks -> update `.gitignore` -> health check -> fetch -> fast-forward -> rate-limit check -> auto-commit -> push -> persist sync state
-
-## Validation rules
-
-### `worktree_validation_flow.md`
-Defines dedicated read-only validation for change work:
-- `ito worktree validate --change <id> [--json]` now emits machine-readable status.
-- Main/control checkouts are **hard failures**.
-- Mismatches outside main are **advisory** and include recovery guidance.
-- Matching uses exact change-id prefixes, including suffix worktrees like `<change>-review`, avoiding false positives.
-- This flow is designed for OpenCode pre-tool hooks to block only unsafe scenarios.
-
-## Installer and template cleanup
-
-### `obsolete_specialist_cleanup.md`
-Documents cleanup of renamed orchestrator specialist assets during install and init:
-- Cleanup runs on:
-  - update flows
-  - forceful reinstall/init paths
-- The installer performs a pre-pass to remove legacy assets before writing new ones.
-- Broken legacy symlinks are removed using `symlink_metadata`.
-- Legacy assets renamed from `ito-orchestrator-*` to `ito-*`.
-- Coordinator assets such as `ito-orchestrator.md` and `ito-orchestrator-workflow` are intentionally preserved.
-- Plain init leaves untouched user files in place.
-
-## Relationships and drill-down map
-
-- **Mirror publication and read-only output**
-  - `context.md`
-  - `published_ito_mirror.md`
-- **Sync reliability and concurrency**
-  - `coordination_symlink_repair_and_sync.md`
-  - `audit_mirror_concurrency_and_temp_naming.md`
-- **Read-only validation safeguards**
-  - `worktree_validation_flow.md`
-- **Installer migration cleanup**
-  - `obsolete_specialist_cleanup.md`
-
-## Shared patterns
-
-- Prefer safe, deterministic generation over implicit mutation.
-- Treat coordination state as authoritative; published artifacts are derived mirrors.
-- Fail loudly on ambiguous or wrong-target filesystem state.
-- Use retry-on-conflict only for clearly retryable Git races.
-- Preserve machine-readable status and exact-prefix matching where hooks and automation depend on correctness.
+## Structural relationships
+- `context.md` is the topic-level overview tying the workflow together: Ito publishes a read-only mirror of coordination-backed state into `docs/ito` and keeps it synchronized safely.
+- `audit_mirror_concurrency_and_temp_naming.md` and `published_ito_mirror.md` both relate to safe mirror generation and synchronization.
+- `worktree_validation_flow.md` and `published_ito_mirror.md` both enforce safe handling of worktree/publish operations.
+- `ddd_discovery_workflow.md` connects discovery practices to `ito_orchestration_consolidation.md` and `source_guides/source_guide_workflow.md` through consensus discovery and guardrail-aware questioning.

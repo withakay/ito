@@ -30,7 +30,7 @@ pub use ralph::{HarnessArg, RalphArgs};
 pub use split::SplitArgs;
 pub use status_args::{StatusArgs, SyncArgs};
 pub use util::{ParseIdArgs, UtilArgs, UtilCommand};
-pub use validate::{ValidateCommand, ValidateItemType};
+pub use validate::{RepoValidateArgs, ValidateCommand, ValidateItemType};
 pub use worktree::{WorktreeArgs, WorktreeCommand, WorktreeValidateArgs};
 #[cfg(test)]
 #[path = "cli_tests.rs"]

@@ -100,6 +100,8 @@ Rules of thumb:
 - Do work inside a worktree (not the bare repo root).
 - Create feature worktrees under `ito-worktrees/`.
 - Do not remove the locked `main` worktree.
+- Prefer `ito worktree ensure --change <id>` over raw `git worktree add` so Ito can initialize the worktree correctly.
+- If you inherit an older or manually created worktree and `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, or `.ito/audit` are missing or stale, repair the worktree with `ito init --update --tools none` before creating or applying changes.
 
 Also: when testing changes, use the binary built in the same worktree you edited (worktrees do not share `target/`).
 

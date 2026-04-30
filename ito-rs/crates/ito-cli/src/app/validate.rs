@@ -460,6 +460,10 @@ pub(crate) fn handle_validate_clap(rt: &Runtime, args: &ValidateArgs) -> CliResu
         return handle_validate(rt, &argv);
     }
 
+    if let Some(ValidateCommand::Repo(repo_args)) = &args.command {
+        return super::validate_repo::handle_validate_repo(rt, repo_args);
+    }
+
     if args.all {
         argv.push("--all".to_string());
     }
