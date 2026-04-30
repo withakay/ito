@@ -22,4 +22,4 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - [x] 019-10_manifesto-instruction
 - [x] 019-11_rename-orchestrator-assets
 - [x] 019-12_compress-template-prompts
-- [ ] 019-13_fix-opencode-agent-mode
+- [x] 019-13_fix-opencode-agent-mode
