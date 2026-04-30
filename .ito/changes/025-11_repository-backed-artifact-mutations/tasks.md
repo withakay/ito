@@ -25,7 +25,7 @@
 - [x] 4.3 Preserve the distinction between code-file edits and Ito artifact mutations in guidance text
 
 ## 5. Verification coverage
-- [ ] 5.1 Add targeted tests for filesystem, SQLite, and remote mutation behavior
+- [~] 5.1 Add targeted tests for filesystem, SQLite, and remote mutation behavior
 - [ ] 5.2 Add CLI tests for patch/write success and failure cases
 - [ ] 5.3 Add instruction/template tests proving the correct workflow is emitted everywhere relevant
 - [ ] 5.4 Run `make test` and `make check` and resolve all failures
