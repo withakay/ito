@@ -6,7 +6,7 @@
 Implemented automatic coordination symlink wiring in worktree ensure, explicit repair support for init update on existing worktrees, and create-change recovery/error handling for missing worktree wiring.
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-core --test worktree_ensure_e2e
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-core --test worktree_ensure_e2e
 ```
 
 ```output
@@ -24,7 +24,7 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-core --test create
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-core --test create
 ```
 
 ```output
@@ -55,7 +55,7 @@ test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-cli --test init_coordination
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-cli --test init_coordination
 ```
 
 ```output

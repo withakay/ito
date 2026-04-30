@@ -100,6 +100,7 @@ pub(crate) fn ensure_worktree_with_runner(
         // If the directory exists with .git but no marker, re-run init.
         // If no .git at all, fall through to creation (the dir is stale).
         if has_git {
+            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
             worktree_init::init_worktree_with_runner(
                 runner,
@@ -107,7 +108,6 @@ pub(crate) fn ensure_worktree_with_runner(
                 &worktree_path,
                 &config.worktrees,
             )?;
-            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             write_init_marker(&worktree_path)?;
             return Ok(worktree_path);
         }
@@ -140,6 +140,9 @@ pub(crate) fn ensure_worktree_with_runner(
     // Resolve the source root (main worktree) for file copy.
     let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
 
+    let ito_path = worktree_path.join(".ito");
+    repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
+
     // Initialize: copy files + run setup.
     worktree_init::init_worktree_with_runner(
         runner,
@@ -147,9 +150,6 @@ pub(crate) fn ensure_worktree_with_runner(
         &worktree_path,
         &config.worktrees,
     )?;
-
-    let ito_path = worktree_path.join(".ito");
-    repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
 
     // Write marker to indicate initialization completed successfully.
     write_init_marker(&worktree_path)?;

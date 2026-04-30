@@ -6,7 +6,7 @@
 Updated worktree instructions to document automatic Ito wiring via worktree ensure and the init update repair fallback, then re-ran docs and strict change validation.
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-cli --test init_coordination
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && cargo test -p ito-cli --test init_coordination
 ```
 
 ```output
@@ -25,19 +25,19 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && make docs
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && make docs
 ```
 
 ```output
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
-   Generated /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery/target/doc/ito_backend/index.html and 9 other files
+   Generated <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery/target/doc/ito_backend/index.html and 9 other files
 rm -rf docs/rustdoc
 cp -R target/doc docs/rustdoc
 ```
 
 ```bash
-cd /Users/jack/Code/withakay/ito/ito-worktrees/001-37_fix-worktree-symlink-recovery && ito validate 001-37_fix-worktree-symlink-recovery --strict
+cd <repo-root>/ito-worktrees/001-37_fix-worktree-symlink-recovery && ito validate 001-37_fix-worktree-symlink-recovery --strict
 ```
 
 ```output

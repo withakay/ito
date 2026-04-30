@@ -95,12 +95,14 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     assert!(env_file.exists(), ".env should be copied to worktree");
     assert_eq!(fs::read_to_string(&env_file).unwrap(), "SECRET=test123");
 
-    for dir in ["changes", "specs", "modules", "workflows", "audit"] {
-        let path = wt_path.join(".ito").join(dir);
-        let target = fs::read_link(&path).unwrap_or_else(|err| {
-            panic!("{dir} should be a coordination symlink: {err}");
-        });
-        assert_eq!(target, coordination_ito.join(dir));
+    if cfg!(unix) {
+        for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+            let path = wt_path.join(".ito").join(dir);
+            let target = fs::read_link(&path).unwrap_or_else(|err| {
+                panic!("{dir} should be a coordination symlink: {err}");
+            });
+            assert_eq!(target, coordination_ito.join(dir));
+        }
     }
 
     // Second call: idempotent — returns the same path without error.

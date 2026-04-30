@@ -12,11 +12,11 @@ This file records the exact commands and observations from the session so future
 
 In the main worktree, these paths are symlinks:
 
-- `.ito/audit -> /Users/jack/.local/share/ito/withakay/ito/.ito/audit`
-- `.ito/changes -> /Users/jack/.local/share/ito/withakay/ito/.ito/changes`
-- `.ito/modules -> /Users/jack/.local/share/ito/withakay/ito/.ito/modules`
-- `.ito/specs -> /Users/jack/.local/share/ito/withakay/ito/.ito/specs`
-- `.ito/workflows -> /Users/jack/.local/share/ito/withakay/ito/.ito/workflows`
+- `.ito/audit -> ~/.local/share/ito/<org>/<repo>/.ito/audit`
+- `.ito/changes -> ~/.local/share/ito/<org>/<repo>/.ito/changes`
+- `.ito/modules -> ~/.local/share/ito/<org>/<repo>/.ito/modules`
+- `.ito/specs -> ~/.local/share/ito/<org>/<repo>/.ito/specs`
+- `.ito/workflows -> ~/.local/share/ito/<org>/<repo>/.ito/workflows`
 
 Those symlinks were missing in newly created worktrees until `ito init --update --tools none` was run inside each worktree.
 
@@ -35,12 +35,12 @@ Observed rule: create a temporary proposal worktree first when no final change I
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito`
+- `<repo-root>`
 
 Command:
 
 ```bash
-git worktree add "/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow" -b proposal-ddd-workflow main
+git worktree add "<repo-root>/ito-worktrees/proposal-ddd-workflow" -b proposal-ddd-workflow main
 ```
 
 Result:
@@ -52,7 +52,7 @@ Result:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Command:
 
@@ -82,7 +82,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Commands:
 
@@ -105,8 +105,8 @@ Conclusion:
 
 Workdirs:
 
-- Main: `/Users/jack/Code/withakay/ito/main`
-- Temp: `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- Main: `<repo-root>/main`
+- Temp: `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Command used in both places:
 
@@ -127,7 +127,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Command:
 
@@ -148,7 +148,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Commands:
 
@@ -186,9 +186,9 @@ ito path project-root && ito path worktrees-root && ito path worktree-root
 
 Result:
 
-- `project-root` -> `/Users/jack/Code/withakay/ito`
-- `worktrees-root` -> `/Users/jack/Code/withakay/ito/ito-worktrees`
-- `worktree-root` -> `/Users/jack/Code/withakay/ito/main`
+- `project-root` -> `<repo-root>`
+- `worktrees-root` -> `<repo-root>/ito-worktrees`
+- `worktree-root` -> `<repo-root>/main`
 
 Conclusion:
 
@@ -198,7 +198,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/proposal-ddd-workflow`
+- `<repo-root>/ito-worktrees/proposal-ddd-workflow`
 
 Command:
 
@@ -211,7 +211,7 @@ Result:
 - Ito created the final worktree path:
 
 ```text
-/Users/jack/Code/withakay/ito/ito-worktrees/001-34_add-ddd-discovery-workflow
+<repo-root>/ito-worktrees/001-34_add-ddd-discovery-workflow
 ```
 
 - But immediately after creation, the new final worktree still had no `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, or `.ito/audit` paths.
@@ -224,7 +224,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/001-34_add-ddd-discovery-workflow`
+- `<repo-root>/ito-worktrees/001-34_add-ddd-discovery-workflow`
 
 Command:
 
@@ -245,7 +245,7 @@ Conclusion:
 
 Workdir:
 
-- `/Users/jack/Code/withakay/ito/ito-worktrees/001-34_add-ddd-discovery-workflow`
+- `<repo-root>/ito-worktrees/001-34_add-ddd-discovery-workflow`
 
 Command:
 
