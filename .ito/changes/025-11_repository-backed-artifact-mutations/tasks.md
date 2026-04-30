@@ -12,7 +12,7 @@
 ## 2. Mutation services and runtime composition
 - [x] 2.1 Add domain/core artifact mutation abstractions and result/error types
 - [x] 2.2 Wire filesystem and SQLite implementations into the repository runtime
-- [ ] 2.3 Extend the remote/backend client runtime to support artifact mutation operations
+- [~] 2.3 Extend the remote/backend client runtime to support artifact mutation operations
 
 ## 3. CLI surfaces and validation
 - [ ] 3.1 Add `ito patch ...` and `ito write ...` command parsing and adapter behavior
