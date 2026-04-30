@@ -111,6 +111,33 @@ The new workflow should treat domain discovery as a reusable bundle rather than 
     - A compact transfer object from discovery into proposal creation.
     - Output goal: keep proposal scaffolding grounded in domain language and context boundaries.
 
+## Canonical Handoff Contract
+
+Discovery outputs need enough structure for later phases to consume them without turning the workflow into a heavy modeling tool. Ito should support the same contract either as a standalone `domain-discovery.md` artifact or as an embedded `## Domain Discovery Summary` section declared by a schema.
+
+Required fields or headings:
+
+- **Primary problem**: one sentence describing the domain problem.
+- **Canonical terms**: term-to-definition mapping.
+- **Rejected aliases / overloaded terms**: aliases to avoid and terms that need context.
+- **Bounded contexts**: context names, responsibilities, ownership, and owned language.
+- **Cross-context relationships**: upstream/downstream relationships, published language, anti-corruption or translation boundaries.
+- **Technique fit**: selected and skipped DDD techniques with rationale.
+- **Candidate capabilities**: proposed Ito capability names informed by discovery.
+- **Open questions**: unresolved vocabulary, ownership, policy, or sequencing questions.
+- **Evidence checked**: specs, code, context docs, or ADRs consulted before asking the user.
+- **Proposed documentation updates**: `CONTEXT.md`, `CONTEXT-MAP.md`, or ADR updates that should accompany the change if approved.
+
+Optional event-storming fields when event storming is selected:
+
+- **Actors**
+- **Commands**
+- **Domain events**
+- **Policies**
+- **Aggregates / entities**
+- **Read models**
+- **Invariants**
+
 ## Technique Fit
 
 | Technique | Use when | Skip when |
@@ -119,6 +146,56 @@ The new workflow should treat domain discovery as a reusable bundle rather than 
 | Bounded context mapping | Work crosses ownership, capabilities, modules, integrations, or multiple domain models | The change affects one clearly bounded behavior with no translation boundary |
 | Event storming | Behavior depends on sequence, domain events, policies, actors, reactions, or invariants | The behavior is static, already specified, and not event- or policy-heavy |
 
+## Domain Grill Mode
+
+The pasted `grill-with-docs` skill contributes a strong interaction model: do not accept fuzzy plans at face value. Ito should synthesize that into a focused domain-grill mode for discovery, with three constraints that keep it compatible with Ito:
+
+- Ask one unresolved question at a time, but first explore repository evidence when docs or code can answer it.
+- For each human question, provide a recommended answer and explain why.
+- Walk the design tree in dependency order, so downstream choices are not discussed until upstream vocabulary, ownership, or boundary questions are settled.
+
+Domain grill mode should challenge four kinds of weakness:
+
+| Weakness | Challenge behavior |
+| --- | --- |
+| Glossary conflict | Compare user language against `CONTEXT.md`, `CONTEXT-MAP.md`, specs, and the discovery handoff; surface conflicts immediately. |
+| Fuzzy language | Propose a precise canonical term and record unresolved ambiguity. |
+| Boundary ambiguity | Invent concrete scenarios that probe ownership, lifecycle, failure, and translation boundaries. |
+| Claim/code mismatch | Cross-check user claims against code, specs, and ADRs before accepting them as domain truth. |
+
+## Domain Documentation Capture
+
+The skill's documentation model is valuable, but Ito should route it through change-driven development rather than mutating canonical docs outside the proposal lifecycle.
+
+Discovery should look for domain docs in this order:
+
+1. `CONTEXT-MAP.md` at the repo root. If present, use it to find each bounded context's `CONTEXT.md` and `docs/adr/` directory.
+2. Root `CONTEXT.md` and root `docs/adr/` for single-context repositories.
+3. No existing files. Create proposed docs lazily only when a durable term, context boundary, or ADR-worthy decision has been resolved.
+
+Documentation capture rules:
+
+- `CONTEXT.md` captures domain-expert language only, not implementation details.
+- `CONTEXT-MAP.md` captures bounded contexts and where their local docs live.
+- ADRs are offered only when the decision is hard to reverse, surprising without context, and based on a real trade-off.
+- During proposal work, documentation updates are proposed in the active change/worktree and are not canonical truth until reviewed and approved.
+
+## Integrated Skill Ideas and Conflicts
+
+Best ideas to adopt:
+
+- Relentless plan stress-testing becomes a targeted domain-grill mode for ambiguous, architectural, or cross-context work.
+- `CONTEXT.md` and `CONTEXT-MAP.md` become optional domain knowledge sources and documentation targets.
+- ADR creation is sparse and decision-driven, not a default output.
+- Existing docs and code are treated as evidence before asking the user to restate domain facts.
+- Concrete scenarios are used to force precision around boundaries and edge cases.
+
+Conflicts to avoid:
+
+- The skill says to interview relentlessly; Ito's proposal guidance says to ask the smallest number of questions needed. Synthesis: ask relentlessly only within the selected domain-grill lane, and still ask one targeted question at a time.
+- The skill says to update `CONTEXT.md` inline as decisions crystallize; Ito has a proposal approval gate. Synthesis: capture proposed documentation updates in the change worktree/package, then make them canonical only through the approved change.
+- The skill assumes generic root `CONTEXT.md` / `docs/adr/` conventions; Ito repositories may use modules, specs, generated mirrors, or backend-backed state. Synthesis: discover existing documentation locations first and create files lazily only when durable domain knowledge exists.
+
 ## Decisions
 
 ### Decision: Put DDD discovery before proposal scaffolding, not inside proposal prose
@@ -126,6 +203,18 @@ The new workflow should treat domain discovery as a reusable bundle rather than 
 - **Chosen**: add a dedicated discovery lane that produces structured inputs for proposals.
 - **Alternatives considered**: ask proposal authors to improvise DDD concepts inside `proposal.md`.
 - **Rationale**: proposals are too late for first-pass language cleanup. Discovery needs a separate moment where the question is "what is the domain model?" rather than "how do I document the change?"
+
+### Decision: Synthesize grill-style questioning as a conditional mode
+
+- **Chosen**: add a domain-grill mode for ambiguous, architectural, or cross-context discovery, not for every proposal.
+- **Alternatives considered**: adopt relentless questioning for all proposal work.
+- **Rationale**: the questioning style is useful when domain ambiguity is high, but it conflicts with Ito's goal of low-friction proposal creation for clear changes.
+
+### Decision: Treat CONTEXT and ADR updates as change-scoped documentation
+
+- **Chosen**: discover and propose updates to `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs within the change flow.
+- **Alternatives considered**: update canonical documentation immediately during discovery.
+- **Rationale**: immediate capture is valuable, but canonical docs should follow Ito's review/approval boundary so unapproved proposal language does not become project truth.
 
 ### Decision: Reuse event-storming concepts across schemas
 
@@ -154,12 +243,12 @@ The proposal handoff should be explicit enough that later phases can consume it.
 - Primary problem: <one sentence>
 - Canonical terms: <term -> meaning>
 - Rejected aliases: <alias -> canonical term>
-- Bounded contexts: <name -> responsibility>
-- Cross-context relationships: <upstream/downstream or published language>
+- Bounded contexts: <name -> responsibility, ownership, owned language>
+- Cross-context relationships: <upstream/downstream, published language, translation boundary>
 - Technique fit: <glossary/context map/event storming chosen or skipped with reason>
-- Commands: <command list>
-- Domain events: <past-tense event list, if captured>
-- Policies / invariants: <rule list>
+- Commands: <command list, if event storming selected>
+- Domain events: <past-tense event list, if event storming selected>
+- Policies / invariants: <rule list, if relevant>
 - Candidate capabilities: <capability list>
 - Open questions: <list>
 ```
@@ -170,6 +259,8 @@ Potential validator surfaces:
   - warn when proposal/spec/task language drifts from the discovery glossary.
 - `context_boundary_consistency`
   - warn when a proposal spans multiple bounded contexts without naming the affected contexts or their relationship.
+- `domain_documentation_consistency`
+  - warn when proposed context or ADR updates conflict with the canonical discovery handoff or existing domain docs.
 
 ## Data / State
 
@@ -183,7 +274,7 @@ Recommended artifact flow:
 | specs | requirements plus rules/invariants/state | translate discovery into durable behavior |
 | review | context-aware checklist | catch language or boundary drift |
 
-The exact file split can stay lightweight. One planning doc with clearly marked sections is acceptable; separate files are acceptable when the topic is large.
+The physical file split can stay lightweight, but the logical headings must be stable. One planning doc with the canonical summary section is acceptable; a standalone `domain-discovery.md` is preferable when the discovery output is large or needs to survive proposal handoff independently.
 
 ## Risks / Trade-offs
 
@@ -197,6 +288,10 @@ The exact file split can stay lightweight. One planning doc with clearly marked 
   - Mitigation: allow provisional contexts and explicit open questions instead of pretending every boundary is settled.
 - **Event storming becomes the default even when not useful.**
   - Mitigation: require a technique-fit note that explains why event storming was used or skipped.
+- **Documentation capture bypasses proposal review.**
+  - Mitigation: capture proposed context/ADR updates in the active change and only archive or merge them after approval.
+- **Questioning becomes performative.**
+  - Mitigation: require repository exploration before asking answerable questions and require each question to include a recommended answer.
 
 ## Verification Strategy
 
@@ -212,7 +307,5 @@ The exact file split can stay lightweight. One planning doc with clearly marked 
 
 ## Open Questions
 
-- Should the discovery bundle be one flexible planning document, or a small set of named artifacts with shared headings?
-- Should proposal review require explicit context-map coverage when more than one bounded context is listed?
 - Should Ito eventually surface context maps in the web UI or proposal viewer, or keep them markdown-only?
 <!-- ITO:END -->

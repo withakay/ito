@@ -3,7 +3,7 @@
 
 ### Requirement: Domain discovery artifacts are schema-addressable
 
-Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or artifact sections that capture ubiquitous language, bounded contexts, commands, domain events, policies, and handoff summaries.
+Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or artifact sections that capture ubiquitous language, bounded contexts, technique-fit decisions, optional event-storming outputs, and handoff summaries.
 
 - **Requirement ID**: `ito-schemas:domain-discovery-artifacts`
 
@@ -13,6 +13,38 @@ Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or
 - **WHEN** Ito loads the schema
 - **THEN** the discovery artifact is treated as part of the schema's artifact vocabulary
 - **AND** later instruction rendering can reference it as dependency context
+
+### Requirement: Canonical discovery summary contract
+
+Ito MUST define a stable discovery summary contract that schema instructions, proposal scaffolding, review guidance, and validators can consume across artifact locations.
+
+- **Requirement ID**: `ito-schemas:canonical-discovery-summary-contract`
+
+#### Scenario: Discovery summary can be embedded or standalone
+
+- **GIVEN** discovery output exists as a standalone `domain-discovery.md` artifact or as a `Domain Discovery Summary` section inside another planning/proposal artifact
+- **WHEN** Ito instructions or validators consume discovery context
+- **THEN** they can read stable fields for canonical terms, rejected aliases, bounded contexts, relationships, selected techniques, candidate capabilities, and open questions
+- **AND** they do not depend on a single physical file path when the schema declares an equivalent artifact section
+
+### Requirement: Domain documentation location discovery
+
+Ito schema and instruction guidance SHALL support discovering existing domain documentation locations before creating new context or ADR files.
+
+- **Requirement ID**: `ito-schemas:domain-documentation-location-discovery`
+
+#### Scenario: Context map chooses documentation scope
+
+- **GIVEN** a repository contains a root `CONTEXT-MAP.md` that points to context-specific `CONTEXT.md` and `docs/adr/` locations
+- **WHEN** discovery captures a term or decision for a specific bounded context
+- **THEN** instructions guide the agent to use that context-specific location rather than defaulting to root-level documentation
+
+#### Scenario: Single-context repository uses root docs lazily
+
+- **GIVEN** no `CONTEXT-MAP.md` exists
+- **WHEN** discovery captures durable domain knowledge
+- **THEN** instructions guide the agent to use root `CONTEXT.md` and root `docs/adr/` if they exist
+- **AND** to create them only when the captured term or ADR-worthy decision justifies it
 
 ### Requirement: Cross-schema discovery vocabulary
 
@@ -33,7 +65,6 @@ Ito SHALL allow discovery artifacts or sections to be optional and technique-spe
 - **Requirement ID**: `ito-schemas:discovery-artifact-optionality`
 
 #### Scenario: Schema renders only selected discovery sections
-
 
 - **GIVEN** a discovery handoff includes a glossary and bounded context map but no event-storming snapshot
 - **WHEN** Ito renders proposal or design instructions for the final schema

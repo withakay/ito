@@ -8,9 +8,11 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 ## What Changes
 
 - Add a strategic DDD discovery lane that sits between rough planning and proposal scaffolding for ambiguous, architectural, or cross-context work.
-- Define a lightweight discovery bundle for ubiquitous language, bounded context mapping, technique-fit triage, optional event storming, and proposal-ready handoff summaries.
+- Define a lightweight discovery bundle and canonical handoff contract for ubiquitous language, bounded context mapping, technique-fit triage, optional event storming, and proposal-ready summaries.
+- Add a focused domain-grill mode that challenges fuzzy plans one decision at a time, recommends a default answer, and uses code/document exploration instead of asking questions when the repository can answer them.
 - Reuse event-storming concepts outside the `event-driven` schema when they clarify behavior, so `spec-driven` changes can still extract commands, domain events, policies, actors, aggregates, read models, and invariants before drafting specs.
 - Make the workflow explicitly distinguish bounded contexts from Ito modules and capabilities, and require cross-context changes to declare ownership, relationships, and translation boundaries.
+- Carry resolved domain language into existing `CONTEXT.md` / `CONTEXT-MAP.md` style docs lazily when those files exist or when the first durable term is resolved, and offer ADR capture only for consequential decisions.
 - Add optional validation and review hooks for domain-language consistency and boundary consistency so discovery outputs stay connected to proposals, specs, and tasks without forcing DDD ceremony onto routine changes.
 
 ## Change Shape
@@ -26,7 +28,7 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 
 ### New Capabilities
 
-- `domain-discovery-workflow`: Provide a DDD-oriented pre-proposal discovery bundle that extracts ubiquitous language, bounded contexts, domain events where useful, commands, policies, invariants, and proposal-ready intent summaries.
+- `domain-discovery-workflow`: Provide a DDD-oriented pre-proposal discovery bundle that extracts ubiquitous language, bounded contexts, domain events where useful, commands, policies, invariants, documented decisions, and proposal-ready intent summaries.
 
 ### Modified Capabilities
 
