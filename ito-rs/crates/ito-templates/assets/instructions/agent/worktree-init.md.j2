@@ -31,6 +31,17 @@ echo "Working directory: $WORKTREE_PATH"
 {% endif %}
 ```
 
+`ito worktree ensure` should leave the worktree Ito-ready, including the `.ito/changes`,
+`.ito/specs`, `.ito/modules`, `.ito/workflows`, and `.ito/audit` coordination links when
+coordination storage mode is `worktree`.
+
+If you are recovering an older or manually created worktree whose `.ito/*` links are missing or stale,
+repair it in place with:
+
+```bash
+ito init --update --tools none
+```
+
 All subsequent file operations should use `$WORKTREE_PATH` as the working directory.
 
 ### Include Files

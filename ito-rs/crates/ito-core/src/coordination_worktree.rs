@@ -318,6 +318,55 @@ pub fn provision_coordination_worktree(
     Ok(Some(CoordinationStorage::Worktree))
 }
 
+/// Repair or create the current worktree's coordination links when storage mode
+/// is `worktree`.
+///
+/// This is the worktree-local counterpart to [`provision_coordination_worktree`].
+/// It does not create the coordination worktree itself and it does not touch the
+/// project `.gitignore`; it only rewires the current checkout's `.ito/*`
+/// entries so they point at the already-resolved coordination worktree.
+///
+/// # Errors
+///
+/// Returns `Ok(())` immediately when coordination storage mode is not
+/// [`CoordinationStorage::Worktree`].
+///
+/// Returns [`CoreError`] when worktree storage is enabled but the coordination
+/// worktree path cannot be resolved, the worktree does not exist, or the
+/// symlink wiring operation fails.
+pub(crate) fn repair_current_worktree_coordination_links(
+    project_root: &Path,
+    ito_path: &Path,
+    typed: &ItoConfig,
+) -> CoreResult<()> {
+    let CoordinationStorage::Worktree = typed.changes.coordination_branch.storage else {
+        return Ok(());
+    };
+
+    let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, typed, false)?;
+    if !worktree_path.is_dir() {
+        return Err(CoreError::process(format!(
+            "Coordination worktree not found at '{}'.\n\
+             Fix: run `ito init --update` from a project checkout with coordination worktrees enabled, or recreate the coordination worktree before retrying.",
+            worktree_path.display()
+        )));
+    }
+
+    std::fs::create_dir_all(ito_path).map_err(|err| {
+        CoreError::io(
+            format!(
+                "Cannot create Ito directory '{}' before wiring coordination links.\n\
+                 Fix: ensure the worktree path is writable.",
+                ito_path.display()
+            ),
+            err,
+        )
+    })?;
+
+    let worktree_ito_path = worktree_path.join(".ito");
+    wire_coordination_symlinks(ito_path, &worktree_ito_path)
+}
+
 // ── Testable inner implementations ───────────────────────────────────────────
 
 pub(crate) fn auto_commit_coordination_with_runner(

@@ -18,6 +18,10 @@ use std::time::Duration;
 use ito_common::fs::StdFs;
 use ito_common::id::{parse_change_id, parse_module_id, parse_sub_module_id};
 use ito_common::paths;
+use ito_config::types::{CoordinationStorage, ItoConfig};
+use ito_config::{ConfigContext, load_cascading_project_config};
+
+use crate::coordination_worktree::repair_current_worktree_coordination_links;
 
 #[derive(Debug, thiserror::Error)]
 /// Errors that can occur while creating modules or changes.
@@ -72,6 +76,10 @@ pub enum CreateError {
     /// Underlying I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
+
+    /// Coordination-worktree wiring error.
+    #[error("{0}")]
+    CoordinationWiring(String),
 
     /// JSON serialization/deserialization error.
     #[error("JSON error: {0}")]
@@ -320,6 +328,8 @@ fn create_change_inner(
     let name = name.trim();
     validate_change_name(name)?;
 
+    repair_coordination_wiring_for_change_creation(ito_path)?;
+
     let modules_dir = paths::modules_dir(ito_path);
 
     // Ensure modules dir exists.
@@ -404,6 +414,46 @@ fn create_change_inner(
         change_id: folder,
         change_dir,
     })
+}
+
+fn repair_coordination_wiring_for_change_creation(ito_path: &Path) -> Result<(), CreateError> {
+    let config_path = ito_path.join("config.json");
+    if !config_path.exists() {
+        return Ok(());
+    }
+
+    let Some(project_root) = ito_path.parent() else {
+        return Ok(());
+    };
+
+    let ctx = ConfigContext::from_process_env();
+    let loaded = load_cascading_project_config(project_root, ito_path, &ctx);
+    let typed: ItoConfig = serde_json::from_value(loaded.merged).map_err(|err| {
+        CreateError::CoordinationWiring(format!(
+            "Cannot parse Ito configuration before creating a change.\n\
+             Ito path: {}\n\
+             Underlying error: {err}\n\
+             Fix: run `ito config check` (or inspect your config files), then retry.",
+            ito_path.display()
+        ))
+    })?;
+
+    let CoordinationStorage::Worktree = typed.changes.coordination_branch.storage else {
+        return Ok(());
+    };
+
+    repair_current_worktree_coordination_links(project_root, ito_path, &typed).map_err(|err| {
+        CreateError::CoordinationWiring(format!(
+            "Current worktree is missing required Ito coordination wiring.\n\
+             Ito path: {}\n\
+             Expected shared paths: .ito/changes, .ito/specs, .ito/modules, .ito/workflows, .ito/audit\n\
+             Underlying error: {err}\n\
+             Fix: run `ito init --update --tools none` in this worktree, then retry.",
+            ito_path.display()
+        ))
+    })?;
+
+    Ok(())
 }
 
 /// Identifies where the checklist entry for a new change should be written.

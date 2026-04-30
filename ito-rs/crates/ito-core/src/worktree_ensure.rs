@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use ito_config::types::ItoConfig;
 
+use crate::coordination_worktree::repair_current_worktree_coordination_links;
 use crate::errors::{CoreError, CoreResult};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
@@ -86,17 +87,20 @@ pub(crate) fn ensure_worktree_with_runner(
     if worktree_path.is_dir() {
         let git_entry = worktree_path.join(".git");
         let has_git = git_entry.exists();
+        let ito_path = worktree_path.join(".ito");
         let has_marker = has_git && {
             resolve_gitdir(&git_entry)
                 .map(|gitdir| gitdir.join(INIT_MARKER).exists())
                 .unwrap_or(false)
         };
         if has_git && has_marker {
+            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             return Ok(worktree_path);
         }
         // If the directory exists with .git but no marker, re-run init.
         // If no .git at all, fall through to creation (the dir is stale).
         if has_git {
+            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
             worktree_init::init_worktree_with_runner(
                 runner,
@@ -135,6 +139,9 @@ pub(crate) fn ensure_worktree_with_runner(
 
     // Resolve the source root (main worktree) for file copy.
     let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
+
+    let ito_path = worktree_path.join(".ito");
+    repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
 
     // Initialize: copy files + run setup.
     worktree_init::init_worktree_with_runner(
