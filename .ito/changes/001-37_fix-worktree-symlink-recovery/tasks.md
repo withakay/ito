@@ -84,7 +84,7 @@ ______________________________________________________________________
 - **Done When**: Agent and human guidance match the implemented behavior and recovery path.
 - **Requirements**: `worktree-lifecycle:ensure-wires-coordination-links`, `cli-init:repair-coordination-links-in-existing-worktree`
 - **Updated At**: 2026-04-30
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Final validation and quality gate
 
