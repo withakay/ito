@@ -10,7 +10,7 @@
 - [x] 1.3 Validate the change proposal with `ito validate 025-11_repository-backed-artifact-mutations --strict`
 
 ## 2. Mutation services and runtime composition
-- [~] 2.1 Add domain/core artifact mutation abstractions and result/error types
+- [x] 2.1 Add domain/core artifact mutation abstractions and result/error types
 - [ ] 2.2 Wire filesystem and SQLite implementations into the repository runtime
 - [ ] 2.3 Extend the remote/backend client runtime to support artifact mutation operations
 
