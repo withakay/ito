@@ -97,13 +97,17 @@ fn resolve_harness_session_env_with(
         let Some(session_id) = get_env(env_var) else {
             continue;
         };
+        let session_id = session_id.trim();
         if session_id.is_empty() {
             continue;
         }
+        let session_id = session_id.to_owned();
         return Some(HarnessSessionEnv {
             env_var,
             session_id,
             harness: *harness,
+        });
+    }
         });
     }
 
