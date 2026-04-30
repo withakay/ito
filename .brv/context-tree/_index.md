@@ -1,102 +1,114 @@
 ---
-children_hash: c58f0bbb8c142e3465fdf6e3d2ba659dc1f23af30ff9e10b23715b54374af723
-compression_ratio: 0.9112391930835735
+children_hash: d5083a18fd90ccd86778ea57445989b3159fecd724713de838aeb5cdd185e1af
+compression_ratio: 0.9085439229843562
 condensation_order: 3
 covers: [development/_index.md]
-covers_token_total: 1735
+covers_token_total: 1662
 summary_level: d3
-token_count: 1581
+token_count: 1510
 type: summary
 ---
-# d3 Structural Summary: development
+# Development Workspace Structural Summary
 
-This domain captures the core operational knowledge for Ito across template retrofit, workflow/mirror safety, release guardrails, and source-guide maintenance. The child entries under `development/_index.md` form a practical map of how Ito’s coordination-backed repository is structured and protected during publish, validate, release, and apply workflows.
+The `development` domain is the umbrella for Ito operational knowledge: workflow safety, release guardrails, and source-navigation conventions. The main pattern across its child entries is **authoritative coordination state first, read-only or verified outputs second, and explicit guardrails around publication, release, and discovery**.
 
-## 1) Template bundle retrofit
-Drill down: `template_bundle_retrofit.md`, `template_bundle_retrofit.abstract.md`, `template_bundle_retrofit.overview.md`
+## `ito_workflow/_index.md` — operational workflow backbone
+Covers the core Ito lifecycle for publishing, validating, syncing, consolidating orchestration, cleaning obsolete assets, and conducting discovery.
 
-- Retrofit standardizes template assets in `ito-rs/crates/ito-templates/assets` by adding `<!-- ITO:START -->` / `<!-- ITO:END -->` markers to plain `.md` files.
-- Already pre-marked files are preserved unchanged.
-- Verification confirmed no unmarked plain markdown in `ito-rs/crates/ito-templates/assets/adapters`, so adapter samples were not modified.
-- Overall flow: scan assets → mark plain markdown → preserve existing markers → verify adapter sample status.
+- **`published_ito_mirror.md`**: defines the read-only `docs/ito` mirror generated from coordination-backed state.
+  - Mirror location is configurable via `changes.published_mirror.path` (default `docs/ito`).
+  - Path resolution is safety-checked; symlinks are skipped.
+  - Output layout includes `README.md`, `changes/active`, `changes/archive`, and `specs`.
+- **`worktree_validation_flow.md`**: defines `ito worktree validate --change <id> [--json]`.
+  - Uses exact change-id prefix matching.
+  - Hard-fails on main/control checkouts.
+  - Provides advisory mismatch guidance on non-main worktrees.
+- **`audit_mirror_concurrency_and_temp_naming.md`**: covers mirror sync internals in `mirror.rs`.
+  - Temp worktree/orphan branch names use `pid` + timestamp + atomic counter.
+  - JSONL events are deduped and ordered.
+  - Logs are truncated to 30 days / 1000 events.
+  - Push/update conflicts get one retry.
+- **`ito_orchestration_consolidation.md`**: centralizes overlapping orchestration and multi-agent skill/prompt guidance under change `028-02_centralize-instruction-source-of-truth`.
+  - Separates entrypoint agents: `ito-general`, `ito-orchestrator`.
+  - Separates delegated sub-agents: `planner`, `researcher`, `worker`, `reviewer`, `test-runner`.
+- **`obsolete_specialist_cleanup.md`**: documents cleanup of renamed orchestrator assets during update/forceful init/reinstall paths.
+  - Removes legacy `ito-orchestrator-*` markdown and `SKILL.md` assets.
+  - Preserves coordinator assets.
+- **`ddd_discovery_workflow.md`**: defines evidence-first discovery for `001-34_add-ddd-discovery-workflow`.
+  - Combines grill-with-docs ideas.
+  - Requires repository evidence before user questions.
+  - Uses boundary probes, glossary conflict checks, and lazy capture artifacts like `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs before promotion.
 
-## 2) Ito workflow and coordination artifacts
-Drill down: `published_ito_mirror.md`, `worktree_validation_flow.md`, `audit_mirror_concurrency_and_temp_naming.md`, `ito_orchestration_consolidation.md`, `obsolete_specialist_cleanup.md`
+### Key relationships
+- `context.md` anchors safe mirror generation and synchronization.
+- `published_ito_mirror.md` and `audit_mirror_concurrency_and_temp_naming.md` both govern mirror publication/sync safety.
+- `worktree_validation_flow.md` complements mirror safety by validating worktree state before operations.
+- `ddd_discovery_workflow.md` links discovery practice to `ito_orchestration_consolidation.md` and `source_guides/source_guide_workflow.md` through guardrail-aware questioning.
 
-### Published mirror generation
-- `published_mirror.path` defaults to `docs/ito`.
-- Path resolution rejects empty, absolute, parent-traversal, and project-root-only values.
-- `ito publish` renders a read-only `docs/ito` tree from the coordination-backed source of truth.
-- Existing output is diffed against regenerated content and replaced on drift.
-- Output layout includes `README.md`, `changes/active`, `changes/archive`, and `specs`.
-- Symlinks are skipped during rendering.
+## `release_workflow/_index.md` — release pipeline and guardrails
+Captures the Ito release process and the constraints that keep publishing, coverage, and manifest rendering consistent.
 
-### Worktree validation
-- `ito worktree validate --change <id> [--json]` provides machine-readable status.
-- Main/control checkouts fail hard.
-- Non-main mismatches are advisory and include recovery guidance.
-- Change matching uses exact prefixes to avoid false positives, including suffix worktrees like `<change>-review`.
+### Main release flow
+1. Merge a release PR
+2. `release-plz` publishes crates and tags `vX.Y.Z`
+3. `cargo-dist` builds artifacts and creates GitHub Releases
+4. Homebrew formulas are updated in `withakay/homebrew-ito`
+5. Release notes are polished afterward
 
-### Audit mirror synchronization
-- Sync flow: detect git worktree → create temp worktree → fetch/checkout branch or orphan → merge JSONL → stage/commit → push or update ref → retry on conflict.
-- Temp worktree and orphan branch names incorporate PID + `SystemTime` nanos + atomic counter to avoid collisions.
-- JSONL merge dedupes identical lines, preserves order, and collapses adjacent equivalent reconciled events.
-- Retention keeps events within 30 days of the newest event and caps logs at 1000 events.
-- Conflict handling retries once on push/ref conflicts.
-- The flow only runs inside a Git worktree.
+### Division of responsibilities
+- `release-plz` handles versioning and publishing.
+- `cargo-dist` handles artifact builds, GitHub Releases, and Homebrew publishing.
 
-### Orchestration consolidation
-- The orchestration proposal was folded into `028-02_centralize-instruction-source-of-truth`.
-- `agent-surface-taxonomy` distinguishes direct entrypoint agents from delegated sub-agents.
-- `ito agent instruction orchestrate` is the authoritative source for overlapping orchestration and multi-agent skills/prompts.
-- Entry points such as `ito-general` and `ito-orchestrator` are separated from delegated roles like planner, researcher, worker, reviewer, and test-runner.
+### Supporting config files
+- `.github/workflows/release-plz.yml`
+- `.github/workflows/v-release.yml`
+- `.github/workflows/polish-release-notes.yml`
+- `dist-workspace.toml`
+- `release-plz.toml`
 
-### Obsolete specialist cleanup
-- Update and forceful init/reinstall paths pre-clean renamed `ito-orchestrator-*` specialist assets.
-- Cleanup removes files, broken symlinks, and empty legacy directories before writing new assets.
-- `symlink_metadata` is used so broken symlinks are removed correctly.
-- Plain init preserves untouched user files.
-- Coordinator assets such as `ito-orchestrator.md` and `ito-orchestrator-workflow` are preserved.
+### Child entries
+- **`build_and_coverage_guardrails.md`**
+  - `make check` coverage derives `LLVM_COV` and `LLVM_PROFDATA` from the active `rustup` toolchain when unset.
+  - `ito-rs/tools/max_lines_baseline.txt` tracks legacy oversized files.
+  - `cargo-deny` allows `wit-bindgen@0.51` as a wasip3 transitive duplicate.
+- **`release_plz_guardrails.md`**
+  - `.ito` coordination paths must stay gitignored.
+  - Tracked ignored files should be removed with `git rm --cached`.
+  - `release-plz.toml` remains at repo root.
+  - Workflows run release-plz on `main` with separate `release` and `release-pr` jobs.
+  - `allow_dirty = false`, `publish_allow_dirty = false`, workspace changelog and dependency updates are enabled.
+- **`manifesto_instruction_implementation_notes.md`**
+  - `synced_at_generation` is only set when coordination sync returns `Synchronized`.
+  - `RateLimited` is not fresh success.
+  - Full `--operation` requires `--change`.
+  - Unconfigured operations render as `null`.
 
-## 3) Release workflow guardrails
-Drill down: `release_workflow.md`, `build_and_coverage_guardrails.md`, `release_plz_guardrails.md`, `manifesto_instruction_implementation_notes.md`
+### Cross-entry relationships
+- `release_workflow.md` is the parent process overview.
+- `build_and_coverage_guardrails.md` and `release_plz_guardrails.md` refine execution and repository-state constraints.
+- `manifesto_instruction_implementation_notes.md` defines sync-reporting and instruction-rendering behavior during coordination/release flows.
 
-### Main release pipeline
-- Merge a release PR.
-- `release-plz` publishes crates and creates version tags `vX.Y.Z`.
-- `cargo-dist` builds artifacts and creates GitHub Releases.
-- Homebrew formulas are updated in `withakay/homebrew-ito`.
-- Release notes are polished afterward.
-- The split is explicit: `release-plz` handles versioning/publishing, while `cargo-dist` handles artifact builds, GitHub Releases, and Homebrew publishing.
+## `source_guides/_index.md` — source atlas for apply-time navigation
+Describes `source-guide.md` files as a navigation-oriented code map, not the source of truth.
 
-### Build and coverage guardrails
-- The `Makefile` coverage target derives `LLVM_COV` and `LLVM_PROFDATA` from the active `rustup` toolchain when unset.
-- `ito-rs/tools/max_lines_baseline.txt` records existing oversized Rust files so only regressions or new violations fail.
-- `cargo-deny` allows `wit-bindgen@0.51` as a tolerated wasip3 transitive duplicate.
-- Execution shape: `make check` → coverage target resolves LLVM vars → `cargo-llvm-cov` → max-lines baseline check → `cargo-deny`.
+### Workflow
+1. Check for nearby `source-guide.md` files before apply work
+2. Refresh or create stale/missing guides
+3. Read guides for orientation
+4. Verify important claims against source
+5. Update affected guides after structural changes
 
-### release-plz and repository hygiene
-- `.ito` coordination paths must remain gitignored.
-- Already tracked ignored files should be removed with `git rm --cached`.
-- `release-plz.toml` stays at the repository root for repo discovery in temp clones.
-- GitHub Actions runs release-plz on `main` with separate `release` and `release-pr` jobs.
-- Operational settings include `allow_dirty = false`, `publish_allow_dirty = false`, workspace changelog updates, workspace dependency updates, `cliff.toml`, and `ito-cli` as the only package with git tags enabled.
-- Protected paths include `^.ito/(changes|specs|modules|workflows|audit)$`.
-- `git_only = true` must not be set.
+### Structural pattern
+- Root `source-guide.md`
+- `ito-rs/source-guide.md`
+- `ito-rs/crates/source-guide.md`
+- Per-crate `source-guide.md`
+- Freshness tracked in `source-guide.json`
 
-### Manifesto instruction rendering and sync status
-- `synced_at_generation` is only populated when coordination sync returns `Synchronized`.
-- `RateLimited` is not a fresh success and must not be reported that way.
-- Full `--operation` requires `--change`.
-- Embedded operation instructions are scoped to the resolved change state.
-- Unconfigured operations render as `null`.
+### Key rule
+- Guides support orientation and context, but important claims must still be source-verified.
 
-## 4) Source guide workflow
-Drill down: `source_guide_workflow.md`
-
-- Guide coverage spans the repo root, `ito-rs/source-guide.md`, `ito-rs/crates/source-guide.md`, and per-crate `source-guide.md` files.
-- `source-guide.json` tracks guide freshness.
-- Nearby guides should be inspected before implementing an apply change.
-- The `source-guide` skill is used to set up or refresh guides when needed.
-- Guides are orientation aids only; important claims still need verification against source.
-- After structural changes, affected guides should be updated.
+## Drill-down map
+- `ito_workflow/` — safe mirror publishing, validation, audit sync, orchestration, discovery
+- `release_workflow/` — release pipeline, coverage guardrails, release-plz policy
+- `source_guides/` — source-guide atlas and apply-time navigation rules

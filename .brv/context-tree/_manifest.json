@@ -3,7 +3,7 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1581,
+      "tokens": 1510,
       "type": "summary"
     },
     {
@@ -31,7 +31,15 @@
     {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
-      "tokens": 106,
+      "tokens": 119,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/ddd_discovery_workflow.abstract.md",
+      "abstractTokens": 53,
+      "importance": 50,
+      "path": "development/ito_workflow/ddd_discovery_workflow.md",
+      "tokens": 53,
       "type": "context"
     },
     {
@@ -107,13 +115,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-29T11:58:48.065Z",
+  "generated_at": "2026-04-30T18:04:03.251Z",
   "lane_tokens": {
-    "contexts": 716,
+    "contexts": 782,
     "stubs": 0,
-    "summaries": 1912
+    "summaries": 1841
   },
-  "source_fingerprint": "05cdc9dca4d581547a4174424d7f743f3806e10f98f8f6f296aaf761ec097db0",
-  "total_tokens": 2628,
+  "source_fingerprint": "1193a3615ad9230f03fab38131e0c076a950b59ab46af485b0d19b492c4a00a7",
+  "total_tokens": 2623,
   "version": 1
 }

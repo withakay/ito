@@ -1,10 +1,10 @@
 ---
-title: Ito Orchestration Consolidation
+createdAt: '2026-04-29T11:58:17.438Z'
+keywords: []
+related: [development/ito_workflow/ddd_discovery_workflow.md]
 summary: Ito orchestration consolidation is folded into change 028-02, introducing agent-surface-taxonomy and making ito agent instruction orchestrate the authoritative source for overlapping orchestration and multi-agent skills/prompts.
 tags: []
-related: []
-keywords: []
-createdAt: '2026-04-29T11:58:17.438Z'
+title: Ito Orchestration Consolidation
 updatedAt: '2026-04-29T11:58:17.438Z'
 ---
 ## Reason
