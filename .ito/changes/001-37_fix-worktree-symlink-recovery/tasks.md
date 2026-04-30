@@ -95,5 +95,5 @@ ______________________________________________________________________
 - **Done When**: The change validates strictly and the targeted worktree regressions pass.
 - **Requirements**:
 - **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 <!-- ITO:END -->
