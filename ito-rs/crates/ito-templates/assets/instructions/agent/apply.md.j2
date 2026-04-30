@@ -46,6 +46,8 @@ CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace(
 ```
 
 This creates the dedicated change worktree (if absent), copies include files, and runs setup commands.
+It should also leave the worktree Ito-ready, including the `.ito/*` coordination links when
+coordination storage mode is `worktree`.
 All subsequent file operations should use `$CHANGE_DIR` as the working directory.
 
 After `ito worktree ensure`, run the sync from inside the change worktree if you did not just run it there:
@@ -53,6 +55,14 @@ After `ito worktree ensure`, run the sync from inside the change worktree if you
 ```bash
 cd "$CHANGE_DIR"
 ito sync
+```
+
+If you are recovering an older or manually created worktree whose `.ito/*` links are missing or stale,
+repair it in place with:
+
+```bash
+cd "$CHANGE_DIR"
+ito init --update --tools none
 ```
 
 <details>

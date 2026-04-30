@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use ito_config::types::ItoConfig;
 
+use crate::coordination_worktree::repair_current_worktree_coordination_links;
 use crate::errors::{CoreError, CoreResult};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
@@ -86,12 +87,14 @@ pub(crate) fn ensure_worktree_with_runner(
     if worktree_path.is_dir() {
         let git_entry = worktree_path.join(".git");
         let has_git = git_entry.exists();
+        let ito_path = worktree_path.join(".ito");
         let has_marker = has_git && {
             resolve_gitdir(&git_entry)
                 .map(|gitdir| gitdir.join(INIT_MARKER).exists())
                 .unwrap_or(false)
         };
         if has_git && has_marker {
+            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             return Ok(worktree_path);
         }
         // If the directory exists with .git but no marker, re-run init.
@@ -104,6 +107,7 @@ pub(crate) fn ensure_worktree_with_runner(
                 &worktree_path,
                 &config.worktrees,
             )?;
+            repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
             write_init_marker(&worktree_path)?;
             return Ok(worktree_path);
         }
@@ -143,6 +147,9 @@ pub(crate) fn ensure_worktree_with_runner(
         &worktree_path,
         &config.worktrees,
     )?;
+
+    let ito_path = worktree_path.join(".ito");
+    repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
 
     // Write marker to indicate initialization completed successfully.
     write_init_marker(&worktree_path)?;
