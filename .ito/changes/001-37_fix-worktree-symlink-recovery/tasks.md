@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: Missing wiring no longer produces the opaque module-not-found or generic `os error 2` path without context.
 - **Requirements**: `change-creation:missing-coordination-wiring-recovery`
 - **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Reproduce the reported session end-to-end
 
