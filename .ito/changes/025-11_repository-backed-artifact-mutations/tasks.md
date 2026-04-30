@@ -17,7 +17,7 @@
 ## 3. CLI surfaces and validation
 - [x] 3.1 Add `ito patch ...` and `ito write ...` command parsing and adapter behavior
 - [x] 3.2 Validate artifact refs, patch/write inputs, and error reporting for ambiguous or unsupported targets
-- [~] 3.3 Ensure command behavior remains repository-runtime-agnostic across modes
+- [x] 3.3 Ensure command behavior remains repository-runtime-agnostic across modes
 
 ## 4. Instruction and harness guidance updates
 - [ ] 4.1 Update generated instruction artifacts to route active Ito artifact mutations through `ito patch` / `ito write`
