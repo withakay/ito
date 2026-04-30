@@ -1,79 +1,243 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-### Requirement: Apply instruction includes memory-capture reminder when capture is configured
+### Requirement: Manifesto instruction artifact is available
 
-The agent instruction artifact for `apply` SHALL include a trailing
-"Capture memories" reminder section when Ito's `memory.capture` operation
-is configured (either as a `skill` or a `command`). The reminder SHALL
-instruct the agent to (a) review what was learned during the session,
-(b) identify items worth persisting (decisions, gotchas, non-obvious
-patterns, architecture rationale), and (c) invoke
-`ito agent instruction memory-capture` with appropriate `--context`,
-`--file`, and/or `--folder` inputs.
+The agent instruction system SHALL render a first-class `manifesto` artifact for project-wide use and SHALL support optional change-scoped rendering for an exact change ID. When a requested change cannot be resolved from the authoritative project state, the request SHALL fail with an actionable error instead of fabricating state.
 
-- **Requirement ID**: `agent-instructions:apply-memory-capture-reminder`
+When the user does not provide `--profile`, the system SHALL use `full` as the active profile. When the user does not provide `--variant`, the system SHALL use `light` as the active variant.
 
-#### Scenario: Capture configured — reminder present
+- **Requirement ID**: `agent-instructions:manifesto-artifact-availability`
 
-- **WHEN** `ito agent instruction apply --change <id>` is rendered and `memory.capture.configured` is `true`
-- **THEN** the output contains a terminal section headed `Capture memories` (or equivalent)
-- **AND** that section references `ito agent instruction memory-capture`
-- **AND** the section mentions the three input flags (`--context`, `--file`, `--folder`)
+#### Scenario: Project-wide manifesto render
 
-#### Scenario: Capture not configured — reminder absent
+- **WHEN** the user runs `ito agent instruction manifesto`
+- **THEN** the system renders a manifesto document without requiring a change ID
+- **AND** the output describes Ito operating constraints using the effective project configuration
+- **AND** the active profile defaults to `full`
+- **AND** the active variant defaults to `light`
 
-- **WHEN** `ito agent instruction apply --change <id>` is rendered and `memory.capture.configured` is `false`
-- **THEN** the output does not contain a `Capture memories` section
-- **AND** no reference to `memory-capture`, `memory-search`, or `memory-query` is included
+#### Scenario: Change-scoped manifesto render
 
-#### Scenario: Only search/query configured — apply reminder still absent
+- **WHEN** the user runs `ito agent instruction manifesto --change <change-id>`
+- **THEN** the system renders a manifesto document scoped to that exact change ID
+- **AND** the output includes change-specific state rather than only project-wide guidance
 
-- **WHEN** `memory.search` and/or `memory.query` are configured but `memory.capture` is not
-- **THEN** the rendered apply output does not contain a `Capture memories` section (the reminder is keyed on `memory.capture` specifically, not any memory configuration)
+#### Scenario: Unresolved change request fails
 
-### Requirement: Finish instruction includes memory-capture and wrap-up reminders
+- **WHEN** the user runs `ito agent instruction manifesto --change <change-id>`
+- **AND** `<change-id>` does not resolve from the authoritative change repository
+- **THEN** the system fails the request with an actionable error
+- **AND** the system does not invent a state capsule for the missing change
 
-The agent instruction artifact for `finish` SHALL include:
+### Requirement: Manifesto output is config-bound and redacted
 
-1. The same memory-capture reminder as the apply artifact (rendered only
-   when `memory.capture` is configured).
-2. A "Refresh archive and specs" reminder that tells the agent to:
-   - Confirm the change has been archived (or run `ito archive <id> --yes`).
-   - Confirm canonical specs under `.ito/specs/` reflect the delivered
-     change (deltas merged).
-   - Confirm agent-facing docs (e.g. `AGENTS.md`, `.ito/AGENTS.md`) are
-     up to date with the new capability.
+The manifesto SHALL be derived from the effective merged Ito configuration and SHALL include relevant config capsules only in a redacted form that omits secrets and local-only sensitive details by default. The config and state capsules SHALL cover only workflow-relevant settings and resolved facts needed to follow Ito rules, including worktree policy, coordination policy, memory configuration state, user-guidance overlays, and change-state metadata. Project-scoped paths MUST be rendered relative to the project root, and non-project absolute paths MUST be removed or replaced with placeholders while preserving the behavioral meaning of the affected setting.
 
-- **Requirement ID**: `agent-instructions:finish-wrap-up-reminder`
+- **Requirement ID**: `agent-instructions:manifesto-config-redaction`
 
-#### Scenario: Capture configured and not yet archived
+#### Scenario: Effective config is reflected in manifesto rules
 
-- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `true`, and the change is not yet archived
-- **THEN** the output contains a `Capture memories` section referencing `ito agent instruction memory-capture`
-- **AND** the output contains a `Refresh archive and specs` section
-- **AND** that wrap-up section lists the specs and docs checks
-- **AND** that wrap-up section does not repeat the archive confirmation step covered by the existing archive prompt
+- **WHEN** worktree, coordination, memory, or user-guidance settings affect agent behavior
+- **THEN** the rendered manifesto reflects those settings in its rules or capsules
+- **AND** the output is based on the merged effective config rather than hardcoded defaults
 
-#### Scenario: Capture not configured and not yet archived
+#### Scenario: Sensitive values are redacted
 
-- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `false`, and the change is not yet archived
-- **THEN** the output does not contain a `Capture memories` section
-- **AND** the output contains a `Refresh archive and specs` section
-- **AND** that wrap-up section lists the specs and docs checks
-- **AND** that wrap-up section does not repeat the archive confirmation step covered by the existing archive prompt
+- **WHEN** the effective configuration contains secrets or local-only path details
+- **THEN** the rendered manifesto omits or redacts those values by default
+- **AND** the remaining capsule still communicates the behavioral rule that depends on them
 
-#### Scenario: Capture configured and already archived
+#### Scenario: Machine-local paths are summarized safely
 
-- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `true`, and the change is already archived
-- **THEN** the output contains a `Capture memories` section referencing `ito agent instruction memory-capture`
-- **AND** the output contains a `Refresh archive and specs` section
-- **AND** that wrap-up section lists the archive confirmation, specs, and docs checks
+- **WHEN** the effective configuration or resolved state contains absolute machine-local paths outside the project root
+- **THEN** the rendered manifesto replaces those paths with redacted or summarized placeholders
+- **AND** project-scoped paths that are necessary to follow Ito workflow remain understandable
 
-#### Scenario: Capture not configured and already archived
+#### Scenario: Project-scoped paths stay portable
 
-- **WHEN** `ito agent instruction finish --change <id>` is rendered, `memory.capture.configured` is `false`, and the change is already archived
-- **THEN** the output does not contain a `Capture memories` section
-- **AND** the output contains a `Refresh archive and specs` section
-- **AND** that wrap-up section lists the archive confirmation, specs, and docs checks
+- **WHEN** the effective configuration or resolved state contains project-scoped absolute paths
+- **THEN** the rendered manifesto expresses those paths relative to the project root
+- **AND** the rendered manifesto does not expose raw machine-local absolute paths such as `/Users/...`
+
+### Requirement: Manifesto declares workflow state and profile constraints
+
+The manifesto SHALL declare a state capsule and SHALL define the allowed and forbidden moves for one active capability profile selected from `planning`, `proposal-only`, `review-only`, `apply`, `archive`, or `full`. Resolved scope and workflow state SHALL narrow the requested profile's permissions rather than expand them.
+
+Canonical workflow states are:
+
+- `no-change-selected`
+- `proposal-drafting`
+- `review-needed`
+- `apply-ready`
+- `applying`
+- `reviewing-implementation`
+- `archive-ready`
+- `finished`
+
+The state operation sets are:
+
+- `no-change-selected`: `inspect`, `select-change`, `propose-change`
+- `proposal-drafting`: `proposal`, `specs`, `design`, `tasks`, `validate`, `review`
+- `review-needed`: `review`, `revise-artifacts`
+- `apply-ready`: `worktree-ensure`, `apply`, `validate`
+- `applying`: `implement`, `task-update`, `validate`, `revise-artifacts`
+- `reviewing-implementation`: `review`, `fix`, `validate`
+- `archive-ready`: `archive`, `reconcile`
+- `finished`: `finish`, `cleanup`, `memory-capture`, `report`
+
+The profile operation sets are:
+
+- `planning`: `inspect`, `select-change`, `propose-change`, `report`
+- `proposal-only`: `proposal`, `specs`, `design`, `tasks`, `validate`, `review`, `revise-artifacts`, `report`
+- `review-only`: `inspect`, `review`, `report`
+- `apply`: `worktree-ensure`, `apply`, `implement`, `task-update`, `validate`, `review`, `fix`, `revise-artifacts`, `report`
+- `archive`: `archive`, `finish`, `reconcile`, `cleanup`, `memory-capture`, `report`
+- `full`: union of all profile operation sets above
+
+The allowed operations rendered by the manifesto SHALL be the intersection of the active profile operation set and the resolved workflow state's operation set.
+
+For embedded instruction selection, only these artifact-mapped operations correspond to rendered instruction bodies: `proposal`, `specs`, `design`, `tasks`, `apply`, `review`, `archive`, `finish`. Generic operations such as `inspect`, `select-change`, `propose-change`, `implement`, `fix`, `report`, `reconcile`, `task-update`, `cleanup`, `memory-capture`, and `revise-artifacts` SHALL influence gating and explanatory text but SHALL NOT cause the system to invent new embedded instruction artifact bodies.
+
+State resolution SHALL follow this order:
+
+1. If no valid change is in scope, resolve `no-change-selected`.
+2. If the change is already archived, resolve `finished`.
+3. If required proposal-phase artifacts are missing or change validation fails, resolve `proposal-drafting`.
+4. If an optional normalized `review_status` field in manifesto context is `pending-approval` or `changes-requested`, resolve `review-needed`.
+5. If implementation tasks show any in-progress work or any completed work while remaining tasks still exist, resolve `applying`.
+6. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render does not pass or is unavailable for that render, resolve `reviewing-implementation`.
+7. If all implementation tasks are complete, the change is not archived, and strict change validation executed during the current manifesto render passes, resolve `archive-ready`.
+8. If required proposal-phase artifacts are present, validation passes, and no implementation task progress has started, resolve `apply-ready`.
+
+The optional `review_status` input SHALL use this normalized enum: `unknown`, `pending-approval`, `changes-requested`, `approved`.
+
+- In local-only repositories that do not provide review metadata, `review_status` SHALL be `unknown`.
+- In backend-backed or host-integrated renders, `review_status` MAY be populated from authoritative change-state metadata before manifesto rendering.
+- The renderer SHALL NOT infer `review_status` from heuristics alone.
+
+- **Requirement ID**: `agent-instructions:manifesto-state-and-profile`
+
+#### Scenario: Proposal-only profile forbids implementation work
+
+- **WHEN** the user runs `ito agent instruction manifesto --profile proposal-only --change <change-id>`
+- **THEN** the rendered manifesto states that proposal, spec, design, and task artifacts may be created or revised
+- **AND** the rendered manifesto forbids product-code edits and implementation claims
+
+#### Scenario: Review-only profile forbids mutation
+
+- **WHEN** the user runs `ito agent instruction manifesto --profile review-only`
+- **THEN** the rendered manifesto allows inspection and review operations only
+- **AND** the rendered manifesto forbids proposal editing, product-code edits, archive actions, and implementation claims
+
+#### Scenario: Planning profile remains advisory
+
+- **WHEN** the user runs `ito agent instruction manifesto --profile planning`
+- **THEN** the rendered manifesto allows inspection, change selection, and reporting operations only
+- **AND** the rendered manifesto forbids artifact mutation and product-code edits
+
+#### Scenario: Change-scoped render includes workflow state
+
+- **WHEN** the user runs `ito agent instruction manifesto --change <change-id>`
+- **THEN** the rendered manifesto includes a state capsule for that change
+- **AND** the manifesto lists allowed and forbidden operations for the inferred or resolved state
+
+#### Scenario: No-change-selected state narrows apply-oriented profiles
+
+- **WHEN** the user runs `ito agent instruction manifesto --profile apply`
+- **AND** no change is selected
+- **THEN** the rendered manifesto remains in `no-change-selected`
+- **AND** the rendered manifesto forbids apply and archive operations until a valid change is selected
+
+#### Scenario: Resolved state narrows requested profile
+
+- **WHEN** the user runs `ito agent instruction manifesto --change <change-id> --profile apply`
+- **AND** the resolved state for `<change-id>` is `archive-ready` or `finished`
+- **THEN** the rendered manifesto keeps `apply` as the requested profile context
+- **AND** the allowed operations are limited to the operations permitted by the resolved state
+- **AND** the manifesto does not claim that implementation is currently allowed
+
+#### Scenario: Full profile still respects state machine
+
+- **WHEN** the user runs `ito agent instruction manifesto --change <change-id> --profile full`
+- **AND** the resolved state for `<change-id>` is `review-needed`
+- **THEN** the rendered manifesto allows only the operations in the intersection of `full` profile permissions and `review-needed` state permissions
+- **AND** the rendered manifesto does not allow apply or archive operations until the state changes
+
+### Requirement: Manifesto variants control embedded instruction detail
+
+The system SHALL support at least `light` and `full` manifesto variants. `light` SHALL provide a compact protocol contract, and `full` SHALL embed deterministically selected rendered Ito instruction content while keeping manifesto-level rules authoritative. Variant selection controls output detail; profile selection controls lifecycle permissions. The `--operation` selector SHALL only be accepted with `variant=full`.
+
+- **Requirement ID**: `agent-instructions:manifesto-variant-rendering`
+
+#### Scenario: Light variant stays compact
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant light`
+- **THEN** the output includes the state machine, config and state capsules, and concise playbooks
+- **AND** the output does not expand into the full body of related instruction artifacts by default
+
+#### Scenario: Full variant embeds related instruction content
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant full`
+- **THEN** the output includes rendered Ito instruction content selected by a fixed rule based on scope, resolved state, and active profile
+- **AND** the manifesto's global MUST and MUST NOT rules take precedence over any embedded instruction text
+
+#### Scenario: Full variant without explicit operation uses fixed artifact order
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant full`
+- **AND** no `--operation` is provided
+- **THEN** the output embeds the allowed subset of this fixed ordered artifact list: `proposal`, `specs`, `design`, `tasks`, `apply`, `review`, `archive`, `finish`
+- **AND** artifact inclusion is determined by the intersection of current scope, resolved state, and active profile
+- **AND** the output preserves that artifact order when multiple instruction bodies are embedded
+
+#### Scenario: Full variant with explicit operation scopes embedded instructions
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant full --operation apply`
+- **AND** `apply` is permitted by the current scope, resolved state, and active profile
+- **THEN** the output embeds only the rendered `apply` instruction for operation-specific guidance
+- **AND** the manifesto still includes its global contract, state capsule, and policy sections
+
+#### Scenario: Operation selector is rejected for light variant
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant light --operation apply`
+- **THEN** the system fails the request with an actionable error
+- **AND** the system does not render a manifesto with embedded operation-specific content
+
+#### Scenario: Incompatible explicit operation fails
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant full --operation apply`
+- **AND** `apply` is forbidden by the current scope, resolved state, or active profile
+- **THEN** the system fails the request with an actionable error
+- **AND** the system does not embed an `apply` instruction body
+
+#### Scenario: Variant and profile full are disambiguated
+
+- **WHEN** the user runs `ito agent instruction manifesto --variant full --profile full`
+- **THEN** the rendered output treats `variant=full` as output-detail selection
+- **AND** the rendered output treats `profile=full` as lifecycle-permission selection
+- **AND** the rendered contract describes those dimensions distinctly
+
+### Requirement: Manifesto artifact is discoverable through instruction interfaces
+
+The instruction system SHALL expose `manifesto` as a supported agent-instruction artifact anywhere users inspect available instruction artifacts, including CLI help and machine-readable instruction responses. Discoverability for manifesto SHALL include the supported profile and variant selector values plus the active resolved values in machine-readable output.
+
+- **Requirement ID**: `agent-instructions:manifesto-discoverability`
+
+#### Scenario: Help output lists manifesto
+
+- **WHEN** the user inspects `ito agent instruction` help output
+- **THEN** `manifesto` appears as an available artifact
+
+#### Scenario: Help output shows manifesto selectors
+
+- **WHEN** the user inspects help output for the manifesto instruction surface
+- **THEN** the supported `--variant` values are visible
+- **AND** the supported `--profile` values are visible
+
+#### Scenario: Machine-readable response identifies manifesto artifact
+
+- **WHEN** the system returns a machine-readable instruction response for the manifesto artifact
+- **THEN** the response identifies the artifact as `manifesto`
+- **AND** the response includes the active resolved `variant`, `profile`, and workflow `state`
+- **AND** the response structure is consistent with other agent-instruction artifacts
 <!-- ITO:END -->
