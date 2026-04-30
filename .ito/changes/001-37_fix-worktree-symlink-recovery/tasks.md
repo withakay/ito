@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: The repair path used in the reproduction is contractually supported and regression-tested.
 - **Requirements**: `coordination-worktree:repair-current-worktree-links`, `cli-init:repair-coordination-links-in-existing-worktree`
 - **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
