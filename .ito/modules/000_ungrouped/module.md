@@ -18,5 +18,5 @@ Ungrouped changes and ad-hoc work that do not fit a module.
 - [x] 000-12_sub-module-support
 - [ ] 000-13_test-lock-fix
 - [ ] 000-14_test-stale
-- [ ] 000-15_publish-ito-state-mirror
+- [x] 000-15_publish-ito-state-mirror
 - [ ] 000-16_fix-opencode-agents-path
