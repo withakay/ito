@@ -6,7 +6,7 @@
 
 ## 1. Proposal and interface definition
 - [x] 1.1 Finalize the artifact target model and CLI command shape for `ito patch` and `ito write`
-- [~] 1.2 Add spec deltas covering runtime-selected artifact mutation services and generated instruction behavior
+- [x] 1.2 Add spec deltas covering runtime-selected artifact mutation services and generated instruction behavior
 - [ ] 1.3 Validate the change proposal with `ito validate 025-11_repository-backed-artifact-mutations --strict`
 
 ## 2. Mutation services and runtime composition
