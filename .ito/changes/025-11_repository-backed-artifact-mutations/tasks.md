@@ -28,4 +28,4 @@
 - [x] 5.1 Add targeted tests for filesystem, SQLite, and remote mutation behavior
 - [x] 5.2 Add CLI tests for patch/write success and failure cases
 - [x] 5.3 Add instruction/template tests proving the correct workflow is emitted everywhere relevant
-- [ ] 5.4 Run `make test` and `make check` and resolve all failures
+- [x] 5.4 Run `make test` and `make check` and resolve all failures

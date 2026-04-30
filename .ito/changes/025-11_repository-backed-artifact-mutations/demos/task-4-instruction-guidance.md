@@ -227,7 +227,7 @@ this prevents agents from fabricating results.
 Mutate this Ito active-work artifact through the repository-backed CLI, not direct file edits.
 Recommended command: `ito write change 025-11_repository-backed-artifact-mutations spec <capability>` for each spec delta, or `ito patch change 025-11_repository-backed-artifact-mutations spec <capability>` for targeted diffs.
 Repository projection path: /Users/jack/Code/withakay/ito/ito-worktrees/025-11_repository-backed-artifact-mutations/.ito/changes/025-11_repository-backed-artifact-mutations/specs/**/*.md
-Use ordinary file-edit tools only for non-Ito project/code files.
+Use direct file-edit tools only for ordinary repository files.
 </output>
 
 <instruction>
@@ -460,7 +460,7 @@ this prevents agents from fabricating results.
 Mutate this Ito active-work artifact through the repository-backed CLI, not direct file edits.
 Recommended command: `ito write change 025-11_repository-backed-artifact-mutations tasks` for full replacement, or `ito patch change 025-11_repository-backed-artifact-mutations tasks` for a targeted diff. Use semantic `ito tasks ...` commands for task lifecycle/status changes.
 Repository projection path: /Users/jack/Code/withakay/ito/ito-worktrees/025-11_repository-backed-artifact-mutations/.ito/changes/025-11_repository-backed-artifact-mutations/tasks.md
-Use ordinary file-edit tools only for non-Ito project/code files.
+Use direct file-edit tools only for ordinary repository files.
 </output>
 
 <instruction>
