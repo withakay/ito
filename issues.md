@@ -12,11 +12,11 @@ This file records the exact commands and observations from the session so future
 
 In the main worktree, these paths are symlinks:
 
-- `.ito/audit -> ~/.local/share/ito/<org>/<repo>/.ito/audit`
-- `.ito/changes -> ~/.local/share/ito/<org>/<repo>/.ito/changes`
-- `.ito/modules -> ~/.local/share/ito/<org>/<repo>/.ito/modules`
-- `.ito/specs -> ~/.local/share/ito/<org>/<repo>/.ito/specs`
-- `.ito/workflows -> ~/.local/share/ito/<org>/<repo>/.ito/workflows`
+- `.ito/audit -> /Users/jack/.local/share/ito/withakay/ito/.ito/audit`
+- `.ito/changes -> /Users/jack/.local/share/ito/withakay/ito/.ito/changes`
+- `.ito/modules -> /Users/jack/.local/share/ito/withakay/ito/.ito/modules`
+- `.ito/specs -> /Users/jack/.local/share/ito/withakay/ito/.ito/specs`
+- `.ito/workflows -> /Users/jack/.local/share/ito/withakay/ito/.ito/workflows`
 
 Those symlinks were missing in newly created worktrees until `ito init --update --tools none` was run inside each worktree.
 
