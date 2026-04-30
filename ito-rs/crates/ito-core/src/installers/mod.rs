@@ -1015,8 +1015,12 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
     let frontmatter = &rest[..end_idx];
     let body = &rest[end_idx + 4..]; // Skip "\n---"
 
-    // Update model field in frontmatter using simple string replacement
-    let updated_frontmatter = update_model_in_yaml(frontmatter, new_model);
+    // Update model field in frontmatter and scrub stale OpenCode-only subagent metadata.
+    let updated_frontmatter = update_model_in_yaml(
+        frontmatter,
+        new_model,
+        should_strip_opencode_subagent_mode(path),
+    );
 
     // Reconstruct file
     let updated = format!("---{}\n---{}", updated_frontmatter, body);
@@ -1026,17 +1030,43 @@ fn update_agent_model_field(path: &Path, new_model: &str) -> CoreResult<()> {
     Ok(())
 }
 
+fn should_strip_opencode_subagent_mode(path: &Path) -> bool {
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+    let Some(agent_dir) = parent.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(opencode_dir) = parent
+        .parent()
+        .and_then(|ancestor| ancestor.file_name())
+        .and_then(|name| name.to_str())
+    else {
+        return false;
+    };
+
+    agent_dir == "agents" && opencode_dir == ".opencode"
+}
+
 /// Replace or insert the `model` field in YAML frontmatter.
-fn update_model_in_yaml(yaml: &str, new_model: &str) -> String {
-    let mut lines: Vec<String> = yaml.lines().map(|l| l.to_string()).collect();
+fn update_model_in_yaml(yaml: &str, new_model: &str, strip_subagent_mode: bool) -> String {
+    let mut lines = Vec::new();
     let mut found = false;
 
-    for line in &mut lines {
-        if line.trim_start().starts_with("model:") {
-            *line = format!("model: \"{}\"", new_model);
-            found = true;
-            break;
+    for line in yaml.lines() {
+        let trimmed = line.trim_start();
+        if strip_subagent_mode
+            && (trimmed == "mode: subagent" || trimmed.starts_with("subagent:"))
+        {
+            continue;
         }
+        if trimmed.starts_with("model:") {
+            lines.push(format!("model: \"{}\"", new_model));
+            found = true;
+            continue;
+        }
+
+        lines.push(line.to_string());
     }
 
     // If no model field found, add it
@@ -1209,12 +1239,30 @@ mod tests {
     #[test]
     fn update_model_in_yaml_replaces_or_inserts() {
         let yaml = "name: test\nmodel: \"old\"\n";
-        let updated = update_model_in_yaml(yaml, "new");
+        let updated = update_model_in_yaml(yaml, "new", false);
         assert!(updated.contains("model: \"new\""));
 
         let yaml = "name: test\n";
-        let updated = update_model_in_yaml(yaml, "new");
+        let updated = update_model_in_yaml(yaml, "new", false);
         assert!(updated.contains("model: \"new\""));
+    }
+
+    #[test]
+    fn update_model_in_yaml_strips_stale_opencode_subagent_fields_when_requested() {
+        let yaml = "description: test\nmode: subagent\nsubagent: true\nmodel: \"old\"\n";
+        let updated = update_model_in_yaml(yaml, "new", true);
+        assert!(updated.contains("model: \"new\""));
+        assert!(!updated.contains("mode: subagent"));
+        assert!(!updated.contains("subagent:"));
+    }
+
+    #[test]
+    fn should_strip_opencode_subagent_mode_matches_opencode_agents_only() {
+        let td = tempfile::tempdir().unwrap();
+        let opencode = td.path().join(".opencode/agents/ito-general.md");
+        let claude = td.path().join(".claude/agents/ito-general.md");
+        assert!(should_strip_opencode_subagent_mode(&opencode));
+        assert!(!should_strip_opencode_subagent_mode(&claude));
     }
 
     #[test]
