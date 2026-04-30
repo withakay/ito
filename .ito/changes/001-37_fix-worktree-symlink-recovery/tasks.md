@@ -67,7 +67,7 @@ ______________________________________________________________________
 - **Done When**: The observed symlink-recovery failure sequence is encoded as a stable regression test.
 - **Requirements**: `worktree-lifecycle:ensure-wires-coordination-links`, `cli-init:repair-coordination-links-in-existing-worktree`, `change-creation:missing-coordination-wiring-recovery`
 - **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
