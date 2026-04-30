@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: A new ensured worktree is immediately Ito-ready without requiring a follow-up `ito init --update`.
 - **Requirements**: `worktree-lifecycle:ensure-wires-coordination-links`, `coordination-worktree:repair-current-worktree-links`
 - **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Formalize repair behavior for existing unwired worktrees
 
