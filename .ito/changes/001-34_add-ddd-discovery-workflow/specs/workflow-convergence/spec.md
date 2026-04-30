@@ -31,6 +31,12 @@ Ito SHALL extend the canonical instruction-and-skill workflow with a domain-disc
 - **THEN** Ito asks whether ubiquitous language definition, bounded context mapping, event storming, or a smaller subset is appropriate
 - **AND** the selected techniques inform the proposal artifacts without requiring a different schema solely because event storming was considered
 
+#### Scenario: Discovery depth gate chooses the least sufficient path
+
+- **WHEN** Ito evaluates whether to enter domain discovery
+- **THEN** it distinguishes routine direct work, lightweight terminology discovery, bounded-context discovery, and rigorous domain-grill mode
+- **AND** it preserves the direct path for routine bounded work while auto-recommending rigorous grilling for high-impact ambiguity or explicit user opt-in
+
 ### Requirement: Domain-discovery review gate
 
 Ito SHALL extend review guidance so reviewers can check whether proposals that used domain discovery preserved the agreed language, bounded-context framing, and event-storming conclusions.

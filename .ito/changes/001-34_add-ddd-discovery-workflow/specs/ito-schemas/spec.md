@@ -3,7 +3,7 @@
 
 ### Requirement: Domain discovery artifacts are schema-addressable
 
-Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or artifact sections that capture ubiquitous language, bounded contexts, technique-fit decisions, optional event-storming outputs, and handoff summaries.
+Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or artifact sections that capture discovery depth, business/domain capability, model ownership, ubiquitous language, bounded contexts, technique-fit decisions, optional event-storming outputs, consistency requirements, and handoff summaries.
 
 - **Requirement ID**: `ito-schemas:domain-discovery-artifacts`
 
@@ -24,8 +24,21 @@ Ito MUST define a stable discovery summary contract that schema instructions, pr
 
 - **GIVEN** discovery output exists as a standalone `domain-discovery.md` artifact or as a `Domain Discovery Summary` section inside another planning/proposal artifact
 - **WHEN** Ito instructions or validators consume discovery context
-- **THEN** they can read stable fields for canonical terms, rejected aliases, bounded contexts, relationships, selected techniques, candidate capabilities, and open questions
+- **THEN** they can read stable fields for discovery depth, business/domain capability, primary bounded context, supporting contexts, canonical terms, rejected aliases, owned concepts, external concepts, relationships, relationship pattern or provisional unknown, translation required, consistency requirements, selected techniques, candidate Ito capabilities, evidence checked, proposed documentation updates, and open questions
 - **AND** they do not depend on a single physical file path when the schema declares an equivalent artifact section
+
+### Requirement: Strategic DDD reference is bundle-addressable
+
+Ito MUST allow workflow guidance to reference bundled strategic DDD material as supporting context without treating the full reference as a required artifact or validation contract.
+
+- **Requirement ID**: `ito-schemas:strategic-ddd-reference-bundle`
+
+#### Scenario: Instructions link to bundled DDD reference
+
+- **GIVEN** the strategic DDD guide is bundled as reference material
+- **WHEN** Ito renders domain-discovery or review guidance
+- **THEN** the guidance can point agents at the reference for deeper examples and heuristics
+- **AND** schema validation continues to use the compact canonical discovery summary contract
 
 ### Requirement: Domain documentation location discovery
 

@@ -3,7 +3,7 @@
 
 ### Requirement: DDD discovery bundle
 
-The system SHALL provide a DDD-oriented discovery bundle for ambiguous, architectural, or cross-context work before proposal scaffolding. The minimum bundle MUST extract ubiquitous language, bounded contexts, technique-fit decisions, and proposal-relevant open questions; command, event, policy, aggregate, read-model, and invariant details are required only when the selected technique needs them.
+The system SHALL provide a DDD-oriented discovery bundle for ambiguous, architectural, or cross-context work before proposal scaffolding. The minimum bundle MUST extract business/domain capability, ubiquitous language, bounded contexts, model ownership, technique-fit decisions, and proposal-relevant open questions; command, query, event, policy, aggregate, read-model, consistency, and invariant details are required only when the selected technique needs them.
 
 - **Requirement ID**: `domain-discovery-workflow:ddd-discovery-bundle`
 
@@ -13,9 +13,57 @@ The system SHALL provide a DDD-oriented discovery bundle for ambiguous, architec
 - **THEN** the workflow asks discovery questions about domain terms, responsibilities, actors, commands, events, policies, and constraints
 - **AND** it records the selected discovery outputs in a canonical discovery handoff rather than jumping straight to proposal prose
 
+### Requirement: Discovery depth gate
+
+The discovery workflow SHALL classify the appropriate discovery depth before questioning begins. Routine bounded work MAY keep the direct path; terminology ambiguity SHOULD use lightweight discovery; clear cross-context work MUST use at least bounded-context discovery; high-impact, architectural, policy-heavy, sequencing-heavy, or explicitly opted-in work SHOULD use rigorous domain-grill mode.
+
+- **Requirement ID**: `domain-discovery-workflow:discovery-depth-gate`
+
+#### Scenario: Routine work skips DDD discovery
+
+- **WHEN** a request is local, low-risk, clear, and already bounded to one domain model
+- **THEN** the workflow may skip DDD discovery and continue through the direct proposal or implementation path
+- **AND** it does not ask domain-grill questions solely because DDD guidance exists
+
+#### Scenario: User opts into rigorous grilling
+
+- **WHEN** the user asks to be rigorously interviewed or stress-test a plan
+- **THEN** the workflow enters rigorous domain-grill mode
+- **AND** it asks dependency-ordered questions one at a time with recommended answers
+
+#### Scenario: High-impact ambiguity auto-recommends rigorous grilling
+
+- **WHEN** a request is architectural, public-contract-changing, hard to reverse, policy-heavy, sequencing-heavy, or spans multiple bounded contexts with unresolved ownership
+- **THEN** the workflow recommends rigorous domain-grill mode before proposal scaffolding
+- **AND** the user can still keep the scope lighter by explicitly accepting the modeling risk
+
+### Requirement: Business capability first
+
+The discovery workflow SHALL identify the business or domain capability being changed before choosing code locations, Ito modules, or Ito capabilities. Business/domain capability MUST remain distinct from bounded context and Ito capability in the discovery handoff.
+
+- **Requirement ID**: `domain-discovery-workflow:business-capability-first`
+
+#### Scenario: Capability is not inferred from file location
+
+- **WHEN** a request names a code directory, service, table, or shared helper
+- **THEN** the workflow asks what business/domain capability is changing
+- **AND** it records candidate Ito capabilities separately from the business/domain capability
+
+### Requirement: Model ownership over data location
+
+The discovery workflow SHALL identify which bounded context owns the rules, lifecycle, language, and decision authority for a concept instead of inferring ownership from database tables, file paths, API access, or existing service dependencies.
+
+- **Requirement ID**: `domain-discovery-workflow:model-ownership-over-data-location`
+
+#### Scenario: Data access does not imply model ownership
+
+- **WHEN** an existing table, service, or shared model has the data needed for a feature
+- **THEN** the workflow asks which context owns the rule, lifecycle, and language for the behavior
+- **AND** it treats data/code access as implementation evidence rather than ownership proof
+
 ### Requirement: Canonical discovery handoff
 
-The discovery workflow SHALL produce a canonical discovery handoff that downstream proposal, spec, task, review, and validation steps can consume. The handoff MUST use stable headings or fields for canonical terms, rejected aliases, bounded contexts, context relationships, selected techniques, candidate capabilities, evidence checked, proposed documentation updates, and open questions.
+The discovery workflow SHALL produce a canonical discovery handoff that downstream proposal, spec, task, review, and validation steps can consume. The handoff MUST use stable headings or fields for discovery depth, business/domain capability, primary bounded context, supporting contexts, canonical terms, rejected aliases, owned concepts, external concepts, context relationships, relationship pattern or provisional unknown, translation required, consistency requirements, selected techniques, candidate Ito capabilities, evidence checked, proposed documentation updates, and open questions.
 
 - **Requirement ID**: `domain-discovery-workflow:canonical-discovery-handoff`
 
@@ -23,7 +71,7 @@ The discovery workflow SHALL produce a canonical discovery handoff that downstre
 
 - **WHEN** proposal scaffolding, review guidance, or validation needs discovery context
 - **THEN** it reads the canonical discovery handoff or embedded `Domain Discovery Summary` section
-- **AND** it can identify glossary, context, technique-fit, evidence, proposed-documentation, and open-question fields without relying on free-form prose
+- **AND** it can identify capability, glossary, context, ownership, relationship, consistency, technique-fit, evidence, proposed-documentation, and open-question fields without relying on free-form prose
 
 ### Requirement: Domain grill interview mode
 
@@ -110,6 +158,30 @@ The discovery workflow SHALL produce a bounded context map that identifies conte
 - **THEN** the workflow records the affected bounded contexts and what each context owns
 - **AND** it describes ownership, relationships, and translation boundaries before proposal scope is finalized
 
+### Requirement: Context relationship pattern selection
+
+For materially cross-context work, the discovery workflow SHALL record a context relationship pattern such as customer/supplier, conformist, anti-corruption layer, shared kernel, or separate ways, or it SHALL explicitly mark the relationship as provisional or unknown.
+
+- **Requirement ID**: `domain-discovery-workflow:context-relationship-pattern-selection`
+
+#### Scenario: Cross-context relationship is classified or left provisional
+
+- **WHEN** a request involves more than one bounded context
+- **THEN** the workflow asks whether the relationship is customer/supplier, conformist, anti-corruption layer, shared kernel, separate ways, or another explicit relationship
+- **AND** if the relationship cannot be resolved, it records the relationship as provisional or unknown instead of forcing false precision
+
+### Requirement: Consistency requirement capture
+
+For cross-context, event-heavy, policy-heavy, or workflow-sequencing changes, the discovery workflow SHALL record consistency expectations, including which invariants require strong consistency, which updates can be eventually consistent, stale-data impact, conflict ownership, and downstream-unavailable behavior when relevant.
+
+- **Requirement ID**: `domain-discovery-workflow:consistency-requirement-capture`
+
+#### Scenario: Cross-context consistency is explicit
+
+- **WHEN** a change coordinates behavior across bounded contexts
+- **THEN** the workflow records whether each important rule needs strong consistency or can tolerate eventual consistency
+- **AND** it names who owns conflict resolution or records the question as unresolved
+
 ### Requirement: Technique-fit triage
 
 The discovery workflow SHALL explicitly record which DDD techniques are selected for the request and why omitted techniques are unnecessary.
@@ -131,8 +203,32 @@ The discovery workflow SHALL treat event storming as an optional DDD technique, 
 #### Scenario: Event storming is used when behavior needs sequencing
 
 - **WHEN** a request depends on ordering, domain events, policies, or cross-context reactions
-- **THEN** the workflow asks for commands, domain events, actors, policies, aggregates, read models, and invariants
+- **THEN** the workflow asks for commands, queries when relevant, domain events, actors, policies, aggregates, read models, consistency requirements, and invariants
 - **AND** the resulting event-storming snapshot feeds proposal and spec drafting
+
+### Requirement: Boundary smell probes
+
+The discovery workflow SHALL include optional domain-grill probes for common boundary smells such as adding a status, reusing an existing model, syncing data, exposing a field, putting behavior in shared/common/helper code, or adding flags to generic models.
+
+- **Requirement ID**: `domain-discovery-workflow:boundary-smell-probes`
+
+#### Scenario: Shared helper request is challenged
+
+- **WHEN** a plan proposes putting domain behavior in shared, common, helper, manager, processor, or generic model code
+- **THEN** the workflow asks whether the behavior is truly cross-cutting or whether a bounded context owns the rule
+- **AND** it records the chosen owner or unresolved boundary risk in the discovery handoff
+
+### Requirement: Strategic DDD reference material
+
+The discovery workflow SHALL preserve the full strategic DDD guide as bundled non-normative reference material and SHALL keep the canonical workflow contract compact. The guide MAY inform prompts and review checklists, but it MUST NOT make every tactical DDD heuristic mandatory for every proposal.
+
+- **Requirement ID**: `domain-discovery-workflow:strategic-ddd-reference-material`
+
+#### Scenario: Agent can consult the reference without expanding mandatory workflow
+
+- **WHEN** an agent needs deeper strategic DDD examples or implementation heuristics
+- **THEN** Ito can point to the bundled strategic DDD reference artifact
+- **AND** routine proposal validation remains governed by the compact discovery handoff and selected depth gate
 
 #### Scenario: Event storming is skipped for simple bounded work
 

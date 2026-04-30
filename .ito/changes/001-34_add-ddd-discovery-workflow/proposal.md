@@ -8,11 +8,13 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 ## What Changes
 
 - Add a strategic DDD discovery lane that sits between rough planning and proposal scaffolding for ambiguous, architectural, or cross-context work.
-- Define a lightweight discovery bundle and canonical handoff contract for ubiquitous language, bounded context mapping, technique-fit triage, optional event storming, and proposal-ready summaries.
+- Define a discovery-depth gate so routine work keeps the fast path, terminology ambiguity gets lightweight discovery, cross-context work gets boundary discovery, and high-impact or explicitly opted-in work gets rigorous domain-grill questioning.
+- Define a lightweight discovery bundle and canonical handoff contract for business/domain capability, model ownership, ubiquitous language, bounded context mapping, relationship patterns, consistency requirements, technique-fit triage, optional event storming, and proposal-ready summaries.
 - Add a focused domain-grill mode that challenges fuzzy plans one decision at a time, recommends a default answer, and uses code/document exploration instead of asking questions when the repository can answer them.
 - Reuse event-storming concepts outside the `event-driven` schema when they clarify behavior, so `spec-driven` changes can still extract commands, domain events, policies, actors, aggregates, read models, and invariants before drafting specs.
-- Make the workflow explicitly distinguish bounded contexts from Ito modules and capabilities, and require cross-context changes to declare ownership, relationships, and translation boundaries.
+- Make the workflow explicitly distinguish business/domain capabilities, bounded contexts, Ito modules, and Ito capabilities, and require cross-context changes to declare ownership, relationship pattern or provisional unknown, consistency expectations, and translation boundaries.
 - Carry resolved domain language into existing `CONTEXT.md` / `CONTEXT-MAP.md` style docs lazily when those files exist or when the first durable term is resolved, and offer ADR capture only for consequential decisions.
+- Bundle `artifacts/strategic_ddd_for_coding_agents.md` as non-normative reference material while promoting only its highest-value workflow concepts into the canonical discovery contract.
 - Add optional validation and review hooks for domain-language consistency, boundary consistency, and the `domain_documentation_consistency` rule so discovery outputs stay connected to proposals, specs, tasks, and proposed docs without forcing DDD ceremony onto routine changes.
 
 ## Change Shape
@@ -28,7 +30,7 @@ The workflow module already has two adjacent changes in flight: `001-32_add-plan
 
 ### New Capabilities
 
-- `domain-discovery-workflow`: Provide a DDD-oriented pre-proposal discovery bundle that extracts ubiquitous language, bounded contexts, domain events where useful, commands, policies, invariants, documented decisions, and proposal-ready intent summaries.
+- `domain-discovery-workflow`: Provide a DDD-oriented pre-proposal discovery bundle that extracts business/domain capability, model ownership, ubiquitous language, bounded contexts, domain events where useful, commands/queries when useful, policies, consistency expectations, invariants, documented decisions, and proposal-ready intent summaries.
 
 ### Modified Capabilities
 

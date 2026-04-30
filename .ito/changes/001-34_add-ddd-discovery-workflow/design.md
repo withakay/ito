@@ -98,7 +98,11 @@ flowchart TD
 
 ## Discovery Bundle
 
-The new workflow should treat domain discovery as a reusable bundle rather than a separate architecture religion. The bundle has five outputs:
+The new workflow should treat domain discovery as a reusable bundle rather than a separate architecture religion. The bundle has six outputs:
+
+0. **Discovery depth**
+    - Direct/skip, lightweight discovery, bounded-context discovery, or rigorous domain-grill.
+    - Output goal: ask enough questions for the risk without making every proposal heavyweight.
 
 1. **Ubiquitous language**
     - Canonical terms, aliases to avoid, overloaded terms, and short definitions.
@@ -108,17 +112,34 @@ The new workflow should treat domain discovery as a reusable bundle rather than 
     - Which contexts exist, what each owns, how they relate, and where translation boundaries sit.
     - Output goal: avoid using Ito modules or code directories as a proxy for business boundaries.
 
-3. **Technique-fit decision**
+3. **Business capability and model ownership**
+    - The business/domain capability, primary context, supporting contexts, owned concepts, and external concepts.
+    - Output goal: start from meaning and ownership rather than files, tables, or existing shared models.
+
+4. **Technique-fit decision**
     - Which DDD techniques are useful for this request and which would be unnecessary ceremony.
     - Output goal: keep strategic DDD lightweight and proportional.
 
-4. **Event storming / event modeling snapshot, when useful**
-    - Commands, domain events, actors, policies, aggregates, read models, invariants.
+5. **Event storming / event modeling snapshot, when useful**
+    - Commands, queries when relevant, domain events, actors, policies, aggregates, read models, consistency requirements, invariants.
     - Output goal: discover temporal behavior before drafting requirements when sequencing, reactions, or policies matter.
 
-5. **Proposal handoff summary**
+6. **Proposal handoff summary**
     - A compact transfer object from discovery into proposal creation.
     - Output goal: keep proposal scaffolding grounded in domain language and context boundaries.
+
+## Discovery Depth Gate
+
+The gate is the synthesis point between Ito's low-friction workflow and the user's preference for rigorous questioning when it matters.
+
+| Depth | Trigger | Behavior |
+| --- | --- | --- |
+| Direct / skip | Routine, low-risk, one-context work with clear vocabulary | Keep the normal proposal or implementation path. |
+| Lightweight discovery | Vocabulary is fuzzy or terms are overloaded, but scope is otherwise bounded | Resolve canonical terms and open questions. |
+| Bounded-context discovery | Work is clear but crosses ownership, integrations, modules, capabilities, or multiple domain models | Identify primary/supporting contexts, ownership, relationship pattern or provisional unknown, and translation boundary. |
+| Rigorous domain-grill | User opts in, or work is high-impact, architectural, public-contract-changing, hard to reverse, policy-heavy, sequencing-heavy, or cross-context with unresolved ownership | Ask evidence-backed, dependency-ordered questions one at a time with recommended answers. |
+
+Clear cross-context work should not fully skip discovery; the minimum depth is bounded-context discovery. Rigorous domain-grill should be auto-recommended for high-impact ambiguity and available by explicit user opt-in, but it should not become the universal default.
 
 ## Canonical Handoff Contract
 
@@ -127,10 +148,18 @@ Discovery outputs need enough structure for later phases to consume them without
 Required fields or headings:
 
 - **Primary problem**: one sentence describing the domain problem.
+- **Discovery depth**: direct, lightweight, bounded-context, or rigorous domain-grill, with trigger rationale.
+- **Business/domain capability**: the business capability being changed, distinct from Ito capability.
+- **Primary bounded context**: the context that owns the main behavior.
+- **Supporting contexts**: other contexts referenced or affected.
 - **Canonical terms**: term-to-definition mapping.
 - **Rejected aliases / overloaded terms**: aliases to avoid and terms that need context.
 - **Bounded contexts**: context names, responsibilities, ownership, and owned language.
-- **Cross-context relationships**: upstream/downstream relationships, published language, anti-corruption or translation boundaries.
+- **Owned concepts changed**: rules, lifecycle, language, or decisions owned by the primary context.
+- **External concepts referenced**: concepts borrowed from other contexts.
+- **Cross-context relationships**: upstream/downstream relationships, relationship pattern or provisional unknown, published language, anti-corruption or translation boundaries.
+- **Translation required**: where external concepts become local concepts.
+- **Consistency requirements**: strong/eventual consistency expectations, conflict owner, stale-data impact, and downstream-unavailable behavior when relevant.
 - **Technique fit**: selected and skipped DDD techniques with rationale.
 - **Candidate capabilities**: proposed Ito capability names informed by discovery.
 - **Open questions**: unresolved vocabulary, ownership, policy, or sequencing questions.
@@ -141,6 +170,7 @@ Optional event-storming fields when event storming is selected:
 
 - **Actors**
 - **Commands**
+- **Queries / read-model questions**
 - **Domain events**
 - **Policies**
 - **Aggregates / entities**
@@ -154,6 +184,16 @@ Optional event-storming fields when event storming is selected:
 | Ubiquitous language | Terms are overloaded, inconsistent, or domain-specific | The request is a local mechanical change with no domain vocabulary ambiguity |
 | Bounded context mapping | Work crosses ownership, capabilities, modules, integrations, or multiple domain models | The change affects one clearly bounded behavior with no translation boundary |
 | Event storming | Behavior depends on sequence, domain events, policies, actors, reactions, or invariants | The behavior is static, already specified, and not event- or policy-heavy |
+
+Context relationship vocabulary should be lightweight and advisory:
+
+- **Customer/supplier**: one context provides a stable contract that another consumes.
+- **Conformist**: downstream intentionally adopts the upstream model.
+- **Anti-corruption layer**: downstream translates to protect a local model.
+- **Shared kernel**: contexts deliberately share a small stable model.
+- **Separate ways**: similar concepts evolve independently without direct integration.
+
+For cross-context work, record one of these patterns, another explicit relationship, or `provisional/unknown`. Do not force false precision.
 
 ## Domain Grill Mode
 
@@ -171,6 +211,8 @@ Domain grill mode should challenge four kinds of weakness:
 | Fuzzy language | Propose a precise canonical term and record unresolved ambiguity. |
 | Boundary ambiguity | Invent concrete scenarios that probe ownership, lifecycle, failure, and translation boundaries. |
 | Claim/code mismatch | Cross-check user claims against code, specs, and ADRs before accepting them as domain truth. |
+| Model/data ownership confusion | Ask who owns the rules, lifecycle, language, and decision authority instead of who owns the table or file. |
+| Boundary-smell request | Challenge plans like `add a status`, `reuse the existing model`, `just sync the data`, `expose this field`, `put it in shared`, `add a flag`, or `use a helper/common service`. |
 
 ## Domain Documentation Capture
 
@@ -199,12 +241,15 @@ Best ideas to adopt:
 - ADR creation is sparse and decision-driven, not a default output.
 - Existing docs and code are treated as evidence before asking the user to restate domain facts.
 - Concrete scenarios are used to force precision around boundaries and edge cases.
+- The strategic DDD guide contributes capability-first framing, model-ownership probes, relationship-pattern vocabulary, consistency questions, and boundary-smell prompts.
 
 Conflicts to avoid:
 
 - The skill says to interview relentlessly; Ito's proposal guidance says to ask the smallest number of questions needed. Synthesis: ask relentlessly only within the selected domain-grill lane, and still ask one targeted question at a time.
 - The skill says to update `CONTEXT.md` inline as decisions crystallize; Ito has a proposal approval gate. Synthesis: capture proposed documentation updates in the change worktree/package, then make them canonical only through the approved change.
 - The skill assumes generic root `CONTEXT.md` / `docs/adr/` conventions; Ito repositories may use modules, specs, generated mirrors, or backend-backed state. Synthesis: discover existing documentation locations first and create files lazily only when durable domain knowledge exists.
+- The strategic guide says to pause until the model is clear; Ito should instead require the model to be clear enough for the selected change depth, with unresolved questions explicitly captured.
+- The strategic guide contains tactical implementation rules, refactoring advice, test naming guidance, and long examples. Synthesis: bundle them as reference-only material, not mandatory workflow contract.
 
 ## Decisions
 
@@ -216,9 +261,15 @@ Conflicts to avoid:
 
 ### Decision: Synthesize grill-style questioning as a conditional mode
 
-- **Chosen**: add a domain-grill mode for ambiguous, architectural, or cross-context discovery, not for every proposal.
+- **Chosen**: add a domain-grill mode for high-impact, architectural, ambiguous, policy-heavy, sequencing-heavy, or explicitly opted-in discovery, not for every proposal.
 - **Alternatives considered**: adopt relentless questioning for all proposal work.
 - **Rationale**: the questioning style is useful when domain ambiguity is high, but it conflicts with Ito's goal of low-friction proposal creation for clear changes.
+
+### Decision: Bundle the strategic DDD guide as reference material
+
+- **Chosen**: keep `artifacts/strategic_ddd_for_coding_agents.md` available as supporting reference while integrating only the highest-value concepts into the canonical handoff.
+- **Alternatives considered**: copy the full guide into default workflow instructions or ignore it after proposal authoring.
+- **Rationale**: the guide is useful for deep reasoning, but its full tactical checklist would make routine Ito workflows too heavy.
 
 ### Decision: Treat CONTEXT and ADR updates as change-scoped documentation
 
@@ -260,9 +311,16 @@ The proposal handoff should be explicit enough that later phases can consume it.
 - Canonical terms: <term -> meaning>
 - Rejected aliases: <alias -> canonical term>
 - Bounded contexts: <name -> responsibility, ownership, owned language>
-- Cross-context relationships: <upstream/downstream, published language, translation boundary>
+- Business/domain capability: <capability distinct from Ito capability>
+- Primary bounded context: <context that owns the behavior>
+- Supporting contexts: <other contexts involved>
+- Owned concepts changed: <rules/lifecycle/language/decisions>
+- External concepts referenced: <concepts from other contexts>
+- Cross-context relationships: <pattern or provisional unknown, published language, translation boundary>
+- Consistency requirements: <strong/eventual, conflict owner, stale-data impact if relevant>
 - Technique fit: <glossary/context map/event storming chosen or skipped with reason>
 - Commands: <command list, if event storming selected>
+- Queries: <query/read model questions, if interaction modeling selected>
 - Domain events: <past-tense event list, if event storming selected>
 - Policies / invariants: <rule list, if relevant>
 - Candidate capabilities: <capability list>
