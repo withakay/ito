@@ -20,7 +20,7 @@
 - [x] 3.3 Ensure command behavior remains repository-runtime-agnostic across modes
 
 ## 4. Instruction and harness guidance updates
-- [~] 4.1 Update generated instruction artifacts to route active Ito artifact mutations through `ito patch` / `ito write`
+- [x] 4.1 Update generated instruction artifacts to route active Ito artifact mutations through `ito patch` / `ito write`
 - [ ] 4.2 Update installed harness assets and related guidance surfaces so they teach the same workflow consistently
 - [ ] 4.3 Preserve the distinction between code-file edits and Ito artifact mutations in guidance text
 
