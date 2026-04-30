@@ -15,7 +15,7 @@
 - [x] 2.3 Extend the remote/backend client runtime to support artifact mutation operations
 
 ## 3. CLI surfaces and validation
-- [ ] 3.1 Add `ito patch ...` and `ito write ...` command parsing and adapter behavior
+- [~] 3.1 Add `ito patch ...` and `ito write ...` command parsing and adapter behavior
 - [ ] 3.2 Validate artifact refs, patch/write inputs, and error reporting for ambiguous or unsupported targets
 - [ ] 3.3 Ensure command behavior remains repository-runtime-agnostic across modes
 
