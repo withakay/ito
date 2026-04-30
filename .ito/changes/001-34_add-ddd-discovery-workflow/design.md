@@ -89,23 +89,35 @@ flowchart TD
 
 ## Discovery Bundle
 
-The new workflow should treat domain discovery as a reusable bundle rather than a separate architecture religion. The bundle has four outputs:
+The new workflow should treat domain discovery as a reusable bundle rather than a separate architecture religion. The bundle has five outputs:
 
 1. **Ubiquitous language**
-   - Canonical terms, aliases to avoid, overloaded terms, and short definitions.
-   - Output goal: remove naming ambiguity before proposal/spec drafting.
+    - Canonical terms, aliases to avoid, overloaded terms, and short definitions.
+    - Output goal: remove naming ambiguity before proposal/spec drafting.
 
 2. **Bounded context map**
-   - Which contexts exist, what each owns, and how they relate.
-   - Output goal: avoid using Ito modules or code directories as a proxy for business boundaries.
+    - Which contexts exist, what each owns, how they relate, and where translation boundaries sit.
+    - Output goal: avoid using Ito modules or code directories as a proxy for business boundaries.
 
-3. **Event storming / event modeling snapshot**
-   - Commands, domain events, actors, policies, aggregates, read models, invariants.
-   - Output goal: discover what actually happens before drafting requirements.
+3. **Technique-fit decision**
+    - Which DDD techniques are useful for this request and which would be unnecessary ceremony.
+    - Output goal: keep strategic DDD lightweight and proportional.
 
-4. **Proposal handoff summary**
-   - A compact transfer object from discovery into proposal creation.
-   - Output goal: keep proposal scaffolding grounded in domain language and context boundaries.
+4. **Event storming / event modeling snapshot, when useful**
+    - Commands, domain events, actors, policies, aggregates, read models, invariants.
+    - Output goal: discover temporal behavior before drafting requirements when sequencing, reactions, or policies matter.
+
+5. **Proposal handoff summary**
+    - A compact transfer object from discovery into proposal creation.
+    - Output goal: keep proposal scaffolding grounded in domain language and context boundaries.
+
+## Technique Fit
+
+| Technique | Use when | Skip when |
+| --- | --- | --- |
+| Ubiquitous language | Terms are overloaded, inconsistent, or domain-specific | The request is a local mechanical change with no domain vocabulary ambiguity |
+| Bounded context mapping | Work crosses ownership, capabilities, modules, integrations, or multiple domain models | The change affects one clearly bounded behavior with no translation boundary |
+| Event storming | Behavior depends on sequence, domain events, policies, actors, reactions, or invariants | The behavior is static, already specified, and not event- or policy-heavy |
 
 ## Decisions
 
@@ -117,9 +129,9 @@ The new workflow should treat domain discovery as a reusable bundle rather than 
 
 ### Decision: Reuse event-storming concepts across schemas
 
-- **Chosen**: make event storming a reusable discovery technique even when the final change uses `spec-driven`.
-- **Alternatives considered**: keep event storming exclusive to `event-driven`.
-- **Rationale**: event storming is useful for extracting intent and boundaries even when the final software is not event-driven.
+- **Chosen**: make event storming a reusable but optional discovery technique even when the final change uses `spec-driven`.
+- **Alternatives considered**: keep event storming exclusive to `event-driven`, or require it for every DDD discovery session.
+- **Rationale**: event storming is useful for extracting intent and boundaries even when the final software is not event-driven, but forcing it onto simple work would add ceremony.
 
 ### Decision: Keep bounded contexts distinct from modules and capabilities
 
@@ -144,8 +156,9 @@ The proposal handoff should be explicit enough that later phases can consume it.
 - Rejected aliases: <alias -> canonical term>
 - Bounded contexts: <name -> responsibility>
 - Cross-context relationships: <upstream/downstream or published language>
+- Technique fit: <glossary/context map/event storming chosen or skipped with reason>
 - Commands: <command list>
-- Domain events: <past-tense event list>
+- Domain events: <past-tense event list, if captured>
 - Policies / invariants: <rule list>
 - Candidate capabilities: <capability list>
 - Open questions: <list>
@@ -182,6 +195,8 @@ The exact file split can stay lightweight. One planning doc with clearly marked 
   - Mitigation: treat this change as an extension of those proposals, not a competing redesign.
 - **False precision in context mapping.**
   - Mitigation: allow provisional contexts and explicit open questions instead of pretending every boundary is settled.
+- **Event storming becomes the default even when not useful.**
+  - Mitigation: require a technique-fit note that explains why event storming was used or skipped.
 
 ## Verification Strategy
 

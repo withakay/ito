@@ -23,10 +23,10 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-plan/SKILL.md`, `ito-rs/crates/ito-templates/assets/skills/ito-proposal-intake/SKILL.md`, `ito-rs/crates/ito-templates/assets/instructions/agent/new-proposal.md.j2`
 - **Dependencies**: None
-- **Action**: Add a consistent discovery grammar for ubiquitous language, bounded contexts, commands, domain events, policies, aggregates, and proposal handoff summaries.
+- **Action**: Add a consistent discovery grammar for ubiquitous language, bounded contexts, technique-fit triage, optional event storming, commands, policies, aggregates, invariants, and proposal handoff summaries.
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: Planning and proposal-entry guidance can ask for and carry forward DDD discovery outputs without forcing immediate proposal scaffolding.
-- **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:proposal-handoff-summary`, `workflow-convergence:domain-discovery-entrypoint`
+- **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:ubiquitous-language-glossary`, `domain-discovery-workflow:bounded-context-map`, `domain-discovery-workflow:event-storming-technique-fit`, `domain-discovery-workflow:proposal-handoff-summary`, `workflow-convergence:domain-discovery-entrypoint`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 
@@ -34,10 +34,10 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/assets/schemas/spec-driven/`, `ito-rs/crates/ito-templates/assets/schemas/event-driven/`, `ito-rs/crates/ito-core/src/templates/`
 - **Dependencies**: Task 1.1
-- **Action**: Introduce reusable template support so discovery outputs can be referenced by both `spec-driven` and `event-driven` workflows.
+- **Action**: Introduce reusable template support so selected discovery outputs can be referenced by both `spec-driven` and `event-driven` workflows without making every section mandatory.
 - **Verify**: `cargo test -p ito-core templates && cargo test -p ito-cli instructions`
 - **Done When**: Built-in schema guidance can surface discovery artifacts or discovery sections without duplicating conflicting grammars across schemas.
-- **Requirements**: `ito-schemas:domain-discovery-artifacts`, `ito-schemas:cross-schema-discovery-vocabulary`
+- **Requirements**: `ito-schemas:domain-discovery-artifacts`, `ito-schemas:cross-schema-discovery-vocabulary`, `ito-schemas:discovery-artifact-optionality`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 
@@ -79,10 +79,10 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-templates/assets/instructions/agent/review.md.j2`, `docs/agent-workflow.md`, `docs/presentations/march-2026/ito-workflow-diagram.mmd`
 - **Dependencies**: None
-- **Action**: Teach review instructions and human-facing workflow docs to look for discovery outputs, language drift, and cross-context ambiguity before implementation begins.
+- **Action**: Teach review instructions and human-facing workflow docs to look for discovery outputs, language drift, technique-fit decisions, and cross-context ambiguity before implementation begins.
 - **Verify**: `make docs`
 - **Done When**: Review guidance and workflow docs explain when to invoke DDD discovery and how its outputs feed proposal quality.
-- **Requirements**: `workflow-convergence:domain-discovery-entrypoint`
+- **Requirements**: `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 
@@ -93,7 +93,7 @@ ______________________________________________________________________
 - **Action**: Run change validation and targeted tests for instruction rendering, schema loading, and validation rules.
 - **Verify**: `ito validate 001-34_add-ddd-discovery-workflow --strict && cargo test -p ito-core --test validate && cargo test -p ito-cli instructions`
 - **Done When**: The change validates strictly and the targeted workflow tests pass.
-- **Requirements**:
+- **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:ubiquitous-language-glossary`, `domain-discovery-workflow:bounded-context-map`, `domain-discovery-workflow:event-storming-technique-fit`, `domain-discovery-workflow:proposal-handoff-summary`, `domain-discovery-workflow:context-map-distinguishes-module-and-capability`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `ito-schemas:domain-discovery-artifacts`, `ito-schemas:cross-schema-discovery-vocabulary`, `ito-schemas:discovery-artifact-optionality`, `cli-validate:ubiquitous-language-consistency`, `cli-validate:context-boundary-consistency`
 - **Updated At**: 2026-04-30
 - **Status**: [ ] pending
 <!-- ITO:END -->
