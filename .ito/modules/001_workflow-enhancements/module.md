@@ -28,3 +28,5 @@
 - [x] 001-31_tools-config-tmux
 - [ ] 001-32_add-planning-workflow
 - [ ] 001-33_enhance-spec-driven-workflow-validation
+- [ ] 001-34_add-ddd-discovery-workflow
+- [ ] 001-37_fix-worktree-symlink-recovery
