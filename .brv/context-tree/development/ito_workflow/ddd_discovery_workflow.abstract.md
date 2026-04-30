@@ -1,0 +1,1 @@
+DDD discovery workflow integrates consensus concepts with a depth gate, capability boundaries, model ownership, context relations, consistency and optional queries, and gated boundary-smell/domain-grill probes.
