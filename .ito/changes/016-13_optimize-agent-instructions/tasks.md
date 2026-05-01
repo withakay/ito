@@ -34,7 +34,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Instruction generation paths reuse a single resolved config view and tests cover the one-load behavior.
 - **Updated At**: 2026-05-01
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Make coordination-branch fetch opt-in for apply instructions
 
