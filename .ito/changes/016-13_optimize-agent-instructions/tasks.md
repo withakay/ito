@@ -64,8 +64,8 @@ ______________________________________________________________________
   - Add tests that assert fetch is attempted when opt-in sync is enabled.
 - **Verify**: `make test`
 - **Done When**: Tests fail if a future change reintroduces default network I/O into instruction generation.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-01
+- **Status**: [x] complete
 
 ### Task 2.2: Document the opt-in coordination sync behavior
 
