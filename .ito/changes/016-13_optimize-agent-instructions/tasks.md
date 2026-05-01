@@ -46,8 +46,8 @@ ______________________________________________________________________
   - Preserve existing error classification behavior (missing remote branch is non-fatal and becomes a warning).
 - **Verify**: `make check`
 - **Done When**: Apply instruction generation no longer blocks on network I/O by default and supports opt-in sync.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-01
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
