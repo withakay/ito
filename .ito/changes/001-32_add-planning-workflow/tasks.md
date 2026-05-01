@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: Embedded assets define `ito-plan` and its skill guidance, including `.ito/planning/` and `.ito/research/` conventions.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `ito-slash-command:planning-slash-command-installation`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-01
+- **Status**: [>] in-progress
 
 ### Task 1.2: Sync checked-in OpenCode harness files
 
