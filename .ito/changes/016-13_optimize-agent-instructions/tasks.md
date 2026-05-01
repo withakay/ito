@@ -47,7 +47,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Apply instruction generation no longer blocks on network I/O by default and supports opt-in sync.
 - **Updated At**: 2026-05-01
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
