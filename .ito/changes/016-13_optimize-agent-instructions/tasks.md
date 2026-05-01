@@ -75,8 +75,8 @@ ______________________________________________________________________
   - Update relevant specs or docs so the default and opt-in behaviors are clear.
 - **Verify**: `ito validate 016-13_optimize-agent-instructions --strict`
 - **Done When**: Specs/docs match implemented behavior and validation passes.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-01
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
