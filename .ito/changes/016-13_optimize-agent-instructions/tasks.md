@@ -33,8 +33,8 @@ ______________________________________________________________________
   - Add unit tests (using injected filesystem if needed) that assert the config is resolved at most once per invocation.
 - **Verify**: `make check`
 - **Done When**: Instruction generation paths reuse a single resolved config view and tests cover the one-load behavior.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-01
+- **Status**: [>] in-progress
 
 ### Task 1.2: Make coordination-branch fetch opt-in for apply instructions
 
