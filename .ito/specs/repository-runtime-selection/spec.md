@@ -1,26 +1,26 @@
 ## ADDED Requirements
 
-### Requirement: Repository runtime supports a local SQLite mode
+### Requirement: Repository runtime exposes artifact mutation services for every persistence mode
 
-The repository runtime SHALL support `sqlite` as a client-side persistence mode in addition to `filesystem` and `remote`.
+Ito SHALL resolve artifact mutation services through the same runtime-selection mechanism used for repository reads so command handlers can mutate change/spec artifacts without knowing whether persistence is filesystem, SQLite, or remote-backed.
 
-#### Scenario: SQLite mode selects SQLite-backed repositories
+#### Scenario: Filesystem mode selects filesystem-backed artifact mutation services
 
-- **GIVEN** local SQLite persistence mode is active
-- **WHEN** Ito resolves the repository runtime
-- **THEN** it returns SQLite-backed repository implementations
-- **AND** command handlers continue to use the same repository contracts as in other modes
+- **GIVEN** filesystem persistence mode is active
+- **WHEN** Ito resolves the repository runtime for an artifact mutation command
+- **THEN** it returns filesystem-backed artifact mutation services
+- **AND** the command handler uses that contract without directly deciding filesystem layout
 
-#### Scenario: SQLite mode does not require remote transport
+#### Scenario: SQLite mode selects SQLite-backed artifact mutation services
 
-- **GIVEN** local SQLite persistence mode is active
-- **WHEN** Ito constructs repositories for a command
-- **THEN** it does not require backend HTTP runtime configuration
-- **AND** it does not call remote transport adapters for normal repository operations
+- **GIVEN** SQLite persistence mode is active
+- **WHEN** Ito resolves the repository runtime for an artifact mutation command
+- **THEN** it returns SQLite-backed artifact mutation services
+- **AND** the command handler does not require backend HTTP runtime configuration
 
-#### Scenario: SQLite-backed repositories are shared with backend-server composition
+#### Scenario: Remote mode selects remote-backed artifact mutation services
 
-- **GIVEN** SQLite-backed persistence is selected
-- **WHEN** Ito uses SQLite mode locally and the backend server uses SQLite-backed storage remotely
-- **THEN** both paths compose the same concrete SQLite-backed repository implementations
-- **AND** the backend server adds HTTP transport without duplicating repository behavior
+- **GIVEN** remote persistence mode is active
+- **WHEN** Ito resolves the repository runtime for an artifact mutation command
+- **THEN** it returns remote-backed artifact mutation services
+- **AND** active-work mutation does not require local markdown artifacts as the primary write path
