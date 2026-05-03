@@ -34,6 +34,7 @@ const AGENT_INSTRUCTION_AFTER_HELP: &str = concat!(
     "  ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply\n",
     "  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n",
     "  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n",
+    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync\n",
     "  ito agent instruction archive\n",
     "  ito agent instruction archive --change 005-08_migrate-cli-to-clap\n",
     "  ito agent instruction finish --change 005-08_migrate-cli-to-clap\n",
@@ -75,7 +76,7 @@ pub struct AgentInstructionArgs {
     #[arg(short = 'c', long)]
     pub change: Option<String>,
 
-    /// Tool name for bootstrap (opencode|claude|codex)
+    /// Tool name for bootstrap (opencode|claude|codex|github-copilot|pi)
     #[arg(long)]
     pub tool: Option<String>,
 
@@ -98,6 +99,10 @@ pub struct AgentInstructionArgs {
     /// Manifesto operation selector for full renders
     #[arg(long)]
     pub operation: Option<String>,
+
+    /// Sync coordination branch before generating instructions (opt-in for apply)
+    #[arg(long)]
+    pub sync: bool,
 
     // ---- memory-* artifact inputs --------------------------------------
     /// Free-form context for `memory-capture`
@@ -137,6 +142,7 @@ impl AgentInstructionArgs {
             tool,
             schema,
             json,
+            sync,
             variant,
             profile,
             operation,
@@ -163,6 +169,9 @@ impl AgentInstructionArgs {
         }
         if *json {
             argv.push("--json".to_string());
+        }
+        if *sync {
+            argv.push("--sync".to_string());
         }
         if let Some(v) = variant {
             argv.push("--variant".to_string());

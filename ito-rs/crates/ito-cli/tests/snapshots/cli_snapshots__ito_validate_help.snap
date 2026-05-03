@@ -1,5 +1,5 @@
 ---
-source: crates/ito-cli/tests/cli_snapshots.rs
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
 expression: "snapshot(&[\"validate\", \"--help\"])"
 ---
 Check changes, specs, and modules for errors and warnings
@@ -17,6 +17,7 @@ Usage: ito validate [OPTIONS] [ITEM]
 
 Commands:
   module  Validate a module
+  repo    Run repository-level validation rules driven by `.ito/config.json`
 
 Arguments:
   [ITEM]
@@ -26,11 +27,11 @@ Options:
       --no-color
           Disable color output
 
-      --all
-          Validate everything
-
       --help-all
           Print the full CLI reference (equivalent to `ito help --all`)
+
+      --all
+          Validate everything
 
       --changes
           Validate changes

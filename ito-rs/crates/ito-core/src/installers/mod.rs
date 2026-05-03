@@ -1055,8 +1055,7 @@ fn update_model_in_yaml(yaml: &str, new_model: &str, strip_subagent_mode: bool) 
 
     for line in yaml.lines() {
         let trimmed = line.trim_start();
-        if strip_subagent_mode
-            && (trimmed == "mode: subagent" || trimmed.starts_with("subagent:"))
+        if strip_subagent_mode && (trimmed == "mode: subagent" || trimmed.starts_with("subagent:"))
         {
             continue;
         }

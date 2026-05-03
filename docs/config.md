@@ -196,6 +196,24 @@ Change coordination settings live under `changes.coordination_branch`:
 - `changes.coordination_branch.enabled`
 - `changes.coordination_branch.name`
 
+#### Instruction sync behavior
+
+When generating change-scoped instructions, Ito decides per-artifact whether
+to sync the coordination branch before rendering. `archive` and `finish` use
+dedicated handlers, but they also run a best-effort sync before rendering.
+
+| Artifact | Default sync | `--sync` flag |
+| --- | --- | --- |
+| `apply` | **No** — renders from local state; no network I/O | Opt-in: pass `--sync` to fetch first |
+| `proposal` | **Yes** — always fetches coordination state | Ignored (always syncs) |
+| `review` | **Yes** — always fetches coordination state | Ignored (always syncs) |
+| `archive`, `finish` | **Yes** — dedicated handlers always fetch coordination state | Ignored (always syncs) |
+| Other (`specs`, `tasks`, `design`, …) | **No** | Ignored (never syncs) |
+
+The `--sync` flag changes behavior only for `apply`. For other artifacts the
+sync policy is fixed. To refresh coordination state independently, run
+`ito sync` (a no-op unless coordination-worktree storage is active).
+
 ### Agent memory
 
 Agent memory is configured under the optional top-level `memory` section,

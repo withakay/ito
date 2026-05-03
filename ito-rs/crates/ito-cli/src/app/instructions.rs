@@ -6,7 +6,7 @@ use crate::util::parse_string_flag;
 use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
 use super::memory_instructions::{MemoryTemplateConfig, memory_template_config_from_merged};
-use ito_config::{load_cascading_project_config, resolve_coordination_branch_settings};
+use ito_config::resolve_coordination_branch_settings;
 use ito_core::harness_context;
 use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
@@ -193,11 +193,8 @@ then re-run:\n\n\
         return emit_instruction(want_json, "orchestrate", instruction);
     }
     if artifact == "migrate-to-coordination-worktree" {
-        let ito_path = rt.ito_path();
-        let project_root = ito_path.parent().unwrap_or(ito_path);
-        let ctx = rt.ctx();
         let (_coord_enabled, coord_branch) =
-            load_coordination_branch_settings(project_root, ito_path, ctx);
+            resolve_coordination_branch_settings(&rt.resolved_config().merged);
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/migrate-to-coordination-worktree.md.j2",
             &serde_json::json!({
@@ -272,10 +269,9 @@ then re-run:\n\n\
     }
 
     if artifact == "worktrees" {
-        let ctx = rt.ctx();
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
-        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let cfg = rt.resolved_config();
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
         let ito_dir_name = ito_path
             .file_name()
@@ -309,10 +305,9 @@ then re-run:\n\n\
     }
 
     if artifact == "worktree-init" {
-        let ctx = rt.ctx();
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
-        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let cfg = rt.resolved_config();
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
@@ -340,10 +335,9 @@ then re-run:\n\n\
     if artifact == "finish" {
         best_effort_sync_coordination(rt, "before finish instructions");
 
-        let ctx = rt.ctx();
         let ito_path = rt.ito_path();
         let project_root = ito_path.parent().unwrap_or(ito_path);
-        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let cfg = rt.resolved_config();
         let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
         let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let memory = memory_template_config_from_merged(&cfg.merged);
@@ -385,10 +379,7 @@ then re-run:\n\n\
         best_effort_sync_coordination(rt, "before archive instructions");
 
         let runtime = rt.repository_runtime().map_err(to_cli_error)?;
-        let ctx = rt.ctx();
-        let ito_path = rt.ito_path();
-        let project_root = ito_path.parent().unwrap_or(ito_path);
-        let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+        let cfg = rt.resolved_config();
         let archive = archive_instruction_config_from_merged(&cfg.merged)?;
         let change = parse_string_flag(args, "--change")
             .map(|s| s.trim().to_string())
@@ -464,7 +455,8 @@ then re-run:\n\n\
     }
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
-    if sync_before_change_resolution(artifact) {
+    let want_sync = args.iter().any(|a| a == "--sync");
+    if sync_before_change_resolution(artifact, want_sync) {
         best_effort_sync_coordination(rt, &format!("before {artifact} instructions"));
     }
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
@@ -477,7 +469,8 @@ then re-run:\n\n\
     let schema = parse_string_flag(args, "--schema");
 
     let project_root = ito_path.parent().unwrap_or(ito_path);
-    let testing_policy = load_testing_policy(project_root, ito_path, ctx);
+    let resolved = rt.resolved_config();
+    let testing_policy = testing_policy_from_merged(&resolved.merged);
 
     let user_guidance = match core_templates::load_composed_user_guidance(ito_path, artifact) {
         Ok(v) => v,
@@ -522,10 +515,9 @@ then re-run:\n\n\
             return Ok(());
         }
 
-        let worktree_config = load_worktree_config(project_root, ito_path, ctx);
-        let memory_template = memory_template_config_from_merged(
-            &load_cascading_project_config(project_root, ito_path, ctx).merged,
-        );
+        let worktree_config =
+            worktree_config_from_resolved(&resolved.merged, project_root, ito_path);
+        let memory_template = memory_template_config_from_merged(&resolved.merged);
         let out = render_apply_instructions_text(
             &apply,
             &testing_policy,
@@ -566,7 +558,7 @@ then re-run:\n\n\
         return emit_instruction(want_json, artifact, instruction);
     }
 
-    let resolved = match core_templates::resolve_instructions(
+    let resolved_instr = match core_templates::resolve_instructions(
         ito_path,
         &change,
         schema.as_deref(),
@@ -587,13 +579,16 @@ then re-run:\n\n\
     };
 
     if want_json {
-        let rendered = serde_json::to_string_pretty(&resolved)
+        let rendered = serde_json::to_string_pretty(&resolved_instr)
             .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
         println!("{rendered}");
         return Ok(());
     }
-    let out =
-        render_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)?;
+    let out = render_artifact_instructions_text(
+        &resolved_instr,
+        user_guidance.as_deref(),
+        &testing_policy,
+    )?;
     print!("{out}");
 
     Ok(())
@@ -605,20 +600,13 @@ pub(super) struct TestingPolicy {
     coverage_target_percent: u64,
 }
 
-pub(super) fn load_testing_policy(
-    project_root: &Path,
-    ito_path: &Path,
-    ctx: &ito_config::ConfigContext,
-) -> TestingPolicy {
+pub(super) fn testing_policy_from_merged(merged: &serde_json::Value) -> TestingPolicy {
     let mut out = TestingPolicy {
         tdd_workflow: "red-green-refactor".to_string(),
         coverage_target_percent: 80,
     };
 
-    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    let merged = cfg.merged;
-
-    if let Some(v) = json_get(&merged, &["defaults", "testing", "tdd", "workflow"])
+    if let Some(v) = json_get(merged, &["defaults", "testing", "tdd", "workflow"])
         && let Some(s) = v.as_str()
     {
         let s = s.trim();
@@ -628,7 +616,7 @@ pub(super) fn load_testing_policy(
     }
 
     if let Some(v) = json_get(
-        &merged,
+        merged,
         &["defaults", "testing", "coverage", "target_percent"],
     ) {
         if let Some(n) = v.as_u64() {
@@ -644,17 +632,19 @@ pub(super) fn load_testing_policy(
     out
 }
 
-pub(super) fn load_coordination_branch_settings(
-    project_root: &Path,
-    ito_path: &Path,
-    ctx: &ito_config::ConfigContext,
-) -> (bool, String) {
-    let merged = load_cascading_project_config(project_root, ito_path, ctx).merged;
-    resolve_coordination_branch_settings(&merged)
-}
-
-fn sync_before_change_resolution(artifact: &str) -> bool {
-    artifact == "apply" || artifact == "proposal" || artifact == "review"
+/// Whether to sync the coordination branch before resolving a change artifact.
+///
+/// `proposal` and `review` always sync (they need up-to-date remote state).
+/// `apply` only syncs when the caller explicitly passes `--sync` so that
+/// instruction generation does not block on network I/O by default.
+/// `archive` and `finish` do not reach this helper because their dedicated
+/// instruction handlers sync before rendering.
+fn sync_before_change_resolution(artifact: &str, want_sync: bool) -> bool {
+    match artifact {
+        "apply" => want_sync,
+        "proposal" | "review" => true,
+        _ => false,
+    }
 }
 
 fn json_get<'a>(root: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {
@@ -1083,17 +1073,14 @@ pub(super) fn worktree_config_from_merged_with_paths(
     out
 }
 
-/// Builds a WorktreeConfig from the project's cascading configuration and records the project and `.ito` root paths.
-///
-/// The returned WorktreeConfig is populated from the merged cascading configuration for `project_root` and `ito_path`.
-/// Its `worktree_root` and `ito_root` fields are set to the provided `project_root` and `ito_path` (converted to strings).
-pub(super) fn load_worktree_config(
+/// Like [`worktree_config_from_merged_with_paths`] but named for clarity when
+/// the caller already holds a resolved config.
+pub(super) fn worktree_config_from_resolved(
+    merged: &serde_json::Value,
     project_root: &Path,
     ito_path: &Path,
-    ctx: &ito_config::ConfigContext,
 ) -> WorktreeConfig {
-    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-    worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path)
+    worktree_config_from_merged_with_paths(merged, project_root, ito_path)
 }
 
 /// Render the apply instructions using the agent apply template and print the result to stdout.
