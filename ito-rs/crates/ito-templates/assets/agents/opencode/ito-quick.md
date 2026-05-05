@@ -1,5 +1,6 @@
 ---
 description: Fast, cost-effective agent for simple tasks, quick queries, and small code changes
+activation: delegated
 mode: subagent
 model: "{{model}}"
 temperature: 0.3

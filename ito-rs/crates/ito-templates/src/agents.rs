@@ -81,6 +81,75 @@ pub enum AgentTier {
     Thinking,
 }
 
+/// How a generated Ito agent is intended to be activated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AgentActivationMode {
+    /// User-facing agent that can be selected directly as a primary entrypoint.
+    DirectEntryPoint,
+    /// Bounded role dispatched by a direct entrypoint or orchestration workflow.
+    DelegatedRole,
+}
+
+/// Canonical classification for one generated Ito agent surface.
+///
+/// Installers and tests use this inventory to keep generated agent templates
+/// aligned with their intended user-facing or delegated role in each harness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AgentSurface {
+    /// Agent name without harness-specific extension or `SKILL.md` suffix.
+    pub name: &'static str,
+    /// Expected activation mode for this agent.
+    pub activation: AgentActivationMode,
+}
+
+const AGENT_SURFACE_INVENTORY: &[AgentSurface] = &[
+    AgentSurface {
+        name: "ito-quick",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+    AgentSurface {
+        name: "ito-general",
+        activation: AgentActivationMode::DirectEntryPoint,
+    },
+    AgentSurface {
+        name: "ito-thinking",
+        activation: AgentActivationMode::DirectEntryPoint,
+    },
+    AgentSurface {
+        name: "ito-orchestrator",
+        activation: AgentActivationMode::DirectEntryPoint,
+    },
+    AgentSurface {
+        name: "ito-planner",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+    AgentSurface {
+        name: "ito-researcher",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+    AgentSurface {
+        name: "ito-worker",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+    AgentSurface {
+        name: "ito-reviewer",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+    AgentSurface {
+        name: "ito-test-runner",
+        activation: AgentActivationMode::DelegatedRole,
+    },
+];
+
+/// Return the canonical generated Ito agent surface inventory.
+///
+/// The returned slice is the source used to verify that every shipped Ito agent
+/// template has an explicit activation classification. Add new generated agent
+/// templates here when they become part of the supported Ito surface.
+pub fn agent_surface_inventory() -> &'static [AgentSurface] {
+    AGENT_SURFACE_INVENTORY
+}
+
 impl AgentTier {
     /// Get the file name (without extension)
     pub fn file_name(&self) -> &'static str {
@@ -350,6 +419,32 @@ variant: "{{variant}}"
                     tier
                 );
             }
+        }
+    }
+
+    #[test]
+    fn agent_surface_inventory_defines_activation_boundaries() {
+        let inventory = agent_surface_inventory();
+
+        let expected = [
+            ("ito-quick", AgentActivationMode::DelegatedRole),
+            ("ito-general", AgentActivationMode::DirectEntryPoint),
+            ("ito-thinking", AgentActivationMode::DirectEntryPoint),
+            ("ito-orchestrator", AgentActivationMode::DirectEntryPoint),
+            ("ito-planner", AgentActivationMode::DelegatedRole),
+            ("ito-researcher", AgentActivationMode::DelegatedRole),
+            ("ito-worker", AgentActivationMode::DelegatedRole),
+            ("ito-reviewer", AgentActivationMode::DelegatedRole),
+            ("ito-test-runner", AgentActivationMode::DelegatedRole),
+        ];
+
+        assert_eq!(inventory.len(), expected.len());
+        for (name, activation) in expected {
+            let surface = inventory
+                .iter()
+                .find(|surface| surface.name == name)
+                .unwrap_or_else(|| panic!("missing {name} in agent surface inventory"));
+            assert_eq!(surface.activation, activation);
         }
     }
 }

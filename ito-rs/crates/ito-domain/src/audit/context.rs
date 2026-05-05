@@ -67,25 +67,10 @@ pub fn resolve_session_id(ito_path: &Path) -> String {
 
 /// Check environment variables for a harness session ID.
 ///
-/// Checks (in order): `ITO_HARNESS_SESSION_ID`, `CLAUDE_SESSION_ID`,
-/// `OPENCODE_SESSION_ID`, `CODEX_SESSION_ID`. Returns the first found.
+/// Uses the shared Ito harness environment precedence so audit events and
+/// instruction rendering resolve the same session source.
 pub fn resolve_harness_session_id() -> Option<String> {
-    let env_vars = [
-        "ITO_HARNESS_SESSION_ID",
-        "CLAUDE_SESSION_ID",
-        "OPENCODE_SESSION_ID",
-        "CODEX_SESSION_ID",
-    ];
-
-    for var in env_vars {
-        if let Ok(val) = std::env::var(var)
-            && !val.is_empty()
-        {
-            return Some(val);
-        }
-    }
-
-    None
+    ito_common::harness::resolve_harness_session_id()
 }
 
 /// Resolve git context (branch, worktree, commit) from the current directory.

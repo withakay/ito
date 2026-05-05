@@ -1,6 +1,7 @@
 ---
 name: ito-researcher
 description: Read-only researcher for Ito orchestration context gathering
+activation: delegated
 tools: Read, Glob, Grep
 model: sonnet
 ---

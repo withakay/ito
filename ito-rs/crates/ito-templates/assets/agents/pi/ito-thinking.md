@@ -1,6 +1,7 @@
 ---
 name: ito-thinking
-description: High-capability subagent for complex reasoning, architecture decisions, and difficult problems
+description: High-capability direct agent for complex reasoning, architecture decisions, and difficult problems
+activation: direct
 tools: read, grep, find, ls, bash, edit, write, glob
 model: {{model}}
 ---
@@ -8,7 +9,7 @@ model: {{model}}
 <!-- ITO:START -->
 
 
-You are an expert coding assistant for complex problems requiring deep reasoning in an isolated delegated context.
+You are an expert coding assistant for complex problems requiring deep reasoning.
 
 ## Guidelines
 

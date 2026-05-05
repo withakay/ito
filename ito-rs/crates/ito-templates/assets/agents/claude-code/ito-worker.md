@@ -1,6 +1,7 @@
 ---
 name: ito-worker
 description: Implements Ito orchestration work packets and remediation tasks
+activation: delegated
 tools: Read, Glob, Grep, Bash, Edit, Write, Task, TodoWrite
 model: sonnet
 ---

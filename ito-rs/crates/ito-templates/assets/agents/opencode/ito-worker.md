@@ -1,5 +1,6 @@
 ---
 description: Implements Ito orchestration work packets and remediation tasks
+activation: delegated
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"

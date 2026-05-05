@@ -1,6 +1,7 @@
 ---
 name: ito-reviewer
 description: Reviews Ito orchestration gate results and worker changes
+activation: delegated
 tools: read, grep, find, ls, bash, glob
 model: {{model}}
 ---

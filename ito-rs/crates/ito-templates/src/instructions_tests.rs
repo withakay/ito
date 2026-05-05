@@ -20,6 +20,15 @@ fn assert_change_worktree_guardrails(text: &str) {
     assert!(text.contains(NO_MAIN_WRITE_RULE));
 }
 
+fn assert_contains_all(text: &str, snippets: &[&str]) {
+    for snippet in snippets {
+        assert!(
+            text.contains(snippet),
+            "missing expected snippet: {snippet}"
+        );
+    }
+}
+
 #[test]
 fn render_template_str_renders_from_serialize_ctx() {
     #[derive(Serialize)]
@@ -175,7 +184,7 @@ fn artifact_template_renders_when_instruction_is_empty() {
 }
 
 #[test]
-fn orchestrate_template_renders() {
+fn orchestrate_template_renders_authoritative_policy() {
     #[derive(Serialize)]
     struct Ctx {
         orchestrate_md_path: &'static str,
@@ -185,6 +194,7 @@ fn orchestrate_template_renders() {
         gate_order: Vec<&'static str>,
         recommended_skills: Vec<&'static str>,
         coordinator_agent_name: &'static str,
+        harness_name: &'static str,
         agent_roles_md: &'static str,
     }
 
@@ -198,18 +208,51 @@ fn orchestrate_template_renders() {
             gate_order: vec!["apply-complete", "tests"],
             recommended_skills: vec![],
             coordinator_agent_name: "ito-orchestrator",
-            agent_roles_md: "  - `apply-worker`: `ito-worker`",
+            harness_name: "opencode",
+            agent_roles_md: "  - `plan-worker`: `ito-planner`\n  - `apply-worker`: `ito-worker`\n  - `review-worker`: `ito-reviewer`",
         },
     )
     .unwrap();
 
-    assert!(rendered.contains("Orchestrate: Change Apply Coordination"));
-    assert!(rendered.contains("orchestrate.md"));
-    assert!(rendered.contains("ito-orchestrator-workflow"));
-    assert!(rendered.contains("Coordinator agent"));
-    assert!(rendered.contains("ito-orchestrator"));
-    assert!(rendered.contains("Preset"));
-    assert!(rendered.contains("ito-worker"));
+    assert_contains_all(
+        &rendered,
+        &[
+            "Orchestrate: Change Apply Coordination",
+            "Source-of-Truth Precedence",
+            "`ito agent instruction orchestrate` is the authoritative source of truth",
+            "Project `orchestrate.md` guidance is additive local policy",
+            "Direct Coordinator Activation",
+            "Activate `ito-orchestrator` directly as the coordinator",
+            "`ito-general` and `ito-thinking` are also direct entrypoints",
+            "Do not dispatch `ito-orchestrator`, `ito-general`, or `ito-thinking` as ordinary worker sub-agents",
+            "Delegated Role Agents",
+            "`ito-planner`",
+            "`ito-researcher`",
+            "`ito-worker`",
+            "`ito-reviewer`",
+            "`ito-test-runner`",
+            "Gate Planning",
+            "`depends_on`",
+            "`preferred_gates`",
+            "Run State",
+            "`.ito/.state/orchestrate/runs/<run-id>/`",
+            "`run.json`",
+            "`plan.json`",
+            "`events.jsonl`",
+            "`changes/<change-id>.json`",
+            "Failure and Remediation",
+            "`change_id`",
+            "`failed_gate`",
+            "`rerun_gates`",
+            "Resume Behavior",
+            "remaining gates",
+            "orchestrate.md (Current)",
+            "ito-orchestrator-workflow",
+            "Preset",
+            "Detected harness",
+            "`opencode`",
+        ],
+    );
 }
 
 #[test]

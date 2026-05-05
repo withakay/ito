@@ -1,6 +1,7 @@
 ---
 name: ito-quick
-description: Fast, cost-effective subagent for simple tasks, quick queries, and small code changes
+description: Fast, cost-effective delegated agent for simple tasks, quick queries, and small code changes
+activation: delegated
 tools: read, grep, find, ls, bash, edit, write
 model: {{model}}
 ---

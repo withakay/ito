@@ -1,5 +1,6 @@
 ---
 description: Read-only researcher for Ito orchestration context gathering
+activation: delegated
 mode: subagent
 model: "{{model}}"
 variant: "{{variant}}"

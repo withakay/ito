@@ -1,6 +1,7 @@
 ---
 name: ito-general
 description: Balanced skill for typical development tasks, code review, and implementation work
+activation: direct
 ---
 
 <!-- ITO:START -->

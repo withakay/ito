@@ -1,6 +1,7 @@
 ---
 name: ito-quick
 description: Fast, cost-effective skill for simple tasks, quick queries, and small code changes
+activation: delegated
 ---
 
 <!-- ITO:START -->

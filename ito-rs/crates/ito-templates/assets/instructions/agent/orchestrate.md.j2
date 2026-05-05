@@ -1,38 +1,121 @@
 # Orchestrate: Change Apply Coordination
 
-This artifact configures and drives an **orchestrator agent** that coordinates applying one or more Ito changes, enforcing gate order, parallelism, and remediation policy.
+This artifact configures and drives `{{ coordinator_agent_name }}`, the direct coordinator entrypoint for applying one or more Ito changes with delegated agents, ordered gates, persisted run state, remediation, and resume support.
 
 ## Inputs
 
 - **orchestrate.md**: `{{ orchestrate_md_path }}`
 - **Workflow skill (by convention)**: `{{ workflow_skill_name }}`
 - **Preset**: `{{ preset_name }}`
+- **Detected harness**: `{{ harness_name }}`
 - **Coordinator agent**: `{{ coordinator_agent_name }}`
 {% if recommended_skills -%}
 - **Recommended skills**: {% for skill in recommended_skills %}`{{ skill }}`{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
 {% if agent_roles_md %}
-- **Agent roles**:
+- **Preset agent roles**:
 {{ agent_roles_md }}
 {% endif %}
 
-## Gate Order
+## Source-of-Truth Precedence
+
+`ito agent instruction orchestrate` is the authoritative source of truth for orchestration behavior. Use this rendered document before any skill, command adapter, role prompt, or local convention that also discusses orchestration.
+
+Precedence, highest first:
+
+1. Current user instructions in the active session.
+2. The rendered `ito agent instruction orchestrate` artifact.
+3. Current Ito change proposal, specs, tasks, and audit state.
+4. Project `orchestrate.md` guidance as additive local policy.
+5. Workflow skills, command adapters, and agent prompts as thin invocation or role-local guidance.
+
+Project `orchestrate.md` guidance is additive local policy. It may tighten MUST/PREFER behavior, select a preset, tune parallelism, or document project preferences, but it does not replace this baked-in source-of-truth policy unless a supported override field is explicitly documented.
+
+## Direct Coordinator Activation
+
+Activate `{{ coordinator_agent_name }}` directly as the coordinator when a user asks to orchestrate, coordinate, parallelize, apply several changes, or run a multi-agent Ito workflow.
+
+- `ito-orchestrator` is a direct user-facing coordinator entrypoint, not an ordinary worker.
+- `ito-general` and `ito-thinking` are also direct entrypoints for balanced or high-reasoning Ito development/help sessions.
+- Do not dispatch `ito-orchestrator`, `ito-general`, or `ito-thinking` as ordinary worker sub-agents.
+- The coordinator owns planning, delegation, gate sequencing, state updates, and final synthesis.
+- The coordinator should not implement work packets itself unless the user explicitly overrides the workflow or no delegation mechanism is available.
+
+## Delegated Role Agents
+
+Dispatch delegated role agents for bounded work packets. The role owns only the assignment it receives and reports results back to the coordinator.
+
+- `ito-planner`: build or refine the run plan, dependencies, gate mapping, and work packets.
+- `ito-researcher`: perform read-only codebase/spec/context discovery before implementation.
+- `ito-worker`: implement an assigned work packet in the correct change worktree or reserved files.
+- `ito-reviewer`: review worker output, gate results, and remediation attempts against the change requirements.
+- `ito-test-runner`: run verification commands with curated pass/fail evidence and minimal log noise.
+
+Use the preset agent roles above as suggestions for the current run. If a preset maps a role to a specialist (for example a Rust worker or reviewer), use that specialist for the bounded role while preserving the same delegated reporting contract.
+
+## Coordinator Responsibilities
+
+1. Read the current change proposal, specs, tasks, and any `orchestrate` metadata before planning.
+2. Build a dependency-aware run plan and respect every in-scope `depends_on` relationship.
+3. Apply gate order consistently, using per-change `preferred_gates` only as a documented change-local override.
+4. Dispatch delegated agents with narrow, verifiable work packets and explicit expected outputs.
+5. Persist run state before moving to the next gate or reporting completion.
+6. Review or delegate review of completed work before downstream gates rely on it.
+7. Surface blockers, unsafe state, or ambiguous requirements instead of guessing.
+
+## Gate Planning
+
+Default gate order comes from the selected preset:
 
 {% for gate in gate_order %}- `{{ gate }}`
 {% endfor %}
 
-## How This Works
+Gate planning rules:
 
-1. The orchestrator agent reads `orchestrate.md` front matter + MUST/PREFER sections.
-2. The orchestrator agent loads the workflow skill (`{{ workflow_skill_name }}`) if present in the harness.
-3. The orchestrator builds a run plan and dispatches workers by gate.
-4. Run state is persisted under `.ito/.state/orchestrate/runs/<run-id>/`.
+- Run `apply-complete` before verification or review gates.
+- Run objective gates such as `format`, `lint`, and `tests` before human/model review gates when they are present.
+- Run `style`, `code-review`, and `security-review` after objective gates so reviewers see tested output.
+- Use `depends_on` to topologically order changes and avoid dispatching a dependent change before its prerequisites complete.
+- Use `preferred_gates` only for the owning change; it does not change the global preset for unrelated changes.
+- Record skipped gates explicitly when policy says not to run them.
+
+## Run State
+
+Persist orchestration state under `.ito/.state/orchestrate/runs/<run-id>/`.
+
+- `run.json`: top-level run status, preset, max parallelism, and failure policy.
+- `plan.json`: resolved dependency-aware plan, including change order and gates.
+- `events.jsonl`: append-only event log for run start, gate start/pass/fail/skip, worker dispatch/complete, remediation dispatch, and run completion.
+- `changes/<change-id>.json`: per-change terminal gate outcomes and update timestamp.
+
+Always write run state before moving to the next gate, dispatching downstream work, or claiming that a run has completed. If filesystem state is unsafe or unavailable, stop and report the exact missing or conflicting path.
+
+## Failure and Remediation
+
+Use the run failure policy from `orchestrate.md` front matter when present; otherwise use the preset/default behavior.
+
+- `remediate`: create a remediation packet, dispatch focused fix work, rerun the failed gate and downstream run gates, then continue if the rerun passes.
+- `stop`: stop the run after recording the failed gate and report the blocker.
+- `continue`: record the failed gate and continue only where downstream work does not depend on the failure.
+
+A remediation packet must include:
+
+- `change_id`: the affected change.
+- `failed_gate`: the gate that failed.
+- `error`: the captured failure summary or diagnostic payload.
+- `rerun_gates`: the failed gate plus downstream gates that must be rerun after remediation.
+
+Do not mark remediation complete until the rerun gates have produced terminal pass/skip outcomes or the user explicitly accepts the remaining risk.
+
+## Resume Behavior
+
+When resuming a run, load `run.json`, `plan.json`, and each existing `changes/<change-id>.json` before dispatching work. For every planned change, compute remaining gates from the first missing or failed gate; already passed or skipped gates remain complete and should not rerun unless remediation requires them.
+
+If the persisted plan conflicts with current change metadata, prefer the persisted plan for the active run and report the mismatch. Start a new run when the user wants to re-plan from updated metadata.
 
 ## orchestrate.md (Current)
 
-The following block contains the raw contents of `orchestrate.md`. It is
-rendered inside a tilde-fenced code block so that any triple-backtick
-sequences in the user prompt do not prematurely terminate the fence.
+The following block contains the raw contents of `orchestrate.md`. It is rendered inside a tilde-fenced code block so that any triple-backtick sequences in the user prompt do not prematurely terminate the fence.
 
 ~~~markdown
 {{ orchestrate_md }}
