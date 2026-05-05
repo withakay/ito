@@ -88,5 +88,5 @@ ______________________________________________________________________
 - **Dependencies**: None
 - **Action**: Review the proposal/spec deltas after `ito validate 016-13_optimize-agent-instructions --strict` passes
 - **Done When**: User approves the proposal
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-05
+- **Status**: [x] complete
