@@ -590,7 +590,8 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     assert!(out.contains(
         "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
     ));
-    assert!(out.contains("refreshes coordination state before rendering"));
+    assert!(out.contains("does **not** sync coordination state by default"));
+    assert!(out.contains("ito agent instruction apply --change <id> --sync"));
     assert!(out.contains("ito sync"));
     assert!(out.contains("ito patch change 000-01_test-change proposal"));
     assert!(out.contains("ito write change 000-01_test-change design"));

@@ -3,8 +3,8 @@
 ito-rs/crates/ito-core/src/ralph/runner.rs 1426
 ito-rs/crates/ito-templates/src/instructions_tests.rs 1414
 ito-rs/crates/ito-cli/tests/ralph_smoke.rs 1408
-ito-rs/crates/ito-core/src/installers/mod.rs 1380
+ito-rs/crates/ito-core/src/installers/mod.rs 1424
 ito-rs/crates/ito-config/src/config/types.rs 1371
 ito-rs/crates/ito-cli/tests/init_more.rs 1336
-ito-rs/crates/ito-core/src/coordination_worktree.rs 1297
+ito-rs/crates/ito-core/src/coordination_worktree.rs 1346
 ito-rs/crates/ito-core/tests/ralph.rs 1279

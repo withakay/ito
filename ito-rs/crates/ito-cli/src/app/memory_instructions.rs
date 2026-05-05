@@ -15,7 +15,6 @@
 
 use std::collections::BTreeMap;
 
-use ito_config::load_cascading_project_config;
 use ito_config::types::{ItoConfig, MemoryConfig, MemoryOpConfig};
 use ito_core::memory::{
     self, CaptureInputs, Operation, QueryInputs, RenderedInstruction, SearchInputs,
@@ -151,10 +150,8 @@ fn handle_memory_query(rt: &Runtime, args: &[String], want_json: bool) -> CliRes
 }
 
 fn load_memory_config(rt: &Runtime) -> CliResult<Option<ito_config::types::MemoryConfig>> {
-    let ito_path = rt.ito_path();
-    let project_root = ito_path.parent().unwrap_or(ito_path);
-    let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;
-    let typed: ItoConfig = serde::Deserialize::deserialize(&merged).map_err(|e| {
+    let merged = &rt.resolved_config().merged;
+    let typed: ItoConfig = serde::Deserialize::deserialize(merged).map_err(|e| {
         to_cli_error(format!(
             "Failed to parse merged Ito config while preparing memory instruction.\n\
              \n\

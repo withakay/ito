@@ -34,8 +34,7 @@ fn run_git(cwd: &Path, args: &[&str]) {
 #[test]
 fn ensure_worktree_creates_and_initializes_with_include_files() {
     use ito_config::types::{
-        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig,
-        WorktreeStrategy,
+        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
     };
     use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
@@ -114,8 +113,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
 #[cfg(unix)]
 fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     use ito_config::types::{
-        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig,
-        WorktreeStrategy,
+        CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
     };
     use ito_core::repo_paths::{GitRepoKind, ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature};
     use ito_core::worktree_ensure::ensure_worktree;
@@ -166,7 +164,8 @@ fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     let repaired = ensure_worktree("repair-test", &config, &env, &paths, &project_root).unwrap();
     assert_eq!(repaired, wt_path);
 
-    let target = std::fs::read_link(wt_path.join(".ito/modules")).expect("modules symlink restored");
+    let target =
+        std::fs::read_link(wt_path.join(".ito/modules")).expect("modules symlink restored");
     assert_eq!(target, coordination_ito.join("modules"));
 }
 

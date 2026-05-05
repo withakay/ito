@@ -3,7 +3,6 @@ use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use chrono::{SecondsFormat, Utc};
-use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
 use ito_core::coordination_worktree::CoordinationSyncOutcome;
 use ito_core::git_remote::resolve_org_repo_from_config_or_remote;
@@ -19,8 +18,8 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 use super::instructions::{
-    archive_instruction_config_from_merged, load_coordination_branch_settings, load_testing_policy,
-    load_worktree_config, render_apply_instructions_text, render_artifact_instructions_text,
+    archive_instruction_config_from_merged, render_apply_instructions_text,
+    render_artifact_instructions_text, testing_policy_from_merged,
     worktree_config_from_merged_with_paths,
 };
 use super::memory_instructions::{
@@ -60,10 +59,10 @@ pub(super) fn handle_manifesto_instruction(
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let ctx = rt.ctx();
-    let cfg = load_cascading_project_config(project_root, ito_path, ctx);
+    let cfg = rt.resolved_config();
     let typed: ItoConfig = serde_json::from_value(cfg.merged.clone()).unwrap_or_default();
 
-    let worktree = load_worktree_config(project_root, ito_path, ctx);
+    let worktree = worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
     let worktree_json = json!({
         "enabled": worktree.enabled,
         "strategy": worktree_strategy_name(worktree.strategy),
@@ -78,7 +77,7 @@ pub(super) fn handle_manifesto_instruction(
     });
 
     let (coord_enabled_cfg, coord_name) =
-        load_coordination_branch_settings(project_root, ito_path, ctx);
+        ito_config::resolve_coordination_branch_settings(&cfg.merged);
     let coord_enabled =
         coord_enabled_cfg || typed.changes.coordination_branch.storage.as_str() == "worktree";
     let (org, repo) = resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
@@ -491,24 +490,28 @@ fn render_manifesto_instruction_body(
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let ctx = rt.ctx();
-    let testing_policy = load_testing_policy(project_root, ito_path, ctx);
+    let resolved = rt.resolved_config();
+    let testing_policy = testing_policy_from_merged(&resolved.merged);
     let user_guidance =
         core_templates::load_composed_user_guidance(ito_path, artifact).unwrap_or(None);
 
     match artifact {
         "proposal" | "specs" | "design" | "tasks" => {
-            let resolved =
+            let resolved_instr =
                 core_templates::resolve_instructions(ito_path, change_id, None, artifact, ctx)
                     .map_err(to_cli_error)?;
-            render_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)
+            render_artifact_instructions_text(
+                &resolved_instr,
+                user_guidance.as_deref(),
+                &testing_policy,
+            )
         }
         "apply" => {
             let apply = core_templates::compute_apply_instructions(ito_path, change_id, None, ctx)
                 .map_err(to_cli_error)?;
-            let worktree_config = load_worktree_config(project_root, ito_path, ctx);
-            let memory_template = memory_template_config_from_merged(
-                &load_cascading_project_config(project_root, ito_path, ctx).merged,
-            );
+            let worktree_config =
+                worktree_config_from_merged_with_paths(&resolved.merged, project_root, ito_path);
+            let memory_template = memory_template_config_from_merged(&resolved.merged);
             Ok(render_apply_instructions_text(
                 &apply,
                 &testing_policy,
@@ -531,8 +534,7 @@ fn render_manifesto_instruction_body(
                 .map_err(to_cli_error)
         }
         "archive" => {
-            let cfg = load_cascading_project_config(project_root, ito_path, ctx);
-            let archive = archive_instruction_config_from_merged(&cfg.merged)?;
+            let archive = archive_instruction_config_from_merged(&resolved.merged)?;
             ito_templates::instructions::render_instruction_template(
                 "agent/archive.md.j2",
                 &json!({
@@ -544,11 +546,10 @@ fn render_manifesto_instruction_body(
             .map_err(to_cli_error)
         }
         "finish" => {
-            let cfg = load_cascading_project_config(project_root, ito_path, ctx);
             let worktree =
-                worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
-            let archive = archive_instruction_config_from_merged(&cfg.merged)?;
-            let memory = memory_template_config_from_merged(&cfg.merged);
+                worktree_config_from_merged_with_paths(&resolved.merged, project_root, ito_path);
+            let archive = archive_instruction_config_from_merged(&resolved.merged)?;
+            let memory = memory_template_config_from_merged(&resolved.merged);
             ito_templates::instructions::render_instruction_template(
                 "agent/finish.md.j2",
                 &json!({

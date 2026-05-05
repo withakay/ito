@@ -1,5 +1,6 @@
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_path;
+use ito_config::{CascadingProjectConfig, load_cascading_project_config};
 use ito_core::audit::{
     AuditEvent, AuditEventStore, EventContext, default_audit_store, resolve_context,
     resolve_user_identity,
@@ -60,6 +61,7 @@ pub(crate) struct Runtime {
     event_context: OnceLock<EventContext>,
     user_identity: OnceLock<String>,
     repository_runtime: OnceLock<RepositoryRuntime>,
+    resolved_config: OnceLock<CascadingProjectConfig>,
 }
 
 impl Runtime {
@@ -73,6 +75,7 @@ impl Runtime {
             event_context: OnceLock::new(),
             user_identity: OnceLock::new(),
             repository_runtime: OnceLock::new(),
+            resolved_config: OnceLock::new(),
         }
     }
 
@@ -112,6 +115,15 @@ impl Runtime {
     /// Returns the user identity string (e.g., "@jack"), lazily initialized.
     pub(crate) fn user_identity(&self) -> &str {
         self.user_identity.get_or_init(resolve_user_identity)
+    }
+
+    /// Returns the per-invocation cascading project config, loading it at most once.
+    pub(crate) fn resolved_config(&self) -> &CascadingProjectConfig {
+        self.resolved_config.get_or_init(|| {
+            let ito_path = self.ito_path();
+            let project_root = ito_path.parent().unwrap_or(ito_path);
+            load_cascading_project_config(project_root, ito_path, &self.ctx)
+        })
     }
 
     /// Returns the resolved repository runtime.

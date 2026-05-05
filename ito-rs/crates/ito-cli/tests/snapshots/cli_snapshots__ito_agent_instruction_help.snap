@@ -13,12 +13,13 @@ Options:
   -c, --change <CHANGE>        Change id (directory name)
       --no-color               Disable color output
       --help-all               Print the full CLI reference (equivalent to `ito help --all`)
-      --tool <TOOL>            Tool name for bootstrap (opencode|claude|codex)
+      --tool <TOOL>            Tool name for bootstrap (opencode|claude|codex|github-copilot|pi)
       --schema <SCHEMA>        Workflow schema name
       --json                   Output as JSON
       --variant <VARIANT>      Manifesto output variant (light|full)
       --profile <PROFILE>      Manifesto capability profile (planning|proposal-only|review-only|apply|archive|full)
       --operation <OPERATION>  Manifesto operation selector for full renders
+      --sync                   Sync coordination branch before generating instructions (opt-in for apply)
       --context <CONTEXT>      Free-form context for `memory-capture`
       --file <FILE>            File path for `memory-capture` (repeatable)
       --folder <FOLDER>        Folder path for `memory-capture` (repeatable)
@@ -60,6 +61,7 @@ Examples:
   ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
+  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync
   ito agent instruction archive
   ito agent instruction archive --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap

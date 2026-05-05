@@ -108,8 +108,6 @@ fn resolve_harness_session_env_with(
             harness: *harness,
         });
     }
-        });
-    }
 
     None
 }

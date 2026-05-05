@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
+use ito_config::types::{CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
 use super::*;
 use crate::process::{ProcessExecutionError, ProcessOutput, ProcessRequest, ProcessRunner};
@@ -92,6 +92,12 @@ fn make_disabled_paths() -> ResolvedWorktreePaths {
     }
 }
 
+fn make_embedded_config() -> ItoConfig {
+    let mut config = ItoConfig::default();
+    config.changes.coordination_branch.storage = CoordinationStorage::Embedded;
+    config
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -133,7 +139,7 @@ fn validate_change_id_rejects_nul() {
 fn ensure_worktrees_disabled_returns_cwd() {
     let tmp = tempfile::tempdir().unwrap();
     let cwd = tmp.path();
-    let config = ItoConfig::default();
+    let config = make_embedded_config();
     let env = make_env(cwd);
     let paths = make_disabled_paths();
     let runner = StubRunner::with_outputs(vec![]);
@@ -158,7 +164,7 @@ fn ensure_existing_worktree_returns_path_without_creation() {
     // Marker lives inside the resolved gitdir, not the working tree.
     std::fs::write(fake_gitdir.join(INIT_MARKER), "initialized\n").unwrap();
 
-    let config = ItoConfig::default();
+    let config = make_embedded_config();
     let env = make_env(project_root);
     let paths = make_enabled_paths(worktrees_root, project_root.to_path_buf());
     let runner = StubRunner::with_outputs(vec![]);
@@ -178,7 +184,7 @@ fn ensure_creates_worktree_when_absent() {
     let main_root = project_root.join("main");
     std::fs::create_dir_all(&main_root).unwrap();
 
-    let config = ItoConfig::default();
+    let config = make_embedded_config();
     let env = make_env(project_root);
     let expected = worktrees_root.join("my-change");
     // The fake gitdir that the .git file will point to.
@@ -263,7 +269,7 @@ fn ensure_with_include_files_copies_them() {
     std::fs::create_dir_all(&main_root).unwrap();
     std::fs::write(main_root.join(".env"), "SECRET=abc").unwrap();
 
-    let mut config = ItoConfig::default();
+    let mut config = make_embedded_config();
     config.worktrees.init = WorktreeInitConfig {
         include: vec![".env".to_string()],
         setup: None,
@@ -345,7 +351,7 @@ fn ensure_git_failure_returns_error() {
     let main_root = project_root.join("main");
     std::fs::create_dir_all(&main_root).unwrap();
 
-    let config = ItoConfig::default();
+    let config = make_embedded_config();
     let env = make_env(project_root);
     let paths = make_enabled_paths(worktrees_root, main_root);
     // Two outputs are needed:
