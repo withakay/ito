@@ -1308,7 +1308,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "ito-backend"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1329,7 +1329,7 @@ dependencies = [
 
 [[package]]
 name = "ito-cli"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1364,14 +1364,14 @@ dependencies = [
 
 [[package]]
 name = "ito-common"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "ito-config"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "ito-common",
  "schemars",
@@ -1382,7 +1382,7 @@ dependencies = [
 
 [[package]]
 name = "ito-core"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "assert-struct",
  "base64",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "ito-domain"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "chrono",
  "ito-common",
@@ -1433,7 +1433,7 @@ dependencies = [
 
 [[package]]
 name = "ito-logging"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "chrono",
  "hex",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "ito-templates"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "include_dir",
  "minijinja",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "ito-test-support"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "chrono",
  "ito-domain",
@@ -1468,7 +1468,7 @@ dependencies = [
 
 [[package]]
 name = "ito-web"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1776,15 +1776,14 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "openssl"
-version = "0.10.78"
+version = "0.10.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f38c4372413cdaaf3cc79dd92d29d7d9f5ab09b51b10dded508fb90bb70b9222"
+checksum = "bf0b434746ee2832f4f0baf10137e1cabb18cbe6912c69e2e33263c45250f542"
 dependencies = [
  "bitflags 2.11.1",
  "cfg-if",
  "foreign-types",
  "libc",
- "once_cell",
  "openssl-macros",
  "openssl-sys",
 ]
@@ -1808,9 +1807,9 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.114"
+version = "0.9.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13ce1245cd07fcc4cfdb438f7507b0c7e4f3849a69fd84d52374c66d83741bb6"
+checksum = "158fe5b292746440aa6e7a7e690e55aeb72d41505e2804c23c6973ad0e9c9781"
 dependencies = [
  "cc",
  "libc",
@@ -2003,9 +2002,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f450ad9c3b1da563fb6948a8e0fb0fb9269711c9c73d9ea1de5058c79c8d643a"
+checksum = "4666a1a60d8412eab19d94f6d13dcc9cea0a5ef4fdf6a5db306537413c661b1b"
 dependencies = [
  "bitflags 2.11.1",
 ]
@@ -2638,9 +2637,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.1"
+version = "1.52.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67dee974fe86fd92cc45b7a95fdd2f99a36a6d7b0d431a231178d3d670bbcc6"
+checksum = "110a78583f19d5cdb2c5ccf321d1290344e71313c6c37d43520d386027d18386"
 dependencies = [
  "bytes",
  "libc",

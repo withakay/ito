@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.31] - 2026-05-05
+
+### 🚀 Features
+
+- *(011-05)* Ito validate repo + coordination/worktrees rules ([#229](https://github.com/withakay/ito/pull/229))
+- *(016-13)* Optimize agent instruction rendering ([#235](https://github.com/withakay/ito/pull/235))
+
+### 🐛 Bug Fixes
+
+- *(019-11)* Rename orchestrator specialist assets
+- *(worktree)* Repair Ito coordination links in change worktrees ([#232](https://github.com/withakay/ito/pull/232))
+
+### 📚 Documentation
+
+- Add source guide atlas ([#224](https://github.com/withakay/ito/pull/224))
+- *(templates)* Compact prompt assets
+- Compress AGENTS.md and codemap files for token efficiency
 ## [0.1.30] - 2026-04-28
 
 ### 🚀 Features
