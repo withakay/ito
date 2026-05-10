@@ -38,8 +38,8 @@ ______________________________________________________________________
 - **Verify**: `ito init --upgrade --help`
 - **Done When**: The repo-local OpenCode command and skill files match the embedded planning workflow assets, and all harness types have been synchronized.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `ito-slash-command:planning-slash-command-installation`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-10
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
