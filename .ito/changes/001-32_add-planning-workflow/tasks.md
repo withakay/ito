@@ -83,8 +83,8 @@ ______________________________________________________________________
 - **Verify**: `rg -n "PROJECT\.md|ROADMAP\.md|STATE\.md|ito-plan" .opencode ito-rs/crates/ito-templates/assets`
 - **Done When**: User-facing guidance consistently points planning requests toward `ito-plan` and no longer presents the legacy planning files as the primary workflow. All harness files have been validated for consistency.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `ito-slash-command:planning-slash-command-installation`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-10
+- **Status**: [x] complete
 
 ### Task 3.2: Validate change package and affected code paths
 
