@@ -2998,11 +2998,11 @@ cargo deny (license/advisory checks).....................................Failed
   advisories ok, bans FAILED, licenses ok, sources ok
   error[duplicate]: found 2 duplicate entries for crate 'wit-bindgen'
       ┌─ /Users/jack/Code/withakay/ito/ito-worktrees/001-33_enhance-spec-driven-workflow-validation/Cargo.lock:333:1
-      │  
+      │
   333 │ ╭ wit-bindgen 0.51.0 registry+https://github.com/rust-lang/crates.io-index
   334 │ │ wit-bindgen 0.57.1 registry+https://github.com/rust-lang/crates.io-index
       │ ╰────────────────────────────────────────────────────────────────────────┘ lock entries
-      │  
+      │
       ├ wit-bindgen v0.51.0
         └── wasip3 v0.4.0+wasi-0.3.0-rc-2026-01-06
             └── getrandom v0.4.2
@@ -3094,7 +3094,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   80 │     { crate = "windows-sys@0.60", reason = "tokio/clap transitive" },
      │                ━━━━━━━━━━━━━━━━             ───────────────────── reason
-     │                │                             
+     │                │
      │                unmatched skip configuration
 
   warning[unnecessary-skip]: skip 'windows-targets = =0.52' applied to a crate with only one version
@@ -3102,7 +3102,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   81 │     { crate = "windows-targets@0.52", reason = "follows windows-sys 0.59" },
      │                ━━━━━━━━━━━━━━━━━━━━             ──────────────────────── reason
-     │                │                                 
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_aarch64_gnullvm = =0.52' applied to a crate with only one version
@@ -3110,7 +3110,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   82 │     { crate = "windows_aarch64_gnullvm@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                         
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_aarch64_msvc = =0.52' applied to a crate with only one version
@@ -3118,7 +3118,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   83 │     { crate = "windows_aarch64_msvc@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                      
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_i686_gnu = =0.52' applied to a crate with only one version
@@ -3126,7 +3126,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   84 │     { crate = "windows_i686_gnu@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                  
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_i686_gnullvm = =0.52' applied to a crate with only one version
@@ -3134,7 +3134,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   85 │     { crate = "windows_i686_gnullvm@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                      
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_i686_msvc = =0.52' applied to a crate with only one version
@@ -3142,7 +3142,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   86 │     { crate = "windows_i686_msvc@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                   
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_x86_64_gnu = =0.52' applied to a crate with only one version
@@ -3150,7 +3150,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   87 │     { crate = "windows_x86_64_gnu@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                    
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_x86_64_gnullvm = =0.52' applied to a crate with only one version
@@ -3158,7 +3158,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   88 │     { crate = "windows_x86_64_gnullvm@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                        
+     │                │
      │                unnecessary skip configuration
 
   warning[unnecessary-skip]: skip 'windows_x86_64_msvc = =0.52' applied to a crate with only one version
@@ -3166,7 +3166,7 @@ cargo deny (license/advisory checks).....................................Failed
      │
   89 │     { crate = "windows_x86_64_msvc@0.52", reason = "follows windows-targets 0.52" },
      │                ━━━━━━━━━━━━━━━━━━━━━━━━             ──────────────────────────── reason
-     │                │                                     
+     │                │
      │                unnecessary skip configuration
 
   make[1]: *** [cargo-deny] Error 2

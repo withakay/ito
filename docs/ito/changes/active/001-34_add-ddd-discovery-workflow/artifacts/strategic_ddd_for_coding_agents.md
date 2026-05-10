@@ -870,4 +870,3 @@ If any of these are unknown, the agent should either ask for clarification or ma
 Strategic DDD helps a coding agent avoid treating feature work as isolated code edits. It encourages the agent to preserve boundaries, use precise domain language, and model business capabilities explicitly.
 
 The best implementation is not merely the one that passes tests today. It is the one that keeps the model understandable, protects context boundaries, and allows different parts of the business to evolve without corrupting each other.
-
