@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli plan -- --nocapture && cargo test -p ito-core planning_init -- --nocapture`
 - **Done When**: Planning CLI output matches the new workspace semantics and the affected Rust tests pass.
 - **Requirements**: `cli-plan:planning-workspace-status`, `cli-plan:planning-error-handling`, `cli-plan:remove-project-state-management`, `cli-plan:remove-roadmap-milestone-management`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-10
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
