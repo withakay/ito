@@ -55,8 +55,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core planning_init -- --nocapture`
 - **Done When**: Planning initialization creates only the planning workspace and no longer writes the legacy planning markdown files.
 - **Requirements**: `cli-plan:planning-workspace-initialization`, `cli-plan:remove-fixed-template-quality`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-10
+- **Status**: [x] complete
 
 ### Task 2.2: Update planning CLI behavior and tests
 
