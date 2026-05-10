@@ -94,8 +94,8 @@ ______________________________________________________________________
 - **Verify**: `ito validate 001-32_add-planning-workflow --strict && cargo test -p ito-core planning_init -- --nocapture && cargo test -p ito-cli plan -- --nocapture`
 - **Done When**: The change validates strictly and the targeted planning-related Rust tests pass.
 - **Requirements**: `planning-workflow:pre-proposal-planning`, `planning-workflow:planning-and-research-locations`, `cli-plan:planning-workspace-initialization`, `cli-plan:planning-workspace-status`, `cli-plan:planning-error-handling`, `ito-slash-command:planning-slash-command-installation`
-- **Updated At**: 2026-04-08
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-10
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
