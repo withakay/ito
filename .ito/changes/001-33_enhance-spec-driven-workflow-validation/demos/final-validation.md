@@ -2959,3 +2959,65 @@ running 0 tests
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 ```
+
+Iteration 24 revalidated the completed change: tasks and audit are in sync, change validation passes with the current validate CLI shape, and the full project check suite passes.
+
+```bash
+ito tasks status 001-33_enhance-spec-driven-workflow-validation
+```
+
+```output
+Tasks for: 001-33_enhance-spec-driven-workflow-validation
+──────────────────────────────────────────────────
+
+Progress: 10/10 done (10 complete, 0 shelved), 0 in-progress, 0 pending
+
+Ready
+
+Blocked
+```
+
+```bash
+ito audit reconcile --change 001-33_enhance-spec-driven-workflow-validation
+```
+
+```output
+Reconcile: 001-33_enhance-spec-driven-workflow-validation
+──────────────────────────────────────────────────
+No drift detected. Audit log and files are in sync.
+```
+
+```bash
+ito validate --changes 001-33_enhance-spec-driven-workflow-validation
+```
+
+```output
+All items valid (14 checked)
+```
+
+```bash
+make check
+```
+
+```output
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+check toml...............................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+fix end of files.........................................................Passed
+mixed line ending........................................................Passed
+trim trailing whitespace.................................................Passed
+pretty format json.......................................................Passed
+yamllint.................................................................Passed
+markdownlint-cli2........................................................Passed
+cargo fmt (ito-rs).......................................................Passed
+forbid local version metadata in Cargo.toml..............................Passed
+cargo clippy (ito-rs)....................................................Passed
+cargo doc warnings as errors (ito-rs)....................................Passed
+cargo test with coverage (ito-rs)........................................Passed
+cargo test affected (ito-rs).............................................Passed
+check max lines (ito-rs).................................................Passed
+architecture guardrails..................................................Passed
+cargo deny (license/advisory checks).....................................Passed
+```
