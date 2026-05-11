@@ -85,7 +85,7 @@ ______________________________________________________________________
 - **Done When**: Review and lifecycle guidance explain when to invoke DDD discovery, how to review the selected discovery depth and strategic model, how its outputs feed proposal quality, and how approved context/ADR updates are promoted.
 - **Requirements**: `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:discovery-depth-gate`, `domain-discovery-workflow:business-capability-first`, `domain-discovery-workflow:model-ownership-over-data-location`, `domain-discovery-workflow:context-relationship-pattern-selection`, `domain-discovery-workflow:consistency-requirement-capture`, `domain-discovery-workflow:lazy-domain-documentation-capture`, `domain-discovery-workflow:approved-domain-documentation-promotion`, `workflow-convergence:domain-discovery-entrypoint`, `workflow-convergence:domain-discovery-review-gate`, `workflow-convergence:domain-docs-change-scope`
 - **Updated At**: 2026-05-11
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Final validation and change-package gate
 
