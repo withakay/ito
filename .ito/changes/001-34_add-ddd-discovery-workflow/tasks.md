@@ -67,8 +67,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core --test validate context_boundary_consistency_rule`
 - **Done When**: Cross-context changes can be reviewed for missing context ownership or relationship framing.
 - **Requirements**: `cli-validate:context-boundary-consistency`, `domain-discovery-workflow:context-map-distinguishes-module-and-capability`
-- **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-11
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
