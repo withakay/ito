@@ -56,8 +56,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core --test validate ubiquitous_language_consistency_rule && cargo test -p ito-core --test validate domain_documentation_consistency_rule`
 - **Done When**: Validation can warn on term drift, undefined aliases, glossary mismatches, or conflicting documentation updates without blocking simple changes by default.
 - **Requirements**: `cli-validate:ubiquitous-language-consistency`, `cli-validate:domain-documentation-consistency`
-- **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-11
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add bounded-context consistency validation
 
