@@ -756,3 +756,61 @@ test read_planning_workspace_status_lists_plan_documents ... ok
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 ```
+
+Iteration 25 repaired final review findings by making planning/research workspace status inspection use fallible metadata, failing plan init on a conflicting .ito/research file, and adding CLI regression coverage.
+
+```bash
+-c
+```
+
+```output
+bash: -c: option requires an argument
+```
+
+```bash
+cd ito-rs && cargo test -p ito-core --test planning_init -- --nocapture
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.17s
+     Running tests/planning_init.rs (/Users/jack/Code/withakay/ito/ito-worktrees/001-32_add-planning-workflow/target/debug/deps/planning_init-a7d9eb36a801cb09)
+
+running 7 tests
+test read_planning_workspace_status_allows_missing_workspace ... ok
+test init_planning_structure_creates_only_workspace ... ok
+test init_planning_structure_errors_when_planning_path_is_a_file ... ok
+test read_planning_workspace_status_reports_conflicting_research_file ... ok
+test read_planning_workspace_status_reports_conflicting_file ... ok
+test init_planning_structure_preserves_existing_plan_documents ... ok
+test read_planning_workspace_status_lists_plan_documents ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+```
+
+```bash
+make check
+```
+
+```output
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+check toml...............................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+fix end of files.........................................................Passed
+mixed line ending........................................................Passed
+trim trailing whitespace.................................................Passed
+pretty format json.......................................................Passed
+yamllint.................................................................Passed
+markdownlint-cli2........................................................Passed
+cargo fmt (ito-rs).......................................................Passed
+forbid local version metadata in Cargo.toml..............................Passed
+cargo clippy (ito-rs)....................................................Passed
+cargo doc warnings as errors (ito-rs)....................................Passed
+cargo test with coverage (ito-rs)........................................Passed
+cargo test affected (ito-rs).............................................Passed
+check max lines (ito-rs).................................................Passed
+architecture guardrails..................................................Passed
+cargo deny (license/advisory checks).....................................Passed
+```
