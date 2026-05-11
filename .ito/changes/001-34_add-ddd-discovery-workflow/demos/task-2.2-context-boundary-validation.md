@@ -21,3 +21,18 @@ test context_boundary_consistency_rule_is_silent_for_single_context_discovery ..
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
 
 ```
+
+```bash
+cargo test -p ito-core --test validate_delta_rules domain_rules_can_run_from_artifact_rules_for_event_driven_schemas
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.20s
+     Running tests/validate_delta_rules.rs (/Users/jack/Code/withakay/ito/ito-worktrees/001-34_add-ddd-discovery-workflow/target/debug/deps/validate_delta_rules-01440800bf6c477a)
+
+running 1 test
+test domain_rules_can_run_from_artifact_rules_for_event_driven_schemas ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+```
