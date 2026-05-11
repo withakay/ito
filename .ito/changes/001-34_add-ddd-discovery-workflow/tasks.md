@@ -28,8 +28,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: Planning and proposal-entry guidance can choose the least sufficient discovery depth, ask and carry forward DDD discovery outputs, challenge fuzzy language, and consult repository evidence without forcing immediate proposal scaffolding.
 - **Requirements**: `domain-discovery-workflow:ddd-discovery-bundle`, `domain-discovery-workflow:discovery-depth-gate`, `domain-discovery-workflow:business-capability-first`, `domain-discovery-workflow:model-ownership-over-data-location`, `domain-discovery-workflow:canonical-discovery-handoff`, `domain-discovery-workflow:domain-grill-interview-mode`, `domain-discovery-workflow:glossary-conflict-challenge`, `domain-discovery-workflow:scenario-boundary-probing`, `domain-discovery-workflow:code-documentation-cross-check`, `domain-discovery-workflow:ubiquitous-language-glossary`, `domain-discovery-workflow:bounded-context-map`, `domain-discovery-workflow:context-relationship-pattern-selection`, `domain-discovery-workflow:consistency-requirement-capture`, `domain-discovery-workflow:technique-fit-triage`, `domain-discovery-workflow:event-storming-technique-fit`, `domain-discovery-workflow:boundary-smell-probes`, `domain-discovery-workflow:proposal-handoff-summary`, `workflow-convergence:domain-discovery-entrypoint`
-- **Updated At**: 2026-04-30
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-11
+- **Status**: [>] in-progress
 
 ### Task 1.2: Add schema assets or template hooks for discovery artifacts
 
