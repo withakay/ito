@@ -40,7 +40,7 @@ When the `scenario_grammar` rule is enabled, `ito.delta-specs.v1` SHALL apply ad
 #### Scenario: UI-mechanics warning uses conservative multi-token patterns
 
 - **GIVEN** the `ui_mechanics` rule is enabled
-- **AND** a requirement is not tagged `ui` (per `ito-schemas:behavioral-requirement-metadata` Tags metadata)
+- **AND** a requirement is tagged `ui` (per `ito-schemas:behavioral-requirement-metadata` Tags metadata)
 - **AND** a scenario body matches a known UI-mechanics regex pattern in the canonical pattern set:
   - `\bclick\s+(?:on\s+|the\s+)?\w+`
   - `\bwait\s+\d+\s*(?:ms|millisecond|second|s)\b`
@@ -48,7 +48,7 @@ When the `scenario_grammar` rule is enabled, `ito.delta-specs.v1` SHALL apply ad
   - `\bselector\s*[:=]`
   - `\bcss\s+selector\b`
 - **WHEN** validation runs
-- **THEN** validation reports a warning that the scenario may describe UI mechanics rather than domain behavior, and suggests adding the `ui` tag if intentional
+- **THEN** validation reports a warning that the scenario may over-prescribe UI mechanics rather than domain behavior
 
 #### Scenario: Bare anchor or class names do not trip the UI rule
 
