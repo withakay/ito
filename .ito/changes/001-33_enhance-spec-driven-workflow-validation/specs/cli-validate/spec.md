@@ -159,7 +159,7 @@ When the `task_quality` rule is enabled on `tracking`, `ito.tasks-tracking.v1` S
 
 #### Scenario: An implementation task is identified by file extension
 
-- **GIVEN** a task lists at least one file with a code extension matching `(\.rs|\.ts|\.tsx|\.js|\.py|\.go|\.toml|\.yaml|\.yml|\.json|\.sh)$`
+- **GIVEN** a task lists at least one file with a recognized implementation extension, including `.rs`, `.ts`, `.tsx`, `.js`, `.py`, `.go`, `.toml`, `.yaml`, `.yml`, `.json`, or `.sh`
 - **WHEN** validation runs
 - **THEN** the task is treated as an implementation task for the missing-Verify error path
 - **AND** non-implementation tasks (for example pure documentation) downgrade missing-Verify to a warning

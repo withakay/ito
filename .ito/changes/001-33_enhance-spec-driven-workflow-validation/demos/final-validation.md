@@ -3021,3 +3021,100 @@ check max lines (ito-rs).................................................Passed
 architecture guardrails..................................................Passed
 cargo deny (license/advisory checks).....................................Passed
 ```
+
+Iteration 36 rechecked backend-mode validation, audit-only filtering, tracking severity, change validation, audit reconciliation, and the repository check target.
+
+```bash
+cargo test -p ito-cli --test validate_more validate_single_change_audit_flag_reports_only_audit_issues -- --nocapture
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.28s
+     Running tests/validate_more.rs (target/debug/deps/validate_more-6f288eadca590a3a)
+
+running 1 test
+test validate_single_change_audit_flag_reports_only_audit_issues ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.01s
+
+```
+
+```bash
+cargo test -p ito-cli --test audit_remote_mode validate_single_change_in_backend_mode_skips_local_audit_reconcile -- --nocapture
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.20s
+     Running tests/audit_remote_mode.rs (target/debug/deps/audit_remote_mode-a1cc1d776a5b0f37)
+
+running 1 test
+ito-backend (multi-tenant) listening at http://127.0.0.1:60203/
+  data_dir: /private/var/folders/fm/kc7zzw6n5lscp57b5_skwl8m0000gn/T/.tmpwi00gn
+  storage: filesystem
+  admin_tokens: 1, token_seed: true
+  allowed orgs: 1
+test validate_single_change_in_backend_mode_skips_local_audit_reconcile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 3.23s
+
+```
+
+```bash
+cargo test -p ito-core --test validate_rules_extension missing_tracking_file_uses_configured_missing_artifact_level -- --nocapture
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.18s
+     Running tests/validate_rules_extension.rs (target/debug/deps/validate_rules_extension-e9951ba33c4f865e)
+
+running 1 test
+test missing_tracking_file_uses_configured_missing_artifact_level ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+
+```
+
+```bash
+ito validate 001-33_enhance-spec-driven-workflow-validation --strict
+```
+
+```output
+Change '001-33_enhance-spec-driven-workflow-validation' is valid
+```
+
+```bash
+ito audit reconcile --change 001-33_enhance-spec-driven-workflow-validation
+```
+
+```output
+Reconcile: 001-33_enhance-spec-driven-workflow-validation
+──────────────────────────────────────────────────
+No drift detected. Audit log and files are in sync.
+```
+
+```bash
+make check
+```
+
+```output
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+check toml...............................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+fix end of files.........................................................Passed
+mixed line ending........................................................Passed
+trim trailing whitespace.................................................Passed
+pretty format json.......................................................Passed
+yamllint.................................................................Passed
+markdownlint-cli2........................................................Passed
+cargo fmt (ito-rs).......................................................Passed
+forbid local version metadata in Cargo.toml..............................Passed
+cargo clippy (ito-rs)....................................................Passed
+cargo doc warnings as errors (ito-rs)....................................Passed
+cargo test with coverage (ito-rs)........................................Passed
+cargo test affected (ito-rs).............................................Passed
+check max lines (ito-rs).................................................Passed
+architecture guardrails..................................................Passed
+cargo deny (license/advisory checks).....................................Passed
+```
