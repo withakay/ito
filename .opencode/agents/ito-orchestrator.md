@@ -1,9 +1,8 @@
 ---
 description: Coordinator-only agent for orchestrating multi-change runs
 activation: direct
-model: "openai/gpt-5.4"
+model: "anthropic/claude-opus-4-7"
 variant: "high"
-temperature: 0.2
 tools:
   read: true
   edit: false

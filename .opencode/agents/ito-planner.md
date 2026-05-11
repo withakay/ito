@@ -1,7 +1,7 @@
 ---
 description: Plans Ito orchestration runs from change metadata and gates
 mode: subagent
-model: "openai/gpt-5.4"
+model: "openai/gpt-5.5"
 variant: "high"
 temperature: 0.2
 tools:
