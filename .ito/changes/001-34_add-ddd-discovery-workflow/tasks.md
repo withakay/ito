@@ -40,7 +40,7 @@ ______________________________________________________________________
 - **Done When**: Built-in schema guidance can surface discovery artifacts or discovery sections without duplicating conflicting grammars across schemas.
 - **Requirements**: `ito-schemas:domain-discovery-artifacts`, `ito-schemas:canonical-discovery-summary-contract`, `ito-schemas:domain-documentation-location-discovery`, `ito-schemas:strategic-ddd-reference-bundle`, `ito-schemas:cross-schema-discovery-vocabulary`, `ito-schemas:discovery-artifact-optionality`
 - **Updated At**: 2026-05-11
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
