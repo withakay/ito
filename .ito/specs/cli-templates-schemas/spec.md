@@ -1,52 +1,48 @@
-# Spec: cli-templates-schemas
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+These requirements keep built-in workflow schema templates aligned with the validators that Ito actually runs and ensure the export command remains a faithful starting point for project-local customization.
 
-Define the `cli-templates-schemas` capability and its current-truth behavior. This spec captures requirements and scenarios (for example: Export built-in schema bundles).
+### Requirement: Built-in schema templates match configured validators
 
-## Requirements
+Built-in workflow schema templates MUST use a markdown shape that is accepted by the validators declared in the same schema directory's `validation.yaml`.
 
-### Requirement: Export built-in schema bundles
+- **Requirement ID**: cli-templates-schemas:template-validator-alignment
 
-The CLI SHALL provide a command to export embedded built-in workflow schemas to a target directory for local customization.
+#### Scenario: Minimalist specs parse as deltas
 
-#### Scenario: Export schemas to explicit directory
+- **GIVEN** the built-in `minimalist` schema configures `specs` as `validate_as: ito.delta-specs.v1`
+- **WHEN** the spec template is rendered into a new change
+- **THEN** the rendered file uses `## ADDED Requirements`, `### Requirement:`, and `#### Scenario:` headers (delta-spec shape)
+- **AND** does not use `## Stories` or `### Story:` headers
 
-- **WHEN** the user runs `ito templates schemas export -f '.ito/templates/schemas'`
-- **THEN** the CLI writes each available schema as `.ito/templates/schemas/<name>/`
-- **AND** each exported schema directory contains `schema.yaml` and `templates/*.md`
+#### Scenario: Event-driven specs parse as deltas
 
-#### Scenario: Export creates missing directories
+- **GIVEN** the built-in `event-driven` schema configures `specs` as `validate_as: ito.delta-specs.v1`
+- **WHEN** the spec template is rendered into a new change
+- **THEN** the rendered file uses delta requirement headers and does not use story-shaped headers
 
-- **WHEN** the export target directory does not exist
-- **THEN** the CLI creates required parent directories before writing files
+#### Scenario: Rendered samples pass strict validation
 
-#### Scenario: Export output is deterministic
+- **GIVEN** a synthetic minimal change is generated from each built-in schema using only its templates
+- **WHEN** `ito validate <change-id> --strict` runs against that synthetic change
+- **THEN** validation does not fail because of template/validator format incompatibility
 
-- **WHEN** export is run multiple times with unchanged embedded schemas
-- **THEN** output file content is byte-for-byte identical
+### Requirement: Exported schemas include validation configuration
 
-### Requirement: Export conflict behavior
+The `ito templates schemas export` command SHALL include `validation.yaml` (when present) for each exported schema directory.
 
-The CLI SHALL define predictable behavior when export targets already contain files.
+- **Requirement ID**: cli-templates-schemas:export-validation-assets
 
-#### Scenario: Export without force preserves existing files
+#### Scenario: Export includes validation.yaml
 
-- **WHEN** export target files already exist and `--force` is not provided
-- **THEN** existing files are not overwritten
-- **AND** the CLI reports which files were skipped
+- **GIVEN** a built-in schema directory contains `validation.yaml`
+- **WHEN** the user runs `ito templates schemas export -f <target>`
+- **THEN** the exported directory contains `validation.yaml` alongside `schema.yaml` and `templates/`
 
-#### Scenario: Export with force overwrites existing files
+#### Scenario: Export remains deterministic
 
-- **WHEN** export target files already exist and `--force` is provided
-- **THEN** existing schema files are overwritten with embedded defaults
-- **AND** the CLI reports overwritten files
-
-### Requirement: Discoverability of templates schemas commands
-
-The CLI SHALL make schema export functionality discoverable under the templates command surface.
-
-#### Scenario: Templates help shows schemas export
-
-- **WHEN** the user runs `ito templates --help` or `ito templates schemas --help`
-- **THEN** help output includes `schemas export` usage and flags
+- **GIVEN** the export command runs twice with no embedded changes
+- **WHEN** the user inspects the resulting `validation.yaml` files
+- **THEN** their content is byte-for-byte identical between runs
+<!-- ITO:END -->

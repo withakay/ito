@@ -27,6 +27,6 @@
 - [x] 001-30_proposal-viewer-html
 - [x] 001-31_tools-config-tmux
 - [x] 001-32_add-planning-workflow
-- [ ] 001-33_enhance-spec-driven-workflow-validation
+- [x] 001-33_enhance-spec-driven-workflow-validation
 - [ ] 001-34_add-ddd-discovery-workflow
 - [x] 001-37_fix-worktree-symlink-recovery
