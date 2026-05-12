@@ -25,7 +25,7 @@ Commands:
   sync          Validate and synchronize coordination worktree state
   grep          Search Ito change artifacts using a regular expression [aliases: gr]
   tasks         Manage implementation tasks for a change [aliases: ts]
-  plan          Initialize and track project roadmap [aliases: pl]
+  plan          Initialize and inspect the planning workspace [aliases: pl]
   agent         Generate instructions and context for AI coding agents [aliases: ag]
   ralph         Run an AI agent loop to implement a change [aliases: ra]
   init          Set up Ito in a project [aliases: in]
@@ -184,10 +184,10 @@ Options:
 
 ito plan
 --------
-Initialize and track project roadmap
+Initialize and inspect the planning workspace
 
-Creates planning structure for milestones and tracks overall progress
-across multiple changes and modules.
+Creates `.ito/planning/` for free-form planning documents and lists
+existing plans before proposal creation.
 
 Examples:
   ito plan init
@@ -196,8 +196,8 @@ Examples:
 Usage: ito plan <COMMAND>
 
 Commands:
-  init    Initialize planning structure [aliases: in]
-  status  Show current milestone progress [aliases: st]
+  init    Initialize planning workspace [aliases: in]
+  status  Show planning workspace status [aliases: st]
 
 Options:
   -h, --help

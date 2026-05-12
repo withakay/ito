@@ -15,8 +15,9 @@ Commands:
   init [options] [path]            Initialize Ito in your project
   update [options] [path]          Update Ito instruction files
   tasks                            Track execution tasks for a change
-  plan                             Project planning tools
-  state                            View and update planning/STATE.md
+  plan                             Initialize and inspect the planning
+                                   workspace
+  state                            View and update project state
   workflow                         Manage and run workflows
   list [options]                   List items (changes by default). Use --specs
                                    or --modules to list other items.

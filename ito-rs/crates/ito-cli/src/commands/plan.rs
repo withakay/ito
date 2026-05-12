@@ -1,8 +1,7 @@
 use crate::cli::{PlanAction, PlanArgs};
-use crate::cli_error::{CliError, CliResult, to_cli_error};
+use crate::cli_error::{CliError, CliResult};
 use crate::runtime::Runtime;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
-use ito_core::domain::planning as wf_planning;
 use ito_core::planning_init;
 
 pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
@@ -11,18 +10,27 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
     };
 
     let ito_path = rt.ito_path();
-    let ito_dir = ito_path
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| ".ito".to_string());
-    let current_date = ito_core::time::now_date();
-
     match action {
         PlanAction::Init => {
-            planning_init::init_planning_structure(ito_path, &current_date, &ito_dir)
-                .map_err(to_cli_error)?;
+            let status = planning_init::read_planning_workspace_status(ito_path).map_err(|e| {
+                CliError::msg(format!(
+                    "Could not inspect planning workspace: {e}. Check directory permissions and disk space."
+                ))
+            })?;
 
-            // Emit audit event for planning init
+            if status.planning_invalid {
+                return Err(CliError::msg(format!(
+                    "Could not create planning workspace: {} exists but is not a directory. Rename or remove it, then run `ito plan init`.",
+                    status.planning_dir.display()
+                )));
+            }
+
+            planning_init::init_planning_structure(ito_path).map_err(|e| {
+                CliError::msg(format!(
+                    "Could not create planning workspace: {e}. Check directory permissions and disk space."
+                ))
+            })?;
+
             if let Some(event) = AuditEventBuilder::new()
                 .entity(EntityType::Planning)
                 .entity_id("planning-structure")
@@ -36,44 +44,89 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
                 rt.emit_audit_event(&event);
             }
 
-            eprintln!("✔ Planning structure initialized");
-            println!("Created:");
-            println!("  - {}/planning/PROJECT.md", ito_dir);
-            println!("  - {}/planning/ROADMAP.md", ito_dir);
-            println!("  - {}/planning/STATE.md", ito_dir);
+            eprintln!("✔ Planning workspace available");
+            if status.research_invalid {
+                eprintln!(
+                    "Warning: {} exists but is not a directory. Rename or remove it before storing deep-dive research.",
+                    status.research_dir.display()
+                );
+            }
+            println!("Planning workspace:");
+            println!("  - {}", status.planning_dir.display());
+            println!(
+                "Create plan documents with /ito-plan; supporting research can live under {}.",
+                status.research_dir.display()
+            );
             Ok(())
         }
         PlanAction::Status => {
-            let contents = planning_init::read_planning_status(ito_path).map_err(|_| {
-                CliError::msg("ROADMAP.md not found. Run \"ito init\" or \"ito plan init\" first.")
+            let status = planning_init::read_planning_workspace_status(ito_path).map_err(|e| {
+                CliError::msg(format!(
+                    "Could not read planning workspace status: {e}. Check directory permissions and disk space."
+                ))
             })?;
 
-            let Some((milestone, status, phase)) = wf_planning::read_current_progress(&contents)
-            else {
-                return Err(CliError::msg(
-                    "Could not find current milestone section in ROADMAP.md",
-                ));
-            };
-            let phases = wf_planning::read_phase_rows(&contents);
-
-            println!("Current Progress");
+            println!("Planning Workspace");
             println!("────────────────────────────────────────");
-            println!("Milestone: {milestone}");
-            println!("Status: {status}");
-            println!("Phase: {phase}");
-            println!();
-            println!("Phases");
-            println!("────────────────────────────────────────");
-            for (num, name, st, _changes) in phases {
-                let icon = if st.eq_ignore_ascii_case("Complete") {
-                    "✓"
-                } else if st.eq_ignore_ascii_case("In Progress") {
-                    "●"
+            println!(
+                "Planning: {}",
+                if status.planning_exists {
+                    "available"
+                } else if status.planning_invalid {
+                    "invalid"
                 } else {
-                    "○"
-                };
-                println!("  {icon} Phase {num}: {name} [{st}]");
+                    "missing"
+                }
+            );
+            println!("Path: {}", status.planning_dir.display());
+            println!(
+                "Research: {}",
+                if status.research_exists {
+                    "available"
+                } else if status.research_invalid {
+                    "invalid"
+                } else {
+                    "missing"
+                }
+            );
+            println!("Research path: {}", status.research_dir.display());
+            println!();
+
+            if status.planning_invalid {
+                println!(
+                    "Planning path is not a directory. Rename or remove it, then run `ito plan init`."
+                );
+                return Ok(());
             }
+
+            if status.research_invalid {
+                println!(
+                    "Research path is not a directory. Rename or remove it before storing deep-dive research."
+                );
+                println!();
+            }
+
+            println!("Planning Documents");
+            println!("────────────────────────────────────────");
+
+            if !status.planning_exists {
+                println!("No planning workspace found. Run `ito plan init` to create one.");
+                return Ok(());
+            }
+
+            if status.planning_documents.is_empty() {
+                println!("No planning documents yet. Use /ito-plan to create the first plan.");
+                return Ok(());
+            }
+
+            for document in &status.planning_documents {
+                let name = document
+                    .file_name()
+                    .unwrap_or_else(|| document.as_os_str())
+                    .to_string_lossy();
+                println!("  - {name}");
+            }
+
             Ok(())
         }
     }

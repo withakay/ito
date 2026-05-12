@@ -33,6 +33,7 @@ The requested command is provided either:
    - If no command is provided, output a concise error: "Command is required" and show a one-line usage example
 
 2. **Resolve skill target**:
+   - If the command is `plan`, use CLI fallback. `ito plan init/status` are CLI workspace commands; `/ito-plan` is the exploratory planning workflow.
    - Build candidate skill id: `ito-${command}`
    - Determine if that skill is installed/available in this harness
      - OpenCode: check for a directory under `.opencode/skills/`
