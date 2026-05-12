@@ -1987,3 +1987,73 @@ check max lines (ito-rs).................................................Passed
 architecture guardrails..................................................Passed
 cargo deny (license/advisory checks).....................................Passed
 ```
+
+Iteration 16 re-verified the completed change from the dedicated change worktree. The ito-test-runner subagent was unavailable with ProviderModelNotFoundError, so make check was run directly and passed.
+
+```bash
+ito tasks status 001-34_add-ddd-discovery-workflow
+```
+
+```output
+Tasks for: 001-34_add-ddd-discovery-workflow
+──────────────────────────────────────────────────
+
+Progress: 6/6 done (6 complete, 0 shelved), 0 in-progress, 0 pending
+
+Ready
+
+Blocked
+```
+
+```bash
+ito audit reconcile --change 001-34_add-ddd-discovery-workflow
+```
+
+```output
+Reconcile: 001-34_add-ddd-discovery-workflow
+──────────────────────────────────────────────────
+No drift detected. Audit log and files are in sync.
+```
+
+```bash
+ito validate 001-34_add-ddd-discovery-workflow --strict
+```
+
+```output
+Change '001-34_add-ddd-discovery-workflow' is valid
+```
+
+```bash
+ito validate repo
+```
+
+```output
+Repository validation passed.
+```
+
+```bash
+make check
+```
+
+```output
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+check toml...............................................................Passed
+check yaml...............................................................Passed
+check json...............................................................Passed
+fix end of files.........................................................Passed
+mixed line ending........................................................Passed
+trim trailing whitespace.................................................Passed
+pretty format json.......................................................Passed
+yamllint.................................................................Passed
+markdownlint-cli2........................................................Passed
+cargo fmt (ito-rs).......................................................Passed
+forbid local version metadata in Cargo.toml..............................Passed
+cargo clippy (ito-rs)....................................................Passed
+cargo doc warnings as errors (ito-rs)....................................Passed
+cargo test with coverage (ito-rs)........................................Passed
+cargo test affected (ito-rs).............................................Passed
+check max lines (ito-rs).................................................Passed
+architecture guardrails..................................................Passed
+cargo deny (license/advisory checks).....................................Passed
+```
