@@ -1,121 +1,86 @@
 <!-- ITO:START -->
 ## ADDED Requirements
 
-These requirements extend workflow schema semantics and built-in spec-driven artifacts. They preserve the existing proposal → specs → design → tasks lifecycle and the existing `ito.delta-specs.v1` and `ito.tasks-tracking.v1` validator IDs.
+### Requirement: Domain discovery artifacts are schema-addressable
 
-### Requirement: Spec-driven proposal Change Shape block
+Ito MUST allow workflow schemas to define reusable domain-discovery artifacts or artifact sections that capture discovery depth, business/domain capability, model ownership, ubiquitous language, bounded contexts, technique-fit decisions, optional event-storming outputs, consistency requirements, and handoff summaries.
 
-The spec-driven proposal template SHALL include an optional Change Shape block with a defined vocabulary, and Ito MUST treat the block as advisory metadata when its values are valid.
+- **Requirement ID**: `ito-schemas:domain-discovery-artifacts`
 
-- **Requirement ID**: ito-schemas:spec-driven-change-shape
+#### Scenario: Schema declares discovery artifacts
 
-#### Scenario: Change Shape uses defined vocabulary
+- **GIVEN** a workflow schema defines a discovery artifact or template section
+- **WHEN** Ito loads the schema
+- **THEN** the discovery artifact is treated as part of the schema's artifact vocabulary
+- **AND** later instruction rendering can reference it as dependency context
 
-- **GIVEN** a spec-driven proposal includes a `## Change Shape` block
-- **WHEN** the block declares fields `Type`, `Risk`, `Stateful`, `Public Contract`, `Design Needed`, and `Design Reason`
-- **THEN** Ito recognizes:
-  - `Type ∈ {feature, fix, refactor, migration, contract, event-driven}`
-  - `Risk ∈ {low, medium, high}`
-  - `Stateful ∈ {yes, no}`
-  - `Design Needed ∈ {yes, no}`
-  - `Public Contract` as a comma-separated subset of `{none, openapi, jsonschema, asyncapi, cli, config}`
-  - `Design Reason` as free text
+### Requirement: Canonical discovery summary contract
 
-#### Scenario: Invalid Change Shape values produce warnings
+Ito MUST define a stable discovery summary contract that schema instructions, proposal scaffolding, review guidance, and validators can consume across artifact locations.
 
-- **GIVEN** a Change Shape block declares a value outside its defined vocabulary (for example `Risk: catastrophic`)
-- **WHEN** `ito validate <change-id>` runs
-- **THEN** validation reports a warning naming the field and the invalid value
-- **AND** the rest of validation continues unaffected
+- **Requirement ID**: `ito-schemas:canonical-discovery-summary-contract`
 
-#### Scenario: Missing Change Shape is allowed
+#### Scenario: Discovery summary can be embedded or standalone
 
-- **GIVEN** a spec-driven proposal omits the Change Shape block entirely
-- **WHEN** `ito validate <change-id>` runs
-- **THEN** validation does not require Change Shape and does not enable opt-in rules implicitly
+- **GIVEN** discovery output exists as a standalone `domain-discovery.md` artifact or as a `Domain Discovery Summary` section inside another planning/proposal artifact
+- **WHEN** Ito instructions or validators consume discovery context
+- **THEN** they can read stable fields for discovery depth, business/domain capability, primary bounded context, supporting contexts, canonical terms, rejected aliases, owned concepts, external concepts, relationships, relationship pattern or provisional unknown, translation required, consistency requirements, selected techniques, candidate Ito capabilities, evidence checked, proposed documentation updates, and open questions
+- **AND** they do not depend on a single physical file path when the schema declares an equivalent artifact section
 
-### Requirement: Spec-driven requirements support behavioral metadata
+### Requirement: Strategic DDD reference is bundle-addressable
 
-The spec-driven spec template SHALL support optional `Tags`, `Contract Refs`, `Rules / Invariants`, and `State Transitions` sections at the requirement level. Each is advisory metadata for downstream validators and agent guidance.
+Ito MUST allow workflow guidance to reference bundled strategic DDD material as supporting context without treating the full reference as a required artifact or validation contract.
 
-- **Requirement ID**: ito-schemas:behavioral-requirement-metadata
+- **Requirement ID**: `ito-schemas:strategic-ddd-reference-bundle`
 
-#### Scenario: Tags metadata is parsed as a comma-separated list
+#### Scenario: Instructions link to bundled DDD reference
 
-- **GIVEN** a requirement contains `- **Tags**: behavior, ui`
-- **WHEN** Ito parses the requirement
-- **THEN** the parsed requirement exposes the tags `behavior` and `ui` as structured metadata
+- **GIVEN** the strategic DDD guide is bundled as reference material
+- **WHEN** Ito renders domain-discovery or review guidance
+- **THEN** the guidance can point agents at the reference for deeper examples and heuristics
+- **AND** schema validation continues to use the compact canonical discovery summary contract
 
-#### Scenario: Contract Refs metadata is parsed as a list of typed references
+### Requirement: Domain documentation location discovery
 
-- **GIVEN** a requirement contains `- **Contract Refs**: openapi:POST /v1/password-reset, jsonschema:PasswordResetRequest`
-- **WHEN** Ito parses the requirement
-- **THEN** each reference is preserved as a typed pair `(scheme, identifier)` where `scheme ∈ {openapi, jsonschema, asyncapi, cli, config}` and the identifier is the trimmed remainder
+Ito schema and instruction guidance SHALL support discovering existing domain documentation locations before creating new context or ADR files.
 
-#### Scenario: Rules and State Transitions are optional
+- **Requirement ID**: `ito-schemas:domain-documentation-location-discovery`
 
-- **GIVEN** a requirement governs stateful behavior
-- **WHEN** the requirement includes `#### Rules / Invariants` and a `#### State Transitions` markdown table
-- **THEN** Ito preserves both as requirement-scoped sections without making them mandatory for non-stateful requirements
+#### Scenario: Context map chooses documentation scope
 
-### Requirement: Validation rules extension
+- **GIVEN** a repository contains a root `CONTEXT-MAP.md` that points to context-specific `CONTEXT.md` and `docs/adr/` locations
+- **WHEN** discovery captures a term or decision for a specific bounded context
+- **THEN** instructions guide the agent to use that context-specific location rather than defaulting to root-level documentation
 
-A workflow schema's `validation.yaml` MUST allow a backward-compatible `rules:` map under any artifact entry and under a new `proposal:` entry. Rule names are stable identifiers that opt the artifact into additional checks performed by an existing validator. v1 introduces no new validator IDs.
+#### Scenario: Single-context repository uses root docs lazily
 
-- **Requirement ID**: ito-schemas:validation-rules-extension
+- **GIVEN** no `CONTEXT-MAP.md` exists
+- **WHEN** discovery captures durable domain knowledge
+- **THEN** instructions guide the agent to use root `CONTEXT.md` and root `docs/adr/` if they exist
+- **AND** to create them only when the captured term or ADR-worthy decision justifies it
 
-#### Scenario: Rules extend an existing artifact validator
+### Requirement: Cross-schema discovery vocabulary
 
-- **GIVEN** a schema declares
-  ```
-  artifacts:
-    specs:
-      validate_as: ito.delta-specs.v1
-      rules:
-        scenario_grammar: error
-        contract_refs: warn
-        ui_mechanics: warn
-  ```
-- **WHEN** Ito loads validation configuration
-- **THEN** the existing `ito.delta-specs.v1` validator runs the additional rules at the configured severity
-- **AND** diagnostics from each rule include both the validator id and the rule id
+Built-in schemas that support proposal-oriented work SHALL share a compatible discovery vocabulary so domain-discovery outputs can feed either `spec-driven` or `event-driven` proposals without semantic drift.
 
-#### Scenario: Single `validate_as` schemas remain valid
+- **Requirement ID**: `ito-schemas:cross-schema-discovery-vocabulary`
 
-- **GIVEN** a schema declares only `validate_as: ito.delta-specs.v1` with no `rules:` key
-- **WHEN** Ito loads the configuration
-- **THEN** validation runs exactly as it does today
+#### Scenario: Spec-driven and event-driven share discovery semantics
 
-#### Scenario: Unknown rule names are reported but do not abort
+- **GIVEN** a user captures commands, domain events, actors, policies, aggregates, and bounded contexts during discovery
+- **WHEN** the user chooses either `spec-driven` or `event-driven` as the final schema
+- **THEN** the workflow reuses those concepts without forcing the user to rename or remodel them for the chosen schema
 
-- **GIVEN** a `rules:` map references an unknown rule name
-- **WHEN** Ito loads the configuration
-- **THEN** Ito reports a configuration warning naming the unknown rule
-- **AND** the remaining known rules still run
+### Requirement: Discovery artifact optionality
 
-#### Scenario: Proposal artifact entry is supported
+Ito SHALL allow discovery artifacts or sections to be optional and technique-specific so a schema can request ubiquitous language and bounded context mapping without requiring event storming for every proposal.
 
-- **GIVEN** a schema declares
-  ```
-  proposal:
-    validate_as: ito.delta-specs.v1
-    rules:
-      capabilities_consistency: error
-  ```
-- **WHEN** Ito loads validation configuration
-- **THEN** the proposal artifact path resolves to `proposal.md` for that change
-- **AND** the configured rule executes against the parsed proposal
+- **Requirement ID**: `ito-schemas:discovery-artifact-optionality`
 
-### Requirement: Built-in spec-driven schema is opt-in for new rules
+#### Scenario: Schema renders only selected discovery sections
 
-The built-in `spec-driven` `validation.yaml` MUST NOT enable any of the new opt-in rules by default in this change.
-
-- **Requirement ID**: ito-schemas:opt-in-rules-default
-
-#### Scenario: Default spec-driven schema runs only existing validators
-
-- **GIVEN** a project that has not customized `spec-driven/validation.yaml`
-- **WHEN** the user creates a new change with the default schema
-- **THEN** validation runs the existing `ito.delta-specs.v1` and `ito.tasks-tracking.v1` checks only
-- **AND** new rules from this change can be enabled by exporting the schema and editing `.ito/templates/schemas/spec-driven/validation.yaml`
+- **GIVEN** a discovery handoff includes a glossary and bounded context map but no event-storming snapshot
+- **WHEN** Ito renders proposal or design instructions for the final schema
+- **THEN** the instructions include the available discovery context
+- **AND** they do not treat the missing event-storming snapshot as an error unless the schema explicitly requires it
 <!-- ITO:END -->
