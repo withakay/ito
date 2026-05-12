@@ -10,7 +10,9 @@ fn init_planning_structure_creates_only_workspace() {
     planning_init::init_planning_structure(ito_path).unwrap();
 
     let plan_dir = planning_dir(ito_path);
+    let research = research_dir(ito_path);
     assert!(plan_dir.exists(), "planning dir should exist");
+    assert!(research.exists(), "research dir should exist");
     // Regression guard: the old planning bootstrap created these fixed files.
     assert!(!plan_dir.join("PROJECT.md").exists());
     assert!(!plan_dir.join("ROADMAP.md").exists());
@@ -55,6 +57,7 @@ fn read_planning_workspace_status_lists_plan_documents() {
     std::fs::write(plan_dir.join("topic.md"), "# Topic\n").unwrap();
     std::fs::write(plan_dir.join("alpha.md"), "# Alpha\n").unwrap();
     std::fs::write(plan_dir.join("BETA.MD"), "# Beta\n").unwrap();
+    std::fs::write(plan_dir.join("notes.markdown"), "# Notes\n").unwrap();
     std::fs::write(plan_dir.join("notes.txt"), "not a plan").unwrap();
     std::fs::create_dir(plan_dir.join("nested.md")).unwrap();
 
@@ -68,6 +71,7 @@ fn read_planning_workspace_status_lists_plan_documents() {
         vec![
             plan_dir.join("BETA.MD"),
             plan_dir.join("alpha.md"),
+            plan_dir.join("notes.markdown"),
             plan_dir.join("topic.md")
         ]
     );

@@ -64,6 +64,20 @@ pub fn init_planning_structure(ito_path: &Path) -> CoreResult<()> {
     let planning = planning_dir(ito_path);
     std::fs::create_dir_all(&planning)
         .map_err(|e| workspace_io_error("creating planning workspace", &planning, e))?;
+    let research = research_dir(ito_path);
+    match std::fs::metadata(&research) {
+        Ok(metadata) if metadata.is_dir() => {}
+        Ok(_) => {}
+        Err(err) if err.kind() == ErrorKind::NotFound => std::fs::create_dir_all(&research)
+            .map_err(|e| workspace_io_error("creating research workspace", &research, e))?,
+        Err(err) => {
+            return Err(workspace_io_error(
+                "inspecting research workspace",
+                &research,
+                err,
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -128,10 +142,11 @@ pub fn read_planning_workspace_status(ito_path: &Path) -> CoreResult<PlanningWor
             let file_type = entry.file_type().map_err(|e| {
                 workspace_io_error("reading planning workspace entry metadata", &path, e)
             })?;
-            let is_markdown = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
+            let mut is_markdown = false;
+            if let Some(ext) = path.extension().and_then(|ext| ext.to_str()) {
+                is_markdown =
+                    ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown");
+            }
             if is_markdown && file_type.is_file() {
                 planning_documents.push(path);
             }

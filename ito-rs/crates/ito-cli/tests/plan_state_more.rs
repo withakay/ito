@@ -100,6 +100,7 @@ fn plan_init_creates_structure() {
         out.stdout
             .contains(&ctx.repo.path().join(".ito/research").display().to_string())
     );
+    assert!(ctx.repo.path().join(".ito/research").is_dir());
     assert!(!ctx.repo.path().join(".ito/planning/PROJECT.md").exists());
     assert!(!ctx.repo.path().join(".ito/planning/ROADMAP.md").exists());
     assert!(!ctx.repo.path().join(".ito/planning/STATE.md").exists());
@@ -253,6 +254,11 @@ fn plan_status_lists_markdown_documents() {
     std::fs::create_dir_all(ctx.repo.path().join(".ito/planning")).unwrap();
     std::fs::create_dir_all(ctx.repo.path().join(".ito/research")).unwrap();
     std::fs::write(ctx.repo.path().join(".ito/planning/topic.md"), "# Topic\n").unwrap();
+    std::fs::write(
+        ctx.repo.path().join(".ito/planning/notes.markdown"),
+        "# Notes\n",
+    )
+    .unwrap();
     std::fs::write(ctx.repo.path().join(".ito/planning/notes.txt"), "ignore\n").unwrap();
 
     let out = run_rust_candidate(
@@ -264,5 +270,6 @@ fn plan_status_lists_markdown_documents() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("Research: available"));
     assert!(out.stdout.contains("topic.md"));
+    assert!(out.stdout.contains("notes.markdown"));
     assert!(!out.stdout.contains("notes.txt"));
 }
