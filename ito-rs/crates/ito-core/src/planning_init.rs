@@ -132,7 +132,9 @@ pub fn summarize_planning_workspace(status: &PlanningWorkspaceStatus) -> Plannin
 ///
 /// # Errors
 ///
-/// Returns an error if the planning workspace exists but cannot be read.
+/// Returns an error if:
+/// - The planning workspace exists but cannot be read because directory listing or entry metadata access fails.
+/// - The research workspace path cannot be inspected because filesystem metadata access fails.
 pub fn read_planning_workspace_status(ito_path: &Path) -> CoreResult<PlanningWorkspaceStatus> {
     let planning = planning_dir(ito_path);
     let planning_state = inspect_workspace_path(&planning, "planning")?;

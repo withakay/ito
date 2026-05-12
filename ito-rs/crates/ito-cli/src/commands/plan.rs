@@ -76,14 +76,17 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
             println!("Research path: {}", summary.research_dir.display());
             println!();
 
-            if let Some(notice) = summary.planning_notice {
+            if let Some(notice) = &summary.planning_notice {
                 println!("{notice}");
-                return Ok(());
             }
 
-            if let Some(notice) = summary.research_notice {
+            if let Some(notice) = &summary.research_notice {
                 println!("{notice}");
                 println!();
+            }
+
+            if summary.planning_notice.is_some() {
+                return Ok(());
             }
 
             println!("Planning Documents");
