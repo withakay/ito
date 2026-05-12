@@ -59,7 +59,10 @@ struct WorkspacePathState {
 ///
 /// # Errors
 ///
-/// Returns an error if the planning workspace cannot be created.
+/// Returns an error if:
+/// - The planning workspace cannot be created because the path is not writable or conflicts with a file.
+/// - The research workspace metadata cannot be inspected because of a filesystem access error.
+/// - The research workspace is missing and cannot be created because the parent path is not writable.
 pub fn init_planning_structure(ito_path: &Path) -> CoreResult<()> {
     let planning = planning_dir(ito_path);
     std::fs::create_dir_all(&planning)
@@ -81,7 +84,11 @@ pub fn init_planning_structure(ito_path: &Path) -> CoreResult<()> {
     Ok(())
 }
 
-/// Convert planning workspace status into adapter-ready rendering data.
+/// Convert a [`PlanningWorkspaceStatus`] into a [`PlanningWorkspaceSummary`] for CLI rendering.
+///
+/// Use this after [`read_planning_workspace_status`] when a command needs stable
+/// user-facing labels, notices, and document names without re-encoding the
+/// workspace-state branching in the adapter layer.
 pub fn summarize_planning_workspace(status: &PlanningWorkspaceStatus) -> PlanningWorkspaceSummary {
     let document_names = status
         .planning_documents
