@@ -1,27 +1,25 @@
-# Ito Slash Command Specification
+<!-- ITO:START -->
+## ADDED Requirements
 
-## Purpose
+### Requirement: Planning slash command installation
 
-Define the `ito-slash-command` capability, including required behavior and validation scenarios, so it remains stable and testable.
+The system SHALL install a dedicated `ito-plan` slash command wrapper during Ito initialization and updates for supported agent harnesses. The wrapper MUST load the `ito-plan` skill and pass the user request through unchanged.
 
+- **Requirement ID**: `ito-slash-command:planning-slash-command-installation`
 
-## Requirements
+#### Scenario: Planning slash command installed during init
 
-### Requirement: Automatic installation during ito init
+- **WHEN** a supported harness installs Ito command assets
+- **THEN** the harness command directory includes an `ito-plan` command file
+- **AND** the command file loads the `ito-plan` skill
+- **AND** the command passes the user-provided planning topic or request through to that skill unchanged
+- **AND** the installed command is ready for users to invoke with `/ito-plan`
 
-The ito.md slash command MUST be automatically installed in the agent harness when ito init is run. The installation SHALL place the command file in the correct location for the harness to recognize it.
+#### Scenario: Planning slash command installed during updates
 
-#### Scenario: Slash command installed during init
-
-- **WHEN** user runs 'ito init'
-- **THEN** ito installs ito.md slash command to `.opencode/commands/ito.md`
-- **AND** command file is created with proper format
-- **AND** agent harness recognizes the command
-- **AND** user can invoke '/ito <command>' syntax
-
-#### Scenario: Command file creation
-
-- **WHEN** ito init creates the slash command
-- **THEN** file path is `.opencode/commands/ito.md`
-- **AND** file contains slash command metadata and invocation logic
-- **AND** file has correct permissions for agent harness to read
+- **WHEN** a supported harness updates Ito command assets
+- **THEN** the harness command directory includes an `ito-plan` command file
+- **AND** the command file loads the `ito-plan` skill
+- **AND** the command passes the user-provided planning topic or request through unchanged
+- **AND** the installed command is ready for users to invoke with `/ito-plan`
+<!-- ITO:END -->
