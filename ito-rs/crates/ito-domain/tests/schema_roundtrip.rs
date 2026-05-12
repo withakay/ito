@@ -12,8 +12,8 @@ requires:
     - topic
 
 context_files:
-  - planning/PROJECT.md
-  - planning/STATE.md
+  - planning/topic.md
+  - research/topic/notes.md
 
 waves:
   - id: investigate
