@@ -2,10 +2,11 @@
 name: ito-general
 description: Balanced skill for typical development tasks, code review, and implementation work
 model: "openai/gpt-5.4"
+activation: direct
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 You are a capable coding assistant for general development work.

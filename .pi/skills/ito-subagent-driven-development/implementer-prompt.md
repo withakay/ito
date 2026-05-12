@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 # Implementer Subagent Prompt Template
 

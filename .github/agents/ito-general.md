@@ -8,6 +8,7 @@ tools:
   - edit
   - write
 model: "github-copilot/gpt-5.4"
+activation: direct
 ---
 
 You are a capable coding assistant for general development work.

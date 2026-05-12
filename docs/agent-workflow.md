@@ -105,6 +105,10 @@ Rules of thumb:
 
 Also: when testing changes, use the binary built in the same worktree you edited (worktrees do not share `target/`).
 
+## Agent Adapter Maintenance
+
+After upgrading Ito-managed skills, commands, or agent templates, ask your agent to run `/ito-update-repo --dry-run`. This still refreshes managed files, but stops before deleting anything while it audits stale stamps, missing stamps, and orphaned Ito-managed assets.
+
 ## Practical prompting (what to ask the agent)
 
 Good prompts include:

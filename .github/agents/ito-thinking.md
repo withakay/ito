@@ -9,6 +9,7 @@ tools:
   - write
   - fetch
 model: "github-copilot/gpt-5.4"
+activation: direct
 ---
 
 You are an expert coding assistant for complex problems requiring deep reasoning.

@@ -13,10 +13,11 @@ tools:
   grep: true
   task: false
   todowrite: false
+activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 You are the Ito Reviewer. Review worker output against the assigned change, gate, and project rules.
 
 ## Rules
