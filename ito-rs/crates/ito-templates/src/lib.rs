@@ -481,6 +481,9 @@ fn find_marker_index(content: &str, marker: &str, from_index: usize) -> Option<u
 }
 
 #[cfg(test)]
+mod agent_surface_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

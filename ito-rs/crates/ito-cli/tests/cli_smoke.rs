@@ -183,7 +183,7 @@ artifacts:
         "stdout={}",
         out.stdout
     );
-    assert!(out.stdout.contains("All artifacts complete!"));
+    assert!(out.stdout.contains("All required artifacts complete!"));
 
     write(
         repo.path()

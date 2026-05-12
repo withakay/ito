@@ -103,7 +103,7 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
     if status.is_complete {
-        println!("\nAll artifacts complete!");
+        println!("\nAll required artifacts complete!");
     }
 
     Ok(())
