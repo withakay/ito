@@ -81,3 +81,39 @@ before=$(git diff --binary | shasum); ito init --update --tools all >/tmp/ito-up
 ```output
 idempotent: yes
 ```
+
+Aligned the template skill frontmatter description with generated harness outputs, rebuilt/installed Ito, and refreshed generated assets again.
+
+```bash
+ito --version
+```
+
+```output
+0.1.31-local.202605121744
+```
+
+```bash
+before=$(git diff --binary | shasum); ito init --update --tools all >/tmp/ito-update-demo-post-review.log 2>&1; after=$(git diff --binary | shasum); if [ "$before" = "$after" ]; then printf 'idempotent: yes\n'; else printf 'idempotent: no\nbefore=%s\nafter=%s\n' "$before" "$after"; exit 1; fi
+```
+
+```output
+idempotent: yes
+```
+
+Aligned the command template frontmatter with generated command/prompt wrappers, rebuilt/installed Ito, and refreshed generated assets.
+
+```bash
+ito --version
+```
+
+```output
+0.1.31-local.202605121749
+```
+
+```bash
+before=$(git diff --binary | shasum); ito init --update --tools all >/tmp/ito-update-demo-command-fix.log 2>&1; after=$(git diff --binary | shasum); if [ "$before" = "$after" ]; then printf 'idempotent: yes\n'; else printf 'idempotent: no\nbefore=%s\nafter=%s\n' "$before" "$after"; exit 1; fi
+```
+
+```output
+idempotent: yes
+```
