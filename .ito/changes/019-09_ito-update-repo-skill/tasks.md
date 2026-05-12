@@ -132,8 +132,8 @@ ______________________________________________________________________
 - **Verify**: Second invocation is a no-op; `git status` only shows the deletions the user approved.
 - **Done When**: Re-run idempotence holds.
 - **Requirements**: ito-update-repo-skill:rerun-idempotent
-- **Updated At**: 2026-04-25
-- **Status**: [-] shelved
+- **Updated At**: 2026-05-12
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
