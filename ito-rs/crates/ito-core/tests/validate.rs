@@ -52,6 +52,73 @@ ok
 }
 
 #[test]
+fn validate_spec_markdown_warns_on_delta_headings_in_main_specs() {
+    let md = r#"
+# Auth
+
+## Purpose
+
+This current-truth spec describes authentication behavior for users.
+
+## Requirements
+
+### Requirement: Login
+The system SHALL let users log in.
+
+#### Scenario: Login succeeds
+- **WHEN** valid credentials are provided
+- **THEN** the user is authenticated
+
+## ADDED Requirements
+
+## MODIFIED Requirements
+
+## REMOVED Requirements
+
+## RENAMED Requirements
+"#;
+
+    let expected_lines: Vec<u32> = md
+        .lines()
+        .enumerate()
+        .filter_map(|(idx, line)| {
+            matches!(
+                line.trim(),
+                "## ADDED Requirements"
+                    | "## MODIFIED Requirements"
+                    | "## REMOVED Requirements"
+                    | "## RENAMED Requirements"
+            )
+            .then_some((idx + 1) as u32)
+        })
+        .collect();
+
+    let non_strict = validate_spec_markdown(md, false);
+    assert!(non_strict.valid);
+    let warning_lines: Vec<u32> = non_strict
+        .issues
+        .iter()
+        .filter(|issue| {
+            issue.level == "WARNING" && issue.message.contains("delta operation headings")
+        })
+        .filter_map(|issue| issue.line)
+        .collect();
+    assert_eq!(warning_lines, expected_lines);
+
+    let strict = validate_spec_markdown(md, true);
+    assert!(!strict.valid);
+    let error_lines: Vec<u32> = strict
+        .issues
+        .iter()
+        .filter(|issue| {
+            issue.level == "ERROR" && issue.message.contains("delta operation headings")
+        })
+        .filter_map(|issue| issue.line)
+        .collect();
+    assert_eq!(error_lines, expected_lines);
+}
+
+#[test]
 fn validate_change_requires_at_least_one_delta() {
     let td = tempfile::tempdir().unwrap();
     let ito = td.path().join(".ito");
