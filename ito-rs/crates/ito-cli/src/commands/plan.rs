@@ -66,64 +66,35 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
                 ))
             })?;
 
+            let summary = planning_init::summarize_planning_workspace(&status);
+
             println!("Planning Workspace");
             println!("────────────────────────────────────────");
-            println!(
-                "Planning: {}",
-                if status.planning_exists {
-                    "available"
-                } else if status.planning_invalid {
-                    "invalid"
-                } else {
-                    "missing"
-                }
-            );
-            println!("Path: {}", status.planning_dir.display());
-            println!(
-                "Research: {}",
-                if status.research_exists {
-                    "available"
-                } else if status.research_invalid {
-                    "invalid"
-                } else {
-                    "missing"
-                }
-            );
-            println!("Research path: {}", status.research_dir.display());
+            println!("Planning: {}", summary.planning_status);
+            println!("Path: {}", summary.planning_dir.display());
+            println!("Research: {}", summary.research_status);
+            println!("Research path: {}", summary.research_dir.display());
             println!();
 
-            if status.planning_invalid {
-                println!(
-                    "Planning path is not a directory. Rename or remove it, then run `ito plan init`."
-                );
+            if let Some(notice) = summary.planning_notice {
+                println!("{notice}");
                 return Ok(());
             }
 
-            if status.research_invalid {
-                println!(
-                    "Research path is not a directory. Rename or remove it before storing deep-dive research."
-                );
+            if let Some(notice) = summary.research_notice {
+                println!("{notice}");
                 println!();
             }
 
             println!("Planning Documents");
             println!("────────────────────────────────────────");
 
-            if !status.planning_exists {
-                println!("No planning workspace found. Run `ito plan init` to create one.");
+            if let Some(notice) = summary.documents_notice {
+                println!("{notice}");
                 return Ok(());
             }
 
-            if status.planning_documents.is_empty() {
-                println!("No planning documents yet. Use /ito-plan to create the first plan.");
-                return Ok(());
-            }
-
-            for document in &status.planning_documents {
-                let name = document
-                    .file_name()
-                    .unwrap_or_else(|| document.as_os_str())
-                    .to_string_lossy();
+            for name in summary.document_names {
                 println!("  - {name}");
             }
 

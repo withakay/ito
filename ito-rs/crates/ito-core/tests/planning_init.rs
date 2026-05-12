@@ -113,3 +113,42 @@ fn read_planning_workspace_status_reports_conflicting_research_file() {
     assert!(!status.research_exists);
     assert!(status.research_invalid);
 }
+
+#[test]
+fn summarize_planning_workspace_moves_status_logic_to_core() {
+    let tmp = tempdir().unwrap();
+    let ito_path = tmp.path();
+    let plan_dir = planning_dir(ito_path);
+    std::fs::create_dir_all(&plan_dir).unwrap();
+    std::fs::write(plan_dir.join("topic.md"), "# Topic\n").unwrap();
+    std::fs::write(research_dir(ito_path), "not a directory\n").unwrap();
+
+    let status = planning_init::read_planning_workspace_status(ito_path).expect("status");
+    let summary = planning_init::summarize_planning_workspace(&status);
+
+    assert_eq!(summary.planning_status, "available");
+    assert_eq!(summary.research_status, "invalid");
+    assert_eq!(
+        summary.research_notice.as_deref(),
+        Some(
+            "Research path is not a directory. Rename or remove it before storing deep-dive research."
+        )
+    );
+    assert_eq!(summary.document_names, vec!["topic.md"]);
+    assert_eq!(summary.documents_notice, None);
+}
+
+#[test]
+fn init_planning_structure_errors_include_workspace_path() {
+    let tmp = tempdir().unwrap();
+    let ito_path = tmp.path();
+    let planning = planning_dir(ito_path);
+
+    std::fs::write(&planning, "not a directory\n").unwrap();
+
+    let err = planning_init::init_planning_structure(ito_path).expect_err("expected error");
+    let rendered = err.to_string();
+    assert!(rendered.contains("creating planning workspace"));
+    assert!(rendered.contains(&planning.display().to_string()));
+    assert!(rendered.contains("check permissions and parent directories"));
+}
