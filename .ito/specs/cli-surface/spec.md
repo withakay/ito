@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Cli Surface
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli surface.
+
+## Requirements
 
 ### Requirement: Preferred help surface is small and stable
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Orchestrate Instruction
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate instruction.
+
+## Requirements
 
 ### Requirement: Orchestrate instruction artifact type
 

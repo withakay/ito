@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Flexible Id Parser
+
+## Purpose
+
+This spec defines the current behavior and requirements for flexible id parser.
+
+## Requirements
 
 ### Requirement: Parse loose change ID formats
 
@@ -59,7 +65,6 @@ The parser SHALL be implemented as a standalone utility function that can be use
 - **WHEN** parsing a valid sub-module change ID like `24.1-3_foo`
 - **THEN** parser returns object with `{ module_id: "024", sub_module_id: "024.01", change_num: "03", name: "foo", canonical: "024.01-03_foo" }`
 
-## ADDED Requirements
 
 ### Requirement: Parse loose sub-module ID formats
 

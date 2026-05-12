@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Execution Logs
+
+## Purpose
+
+This spec defines the current behavior and requirements for execution logs.
+
+## Requirements
 
 ### Requirement: Ito writes structured execution logs to a central location
 

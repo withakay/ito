@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Cli Surface
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo cli surface.
+
+## Requirements
 
 ### Requirement: ito validate gains a repo subcommand
 

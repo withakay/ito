@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Execution Context
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph execution context.
+
+## Requirements
 
 ### Requirement: Change-scoped Ralph runs include execution context
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Change Repository
+
+## Purpose
+
+This spec defines the current behavior and requirements for change repository.
+
+## Requirements
 
 ### Requirement: ChangeRepository provides lifecycle-aware canonical access
 

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Artifact Front Matter
+
+## Purpose
+
+This spec defines the current behavior and requirements for artifact front matter.
+
+## Requirements
 
 ### Requirement: Module and change artifacts support YAML front matter metadata
 

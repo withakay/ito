@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Backend Client Runtime
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend client runtime.
+
+## Requirements
 
 ### Requirement: Backend runtime provides repository-ready remote clients
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Slash Command
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito slash command.
+
+## Requirements
 
 ### Requirement: Planning slash command installation
 

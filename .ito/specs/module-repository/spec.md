@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Module Repository
+
+## Purpose
+
+This spec defines the current behavior and requirements for module repository.
+
+## Requirements
 
 ### Requirement: ModuleRepository supports runtime-selected implementations
 
@@ -33,7 +39,6 @@
 - **WHEN** a caller loads sub-module `024.01` through `ModuleRepository`
 - **THEN** the repository returns the sub-module from the selected remote-backed implementation
 
-## ADDED Requirements
 
 ### Requirement: ModuleRepository provides sub-module access
 

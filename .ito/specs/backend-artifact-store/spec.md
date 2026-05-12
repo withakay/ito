@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Backend Artifact Store
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend artifact store.
+
+## Requirements
 
 ### Requirement: Backend artifact store accepts sub-module change IDs
 

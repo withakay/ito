@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Sub Module
+
+## Purpose
+
+This spec defines the current behavior and requirements for sub module.
+
+## Requirements
 
 ### Requirement: SubModule is a first-class named entity within a module
 

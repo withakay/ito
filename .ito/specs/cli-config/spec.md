@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Config
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli config.
+
+## Requirements
 
 ### Requirement: Validate current change worktree
 

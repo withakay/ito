@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Coordination Worktree
+
+## Purpose
+
+This spec defines the current behavior and requirements for coordination worktree.
+
+## Requirements
 
 ### Requirement: Sync validation verifies exact coordination wiring
 

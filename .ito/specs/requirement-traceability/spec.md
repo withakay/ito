@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Requirement Traceability
+
+## Purpose
+
+This spec defines the current behavior and requirements for requirement traceability.
+
+## Requirements
 
 ### Requirement: Change-local requirement references
 

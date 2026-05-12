@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Workflow Convergence
+
+## Purpose
+
+This spec defines the current behavior and requirements for workflow convergence.
+
+## Requirements
 
 ### Requirement: Domain-discovery entrypoint
 

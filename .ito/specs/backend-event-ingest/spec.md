@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Backend Event Ingest
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend event ingest.
+
+## Requirements
 
 ### Requirement: Backend ingests audit event batches
 

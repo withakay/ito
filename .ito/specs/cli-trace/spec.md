@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli Trace
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli trace.
+
+## Requirements
 
 ### Requirement: Trace command renders requirement coverage summary
 

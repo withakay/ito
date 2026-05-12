@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Gates
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate gates.
+
+## Requirements
 
 ### Requirement: Default gate pipeline
 

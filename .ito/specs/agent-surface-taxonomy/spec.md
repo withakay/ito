@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Agent Surface Taxonomy
+
+## Purpose
+
+This spec defines the current behavior and requirements for agent surface taxonomy.
+
+## Requirements
 
 ### Requirement: Ito agents are classified by activation mode
 

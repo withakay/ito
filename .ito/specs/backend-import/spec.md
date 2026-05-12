@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Import
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend import.
+
+## Requirements
 
 ### Requirement: CLI imports local active and archived changes into backend state
 

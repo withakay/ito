@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Coordination Rules
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo coordination rules.
+
+## Requirements
 
 ### Requirement: Rule coordination/symlinks-wired enforces worktree symlink layout
 

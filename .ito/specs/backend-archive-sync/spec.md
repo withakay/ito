@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Archive Sync
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend archive sync.
+
+## Requirements
 
 ### Requirement: Backend-mode archive materializes an immutable archived change in git
 

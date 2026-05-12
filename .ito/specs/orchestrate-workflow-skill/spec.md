@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Workflow Skill
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate workflow skill.
+
+## Requirements
 
 ### Requirement: Workflow skill loaded by convention
 

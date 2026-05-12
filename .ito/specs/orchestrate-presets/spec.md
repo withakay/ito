@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Presets
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate presets.
+
+## Requirements
 
 ### Requirement: Built-in preset library
 

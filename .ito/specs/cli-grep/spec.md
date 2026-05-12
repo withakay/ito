@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli Grep
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli grep.
+
+## Requirements
 
 ### Requirement: CLI provides an ito grep command
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Backend Change Sync
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend change sync.
+
+## Requirements
 
 ### Requirement: Backend change sync preserves sub-module ID component during sync
 

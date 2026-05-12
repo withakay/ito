@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Config Defaults
+
+## Purpose
+
+This spec defines the current behavior and requirements for config defaults.
+
+## Requirements
 
 ### Requirement: Coordination sync interval default
 

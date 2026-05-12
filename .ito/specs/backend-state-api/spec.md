@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend State Api
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend state api.
+
+## Requirements
 
 ### Requirement: REST transport uses safe reads and explicit mutation verbs
 

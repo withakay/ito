@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Agent Instructions
+
+## Purpose
+
+This spec defines the current behavior and requirements for agent instructions.
+
+## Requirements
 
 ### Requirement: Apply instruction generation is offline-friendly by default
 

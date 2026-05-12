@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Container Image
+
+## Purpose
+
+This spec defines the current behavior and requirements for container image.
+
+## Requirements
 
 ### Requirement: Multi-stage Dockerfile produces minimal image
 

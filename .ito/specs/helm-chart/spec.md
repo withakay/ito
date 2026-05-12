@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Helm Chart
+
+## Purpose
+
+This spec defines the current behavior and requirements for helm chart.
+
+## Requirements
 
 ### Requirement: Helm chart provides a deployable ito-backend
 

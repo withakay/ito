@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Config Schema
+
+## Purpose
+
+This spec defines the current behavior and requirements for config schema.
+
+## Requirements
 
 ### Requirement: Repository-tracked generated config schema artifact
 

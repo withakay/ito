@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Engine
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo engine.
+
+## Requirements
 
 ### Requirement: Engine loads ItoConfig and filters rules by active gates
 

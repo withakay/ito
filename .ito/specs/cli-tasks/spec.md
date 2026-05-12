@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli Tasks
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli tasks.
+
+## Requirements
 
 ### Requirement: `ito tasks` uses selected task persistence in remote mode
 

@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Cli Update
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli update.
+
+## Requirements
 
 ### Requirement: Update Is Idempotent and Non-Destructive
 
@@ -20,7 +26,6 @@ The system SHALL make `ito update` idempotent and non-destructive for user-owned
 - **AND** SHALL only change files that are Ito-managed or marker-managed
 - **AND** SHALL NOT modify content sitting outside the `<!-- ITO:START -->` / `<!-- ITO:END -->` managed block of any installed asset
 
-## ADDED Requirements
 
 ### Requirement: Harness Manifest Installs Are Marker-Scoped
 

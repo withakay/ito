@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate User Prompt
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate user prompt.
+
+## Requirements
 
 ### Requirement: Orchestrate user prompt schema
 

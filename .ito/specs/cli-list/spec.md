@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli List
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli list.
+
+## Requirements
 
 ### Requirement: `ito list-archive` lists archived changes
 

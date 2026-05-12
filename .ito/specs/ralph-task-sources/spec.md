@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Task Sources
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph task sources.
+
+## Requirements
 
 ### Requirement: Ralph supports multiple task sources
 

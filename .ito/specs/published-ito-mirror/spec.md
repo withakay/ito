@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Published Ito Mirror
+
+## Purpose
+
+This spec defines the current behavior and requirements for published ito mirror.
+
+## Requirements
 
 ### Requirement: Published Ito mirror exposes coordination state to plain checkouts
 

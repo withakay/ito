@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Template Assets
+
+## Purpose
+
+This spec defines the current behavior and requirements for template assets.
+
+## Requirements
 
 ### Requirement: Orchestration Asset Names
 

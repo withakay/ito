@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Repository Runtime Selection
+
+## Purpose
+
+This spec defines the current behavior and requirements for repository runtime selection.
+
+## Requirements
 
 ### Requirement: Repository runtime exposes artifact mutation services for every persistence mode
 

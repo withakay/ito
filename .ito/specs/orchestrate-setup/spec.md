@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Setup
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate setup.
+
+## Requirements
 
 ### Requirement: First-run setup detection
 

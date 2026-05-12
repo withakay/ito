@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Run State
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate run state.
+
+## Requirements
 
 ### Requirement: Run state directory layout
 

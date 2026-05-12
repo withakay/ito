@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Parallelism
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate parallelism.
+
+## Requirements
 
 ### Requirement: max-parallel flag and named aliases
 

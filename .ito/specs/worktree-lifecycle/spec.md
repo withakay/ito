@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Worktree Lifecycle
+
+## Purpose
+
+This spec defines the current behavior and requirements for worktree lifecycle.
+
+## Requirements
 
 ### Requirement: Ensure wires coordination links
 

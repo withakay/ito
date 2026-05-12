@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Init
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli init.
+
+## Requirements
 
 ### Requirement: Repair coordination links in existing worktree
 

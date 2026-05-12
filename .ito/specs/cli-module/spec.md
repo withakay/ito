@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli Module
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli module.
+
+## Requirements
 
 ### Requirement: module CLI commands use ModuleRepository
 

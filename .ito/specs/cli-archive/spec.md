@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Archive
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli archive.
+
+## Requirements
 
 ### Requirement: Worktree archive is coordinated before main integration
 

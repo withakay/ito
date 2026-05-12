@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Distribution
+
+## Purpose
+
+This spec defines the current behavior and requirements for distribution.
+
+## Requirements
 
 ### Requirement: Ito provides Cloudflare Workers deployment configuration
 

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Docs Agent Instructions
+
+## Purpose
+
+This spec defines the current behavior and requirements for docs agent instructions.
+
+## Requirements
 
 ### Requirement: Docs mention project setup workflow
 

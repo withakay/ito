@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Audit Rules
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo audit rules.
+
+## Requirements
 
 ### Requirement: Rule audit/mirror-branch-set enforces a non-empty mirror branch
 

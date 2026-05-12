@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Backend Auth
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend auth.
+
+## Requirements
 
 ### Requirement: Backend requires bearer token authentication
 

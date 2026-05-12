@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Harness Context Inference
+
+## Purpose
+
+This spec defines the current behavior and requirements for harness context inference.
+
+## Requirements
 
 ### Requirement: Infer current Ito target from local signals
 

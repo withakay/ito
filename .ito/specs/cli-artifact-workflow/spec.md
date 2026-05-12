@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Artifact Workflow
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli artifact workflow.
+
+## Requirements
 
 ### Requirement: OpenCode pre-tool hook guards worktree path
 

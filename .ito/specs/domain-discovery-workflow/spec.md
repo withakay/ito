@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Domain Discovery Workflow
+
+## Purpose
+
+This spec defines the current behavior and requirements for domain discovery workflow.
+
+## Requirements
 
 ### Requirement: DDD discovery bundle
 

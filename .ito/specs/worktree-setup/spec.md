@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Worktree Setup
+
+## Purpose
+
+This spec defines the current behavior and requirements for worktree setup.
+
+## Requirements
 
 ### Requirement: Setup command execution after worktree initialization
 

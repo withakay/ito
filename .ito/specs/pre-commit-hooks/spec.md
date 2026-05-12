@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Pre Commit Hooks
+
+## Purpose
+
+This spec defines the current behavior and requirements for pre commit hooks.
+
+## Requirements
 
 ### Requirement: Repository pre-commit stage runs ito validate repo
 

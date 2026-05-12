@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Task Repository
+
+## Purpose
+
+This spec defines the current behavior and requirements for task repository.
+
+## Requirements
 
 ### Requirement: Task persistence is runtime-selected for reads and mutations
 

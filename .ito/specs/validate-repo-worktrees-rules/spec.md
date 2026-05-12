@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Worktrees Rules
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo worktrees rules.
+
+## Requirements
 
 ### Requirement: Rule worktrees/no-write-on-control rejects staged commits in the control checkout
 

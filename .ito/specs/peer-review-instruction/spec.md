@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Peer Review Instruction
+
+## Purpose
+
+This spec defines the current behavior and requirements for peer review instruction.
+
+## Requirements
 
 ### Requirement: Review instructions include traceability context
 

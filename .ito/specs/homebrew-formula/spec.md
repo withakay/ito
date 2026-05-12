@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Homebrew Formula
+
+## Purpose
+
+This spec defines the current behavior and requirements for homebrew formula.
+
+## Requirements
 
 ### Requirement: Homebrew tap repository
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Parallel Execution
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph parallel execution.
+
+## Requirements
 
 ### Requirement: Ralph supports parallel task execution with isolated worktrees
 

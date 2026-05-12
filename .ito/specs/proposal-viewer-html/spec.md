@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Proposal Viewer Html
+
+## Purpose
+
+This spec defines the current behavior and requirements for proposal viewer html.
+
+## Requirements
 
 ### Requirement: HTML browser viewer backend
 

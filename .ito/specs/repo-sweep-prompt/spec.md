@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Repo Sweep Prompt
+
+## Purpose
+
+This spec defines the current behavior and requirements for repo sweep prompt.
+
+## Requirements
 
 ### Requirement: A sweep prompt exists for detecting old-only ID assumptions in prompt and instruction files
 

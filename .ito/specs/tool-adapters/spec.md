@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Tool Adapters
+
+## Purpose
+
+This spec defines the current behavior and requirements for tool adapters.
+
+## Requirements
 
 ### Requirement: Codex Bootstrap Snippet
 

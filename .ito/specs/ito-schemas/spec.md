@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Schemas
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito schemas.
+
+## Requirements
 
 ### Requirement: Domain discovery artifacts are schema-addressable
 

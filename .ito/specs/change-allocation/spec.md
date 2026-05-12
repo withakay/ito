@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Change Allocation
+
+## Purpose
+
+This spec defines the current behavior and requirements for change allocation.
+
+## Requirements
 
 ### Requirement: Backend allocates the next available unlocked change
 

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec Repository
+
+## Purpose
+
+This spec defines the current behavior and requirements for spec repository.
+
+## Requirements
 
 ### Requirement: SpecRepository provides repository-backed access to promoted specs
 

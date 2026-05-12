@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Coordination Worktree Migration
+
+## Purpose
+
+This spec defines the current behavior and requirements for coordination worktree migration.
+
+## Requirements
 
 ### Requirement: Agent instruction for migration
 

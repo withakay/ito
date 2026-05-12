@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Template Markdown Compression
+
+## Purpose
+
+This spec defines the current behavior and requirements for template markdown compression.
+
+## Requirements
 
 ### Requirement: Selective template markdown compression
 The template maintenance workflow SHALL support compaction planning for markdown prompt assets in `ito-rs/crates/ito-templates` that belong to AGENTS guidance, skills, agents, commands, and instructions asset families.

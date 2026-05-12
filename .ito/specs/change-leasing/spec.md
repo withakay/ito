@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Change Leasing
+
+## Purpose
+
+This spec defines the current behavior and requirements for change leasing.
+
+## Requirements
 
 ### Requirement: Change ownership uses expiring leases
 

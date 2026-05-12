@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Rust Installers
+
+## Purpose
+
+This spec defines the current behavior and requirements for rust installers.
+
+## Requirements
 
 ### Requirement: Deterministic Init/Update Merge Policy
 

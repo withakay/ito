@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Change Claim
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend change claim.
+
+## Requirements
 
 ### Requirement: CLI can explicitly claim and release changes in backend mode
 

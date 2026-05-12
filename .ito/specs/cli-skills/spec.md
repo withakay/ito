@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Cli Skills
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli skills.
+
+## Requirements
 
 ### Requirement: Skills are managed via init/update (not CLI)
 

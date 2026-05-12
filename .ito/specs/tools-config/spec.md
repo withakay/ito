@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Tools Config
+
+## Purpose
+
+This spec defines the current behavior and requirements for tools config.
+
+## Requirements
 
 ### Requirement: Tools configuration namespace
 

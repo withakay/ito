@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Sub Module Id Format
+
+## Purpose
+
+This spec defines the current behavior and requirements for sub module id format.
+
+## Requirements
 
 ### Requirement: Sub-module change IDs follow a dot-extended format
 

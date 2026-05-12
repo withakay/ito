@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Queue Execution
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph queue execution.
+
+## Requirements
 
 ### Requirement: Continue-ready processes all eligible changes with aggregate results
 

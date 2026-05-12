@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Pre Commit Hook Detection
+
+## Purpose
+
+This spec defines the current behavior and requirements for pre commit hook detection.
+
+## Requirements
 
 ### Requirement: Engine exposes a deterministic pre-commit-system detector
 

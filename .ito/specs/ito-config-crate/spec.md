@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Config Crate
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito config crate.
+
+## Requirements
 
 ### Requirement: Published mirror path configuration
 

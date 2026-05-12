@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Cli View
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli view.
+
+## Requirements
 
 ### Requirement: Dashboard Display
 

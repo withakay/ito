@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Server Cli
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend server cli.
+
+## Requirements
 
 ### Requirement: Backend server startup is exposed through `ito backend serve`
 

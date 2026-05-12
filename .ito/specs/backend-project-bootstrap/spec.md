@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Project Bootstrap
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend project bootstrap.
+
+## Requirements
 
 ### Requirement: Backend exposes a health and version endpoint
 

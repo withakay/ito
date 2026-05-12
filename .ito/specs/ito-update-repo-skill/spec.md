@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Update Repo Skill
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito update repo skill.
+
+## Requirements
 
 ### Requirement: ito-update-repo skill includes a pre-commit hook setup step
 

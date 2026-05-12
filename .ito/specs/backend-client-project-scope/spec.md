@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Client Project Scope
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend client project scope.
+
+## Requirements
 
 ### Requirement: Backend client requests are scoped to a configured org/repo project namespace
 

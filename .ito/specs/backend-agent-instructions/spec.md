@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Backend Agent Instructions
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend agent instructions.
+
+## Requirements
 
 ### Requirement: Backend-aware agent instructions are CLI-first for active work
 

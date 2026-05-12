@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Agent Memory Abstraction
+
+## Purpose
+
+This spec defines the current behavior and requirements for agent memory abstraction.
+
+## Requirements
 
 ### Requirement: Installed Ito memory skill
 

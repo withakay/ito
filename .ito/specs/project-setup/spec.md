@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Project Setup
+
+## Purpose
+
+This spec defines the current behavior and requirements for project setup.
+
+## Requirements
 
 ### Requirement: Wizard-style project setup workflow
 

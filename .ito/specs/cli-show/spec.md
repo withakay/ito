@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cli Show
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli show.
+
+## Requirements
 
 ### Requirement: `ito show specs` resolves truth specs through SpecRepository
 

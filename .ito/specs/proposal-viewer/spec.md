@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Proposal Viewer
+
+## Purpose
+
+This spec defines the current behavior and requirements for proposal viewer.
+
+## Requirements
 
 ### Requirement: Interactive viewer selection
 

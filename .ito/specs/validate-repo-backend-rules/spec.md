@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Backend Rules
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo backend rules.
+
+## Requirements
 
 ### Requirement: Rule backend/token-not-committed prevents leaked authentication tokens
 

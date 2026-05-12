@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Planning Workflow
+
+## Purpose
+
+This spec defines the current behavior and requirements for planning workflow.
+
+## Requirements
 
 ### Requirement: Pre-proposal planning prompt
 

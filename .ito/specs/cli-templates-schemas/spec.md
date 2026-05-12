@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Templates Schemas
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli templates schemas.
+
+## Requirements
 
 These requirements keep built-in workflow schema templates aligned with the validators that Ito actually runs and ensure the export command remains a faithful starting point for project-local customization.
 

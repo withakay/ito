@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Cascading Config
+
+## Purpose
+
+This spec defines the current behavior and requirements for cascading config.
+
+## Requirements
 
 ### Requirement: Cascading config is resolved once per CLI invocation
 

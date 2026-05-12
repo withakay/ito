@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Sync
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli sync.
+
+## Requirements
 
 ### Requirement: Coordination worktree sync command
 

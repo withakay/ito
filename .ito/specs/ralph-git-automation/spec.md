@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Git Automation
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph git automation.
+
+## Requirements
 
 ### Requirement: Ralph supports branch-per-task workflows
 

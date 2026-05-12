@@ -91,8 +91,8 @@ ______________________________________________________________________
 - **Action**: Add a validator that flags delta operation headings in main specs (warning by default, strict error).
 - **Verify**: `make check`
 - **Done When**: Validation catches regressions where delta-only structure is reintroduced into `.ito/specs/`.
-- **Updated At**: 2026-02-25
-- **Status**: [-] shelved
+- **Updated At**: 2026-05-12
+- **Status**: [ ] pending
 
 ______________________________________________________________________
 

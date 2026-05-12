@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Opencode Loop Command
+
+## Purpose
+
+This spec defines the current behavior and requirements for opencode loop command.
+
+## Requirements
 
 ### Requirement: OpenCode provides a /loop command to run Ito Ralph
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Change Creation
+
+## Purpose
+
+This spec defines the current behavior and requirements for change creation.
+
+## Requirements
 
 ### Requirement: Missing coordination wiring recovery
 

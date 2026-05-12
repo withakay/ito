@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Global Config
+
+## Purpose
+
+This spec defines the current behavior and requirements for global config.
+
+## Requirements
 
 ### Requirement: Worktree workspace defaults
 

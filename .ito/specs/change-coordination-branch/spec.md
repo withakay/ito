@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Change Coordination Branch
+
+## Purpose
+
+This spec defines the current behavior and requirements for change coordination branch.
+
+## Requirements
 
 ### Requirement: Instruction generation does not require remote coordination sync
 

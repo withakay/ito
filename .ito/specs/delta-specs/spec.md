@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Delta Specs
+
+## Purpose
+
+This spec defines the current behavior and requirements for delta specs.
+
+## Requirements
 
 ### Requirement: Delta requirements can declare reference ids
 

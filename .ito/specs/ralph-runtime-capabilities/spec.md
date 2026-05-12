@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Runtime Capabilities
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph runtime capabilities.
+
+## Requirements
 
 ### Requirement: Ralph supports optional browser automation guidance
 

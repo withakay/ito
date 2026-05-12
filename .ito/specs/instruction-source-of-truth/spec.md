@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Instruction Source Of Truth
+
+## Purpose
+
+This spec defines the current behavior and requirements for instruction source of truth.
+
+## Requirements
 
 ### Requirement: Instruction artifacts are authoritative workflow sources
 

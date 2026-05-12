@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Cli Plan
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli plan.
+
+## Requirements
 
 ### Requirement: Project planning initialization
 
@@ -51,7 +57,6 @@ The CLI SHALL provide clear error messages and recovery suggestions when plannin
 - **THEN** display a non-error status showing the workspace is empty
 - **AND** suggest using `/ito-plan` to create the first plan
 
-## REMOVED Requirements
 
 ### Requirement: Project state management
 

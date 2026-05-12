@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Validate Repo Repository Rules
+
+## Purpose
+
+This spec defines the current behavior and requirements for validate repo repository rules.
+
+## Requirements
 
 ### Requirement: Rule repository/sqlite-db-path-set enforces a resolvable db_path
 

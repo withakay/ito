@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Validate
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli validate.
+
+## Requirements
 
 ### Requirement: Ubiquitous language consistency rule
 

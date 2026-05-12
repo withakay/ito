@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ralph Run Reporting
+
+## Purpose
+
+This spec defines the current behavior and requirements for ralph run reporting.
+
+## Requirements
 
 ### Requirement: Ralph state captures actionable run outcomes
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Backend Project Store
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend project store.
+
+## Requirements
 
 ### Requirement: Backend project stores persist sub-module metadata as module state
 

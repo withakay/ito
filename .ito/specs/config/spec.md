@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## MODIFIED Requirements
+# Config
+
+## Purpose
+
+This spec defines the current behavior and requirements for config.
+
+## Requirements
 
 ### Requirement: WorktreesConfig includes init sub-section
 

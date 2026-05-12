@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Backend Status Check
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend status check.
+
+## Requirements
 
 ### Requirement: CLI provides a backend status command
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Worktree Init Files
+
+## Purpose
+
+This spec defines the current behavior and requirements for worktree init files.
+
+## Requirements
 
 ### Requirement: Include-file resolution from config
 

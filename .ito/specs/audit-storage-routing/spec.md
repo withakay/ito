@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Audit Storage Routing
+
+## Purpose
+
+This spec defines the current behavior and requirements for audit storage routing.
+
+## Requirements
 
 ### Requirement: Reconcile Tombstone Semantics
 

@@ -1,4 +1,10 @@
-## MODIFIED Requirements
+# Backend Event Forwarding
+
+## Purpose
+
+This spec defines the current behavior and requirements for backend event forwarding.
+
+## Requirements
 
 ### Requirement: Clients forward local events to backend in backend mode
 

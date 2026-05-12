@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Init
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito init.
+
+## Requirements
 
 ### Requirement: ito init emits a repo-validation advisory when at least one rule activates
 

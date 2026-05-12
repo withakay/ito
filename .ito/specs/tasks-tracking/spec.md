@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Tasks Tracking
+
+## Purpose
+
+This spec defines the current behavior and requirements for tasks tracking.
+
+## Requirements
 
 These requirements tighten enhanced-task field semantics so the `task_quality` rule (`cli-validate:task-quality-validation`) has unambiguous structured input. Field severities for the rule live in the cli-validate spec; this spec governs parsing.
 

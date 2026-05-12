@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Cli Sub Module
+
+## Purpose
+
+This spec defines the current behavior and requirements for cli sub module.
+
+## Requirements
 
 ### Requirement: Sub-modules can be created via CLI
 

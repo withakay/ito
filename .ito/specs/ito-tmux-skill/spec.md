@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Ito Tmux Skill
+
+## Purpose
+
+This spec defines the current behavior and requirements for ito tmux skill.
+
+## Requirements
 
 ### Requirement: Tmux skill is distributed with Ito
 

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Audit Remote Mirroring
+
+## Purpose
+
+This spec defines the current behavior and requirements for audit remote mirroring.
+
+## Requirements
 
 ### Requirement: Bounded Internal Audit Mirror
 
