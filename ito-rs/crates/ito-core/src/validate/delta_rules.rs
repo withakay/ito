@@ -6,6 +6,10 @@ use crate::show::read_change_proposal_markdown;
 use ito_common::fs::StdFs;
 use regex::Regex;
 
+use super::domain_discovery_rules::{
+    validate_context_boundary_consistency_rule, validate_domain_documentation_consistency_rule,
+    validate_ubiquitous_language_consistency_rule,
+};
 use super::rules_engine::rule_issue;
 use super::{
     ArtifactValidatorContext, CoreResult, DomainChangeRepository, LEVEL_ERROR, LEVEL_INFO,
@@ -34,11 +38,31 @@ static INLINE_CODE_TOKEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"`([^`]+)`").expect("valid inline code regex"));
 
 pub(super) fn artifact_rules() -> &'static [&'static str] {
-    &["contract_refs", "scenario_grammar", "ui_mechanics"]
+    &[
+        "context_boundary_consistency",
+        "contract_refs",
+        "domain_documentation_consistency",
+        "scenario_grammar",
+        "ubiquitous_language_consistency",
+        "ui_mechanics",
+    ]
+}
+
+pub(super) fn domain_discovery_artifact_rules() -> &'static [&'static str] {
+    &[
+        "context_boundary_consistency",
+        "domain_documentation_consistency",
+        "ubiquitous_language_consistency",
+    ]
 }
 
 pub(super) fn proposal_rules() -> &'static [&'static str] {
-    &["capabilities_consistency"]
+    &[
+        "capabilities_consistency",
+        "context_boundary_consistency",
+        "domain_documentation_consistency",
+        "ubiquitous_language_consistency",
+    ]
 }
 
 pub(super) fn run_artifact_rule(
@@ -49,6 +73,13 @@ pub(super) fn run_artifact_rule(
     level: ValidationLevelYaml,
 ) -> CoreResult<()> {
     match rule_name {
+        "context_boundary_consistency" => {
+            rep.extend(validate_context_boundary_consistency_rule(
+                change_repo,
+                ctx.change_id,
+                level,
+            )?);
+        }
         "scenario_grammar" => rep.extend(validate_scenario_grammar_rule(
             change_repo,
             ctx.change_id,
@@ -64,6 +95,21 @@ pub(super) fn run_artifact_rule(
             ctx.change_id,
             level,
         )?),
+        "domain_documentation_consistency" => {
+            rep.extend(validate_domain_documentation_consistency_rule(
+                change_repo,
+                ctx.ito_path,
+                ctx.change_id,
+                level,
+            )?);
+        }
+        "ubiquitous_language_consistency" => {
+            rep.extend(validate_ubiquitous_language_consistency_rule(
+                change_repo,
+                ctx.change_id,
+                level,
+            )?);
+        }
         _ => {}
     }
     Ok(())
@@ -76,13 +122,38 @@ pub(super) fn run_proposal_rule(
     rule_name: &str,
     level: ValidationLevelYaml,
 ) -> CoreResult<()> {
-    if rule_name == "capabilities_consistency" {
-        rep.extend(validate_capabilities_consistency_rule(
-            change_repo,
-            ctx.ito_path,
-            ctx.change_id,
-            level,
-        )?);
+    match rule_name {
+        "capabilities_consistency" => {
+            rep.extend(validate_capabilities_consistency_rule(
+                change_repo,
+                ctx.ito_path,
+                ctx.change_id,
+                level,
+            )?);
+        }
+        "context_boundary_consistency" => {
+            rep.extend(validate_context_boundary_consistency_rule(
+                change_repo,
+                ctx.change_id,
+                level,
+            )?);
+        }
+        "domain_documentation_consistency" => {
+            rep.extend(validate_domain_documentation_consistency_rule(
+                change_repo,
+                ctx.ito_path,
+                ctx.change_id,
+                level,
+            )?);
+        }
+        "ubiquitous_language_consistency" => {
+            rep.extend(validate_ubiquitous_language_consistency_rule(
+                change_repo,
+                ctx.change_id,
+                level,
+            )?);
+        }
+        _ => {}
     }
     Ok(())
 }

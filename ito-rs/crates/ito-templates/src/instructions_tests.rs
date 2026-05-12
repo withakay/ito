@@ -262,6 +262,7 @@ fn review_template_renders_conditional_sections() {
         id: &'static str,
         path: &'static str,
         present: bool,
+        optional: bool,
     }
 
     #[derive(Serialize)]
@@ -324,21 +325,25 @@ fn review_template_renders_conditional_sections() {
                 id: "proposal",
                 path: "/tmp/.ito/changes/000-01_test-change/proposal.md",
                 present: true,
+                optional: false,
             },
             Artifact {
                 id: "design",
                 path: "/tmp/.ito/changes/000-01_test-change/design.md",
                 present: false,
+                optional: true,
             },
             Artifact {
                 id: "tasks",
                 path: "/tmp/.ito/changes/000-01_test-change/tasks.md",
                 present: true,
+                optional: false,
             },
             Artifact {
                 id: "specs",
                 path: "/tmp/.ito/changes/000-01_test-change/specs",
                 present: true,
+                optional: false,
             },
         ],
         validation_issues: vec![ValidationIssue {

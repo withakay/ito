@@ -43,6 +43,7 @@ artifacts:
   - id: design
     generates: design.md
     template: design.md
+    optional: true
     requires: []
   - id: tasks
     generates: tasks.md
@@ -101,7 +102,7 @@ artifacts:
         review
             .artifacts
             .iter()
-            .any(|a| a.id == "design" && !a.present)
+            .any(|a| a.id == "design" && !a.present && a.optional)
     );
 
     let task_summary = review.task_summary.expect("task summary should exist");

@@ -24,6 +24,7 @@ use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 mod delta_rules;
+mod domain_discovery_rules;
 mod format_specs;
 mod issue;
 mod repo_integrity;
@@ -283,10 +284,12 @@ fn is_legacy_delta_schema(schema_name: &str) -> bool {
     schema_name == "spec-driven" || schema_name == "tdd"
 }
 
-fn schema_artifact_ids(resolved: &ResolvedSchema) -> Vec<String> {
+fn required_schema_artifact_ids(resolved: &ResolvedSchema) -> Vec<String> {
     let mut ids = Vec::new();
     for a in &resolved.schema.artifacts {
-        ids.push(a.id.clone());
+        if !a.optional {
+            ids.push(a.id.clone());
+        }
     }
     ids
 }
@@ -310,8 +313,8 @@ fn validate_apply_required_artifacts(
         Some(apply) => apply
             .requires
             .clone()
-            .unwrap_or_else(|| schema_artifact_ids(resolved)),
-        None => schema_artifact_ids(resolved),
+            .unwrap_or_else(|| required_schema_artifact_ids(resolved)),
+        None => required_schema_artifact_ids(resolved),
     };
 
     for id in required_ids {

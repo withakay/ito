@@ -65,7 +65,11 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
         return Ok(());
     }
 
-    let total = status.artifacts.len();
+    let total = status
+        .artifacts
+        .iter()
+        .filter(|a| a.status != "optional")
+        .count();
     let done = status
         .artifacts
         .iter()
@@ -78,6 +82,8 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
     for a in &status.artifacts {
         let mark = if a.status == "done" {
             "[x]"
+        } else if a.status == "optional" {
+            "[~]"
         } else if a.status == "blocked" {
             "[-]"
         } else {
@@ -90,6 +96,8 @@ pub(crate) fn handle_status(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 a.id,
                 a.missing_deps.join(", ")
             );
+        } else if a.status == "optional" {
+            println!("{mark} {} (optional)", a.id);
         } else {
             println!("{mark} {}", a.id);
         }

@@ -102,3 +102,46 @@ artifacts:
     assert_eq!(r.state, "all_done");
     assert!(r.instruction.contains("ready to be archived"));
 }
+
+#[test]
+fn compute_apply_instructions_ignores_optional_artifacts_when_apply_requires_is_omitted() {
+    let td = tempfile::tempdir().expect("tempdir should succeed");
+    let project_root = td.path();
+    let ito_path = project_root.join(".ito");
+    let change = "demo-change";
+    let change_dir = ito_path.join("changes").join(change);
+    std::fs::create_dir_all(&change_dir).expect("create change dir");
+
+    write(
+        &project_root.join(".ito/templates/schemas/demo/schema.yaml"),
+        r#"name: demo
+version: 1
+artifacts:
+  - id: discovery
+    generates: domain-discovery.md
+    template: domain-discovery.md
+    optional: true
+    requires: []
+  - id: proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+"#,
+    );
+
+    let ctx = ConfigContext {
+        project_dir: Some(project_root.to_path_buf()),
+        ..Default::default()
+    };
+
+    let r = compute_apply_instructions(&ito_path, change, Some("demo"), &ctx)
+        .expect("compute_apply_instructions");
+    assert_eq!(r.state, "blocked");
+    assert_eq!(r.missing_artifacts, Some(vec!["proposal".to_string()]));
+
+    write(&change_dir.join("proposal.md"), "ok");
+    let r = compute_apply_instructions(&ito_path, change, Some("demo"), &ctx)
+        .expect("compute_apply_instructions");
+    assert_eq!(r.state, "ready");
+    assert!(r.missing_artifacts.is_none());
+}

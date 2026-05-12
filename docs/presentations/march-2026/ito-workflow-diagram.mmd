@@ -4,6 +4,9 @@ flowchart TD
         B1[Explore the idea]
         B2[Evaluate approaches]
         B3[Validate design]
+        B4{DDD discovery needed?}
+        B5[Resolve language and boundaries]
+        B6[Create discovery handoff]
     end
 
     subgraph PROPOSE["2. Propose"]
@@ -16,8 +19,9 @@ flowchart TD
 
     subgraph REVIEW["3. Review"]
         R1[Peer review checklist]
-        R2{Verdict?}
-        R3[Address feedback]
+        R2[Check discovery depth and boundaries]
+        R3{Verdict?}
+        R4[Address feedback]
     end
 
     subgraph IMPLEMENT["4. Implement"]
@@ -29,18 +33,21 @@ flowchart TD
 
     subgraph ARCHIVE["5. Archive"]
         A1[Reconcile audit log]
-        A2[Move to archive/]
-        A3[Apply deltas to specs/]
-        A4["Validate: ito validate --strict"]
+        A2[Promote approved domain docs]
+        A3[Move to archive/]
+        A4[Apply deltas to specs/]
+        A5["Validate: ito validate --strict"]
     end
 
-    B1 --> B2 --> B3
-    B3 --> P1 --> P2 --> P3 --> P4 --> P5
-    P5 --> R1 --> R2
-    R2 -- "approve" --> I1
-    R2 -- "request-changes" --> R3
-    R3 --> P2
+    B1 --> B2 --> B3 --> B4
+    B4 -- "No" --> P1
+    B4 -- "Yes" --> B5 --> B6 --> P1
+    P1 --> P2 --> P3 --> P4 --> P5
+    P5 --> R1 --> R2 --> R3
+    R3 -- "approve" --> I1
+    R3 -- "request-changes" --> R4
+    R4 --> P2
     I1 --> I2 --> I3 --> I4
     I4 -- "Yes" --> I1
     I4 -- "No" --> A1
-    A1 --> A2 --> A3 --> A4
+    A1 --> A2 --> A3 --> A4 --> A5
