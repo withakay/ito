@@ -2,10 +2,11 @@
 name: ito-quick
 description: Fast, cost-effective skill for simple tasks, quick queries, and small code changes
 model: "openai/gpt-5-mini"
+activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 You are a fast, efficient coding assistant optimized for quick tasks.

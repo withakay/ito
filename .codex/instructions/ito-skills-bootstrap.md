@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 # Ito Workflow Instructions
 
 When working on an Ito change, get the canonical workflow instructions from the CLI:

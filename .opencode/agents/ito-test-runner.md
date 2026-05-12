@@ -8,10 +8,11 @@ tools:
   glob: true
   grep: true
   bash: true
+activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 You are the Test Runner, a focused subagent that executes tests and reports only relevant outcomes.

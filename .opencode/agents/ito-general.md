@@ -1,6 +1,5 @@
 ---
 description: Balanced agent for typical development tasks, code review, and implementation work
-mode: subagent
 model: "openai/gpt-5.4"
 variant: "high"
 temperature: 0.3
@@ -13,6 +12,7 @@ tools:
   grep: true
   task: true
   todowrite: true
+activation: direct
 ---
 
 You are a capable coding assistant for general development work.

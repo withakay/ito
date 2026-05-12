@@ -1,6 +1,5 @@
 ---
 description: High-capability agent for complex reasoning, architecture decisions, and difficult problems
-mode: subagent
 model: "openai/gpt-5.4"
 variant: "high"
 temperature: 0.5
@@ -14,6 +13,7 @@ tools:
   task: true
   todowrite: true
   webfetch: true
+activation: direct
 ---
 
 You are an expert coding assistant for complex problems requiring deep reasoning.

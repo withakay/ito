@@ -1,7 +1,7 @@
 ---
 description: Coordinator-only agent for orchestrating multi-change runs
 activation: direct
-model: "anthropic/claude-opus-4-7"
+model: "openai/gpt-5.4"
 variant: "high"
 tools:
   read: true
@@ -15,6 +15,7 @@ tools:
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.31-->
 
 You are an Ito orchestrator. Coordinate workers and gates without editing code directly.
 

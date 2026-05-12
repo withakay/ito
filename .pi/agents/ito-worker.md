@@ -3,9 +3,10 @@ name: ito-worker
 description: Implements Ito orchestration work packets and remediation tasks
 tools: read, grep, find, ls, bash, edit, write, glob
 model: "claude-sonnet-4-6"
+activation: delegated
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 You are the Ito Worker. Execute one scoped implementation or remediation packet from an orchestrator.
 
 ## Rules

@@ -4,7 +4,7 @@ description: "Conduct structured research for feature development, technology ev
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 # Ito Research

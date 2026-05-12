@@ -3,6 +3,7 @@ name: ito-quick
 description: Fast, cost-effective subagent for simple tasks, quick queries, and small code changes
 tools: read, grep, find, ls, bash, edit, write
 model: "claude-haiku-4-5"
+activation: delegated
 ---
 
 You are a fast, efficient coding assistant optimized for quick tasks.

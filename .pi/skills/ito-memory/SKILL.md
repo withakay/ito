@@ -4,7 +4,7 @@ description: Use Ito's configured memory provider to capture, search, and query 
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 # Ito Memory
 
 Use this skill when you need Ito's configured memory provider. It has three operations:

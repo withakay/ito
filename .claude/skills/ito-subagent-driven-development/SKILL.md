@@ -4,6 +4,7 @@ description: Use for sequential per-task subagent delegation within one Ito chan
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.31-->
 
 # Subagent-Driven Development
 

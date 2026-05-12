@@ -1,7 +1,7 @@
 ---
 description: Plans Ito orchestration runs from change metadata and gates
 mode: subagent
-model: "openai/gpt-5.5"
+model: "openai/gpt-5.4"
 variant: "high"
 temperature: 0.2
 tools:
@@ -13,10 +13,11 @@ tools:
   grep: true
   task: false
   todowrite: true
+activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 You are the Ito Planner. Build dependency-aware execution plans for Ito orchestrate runs.
 
 ## Rules

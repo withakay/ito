@@ -5,9 +5,10 @@ tools:
   - read
   - search
   - execute
+activation: delegated
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 You are the Ito Planner. Build dependency-aware execution plans for Ito orchestrate runs.
 
 ## Rules

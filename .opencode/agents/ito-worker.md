@@ -13,10 +13,11 @@ tools:
   grep: true
   task: true
   todowrite: true
+activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 You are the Ito Worker. Execute one scoped implementation or remediation packet from an orchestrator.
 
 ## Rules

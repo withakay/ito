@@ -2,10 +2,11 @@
 name: ito-thinking
 description: High-capability skill for complex reasoning, architecture decisions, and difficult problems
 model: "openai/gpt-5.4"
+activation: direct
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 You are an expert coding assistant for complex problems requiring deep reasoning.

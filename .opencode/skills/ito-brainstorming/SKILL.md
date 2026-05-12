@@ -4,7 +4,7 @@ description: "Use for open-ended design exploration and idea refinement before s
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 # Brainstorming Ideas Into Designs

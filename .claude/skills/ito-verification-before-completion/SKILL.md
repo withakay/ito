@@ -4,7 +4,7 @@ description: Use before claiming work is complete, finished, fixed, or passing â
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 # Verification Before Completion
