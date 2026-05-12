@@ -2,6 +2,21 @@ name: event-driven
 version: 1
 description: Event-driven workflow from discovery to AsyncAPI-first planning
 artifacts:
+  - id: domain-discovery
+    generates: domain-discovery.md
+    description: Optional DDD discovery handoff for ambiguous, architectural, or cross-context work
+    template: domain-discovery.md
+    optional: true
+    instruction: |
+      Create this optional discovery artifact when event-storming should be grounded in
+      explicit business/domain capability, model ownership, ubiquitous language, bounded
+      contexts, relationship patterns, consistency expectations, technique-fit decisions,
+      evidence checked, or proposed domain-documentation updates.
+
+      Keep event-driven discovery outputs aligned with this handoff, but do not force the
+      artifact for routine event-driven changes where vocabulary and boundaries are already clear.
+    requires: []
+
   - id: event-storming
     generates: event-storming.md
     description: Discovery of events, commands, actors, and boundaries

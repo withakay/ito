@@ -2,6 +2,23 @@ name: spec-driven
 version: 1
 description: Default Ito workflow - proposal -> specs -> design -> tasks
 artifacts:
+  - id: domain-discovery
+    generates: domain-discovery.md
+    description: Optional DDD discovery handoff for ambiguous, architectural, or cross-context work
+    template: domain-discovery.md
+    optional: true
+    instruction: |
+      Create this optional discovery artifact only when the change needs domain discovery
+      before proposal or spec drafting.
+
+      Use it to capture the canonical discovery handoff: discovery depth, business/domain
+      capability, model ownership, ubiquitous language, bounded contexts, relationship
+      patterns, consistency expectations, technique-fit decisions, optional event-storming
+      outputs, evidence checked, and proposed domain-documentation updates.
+
+      Keep the artifact proportional. Routine one-context work can skip it.
+    requires: []
+
   - id: proposal
     generates: proposal.md
     description: Initial proposal document outlining the change

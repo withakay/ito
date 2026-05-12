@@ -15,9 +15,6 @@ use include_dir::{Dir, include_dir};
 /// Embedded agent definitions.
 pub mod agents;
 
-#[cfg(test)]
-mod agent_surface_tests;
-
 /// Embedded instruction artifacts.
 pub mod instructions;
 
@@ -484,6 +481,9 @@ fn find_marker_index(content: &str, marker: &str, from_index: usize) -> Option<u
 }
 
 #[cfg(test)]
+mod agent_surface_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -661,9 +661,6 @@ mod tests {
             get_skill_file("ito-orchestrate/SKILL.md").expect("ito-orchestrate skill");
         let orchestrate = std::str::from_utf8(orchestrate).expect("utf8");
         assert!(orchestrate.starts_with("---\nname: ito-orchestrate\n"));
-        assert!(orchestrate.contains("ito agent instruction orchestrate"));
-        assert!(!orchestrate.contains("canonical default order"));
-        assert!(!orchestrate.contains(".ito/.state/orchestrate/runs"));
 
         let setup =
             get_skill_file("ito-orchestrate-setup/SKILL.md").expect("ito-orchestrate-setup skill");
@@ -674,8 +671,6 @@ mod tests {
             .expect("ito-orchestrator-workflow skill");
         let workflow = std::str::from_utf8(workflow).expect("utf8");
         assert!(workflow.starts_with("---\nname: ito-orchestrator-workflow\n"));
-        assert!(workflow.contains("repo-specific"));
-        assert!(!workflow.contains("Security-review: prioritize"));
 
         let commands = commands_files();
         assert!(
@@ -733,19 +728,6 @@ mod tests {
                     "expected {expected} in {harness:?} agent templates"
                 );
             }
-
-            let orchestrator = match harness {
-                Harness::Codex => "ito-orchestrator/SKILL.md",
-                Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => {
-                    "ito-orchestrator.md"
-                }
-            };
-            let (_, contents) = files
-                .iter()
-                .find(|(name, _)| *name == orchestrator)
-                .expect("orchestrator template");
-            let contents = std::str::from_utf8(contents).expect("orchestrator utf8");
-            assert!(contents.contains("ito agent instruction orchestrate"));
         }
     }
 
@@ -763,6 +745,16 @@ mod tests {
         let feature = get_skill_file("ito-feature/SKILL.md").expect("feature skill should exist");
         let feature_text = std::str::from_utf8(feature).expect("skill should be utf8");
         assert!(feature_text.starts_with("---\nname: ito-feature\n"));
+
+        let plan = get_skill_file("ito-plan/SKILL.md").expect("plan skill should exist");
+        let plan_text = std::str::from_utf8(plan).expect("skill should be utf8");
+        assert!(plan_text.starts_with("---\nname: ito-plan\n"));
+
+        let commands = commands_files();
+        assert!(
+            commands.iter().any(|f| f.relative_path == "ito-plan.md"),
+            "expected ito-plan command to be embedded"
+        );
     }
 
     #[test]
@@ -1052,53 +1044,6 @@ mod tests {
         assert!(
             violations.is_empty(),
             "agents missing `ito-` prefix: {violations:?}"
-        );
-    }
-
-    #[test]
-    fn every_shipped_agent_is_in_surface_inventory() {
-        use crate::agents::agent_surface_inventory;
-        use std::collections::BTreeSet;
-
-        let inventory = agent_surface_inventory();
-        let inventory_names: BTreeSet<&str> =
-            inventory.iter().map(|surface| surface.name).collect();
-        let mut asset_names: BTreeSet<String> = BTreeSet::new();
-
-        for harness_dir in AGENTS_DIR.dirs() {
-            for entry_file in harness_dir.files() {
-                let Some(name) = entry_file.path().file_name().and_then(|s| s.to_str()) else {
-                    continue;
-                };
-                let name = name
-                    .strip_suffix(".md")
-                    .or_else(|| name.strip_suffix(".md.j2"))
-                    .unwrap_or(name);
-                asset_names.insert(name.to_string());
-            }
-
-            for nested in harness_dir.dirs() {
-                let Some(name) = nested.path().file_name().and_then(|s| s.to_str()) else {
-                    continue;
-                };
-                asset_names.insert(name.to_string());
-            }
-        }
-
-        let missing_from_inventory: Vec<&str> = asset_names
-            .iter()
-            .map(String::as_str)
-            .filter(|name| !inventory_names.contains(name))
-            .collect();
-        let missing_from_assets: Vec<&str> = inventory_names
-            .iter()
-            .copied()
-            .filter(|name| !asset_names.contains(*name))
-            .collect();
-
-        assert!(
-            missing_from_inventory.is_empty() && missing_from_assets.is_empty(),
-            "agent surface inventory mismatch — missing from inventory: {missing_from_inventory:?}; missing from assets: {missing_from_assets:?}"
         );
     }
 

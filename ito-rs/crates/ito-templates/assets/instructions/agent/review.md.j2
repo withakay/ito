@@ -14,9 +14,9 @@ You are reviewing an Ito change proposal package before implementation. Focus on
 
 ## Artifact Inventory
 
-| Artifact | Present | Path |
-| --- | --- | --- |
-{% for artifact in artifacts %}| `{{ artifact.id }}` | {{ "yes" if artifact.present else "no" }} | `{{ artifact.path }}` |
+| Artifact | Required | Present | Path |
+| --- | --- | --- | --- |
+{% for artifact in artifacts %}| `{{ artifact.id }}` | {{ "no" if artifact.optional | default(value=false) else "yes" }} | {{ "yes" if artifact.present else "no" }} | `{{ artifact.path }}` |
 {% endfor %}
 
 ## Structural Validation
@@ -47,6 +47,11 @@ Check and report:
 - Claimed impact aligns with listed changes.
 - Risks and trade-offs are concrete and testable.
 - Success criteria are measurable and falsifiable.
+- For ambiguous, architectural, public-contract, or cross-context work, the selected discovery depth is justified and proportional.
+- Domain language is stable: business/domain capability, canonical terms, rejected aliases, and overloaded terms are carried from discovery into proposal language.
+- Model ownership is clear: the package distinguishes business/domain capabilities, Ito capabilities, Ito modules, and bounded contexts.
+- Cross-context scope names affected contexts, ownership, relationship pattern or provisional unknown, consistency expectations, and translation boundaries.
+- Evidence checks, proposed `CONTEXT.md` / `CONTEXT-MAP.md` updates, and ADR candidates are present when discovery resolved durable domain language or consequential decisions.
 {% endif %}
 
 {% if artifacts | selectattr("id", "equalto", "specs") | selectattr("present") | list | length > 0 %}
@@ -69,6 +74,7 @@ Check and report:
 - Alternatives and trade-offs are documented.
 - Operational concerns (observability, rollback, migration) are addressed.
 - Security/performance implications are explicit and actionable.
+- Consistency assumptions from discovery are reflected in design choices, especially conflict ownership, stale-data impact, and downstream-unavailable behavior.
 {% endif %}
 
 {% if task_summary %}
@@ -81,6 +87,7 @@ Check and report:
 - Dependencies and wave sequencing are realistic.
 - Verification commands validate intended behavior.
 - Task granularity is actionable and reviewable.
+- Tasks preserve discovery outputs through implementation, validation, and any proposed domain-doc promotion instead of treating discovery as disposable planning notes.
 {% endif %}
 
 {% if traceability %}
@@ -126,6 +133,8 @@ Check and report:
 - Flag any system-wide impacts that are not captured in requirements.
 - Evaluate whether testing strategy is sufficient for risk level.
 - Confirm decomposition supports incremental, reversible delivery.
+- Check whether DDD discovery should have been invoked or deepened before implementation proceeds.
+- Confirm optional domain validators (`ubiquitous_language_consistency`, `context_boundary_consistency`, `domain_documentation_consistency`) are enabled or intentionally skipped for domain-heavy changes.
 {% if affected_specs|length > 0 %}
 - Affected main specs (`MODIFIED` deltas):
 {% for spec in affected_specs %}

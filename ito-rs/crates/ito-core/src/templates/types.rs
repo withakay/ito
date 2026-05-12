@@ -47,7 +47,7 @@ pub struct ArtifactStatus {
     /// Path (relative to the change directory) the artifact should generate.
     pub output_path: String,
 
-    /// Computed state: `done`, `ready`, or `blocked`.
+    /// Computed state: `done`, `ready`, `blocked`, or `optional`.
     pub status: String,
     #[serde(rename = "missingDeps", skip_serializing_if = "Vec::is_empty")]
     /// Artifact ids that are required but not yet complete.
@@ -64,7 +64,7 @@ pub struct ChangeStatus {
     /// Resolved schema name.
     pub schema_name: String,
     #[serde(rename = "isComplete")]
-    /// Whether all schema artifacts are complete.
+    /// Whether all required schema artifacts are complete.
     pub is_complete: bool,
     #[serde(rename = "applyRequires")]
     /// Artifacts required before "apply" is allowed.
@@ -227,6 +227,8 @@ pub struct ReviewArtifactInfo {
     pub path: String,
     /// Whether the artifact currently exists in the change directory.
     pub present: bool,
+    /// Whether the artifact is optional in the selected schema.
+    pub optional: bool,
 }
 
 /// Serializable validation issue payload for review templates.
@@ -433,6 +435,9 @@ pub struct ArtifactYaml {
     #[serde(default)]
     /// Optional additional instruction text.
     pub instruction: Option<String>,
+    #[serde(default)]
+    /// Whether this artifact is available as a workflow aid without being required for completion.
+    pub optional: bool,
     #[serde(default)]
     /// Artifact ids that must be completed first.
     pub requires: Vec<String>,

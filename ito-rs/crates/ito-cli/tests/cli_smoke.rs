@@ -111,6 +111,109 @@ fn cli_top_level_serve_api_help_shows_backend_migration_guidance() {
 }
 
 #[test]
+fn status_marks_optional_artifacts_without_counting_them_as_incomplete() {
+    let repo = make_base_repo();
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(
+        repo.path()
+            .join(".ito/templates/schemas/spec-driven/schema.yaml"),
+        r#"name: spec-driven
+version: 1
+artifacts:
+  - id: domain-discovery
+    generates: domain-discovery.md
+    template: domain-discovery.md
+    optional: true
+    requires: []
+  - id: proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+"#,
+    );
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/.ito.yaml"),
+        "schema: spec-driven\n",
+    );
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/proposal.md"),
+        "## Why\nOptional discovery is not needed.\n",
+    );
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/design.md"),
+        "# Design\n\nNo special design required.\n",
+    );
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/specs/alpha/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Optional Artifact Status\nThe system SHALL treat omitted optional artifacts as non-blocking.\n\n#### Scenario: Status renders optional artifact\n- **WHEN** status renders a change with a missing optional artifact\n- **THEN** the required progress remains complete\n",
+    );
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/tasks.md"),
+        "# Tasks\n\n- [x] Verify optional artifact status\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "status",
+            "--change",
+            "000-02_optional-artifact",
+            "--schema",
+            "spec-driven",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("Progress: 4/4 artifacts complete"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("[~] domain-discovery (optional)"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(out.stdout.contains("All required artifacts complete!"));
+
+    write(
+        repo.path()
+            .join(".ito/changes/000-02_optional-artifact/domain-discovery.md"),
+        "# Domain Discovery\n\nDiscovery was explicitly captured.\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "status",
+            "--change",
+            "000-02_optional-artifact",
+            "--schema",
+            "spec-driven",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("Progress: 5/5 artifacts complete"),
+        "stdout={}",
+        out.stdout
+    );
+    assert!(out.stdout.contains("[x] domain-discovery"));
+}
+
+#[test]
 fn list_show_validate_smoke() {
     let base = make_base_repo();
     let repo = tempfile::tempdir().expect("work");

@@ -1,17 +1,19 @@
 ---
 name: ito-plan
-description: Explore and shape an idea before creating one or more Ito proposals.
+description: Explore rough ideas before proposal scaffolding, including DDD discovery when useful.
 category: Ito
-tags: [ito, planning]
+tags: [ito, plan, discovery, ddd]
 ---
 
-<PlanningRequest>
+<UserRequest>
 $ARGUMENTS
-</PlanningRequest>
+</UserRequest>
 
 <!-- ITO:START -->
 
-Load and follow the `ito-plan` skill. Pass the <PlanningRequest> block as input unchanged.
+Load and follow the `ito-plan` skill. Pass the <UserRequest> block as input.
+
+Use the least sufficient discovery depth. Inspect repository evidence before asking questions, and route the resulting handoff to `ito-proposal-intake` or `ito-proposal` when proposal-ready.
 
 Before stateful Ito actions, run `ito audit validate`; if it fails or reports drift, run `ito audit reconcile` then `ito audit reconcile --fix`.
 

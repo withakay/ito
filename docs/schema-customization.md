@@ -71,7 +71,7 @@ ito templates schemas export -f ".ito/templates/schemas" --force
 
 ## Validation Rules Extension
 
-Schema validation configs can opt into additional checks without changing validator IDs. Add a `rules:` map under an artifact entry, and use the optional top-level `proposal:` entry when proposal-only checks are needed.
+Schema validation configs can opt into additional checks without changing validator IDs. Add a `rules:` map under an artifact entry, and use the optional top-level `proposal:` entry when proposal-only checks are needed. Domain-discovery rules can run from either `proposal.rules` or an artifact rule such as `artifacts.specs.rules`, so schemas without `proposal.md` can still validate a `domain-discovery.md` handoff.
 
 ```yaml
 version: 1
@@ -88,6 +88,9 @@ proposal:
   validate_as: ito.delta-specs.v1
   rules:
     capabilities_consistency: error
+    ubiquitous_language_consistency: warning
+    context_boundary_consistency: warning
+    domain_documentation_consistency: warning
 tracking:
   source: apply_tracks
   required: true
@@ -102,7 +105,12 @@ Current v1 rule names:
 - `ui_mechanics`: warn when non-UI requirements describe click/wait/selector mechanics
 - `contract_refs`: validate requirement-level `Contract Refs` syntax and related proposal anchors
 - `capabilities_consistency`: compare proposal capability lists against change-local deltas and baseline `.ito/specs/`
+- `ubiquitous_language_consistency`: compare rejected aliases from `domain-discovery.md` against proposal, spec, design, and task language
+- `context_boundary_consistency`: warn when cross-context discovery omits affected contexts, ownership, relationship framing, or translation boundaries
+- `domain_documentation_consistency`: compare proposed `CONTEXT.md`, `CONTEXT-MAP.md`, and ADR term definitions against `domain-discovery.md`
 - `task_quality`: enforce enhanced-task quality checks for `Files`, `Action`, `Verify`, `Done When`, `Requirements`, `Status`, and `Updated At`
+
+The domain-language and boundary rules are quiet unless the change includes `domain-discovery.md` with the relevant DDD handoff tables populated. `ubiquitous_language_consistency` reads rejected aliases from `## Rejected Aliases / Overloaded Terms`; `context_boundary_consistency` reads `## Domain Discovery Summary`, `## Bounded Context Map`, and `## Model Ownership`; `domain_documentation_consistency` compares `## Ubiquitous Language` term definitions against proposed domain docs.
 
 Built-in `spec-driven` defaults stay quiet in v1: the shipped schema exports the rule machinery, but it does not enable any of these new rules until you opt in through a project-local `validation.yaml` override.
 

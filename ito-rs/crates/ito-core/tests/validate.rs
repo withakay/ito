@@ -159,6 +159,59 @@ apply:
 }
 
 #[test]
+fn validate_change_default_apply_requirements_ignore_optional_artifacts() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("demo")
+            .join("schema.yaml"),
+        r#"
+name: demo
+version: 1
+artifacts:
+  - id: discovery
+    generates: domain-discovery.md
+    template: domain-discovery.md
+    optional: true
+    requires: []
+  - id: proposal
+    generates: proposal.md
+    template: proposal.md
+    requires: []
+"#,
+    );
+
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: demo\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "# Proposal\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let r = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(
+        !r.issues.iter().any(|i| {
+            i.path == "artifacts.discovery"
+                && i.message
+                    .contains("Apply-required artifact 'discovery' is missing")
+        }),
+        "optional artifact should not be apply-required by default, got issues: {:?}",
+        r.issues
+    );
+}
+
+#[test]
 fn validate_change_uses_validation_yaml_delta_specs_validator_when_configured() {
     let td = tempfile::tempdir().unwrap();
     let project_root = td.path();
