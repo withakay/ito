@@ -111,7 +111,7 @@ ______________________________________________________________________
 - **Done When**: Fresh-init and update paths both install the new assets.
 - **Requirements**: ito-update-repo-skill:distribution
 - **Updated At**: 2026-05-12
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: End-to-end orphan + staleness dry-run
 
