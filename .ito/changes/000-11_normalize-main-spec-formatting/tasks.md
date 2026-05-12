@@ -92,7 +92,7 @@ ______________________________________________________________________
 - **Verify**: `make check`
 - **Done When**: Validation catches regressions where delta-only structure is reintroduced into `.ito/specs/`.
 - **Updated At**: 2026-05-12
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
