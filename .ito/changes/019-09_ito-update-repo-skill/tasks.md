@@ -122,7 +122,7 @@ ______________________________________________________________________
 - **Done When**: Dry-run output matches the orphan-audit and stamp-readable requirements simultaneously.
 - **Requirements**: ito-update-repo-skill:orphan-audit, ito-update-repo-skill:approval-gate, ito-managed-asset-versioning:stamp-readable, ito-managed-asset-naming:prefix-drives-ownership
 - **Updated At**: 2026-05-12
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.3: End-to-end orphan cleanup apply
 
