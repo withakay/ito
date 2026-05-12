@@ -150,5 +150,5 @@ ______________________________________________________________________
 - **Done When**: Command is discoverable in documentation.
 - **Requirements**: ito-update-repo-skill:distribution
 - **Updated At**: 2026-05-12
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
