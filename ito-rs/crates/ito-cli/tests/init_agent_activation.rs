@@ -87,6 +87,53 @@ fn init_update_adds_activation_to_existing_agent_frontmatter() {
     assert!(delegated.contains("mode: subagent"));
 }
 
+#[test]
+fn init_update_installs_ito_plan_command_and_skill_for_all_harnesses() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = ["init", repo_path.as_ref(), "--tools", "all", "--update"];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    for rel in ito_plan_command_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read command");
+        assert!(
+            contents.contains("Load and follow the `ito-plan` skill"),
+            "expected {rel} to load the ito-plan skill"
+        );
+        assert!(
+            contents.contains("$ARGUMENTS"),
+            "expected {rel} to pass through user arguments"
+        );
+    }
+
+    for rel in ito_plan_skill_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read skill");
+        assert!(
+            contents.contains("Turn an open-ended idea into a useful planning artifact"),
+            "expected {rel} to contain planning workflow guidance"
+        );
+        assert!(
+            contents.contains(".ito/research/"),
+            "expected {rel} to describe research artifact location"
+        );
+    }
+
+    for rel in generic_ito_skill_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read ito skill");
+        assert!(
+            contents.contains("`ito plan init/status` are CLI workspace commands"),
+            "expected {rel} to keep ito plan routed to the CLI"
+        );
+    }
+}
+
 fn direct_agent_paths() -> Vec<String> {
     let mut paths = Vec::new();
     for root in [
@@ -128,5 +175,35 @@ fn opencode_delegated_agent_paths() -> Vec<String> {
         ".opencode/agents/ito-worker.md".to_string(),
         ".opencode/agents/ito-reviewer.md".to_string(),
         ".opencode/agents/ito-test-runner.md".to_string(),
+    ]
+}
+
+fn ito_plan_command_paths() -> Vec<String> {
+    vec![
+        ".claude/commands/ito-plan.md".to_string(),
+        ".codex/prompts/ito-plan.md".to_string(),
+        ".github/prompts/ito-plan.prompt.md".to_string(),
+        ".opencode/commands/ito-plan.md".to_string(),
+        ".pi/commands/ito-plan.md".to_string(),
+    ]
+}
+
+fn ito_plan_skill_paths() -> Vec<String> {
+    vec![
+        ".claude/skills/ito-plan/SKILL.md".to_string(),
+        ".codex/skills/ito-plan/SKILL.md".to_string(),
+        ".github/skills/ito-plan/SKILL.md".to_string(),
+        ".opencode/skills/ito-plan/SKILL.md".to_string(),
+        ".pi/skills/ito-plan/SKILL.md".to_string(),
+    ]
+}
+
+fn generic_ito_skill_paths() -> Vec<String> {
+    vec![
+        ".claude/skills/ito/SKILL.md".to_string(),
+        ".codex/skills/ito/SKILL.md".to_string(),
+        ".github/skills/ito/SKILL.md".to_string(),
+        ".opencode/skills/ito/SKILL.md".to_string(),
+        ".pi/skills/ito/SKILL.md".to_string(),
     ]
 }

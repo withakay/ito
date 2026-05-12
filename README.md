@@ -27,7 +27,7 @@ Ito centers work around a small set of versioned artifacts under `.ito/`.
 - Modules: optional grouping of related changes with validation of scope and naming.
 - Validation: checks that changes/modules/specs follow conventions and are internally consistent.
 - Agent-facing instructions: generated instruction artifacts (`ito agent instruction ...`) and tool adapters installed by `ito init` / `ito update`.
-- Optional project planning: templates for `.ito/planning/{PROJECT,ROADMAP,STATE}.md` (`ito plan ...`; edit `STATE.md` directly).
+- Optional project planning: flexible markdown plans under `.ito/planning/` via `/ito-plan`, with deeper research under `.ito/research/`.
 - Optional local docs server: browse `.ito/` artifacts over HTTP (`ito serve ...`, requires `caddy`).
 
 ## Core Workflow
@@ -190,10 +190,10 @@ See `docs/backend-client-mode.md` for full documentation and `infra/helm/ito-bac
   modules/                # Optional grouping of changes
     <NNN_module-name>/
       module.md
-  planning/               # Optional project planning artifacts
-    PROJECT.md
-    ROADMAP.md
-    STATE.md
+  planning/               # Optional flexible project planning artifacts
+    <topic>.md
+  research/               # Optional supporting deep-dive research
+    <topic>/
 ```
 
 ## Contributing
