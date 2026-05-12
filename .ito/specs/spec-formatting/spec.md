@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec Formatting
+
+## Purpose
+
+This spec defines the canonical markdown structure for main Ito specs so authors can distinguish current-truth specifications from change delta proposals.
+
+## Requirements
 
 ### Requirement: Main specs use a canonical document structure
 
