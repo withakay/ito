@@ -3,13 +3,19 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1510,
+      "tokens": 988,
       "type": "summary"
     },
     {
       "order": 1,
       "path": "development/ito_templates/_index.md",
       "tokens": 331,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/source_guides/_index.md",
+      "tokens": 341,
       "type": "summary"
     },
     {
@@ -31,7 +37,23 @@
     {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
-      "tokens": 119,
+      "tokens": 136,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/coordination_branch_git_behavior.abstract.md",
+      "abstractTokens": 52,
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_branch_git_behavior.md",
+      "tokens": 52,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/coordination_symlink_repair_and_sync.abstract.md",
+      "abstractTokens": 51,
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_symlink_repair_and_sync.md",
+      "tokens": 51,
       "type": "context"
     },
     {
@@ -40,6 +62,14 @@
       "importance": 50,
       "path": "development/ito_workflow/ddd_discovery_workflow.md",
       "tokens": 53,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/ito_config_gotcha.abstract.md",
+      "abstractTokens": 68,
+      "importance": 50,
+      "path": "development/ito_workflow/ito_config_gotcha.md",
+      "tokens": 68,
       "type": "context"
     },
     {
@@ -108,20 +138,20 @@
     },
     {
       "abstractPath": "development/source_guides/source_guide_workflow.abstract.md",
-      "abstractTokens": 41,
+      "abstractTokens": 40,
       "importance": 50,
       "path": "development/source_guides/source_guide_workflow.md",
-      "tokens": 41,
+      "tokens": 40,
       "type": "context"
     }
   ],
-  "generated_at": "2026-04-30T18:04:03.251Z",
+  "generated_at": "2026-05-13T19:08:16.890Z",
   "lane_tokens": {
-    "contexts": 782,
+    "contexts": 969,
     "stubs": 0,
-    "summaries": 1841
+    "summaries": 1660
   },
-  "source_fingerprint": "1193a3615ad9230f03fab38131e0c076a950b59ab46af485b0d19b492c4a00a7",
-  "total_tokens": 2623,
+  "source_fingerprint": "52f554bf99c36171ffc89527b9cbdd7d85acf054b1dacc6a2ce13bd3a84b479b",
+  "total_tokens": 2629,
   "version": 1
 }

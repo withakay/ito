@@ -7,7 +7,7 @@ tools:
   - execute
   - edit
   - write
-model: "github-copilot/gpt-5.4"
+model: "openai/gpt-5.4"
 ---
 
 You are a capable coding assistant for general development work.

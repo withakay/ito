@@ -1,0 +1,1 @@
+Coordination branch git behavior initializes missing remotes with an empty-tree root commit, rejects empty git output, validates errors and branch names, and reserves changes in a detached temporary worktree.

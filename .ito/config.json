@@ -11,6 +11,7 @@
   },
   "changes": {
     "coordination_branch": {
+      "enabled": true,
       "name": "ito/internal/changes",
       "storage": "worktree"
     }

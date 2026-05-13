@@ -1,5 +1,5 @@
 ---
-related: [development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md, development/ito_workflow/ddd_discovery_workflow.md]
+related: [development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md, development/ito_workflow/ddd_discovery_workflow.md, development/ito_workflow/coordination_symlink_repair_and_sync.md]
 ---
 # Topic: ito_workflow
 
