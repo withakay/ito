@@ -3,6 +3,8 @@
  *
  * Injects Ito bootstrap context via system prompt transform.
  * Runs Ito audit checks on pre-tool hook with short TTL caching.
+ * Updates the OpenCode session title with the current worktree name when
+ * OpenCode exposes a session ID to plugin hooks or session events.
  * Skills are resolved from ${OPENCODE_CONFIG_DIR}/skills/ito-skills/
  * (never via relative paths to the plugin file).
  */
@@ -17,6 +19,7 @@ const DEFAULT_WORKTREE_GUARD_TTL_MS = 5000;
 const ITO_EXEC_TIMEOUT_MS = 20000;
 const ITO_CONTEXT_TTL_MS = 5000;
 const ITO_TOAST_TIMEOUT_MS = 1500;
+const ITO_SESSION_TITLE_CACHE_LIMIT = 32;
 const DRIFT_RELATED_TEXT = /(drift|reconcile|mismatch|missing|out\s+of\s+sync)/i;
 
 const ITO_MANAGED_FILE_RULES = [
@@ -63,7 +66,7 @@ const RELEVANT_WORKTREE_GUARD_TOOLS = new Set([
   'TodoWrite'
 ]);
 
-export const ItoPlugin = async ({ client, directory }) => {
+export const ItoPlugin = async ({ client, directory, worktree }) => {
   const homeDir = os.homedir();
   const envConfigDir = process.env.OPENCODE_CONFIG_DIR?.trim();
   const configDir = envConfigDir || path.join(homeDir, '.config/opencode');
@@ -84,6 +87,8 @@ export const ItoPlugin = async ({ client, directory }) => {
   const disableWorktreeDetection = process.env.ITO_OPENCODE_WORKTREE_DETECT_DISABLED === '1';
   const disableContext = process.env.ITO_OPENCODE_CONTEXT_DISABLED === '1';
   const disableCompactionContext = process.env.ITO_OPENCODE_COMPACTION_DISABLED === '1';
+  const disableSessionTitle = process.env.ITO_OPENCODE_SESSION_TITLE_DISABLED === '1';
+  const sessionTitlePrefix = process.env.ITO_OPENCODE_SESSION_TITLE_PREFIX?.trim() || 'Ito';
 
   const toastTimeoutMsRaw = Number.parseInt(process.env.ITO_OPENCODE_TOAST_TIMEOUT_MS || '', 10);
   const toastTimeoutMs = Number.isFinite(toastTimeoutMsRaw) && toastTimeoutMsRaw > 0
@@ -134,6 +139,7 @@ export const ItoPlugin = async ({ client, directory }) => {
 
   let lastContextAt = 0;
   let lastContext = null;
+  const lastSessionTitleById = new Map();
 
   const showToast = ({ title, message, variant = 'info', duration }) => {
     if (disableToasts) {
@@ -253,6 +259,97 @@ export const ItoPlugin = async ({ client, directory }) => {
       return JSON.parse(text);
     } catch {
       return null;
+    }
+  };
+
+  const extractSessionId = (input) => {
+    // OpenCode has exposed session IDs under different hook/event shapes across
+    // versions, so keep this broad and fail closed when none are present.
+    const candidates = [
+      input?.sessionID,
+      input?.sessionId,
+      input?.session_id,
+      input?.session?.id,
+      input?.session?.sessionID,
+      input?.session?.sessionId,
+      input?.event?.sessionID,
+      input?.event?.sessionId,
+      input?.event?.session_id,
+      input?.event?.session?.id,
+      input?.properties?.sessionID,
+      input?.properties?.sessionId,
+      input?.properties?.session_id,
+      input?.properties?.session?.id
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return '';
+  };
+
+  const rememberSessionTitle = (sessionId, title) => {
+    if (!lastSessionTitleById.has(sessionId) && lastSessionTitleById.size >= ITO_SESSION_TITLE_CACHE_LIMIT) {
+      const oldestSessionId = lastSessionTitleById.keys().next().value;
+      if (oldestSessionId) {
+        lastSessionTitleById.delete(oldestSessionId);
+      }
+    }
+
+    lastSessionTitleById.set(sessionId, title);
+  };
+
+  const currentWorktreeName = () => {
+    const explicitWorktree = typeof worktree === 'string' ? worktree.trim() : '';
+    if (explicitWorktree) {
+      return path.basename(path.resolve(explicitWorktree));
+    }
+
+    const rootResult = runGit(['rev-parse', '--show-toplevel']);
+    const root = rootResult.ok && rootResult.stdout ? rootResult.stdout : directory;
+    return path.basename(path.resolve(root));
+  };
+
+  const maybeUpdateSessionTitle = async (input) => {
+    if (disableSessionTitle) {
+      debug('session-title:disabled');
+      return;
+    }
+    if (!client?.session?.update) {
+      debug('session-title:update-unavailable');
+      return;
+    }
+
+    const sessionId = extractSessionId(input);
+    if (!sessionId) {
+      debug('session-title:no-session-id');
+      return;
+    }
+
+    const worktreeName = currentWorktreeName();
+    if (!worktreeName) {
+      debug('session-title:no-worktree-name');
+      return;
+    }
+
+    const title = `${sessionTitlePrefix}: ${worktreeName}`;
+    if (lastSessionTitleById.get(sessionId) === title) {
+      debug('session-title:unchanged', { sessionId, title });
+      return;
+    }
+
+    rememberSessionTitle(sessionId, title);
+    try {
+      await client.session.update({
+        path: { id: sessionId },
+        body: { title }
+      });
+      debug('session-title:updated', { sessionId, title });
+    } catch (e) {
+      debug('session-title:error', { sessionId, title, error: String(e) });
     }
   };
 
@@ -573,6 +670,10 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
         return;
       }
 
+      if (event.type === 'session.created' || event.type === 'session.idle') {
+        await maybeUpdateSessionTitle(event);
+      }
+
       if (event.type === 'session.compacted') {
         if (disableCompactionContext) {
           return;
@@ -635,6 +736,10 @@ Use OpenCode's native \`skill\` tool to load Ito workflows.
       const worktreeGuard = maybeRunWorktreeGuard(toolName);
       if (!worktreeGuard) {
         return;
+      }
+
+      if (worktreeGuard.status === 'ok' || worktreeGuard.status === 'disabled') {
+        await maybeUpdateSessionTitle(input);
       }
 
       if (worktreeGuard.status === 'main_checkout') {
