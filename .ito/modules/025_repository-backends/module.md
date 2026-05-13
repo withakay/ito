@@ -40,4 +40,4 @@ Define repository-backed persistence for Ito so clients can resolve active work 
 - [x] 025-09_add-worktree-sync-command
 - [ ] 025-10_repository-backed-artifact-mutations
 - [x] 025-11_repository-backed-artifact-mutations
-- [ ] 025-12_narrow-coordination-branch
+- [x] 025-12_narrow-coordination-branch
