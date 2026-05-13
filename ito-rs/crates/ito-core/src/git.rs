@@ -127,7 +127,7 @@ pub fn reserve_change_on_coordination_branch(
 /// Ensures the coordination branch exists on `origin`.
 ///
 /// If the branch is already present on the remote, this returns `CoordinationBranchSetupStatus::Ready`.
-/// If the branch is missing and is created by pushing the local `HEAD`, this returns `CoordinationBranchSetupStatus::Created`.
+/// If the branch is missing and is created from an empty tree, this returns `CoordinationBranchSetupStatus::Created`.
 ///
 /// # Examples
 ///
@@ -242,11 +242,11 @@ pub fn ensure_coordination_branch_on_origin_core(
         .map_err(|err| CoreError::process(format!("coordination setup failed: {}", err.message)))
 }
 
-/// Ensures the coordination branch exists on the remote `origin`, creating it by pushing `HEAD` if necessary.
+/// Ensures the coordination branch exists on the remote `origin`, creating it from an empty tree if necessary.
 ///
 /// Attempts to fetch `origin/<branch>`; if the fetch succeeds the function returns
 /// `CoordinationBranchSetupStatus::Ready`. If the fetch fails because the remote ref is
-/// missing, the function pushes `HEAD` to `origin` to create the branch and returns
+/// missing, the function creates an empty root commit and pushes that commit to `origin` to create the branch and returns
 /// `CoordinationBranchSetupStatus::Created`. The function returns an `Err` if it is not
 /// invoked inside a git worktree or if the underlying fetch/push fail for other reasons.
 ///
@@ -276,10 +276,87 @@ pub(crate) fn ensure_coordination_branch_on_origin_with_runner(
                 return Err(err);
             }
 
-            push_coordination_branch_with_runner(runner, repo_root, "HEAD", branch)
+            create_empty_coordination_branch_on_origin(runner, repo_root, branch)
                 .map(|()| CoordinationBranchSetupStatus::Created)
         }
     }
+}
+
+fn create_empty_coordination_branch_on_origin(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<(), CoordinationGitError> {
+    let empty_tree = create_empty_tree(runner, repo_root, branch)?;
+    let commit = run_git(
+        runner,
+        ProcessRequest::new("git")
+            .args([
+                "commit-tree",
+                empty_tree.as_str(),
+                "-m",
+                "Initialize coordination branch",
+            ])
+            .current_dir(repo_root),
+        "commit-tree",
+    )?;
+    if !commit.success {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to create empty coordination branch commit for '{branch}' ({})",
+                render_output(&commit)
+            ),
+        ));
+    }
+
+    let commit = last_non_empty_line(&commit.stdout).ok_or_else(|| {
+        CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!("commit-tree for '{branch}' produced no commit hash"),
+        )
+    })?;
+    push_coordination_branch_with_runner(runner, repo_root, commit, branch)
+}
+
+fn create_empty_tree(
+    runner: &dyn ProcessRunner,
+    repo_root: &Path,
+    branch: &str,
+) -> Result<String, CoordinationGitError> {
+    let empty_tree = run_git(
+        runner,
+        ProcessRequest::new("git")
+            .args(["mktree"])
+            .current_dir(repo_root),
+        "mktree",
+    )?;
+    if !empty_tree.success {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to create empty tree for coordination branch '{branch}' ({})",
+                render_output(&empty_tree)
+            ),
+        ));
+    }
+
+    last_non_empty_line(&empty_tree.stdout)
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            CoordinationGitError::new(
+                CoordinationGitErrorKind::CommandFailed,
+                format!("mktree for '{branch}' produced no tree hash"),
+            )
+        })
+}
+
+fn last_non_empty_line(output: &str) -> Option<&str> {
+    output
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
 }
 
 /// Fetches the coordination branch from `origin` into the repository's remote-tracking refs.
@@ -460,6 +537,7 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
     }
 
     let worktree_path = unique_temp_worktree_path();
+    ensure_coordination_branch_on_origin_with_runner(runner, repo_root, branch)?;
 
     run_git(
         runner,
@@ -479,32 +557,23 @@ pub(crate) fn reserve_change_on_coordination_branch_with_runner(
         worktree_path: worktree_path.clone(),
     };
 
-    let fetch_result = fetch_coordination_branch_with_runner(runner, repo_root, branch);
-    match fetch_result {
-        Ok(()) => {
-            let checkout_target = format!("origin/{branch}");
-            let checkout = run_git(
-                runner,
-                ProcessRequest::new("git")
-                    .args(["checkout", "--detach", &checkout_target])
-                    .current_dir(&worktree_path),
-                "checkout coordination branch",
-            )?;
-            if !checkout.success {
-                return Err(CoordinationGitError::new(
-                    CoordinationGitErrorKind::CommandFailed,
-                    format!(
-                        "failed to checkout coordination branch '{branch}' ({})",
-                        render_output(&checkout),
-                    ),
-                ));
-            }
-        }
-        Err(err) => {
-            if err.kind != CoordinationGitErrorKind::RemoteMissing {
-                return Err(err);
-            }
-        }
+    fetch_coordination_branch_with_runner(runner, repo_root, branch)?;
+    let checkout_target = format!("origin/{branch}");
+    let checkout = run_git(
+        runner,
+        ProcessRequest::new("git")
+            .args(["checkout", "--detach", &checkout_target])
+            .current_dir(&worktree_path),
+        "checkout coordination branch",
+    )?;
+    if !checkout.success {
+        return Err(CoordinationGitError::new(
+            CoordinationGitErrorKind::CommandFailed,
+            format!(
+                "failed to checkout coordination branch '{branch}' ({})",
+                render_output(&checkout),
+            ),
+        ));
     }
 
     let target_change_dir = worktree_path.join(".ito").join("changes").join(change_id);
@@ -783,18 +852,21 @@ mod tests {
 
     struct StubRunner {
         outputs: RefCell<VecDeque<Result<ProcessOutput, ProcessExecutionError>>>,
+        calls: RefCell<Vec<Vec<String>>>,
     }
 
     impl StubRunner {
         fn with_outputs(outputs: Vec<Result<ProcessOutput, ProcessExecutionError>>) -> Self {
             Self {
                 outputs: RefCell::new(outputs.into()),
+                calls: RefCell::new(Vec::new()),
             }
         }
     }
 
     impl ProcessRunner for StubRunner {
-        fn run(&self, _request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
+        fn run(&self, request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
+            self.calls.borrow_mut().push(request.args.clone());
             self.outputs
                 .borrow_mut()
                 .pop_front()
@@ -908,6 +980,8 @@ mod tests {
             Ok(err_output(
                 "fatal: couldn't find remote ref ito/internal/changes",
             )),
+            Ok(ok_output("4b825dc642cb6eb9a060e54bf8d69288fbee4904\n", "")),
+            Ok(ok_output("deadbeef1234567890abcdef1234567890abcdef\n", "")),
             Ok(ok_output("", "")),
         ]);
         let repo = std::env::temp_dir();
@@ -918,6 +992,115 @@ mod tests {
         )
         .expect("setup should create branch");
         assert_eq!(result, CoordinationBranchSetupStatus::Created);
+
+        let calls = runner.calls.borrow();
+        assert_eq!(calls[2], ["mktree"]);
+        assert_eq!(calls[3][0], "commit-tree");
+        assert_eq!(calls[3][1], "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
+        assert!(
+            !calls[3].contains(&"-p".to_string()),
+            "coordination init commit must be a root commit: {:?}",
+            calls[3]
+        );
+        assert!(
+            calls[3].contains(&"Initialize coordination branch".to_string()),
+            "commit-tree should use coordination init message: {:?}",
+            calls[3]
+        );
+        assert_eq!(
+            calls[4],
+            [
+                "push",
+                "origin",
+                "deadbeef1234567890abcdef1234567890abcdef:refs/heads/ito/internal/changes"
+            ]
+        );
+        assert!(
+            !calls[4][2].starts_with("HEAD:"),
+            "setup must not create coordination branch from HEAD: {:?}",
+            calls[4]
+        );
+    }
+
+    #[test]
+    fn setup_coordination_branch_reports_empty_tree_failure() {
+        let runner = StubRunner::with_outputs(vec![
+            Ok(ok_output("true\n", "")),
+            Ok(err_output(
+                "fatal: couldn't find remote ref ito/internal/changes",
+            )),
+            Ok(err_output("fatal: invalid tree input")),
+        ]);
+        let repo = std::env::temp_dir();
+
+        let err = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, CoordinationGitErrorKind::CommandFailed);
+        assert!(
+            err.message.contains("failed to create empty tree"),
+            "unexpected error message: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn setup_coordination_branch_reports_commit_tree_failure() {
+        let runner = StubRunner::with_outputs(vec![
+            Ok(ok_output("true\n", "")),
+            Ok(err_output(
+                "fatal: couldn't find remote ref ito/internal/changes",
+            )),
+            Ok(ok_output("4b825dc642cb6eb9a060e54bf8d69288fbee4904\n", "")),
+            Ok(err_output("fatal: unable to auto-detect email address")),
+        ]);
+        let repo = std::env::temp_dir();
+
+        let err = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, CoordinationGitErrorKind::CommandFailed);
+        assert!(
+            err.message
+                .contains("failed to create empty coordination branch commit"),
+            "unexpected error message: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn setup_coordination_branch_rejects_empty_commit_tree_stdout() {
+        let runner = StubRunner::with_outputs(vec![
+            Ok(ok_output("true\n", "")),
+            Ok(err_output(
+                "fatal: couldn't find remote ref ito/internal/changes",
+            )),
+            Ok(ok_output("4b825dc642cb6eb9a060e54bf8d69288fbee4904\n", "")),
+            Ok(ok_output("\n", "")),
+        ]);
+        let repo = std::env::temp_dir();
+
+        let err = ensure_coordination_branch_on_origin_with_runner(
+            &runner,
+            &repo,
+            "ito/internal/changes",
+        )
+        .unwrap_err();
+        assert_eq!(err.kind, CoordinationGitErrorKind::CommandFailed);
+        assert!(
+            err.message.contains("produced no commit hash"),
+            "unexpected error message: {}",
+            err.message
+        );
+
+        let calls = runner.calls.borrow();
+        assert_eq!(calls.len(), 4, "empty commit hash must not be pushed");
     }
 
     #[test]
@@ -956,6 +1139,8 @@ mod tests {
             Ok(err_output(
                 "fatal: couldn't find remote ref ito/internal/changes",
             )),
+            Ok(ok_output("4b825dc642cb6eb9a060e54bf8d69288fbee4904\n", "")),
+            Ok(ok_output("deadbeef1234567890abcdef1234567890abcdef\n", "")),
             Ok(err_output(
                 "fatal: 'origin' does not appear to be a git repository",
             )),
