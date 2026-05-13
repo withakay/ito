@@ -1,6 +1,13 @@
 {
   "tools": {},
   "agents": {},
+  "changes": {
+    "coordination_branch": {
+      "enabled": true,
+      "name": "ito/internal/changes",
+      "storage": "embedded"
+    }
+  },
   "worktrees": {
     "apply": {
       "integration_mode": "commit_pr"
