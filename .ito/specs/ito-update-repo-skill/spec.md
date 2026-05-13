@@ -1,89 +1,118 @@
-<!-- ITO:START -->
-# Ito Update Repo Skill
+## ADDED Requirements
 
-## Purpose
+### Requirement: Ito Update Repo Skill
 
-This spec defines the current behavior and requirements for ito update repo skill.
+The system SHALL provide an `ito-update-repo` skill (and a matching `/ito-update-repo` command) distributed in the Ito templates bundle that refreshes Ito-managed files in a project and audits harness directories for orphan skills, commands, and prompts.
 
-## Requirements
+- **Requirement ID**: ito-update-repo-skill:skill-entrypoint
 
-### Requirement: ito-update-repo skill includes a pre-commit hook setup step
+#### Scenario: Invoked without arguments
 
-The canonical `ito-update-repo` skill (source: `ito-rs/crates/ito-templates/assets/skills/ito-update-repo/SKILL.md`) SHALL include a "Pre-commit hook setup" step that runs after the templates refresh and orphan cleanup. The step SHALL invoke `detect_pre_commit_system` (or document the equivalent inspection the agent performs), then propose the appropriate hook entry, then apply it after explicit user approval.
+- **WHEN** the agent loads the `ito-update-repo` skill with no arguments
+- **THEN** the skill SHALL run `ito init --update --tools all` without `--force`
+- **AND** report the list of orphan skills and commands grouped by harness directory
+- **AND** ask the user for approval before deleting any entry
 
-- **Requirement ID**: ito-update-repo-skill:pre-commit-step
+#### Scenario: Invoked with `--dry-run`
 
-#### Scenario: Skill detects an existing prek setup
+- **WHEN** the agent loads the skill with `--dry-run` in its arguments
+- **THEN** the skill SHALL perform the update and orphan audit
+- **AND** SHALL NOT delete any files
+- **AND** SHALL print the list of orphans that would be removed
 
-- **GIVEN** the project's repo root contains `.pre-commit-config.yaml` and a prek toolchain marker
-- **WHEN** the agent follows the `ito-update-repo` skill
-- **THEN** the agent SHALL identify the system as `prek` in its plan
-- **AND** the agent SHALL propose a `local` hook entry that runs `ito validate repo --staged --strict` at the `pre-commit` stage
+### Requirement: Non-Destructive By Default
 
-#### Scenario: Skill detects a Husky setup
+The skill SHALL default to non-destructive update semantics and never pass `--force` to `ito init` unless the user explicitly requests it.
 
-- **GIVEN** the project's repo root contains a `.husky/` directory
-- **WHEN** the agent follows the `ito-update-repo` skill
-- **THEN** the agent SHALL identify the system as `Husky`
-- **AND** the agent SHALL propose creating or appending a `.husky/pre-commit` script that calls `ito validate repo --staged --strict`
+- **Requirement ID**: ito-update-repo-skill:non-destructive
 
-#### Scenario: Skill handles an unrecognized setup
+#### Scenario: Default invocation
 
-- **GIVEN** the project has no recognized pre-commit framework markers
-- **WHEN** the agent follows the `ito-update-repo` skill
-- **THEN** the agent SHALL report `none detected`
-- **AND** the agent SHALL list the supported systems and ask the user to choose one rather than auto-installing a framework
+- **WHEN** the skill runs the update step without a user-supplied `--force` flag
+- **THEN** the invoked command SHALL be `ito init --update --tools all`
+- **AND** SHALL NOT include `--force`
 
-### Requirement: Pre-commit hook setup is dry-run by default
+#### Scenario: User-edited file preserved
 
-The skill's pre-commit setup step SHALL present the proposed edit as a diff or summary and SHALL require explicit user approval (or a non-interactive `--yes` flag) before writing any change.
+- **GIVEN** a harness skill file has been edited outside the Ito-managed markers
+- **WHEN** the skill runs the update step
+- **THEN** the user-edited content outside managed markers SHALL be preserved
 
-- **Requirement ID**: ito-update-repo-skill:dry-run-default
+### Requirement: Orphan Audit Across Harnesses
 
-#### Scenario: Default behaviour is a preview
+The skill SHALL compare each harness skill directory and each harness command/prompt directory against the asset manifest installed by the current Ito binary, and SHALL flag any entry whose basename is not present in that manifest.
 
-- **GIVEN** the user invokes `ito-update-repo` without `--yes`
-- **WHEN** the agent reaches the pre-commit setup step
-- **THEN** the agent SHALL print the proposed edit
-- **AND** the agent SHALL wait for user approval before applying it
+- **Requirement ID**: ito-update-repo-skill:orphan-audit
 
-#### Scenario: --yes skips approval but still verifies
+#### Scenario: Skill renamed in a newer release
 
-- **GIVEN** the user invokes `ito-update-repo --yes`
-- **WHEN** the agent reaches the pre-commit setup step
-- **THEN** the agent SHALL apply the edit without prompting
-- **AND** the agent SHALL still run the verification step afterwards
+- **GIVEN** the project contains `.opencode/skills/ito-write-change-proposal/`
+- **AND** the current Ito templates ship `ito-proposal` as its replacement
+- **WHEN** the skill runs the orphan audit
+- **THEN** `.opencode/skills/ito-write-change-proposal/` SHALL appear in the orphan report
+- **AND** the report SHALL indicate that `ito-proposal` is the current replacement
 
-### Requirement: Pre-commit hook setup is verified after install
+#### Scenario: All harness roots are audited
 
-After applying the pre-commit hook entry, the skill SHALL run `ito validate repo --staged --strict` once and SHALL surface the exit code in its summary so the user knows whether the hook is functional.
+- **WHEN** the skill runs the orphan audit
+- **THEN** each of `.claude/skills/`, `.codex/skills/`, `.github/skills/`, `.opencode/skills/`, and `.pi/skills/` SHALL be scanned
+- **AND** each of `.claude/commands/`, `.codex/prompts/`, `.github/prompts/`, `.opencode/commands/`, and `.pi/commands/` SHALL be scanned
 
-- **Requirement ID**: ito-update-repo-skill:verify-after-install
+### Requirement: Approval Gate Before Deletion
 
-#### Scenario: Verification reports exit 0 on a clean repo
+The skill SHALL NOT delete any orphan entry until it has either received explicit user approval or the user passed `--yes`/`-y` in the skill arguments.
 
-- **GIVEN** the pre-commit hook entry has just been applied
-- **AND** the repository state matches the resolved configuration
-- **WHEN** the skill runs the verification step
-- **THEN** the verification SHALL exit 0
-- **AND** the skill summary SHALL state "pre-commit hook installed and verified"
+- **Requirement ID**: ito-update-repo-skill:approval-gate
 
-#### Scenario: Verification reports the failing rules
+#### Scenario: User approves selected orphans
 
-- **GIVEN** the pre-commit hook entry has just been applied
-- **AND** the repository has at least one configuration drift issue
-- **WHEN** the skill runs the verification step
-- **THEN** the verification SHALL exit non-zero
-- **AND** the skill summary SHALL list the failing rules so the user knows what to fix
+- **GIVEN** the skill has produced an orphan report
+- **WHEN** the user approves a subset of the listed orphans
+- **THEN** only the approved entries SHALL be deleted
+- **AND** unapproved entries SHALL remain on disk untouched
 
-### Requirement: Harness command shells reflect the pre-commit setup scope
+#### Scenario: User aborts
 
-The harness-equivalent command shells for `ito-update-repo` (under `assets/commands/`, `.opencode/commands/`, `.claude/commands/`, `.codex/prompts/`, `.github/prompts/`, `.pi/commands/`) SHALL mention pre-commit hook setup in their description or notes block so users discover it from the harness command palette.
+- **GIVEN** the skill has produced an orphan report
+- **WHEN** the user declines to approve any deletions
+- **THEN** no files SHALL be deleted
+- **AND** the skill SHALL exit reporting the update was applied but no cleanup was performed
 
-- **Requirement ID**: ito-update-repo-skill:harness-discoverability
+#### Scenario: `--keep` list respected
 
-#### Scenario: Harness command description mentions pre-commit setup
+- **GIVEN** the user passes `--keep repo-local-skill` in the arguments
+- **WHEN** the orphan audit finds `repo-local-skill` in a harness directory
+- **THEN** the skill SHALL treat it as kept
+- **AND** SHALL NOT include it in the orphan report
 
-- **WHEN** any harness's `ito-update-repo` command shell is read
-- **THEN** its description or notes block SHALL mention pre-commit hook setup as part of the skill's scope
-<!-- ITO:END -->
+### Requirement: Rerun Idempotence
+
+After the cleanup step completes, running the skill again SHALL produce no further file changes from the update step.
+
+- **Requirement ID**: ito-update-repo-skill:rerun-idempotent
+
+#### Scenario: Second invocation is stable
+
+- **GIVEN** the skill has completed a successful update and cleanup
+- **WHEN** the user invokes the skill a second time
+- **THEN** the update step SHALL report no file modifications
+- **AND** the orphan audit SHALL report zero orphans
+
+### Requirement: Distribution via Templates Bundle
+
+The skill and its command wrapper SHALL live in the `ito-templates` crate's embedded assets so that `ito init` and `ito init --update` install them into every configured harness.
+
+- **Requirement ID**: ito-update-repo-skill:distribution
+
+#### Scenario: Installed on fresh init
+
+- **GIVEN** a project has never had Ito installed
+- **WHEN** the user runs `ito init --tools all`
+- **THEN** the `ito-update-repo` skill SHALL be present in every configured harness skill directory
+- **AND** the `ito-update-repo` command SHALL be present in every configured harness command/prompt directory
+
+#### Scenario: Installed on update
+
+- **GIVEN** a project was initialized before this skill existed
+- **WHEN** the user runs `ito init --update --tools all`
+- **THEN** the `ito-update-repo` skill and command SHALL be added to every configured harness

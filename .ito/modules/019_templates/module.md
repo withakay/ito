@@ -18,7 +18,7 @@ Template management and installation for Ito (`ito-templates` crate). Embedded a
 - [x] 019-06_schema-selection-guidance
 - [ ] 019-07_embedded-schema-validation
 - [x] 019-08_proposal-intake-and-schema-routing
-- [ ] 019-09_ito-update-repo-skill
+- [x] 019-09_ito-update-repo-skill
 - [x] 019-10_manifesto-instruction
 - [x] 019-11_rename-orchestrator-assets
 - [x] 019-12_compress-template-prompts
