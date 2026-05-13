@@ -357,7 +357,8 @@ pub fn resolve_schema(
 ///
 /// `ChangeStatus` describing the change name, resolved schema, overall completion flag,
 /// the set of artifact ids required for apply, and a list of `ArtifactStatus` entries where each
-/// artifact is labeled `done`, `ready`, or `blocked` and includes any missing dependency ids.
+/// artifact is labeled `done`, `ready`, `blocked`, or `optional` and includes any missing
+/// dependency ids. Optional artifacts do not count against the overall completion flag.
 ///
 /// # Errors
 ///
@@ -394,8 +395,14 @@ pub fn compute_change_status(
     }
 
     let mut artifacts_out: Vec<ArtifactStatus> = Vec::new();
-    let mut done_count: usize = 0;
+    let mut required_done_count: usize = 0;
     let done_by_id = compute_done_by_id(&change_dir, &resolved.schema);
+    let required_count = resolved
+        .schema
+        .artifacts
+        .iter()
+        .filter(|artifact| !artifact.optional)
+        .count();
 
     let order = build_order(&resolved.schema);
     for id in order {
@@ -413,8 +420,12 @@ pub fn compute_change_status(
         }
 
         let status = if done {
-            done_count += 1;
+            if !a.optional {
+                required_done_count += 1;
+            }
             "done".to_string()
+        } else if a.optional {
+            "optional".to_string()
         } else if missing.is_empty() {
             "ready".to_string()
         } else {
@@ -428,21 +439,23 @@ pub fn compute_change_status(
         });
     }
 
-    let all_artifact_ids: Vec<String> = resolved
+    let required_artifact_ids: Vec<String> = resolved
         .schema
         .artifacts
         .iter()
+        .filter(|artifact| !artifact.optional)
         .map(|a| a.id.clone())
         .collect();
     let apply_requires: Vec<String> = match resolved.schema.apply.as_ref() {
         Some(apply) => apply
             .requires
             .clone()
-            .unwrap_or_else(|| all_artifact_ids.clone()),
-        None => all_artifact_ids.clone(),
+            .unwrap_or_else(|| required_artifact_ids.clone()),
+        None => required_artifact_ids,
     };
+    let apply_requires = expand_artifact_requirements(&resolved.schema, &apply_requires);
 
-    let is_complete = done_count == resolved.schema.artifacts.len();
+    let is_complete = required_done_count == required_count;
     Ok(ChangeStatus {
         change_name: change.to_string(),
         schema_name: resolved.schema.name,
@@ -450,6 +463,30 @@ pub fn compute_change_status(
         apply_requires,
         artifacts: artifacts_out,
     })
+}
+
+fn expand_artifact_requirements(schema: &SchemaYaml, roots: &[String]) -> Vec<String> {
+    let mut required = BTreeSet::new();
+    for root in roots {
+        collect_artifact_requirement(schema, root, &mut required);
+    }
+
+    build_order(schema)
+        .into_iter()
+        .filter(|id| required.contains(id))
+        .collect()
+}
+
+fn collect_artifact_requirement(schema: &SchemaYaml, id: &str, required: &mut BTreeSet<String>) {
+    if !required.insert(id.to_string()) {
+        return;
+    }
+    let Some(artifact) = schema.artifacts.iter().find(|artifact| artifact.id == id) else {
+        return;
+    };
+    for dependency in &artifact.requires {
+        collect_artifact_requirement(schema, dependency, required);
+    }
 }
 
 /// Computes a deterministic topological build order of artifact ids for the given schema.
@@ -476,6 +513,7 @@ pub fn compute_change_status(
 ///             description: None,
 ///             template: "a.tpl".to_string(),
 ///             instruction: None,
+///             optional: false,
 ///             requires: vec![],
 ///         },
 ///         ArtifactYaml {
@@ -484,6 +522,7 @@ pub fn compute_change_status(
 ///             description: None,
 ///             template: "b.tpl".to_string(),
 ///             instruction: None,
+///             optional: false,
 ///             requires: vec!["a".to_string()],
 ///         },
 ///         ArtifactYaml {
@@ -492,6 +531,7 @@ pub fn compute_change_status(
 ///             description: None,
 ///             template: "c.tpl".to_string(),
 ///             instruction: None,
+///             optional: false,
 ///             requires: vec!["a".to_string()],
 ///         },
 ///     ],
@@ -505,9 +545,10 @@ pub fn compute_change_status(
 fn build_order(schema: &SchemaYaml) -> Vec<String> {
     // Match TS ArtifactGraph.getBuildOrder (Kahn's algorithm with deterministic sorting
     // of roots + newlyReady only).
-    let mut in_degree: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    let mut dependents: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
+    let mut in_degree: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    let mut dependents: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
 
     for a in &schema.artifacts {
         in_degree.insert(a.id.clone(), a.requires.len());
@@ -705,6 +746,9 @@ pub fn resolve_instructions(
 }
 
 /// Compute apply-stage instructions and progress for a change.
+///
+/// Optional schema artifacts do not block apply by default; they only block when explicitly listed
+/// in `apply.requires`.
 pub fn compute_apply_instructions(
     ito_path: &Path,
     change: &str,
@@ -725,19 +769,24 @@ pub fn compute_apply_instructions(
 
     let schema = &resolved.schema;
     let apply = schema.apply.as_ref();
-    let all_artifact_ids: Vec<String> = schema.artifacts.iter().map(|a| a.id.clone()).collect();
+    let required_artifact_ids: Vec<String> = schema
+        .artifacts
+        .iter()
+        .filter(|artifact| !artifact.optional)
+        .map(|a| a.id.clone())
+        .collect();
 
     // Determine required artifacts and tracking file from schema.
-    // Match TS: apply.requires ?? allArtifacts (nullish coalescing).
-    let required_artifact_ids: Vec<String> = apply
+    // Explicit apply.requires wins; otherwise only non-optional artifacts block apply.
+    let apply_required_artifact_ids: Vec<String> = apply
         .and_then(|a| a.requires.clone())
-        .unwrap_or_else(|| all_artifact_ids.clone());
+        .unwrap_or(required_artifact_ids);
     let tracks_file: Option<String> = apply.and_then(|a| a.tracks.clone());
     let schema_instruction: Option<String> = apply.and_then(|a| a.instruction.clone());
 
     // Check which required artifacts are missing.
     let mut missing_artifacts: Vec<String> = Vec::new();
-    for artifact_id in &required_artifact_ids {
+    for artifact_id in &apply_required_artifact_ids {
         let Some(artifact) = schema.artifacts.iter().find(|a| a.id == *artifact_id) else {
             continue;
         };

@@ -24,6 +24,7 @@ use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
 mod delta_rules;
+mod domain_discovery_rules;
 mod format_specs;
 mod issue;
 mod repo_integrity;
@@ -50,6 +51,12 @@ pub const LEVEL_INFO: ValidationLevel = "INFO";
 const MIN_PURPOSE_LENGTH: usize = 50;
 const MIN_MODULE_PURPOSE_LENGTH: usize = 20;
 const MAX_DELTAS_PER_CHANGE: usize = 10;
+const DELTA_REQUIREMENT_HEADINGS: &[&str] = &[
+    "## ADDED Requirements",
+    "## MODIFIED Requirements",
+    "## REMOVED Requirements",
+    "## RENAMED Requirements",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// One validation finding.
@@ -132,10 +139,29 @@ impl ValidationReport {
 }
 
 /// Validate a spec markdown string and return a structured report.
+///
+/// Main specs represent current truth, so delta-operation headings are reported
+/// as formatting findings rather than being accepted as canonical structure.
+/// In strict mode, those findings are errors instead of warnings.
 pub fn validate_spec_markdown(markdown: &str, strict: bool) -> ValidationReport {
     let json = parse_spec_show_json("<spec>", markdown);
 
     let mut r = report(strict);
+
+    for (idx, line) in markdown.lines().enumerate() {
+        let heading = line.trim();
+        if DELTA_REQUIREMENT_HEADINGS.contains(&heading) {
+            let message = format!(
+                "Main specs must use '## Requirements' instead of delta operation headings like '{heading}'"
+            );
+            let finding = if strict {
+                error("format", message)
+            } else {
+                warning("format", message)
+            };
+            r.push(with_line(finding, (idx + 1) as u32));
+        }
+    }
 
     if json.overview.trim().is_empty() {
         r.push(error("purpose", "Purpose section cannot be empty"));
@@ -283,10 +309,12 @@ fn is_legacy_delta_schema(schema_name: &str) -> bool {
     schema_name == "spec-driven" || schema_name == "tdd"
 }
 
-fn schema_artifact_ids(resolved: &ResolvedSchema) -> Vec<String> {
+fn required_schema_artifact_ids(resolved: &ResolvedSchema) -> Vec<String> {
     let mut ids = Vec::new();
     for a in &resolved.schema.artifacts {
-        ids.push(a.id.clone());
+        if !a.optional {
+            ids.push(a.id.clone());
+        }
     }
     ids
 }
@@ -310,8 +338,8 @@ fn validate_apply_required_artifacts(
         Some(apply) => apply
             .requires
             .clone()
-            .unwrap_or_else(|| schema_artifact_ids(resolved)),
-        None => schema_artifact_ids(resolved),
+            .unwrap_or_else(|| required_schema_artifact_ids(resolved)),
+        None => required_schema_artifact_ids(resolved),
     };
 
     for id in required_ids {

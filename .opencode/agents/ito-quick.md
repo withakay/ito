@@ -10,6 +10,7 @@ tools:
   bash: true
   glob: true
   grep: true
+activation: delegated
 ---
 
 You are a fast, efficient coding assistant optimized for quick tasks.

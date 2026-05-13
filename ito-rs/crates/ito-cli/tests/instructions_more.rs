@@ -235,6 +235,52 @@ fn agent_instruction_manifesto_change_scope_json_reports_state() {
     assert_eq!(v["state"], "proposal-drafting");
     assert_eq!(v["variant"], "light");
     assert_eq!(v["profile"], "full");
+    assert!(
+        v["instruction"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("\"domain-discovery\": \"optional\"")
+    );
+}
+
+#[test]
+fn agent_instruction_manifesto_reports_domain_discovery_artifact() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes/000-01_test-change/domain-discovery.md"),
+        "# Domain Discovery\n\n## Domain Discovery Summary\n\n- **Primary bounded context**: Test\n",
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "agent",
+            "instruction",
+            "manifesto",
+            "--change",
+            "000-01_test-change",
+            "--variant",
+            "full",
+            "--operation",
+            "domain-discovery",
+            "--json",
+        ],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid json");
+    let instruction = v["instruction"].as_str().unwrap_or_default();
+    assert!(instruction.contains("\"domain-discovery\": \"done\""));
+    assert!(instruction.contains("### `domain-discovery`"));
+    assert!(instruction.contains("<artifact id=\"domain-discovery\""));
 }
 
 #[test]

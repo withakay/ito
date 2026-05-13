@@ -36,7 +36,15 @@ const MANIFESTO_PROFILES: &[&str] = &[
     "full",
 ];
 const MANIFESTO_OPERATIONS: &[&str] = &[
-    "proposal", "specs", "design", "tasks", "apply", "review", "archive", "finish",
+    "domain-discovery",
+    "proposal",
+    "specs",
+    "design",
+    "tasks",
+    "apply",
+    "review",
+    "archive",
+    "finish",
 ];
 
 #[derive(Debug, Clone)]
@@ -169,7 +177,17 @@ pub(super) fn handle_manifesto_instruction(
             status
                 .artifacts
                 .iter()
-                .filter(|artifact| artifact.status != "done")
+                .filter(|artifact| artifact.status != "done" && artifact.status != "optional")
+                .map(|artifact| artifact.id.clone())
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let optional_artifacts = if let Some(status) = &change_status {
+            status
+                .artifacts
+                .iter()
+                .filter(|artifact| artifact.status == "optional")
                 .map(|artifact| artifact.id.clone())
                 .collect::<Vec<_>>()
         } else {
@@ -226,6 +244,7 @@ pub(super) fn handle_manifesto_instruction(
             "module_name": module_name,
             "available_artifacts": available_artifacts,
             "missing_artifacts": missing_artifacts,
+            "optional_artifacts": optional_artifacts,
             "state": state,
         })
     } else {
@@ -243,6 +262,7 @@ pub(super) fn handle_manifesto_instruction(
             "module_name": Value::Null,
             "available_artifacts": Vec::<String>::new(),
             "missing_artifacts": Vec::<String>::new(),
+            "optional_artifacts": Vec::<String>::new(),
             "state": state,
         })
     };
@@ -261,6 +281,7 @@ pub(super) fn handle_manifesto_instruction(
         "schema": change_json.get("schema").cloned().unwrap_or(Value::Null),
         "operation": request.operation,
         "artifacts": {
+            "domain-discovery": artifact_capsule_state(&change_json, "domain-discovery"),
             "proposal": artifact_capsule_state(&change_json, "proposal"),
             "specs": artifact_capsule_state(&change_json, "specs"),
             "design": artifact_capsule_state(&change_json, "design"),
@@ -419,10 +440,11 @@ fn resolve_manifesto_state(
     if review_status == "pending-approval" || review_status == "changes-requested" {
         return "review-needed".to_string();
     }
-    if change.work_status().to_string() == "draft"
-        || (change_status
-            .is_some_and(|status| !status.apply_requires.is_empty() && !status.is_complete)
-            && !change.artifacts_complete())
+    let apply_artifacts_complete = change_status.is_some_and(apply_requirements_complete);
+    let apply_artifacts_incomplete =
+        change_status.is_some_and(|status| !apply_requirements_complete(status));
+    if (change.work_status().to_string() == "draft" && !apply_artifacts_complete)
+        || apply_artifacts_incomplete
     {
         return "proposal-drafting".to_string();
     }
@@ -440,6 +462,19 @@ fn resolve_manifesto_state(
     }
 
     "apply-ready".to_string()
+}
+
+fn apply_requirements_complete(status: &core_templates::ChangeStatus) -> bool {
+    if status.apply_requires.is_empty() {
+        return true;
+    }
+
+    status.apply_requires.iter().all(|required| {
+        status
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.id == *required && artifact.status == "done")
+    })
 }
 
 fn render_manifesto_instruction_bodies(
@@ -490,28 +525,24 @@ fn render_manifesto_instruction_body(
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let ctx = rt.ctx();
-    let resolved = rt.resolved_config();
-    let testing_policy = testing_policy_from_merged(&resolved.merged);
+    let cfg = rt.resolved_config();
+    let testing_policy = testing_policy_from_merged(&cfg.merged);
     let user_guidance =
         core_templates::load_composed_user_guidance(ito_path, artifact).unwrap_or(None);
 
     match artifact {
-        "proposal" | "specs" | "design" | "tasks" => {
-            let resolved_instr =
+        "domain-discovery" | "proposal" | "specs" | "design" | "tasks" => {
+            let resolved =
                 core_templates::resolve_instructions(ito_path, change_id, None, artifact, ctx)
                     .map_err(to_cli_error)?;
-            render_artifact_instructions_text(
-                &resolved_instr,
-                user_guidance.as_deref(),
-                &testing_policy,
-            )
+            render_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)
         }
         "apply" => {
             let apply = core_templates::compute_apply_instructions(ito_path, change_id, None, ctx)
                 .map_err(to_cli_error)?;
             let worktree_config =
-                worktree_config_from_merged_with_paths(&resolved.merged, project_root, ito_path);
-            let memory_template = memory_template_config_from_merged(&resolved.merged);
+                worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+            let memory_template = memory_template_config_from_merged(&cfg.merged);
             Ok(render_apply_instructions_text(
                 &apply,
                 &testing_policy,
@@ -534,7 +565,7 @@ fn render_manifesto_instruction_body(
                 .map_err(to_cli_error)
         }
         "archive" => {
-            let archive = archive_instruction_config_from_merged(&resolved.merged)?;
+            let archive = archive_instruction_config_from_merged(&cfg.merged)?;
             ito_templates::instructions::render_instruction_template(
                 "agent/archive.md.j2",
                 &json!({
@@ -547,9 +578,9 @@ fn render_manifesto_instruction_body(
         }
         "finish" => {
             let worktree =
-                worktree_config_from_merged_with_paths(&resolved.merged, project_root, ito_path);
-            let archive = archive_instruction_config_from_merged(&resolved.merged)?;
-            let memory = memory_template_config_from_merged(&resolved.merged);
+                worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
+            let archive = archive_instruction_config_from_merged(&cfg.merged)?;
+            let memory = memory_template_config_from_merged(&cfg.merged);
             ito_templates::instructions::render_instruction_template(
                 "agent/finish.md.j2",
                 &json!({
@@ -569,7 +600,14 @@ fn render_manifesto_instruction_body(
 fn allowed_manifesto_artifacts(state: &str, profile: &str, review_status: &str) -> Vec<String> {
     let state_ops: &[&str] = match state {
         "no-change-selected" => &[],
-        "proposal-drafting" => &["proposal", "specs", "design", "tasks", "review"],
+        "proposal-drafting" => &[
+            "domain-discovery",
+            "proposal",
+            "specs",
+            "design",
+            "tasks",
+            "review",
+        ],
         "review-needed" => &["review"],
         "apply-ready" => &["apply"],
         "applying" => &["apply", "review"],
@@ -580,12 +618,27 @@ fn allowed_manifesto_artifacts(state: &str, profile: &str, review_status: &str) 
     };
     let profile_ops: &[&str] = match profile {
         "planning" => &[],
-        "proposal-only" => &["proposal", "specs", "design", "tasks", "review"],
+        "proposal-only" => &[
+            "domain-discovery",
+            "proposal",
+            "specs",
+            "design",
+            "tasks",
+            "review",
+        ],
         "review-only" => &["review"],
         "apply" => &["apply", "review"],
         "archive" => &["archive", "finish"],
         "full" => &[
-            "proposal", "specs", "design", "tasks", "apply", "review", "archive", "finish",
+            "domain-discovery",
+            "proposal",
+            "specs",
+            "design",
+            "tasks",
+            "apply",
+            "review",
+            "archive",
+            "finish",
         ],
         _ => &[],
     };
@@ -792,5 +845,163 @@ fn artifact_capsule_state(change: &Value, artifact: &str) -> &'static str {
                 .filter_map(Value::as_str)
                 .any(|item| item == artifact)
         });
-    if available { "done" } else { "missing" }
+    if available {
+        return "done";
+    }
+
+    let optional = change
+        .get("optional_artifacts")
+        .and_then(Value::as_array)
+        .is_some_and(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|item| item == artifact)
+        });
+    if optional { "optional" } else { "missing" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ito_core::{ProgressInfo, TaskItem, TasksFormat, TasksParseResult};
+
+    fn draft_change_with_pending_task() -> Change {
+        Change {
+            id: "000-01_test-change".to_string(),
+            module_id: Some("000".to_string()),
+            sub_module_id: None,
+            path: std::path::PathBuf::from("/tmp/000-01_test-change"),
+            proposal: Some("## Why\nCustom workflow.\n".to_string()),
+            design: None,
+            specs: Vec::new(),
+            tasks: TasksParseResult {
+                format: TasksFormat::Checkbox,
+                tasks: Vec::<TaskItem>::new(),
+                waves: Vec::new(),
+                diagnostics: Vec::new(),
+                progress: ProgressInfo {
+                    total: 1,
+                    complete: 0,
+                    shelved: 0,
+                    in_progress: 0,
+                    pending: 1,
+                    remaining: 1,
+                },
+            },
+            orchestrate: Default::default(),
+            last_modified: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn manifesto_state_uses_schema_status_for_custom_artifacts() {
+        let change = Some(draft_change_with_pending_task());
+        let schema_status = core_templates::ChangeStatus {
+            change_name: "000-01_test-change".to_string(),
+            schema_name: "custom".to_string(),
+            is_complete: true,
+            apply_requires: vec!["proposal".to_string()],
+            artifacts: vec![core_templates::ArtifactStatus {
+                id: "proposal".to_string(),
+                output_path: "proposal.md".to_string(),
+                status: "done".to_string(),
+                missing_deps: Vec::new(),
+            }],
+        };
+
+        let state = resolve_manifesto_state(
+            false,
+            &change,
+            Some(&schema_status),
+            "unknown",
+            "not-requested",
+        );
+
+        assert_eq!(state, "apply-ready");
+    }
+
+    #[test]
+    fn manifesto_state_reports_drafting_for_incomplete_schema_artifacts() {
+        let change = Some(draft_change_with_pending_task());
+        let schema_status = core_templates::ChangeStatus {
+            change_name: "000-01_test-change".to_string(),
+            schema_name: "custom".to_string(),
+            is_complete: false,
+            apply_requires: vec!["proposal".to_string()],
+            artifacts: Vec::new(),
+        };
+
+        let state = resolve_manifesto_state(
+            false,
+            &change,
+            Some(&schema_status),
+            "unknown",
+            "not-requested",
+        );
+
+        assert_eq!(state, "proposal-drafting");
+    }
+
+    #[test]
+    fn manifesto_state_uses_apply_requirements_not_all_required_artifacts() {
+        let change = Some(draft_change_with_pending_task());
+        let schema_status = core_templates::ChangeStatus {
+            change_name: "000-01_test-change".to_string(),
+            schema_name: "custom".to_string(),
+            is_complete: false,
+            apply_requires: vec!["proposal".to_string()],
+            artifacts: vec![
+                core_templates::ArtifactStatus {
+                    id: "proposal".to_string(),
+                    output_path: "proposal.md".to_string(),
+                    status: "done".to_string(),
+                    missing_deps: Vec::new(),
+                },
+                core_templates::ArtifactStatus {
+                    id: "analysis".to_string(),
+                    output_path: "analysis.md".to_string(),
+                    status: "ready".to_string(),
+                    missing_deps: Vec::new(),
+                },
+            ],
+        };
+
+        let state = resolve_manifesto_state(
+            false,
+            &change,
+            Some(&schema_status),
+            "unknown",
+            "not-requested",
+        );
+
+        assert_eq!(state, "apply-ready");
+    }
+
+    #[test]
+    fn manifesto_state_treats_empty_apply_requirements_as_apply_ready() {
+        let change = Some(draft_change_with_pending_task());
+        let schema_status = core_templates::ChangeStatus {
+            change_name: "000-01_test-change".to_string(),
+            schema_name: "custom".to_string(),
+            is_complete: false,
+            apply_requires: Vec::new(),
+            artifacts: vec![core_templates::ArtifactStatus {
+                id: "proposal".to_string(),
+                output_path: "proposal.md".to_string(),
+                status: "ready".to_string(),
+                missing_deps: Vec::new(),
+            }],
+        };
+
+        let state = resolve_manifesto_state(
+            false,
+            &change,
+            Some(&schema_status),
+            "unknown",
+            "not-requested",
+        );
+
+        assert_eq!(state, "apply-ready");
+    }
 }

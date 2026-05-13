@@ -1,8 +1,8 @@
 ---
 name: ito-update-repo
-description: Refresh Ito-managed assets, prune stray skills/commands left behind by renames, and wire `ito validate repo` into the project's pre-commit hook (auto-detected framework, dry-run + approval).
+description: Refresh Ito-managed assets in the current project and prune stray skills/commands left behind by renames.
 category: Ito
-tags: [ito, update, cleanup, templates, pre-commit]
+tags: [ito, update, cleanup, templates]
 ---
 
 <UserRequest>

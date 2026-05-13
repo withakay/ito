@@ -4,7 +4,7 @@ description: Use when you need stable absolute paths (project/worktree/.ito/work
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 
 # Ito Path Helpers

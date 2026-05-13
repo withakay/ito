@@ -221,10 +221,10 @@ pub enum Commands {
     #[command(verbatim_doc_comment, visible_alias = "ts")]
     Tasks(TasksArgs),
 
-    /// Initialize and track project roadmap
+    /// Initialize and inspect the planning workspace
     ///
-    /// Creates planning structure for milestones and tracks overall progress
-    /// across multiple changes and modules.
+    /// Creates `.ito/planning/` for free-form planning documents and lists
+    /// existing plans before proposal creation.
     ///
     /// Examples:
     ///   ito plan init
@@ -494,11 +494,11 @@ pub struct PlanArgs {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum PlanAction {
-    /// Initialize planning structure
+    /// Initialize planning workspace
     #[command(visible_alias = "in")]
     Init,
 
-    /// Show current milestone progress
+    /// Show planning workspace status
     #[command(visible_alias = "st")]
     Status,
 }

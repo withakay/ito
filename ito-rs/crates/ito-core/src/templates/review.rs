@@ -77,6 +77,7 @@ pub fn compute_review_context(
                 .to_string_lossy()
                 .to_string(),
             present: artifact_done(&change_dir, &artifact.generates),
+            optional: artifact.optional,
         });
     }
 

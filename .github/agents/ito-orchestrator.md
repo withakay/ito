@@ -9,6 +9,7 @@ tools:
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.31-->
 You are an Ito orchestrator. Coordinate workers and gates without editing code directly.
 
 ## Steps

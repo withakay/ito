@@ -27,7 +27,20 @@ Use a proposal for new capabilities, breaking changes, architectural shifts, or 
 
 If you're unsure, default to proposal-first. It is cheaper than a large rewrite.
 
-### 2) Pick or create a change
+### 2) Decide whether domain discovery is needed
+
+Use the normal fast path for routine, one-context work with clear vocabulary.
+
+Ask the agent to run DDD-oriented discovery before scaffolding when the work is ambiguous, architectural, cross-context, public-contract-changing, policy-heavy, sequencing-heavy, or uses overloaded domain terms. The discovery output should stay proportional:
+
+- `direct`: no extra discovery for routine work.
+- `lightweight`: resolve canonical terms, rejected aliases, and open questions.
+- `bounded-context`: name primary/supporting contexts, model ownership, relationship pattern or provisional unknown, consistency expectations, and translation boundaries.
+- `rigorous domain-grill`: challenge fuzzy plans one decision at a time, using repo evidence before asking questions.
+
+For domain-heavy changes, expect the agent to carry the discovery handoff into proposal/spec/task language. Durable terms and boundaries can be proposed in `CONTEXT.md`, `CONTEXT-MAP.md`, or ADR files, but they become canonical only through review and archive/merge.
+
+### 3) Pick or create a change
 
 Humans usually start by asking the agent to discover existing work and scaffold the right thing:
 
@@ -44,7 +57,7 @@ ito create module <name>
 ito create change <name> --module <module-id>
 ```
 
-### 3) Use instruction artifacts to drive execution
+### 4) Use instruction artifacts to drive execution
 
 The most reliable way to keep an agent aligned is to have it fetch and follow the change-specific instructions:
 
@@ -57,7 +70,7 @@ ito agent instruction apply --change <change-id>
 
 As reviewer, you should expect the agent to quote the relevant parts of these instructions back to you (briefly) before implementing.
 
-### 4) Implement tasks and keep task state accurate
+### 5) Implement tasks and keep task state accurate
 
 For enhanced `tasks.md`, prefer task commands so audit events stay consistent:
 
@@ -74,7 +87,7 @@ If someone edits `tasks.md` directly, reconcile immediately:
 ito audit reconcile --fix
 ```
 
-### 5) Validate before calling something done
+### 6) Validate before calling something done
 
 At minimum:
 
@@ -84,7 +97,15 @@ ito audit validate
 ito audit reconcile
 ```
 
-### 6) Archive after merge/deploy
+For changes with a `domain-discovery.md` handoff, also check that proposal validation either enables or intentionally skips these opt-in rules:
+
+- `ubiquitous_language_consistency`
+- `context_boundary_consistency`
+- `domain_documentation_consistency`
+
+### 7) Archive after merge/deploy
+
+Before archive, confirm any approved domain-doc updates from the change package are promoted into the discovered `CONTEXT.md`, `CONTEXT-MAP.md`, or ADR locations. Do not promote rejected or unresolved discovery notes.
 
 ```bash
 ito agent instruction archive --change <change-id>
@@ -100,10 +121,12 @@ Rules of thumb:
 - Do work inside a worktree (not the bare repo root).
 - Create feature worktrees under `ito-worktrees/`.
 - Do not remove the locked `main` worktree.
-- Prefer `ito worktree ensure --change <id>` over raw `git worktree add` so Ito can initialize the worktree correctly.
-- If you inherit an older or manually created worktree and `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, or `.ito/audit` are missing or stale, repair the worktree with `ito init --update --tools none` before creating or applying changes.
 
 Also: when testing changes, use the binary built in the same worktree you edited (worktrees do not share `target/`).
+
+## Agent Adapter Maintenance
+
+After upgrading Ito-managed skills, commands, or agent templates, ask your agent to run `/ito-update-repo --dry-run`. This still refreshes managed files, but stops before deleting anything while it audits stale stamps, missing stamps, and orphaned Ito-managed assets.
 
 ## Practical prompting (what to ask the agent)
 

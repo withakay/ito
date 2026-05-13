@@ -106,9 +106,58 @@ fn list_schemas_detail_spec_driven_has_expected_artifacts() {
         .expect("spec-driven should be present");
 
     assert!(spec_driven.artifacts.contains(&"proposal".to_string()));
+    assert!(
+        spec_driven
+            .artifacts
+            .contains(&"domain-discovery".to_string())
+    );
     assert!(spec_driven.artifacts.contains(&"specs".to_string()));
     assert!(spec_driven.artifacts.contains(&"design".to_string()));
     assert!(spec_driven.artifacts.contains(&"tasks".to_string()));
+}
+
+#[test]
+fn built_in_schemas_expose_domain_discovery_template_hook() {
+    let root = tempfile::tempdir().expect("tempdir should succeed");
+    let ito_path = root.path().join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes/demo-change")).expect("create change dir");
+
+    let ctx = ConfigContext {
+        project_dir: Some(root.path().to_path_buf()),
+        ..Default::default()
+    };
+
+    for schema in ["spec-driven", "event-driven"] {
+        let out = resolve_instructions(
+            &ito_path,
+            "demo-change",
+            Some(schema),
+            "domain-discovery",
+            &ctx,
+        )
+        .unwrap_or_else(|error| {
+            panic!("{schema} domain discovery template should resolve: {error}")
+        });
+        assert!(
+            out.template.contains("## Domain Discovery Summary"),
+            "{schema} template should include the canonical discovery handoff"
+        );
+        assert!(
+            out.template.contains("## Ubiquitous Language"),
+            "{schema} template should include language capture"
+        );
+        assert!(
+            out.template.contains("## Bounded Context Map"),
+            "{schema} template should include bounded context capture"
+        );
+        assert!(
+            out.instruction
+                .as_deref()
+                .unwrap_or_default()
+                .contains("optional discovery artifact"),
+            "{schema} instructions should identify discovery as optional"
+        );
+    }
 }
 
 #[test]

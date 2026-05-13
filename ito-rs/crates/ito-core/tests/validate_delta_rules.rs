@@ -755,3 +755,422 @@ fn contract_refs_rule_warns_when_public_contract_has_no_requirement_anchor() {
             && issue.message.contains("Public Contract facet 'openapi'")
     }));
 }
+
+#[test]
+fn ubiquitous_language_consistency_rule_warns_for_rejected_aliases() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    ubiquitous_language_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+
+## Rejected Aliases / Overloaded Terms
+
+| Term or Alias | Use Instead / Clarify As | Rationale |
+| --- | --- | --- |
+| project space | Workspace | Avoid overloading project. |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need a project space for collaboration.\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(report.issues.iter().any(|issue| {
+        issue.rule_id.as_deref() == Some("ubiquitous_language_consistency")
+            && issue.level == "WARNING"
+            && issue.message.contains("project space")
+            && issue.message.contains("Workspace")
+    }));
+}
+
+#[test]
+fn ubiquitous_language_consistency_rule_dedups_table_and_summary_aliases() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    ubiquitous_language_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Domain Discovery Summary
+
+- Canonical terms: Workspace -> A tenant-scoped collaboration boundary.
+- Rejected aliases / overloaded terms: project space -> Workspace
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+
+## Rejected Aliases / Overloaded Terms
+
+| Term or Alias | Use Instead / Clarify As | Rationale |
+| --- | --- | --- |
+| project space | Workspace | Avoid overloading project. |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need a project space for collaboration.\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+    let warnings = report
+        .issues
+        .iter()
+        .filter(|issue| issue.rule_id.as_deref() == Some("ubiquitous_language_consistency"))
+        .count();
+
+    assert_eq!(
+        warnings, 1,
+        "duplicate table and summary aliases should warn once, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn ubiquitous_language_consistency_rule_passes_when_aliases_are_absent() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    ubiquitous_language_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+
+## Rejected Aliases / Overloaded Terms
+
+| Term or Alias | Use Instead / Clarify As | Rationale |
+| --- | --- | --- |
+| project space | Workspace | Avoid overloading project. |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need a Workspace for collaboration.\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(
+        !report
+            .issues
+            .iter()
+            .any(|issue| { issue.rule_id.as_deref() == Some("ubiquitous_language_consistency") }),
+        "consistent language should not warn, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn ubiquitous_language_consistency_rule_uses_term_boundaries() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    ubiquitous_language_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+
+## Rejected Aliases / Overloaded Terms
+
+| Term or Alias | Use Instead / Clarify As | Rationale |
+| --- | --- | --- |
+| space | Workspace | Avoid vague vocabulary. |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need a Workspace for collaboration.\n",
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(
+        !report
+            .issues
+            .iter()
+            .any(|issue| { issue.rule_id.as_deref() == Some("ubiquitous_language_consistency") }),
+        "alias should not match inside another word, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn domain_documentation_consistency_rule_warns_for_conflicting_context_docs() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    domain_documentation_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need clearer collaboration language.\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("docs")
+            .join("CONTEXT.md"),
+        r#"# Context
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A billing account container. | Collaboration | proposed update |
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(
+        report.issues.iter().any(|issue| {
+            issue.rule_id.as_deref() == Some("domain_documentation_consistency")
+                && issue.level == "WARNING"
+                && issue.message.contains("Workspace")
+                && issue.path.contains("CONTEXT.md")
+        }),
+        "expected domain documentation warning, got issues: {:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn domain_documentation_consistency_rule_passes_for_matching_context_docs() {
+    let td = tempfile::tempdir().unwrap();
+    let project_root = td.path();
+    let ito = project_root.join(".ito");
+    let change_id = "001-01_demo";
+
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("schema.yaml"),
+        "name: proposal-rules\nversion: 1\nartifacts: []\n",
+    );
+    write(
+        &project_root
+            .join(".ito")
+            .join("templates")
+            .join("schemas")
+            .join("proposal-rules")
+            .join("validation.yaml"),
+        "version: 1\nproposal:\n  required: true\n  validate_as: ito.delta-specs.v1\n  rules:\n    domain_documentation_consistency: warning\n",
+    );
+    write(
+        &ito.join("changes").join(change_id).join(".ito.yaml"),
+        "schema: proposal-rules\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("domain-discovery.md"),
+        r#"# Domain Discovery
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | canonical term |
+"#,
+    );
+    write(
+        &ito.join("changes").join(change_id).join("proposal.md"),
+        "## Why\n\nUsers need clearer collaboration language.\n",
+    );
+    write(
+        &ito.join("changes")
+            .join(change_id)
+            .join("docs")
+            .join("CONTEXT.md"),
+        r#"# Context
+
+## Ubiquitous Language
+
+| Term | Definition | Owner / Context | Notes |
+| --- | --- | --- | --- |
+| Workspace | A tenant-scoped collaboration boundary. | Collaboration | proposed update |
+"#,
+    );
+
+    let change_repo = FsChangeRepository::new(&ito);
+    let report = validate_change(&change_repo, &ito, change_id, false).unwrap();
+
+    assert!(
+        !report
+            .issues
+            .iter()
+            .any(|issue| { issue.rule_id.as_deref() == Some("domain_documentation_consistency") }),
+        "matching domain docs should not warn, got issues: {:?}",
+        report.issues
+    );
+}

@@ -3,10 +3,11 @@ name: ito-orchestrator
 description: Coordinator-only agent for orchestrating multi-change runs
 activation: direct
 tools: read, grep, find, ls, bash, task, todowrite, glob
-model: claude-sonnet-4-6
+model: "claude-sonnet-4-6"
 ---
 
 <!-- ITO:START -->
+<!--ITO:VERSION:0.1.31-->
 You are an Ito orchestrator. Coordinate workers and gates without editing code directly.
 
 ## Steps

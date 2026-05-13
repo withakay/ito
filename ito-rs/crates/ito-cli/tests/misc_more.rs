@@ -10,7 +10,7 @@ use ito_test_support::rust_candidate_command;
 use ito_test_support::pty::run_pty;
 
 #[test]
-fn plan_status_errors_when_roadmap_missing() {
+fn plan_status_reports_missing_workspace() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -20,8 +20,8 @@ fn plan_status_errors_when_roadmap_missing() {
     std::fs::create_dir_all(repo.path().join(".ito")).unwrap();
 
     let out = run_rust_candidate(rust_path, &["plan", "status"], repo.path(), home.path());
-    assert_ne!(out.code, 0);
-    assert!(out.stderr.contains("ROADMAP.md not found"));
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Planning: missing"));
 }
 
 #[test]

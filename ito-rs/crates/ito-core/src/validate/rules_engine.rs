@@ -137,7 +137,7 @@ fn run_configured_rules(
         }
 
         match (validator_id, target) {
-            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
+            (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { .. }) => {
                 delta_rules::run_artifact_rule(rep, change_repo, ctx, rule_name, *level)?;
             }
             (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {
@@ -170,6 +170,15 @@ fn supported_rules_for_target(
 ) -> &'static [&'static str] {
     match (validator_id, target) {
         (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { id: "specs" }) => {
+            delta_rules::artifact_rules()
+        }
+        (
+            ValidatorId::DeltaSpecsV1,
+            ValidationRuleTarget::Artifact {
+                id: "domain-discovery",
+            },
+        ) => delta_rules::domain_discovery_artifact_rules(),
+        (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Artifact { .. }) => {
             delta_rules::artifact_rules()
         }
         (ValidatorId::DeltaSpecsV1, ValidationRuleTarget::Proposal) => {

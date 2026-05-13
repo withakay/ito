@@ -1,7 +1,7 @@
 ---
 description: Runs project tests with AGENTS.md guidance, prefers make targets, and returns noise-stripped results
 mode: subagent
-model: "github-copilot/gpt-5-mini"
+model: "openai/gpt-5-mini"
 temperature: 0.1
 tools:
   read: true

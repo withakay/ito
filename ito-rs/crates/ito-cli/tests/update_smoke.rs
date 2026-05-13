@@ -141,6 +141,51 @@ fn update_installs_adapter_files_from_local_ito_skills() {
 }
 
 #[test]
+fn update_installs_ito_plan_command_and_skill_for_all_harnesses() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+
+    let out = run_rust_candidate(rust_path, &["update", "."], repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    for rel in ito_plan_command_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read command");
+        assert!(
+            contents.contains("Load and follow the `ito-plan` skill"),
+            "expected {rel} to load the ito-plan skill"
+        );
+        assert!(
+            contents.contains("$ARGUMENTS"),
+            "expected {rel} to pass through user arguments"
+        );
+    }
+
+    for rel in ito_plan_skill_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read skill");
+        assert!(
+            contents.contains("Turn an open-ended idea into a useful planning artifact"),
+            "expected {rel} to contain planning workflow guidance"
+        );
+        assert!(
+            contents.contains(".ito/research/"),
+            "expected {rel} to describe research artifact location"
+        );
+    }
+
+    for rel in generic_ito_skill_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read ito skill");
+        assert!(
+            contents.contains("`ito plan init/status` are CLI workspace commands"),
+            "expected {rel} to keep ito plan routed to the CLI"
+        );
+    }
+}
+
+#[test]
 fn update_merges_claude_settings_without_clobbering_user_keys() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");
@@ -170,6 +215,36 @@ fn update_merges_claude_settings_without_clobbering_user_keys() {
         value.pointer("/hooks/PreToolUse").is_some(),
         "ito hook config should be merged into settings"
     );
+}
+
+fn ito_plan_command_paths() -> Vec<String> {
+    vec![
+        ".claude/commands/ito-plan.md".to_string(),
+        ".codex/prompts/ito-plan.md".to_string(),
+        ".github/prompts/ito-plan.prompt.md".to_string(),
+        ".opencode/commands/ito-plan.md".to_string(),
+        ".pi/commands/ito-plan.md".to_string(),
+    ]
+}
+
+fn ito_plan_skill_paths() -> Vec<String> {
+    vec![
+        ".claude/skills/ito-plan/SKILL.md".to_string(),
+        ".codex/skills/ito-plan/SKILL.md".to_string(),
+        ".github/skills/ito-plan/SKILL.md".to_string(),
+        ".opencode/skills/ito-plan/SKILL.md".to_string(),
+        ".pi/skills/ito-plan/SKILL.md".to_string(),
+    ]
+}
+
+fn generic_ito_skill_paths() -> Vec<String> {
+    vec![
+        ".claude/skills/ito/SKILL.md".to_string(),
+        ".codex/skills/ito/SKILL.md".to_string(),
+        ".github/skills/ito/SKILL.md".to_string(),
+        ".opencode/skills/ito/SKILL.md".to_string(),
+        ".pi/skills/ito/SKILL.md".to_string(),
+    ]
 }
 
 #[test]

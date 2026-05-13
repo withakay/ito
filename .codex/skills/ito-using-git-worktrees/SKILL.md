@@ -4,7 +4,7 @@ description: Use when starting feature work that needs isolation from current wo
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.30-->
+<!--ITO:VERSION:0.1.31-->
 
 # Using Git Worktrees
 

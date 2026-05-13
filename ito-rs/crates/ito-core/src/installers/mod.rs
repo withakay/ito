@@ -5,7 +5,10 @@ use chrono::Utc;
 use serde_json::{Map, Value};
 
 use crate::errors::{CoreError, CoreResult};
-use agent_frontmatter::{update_agent_activation_field_from_rendered, update_agent_model_field};
+use agent_frontmatter::{
+    remove_agent_mode_field_for_direct_activation, update_agent_activation_field_from_rendered,
+    update_agent_model_field,
+};
 use agents_cleanup::remove_obsolete_specialist_agents;
 
 use markers::update_file_with_markers;
@@ -996,6 +999,7 @@ fn update_existing_agent_template(
         update_agent_model_field(target, &cfg.model)?;
     }
     update_agent_activation_field_from_rendered(target, rendered)?;
+    remove_agent_mode_field_for_direct_activation(target, rendered)?;
 
     Ok(())
 }

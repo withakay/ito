@@ -7,6 +7,7 @@ tools:
   - execute
   - edit
 model: "anthropic/claude-haiku-4.5"
+activation: delegated
 ---
 
 You are a fast, efficient coding assistant optimized for quick tasks.
