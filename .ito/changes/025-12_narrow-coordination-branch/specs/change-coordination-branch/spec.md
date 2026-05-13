@@ -23,4 +23,13 @@ When coordination branch setup finds that the configured remote branch is missin
 - **WHEN** the system ensures the coordination branch exists on `origin`
 - **THEN** it treats the branch as ready
 - **AND** it does not create a new root commit
+
+#### Scenario: Reservation initializes the branch before committing metadata
+
+- **GIVEN** coordination branch sync is enabled
+- **AND** `origin/<coordination-branch>` does not exist
+- **WHEN** the system reserves change metadata on the coordination branch
+- **THEN** it first creates `origin/<coordination-branch>` from an empty root commit
+- **AND** it checks out the coordination branch in the reservation worktree before committing metadata
+- **AND** the reservation commit does not have the caller's current `HEAD` in its parent history
 <!-- ITO:END -->

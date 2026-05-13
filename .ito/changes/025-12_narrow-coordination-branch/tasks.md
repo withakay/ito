@@ -23,9 +23,9 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-core/src/git.rs`
 - **Dependencies**: None
-- **Action**: Replace the missing-remote-branch setup path so it creates an empty root commit and pushes that commit instead of pushing `HEAD`.
+- **Action**: Replace the missing-remote-branch setup and reservation paths so they create or use an empty-root coordination branch before pushing coordination metadata.
 - **Verify**: `cargo test -p ito-core coordination_branch --lib`
-- **Done When**: A missing coordination branch is created from an empty-tree commit, existing remote branches still return ready, and setup failures are reported clearly.
+- **Done When**: A missing coordination branch is created from an empty-tree commit, reservation worktrees check out the coordination branch before committing metadata, existing remote branches still return ready, and setup failures are reported clearly.
 - **Requirements**: change-coordination-branch:empty-history-initialization
 - **Updated At**: 2026-05-13
 - **Status**: [x] complete
