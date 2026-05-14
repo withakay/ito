@@ -8,7 +8,7 @@ tools:
   - edit
   - write
   - fetch
-model: "github-copilot/gpt-5.4"
+model: "openai/gpt-5.4"
 activation: direct
 ---
 

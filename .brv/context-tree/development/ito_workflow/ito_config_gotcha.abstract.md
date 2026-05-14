@@ -1,0 +1,1 @@
+Ito config commands manage the global `~/.config/ito/config.json`, while repo-local `.ito/config.json` must enable `changes.coordination_branch` with worktree storage, except the coordination worktree itself uses embedded storage to avoid self-symlink validation failures.

@@ -94,7 +94,7 @@ models.dev provides a comprehensive, community-maintained database of AI models 
     "github-copilot": {
       "provider": "github-copilot",
       "agents": {
-        "ito-quick": { "model": "github-copilot/claude-haiku-4.5" },
+        "ito-quick": { "model": "anthropic/claude-haiku-4.5" },
         "ito-general": { "model": "github-copilot/gpt-5.2-codex" },
         "ito-thinking": { "model": "github-copilot/gpt-5.2-codex" }
       }

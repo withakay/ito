@@ -3,13 +3,19 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 1510,
+      "tokens": 988,
       "type": "summary"
     },
     {
       "order": 1,
       "path": "development/ito_templates/_index.md",
       "tokens": 331,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/source_guides/_index.md",
+      "tokens": 341,
       "type": "summary"
     },
     {
@@ -31,7 +37,15 @@
     {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
-      "tokens": 119,
+      "tokens": 136,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/coordination_branch_git_behavior.abstract.md",
+      "abstractTokens": 52,
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_branch_git_behavior.md",
+      "tokens": 52,
       "type": "context"
     },
     {
@@ -48,6 +62,14 @@
       "importance": 50,
       "path": "development/ito_workflow/ddd_discovery_workflow.md",
       "tokens": 53,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/ito_config_gotcha.abstract.md",
+      "abstractTokens": 68,
+      "importance": 50,
+      "path": "development/ito_workflow/ito_config_gotcha.md",
+      "tokens": 68,
       "type": "context"
     },
     {
@@ -123,13 +145,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-05-12T16:28:27.773Z",
+  "generated_at": "2026-05-13T19:08:16.890Z",
   "lane_tokens": {
-    "contexts": 832,
+    "contexts": 969,
     "stubs": 0,
-    "summaries": 1841
+    "summaries": 1660
   },
-  "source_fingerprint": "6fadecff31a577efc173e48449457e5429c1edb4ad6ee5f2f99b7067ca399223",
-  "total_tokens": 2673,
+  "source_fingerprint": "52f554bf99c36171ffc89527b9cbdd7d85acf054b1dacc6a2ce13bd3a84b479b",
+  "total_tokens": 2629,
   "version": 1
 }

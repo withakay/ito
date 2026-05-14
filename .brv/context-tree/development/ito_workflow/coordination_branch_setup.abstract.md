@@ -1,0 +1,1 @@
+Missing origin coordination branches are bootstrapped from an empty root commit using the repository empty-tree hash, with SHA-256 support and SHA-1 fallback, and empty commit-tree output is rejected to avoid a delete refspec.

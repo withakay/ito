@@ -273,21 +273,21 @@ pub fn default_agent_configs() -> HashMap<(Harness, AgentTier), AgentConfig> {
     configs.insert(
         (Harness::GitHubCopilot, AgentTier::Quick),
         AgentConfig {
-            model: "github-copilot/claude-haiku-4.5".to_string(),
+            model: "anthropic/claude-haiku-4.5".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::GitHubCopilot, AgentTier::General),
         AgentConfig {
-            model: "github-copilot/gpt-5.4".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             ..Default::default()
         },
     );
     configs.insert(
         (Harness::GitHubCopilot, AgentTier::Thinking),
         AgentConfig {
-            model: "github-copilot/gpt-5.4".to_string(),
+            model: "openai/gpt-5.4".to_string(),
             ..Default::default()
         },
     );
