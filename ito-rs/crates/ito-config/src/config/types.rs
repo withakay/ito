@@ -838,8 +838,8 @@ impl GitHubCopilotHarnessConfig {
     fn default_agents() -> AgentTiersConfig {
         AgentTiersConfig {
             ito_quick: AgentModelSetting::Model("anthropic/claude-haiku-4.5".to_string()),
-            ito_general: AgentModelSetting::Model("github-copilot/gpt-5.2-codex".to_string()),
-            ito_thinking: AgentModelSetting::Model("github-copilot/gpt-5.2-codex".to_string()),
+            ito_general: AgentModelSetting::Model("openai/gpt-5.4".to_string()),
+            ito_thinking: AgentModelSetting::Model("openai/gpt-5.4".to_string()),
         }
     }
 }

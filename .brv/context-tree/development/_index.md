@@ -11,7 +11,7 @@ type: summary
 # Structural Summary: Ito Knowledge Indexes
 
 ## High-level map
-These entries describe the main operational knowledge around Ito’s coordination-backed workflows, release guardrails, and source-guide navigation. The collection is organized around three major areas:
+These entries describe the main operational knowledge around Ito’s coordination-backed workflows, release guardrails, and source-guide navigation. The collection is organized around four major areas:
 
 - **`ito_workflow/_index.md`** — coordination, sync, validation, config, orchestration, and cleanup behavior
 - **`release_workflow/_index.md`** — release pipeline and publishing guardrails

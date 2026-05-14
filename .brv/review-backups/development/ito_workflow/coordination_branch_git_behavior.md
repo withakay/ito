@@ -15,7 +15,7 @@ Document coordination branch bootstrapping and reservation rules from git.rs
 Document coordination branch initialization, fetch/push classification, and reservation flow behavior in git.rs
 
 **Changes:**
-- Added empty-tree based coordination branch bootstrap for missing remote branches
+- Added empty-tree-based coordination branch bootstrap for missing remote branches
 - Rejected empty commit-tree and mktree output
 - Defined coordination git error classification and reservation worktree flow
 
