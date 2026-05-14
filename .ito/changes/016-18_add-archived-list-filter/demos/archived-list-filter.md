@@ -66,3 +66,28 @@ git diff --stat
  .../snapshots/cli_snapshots__ito_list_help.snap    |  7 +-
  6 files changed, 125 insertions(+), 12 deletions(-)
 ```
+
+Updated stale ito-plan install assertions in init_agent_activation and update_smoke to match the current embedded planning skill wording.
+
+```bash
+cargo test -p ito-cli --test init_agent_activation init_update_installs_ito_plan_command_and_skill_for_all_harnesses -- --nocapture && cargo test -p ito-cli --test update_smoke update_installs_ito_plan_command_and_skill_for_all_harnesses -- --nocapture
+```
+
+```output
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.27s
+     Running tests/init_agent_activation.rs (target/debug/deps/init_agent_activation-5258b386e6115a5a)
+
+running 1 test
+test init_update_installs_ito_plan_command_and_skill_for_all_harnesses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.60s
+
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.19s
+     Running tests/update_smoke.rs (target/debug/deps/update_smoke-95261b4e6edd5816)
+
+running 1 test
+test update_installs_ito_plan_command_and_skill_for_all_harnesses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.49s
+
+```
