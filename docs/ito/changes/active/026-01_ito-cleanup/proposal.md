@@ -23,7 +23,7 @@ When Ito upgrades (`ito init --upgrade`, `ito update`), it installs new and upda
 
 ### Modified Capabilities
 
-_(none — this is purely additive)_
+*(none — this is purely additive)*
 
 ## Impact
 

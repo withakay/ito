@@ -101,6 +101,8 @@ cd ito-rs && bacon --export-locations .bacon-locations
 
 Add bacon target to Makefile:
 
+<!-- markdownlint-disable MD010 -->
+
 ```makefile
 .PHONY: bacon
 bacon:
@@ -110,6 +112,8 @@ bacon:
 bacon-export:
 	cd ito-rs && bacon --export-locations .bacon-locations
 ```
+
+<!-- markdownlint-enable MD010 -->
 
 ## Installation
 
