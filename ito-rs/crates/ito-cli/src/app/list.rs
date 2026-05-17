@@ -34,17 +34,36 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     let want_specs = args.iter().any(|a| a == "--specs");
+    let want_changes = args.iter().any(|a| a == "--changes");
     let want_modules = args.iter().any(|a| a == "--modules");
+    let want_archived = args.iter().any(|a| a == "--archived");
     let want_json = args.iter().any(|a| a == "--json");
     let want_ready = args.iter().any(|a| a == "--ready");
     let want_completed = args.iter().any(|a| a == "--completed");
     let want_partial = args.iter().any(|a| a == "--partial");
     let want_pending = args.iter().any(|a| a == "--pending");
+    let want_sort = args
+        .iter()
+        .any(|a| a == "--sort" || a.starts_with("--sort="));
 
     let progress_filter_count =
         u8::from(want_completed) + u8::from(want_partial) + u8::from(want_pending);
     if progress_filter_count > 1 {
         return fail("Flags --completed, --partial, and --pending are mutually exclusive.");
+    }
+    if want_archived
+        && (want_specs
+            || want_changes
+            || want_modules
+            || want_ready
+            || want_completed
+            || want_partial
+            || want_pending
+            || want_sort)
+    {
+        return fail(
+            "Flag --archived cannot be combined with --specs, --changes, --modules, --ready, --completed, --partial, --pending, or --sort.",
+        );
     }
 
     let sort = parse_sort_order(args).unwrap_or("name");
@@ -56,6 +75,10 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
         // default is changes, and `--changes` is a no-op.
         "changes"
     };
+
+    if want_archived {
+        return handle_list_archive(rt, want_json);
+    }
 
     let ito_path = rt.ito_path();
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
@@ -226,6 +249,9 @@ pub(crate) fn handle_list_clap(rt: &Runtime, args: &ListArgs) -> CliResult<()> {
     if args.modules {
         argv.push("--modules".to_string());
     }
+    if args.archived {
+        argv.push("--archived".to_string());
+    }
     if args.ready {
         argv.push("--ready".to_string());
     }
@@ -242,12 +268,14 @@ pub(crate) fn handle_list_clap(rt: &Runtime, args: &ListArgs) -> CliResult<()> {
         argv.push("--json".to_string());
     }
 
-    let sort = match args.sort {
-        ListSortOrder::Recent => "recent",
-        ListSortOrder::Name => "name",
-    };
-    argv.push("--sort".to_string());
-    argv.push(sort.to_string());
+    if !args.archived {
+        let sort = match args.sort {
+            ListSortOrder::Recent => "recent",
+            ListSortOrder::Name => "name",
+        };
+        argv.push("--sort".to_string());
+        argv.push(sort.to_string());
+    }
 
     handle_list(rt, &argv)
 }
@@ -429,6 +457,32 @@ mod tests {
         assert_eq!(
             err.to_string(),
             "Flags --completed, --partial, and --pending are mutually exclusive."
+        );
+    }
+
+    #[test]
+    fn archived_filter_rejects_incompatible_raw_flags() {
+        let rt = Runtime::new();
+        let args = vec!["--archived".to_string(), "--completed".to_string()];
+        let err = handle_list(&rt, &args).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Flag --archived cannot be combined with --specs, --changes, --modules, --ready, --completed, --partial, --pending, or --sort."
+        );
+    }
+
+    #[test]
+    fn archived_filter_rejects_sort_raw_flag() {
+        let rt = Runtime::new();
+        let args = vec![
+            "--archived".to_string(),
+            "--sort".to_string(),
+            "recent".to_string(),
+        ];
+        let err = handle_list(&rt, &args).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Flag --archived cannot be combined with --specs, --changes, --modules, --ready, --completed, --partial, --pending, or --sort."
         );
     }
 
