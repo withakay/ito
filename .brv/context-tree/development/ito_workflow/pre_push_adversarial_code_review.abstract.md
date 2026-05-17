@@ -1,0 +1,1 @@
+Ito agents should run an adversarial code review before pushing branches or opening PRs to catch low-hanging issues, block P0/P1 defects, and reduce review noise.

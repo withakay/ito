@@ -1,7 +1,11 @@
 ---
-consolidated_at: '2026-05-13T19:07:50.153Z'
-consolidated_from: [{date: '2026-05-13T19:07:50.153Z', path: development/ito_workflow/coordination_branch_setup.md, reason: 'These files cover the same coordination-branch bootstrap behavior in git.rs, including missing remote branch initialization from an empty tree/root commit, empty stdout rejection, push refspec shape, and error classification. The git-behavior file is richer and includes reservation flow details, so it should be the merge target.'}]
+tags: []
 related: [development/ito_workflow/coordination_symlink_repair_and_sync.md]
+keywords: []
+importance: 56
+recency: 1
+maturity: draft
+accessCount: 2
 ---
 # Coordination Branch Git Behavior
 

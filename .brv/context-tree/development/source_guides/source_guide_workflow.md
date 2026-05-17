@@ -1,10 +1,14 @@
 ---
-createdAt: '2026-04-28T20:08:29.775Z'
-keywords: []
-related: [development/ito_workflow/ddd_discovery_workflow.md]
+title: Source Guide Workflow
 summary: Ito uses source-guide.md files as a code map/code atlas; agents refresh nearby guides before apply work, treat guides as orientation, verify claims against source, and update guides after structural changes.
 tags: []
-title: Source Guide Workflow
+related: [development/ito_workflow/ddd_discovery_workflow.md]
+keywords: []
+importance: 56
+recency: 1
+maturity: draft
+accessCount: 2
+createdAt: '2026-04-28T20:08:29.775Z'
 updatedAt: '2026-04-28T20:08:29.775Z'
 ---
 ## Reason
