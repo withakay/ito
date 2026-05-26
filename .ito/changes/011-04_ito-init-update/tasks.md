@@ -38,8 +38,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture` or the nearest added init test command
 - **Done When**: Tests fail against the current behavior and assert selected defaults plus preserved resulting config.
 - **Requirements**: cli-init:existing-config-wizard-defaults
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
