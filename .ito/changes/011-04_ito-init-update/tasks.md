@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli config_coverage -- --nocapture` or the nearest added coverage test command
 - **Done When**: Every config field has a coverage classification and missing classifications fail tests.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [>] in-progress
 
 ### Task 1.2: Add Existing-Config Init Default Tests
 
