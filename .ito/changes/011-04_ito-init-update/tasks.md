@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli init_update_config_flags -- --nocapture` or the nearest added flag test command
 - **Done When**: Covered init/update settings have flags or documented exclusions, flags override config intentionally, and no-flag update preserves explicit config.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
