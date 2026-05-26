@@ -55,8 +55,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture`
 - **Done When**: Rerunning interactive init preselects existing tmux/worktree/bare sibling values and preserves accepted defaults.
 - **Requirements**: cli-init:existing-config-wizard-defaults
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add Missing Init and Update Flags
 
