@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Tests fail against the current behavior and assert selected defaults plus preserved resulting config.
 - **Requirements**: cli-init:existing-config-wizard-defaults
 - **Updated At**: 2026-05-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
