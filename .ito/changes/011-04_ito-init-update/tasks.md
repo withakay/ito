@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Every config field has a coverage classification and missing classifications fail tests.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification
 - **Updated At**: 2026-05-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Add Existing-Config Init Default Tests
 
