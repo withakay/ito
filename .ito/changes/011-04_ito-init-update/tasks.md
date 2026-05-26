@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Done When**: Rerunning interactive init preselects existing tmux/worktree/bare sibling values and preserves accepted defaults.
 - **Requirements**: cli-init:existing-config-wizard-defaults
 - **Updated At**: 2026-05-26
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Add Missing Init and Update Flags
 
