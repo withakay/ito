@@ -105,8 +105,8 @@
 - **Done When**: The repo contains an initial wiki that supports cited search, graph-style cross-reference discovery, and future proposal/research/archive sessions.
 
 ### Task 4.3: Run final validation and review
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Validate the change package and run the project quality gate after implementation.
 - **Files**: `.ito/changes/027-01_add-ito-wiki/**`, `ito-rs/crates/ito-templates/**`, `ito-rs/crates/ito-core/**`, `ito-rs/crates/ito-cli/**`
 - **Verify**: `ito validate 027-01_add-ito-wiki --strict && make check && make test`
