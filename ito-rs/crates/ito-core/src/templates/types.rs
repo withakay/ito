@@ -464,6 +464,9 @@ pub struct ValidationYaml {
     /// Validation schema version.
     pub version: u32,
     #[serde(default)]
+    /// Optional informational note emitted when semantic validation remains manual.
+    pub manual_semantic_validation_note: Option<String>,
+    #[serde(default)]
     /// Default rules applied when per-artifact config is omitted.
     pub defaults: ValidationDefaultsYaml,
     #[serde(default)]
@@ -582,6 +585,7 @@ mod tests {
     fn validation_yaml_parses_minimal_config() {
         let src = r#"
 version: 1
+manual_semantic_validation_note: Semantic validation is manual.
 artifacts:
   specs:
     required: true
@@ -594,6 +598,10 @@ tracking:
 
         let parsed: super::ValidationYaml = serde_yaml::from_str(src).expect("parse validation");
         assert_eq!(parsed.version, 1);
+        assert_eq!(
+            parsed.manual_semantic_validation_note.as_deref(),
+            Some("Semantic validation is manual.")
+        );
         assert_eq!(parsed.artifacts.len(), 1);
         assert!(parsed.artifacts.get("specs").expect("specs").required);
         assert_eq!(

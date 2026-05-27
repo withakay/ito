@@ -1,10 +1,20 @@
 version: 1
+manual_semantic_validation_note: "OpenSpec event-driven schema semantics are not fully validated by Ito; manually review event storming, event modeling, and AsyncAPI content."
 defaults:
   missing_required_artifact_level: error
 artifacts:
+  event-storming:
+    required: true
+  event-modeling:
+    required: true
   specs:
     required: true
-    validate_as: ito.delta-specs.v1
+  design:
+    required: true
+  asyncapi:
+    required: true
+  tasks:
+    required: true
 tracking:
   source: apply_tracks
   required: true
