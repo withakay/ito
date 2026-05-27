@@ -11,7 +11,9 @@ Use this skill when the request is too rough for safe proposal scaffolding or wh
 
 ## Goal
 
-Turn an idea into a proposal-ready plan without prematurely choosing vocabulary, ownership, module boundaries, or schema details.
+Turn an open-ended idea into a useful planning artifact and proposal-ready plan without prematurely choosing vocabulary, ownership, module boundaries, or schema details.
+
+Store durable research notes under `.ito/research/` when the planning work produces reusable evidence.
 
 ## Guardrails
 

@@ -110,6 +110,15 @@ Example (global config):
 }
 ```
 
+`ito init` uses existing project-local, project, or global worktree config as interactive defaults when present. `ito init` and `ito update` also accept worktree flags for non-interactive setup:
+
+```bash
+ito init --worktrees --worktree-strategy bare_control_siblings --worktree-integration-mode commit_pr
+ito update --no-worktrees
+```
+
+Supported strategies are `checkout_subdir`, `checkout_siblings`, and `bare_control_siblings`. Supported integration modes are `commit_pr` and `merge_parent`.
+
 ### Harness and agent model selection
 
 Agent harness preferences live under `harnesses.<harness-id>`. Supported harness IDs include:

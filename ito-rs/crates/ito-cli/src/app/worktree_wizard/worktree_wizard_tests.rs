@@ -120,6 +120,22 @@ fn load_worktree_result_from_config_returns_expected_defaults_and_values() {
 }
 
 #[test]
+fn worktree_wizard_defaults_use_existing_result_values() {
+    let result = WorktreeWizardResult {
+        ran: false,
+        enabled: true,
+        strategy: Some("bare_control_siblings".to_string()),
+        integration_mode: Some("merge_parent".to_string()),
+    };
+
+    let defaults = WorktreeWizardDefaults::from(&result);
+
+    assert!(defaults.enabled);
+    assert_eq!(defaults.strategy, "bare_control_siblings");
+    assert_eq!(defaults.integration_mode, "merge_parent");
+}
+
+#[test]
 fn save_worktree_config_writes_config_and_runs_print_paths() {
     let td = tempfile::tempdir().expect("tempdir");
     let config_path = td.path().join(".ito/config.json");

@@ -47,6 +47,18 @@ Options:
       --no-tmux
           Disable tmux-backed workflow suggestions in project config
 
+      --worktrees
+          Enable Git worktree-based workspace layout
+
+      --no-worktrees
+          Disable Git worktree-based workspace layout
+
+      --worktree-strategy <STRATEGY>
+          Worktree topology strategy
+
+      --worktree-integration-mode <MODE>
+          Preferred integration mode after implementation
+
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)
 

@@ -1,5 +1,6 @@
 use crate::app::worktree_wizard::{
-    WorktreeWizardResult, is_worktree_configured, load_worktree_result_from_config,
+    WorktreeWizardOverrides, WorktreeWizardResult, apply_worktree_overrides,
+    is_worktree_configured, load_worktree_result_from_config, parse_worktree_overrides,
     prompt_worktree_wizard, save_worktree_config,
 };
 use crate::cli::UpdateArgs;
@@ -23,6 +24,7 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     // `--json` is accepted for parity with TS but not implemented yet.
     let _want_json = args.iter().any(|a| a == "--json");
+    let worktree_overrides = parse_worktree_overrides(args)?;
     let target = super::common::last_positional(args).unwrap_or_else(|| ".".to_string());
     let target_path = std::path::Path::new(&target);
     let ctx = rt.ctx();
@@ -39,7 +41,7 @@ pub(super) fn handle_update(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
 
     let (worktree_ctx, post_install_save) =
-        resolve_update_worktree_config(ctx, target_path, is_interactive)?;
+        resolve_update_worktree_config(ctx, target_path, is_interactive, &worktree_overrides)?;
 
     let tools: BTreeSet<String> = ito_core::installers::available_tool_ids()
         .iter()
@@ -98,6 +100,7 @@ fn resolve_update_worktree_config(
     ctx: &ito_config::ConfigContext,
     target_path: &std::path::Path,
     interactive: bool,
+    overrides: &WorktreeWizardOverrides,
 ) -> CliResult<(
     WorktreeTemplateContext,
     Option<(std::path::PathBuf, WorktreeWizardResult)>,
@@ -112,6 +115,30 @@ fn resolve_update_worktree_config(
     let global_configured = global_config_path
         .as_ref()
         .is_some_and(|p| is_worktree_configured(p));
+
+    if overrides.any() {
+        let base = if local_configured {
+            load_worktree_result_from_config(&project_local_config_path)
+        } else if project_configured {
+            load_worktree_result_from_config(&project_config_path)
+        } else if global_configured {
+            let global_path = global_config_path
+                .as_ref()
+                .expect("global_configured implies global_config_path");
+            load_worktree_result_from_config(global_path)
+        } else {
+            WorktreeWizardResult {
+                ran: false,
+                enabled: false,
+                strategy: None,
+                integration_mode: None,
+            }
+        };
+
+        let result = apply_worktree_overrides(base, overrides);
+        return update_worktree_config_result(ctx, target_path, &ito_path, result.clone())
+            .map(|ctx_out| (ctx_out, Some((project_local_config_path, result))));
+    }
 
     // Wizard runs only when neither project nor global worktree config exists.
     let (result, should_save_to_project) =
@@ -145,11 +172,25 @@ fn resolve_update_worktree_config(
             )
         };
 
+    let ctx_out = update_worktree_config_result(ctx, target_path, &ito_path, result.clone())?;
+
+    // Save to the per-developer overlay so two developers can have different
+    // worktree workflows without churn in committed config.
+    let post_install_save = should_save_to_project.then_some((project_local_config_path, result));
+    Ok((ctx_out, post_install_save))
+}
+
+fn update_worktree_config_result(
+    ctx: &ito_config::ConfigContext,
+    target_path: &std::path::Path,
+    ito_path: &std::path::Path,
+    result: WorktreeWizardResult,
+) -> CliResult<WorktreeTemplateContext> {
     let defaults = ito_core::config::resolve_worktree_template_defaults(target_path, ctx);
     // Derive project root from the already-absolute ito_path rather than
     // target_path which could be a relative subdirectory reference.
     // Defensive absolutize in case get_ito_path contract changes.
-    let project_root_path = ito_path.parent().unwrap_or(&ito_path);
+    let project_root_path = ito_path.parent().unwrap_or(ito_path);
     let project_root = ito_config::ito_dir::absolutize_and_normalize(project_root_path)
         .unwrap_or_else(|_| project_root_path.to_path_buf())
         .to_string_lossy()
@@ -171,16 +212,27 @@ fn resolve_update_worktree_config(
         WorktreeTemplateContext::default()
     };
 
-    // Save to the per-developer overlay so two developers can have different
-    // worktree workflows without churn in committed config.
-    let post_install_save = should_save_to_project.then_some((project_local_config_path, result));
-    Ok((ctx_out, post_install_save))
+    Ok(ctx_out)
 }
 
 pub(crate) fn handle_update_clap(rt: &Runtime, args: &UpdateArgs) -> CliResult<()> {
     let mut argv: Vec<String> = Vec::new();
     if args.json {
         argv.push("--json".to_string());
+    }
+    if args.worktrees {
+        argv.push("--worktrees".to_string());
+    }
+    if args.no_worktrees {
+        argv.push("--no-worktrees".to_string());
+    }
+    if let Some(strategy) = &args.worktree_strategy {
+        argv.push("--worktree-strategy".to_string());
+        argv.push(strategy.clone());
+    }
+    if let Some(integration_mode) = &args.worktree_integration_mode {
+        argv.push("--worktree-integration-mode".to_string());
+        argv.push(integration_mode.clone());
     }
     if let Some(path) = &args.path {
         argv.push(path.clone());

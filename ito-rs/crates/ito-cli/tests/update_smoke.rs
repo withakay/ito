@@ -304,6 +304,51 @@ fn update_preserves_project_config_and_project_md() {
 }
 
 #[test]
+fn update_worktree_flags_override_into_project_local_config() {
+    let repo = tempfile::tempdir().expect("repo");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    write(repo.path().join("README.md"), "# temp\n");
+    write_local_ito_skills(repo.path());
+    write(
+        repo.path().join(".ito/config.json"),
+        r#"{
+  "worktrees": {
+    "enabled": false,
+    "strategy": "checkout_subdir",
+    "apply": {"integration_mode": "commit_pr"}
+  }
+}"#,
+    );
+
+    let out = run_rust_candidate(
+        rust_path,
+        &[
+            "update",
+            ".",
+            "--worktrees",
+            "--worktree-strategy",
+            "bare_control_siblings",
+            "--worktree-integration-mode",
+            "merge_parent",
+        ],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let config = std::fs::read_to_string(repo.path().join(".ito/config.local.json")).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&config).unwrap();
+    assert_eq!(json["worktrees"]["enabled"], true);
+    assert_eq!(json["worktrees"]["strategy"], "bare_control_siblings");
+    assert_eq!(
+        json["worktrees"]["apply"]["integration_mode"],
+        "merge_parent"
+    );
+}
+
+#[test]
 fn update_preserves_user_guidance_and_user_prompt_files() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");
