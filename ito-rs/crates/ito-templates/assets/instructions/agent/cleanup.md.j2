@@ -1,0 +1,50 @@
+# Ito Cleanup
+
+Use this instruction to identify stale Ito-managed files left behind by older Ito versions. Do not delete anything until the user confirms the exact removal list.
+
+## Expected Ito-Managed Files
+
+These files are expected for the current project configuration:
+
+{% for entry in manifest_entries %}
+- `{{ entry.relative_path }}` — {{ entry.source }}{% if entry.harness %} for {{ entry.harness }}{% endif %} from `{{ entry.source_path }}`
+{% endfor %}
+
+## Known Legacy Paths
+
+These paths are known stale candidates from older Ito versions:
+
+{% for entry in legacy_entries %}
+- `{{ entry.old_path }}` — {{ entry.entry_type }}{% if entry.new_path %}; replacement: `{{ entry.new_path }}`{% endif %}. {{ entry.description }}
+{% endfor %}
+
+## Scan
+
+Run these checks from the repository root:
+
+```bash
+find . -path './.git' -prune -o -path './target' -prune -o -type f -print
+find . -path './.git' -prune -o -type d \( -name '.claude' -o -name '.opencode' -o -name '.codex' -o -name '.github' -o -name '.pi' -o -name '.ito' \) -print
+```
+
+Compare discovered Ito-managed directories against the expected manifest and legacy registry above.
+
+## Report
+
+Group findings before making changes:
+
+- **Expected current files**: present files that are in the manifest.
+- **Known legacy files**: paths matching the legacy registry.
+- **Possible orphan files**: Ito-looking files under Ito-managed directories that are neither expected nor known legacy.
+- **User-owned files**: files outside Ito-managed directories or files without Ito managed markers.
+
+For every deletion candidate, report:
+
+- path
+- reason
+- replacement path, when applicable
+- whether the file contains Ito managed markers
+
+## Cleanup Gate
+
+Ask the user to confirm the exact deletion list. If confirmed, remove only those paths, then rerun the scan and show the final `git status --short`.

@@ -5,6 +5,7 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
 
+use super::cleanup_instructions::generate_cleanup_instruction;
 use super::memory_instructions::{MemoryTemplateConfig, memory_template_config_from_merged};
 use ito_common::harness::detect_harness_name;
 use ito_config::resolve_coordination_branch_settings;
@@ -101,6 +102,10 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         eprintln!("- Generating repo-sweep instructions...");
         let instruction = generate_repo_sweep_instruction()?;
         return emit_instruction(want_json, "repo-sweep", instruction);
+    }
+    if artifact == "cleanup" {
+        let instruction = generate_cleanup_instruction(rt)?;
+        return emit_instruction(want_json, "cleanup", instruction);
     }
     if artifact == "orchestrate" {
         let ito_path = rt.ito_path();

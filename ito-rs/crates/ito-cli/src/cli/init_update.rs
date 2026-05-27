@@ -16,8 +16,12 @@ pub struct InitArgs {
     pub update: bool,
 
     /// Refresh managed prompt/template content (marker-scoped upgrade; preserves user content outside markers)
-    #[arg(long, conflicts_with = "force")]
+    #[arg(long)]
     pub upgrade: bool,
+
+    /// Remove known legacy Ito-managed paths during --upgrade
+    #[arg(long)]
+    pub cleanup: bool,
 
     /// Ensure coordination branch exists on origin after init
     #[arg(long = "setup-coordination-branch")]

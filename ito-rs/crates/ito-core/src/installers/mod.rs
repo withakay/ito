@@ -165,6 +165,72 @@ pub fn install_default_templates(
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// A known legacy Ito-managed path found in a project.
+pub struct LegacyPathHit {
+    /// Path relative to the project root.
+    pub relative_path: String,
+    /// Human-readable reason this path is legacy.
+    pub description: &'static str,
+    /// Replacement path, when a current artifact supersedes the legacy path.
+    pub replacement: Option<&'static str>,
+}
+
+/// Detect known legacy Ito-managed paths under the project root.
+pub fn detect_legacy_paths(project_root: &Path) -> Vec<LegacyPathHit> {
+    let skill_roots = [
+        ".claude/skills",
+        ".opencode/skills",
+        ".codex/skills",
+        ".github/skills",
+        ".pi/skills",
+    ];
+    let mut hits = Vec::new();
+    for entry in ito_templates::legacy::LEGACY_ENTRIES {
+        if entry.old_path.starts_with('.') {
+            push_legacy_hit_if_exists(project_root, entry.old_path, entry, &mut hits);
+        } else {
+            for root in skill_roots {
+                let rel = format!("{root}/{}", entry.old_path);
+                push_legacy_hit_if_exists(project_root, &rel, entry, &mut hits);
+            }
+        }
+    }
+    hits.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+    hits
+}
+
+/// Remove previously detected legacy Ito-managed paths from the project root.
+pub fn remove_legacy_paths(project_root: &Path, hits: &[LegacyPathHit]) -> CoreResult<()> {
+    for hit in hits {
+        let path = project_root.join(&hit.relative_path);
+        if path.is_dir() {
+            std::fs::remove_dir_all(&path)
+                .map_err(|e| CoreError::io(format!("removing {}", path.display()), e))?;
+        } else if path.exists() {
+            std::fs::remove_file(&path)
+                .map_err(|e| CoreError::io(format!("removing {}", path.display()), e))?;
+        }
+    }
+    Ok(())
+}
+
+fn push_legacy_hit_if_exists(
+    project_root: &Path,
+    rel: &str,
+    entry: &ito_templates::legacy::LegacyEntry,
+    hits: &mut Vec<LegacyPathHit>,
+) {
+    let normalized = rel.trim_end_matches('/');
+    if project_root.join(normalized).exists() {
+        hits.push(LegacyPathHit {
+            relative_path: normalized.to_string(),
+            description: entry.description,
+            replacement: entry.new_path,
+        });
+    }
+}
+
 fn ensure_repo_gitignore_ignores_local_configs(
     project_root: &Path,
     ito_dir: &str,

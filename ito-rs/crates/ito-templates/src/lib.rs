@@ -18,6 +18,12 @@ pub mod agents;
 /// Embedded instruction artifacts.
 pub mod instructions;
 
+/// Legacy Ito-managed paths from previous releases.
+pub mod legacy;
+
+/// Expected Ito-managed install manifest generation.
+pub mod manifest;
+
 /// Jinja2 rendering for project templates (AGENTS.md, skills).
 pub mod project_templates;
 

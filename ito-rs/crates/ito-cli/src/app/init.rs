@@ -47,6 +47,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
     let upgrade = args.iter().any(|a| a == "--upgrade");
+    let cleanup = args.iter().any(|a| a == "--cleanup");
     // --update activates non-destructive update semantics; --upgrade implies update semantics.
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
@@ -54,6 +55,9 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
     let worktree_overrides = parse_worktree_overrides(args)?;
+    if cleanup && !upgrade {
+        return fail("--cleanup requires --upgrade");
+    }
 
     // Positional path (defaults to current directory).
     let target = super::common::last_positional(args).unwrap_or_else(|| ".".to_string());
@@ -208,6 +212,40 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(&worktree_ctx),
     )
     .map_err(to_cli_error)?;
+
+    if upgrade {
+        let legacy_hits = ito_core::installers::detect_legacy_paths(target_path);
+        if !legacy_hits.is_empty() {
+            eprintln!("warning: found legacy Ito-managed cleanup candidates:");
+            for hit in &legacy_hits {
+                if let Some(replacement) = hit.replacement {
+                    eprintln!(
+                        "  - {} ({}) replacement: {}",
+                        hit.relative_path, hit.description, replacement
+                    );
+                } else {
+                    eprintln!("  - {} ({})", hit.relative_path, hit.description);
+                }
+            }
+            if cleanup {
+                if !force {
+                    return fail(
+                        "--cleanup requires --force in non-interactive mode. Review candidates, then rerun `ito init --upgrade --cleanup --force`.",
+                    );
+                }
+                ito_core::installers::remove_legacy_paths(target_path, &legacy_hits)
+                    .map_err(to_cli_error)?;
+                eprintln!(
+                    "Removed {} legacy Ito-managed cleanup candidate(s).",
+                    legacy_hits.len()
+                );
+            } else {
+                eprintln!(
+                    "Run `ito agent instruction cleanup` for an audit, or rerun `ito init --upgrade --cleanup --force` to remove these known legacy paths."
+                );
+            }
+        }
+    }
 
     persist_tmux_preference(target_path, ctx, tmux_enabled)?;
 
@@ -401,6 +439,7 @@ fn project_setup_is_incomplete(ito_dir: &std::path::Path) -> bool {
 ///     force: false,
 ///     update: false,
 ///     upgrade: true,
+///     cleanup: false,
 ///     setup_coordination_branch: false,
 ///     no_coordination_worktree: false,
 ///     no_tmux: false,
@@ -437,6 +476,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.upgrade {
         argv.push("--upgrade".to_string());
+    }
+    if args.cleanup {
+        argv.push("--cleanup".to_string());
     }
     if args.setup_coordination_branch {
         argv.push("--setup-coordination-branch".to_string());
