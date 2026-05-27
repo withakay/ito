@@ -1,0 +1,31 @@
+version: 1
+root: .ito/wiki
+purpose: ito-scoped-llm-maintained-knowledge
+default_sources:
+  - docs/ito/specs
+  - docs/ito/changes
+  - .ito/research
+  - .ito/project.md
+  - .ito/AGENTS.md
+external_sources: link-only
+page_types:
+  - topic
+  - spec-summary
+  - research-synthesis
+  - query-result
+  - workflow-note
+  - decision-note
+authority_levels:
+  - canonical-summary
+  - advisory-synthesis
+  - decision-record
+  - query-artifact
+freshness_states:
+  - fresh
+  - stale
+  - unknown
+write_policy:
+  default: llm-maintained
+  upgrade: preserve-existing-content
+  force_refresh: may-rewrite-managed-template-content
+  marker_managed_sections: explicit-only

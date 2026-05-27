@@ -27,6 +27,9 @@ pub mod manifest;
 /// Jinja2 rendering for project templates (AGENTS.md, skills).
 pub mod project_templates;
 
+#[cfg(test)]
+mod wiki_tests;
+
 static DEFAULT_PROJECT_DIR: Dir<'static> =
     include_dir!("$CARGO_MANIFEST_DIR/assets/default/project");
 static DEFAULT_HOME_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/default/home");
@@ -781,30 +784,6 @@ mod tests {
             commands.iter().any(|f| f.relative_path == "ito-plan.md"),
             "expected ito-plan command to be embedded"
         );
-
-        let proposal = get_skill_file("ito-proposal/SKILL.md").expect("proposal skill should exist");
-        let proposal_text = std::str::from_utf8(proposal).expect("skill should be utf8");
-        assert!(proposal_text.contains("**Step 0.5: Consult the Ito wiki when present**"));
-        assert!(proposal_text.contains(".ito/wiki/index.md"));
-    }
-
-    #[test]
-    fn research_and_archive_skills_include_wiki_follow_up() {
-        let research = get_skill_file("ito-research/SKILL.md").expect("research skill should exist");
-        let research = std::str::from_utf8(research).expect("skill should be utf8");
-        assert!(research.contains("Research source artifacts and wiki synthesis have different jobs"));
-        assert!(research.contains("$ITO_ROOT/wiki/queries/"));
-
-        let synthesize = get_skill_file("ito-research/research-synthesize.md")
-            .expect("research synthesize template should exist");
-        let synthesize = std::str::from_utf8(synthesize).expect("template should be utf8");
-        assert!(synthesize.contains("## Wiki Follow-Up"));
-        assert!(synthesize.contains("Cite this research summary from the wiki"));
-
-        let archive = get_skill_file("ito-archive/SKILL.md").expect("archive skill should exist");
-        let archive = std::str::from_utf8(archive).expect("skill should be utf8");
-        assert!(archive.contains("refresh relevant `.ito/wiki/` topic pages"));
-        assert!(archive.contains("not an archive blocker"));
     }
 
     #[test]
@@ -815,22 +794,6 @@ mod tests {
         assert!(text.contains("ito agent instruction memory-capture"));
         assert!(text.contains("ito agent instruction memory-search"));
         assert!(text.contains("ito agent instruction memory-query"));
-    }
-
-    #[test]
-    fn wiki_skills_are_embedded() {
-        let wiki = get_skill_file("ito-wiki/SKILL.md").expect("ito-wiki skill should exist");
-        let wiki = std::str::from_utf8(wiki).expect("skill should be utf8");
-        assert!(wiki.starts_with("---\nname: ito-wiki\n"));
-        assert!(wiki.contains("## Maintenance Workflow"));
-        assert!(wiki.contains("## Lint Checklist"));
-
-        let search =
-            get_skill_file("ito-wiki-search/SKILL.md").expect("ito-wiki-search skill should exist");
-        let search = std::str::from_utf8(search).expect("skill should be utf8");
-        assert!(search.starts_with("---\nname: ito-wiki-search\n"));
-        assert!(search.contains("## Search Workflow"));
-        assert!(search.contains("## Answer Rules"));
     }
 
     #[test]
@@ -846,8 +809,6 @@ mod tests {
         assert!(text.contains("`ito-brainstorming`"));
         assert!(text.contains("ito patch change <id> proposal"));
         assert!(text.contains("ito write change <id> design"));
-        assert!(text.contains(".ito/wiki/index.md"));
-        assert!(text.contains("Refresh relevant `.ito/wiki/` topic pages"));
     }
 
     #[test]
