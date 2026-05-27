@@ -27,8 +27,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core worktree_ensure`
 - **Done When**: Tests fail against the current raw `git worktree add` implementation for the expected reason.
 - **Requirements**: `worktree-lifecycle:strategy-aware-creation`, `worktree-lifecycle:local-worktrunk-path-config`, `worktree-lifecycle:worktrunk-failure-diagnostics`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [>] in-progress
 
 ### Task 1.2: Add Template Rendering Tests
 
