@@ -401,23 +401,5 @@ fn removed_serve_api_replacement(args: &crate::cli::RemovedServeApiArgs) -> Stri
 }
 
 #[cfg(all(test, feature = "backend"))]
-mod tests {
-    use super::removed_serve_api_replacement;
-    use crate::cli::RemovedServeApiArgs;
-
-    #[test]
-    fn removed_serve_api_replacement_preserves_flags_and_args() {
-        let replacement = removed_serve_api_replacement(&RemovedServeApiArgs {
-            args: vec![
-                "--service".to_string(),
-                "--bind".to_string(),
-                "127.0.0.1".to_string(),
-            ],
-        });
-
-        assert_eq!(
-            replacement,
-            "ito backend serve --service --bind 127.0.0.1".to_string()
-        );
-    }
-}
+#[path = "run_tests.rs"]
+mod run_tests;

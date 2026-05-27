@@ -65,9 +65,17 @@ Primary local gate: `make check` (prek pre-push on all files). CI enforces same 
 ## Testing
 |TDD: Red/Green/Refactor |coverage: 80% hard floor, 90% target (make test-coverage)
 |mocking: "gives you the ick" — prefer real impls, in-memory fakes, ito-test-support mock repos
-|integration tests alongside unit tests |test file separation: source >300 lines → separate file (e.g. tests/backend_auth.rs or *_tests.rs); no inline #[cfg(test)] mod tests in files >300 lines
+|integration tests alongside unit tests |unit tests in sibling `*_tests.rs` files; integration tests under crate-level `tests/`
+
+Rust unit test layout:
+- For `foo.rs`, put unit tests in `foo_tests.rs` next to it and add `#[cfg(test)] #[path = "foo_tests.rs"] mod foo_tests;` to `foo.rs`.
+- For `foo/mod.rs`, put unit tests in `foo/foo_tests.rs` and add `#[cfg(test)] mod foo_tests;` to `foo/mod.rs`.
+- Do not add new inline `#[cfg(test)] mod tests { ... }` blocks for module unit tests.
+- Keep crate integration tests in `crates/<crate>/tests/*.rs`; those are not `*_tests.rs` sibling modules.
+- Existing inline modules may remain until migrated by the dedicated refactor task. Enforcement is guidance-only for now to avoid blocking the current baseline.
 
 ### Test Execution Targets
+
 | Benchmark | Expected | Alert |
 |---|---|---|
 | Full suite (make test) | ~5s | >10s |

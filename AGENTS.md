@@ -92,4 +92,9 @@ ito agent instruction finish --change "<full-change-id>"
 |after hard problems: brv curate "<what+WHY>" (blocking by default; --detach only if no step depends on it)
 |if curate reports pending: brv review pending → ask before approve/reject
 |brv query: synthesized memory |brv search: cheap path/excerpt lookup |brv curate: durable knowledge only (no transient notes)
+
+[Rust Tests]|unit tests live in sibling `*_tests.rs` modules, not inline `mod tests` blocks
+|for `foo.rs`, put tests in `foo_tests.rs` and include with `#[cfg(test)] #[path = "foo_tests.rs"] mod foo_tests;`
+|for `foo/mod.rs`, put tests in `foo/foo_tests.rs` and include with `#[cfg(test)] mod foo_tests;`
+|integration tests stay under crate-level `tests/`; this convention is guidance-only until existing inline tests are migrated
 <!-- ITO:INTERNAL:END -->
