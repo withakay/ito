@@ -86,8 +86,8 @@
 - **Requirements**: cleanup-cli:upgrade-detection, cleanup-cli:upgrade-removal
 
 ### Task 4.3: Validate full change
-- **Status**: [ ] pending
-- **Updated At**: 2026-03-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Run `ito validate 026-01_ito-cleanup --strict`, `make check`, and `make test` to ensure everything passes.
 - **Files**: N/A
 - **Dependencies**: Task 4.1, Task 4.2
