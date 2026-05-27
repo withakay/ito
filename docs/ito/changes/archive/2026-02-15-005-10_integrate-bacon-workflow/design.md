@@ -104,11 +104,11 @@ Add bacon target to Makefile:
 ```makefile
 .PHONY: bacon
 bacon:
-	cd ito-rs && bacon
+    cd ito-rs && bacon
 
 .PHONY: bacon-export
 bacon-export:
-	cd ito-rs && bacon --export-locations .bacon-locations
+    cd ito-rs && bacon --export-locations .bacon-locations
 ```
 
 ## Installation

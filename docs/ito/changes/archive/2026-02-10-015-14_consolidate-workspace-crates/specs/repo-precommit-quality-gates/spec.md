@@ -10,7 +10,7 @@ At minimum:
 - `ito-cli` MUST NOT depend directly on `ito-domain`.
 - Adapters (`ito-cli`, `ito-web`) MUST depend on `ito-core`.
 - `ito-core` MUST depend on `ito-domain` and MAY depend on `ito-config`.
- - Adapters MAY depend on `ito-config`.
+- Adapters MAY depend on `ito-config`.
 
 #### Scenario: Arch guardrails enforce consolidated boundaries
 

@@ -121,10 +121,10 @@ setup guidance, exit 0, never error).
 ## Open Questions
 
 - Should `options` passed to a skill have a named, validated sub-schema
-  (e.g. `root_dir`, `tags`) rather than opaque JSON? _This change: opaque
+  (e.g. `root_dir`, `tags`) rather than opaque JSON? *This change: opaque
   JSON. Revisit once we have a second provider skill to shape the
-  schema._
+  schema.*
 - Should finish *run* an archive/spec refresh routine automatically or
-  stay as a reminder? _This change: reminder only. Automation is a
-  potential follow-on once we see how the reminder plays out in practice._
+  stay as a reminder? *This change: reminder only. Automation is a
+  potential follow-on once we see how the reminder plays out in practice.*
 <!-- ITO:END -->

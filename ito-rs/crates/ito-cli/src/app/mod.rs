@@ -1,4 +1,5 @@
 mod archive;
+mod cleanup_instructions;
 pub(crate) mod common;
 mod entrypoint;
 mod grep;

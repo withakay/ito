@@ -48,6 +48,7 @@ ito config set featureFlags.newFlag true
 - Follows npm/yarn config patterns
 
 **Coercion rules:**
+
 | Input | Stored As |
 |-------|-----------|
 | `true`, `false` | boolean |

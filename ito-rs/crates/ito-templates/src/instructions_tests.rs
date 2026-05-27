@@ -935,6 +935,51 @@ fn repo_sweep_template_renders() {
 }
 
 #[test]
+fn cleanup_template_renders_manifest_and_legacy_entries() {
+    #[derive(Serialize)]
+    struct ManifestEntry {
+        relative_path: &'static str,
+        source: &'static str,
+        source_path: &'static str,
+        harness: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct LegacyEntry {
+        old_path: &'static str,
+        new_path: &'static str,
+        entry_type: &'static str,
+        description: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        manifest_entries: Vec<ManifestEntry>,
+        legacy_entries: Vec<LegacyEntry>,
+    }
+
+    let ctx = Ctx {
+        manifest_entries: vec![ManifestEntry {
+            relative_path: ".codex/skills/ito-plan/SKILL.md",
+            source: "skill",
+            source_path: "ito-plan/SKILL.md",
+            harness: "codex",
+        }],
+        legacy_entries: vec![LegacyEntry {
+            old_path: "ito-write-change-proposal/SKILL.md",
+            new_path: "ito-proposal/SKILL.md",
+            entry_type: "renamed",
+            description: "Proposal skill rename.",
+        }],
+    };
+    let rendered = render_instruction_template("agent/cleanup.md.j2", &ctx).unwrap();
+    assert!(rendered.contains("Ito Cleanup"));
+    assert!(rendered.contains(".codex/skills/ito-plan/SKILL.md"));
+    assert!(rendered.contains("ito-write-change-proposal/SKILL.md"));
+    assert!(rendered.contains("git status --short"));
+}
+
+#[test]
 fn archive_template_renders_generic_guidance_without_change() {
     #[derive(Serialize)]
     struct ArchiveCfg {

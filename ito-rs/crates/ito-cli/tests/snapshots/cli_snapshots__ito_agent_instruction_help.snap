@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 133
 expression: "snapshot(&[\"agent\", \"instruction\", \"-h\"])"
 ---
 Generate enriched instructions
@@ -34,6 +35,7 @@ Artifacts:
   backend                            Backend server and client configuration guide
   worktrees                          Guide for git worktree workflow (config-driven)
   repo-sweep                         Scan for old-only ID format assumptions in prompts and templates
+  cleanup                            Scan for legacy Ito-managed files and cleanup candidates
   migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage
   orchestrate                        Orchestrate applying a set of changes via an orchestrator agent
   manifesto                          Generate a strict Ito manifesto for prompt-only execution
@@ -54,6 +56,7 @@ Examples:
   ito agent instruction backend
   ito agent instruction worktrees
   ito agent instruction repo-sweep
+  ito agent instruction cleanup
   ito agent instruction migrate-to-coordination-worktree
   ito agent instruction orchestrate
   ito agent instruction manifesto
