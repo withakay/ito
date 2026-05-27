@@ -89,8 +89,8 @@
 - **Depends On**: Wave 3
 
 ### Task 4.1: Add template, preservation, and instruction coverage tests
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Add or update tests that verify the wiki scaffold is installed, existing wiki files are preserved on upgrade, wiki skills are embedded, and instruction output includes intended wiki guidance touchpoints.
 - **Files**: `ito-rs/crates/ito-templates/tests/`, `ito-rs/crates/ito-cli/tests/`, `ito-rs/crates/ito-core/tests/distribution.rs`, `ito-rs/crates/ito-core/tests/`
 - **Verify**: `make check && make test`
