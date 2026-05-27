@@ -56,8 +56,8 @@
 - **Requirements**: cleanup-skill:skill-definition, cleanup-skill:trigger-matching
 
 ### Task 3.2: Add cleanup detection to ito init --upgrade
-- **Status**: [ ] pending
-- **Updated At**: 2026-03-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: After the existing upgrade logic in `install_default_templates()`, add a cleanup detection pass that iterates the legacy registry, checks if each legacy path exists on disk, and collects found orphans. In the CLI layer, if orphans are detected during `--upgrade`, print a warning listing them and suggest `--cleanup`. Add a `--cleanup` flag to `InitArgs`. When `--cleanup` is set with `--upgrade`, prompt for confirmation (or skip if `--force`) and remove the orphaned files.
 - **Files**: `ito-rs/crates/ito-core/src/installers/mod.rs`, `ito-rs/crates/ito-cli/src/app/init.rs`, `ito-rs/crates/ito-cli/src/cli.rs`
 - **Verify**: `cargo build -p ito-cli && cargo test -p ito-cli`
