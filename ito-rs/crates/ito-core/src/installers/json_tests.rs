@@ -70,6 +70,10 @@ fn classify_project_file_ownership_handles_user_owned_paths() {
         FileOwnership::UserOwned
     );
     assert_eq!(
+        classify_project_file_ownership(".ito/wiki/index.md", ito_dir),
+        FileOwnership::UserOwned
+    );
+    assert_eq!(
         classify_project_file_ownership(".ito/commands/review-edge.md", ito_dir),
         FileOwnership::ItoManaged
     );

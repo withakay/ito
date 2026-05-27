@@ -10,6 +10,8 @@ Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are Ito-managed and
 
 Keep this block so `ito init --upgrade` can refresh managed content safely. To refresh only this managed section, run `ito init --upgrade`.
 
+When present, use `.ito/wiki/index.md` for Ito-scoped synthesis, freshness warnings, and archive follow-through.
+
 ## Path Helpers
 
 Use `ito path ...` for runtime absolute paths; do not hardcode machine-specific paths into committed files:

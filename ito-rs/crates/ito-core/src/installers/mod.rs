@@ -465,6 +465,11 @@ fn classify_project_file_ownership(rel: &str, ito_dir: &str) -> FileOwnership {
         return FileOwnership::UserOwned;
     }
 
+    let wiki_prefix = format!("{ito_dir}/wiki/");
+    if rel.starts_with(&wiki_prefix) {
+        return FileOwnership::UserOwned;
+    }
+
     FileOwnership::ItoManaged
 }
 

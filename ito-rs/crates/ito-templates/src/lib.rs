@@ -27,6 +27,9 @@ pub mod manifest;
 /// Jinja2 rendering for project templates (AGENTS.md, skills).
 pub mod project_templates;
 
+#[cfg(test)]
+mod wiki_tests;
+
 static DEFAULT_PROJECT_DIR: Dir<'static> =
     include_dir!("$CARGO_MANIFEST_DIR/assets/default/project");
 static DEFAULT_HOME_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/default/home");
@@ -794,7 +797,7 @@ mod tests {
     }
 
     #[test]
-    fn default_project_agents_mentions_fix_and_feature_entrypoints() {
+    fn default_project_agents_mentions_fix_feature_and_wiki_guidance() {
         let agents = default_project_files()
             .into_iter()
             .find(|f| f.relative_path == ".ito/AGENTS.md")

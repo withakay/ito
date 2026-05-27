@@ -16,6 +16,10 @@ ito audit reconcile --change {{ change }}
 ito archive {{ change }} --yes
 ```
 
+After archive/spec sync succeeds, refresh relevant `.ito/wiki/` topic pages when `.ito/wiki/index.md` exists. Prefer updating existing topic pages with links to the archived change, affected specs, modules, research, architecture notes, and documentation. Create a separate archived-change wiki page only for historically important changes or when a topic page would become too large.
+
+If the wiki is absent, stale, or contradictory, note the risk and continue from the archived change and raw Ito artifacts; wiki refresh is recommended follow-through, not an archive blocker.
+
 If the reconcile reports drift, fix it first:
 
 ```bash
@@ -59,6 +63,7 @@ Mode `{{ archive.main_integration_mode }}` is unrecognized. Set a valid mode wit
 - All tasks in `tasks.md` are complete
 - The PR has been merged (or the change has been integrated into `main`)
 - You want to record the change as done and update the canonical specs
+- You want to refresh durable wiki synthesis after successful archive/spec sync
 
 ### Commands
 
@@ -84,6 +89,12 @@ ito agent instruction archive --change <change-id>
 ```
 
 Default archive main integration mode: `{{ archive.main_integration_mode }}`
+
+### Wiki follow-through
+
+After archive/spec sync succeeds, refresh relevant `.ito/wiki/` topic pages when `.ito/wiki/index.md` exists. Link to the archived change, affected specs, modules, research, architecture notes, and documentation. Prefer topic-page synthesis over one wiki page per archived change; create archived-change pages only for historically important changes or oversized topics.
+
+If the wiki is absent, stale, or contradictory, note the risk and continue from the archive and raw Ito artifacts. Wiki refresh should not block archiving.
 
 {% if available_changes | length > 0 %}
 ### Available changes

@@ -203,6 +203,7 @@ mod tests {
         let text = String::from_utf8(rendered).unwrap();
 
         assert!(text.contains("## Worktree Workflow"));
+        assert!(text.contains(".ito/wiki/index.md"));
         assert!(text.contains("**Strategy:** `checkout_subdir`"));
         assert_main_worktree_guardrails(&text);
         assert!(
