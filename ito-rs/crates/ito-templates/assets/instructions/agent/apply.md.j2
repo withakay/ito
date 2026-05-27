@@ -94,11 +94,11 @@ if [ ! -d "$CHANGE_DIR" ]; then
 {% if worktree.strategy == "bare_control_siblings" %}
   PROJECT_ROOT="$(ito path project-root)"
   mkdir -p "$(ito path worktrees-root)"
-  git -C "$PROJECT_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME" "{{ worktree.default_branch }}"
+  (cd "$PROJECT_ROOT" && WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "$CHANGE_NAME" --base "{{ worktree.default_branch }}")
 {% else %}
   WORKTREE_ROOT="$(ito path worktree-root)"
   mkdir -p "$(ito path worktrees-root)"
-  git -C "$WORKTREE_ROOT" worktree add "$CHANGE_DIR" -b "$CHANGE_NAME" "{{ worktree.default_branch }}"
+  (cd "$WORKTREE_ROOT" && WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "$CHANGE_NAME" --base "{{ worktree.default_branch }}")
 {% endif %}
 fi
 

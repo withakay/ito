@@ -193,7 +193,7 @@ Before running any command that writes proposal artifacts, create and use a **ne
 ```bash
 {% if worktree is defined and worktree.enabled %}
 # If the final change ID is not known yet, create a temporary proposal worktree first.
-git worktree add "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>" -b "proposal-<short-name>" {{ worktree.default_branch | default(value="main") }}
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "proposal-<short-name>" --base {{ worktree.default_branch | default(value="main") }}
 cd "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>"
 
 {% endif %}

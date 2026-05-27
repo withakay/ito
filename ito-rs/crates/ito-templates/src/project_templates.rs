@@ -102,7 +102,7 @@ mod tests {
     const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
     const MAIN_BRANCH_EXCLUSIVE_RULE: &str =
         "The main worktree is the only worktree that may check out";
-    const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+    const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create or switch to a dedicated change worktree with Worktrunk";
     const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
 
     fn assert_main_worktree_guardrails(text: &str) {
@@ -110,6 +110,12 @@ mod tests {
         assert!(text.contains(MAIN_BRANCH_EXCLUSIVE_RULE));
         assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE));
         assert!(text.contains(NO_MAIN_WRITE_RULE));
+    }
+
+    fn assert_worktrunk_command(text: &str, default_branch: &str) {
+        assert!(text.contains(&format!(
+            "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{{{ branch | sanitize }}}}\" wt switch --create <full-change-id> --base {default_branch}"
+        )));
     }
 
     #[test]
@@ -205,9 +211,7 @@ mod tests {
             )
         );
         assert!(text.contains("Do not reuse one worktree for two changes"));
-        assert!(text.contains(
-            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-        ));
+        assert_worktrunk_command(&text, "main");
         assert!(
             text.contains(".ito-worktrees/<full-change-id>/"),
             "should contain repo-relative worktree path"
@@ -244,9 +248,7 @@ mod tests {
             )
         );
         assert!(text.contains("Do not reuse one worktree for two changes"));
-        assert!(text.contains(
-            "git worktree add \"../<project-name>-worktrees/<full-change-id>\" -b <full-change-id> develop"
-        ));
+        assert_worktrunk_command(&text, "develop");
         assert!(
             text.contains("../<project-name>-worktrees/<full-change-id>/"),
             "should contain repo-relative sibling worktree path"
@@ -285,9 +287,7 @@ mod tests {
         assert!(text.contains("Do not reuse one worktree for two changes"));
         assert!(text.contains(".bare/"));
         assert!(text.contains("ito-worktrees/"));
-        assert!(text.contains(
-            "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-        ));
+        assert_worktrunk_command(&text, "main");
         assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
         let layout_line = text
             .lines()
