@@ -83,8 +83,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli help -- --nocapture` or relevant docs/help verification
 - **Done When**: User-facing docs and help match the implemented flag surface, and rendered worktree-enabled instructions make main/control read/control-only for agents.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
-- **Updated At**: 2026-05-26
-- **Status**: [>] in-progress
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 3.2: Run Proposal and Implementation Gates
 
