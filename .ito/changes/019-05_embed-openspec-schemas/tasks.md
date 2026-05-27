@@ -32,8 +32,8 @@ ______________________________________________________________________
   - Record upstream attribution metadata in-schema (for example an `UPSTREAM.md` with repo URL + pinned commit hash) to make updates traceable.
 - **Verify**: `make check`
 - **Done When**: Built-in schema assets include `minimalist` and `event-driven` and the source/pin is recorded.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.2: Add third-party attribution and license compliance artifacts
 
@@ -45,8 +45,8 @@ ______________________________________________________________________
   - Clearly list which schemas were vendored.
 - **Verify**: `make check`
 - **Done When**: Attribution is present, unambiguous, and license requirements are satisfied.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.3: Ship Ito validation.yaml for embedded OpenSpec schemas
 
@@ -58,8 +58,8 @@ ______________________________________________________________________
   - Add tests so `ito validate` does not report Ito delta-spec failures for these schemas.
 - **Verify**: `make check`
 - **Done When**: Each embedded schema has `validation.yaml` and validation output is non-misleading.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.4: Ensure schema export and listing include the new schemas
 
@@ -70,8 +70,8 @@ ______________________________________________________________________
   - Add/update tests verifying schema listing/selection UX includes the new schema names.
 - **Verify**: `make check`
 - **Done When**: Export and listing tests cover the new schemas.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -88,8 +88,8 @@ ______________________________________________________________________
   - Document that initial validation is presence-only + manual semantic validation note.
 - **Verify**: `make check`
 - **Done When**: Docs exist and match the behavior required by the proposal/specs.
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -101,5 +101,5 @@ ______________________________________________________________________
 - **Dependencies**: All Wave 1 tasks
 - **Action**: Review the implementation before proceeding
 - **Done When**: User confirms implementation is correct
-- **Updated At**: 2026-02-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete

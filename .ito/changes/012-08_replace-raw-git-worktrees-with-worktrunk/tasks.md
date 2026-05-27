@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Tests fail against the current raw `git worktree add` implementation for the expected reason.
 - **Requirements**: `worktree-lifecycle:strategy-aware-creation`, `worktree-lifecycle:local-worktrunk-path-config`, `worktree-lifecycle:worktrunk-failure-diagnostics`
 - **Updated At**: 2026-05-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Add Template Rendering Tests
 
@@ -38,8 +38,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates worktree_template_rendering`
 - **Done When**: Tests fail against current templates because raw git snippets are still rendered.
 - **Requirements**: `worktree-aware-template-rendering:agents-md-rendered-with-worktree-context`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.3: Add Ralph Detection Tests
 
@@ -49,8 +49,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core ralph_worktree`
 - **Done When**: Tests fail against the current git-porcelain-only detection path.
 - **Requirements**: `ralph-worktree-awareness:worktree-detection-uses-git-porcelain-output`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core worktree_ensure`
 - **Done When**: Worktree ensure tests pass and stdout remains only the resolved worktree path through the CLI boundary.
 - **Requirements**: `worktree-lifecycle:strategy-aware-creation`, `worktree-lifecycle:local-worktrunk-path-config`, `worktree-lifecycle:worktrunk-failure-diagnostics`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 2.2: Render Worktrunk Worktree Instructions
 
@@ -77,8 +77,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates worktree_template_rendering`
 - **Done When**: Rendered instructions contain Worktrunk commands, preserve `ito-worktrees` guidance, and no longer instruct agents to run raw `git worktree add` for normal change worktrees.
 - **Requirements**: `worktree-aware-template-rendering:agents-md-rendered-with-worktree-context`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 2.3: Prefer Worktrunk Listing In Ralph
 
@@ -88,8 +88,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core ralph_worktree`
 - **Done When**: Ralph resolves matching Worktrunk worktrees, excludes bare/control entries, and preserves fallback behavior.
 - **Requirements**: `ralph-worktree-awareness:worktree-detection-uses-git-porcelain-output`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -105,6 +105,6 @@ ______________________________________________________________________
 - **Verify**: `ito validate 012-08_replace-raw-git-worktrees-with-worktrunk --strict`, `make check`
 - **Done When**: Ito validation and quality checks pass, or any remaining failures are documented with root cause.
 - **Requirements**: `worktree-lifecycle:strategy-aware-creation`, `worktree-lifecycle:local-worktrunk-path-config`, `worktree-lifecycle:worktrunk-failure-diagnostics`, `worktree-aware-template-rendering:agents-md-rendered-with-worktree-context`, `ralph-worktree-awareness:worktree-detection-uses-git-porcelain-output`
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 <!-- ITO:END -->

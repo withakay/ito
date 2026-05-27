@@ -35,8 +35,8 @@ ______________________________________________________________________
   - Any allowed exceptions (if any)
 - **Verify**: `make check`
 - **Done When**: The convention is documented with at least one concrete example and is easy to find from contributor guidance
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.2: Decide enforcement approach
 
@@ -46,8 +46,8 @@ ______________________________________________________________________
   Decide whether the convention is enforced (pre-commit/CI) or guidance-only. If enforced, define what is checked (e.g., disallow new inline `#[cfg(test)] mod tests { ... }` blocks) and what is exempt.
 - **Verify**: `make check`
 - **Done When**: Enforcement decision is recorded (and, if enforced, the intended check behavior is clearly described)
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 1.3: Review convention + enforcement
 
@@ -56,8 +56,8 @@ ______________________________________________________________________
 - **Dependencies**: Task 1.1, Task 1.2
 - **Action**: Confirm the convention details and (if applicable) enforcement approach before proceeding with broad refactors
 - **Done When**: User confirms the convention and enforcement decision
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -73,8 +73,8 @@ ______________________________________________________________________
   Move existing unit tests out of production modules and into the corresponding sibling `*_tests.rs` files, updating module declarations and imports so behavior stays identical.
 - **Verify**: `cargo test --workspace`
 - **Done When**: All moved tests compile and pass, and production modules no longer embed large inline unit test blocks where a sibling `*_tests.rs` file is expected
-- **Updated At**: 2026-02-17
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 2.2: Run repository quality gates
 
