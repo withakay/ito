@@ -178,6 +178,46 @@ fn traverse(dir: Direction) { }
 fn traverse(forward: bool) { }
 ```
 
+## Unit Tests: Use Sibling `*_tests.rs` Files
+
+Place Rust unit tests in a sibling test module file rather than an inline `#[cfg(test)] mod tests { ... }` block.
+
+For a file module:
+
+```text
+src/foo.rs
+src/foo_tests.rs
+```
+
+```rust
+// src/foo.rs
+#[cfg(test)]
+#[path = "foo_tests.rs"]
+mod foo_tests;
+```
+
+For a directory module:
+
+```text
+src/foo/mod.rs
+src/foo/foo_tests.rs
+```
+
+```rust
+// src/foo/mod.rs
+#[cfg(test)]
+mod foo_tests;
+```
+
+This convention is for unit tests that need module-private access. Crate integration tests still belong in `crates/<crate>/tests/*.rs`.
+
+Allowed exceptions:
+
+- Existing inline `#[cfg(test)] mod tests` blocks may remain until they are migrated by the dedicated refactor.
+- Tiny, temporary spike tests should be removed before merge or moved into the sibling file.
+
+Enforcement is guidance-only for now; do not add a new pre-commit or CI check until the existing inline test baseline is migrated.
+
 ## Pattern Matching: Avoid Wildcard Matches
 
 Always match all variants explicitly to get compiler errors when variants are added.
