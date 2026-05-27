@@ -430,7 +430,7 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
     );
     assert!(out.contains("Do not reuse one worktree for two changes"));
     assert!(out.contains(
-        "git -C \"$PROJECT_ROOT\" worktree add \"$WORKTREES_ROOT/${BRANCH_NAME}\" -b \"${BRANCH_NAME}\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$WORKTREES_ROOT/{{ branch | sanitize }}\" wt switch --create \"${BRANCH_NAME}\" --base \"develop\""
     ));
 }
 
@@ -593,7 +593,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         "Additional worktrees for this same change must start with `000-01_test-change`"
     ));
     assert!(out.contains(
-        "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
     ));
     assert!(out.contains("does **not** sync coordination state by default"));
     assert!(out.contains("ito agent instruction apply --change <id> --sync"));
@@ -720,7 +720,7 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
     assert_change_worktree_guardrails(&out);
     assert!(out.contains("Default branch: `develop`"));
     assert!(out.contains(
-        "git -C \"$WORKTREE_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
     ));
 }
 

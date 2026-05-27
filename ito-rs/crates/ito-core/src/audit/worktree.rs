@@ -1,7 +1,7 @@
 //! Worktree discovery for audit event aggregation and streaming.
 //!
-//! Uses `git worktree list --porcelain` to enumerate all worktrees and
-//! resolves their routed audit stores.
+//! Uses worktree listing commands to enumerate all worktrees and resolves
+//! their routed audit stores.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -97,6 +97,10 @@ fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
 /// Used by Ralph to resolve the effective working directory for a change
 /// when worktree-based workflows are active.
 pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
+    if let Some(path) = find_worktree_for_branch_with_worktrunk(branch) {
+        return Some(path);
+    }
+
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])
         .output()
@@ -108,6 +112,59 @@ pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     find_worktree_for_branch_in_output(&stdout, branch)
+}
+
+fn find_worktree_for_branch_with_worktrunk(branch: &str) -> Option<PathBuf> {
+    let output = std::process::Command::new("wt")
+        .args(["list", "--format=json"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    find_worktree_for_branch_in_worktrunk_json(&stdout, branch)
+}
+
+fn find_worktree_for_branch_in_worktrunk_json(output: &str, branch: &str) -> Option<PathBuf> {
+    let value: serde_json::Value = serde_json::from_str(output).ok()?;
+    let entries = value
+        .as_array()
+        .or_else(|| value.get("worktrees").and_then(serde_json::Value::as_array))?;
+
+    entries.iter().find_map(|entry| {
+        let is_bare = entry
+            .get("bare")
+            .or_else(|| entry.get("is_bare"))
+            .or_else(|| entry.get("isBare"))
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        if is_bare {
+            return None;
+        }
+
+        let entry_branch = entry
+            .get("branch")
+            .or_else(|| entry.get("name"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(normalize_branch_name)?;
+        if entry_branch != branch {
+            return None;
+        }
+
+        let path = entry
+            .get("path")
+            .or_else(|| entry.get("worktree"))
+            .or_else(|| entry.get("root"))
+            .and_then(serde_json::Value::as_str)?;
+        Some(PathBuf::from(path))
+    })
+}
+
+fn normalize_branch_name(branch: &str) -> Option<&str> {
+    branch.strip_prefix("refs/heads/").or(Some(branch))
 }
 
 /// Parse porcelain worktree output and find the path for a given branch name.
@@ -297,6 +354,34 @@ branch refs/heads/feature-b
         // Non-matching returns None
         let result = find_worktree_for_branch_in_output(output, "feature-c");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn ralph_worktree_prefers_worktrunk_json_match() {
+        let output = r#"[
+  {"path": "/home/user/ito-worktrees/002-16_ralph-worktree-awareness", "branch": "refs/heads/002-16_ralph-worktree-awareness"},
+  {"path": "/home/user/ito-worktrees/other", "branch": "other"}
+]"#;
+
+        let result =
+            find_worktree_for_branch_in_worktrunk_json(output, "002-16_ralph-worktree-awareness");
+        assert_eq!(
+            result,
+            Some(PathBuf::from(
+                "/home/user/ito-worktrees/002-16_ralph-worktree-awareness"
+            ))
+        );
+    }
+
+    #[test]
+    fn ralph_worktree_worktrunk_json_ignores_bare_entries() {
+        let output = r#"{"worktrees":[
+  {"path": "/home/user/project.git", "branch": "refs/heads/main", "bare": true},
+  {"path": "/home/user/ito-worktrees/main", "branch": "main", "bare": false}
+]}"#;
+
+        let result = find_worktree_for_branch_in_worktrunk_json(output, "main");
+        assert_eq!(result, Some(PathBuf::from("/home/user/ito-worktrees/main")));
     }
 
     #[test]

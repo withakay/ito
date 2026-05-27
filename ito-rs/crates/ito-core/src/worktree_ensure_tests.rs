@@ -191,43 +191,27 @@ fn ensure_creates_worktree_when_absent() {
     let fake_gitdir = worktrees_root.join("my-change.git");
     let paths = make_enabled_paths(worktrees_root.clone(), main_root);
 
-    // Runner that handles two calls:
-    //   1. `git rev-parse --verify my-change` — returns failure (branch absent).
-    //   2. `git worktree add <path> -b my-change main` — creates the directory.
     struct CreatingRunner {
         target_path: PathBuf,
         fake_gitdir: PathBuf,
-        call_count: std::cell::Cell<usize>,
+        calls: RefCell<Vec<(String, Vec<String>)>>,
     }
 
     impl ProcessRunner for CreatingRunner {
-        fn run(&self, _request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
-            let count = self.call_count.get();
-            self.call_count.set(count + 1);
-            match count {
-                // First call: rev-parse — branch does not exist.
-                0 => Ok(ProcessOutput {
-                    exit_code: 1,
-                    success: false,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    timed_out: false,
-                }),
-                // Second call: worktree add — create the directory + .git file.
-                _ => {
-                    std::fs::create_dir_all(&self.target_path).unwrap();
-                    std::fs::create_dir_all(&self.fake_gitdir).unwrap();
-                    std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git")
-                        .unwrap();
-                    Ok(ProcessOutput {
-                        exit_code: 0,
-                        success: true,
-                        stdout: String::new(),
-                        stderr: String::new(),
-                        timed_out: false,
-                    })
-                }
-            }
+        fn run(&self, request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
+            self.calls
+                .borrow_mut()
+                .push((request.program.clone(), request.args.clone()));
+            std::fs::create_dir_all(&self.target_path).unwrap();
+            std::fs::create_dir_all(&self.fake_gitdir).unwrap();
+            std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git").unwrap();
+            Ok(ProcessOutput {
+                exit_code: 0,
+                success: true,
+                stdout: self.target_path.display().to_string(),
+                stderr: String::new(),
+                timed_out: false,
+            })
         }
 
         fn run_with_timeout(
@@ -242,7 +226,7 @@ fn ensure_creates_worktree_when_absent() {
     let runner = CreatingRunner {
         target_path: expected.clone(),
         fake_gitdir: fake_gitdir.clone(),
-        call_count: std::cell::Cell::new(0),
+        calls: RefCell::new(Vec::new()),
     };
 
     let result =
@@ -258,6 +242,18 @@ fn ensure_creates_worktree_when_absent() {
         !expected.join(INIT_MARKER).exists(),
         "marker must not appear in working tree"
     );
+    let calls = runner.calls.borrow();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].0, "wt");
+    assert!(calls[0].1.contains(&"switch".to_string()));
+    assert!(calls[0].1.contains(&"--create".to_string()));
+    assert!(calls[0].1.contains(&"my-change".to_string()));
+    assert!(calls[0].1.contains(&"--base".to_string()));
+    assert!(calls[0].1.contains(&"main".to_string()));
+    let config_path = project_root.join(".ito/worktrunk/worktree-path.toml");
+    let config = std::fs::read_to_string(config_path).unwrap();
+    assert!(config.contains("ito-worktrees"));
+    assert!(config.contains("{{ branch | sanitize }}"));
 }
 
 #[test]
@@ -280,41 +276,23 @@ fn ensure_with_include_files_copies_them() {
     let fake_gitdir = worktrees_root.join("my-change.git");
     let paths = make_enabled_paths(worktrees_root, main_root.clone());
 
-    // Runner that handles two calls:
-    //   1. `git rev-parse --verify my-change` — branch absent (exit 1).
-    //   2. `git worktree add ...` — creates the directory + .git file.
     struct CreatingRunner {
         target_path: PathBuf,
         fake_gitdir: PathBuf,
-        call_count: std::cell::Cell<usize>,
     }
 
     impl ProcessRunner for CreatingRunner {
         fn run(&self, _request: &ProcessRequest) -> Result<ProcessOutput, ProcessExecutionError> {
-            let count = self.call_count.get();
-            self.call_count.set(count + 1);
-            match count {
-                0 => Ok(ProcessOutput {
-                    exit_code: 1,
-                    success: false,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    timed_out: false,
-                }),
-                _ => {
-                    std::fs::create_dir_all(&self.target_path).unwrap();
-                    std::fs::create_dir_all(&self.fake_gitdir).unwrap();
-                    std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git")
-                        .unwrap();
-                    Ok(ProcessOutput {
-                        exit_code: 0,
-                        success: true,
-                        stdout: String::new(),
-                        stderr: String::new(),
-                        timed_out: false,
-                    })
-                }
-            }
+            std::fs::create_dir_all(&self.target_path).unwrap();
+            std::fs::create_dir_all(&self.fake_gitdir).unwrap();
+            std::fs::write(self.target_path.join(".git"), "gitdir: ../my-change.git").unwrap();
+            Ok(ProcessOutput {
+                exit_code: 0,
+                success: true,
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+            })
         }
 
         fn run_with_timeout(
@@ -329,7 +307,6 @@ fn ensure_with_include_files_copies_them() {
     let runner = CreatingRunner {
         target_path: change_wt_path,
         fake_gitdir,
-        call_count: std::cell::Cell::new(0),
     };
 
     let result =
@@ -344,7 +321,7 @@ fn ensure_with_include_files_copies_them() {
 }
 
 #[test]
-fn ensure_git_failure_returns_error() {
+fn ensure_worktrunk_failure_returns_error() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path();
     let worktrees_root = project_root.join("ito-worktrees");
@@ -354,17 +331,13 @@ fn ensure_git_failure_returns_error() {
     let config = make_embedded_config();
     let env = make_env(project_root);
     let paths = make_enabled_paths(worktrees_root, main_root);
-    // Two outputs are needed:
-    //   1. `git rev-parse --verify my-change` — branch absent (exit 1).
-    //   2. `git worktree add ... -b my-change main` — git error (exit 1).
-    let runner = StubRunner::with_outputs(vec![
-        fail_output(""),
-        fail_output("fatal: not a git repository"),
-    ]);
+    let runner = StubRunner::with_outputs(vec![fail_output("path occupied")]);
 
     let result =
         ensure_worktree_with_runner(&runner, "my-change", &config, &env, &paths, project_root);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("my-change"));
+    assert!(err_msg.contains("Worktrunk reported"));
+    assert!(err_msg.contains("path occupied"));
 }

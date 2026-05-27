@@ -127,11 +127,12 @@ pub(crate) fn ensure_worktree_with_runner(
         })?;
     }
 
-    // Create the git worktree.
+    // Create the Worktrunk-managed worktree.
     let default_branch = &config.worktrees.default_branch;
     create_change_worktree(
         runner,
         &env.project_root,
+        &env.ito_root,
         change_id,
         default_branch,
         &worktree_path,
@@ -262,76 +263,41 @@ fn validate_change_id(change_id: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Check whether a git branch already exists in the repository.
-///
-/// Runs `git rev-parse --verify <branch>` and returns `true` when the exit
-/// code is 0 (branch exists), `false` when it is non-zero (branch absent).
-/// Any process-execution error is propagated as a [`CoreError`].
-fn branch_exists(
-    runner: &dyn ProcessRunner,
-    project_root: &Path,
-    branch: &str,
-) -> CoreResult<bool> {
-    let request = ProcessRequest::new("git")
-        .args(["rev-parse", "--verify", branch])
-        .current_dir(project_root);
-
-    let output = runner.run(&request).map_err(|err| {
-        CoreError::process(format!(
-            "Cannot check whether branch '{branch}' exists.\n\
-             Git command failed to run: {err}\n\
-             Fix: ensure git is installed and '{project_root}' is a git repository.",
-            project_root = project_root.display(),
-        ))
-    })?;
-
-    Ok(output.success)
-}
-
-/// Create a git worktree for a change.
-///
-/// Pre-checks whether the branch already exists using `git rev-parse --verify`
-/// to avoid relying on English-only git error message text.  When the branch
-/// exists, `git worktree add <path> <branch>` is used; when it does not,
-/// `git worktree add <path> -b <branch> <base_branch>` creates it.
+/// Create a Worktrunk-managed worktree for a change.
 fn create_change_worktree(
     runner: &dyn ProcessRunner,
     project_root: &Path,
+    ito_root: &Path,
     change_id: &str,
     base_branch: &str,
     target_path: &Path,
 ) -> CoreResult<()> {
-    let target_str = target_path.to_string_lossy();
+    let config_path = write_worktrunk_path_config(ito_root, target_path)?;
+    let config_arg = config_path.to_string_lossy().to_string();
+    let project_root_arg = project_root.to_string_lossy().to_string();
 
-    // Pre-check branch existence to choose the right `git worktree add` form.
-    let branch_already_exists = branch_exists(runner, project_root, change_id)?;
-
-    let request = if branch_already_exists {
-        // Branch exists — attach the new worktree to it without -b.
-        ProcessRequest::new("git")
-            .args(["worktree", "add", target_str.as_ref(), change_id])
-            .current_dir(project_root)
-    } else {
-        // Branch absent — create it from base_branch.
-        ProcessRequest::new("git")
-            .args([
-                "worktree",
-                "add",
-                target_str.as_ref(),
-                "-b",
-                change_id,
-                base_branch,
-            ])
-            .current_dir(project_root)
-    };
+    let request = ProcessRequest::new("wt")
+        .args([
+            "--config",
+            &config_arg,
+            "-C",
+            &project_root_arg,
+            "--yes",
+            "switch",
+            "--create",
+            change_id,
+            "--base",
+            base_branch,
+        ])
+        .current_dir(project_root);
 
     let output = runner.run(&request).map_err(|err| {
         CoreError::process(format!(
             "Cannot create worktree for change '{change_id}' at '{target}'.\n\
-             Git command failed to run: {err}\n\
-             Fix: ensure git is installed and '{project_root}' is a git repository.",
+             Worktrunk command failed to run: {err}\n\
+             Command context: wt switch --create {change_id} --base {base_branch}\n\
+             Fix: install Worktrunk and ensure `wt` is available on PATH, or create the worktree manually at the target path.",
             target = target_path.display(),
-            project_root = project_root.display(),
         ))
     })?;
 
@@ -349,12 +315,56 @@ fn create_change_worktree(
 
     Err(CoreError::process(format!(
         "Cannot create worktree for change '{change_id}' at '{target}'.\n\
-         Git reported: {detail}\n\
-         Fix: ensure the base branch '{base_branch}' exists and the target path \
-         does not already exist. If the branch is already checked out in another \
-         worktree, run `git worktree list` to inspect.",
+         Worktrunk reported: {detail}\n\
+         Command context: wt switch --create {change_id} --base {base_branch}\n\
+         Fix: ensure Worktrunk can access base branch '{base_branch}', the target path is free, and the local Worktrunk path config points at the Ito worktree root.",
         target = target_path.display(),
     )))
+}
+
+fn write_worktrunk_path_config(ito_root: &Path, target_path: &Path) -> CoreResult<PathBuf> {
+    let parent = target_path.parent().ok_or_else(|| {
+        CoreError::validation(format!(
+            "Cannot derive Worktrunk path config for '{}'.\n\
+             Fix: configure worktrees so the target path has a parent directory.",
+            target_path.display(),
+        ))
+    })?;
+
+    let config_dir = ito_root.join("worktrunk");
+    std::fs::create_dir_all(&config_dir).map_err(|err| {
+        CoreError::io(
+            format!(
+                "Cannot create Worktrunk config directory '{}'.\n\
+                 Fix: ensure the Ito directory is writable.",
+                config_dir.display(),
+            ),
+            err,
+        )
+    })?;
+
+    let config_path = config_dir.join("worktree-path.toml");
+    let template = parent.join("{{ branch | sanitize }}");
+    let contents = format!(
+        "worktree-path = \"{}\"\n",
+        template
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+    );
+
+    std::fs::write(&config_path, contents).map_err(|err| {
+        CoreError::io(
+            format!(
+                "Cannot write Worktrunk path config '{}'.\n\
+                 Fix: ensure the Ito directory is writable.",
+                config_path.display(),
+            ),
+            err,
+        )
+    })?;
+
+    Ok(config_path)
 }
 
 #[cfg(test)]

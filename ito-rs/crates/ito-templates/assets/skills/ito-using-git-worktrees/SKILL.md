@@ -19,10 +19,16 @@ Use isolated worktrees for change work so the main/control checkout stays clean.
 
 - Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
 - The main worktree is the only worktree that may check out `{{ default_branch }}`; `{{ default_branch }}` must only ever be checked out in the main worktree.
-- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
+- Before any write operation, create or switch to a dedicated change worktree with Worktrunk (`wt`) for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse one worktree for two changes.
 - If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
+Worktrunk path configuration for Ito-managed worktrees:
+
+```toml
+worktree-path = "<ito-worktrees-root>/{% raw %}{{ branch | sanitize }}{% endraw %}"
+```
 
 ## Layout
 
@@ -37,7 +43,7 @@ Create one with:
 
 ```bash
 mkdir -p ".{{ layout_dir_name }}"
-git worktree add ".{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create <full-change-id> --base {{ default_branch }}
 ```
 {% elif strategy == "checkout_siblings" %}
 Worktrees live under a sibling directory:
@@ -50,7 +56,7 @@ Create one with:
 
 ```bash
 mkdir -p "../<project-name>-{{ layout_dir_name }}"
-git worktree add "../<project-name>-{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create <full-change-id> --base {{ default_branch }}
 ```
 {% elif strategy == "bare_control_siblings" %}
 Worktrees live under the bare/control layout:
@@ -65,7 +71,7 @@ Create one with:
 
 ```bash
 mkdir -p "../{{ layout_dir_name }}"
-git worktree add "../{{ layout_dir_name }}/<full-change-id>" -b <full-change-id> {{ default_branch }}
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create <full-change-id> --base {{ default_branch }}
 ```
 
 Always branch from `{{ default_branch }}`. Never use the bare/control repo placeholder `HEAD` as the checkout source.
