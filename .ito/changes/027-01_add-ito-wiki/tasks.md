@@ -97,8 +97,8 @@
 - **Done When**: The scaffold, preservation behavior, skill distribution, and guidance output are covered by automated tests.
 
 ### Task 4.2: Seed this repo's initial Ito wiki
-- **Status**: [ ] pending
-- **Updated At**: 2026-04-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: After scaffold and skills exist, create the first repo-local `.ito/wiki/` content from current specs, modules, research, high-signal archived changes, and architecture guidance. Prefer topic pages with links to specs, modules, changes, research, and relevant documentation.
 - **Files**: `.ito/wiki/**`
 - **Verify**: Manual review of `.ito/wiki/index.md`, `.ito/wiki/log.md`, `.ito/wiki/_meta/status.md`, and representative topic pages
