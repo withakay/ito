@@ -561,6 +561,26 @@ mod tests {
                 .any(|f| f.relative_path == "spec-driven/schema.yaml")
         );
         assert!(files.iter().any(|f| f.relative_path == "tdd/schema.yaml"));
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "minimalist/schema.yaml")
+        );
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "event-driven/schema.yaml")
+        );
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "minimalist/UPSTREAM.md")
+        );
+        assert!(
+            files
+                .iter()
+                .any(|f| f.relative_path == "event-driven/UPSTREAM.md")
+        );
     }
 
     #[test]

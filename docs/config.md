@@ -75,6 +75,23 @@ Merge semantics:
 
 ## Common Settings
 
+### Workflow Schemas
+
+Ito ships embedded workflow schemas that can be used without installation:
+
+- `spec-driven`: full proposal, specs, design, and tasks workflow.
+- `minimalist`: OpenSpec-derived lightweight specs and tasks workflow.
+- `event-driven`: OpenSpec-derived event-storming, event-modeling, specs, design, AsyncAPI, and tasks workflow.
+- `tdd`: test-first workflow.
+
+Project schemas under `.ito/templates/schemas/<name>/schema.yaml` take precedence over user-level schemas, and user-level schemas take precedence over embedded schemas. Export embedded schemas with:
+
+```bash
+ito templates schemas export --to .ito/templates/schemas
+```
+
+The embedded OpenSpec-derived schemas include Ito-authored `validation.yaml` files. They perform presence checks and task tracking validation, and emit an informational manual semantic-validation note because Ito does not yet implement full OpenSpec semantic validation for those workflows.
+
 ### Worktrees
 
 Worktree behavior is controlled by the `worktrees` object.

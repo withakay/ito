@@ -410,7 +410,7 @@ artifacts:
             .join("schemas")
             .join("nodeltas")
             .join("validation.yaml"),
-        "version: 1\n",
+        "version: 1\nmanual_semantic_validation_note: Schema semantics require manual validation.\n",
     );
 
     write(
@@ -425,6 +425,15 @@ artifacts:
             .iter()
             .any(|i| i.message.contains("at least one delta")),
         "schema validation without delta validator should not require deltas, got issues: {:?}",
+        r.issues
+    );
+    assert!(
+        r.issues.iter().any(|i| {
+            i.path == "schema.validation.manual"
+                && i.message
+                    .contains("Schema semantics require manual validation.")
+        }),
+        "schema validation should emit manual semantic validation note, got issues: {:?}",
         r.issues
     );
 }
