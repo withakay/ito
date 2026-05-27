@@ -68,8 +68,8 @@
 - **Depends On**: Wave 3
 
 ### Task 4.1: Integration tests for cleanup instruction
-- **Status**: [ ] pending
-- **Updated At**: 2026-03-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Write integration tests that verify `ito agent instruction cleanup` produces valid output, `--json` mode produces valid JSON with manifest and legacy entries, and the manifest reflects configured tools.
 - **Files**: `ito-rs/crates/ito-cli/tests/agent_instruction_cleanup.rs`
 - **Verify**: `cargo test -p ito-cli --test agent_instruction_cleanup`
