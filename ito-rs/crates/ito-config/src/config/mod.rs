@@ -22,6 +22,9 @@ pub mod defaults;
 /// JSON schema generation for Ito configuration.
 pub mod schema;
 
+/// Setup/update coverage classification for config fields.
+pub mod setup_coverage;
+
 /// Backend server configuration types (multi-tenant API).
 pub mod backend_types;
 

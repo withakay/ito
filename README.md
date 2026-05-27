@@ -82,6 +82,14 @@ ito init
 ```
 
 This creates Ito's working directory (default: `.ito/`) and installs tool-specific adapters (skills, prompts, and instruction wiring) for the tools you select.
+Re-running `ito init` uses existing Ito config as interactive defaults. Use `ito init --update` to refresh managed files while preserving user content, or `ito update` to refresh an existing installation.
+
+Worktree setup can be configured non-interactively:
+
+```bash
+ito init --worktrees --worktree-strategy bare_control_siblings --worktree-integration-mode commit_pr
+ito update --worktrees --worktree-strategy checkout_siblings
+```
 
 ## Common Commands
 

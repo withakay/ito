@@ -12,6 +12,13 @@ use crate::cli_error::{CliError, CliResult};
 use ito_core::config as core_config;
 use std::path::Path;
 
+const STRATEGY_VALUES: &[&str] = &[
+    "checkout_subdir",
+    "checkout_siblings",
+    "bare_control_siblings",
+];
+const INTEGRATION_MODE_VALUES: &[&str] = &["commit_pr", "merge_parent"];
+
 /// Result of the worktree setup wizard.
 ///
 /// Carries the resolved worktree configuration values so that callers (e.g.,
@@ -33,19 +40,179 @@ pub(crate) struct WorktreeWizardResult {
     pub integration_mode: Option<String>,
 }
 
+/// Default selections for the interactive worktree wizard.
+#[derive(Debug, Clone)]
+pub(crate) struct WorktreeWizardDefaults {
+    /// Default worktree enablement.
+    pub enabled: bool,
+    /// Default strategy value when worktrees are enabled.
+    pub strategy: String,
+    /// Default integration mode when worktrees are enabled.
+    pub integration_mode: String,
+}
+
+impl Default for WorktreeWizardDefaults {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            strategy: "checkout_subdir".to_string(),
+            integration_mode: "commit_pr".to_string(),
+        }
+    }
+}
+
+impl From<&WorktreeWizardResult> for WorktreeWizardDefaults {
+    fn from(result: &WorktreeWizardResult) -> Self {
+        Self {
+            enabled: result.enabled,
+            strategy: result
+                .strategy
+                .clone()
+                .unwrap_or_else(|| "checkout_subdir".to_string()),
+            integration_mode: result
+                .integration_mode
+                .clone()
+                .unwrap_or_else(|| "commit_pr".to_string()),
+        }
+    }
+}
+
+/// Explicit worktree config choices supplied by CLI flags.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct WorktreeWizardOverrides {
+    /// Override worktree enablement.
+    pub enabled: Option<bool>,
+    /// Override worktree strategy.
+    pub strategy: Option<String>,
+    /// Override worktree integration mode.
+    pub integration_mode: Option<String>,
+}
+
+impl WorktreeWizardOverrides {
+    /// Whether any override was supplied.
+    pub fn any(&self) -> bool {
+        self.enabled.is_some() || self.strategy.is_some() || self.integration_mode.is_some()
+    }
+}
+
+/// Parse worktree setup flags shared by `ito init` and `ito update`.
+pub(crate) fn parse_worktree_overrides(args: &[String]) -> CliResult<WorktreeWizardOverrides> {
+    let enable = args.iter().any(|arg| arg == "--worktrees");
+    let disable = args.iter().any(|arg| arg == "--no-worktrees");
+    if enable && disable {
+        return Err(CliError::msg(
+            "--worktrees and --no-worktrees cannot be used together",
+        ));
+    }
+
+    let strategy = parse_flag_value(args, "--worktree-strategy")?;
+    if let Some(value) = strategy.as_deref() {
+        validate_choice("--worktree-strategy", value, STRATEGY_VALUES)?;
+    }
+
+    let integration_mode = parse_flag_value(args, "--worktree-integration-mode")?;
+    if let Some(value) = integration_mode.as_deref() {
+        validate_choice(
+            "--worktree-integration-mode",
+            value,
+            INTEGRATION_MODE_VALUES,
+        )?;
+    }
+
+    Ok(WorktreeWizardOverrides {
+        enabled: if enable {
+            Some(true)
+        } else if disable {
+            Some(false)
+        } else {
+            None
+        },
+        strategy,
+        integration_mode,
+    })
+}
+
+/// Apply explicit CLI overrides to an existing/default worktree result.
+pub(crate) fn apply_worktree_overrides(
+    mut result: WorktreeWizardResult,
+    overrides: &WorktreeWizardOverrides,
+) -> WorktreeWizardResult {
+    if let Some(enabled) = overrides.enabled {
+        result.enabled = enabled;
+    }
+
+    if overrides.strategy.is_some() || overrides.integration_mode.is_some() {
+        result.enabled = true;
+    }
+
+    if result.enabled {
+        if let Some(strategy) = &overrides.strategy {
+            result.strategy = Some(strategy.clone());
+        } else if result.strategy.is_none() {
+            result.strategy = Some("checkout_subdir".to_string());
+        }
+
+        if let Some(integration_mode) = &overrides.integration_mode {
+            result.integration_mode = Some(integration_mode.clone());
+        } else if result.integration_mode.is_none() {
+            result.integration_mode = Some("commit_pr".to_string());
+        }
+    } else {
+        result.strategy = None;
+        result.integration_mode = None;
+    }
+
+    result
+}
+
+fn parse_flag_value(args: &[String], flag: &str) -> CliResult<Option<String>> {
+    let mut found = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == flag {
+            let Some(value) = iter.next() else {
+                return Err(CliError::msg(format!("{flag} requires a value")));
+            };
+            found = Some(value.clone());
+        } else if let Some(value) = arg.strip_prefix(&format!("{flag}=")) {
+            found = Some(value.to_string());
+        }
+    }
+    Ok(found)
+}
+
+fn validate_choice(flag: &str, value: &str, allowed: &[&str]) -> CliResult<()> {
+    if allowed.contains(&value) {
+        return Ok(());
+    }
+
+    Err(CliError::msg(format!(
+        "Invalid value for {flag}: '{value}'. Valid values: {}",
+        allowed.join(", ")
+    )))
+}
+
 /// Prompt the user for worktree configuration.
 ///
 /// Returns the resolved worktree configuration choices.
 pub(crate) fn prompt_worktree_wizard() -> CliResult<WorktreeWizardResult> {
+    prompt_worktree_wizard_with_defaults(&WorktreeWizardDefaults::default())
+}
+
+/// Prompt the user for worktree configuration with explicit default selections.
+pub(crate) fn prompt_worktree_wizard_with_defaults(
+    defaults: &WorktreeWizardDefaults,
+) -> CliResult<WorktreeWizardResult> {
     println!("\n--- Worktree Configuration ---\n");
 
     // Question 1: Enable worktrees?
     let enable_items = &["No", "Yes"];
+    let enable_default = usize::from(defaults.enabled);
     let enable_idx =
         match dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt("Enable Git worktree-based workspace layout?")
             .items(enable_items)
-            .default(0)
+            .default(enable_default)
             .interact()
         {
             Ok(v) => v,
@@ -73,17 +240,16 @@ pub(crate) fn prompt_worktree_wizard() -> CliResult<WorktreeWizardResult> {
         "checkout_siblings - worktrees in a sibling directory",
         "bare_control_siblings - bare repo with worktrees as siblings",
     ];
-    let strategy_values = &[
-        "checkout_subdir",
-        "checkout_siblings",
-        "bare_control_siblings",
-    ];
+    let strategy_default = STRATEGY_VALUES
+        .iter()
+        .position(|value| *value == defaults.strategy)
+        .unwrap_or(0);
 
     let strategy_idx =
         match dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt("Which worktree strategy?")
             .items(strategy_items)
-            .default(0)
+            .default(strategy_default)
             .interact()
         {
             Ok(v) => v,
@@ -93,19 +259,22 @@ pub(crate) fn prompt_worktree_wizard() -> CliResult<WorktreeWizardResult> {
                 )));
             }
         };
-    let strategy = strategy_values[strategy_idx];
+    let strategy = STRATEGY_VALUES[strategy_idx];
 
     // Question 3: Integration mode
     let mode_items = &[
         "commit_pr (Recommended) - commit and open a pull request",
         "merge_parent - merge directly into parent branch",
     ];
-    let mode_values = &["commit_pr", "merge_parent"];
+    let mode_default = INTEGRATION_MODE_VALUES
+        .iter()
+        .position(|value| *value == defaults.integration_mode)
+        .unwrap_or(0);
 
     let mode_idx = match dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
         .with_prompt("Preferred integration mode after implementation?")
         .items(mode_items)
-        .default(0)
+        .default(mode_default)
         .interact()
     {
         Ok(v) => v,
@@ -115,7 +284,7 @@ pub(crate) fn prompt_worktree_wizard() -> CliResult<WorktreeWizardResult> {
             )));
         }
     };
-    let integration_mode = mode_values[mode_idx];
+    let integration_mode = INTEGRATION_MODE_VALUES[mode_idx];
 
     Ok(WorktreeWizardResult {
         ran: true,
