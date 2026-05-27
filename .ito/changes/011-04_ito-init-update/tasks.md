@@ -95,5 +95,5 @@ ______________________________________________________________________
 - **Done When**: Ito validation and repo checks pass, or failures are documented with follow-up work.
 - **Requirements**: cli-init:existing-config-wizard-defaults, cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
 - **Updated At**: 2026-05-27
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 <!-- ITO:END -->
