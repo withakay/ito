@@ -47,8 +47,8 @@
 - **Depends On**: Wave 2
 
 ### Task 3.1: Create ito-cleanup skill asset
-- **Status**: [ ] pending
-- **Updated At**: 2026-03-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Create the `ito-cleanup` skill SKILL.md in the templates assets. The skill should describe itself as a cleanup/migration tool for repos with legacy Ito files, instruct the agent to run `ito agent instruction cleanup`, instruct the agent to follow the returned instructions step-by-step, and emphasize the confirmation gate before any deletions.
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito-cleanup/SKILL.md`
 - **Verify**: `cargo build -p ito-templates` (skill is embedded via `include_dir!`)
