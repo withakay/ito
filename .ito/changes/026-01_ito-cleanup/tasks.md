@@ -77,8 +77,8 @@
 - **Requirements**: cleanup-instruction:agent-instruction-artifact, cleanup-instruction:dynamic-manifest, cleanup-instruction:output-format
 
 ### Task 4.2: Integration tests for upgrade cleanup
-- **Status**: [ ] pending
-- **Updated At**: 2026-03-24
+- **Status**: [x] complete
+- **Updated At**: 2026-05-27
 - **Description**: Write integration tests that set up a temp project with legacy files, run `ito init --upgrade` and verify orphan detection output, run `ito init --upgrade --cleanup --force` and verify orphan removal, and verify user-owned files are never removed.
 - **Files**: `ito-rs/crates/ito-cli/tests/init_cleanup.rs`
 - **Verify**: `cargo test -p ito-cli --test init_cleanup`
