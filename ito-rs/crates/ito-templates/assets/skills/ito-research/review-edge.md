@@ -61,4 +61,8 @@ Think like a chaos monkey. What happens when:
 - [ ] Minor edge case improvements needed
 - [ ] Significant gaps in error handling
 
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this review found reusable edge-case or error-handling lessons, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this review file as the cited source of the finding.
+
 <!-- ITO:END -->

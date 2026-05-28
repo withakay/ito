@@ -221,6 +221,25 @@ fn github_manifests_includes_skills_and_commands() {
 }
 
 #[test]
+fn wiki_skills_are_distributed_to_all_harnesses() {
+    let project_root = Path::new("/tmp/test");
+
+    for (harness, manifests) in [
+        ("opencode", opencode_manifests(project_root)),
+        ("claude", claude_manifests(project_root)),
+        ("codex", codex_manifests(project_root)),
+        ("github", github_manifests(project_root)),
+    ] {
+        for source in ["ito-wiki/SKILL.md", "ito-wiki-search/SKILL.md"] {
+            assert!(
+                manifests.iter().any(|manifest| manifest.source == source),
+                "expected {source} in {harness} manifests"
+            );
+        }
+    }
+}
+
+#[test]
 fn install_manifests_writes_files_to_disk() {
     let td = tempfile::tempdir().unwrap();
     let config_dir = td.path().join(".opencode");

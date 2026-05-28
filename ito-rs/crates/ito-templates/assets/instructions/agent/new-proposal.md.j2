@@ -83,6 +83,14 @@ If the request needs this discovery but there is not enough context yet, route t
 ito sync
 ```
 
+## Step 0.5: Consult the Ito Wiki When Present
+
+If `.ito/wiki/index.md` exists, read it early to discover relevant topic pages, specs, modules, research syntheses, archived-change summaries, and workflow notes before choosing the schema or module.
+
+- Treat wiki pages as synthesized navigation and context, not automatic source truth. Follow each page's authority and freshness metadata.
+- If wiki coverage is missing, stale, or contradicts raw Ito artifacts, briefly warn the user or note the risk, then fall back to `.ito/specs/`, `.ito/changes/`, `.ito/research/`, `.ito/modules/`, and project guidance.
+- If proposal work creates durable synthesis that would help future planning, update the most relevant `.ito/wiki/` topic page, `index.md`, `log.md`, or `_meta/status.md` after the proposal artifacts are created.
+
 ## Step 1: Choose a Schema
 
 Before creating the change, pick the workflow schema.
@@ -193,7 +201,7 @@ Before running any command that writes proposal artifacts, create and use a **ne
 ```bash
 {% if worktree is defined and worktree.enabled %}
 # If the final change ID is not known yet, create a temporary proposal worktree first.
-git worktree add "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>" -b "proposal-<short-name>" {{ worktree.default_branch | default(value="main") }}
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "proposal-<short-name>" --base {{ worktree.default_branch | default(value="main") }}
 cd "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>"
 
 {% endif %}

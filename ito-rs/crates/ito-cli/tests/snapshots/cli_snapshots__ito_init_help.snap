@@ -1,5 +1,6 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+assertion_line: 164
 expression: "snapshot(&[\"init\", \"--help\"])"
 ---
 Set up Ito in a project
@@ -38,6 +39,9 @@ Options:
       --upgrade
           Refresh managed prompt/template content (marker-scoped upgrade; preserves user content outside markers)
 
+      --cleanup
+          Remove known legacy Ito-managed paths during --upgrade
+
       --setup-coordination-branch
           Ensure coordination branch exists on origin after init
 
@@ -46,6 +50,18 @@ Options:
 
       --no-tmux
           Disable tmux-backed workflow suggestions in project config
+
+      --worktrees
+          Enable Git worktree-based workspace layout
+
+      --no-worktrees
+          Disable Git worktree-based workspace layout
+
+      --worktree-strategy <STRATEGY>
+          Worktree topology strategy
+
+      --worktree-integration-mode <MODE>
+          Preferred integration mode after implementation
 
       --home <HOME>
           Override HOME used for locating global Ito config (for parity/testing)

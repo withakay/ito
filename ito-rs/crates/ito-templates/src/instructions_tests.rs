@@ -430,7 +430,7 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
     );
     assert!(out.contains("Do not reuse one worktree for two changes"));
     assert!(out.contains(
-        "git -C \"$PROJECT_ROOT\" worktree add \"$WORKTREES_ROOT/${BRANCH_NAME}\" -b \"${BRANCH_NAME}\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$WORKTREES_ROOT/{{ branch | sanitize }}\" wt switch --create \"${BRANCH_NAME}\" --base \"develop\""
     ));
 }
 
@@ -593,7 +593,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         "Additional worktrees for this same change must start with `000-01_test-change`"
     ));
     assert!(out.contains(
-        "git -C \"$PROJECT_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
     ));
     assert!(out.contains("does **not** sync coordination state by default"));
     assert!(out.contains("ito agent instruction apply --change <id> --sync"));
@@ -720,7 +720,7 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
     assert_change_worktree_guardrails(&out);
     assert!(out.contains("Default branch: `develop`"));
     assert!(out.contains(
-        "git -C \"$WORKTREE_ROOT\" worktree add \"$CHANGE_DIR\" -b \"$CHANGE_NAME\" \"develop\""
+        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
     ));
 }
 
@@ -885,6 +885,10 @@ fn new_proposal_template_moves_to_worktree_after_create() {
     assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change \"<change-id>\")"));
     assert!(out.contains("cd \"$CHANGE_DIR\""));
     assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
+    assert!(out.contains("## Step 0.5: Consult the Ito Wiki When Present"));
+    assert!(out.contains(".ito/wiki/index.md"));
+    assert!(out.contains("briefly warn"));
+    assert!(out.contains("fall back to `.ito/specs/`"));
 }
 
 #[test]
@@ -932,6 +936,51 @@ fn repo_sweep_template_renders() {
     let rendered = render_instruction_template("agent/repo-sweep.md.j2", &Ctx {}).unwrap();
     assert!(rendered.contains("Sub-Module"));
     assert!(rendered.contains("NNN.SS-NN_name"));
+}
+
+#[test]
+fn cleanup_template_renders_manifest_and_legacy_entries() {
+    #[derive(Serialize)]
+    struct ManifestEntry {
+        relative_path: &'static str,
+        source: &'static str,
+        source_path: &'static str,
+        harness: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct LegacyEntry {
+        old_path: &'static str,
+        new_path: &'static str,
+        entry_type: &'static str,
+        description: &'static str,
+    }
+
+    #[derive(Serialize)]
+    struct Ctx {
+        manifest_entries: Vec<ManifestEntry>,
+        legacy_entries: Vec<LegacyEntry>,
+    }
+
+    let ctx = Ctx {
+        manifest_entries: vec![ManifestEntry {
+            relative_path: ".codex/skills/ito-plan/SKILL.md",
+            source: "skill",
+            source_path: "ito-plan/SKILL.md",
+            harness: "codex",
+        }],
+        legacy_entries: vec![LegacyEntry {
+            old_path: "ito-write-change-proposal/SKILL.md",
+            new_path: "ito-proposal/SKILL.md",
+            entry_type: "renamed",
+            description: "Proposal skill rename.",
+        }],
+    };
+    let rendered = render_instruction_template("agent/cleanup.md.j2", &ctx).unwrap();
+    assert!(rendered.contains("Ito Cleanup"));
+    assert!(rendered.contains(".codex/skills/ito-plan/SKILL.md"));
+    assert!(rendered.contains("ito-write-change-proposal/SKILL.md"));
+    assert!(rendered.contains("git status --short"));
 }
 
 #[test]
@@ -1006,6 +1055,9 @@ fn archive_template_renders_targeted_instruction_with_change() {
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
     assert!(out.contains("Configured mode: `pull_request_auto_merge`"));
     assert!(out.contains("request auto-merge"));
+    assert!(out.contains("refresh relevant `.ito/wiki/` topic pages"));
+    assert!(out.contains("Prefer updating existing topic pages"));
+    assert!(out.contains("not an archive blocker"));
 }
 
 #[test]

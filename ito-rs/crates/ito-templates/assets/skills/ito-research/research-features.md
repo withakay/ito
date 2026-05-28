@@ -46,4 +46,8 @@ Lower priority features:
 |---------|-----------|--------|----------|
 | ... | High/Med/Low | High/Med/Low | P0/P1/P2 |
 
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this research produced durable feature taxonomy, prioritization, or reusable market context, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this source research file as the cited investigation record.
+
 <!-- ITO:END -->

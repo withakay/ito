@@ -1,6 +1,7 @@
 use crate::app::worktree_wizard::{
-    WorktreeWizardResult, load_worktree_result_from_config, prompt_worktree_wizard,
-    save_worktree_config,
+    WorktreeWizardDefaults, WorktreeWizardOverrides, WorktreeWizardResult,
+    apply_worktree_overrides, load_worktree_result_from_config, parse_worktree_overrides,
+    prompt_worktree_wizard_with_defaults, save_worktree_config,
 };
 use crate::cli::InitArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
@@ -46,12 +47,17 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     let force = args.iter().any(|a| a == "--force" || a == "-f");
     let upgrade = args.iter().any(|a| a == "--upgrade");
+    let cleanup = args.iter().any(|a| a == "--cleanup");
     // --update activates non-destructive update semantics; --upgrade implies update semantics.
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
     let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
+    let worktree_overrides = parse_worktree_overrides(args)?;
+    if cleanup && !upgrade {
+        return fail("--cleanup requires --upgrade");
+    }
 
     // Positional path (defaults to current directory).
     let target = super::common::last_positional(args).unwrap_or_else(|| ".".to_string());
@@ -190,7 +196,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let tmux_enabled = resolve_tmux_preference(is_interactive, no_tmux, existing_tmux_preference)?;
 
     let (worktree_result, worktree_project_config_path, should_persist_worktree) =
-        resolve_worktree_config(ctx, target_path, is_interactive)?;
+        resolve_worktree_config(ctx, target_path, is_interactive, &worktree_overrides)?;
     let worktree_ctx = worktree_template_context(&worktree_result, target_path, ctx);
 
     let opts = if upgrade {
@@ -206,6 +212,40 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         Some(&worktree_ctx),
     )
     .map_err(to_cli_error)?;
+
+    if upgrade {
+        let legacy_hits = ito_core::installers::detect_legacy_paths(target_path);
+        if !legacy_hits.is_empty() {
+            eprintln!("warning: found legacy Ito-managed cleanup candidates:");
+            for hit in &legacy_hits {
+                if let Some(replacement) = hit.replacement {
+                    eprintln!(
+                        "  - {} ({}) replacement: {}",
+                        hit.relative_path, hit.description, replacement
+                    );
+                } else {
+                    eprintln!("  - {} ({})", hit.relative_path, hit.description);
+                }
+            }
+            if cleanup {
+                if !force {
+                    return fail(
+                        "--cleanup requires --force in non-interactive mode. Review candidates, then rerun `ito init --upgrade --cleanup --force`.",
+                    );
+                }
+                ito_core::installers::remove_legacy_paths(target_path, &legacy_hits)
+                    .map_err(to_cli_error)?;
+                eprintln!(
+                    "Removed {} legacy Ito-managed cleanup candidate(s).",
+                    legacy_hits.len()
+                );
+            } else {
+                eprintln!(
+                    "Run `ito agent instruction cleanup` for an audit, or rerun `ito init --upgrade --cleanup --force` to remove these known legacy paths."
+                );
+            }
+        }
+    }
 
     persist_tmux_preference(target_path, ctx, tmux_enabled)?;
 
@@ -399,7 +439,14 @@ fn project_setup_is_incomplete(ito_dir: &std::path::Path) -> bool {
 ///     force: false,
 ///     update: false,
 ///     upgrade: true,
+///     cleanup: false,
 ///     setup_coordination_branch: false,
+///     no_coordination_worktree: false,
+///     no_tmux: false,
+///     worktrees: false,
+///     no_worktrees: false,
+///     worktree_strategy: None,
+///     worktree_integration_mode: None,
 ///     path: Some(".".to_string()),
 /// };
 /// let _ = handle_init_clap(&rt, &args);
@@ -430,6 +477,9 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     if args.upgrade {
         argv.push("--upgrade".to_string());
     }
+    if args.cleanup {
+        argv.push("--cleanup".to_string());
+    }
     if args.setup_coordination_branch {
         argv.push("--setup-coordination-branch".to_string());
     }
@@ -438,6 +488,20 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.no_tmux {
         argv.push("--no-tmux".to_string());
+    }
+    if args.worktrees {
+        argv.push("--worktrees".to_string());
+    }
+    if args.no_worktrees {
+        argv.push("--no-worktrees".to_string());
+    }
+    if let Some(strategy) = &args.worktree_strategy {
+        argv.push("--worktree-strategy".to_string());
+        argv.push(strategy.clone());
+    }
+    if let Some(integration_mode) = &args.worktree_integration_mode {
+        argv.push("--worktree-integration-mode".to_string());
+        argv.push(integration_mode.clone());
     }
     if let Some(path) = &args.path {
         argv.push(path.clone());
@@ -454,14 +518,33 @@ fn resolve_worktree_config(
     ctx: &ConfigContext,
     target_path: &std::path::Path,
     interactive: bool,
+    overrides: &WorktreeWizardOverrides,
 ) -> CliResult<(WorktreeWizardResult, std::path::PathBuf, bool)> {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
     let project_config_path = ito_path.join("config.json");
     let project_local_config_path = ito_path.join("config.local.json");
     let global_config_path = ito_config::global_config_path(ctx);
 
+    if overrides.any() {
+        let base = load_existing_worktree_result(
+            &project_local_config_path,
+            &project_config_path,
+            global_config_path.as_deref(),
+        );
+        return Ok((
+            apply_worktree_overrides(base, overrides),
+            project_local_config_path,
+            true,
+        ));
+    }
+
     if interactive {
-        let result = prompt_worktree_wizard()?;
+        let defaults = load_interactive_worktree_defaults(
+            &project_local_config_path,
+            &project_config_path,
+            global_config_path.as_deref(),
+        );
+        let result = prompt_worktree_wizard_with_defaults(&defaults)?;
         // Worktree workflow is a per-developer preference; persist to the
         // project-local (gitignored) config overlay by default.
         return Ok((result, project_local_config_path, true));
@@ -502,6 +585,55 @@ fn resolve_worktree_config(
         project_local_config_path,
         false,
     ))
+}
+
+fn load_existing_worktree_result(
+    project_local_config_path: &std::path::Path,
+    project_config_path: &std::path::Path,
+    global_config_path: Option<&std::path::Path>,
+) -> WorktreeWizardResult {
+    for config_path in [
+        Some(project_local_config_path),
+        Some(project_config_path),
+        global_config_path,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let result = load_worktree_result_from_config(config_path);
+        if result.enabled || crate::app::worktree_wizard::is_worktree_configured(config_path) {
+            return result;
+        }
+    }
+
+    WorktreeWizardResult {
+        ran: false,
+        enabled: false,
+        strategy: None,
+        integration_mode: None,
+    }
+}
+
+fn load_interactive_worktree_defaults(
+    project_local_config_path: &std::path::Path,
+    project_config_path: &std::path::Path,
+    global_config_path: Option<&std::path::Path>,
+) -> WorktreeWizardDefaults {
+    for config_path in [
+        Some(project_local_config_path),
+        Some(project_config_path),
+        global_config_path,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let result = load_worktree_result_from_config(config_path);
+        if result.enabled || crate::app::worktree_wizard::is_worktree_configured(config_path) {
+            return WorktreeWizardDefaults::from(&result);
+        }
+    }
+
+    WorktreeWizardDefaults::default()
 }
 
 fn persist_tmux_preference(
@@ -751,5 +883,74 @@ mod repo_validation_advisory_tests {
         )
         .unwrap();
         assert!(!already_wired(tmp.path()));
+    }
+}
+
+#[cfg(test)]
+mod init_existing_config_defaults_tests {
+    use super::load_interactive_worktree_defaults;
+
+    #[test]
+    fn interactive_worktree_defaults_prefer_existing_project_config() {
+        let td = tempfile::tempdir().unwrap();
+        let project_local = td.path().join(".ito/config.local.json");
+        let project = td.path().join(".ito/config.json");
+        let global = td.path().join("global/config.json");
+
+        std::fs::create_dir_all(project.parent().unwrap()).unwrap();
+        std::fs::write(
+            &project,
+            r#"{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "bare_control_siblings",
+    "apply": {"integration_mode": "merge_parent"}
+  }
+}"#,
+        )
+        .unwrap();
+
+        let defaults = load_interactive_worktree_defaults(&project_local, &project, Some(&global));
+
+        assert!(defaults.enabled);
+        assert_eq!(defaults.strategy, "bare_control_siblings");
+        assert_eq!(defaults.integration_mode, "merge_parent");
+    }
+
+    #[test]
+    fn interactive_worktree_defaults_prefer_project_local_overlay() {
+        let td = tempfile::tempdir().unwrap();
+        let project_local = td.path().join(".ito/config.local.json");
+        let project = td.path().join(".ito/config.json");
+
+        std::fs::create_dir_all(project.parent().unwrap()).unwrap();
+        std::fs::write(
+            &project,
+            r#"{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "bare_control_siblings",
+    "apply": {"integration_mode": "merge_parent"}
+  }
+}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            &project_local,
+            r#"{
+  "worktrees": {
+    "enabled": true,
+    "strategy": "checkout_siblings",
+    "apply": {"integration_mode": "commit_pr"}
+  }
+}"#,
+        )
+        .unwrap();
+
+        let defaults = load_interactive_worktree_defaults(&project_local, &project, None);
+
+        assert!(defaults.enabled);
+        assert_eq!(defaults.strategy, "checkout_siblings");
+        assert_eq!(defaults.integration_mode, "commit_pr");
     }
 }

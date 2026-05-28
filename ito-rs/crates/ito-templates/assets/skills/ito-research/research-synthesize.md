@@ -58,4 +58,8 @@ Top pitfalls and mitigations:
 
 Questions needing more research or stakeholder input.
 
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists, file durable synthesis back into the wiki after saving this research summary. Prefer updating relevant topic pages for reusable decisions and cross-links; use `.ito/wiki/queries/` for one-off query artifacts. Cite this research summary from the wiki rather than moving the source record.
+
 <!-- ITO:END -->

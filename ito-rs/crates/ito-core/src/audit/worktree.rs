@@ -1,7 +1,7 @@
 //! Worktree discovery for audit event aggregation and streaming.
 //!
-//! Uses `git worktree list --porcelain` to enumerate all worktrees and
-//! resolves their routed audit stores.
+//! Uses worktree listing commands to enumerate all worktrees and resolves
+//! their routed audit stores.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -97,6 +97,10 @@ fn parse_worktree_list(output: &str) -> Vec<WorktreeInfo> {
 /// Used by Ralph to resolve the effective working directory for a change
 /// when worktree-based workflows are active.
 pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
+    if let Some(path) = find_worktree_for_branch_with_worktrunk(branch) {
+        return Some(path);
+    }
+
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])
         .output()
@@ -108,6 +112,59 @@ pub fn find_worktree_for_branch(branch: &str) -> Option<PathBuf> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     find_worktree_for_branch_in_output(&stdout, branch)
+}
+
+fn find_worktree_for_branch_with_worktrunk(branch: &str) -> Option<PathBuf> {
+    let output = std::process::Command::new("wt")
+        .args(["list", "--format=json"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    find_worktree_for_branch_in_worktrunk_json(&stdout, branch)
+}
+
+fn find_worktree_for_branch_in_worktrunk_json(output: &str, branch: &str) -> Option<PathBuf> {
+    let value: serde_json::Value = serde_json::from_str(output).ok()?;
+    let entries = value
+        .as_array()
+        .or_else(|| value.get("worktrees").and_then(serde_json::Value::as_array))?;
+
+    entries.iter().find_map(|entry| {
+        let is_bare = entry
+            .get("bare")
+            .or_else(|| entry.get("is_bare"))
+            .or_else(|| entry.get("isBare"))
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        if is_bare {
+            return None;
+        }
+
+        let entry_branch = entry
+            .get("branch")
+            .or_else(|| entry.get("name"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(normalize_branch_name)?;
+        if entry_branch != branch {
+            return None;
+        }
+
+        let path = entry
+            .get("path")
+            .or_else(|| entry.get("worktree"))
+            .or_else(|| entry.get("root"))
+            .and_then(serde_json::Value::as_str)?;
+        Some(PathBuf::from(path))
+    })
+}
+
+fn normalize_branch_name(branch: &str) -> Option<&str> {
+    branch.strip_prefix("refs/heads/").or(Some(branch))
 }
 
 /// Parse porcelain worktree output and find the path for a given branch name.
@@ -158,193 +215,5 @@ pub fn aggregate_worktree_events(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_single_worktree() {
-        let output = "worktree /home/user/project\nHEAD abc1234\nbranch refs/heads/main\n\n";
-        let wts = parse_worktree_list(output);
-        assert_eq!(wts.len(), 1);
-        assert_eq!(wts[0].path, PathBuf::from("/home/user/project"));
-        assert_eq!(wts[0].branch, Some("main".to_string()));
-        assert!(wts[0].is_main);
-    }
-
-    #[test]
-    fn parse_multiple_worktrees() {
-        let output = "\
-worktree /home/user/project
-HEAD abc1234
-branch refs/heads/main
-
-worktree /home/user/wt-feature
-HEAD def5678
-branch refs/heads/feature-x
-
-";
-        let wts = parse_worktree_list(output);
-        assert_eq!(wts.len(), 2);
-        assert!(wts[0].is_main);
-        assert!(!wts[1].is_main);
-        assert_eq!(wts[1].branch, Some("feature-x".to_string()));
-    }
-
-    #[test]
-    fn parse_bare_worktree_excluded() {
-        let output = "\
-worktree /home/user/project.git
-bare
-
-worktree /home/user/wt-main
-HEAD abc1234
-branch refs/heads/main
-
-";
-        let wts = parse_worktree_list(output);
-        assert_eq!(wts.len(), 1);
-        assert_eq!(wts[0].path, PathBuf::from("/home/user/wt-main"));
-    }
-
-    #[test]
-    fn parse_detached_head() {
-        let output = "worktree /home/user/project\nHEAD abc1234\ndetached\n\n";
-        let wts = parse_worktree_list(output);
-        assert_eq!(wts.len(), 1);
-        assert!(wts[0].branch.is_none());
-    }
-
-    #[test]
-    fn worktree_audit_log_path_resolves() {
-        let wt = WorktreeInfo {
-            path: PathBuf::from("/project/wt-feature"),
-            branch: Some("feature".to_string()),
-            is_main: false,
-        };
-        let path = worktree_audit_log_path(&wt);
-        assert_eq!(
-            path,
-            PathBuf::from("/project/wt-feature/.ito/.state/audit/events.jsonl")
-        );
-    }
-
-    #[test]
-    fn find_worktree_matching_branch() {
-        let output = "\
-worktree /home/user/project
-HEAD abc1234
-branch refs/heads/main
-
-worktree /home/user/wt-feature
-HEAD def5678
-branch refs/heads/002-16_ralph-worktree-awareness
-
-";
-        let result = find_worktree_for_branch_in_output(output, "002-16_ralph-worktree-awareness");
-        assert_eq!(result, Some(PathBuf::from("/home/user/wt-feature")));
-    }
-
-    #[test]
-    fn find_worktree_no_match() {
-        let output = "\
-worktree /home/user/project
-HEAD abc1234
-branch refs/heads/main
-
-";
-        let result = find_worktree_for_branch_in_output(output, "nonexistent-branch");
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn find_worktree_bare_excluded() {
-        let output = "\
-worktree /home/user/project.git
-bare
-
-worktree /home/user/wt-main
-HEAD abc1234
-branch refs/heads/main
-
-";
-        // Even though the bare repo is listed first, it should be excluded
-        let result = find_worktree_for_branch_in_output(output, "main");
-        assert_eq!(result, Some(PathBuf::from("/home/user/wt-main")));
-    }
-
-    #[test]
-    fn find_worktree_multiple_returns_first_match() {
-        let output = "\
-worktree /home/user/project.git
-bare
-
-worktree /home/user/wt-main
-HEAD abc1234
-branch refs/heads/main
-
-worktree /home/user/wt-feature-a
-HEAD def5678
-branch refs/heads/feature-a
-
-worktree /home/user/wt-feature-b
-HEAD 9ab0123
-branch refs/heads/feature-b
-
-";
-        let result = find_worktree_for_branch_in_output(output, "feature-b");
-        assert_eq!(result, Some(PathBuf::from("/home/user/wt-feature-b")));
-
-        // Non-matching returns None
-        let result = find_worktree_for_branch_in_output(output, "feature-c");
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn aggregate_empty_worktrees() {
-        let results = aggregate_worktree_events(&[]);
-        assert!(results.is_empty());
-    }
-
-    #[test]
-    fn aggregate_worktree_with_events() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let wt_path = tmp.path().join("wt");
-        std::fs::create_dir_all(&wt_path).expect("create wt dir");
-
-        // Write an event to this worktree's audit log
-        let wt_ito_path = wt_path.join(".ito");
-        let writer = crate::audit::writer::FsAuditWriter::new(&wt_ito_path);
-        let event = ito_domain::audit::event::AuditEvent {
-            v: 1,
-            ts: "2026-02-08T14:30:00.000Z".to_string(),
-            entity: "task".to_string(),
-            entity_id: "1.1".to_string(),
-            scope: Some("ch".to_string()),
-            op: "create".to_string(),
-            from: None,
-            to: Some("pending".to_string()),
-            actor: "cli".to_string(),
-            by: "@test".to_string(),
-            meta: None,
-            count: 1,
-            ctx: ito_domain::audit::event::EventContext {
-                session_id: "test".to_string(),
-                harness_session_id: None,
-                branch: None,
-                worktree: None,
-                commit: None,
-            },
-        };
-        ito_domain::audit::writer::AuditWriter::append(&writer, &event).unwrap();
-
-        let wt_info = WorktreeInfo {
-            path: wt_path,
-            branch: Some("main".to_string()),
-            is_main: true,
-        };
-
-        let results = aggregate_worktree_events(&[wt_info]);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].1.len(), 1);
-    }
-}
+#[path = "worktree_tests.rs"]
+mod worktree_tests;

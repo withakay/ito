@@ -1,10 +1,12 @@
 version: 1
+manual_semantic_validation_note: "OpenSpec minimalist schema semantics are not fully validated by Ito; review specs and tasks manually for workflow intent."
 defaults:
   missing_required_artifact_level: error
 artifacts:
   specs:
     required: true
-    validate_as: ito.delta-specs.v1
+  tasks:
+    required: true
 tracking:
   source: apply_tracks
   required: true

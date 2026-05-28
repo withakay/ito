@@ -41,6 +41,12 @@ fn templates_schemas_export_writes_embedded_files() {
             "{schema} should export validation.yaml when bundled"
         );
     }
+    for schema in ["minimalist", "event-driven"] {
+        assert!(
+            target.join(schema).join("UPSTREAM.md").exists(),
+            "{schema} should export upstream attribution metadata"
+        );
+    }
 }
 
 /// Ensures exporting embedded template schemas does not overwrite existing files unless `--force` is used, and that using `--force` restores embedded defaults.

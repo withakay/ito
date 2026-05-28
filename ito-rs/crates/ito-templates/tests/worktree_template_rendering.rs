@@ -9,7 +9,8 @@ use ito_templates::project_templates::{WorktreeTemplateContext, render_project_t
 const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
 const MAIN_BRANCH_EXCLUSIVE_RULE: &str =
     "The main worktree is the only worktree that may check out";
-const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+const BEFORE_WRITE_WORKTREE_RULE: &str =
+    "Before any write operation, create or switch to a dedicated change worktree with Worktrunk";
 const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,18 @@ fn assert_no_discovery_heuristics(text: &str, label: &str) {
             "{label}: should not contain discovery heuristic '{heuristic}'"
         );
     }
+}
+
+fn assert_no_unrendered_jinja(text: &str) {
+    let text = text.replace("{{ branch | sanitize }}", "");
+    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert!(!text.contains("{%"), "should not contain raw jinja blocks");
+}
+
+fn assert_worktrunk_command(text: &str, default_branch: &str) {
+    assert!(text.contains(&format!(
+        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{{{ branch | sanitize }}}}\" wt switch --create <full-change-id> --base {default_branch}"
+    )));
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +230,7 @@ fn disabled_ctx() -> WorktreeTemplateContext {
 /// Verifies that AGENTS.md renders appropriate worktree instructions and paths for the `checkout_subdir` strategy.
 ///
 /// Ensures the rendered text includes the "Worktree Workflow" section, the configured strategy label,
-/// a repository-relative `.ito-worktrees/<full-change-id>/` worktree path and the corresponding `git worktree add` example,
+/// a repository-relative `.ito-worktrees/<full-change-id>/` worktree path and the corresponding Worktrunk command,
 /// and that it does not contain raw template syntax, discovery heuristics, or an embedded absolute project root.
 ///
 /// # Examples
@@ -235,17 +248,13 @@ fn agents_md_checkout_subdir() {
 
     assert!(text.contains("## Worktree Workflow"));
     assert!(text.contains("**Strategy:** `checkout_subdir`"));
-    assert!(
-        text.contains(
-            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-        )
-    );
+    assert_worktrunk_command(&text, "main");
     assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "agents_md_checkout_subdir");
     assert!(
         text.contains(".ito-worktrees/<full-change-id>/"),
@@ -265,10 +274,8 @@ fn agents_md_checkout_siblings() {
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert!(text.contains(
-        "git worktree add \"../<project-name>-wt/<full-change-id>\" -b <full-change-id> develop"
-    ));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_worktrunk_command(&text, "develop");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "agents_md_checkout_siblings");
     assert!(
         text.contains("../<project-name>-wt/<full-change-id>/"),
@@ -304,11 +311,9 @@ fn agents_md_bare_control_siblings() {
     assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(text.contains(".bare/"));
     assert!(text.contains("ito-worktrees/"));
-    assert!(text.contains(
-        "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-    ));
+    assert_worktrunk_command(&text, "main");
     assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "agents_md_bare_control_siblings");
     let layout_line = text
         .lines()
@@ -327,7 +332,7 @@ fn agents_md_disabled() {
 
     assert!(text.contains("Worktrees are not configured for this project."));
     assert!(text.contains("Do NOT create git worktrees by default."));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "agents_md_disabled");
 }
 
@@ -341,17 +346,13 @@ fn skill_checkout_subdir() {
     let text = render_text(skill_md_bytes(), &ctx);
 
     assert!(text.contains("**Configured strategy:** `checkout_subdir`"));
-    assert!(
-        text.contains(
-            "git worktree add \".ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-        )
-    );
+    assert_worktrunk_command(&text, "main");
     assert_main_worktree_guardrails(&text);
     assert!(
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "skill_checkout_subdir");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_subdir");
 }
@@ -367,10 +368,8 @@ fn skill_checkout_siblings() {
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert!(text.contains(
-        "git worktree add \"../<project-name>-wt/<full-change-id>\" -b <full-change-id> develop"
-    ));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_worktrunk_command(&text, "develop");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "skill_checkout_siblings");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_siblings");
 }
@@ -387,7 +386,7 @@ fn skill_checkout_siblings() {
 /// let text = render_text(skill_md_bytes(), &ctx);
 /// assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
 /// assert!(text.contains("ito-worktrees/"));
-/// assert!(!text.contains("{{"));
+/// assert_no_unrendered_jinja(&text);
 /// assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
 /// assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
 /// ```
@@ -403,13 +402,11 @@ fn skill_bare_control_siblings() {
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(text.contains("ito-worktrees/"));
-    assert!(text.contains(
-        "git worktree add \"../ito-worktrees/<full-change-id>\" -b <full-change-id> main"
-    ));
+    assert_worktrunk_command(&text, "main");
     assert!(
         text.contains("Never use the bare/control repo placeholder `HEAD` as the checkout source")
     );
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
     assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
 }
@@ -420,6 +417,6 @@ fn skill_disabled() {
 
     assert!(text.contains("Worktrees are not configured for this project."));
     assert!(text.contains("Work in the current checkout."));
-    assert!(!text.contains("{{"), "should not contain raw jinja");
+    assert_no_unrendered_jinja(&text);
     assert_no_discovery_heuristics(&text, "skill_disabled");
 }

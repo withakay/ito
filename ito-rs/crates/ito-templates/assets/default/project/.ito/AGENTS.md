@@ -12,6 +12,7 @@ Instructions for AI coding assistants using Ito for change-driven development.
 ## TL;DR Quick Checklist
 
 |search: `ito list --specs`, `ito list`, `ito list-archive`, `ito list --modules`; filter: `--pending|--partial|--completed`
+|wiki: consult `.ito/wiki/index.md` when present; warn and fall back to raw Ito artifacts if stale, missing, or contradictory
 |choose module by semantic fit; create new if none fit; avoid dumping unrelated work into arbitrary module
 |scope: new capability vs modify existing; large features → create module to group changes
 |change-id: unique, `NNN-CC_name` format for modular (e.g., `001-01_init-repo`)
@@ -37,7 +38,8 @@ Skip proposal for: bug fixes restoring intended behavior | typos/formatting/comm
 
 **Workflow:**
 1. Pick lane: `ito-feature`, `ito-fix`, `ito-proposal`, or `ito-brainstorming`
-1. Review `.ito/project.md`, `ito list`, `ito list --specs`
+1. Review `.ito/wiki/index.md` when present, then `.ito/project.md`, `ito list`, and `ito list --specs`
+1. If wiki coverage is stale, missing relevant coverage, or contradicts raw Ito artifacts, warn briefly, trust the raw artifacts, and update durable synthesis back into `.ito/wiki/` after proposal work
 1. Choose schema: `spec-driven` (new/broad/high-risk) | `minimalist` (bounded fixes/small changes) | `tdd` (regression-first) | `event-driven` (event/message-centric)
 1. Choose unique verb-led `change-id`; scaffold under `.ito/changes/<id>/`
 1. Draft spec deltas: `## ADDED|MODIFIED|REMOVED Requirements` with ≥1 `#### Scenario:` each
@@ -71,6 +73,8 @@ After deployment, create separate PR to:
 - Run `ito audit reconcile --change <change-id>` to ensure audit consistency before archiving
 - Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
 - Update `specs/` if capabilities changed
+- Refresh relevant `.ito/wiki/` topic pages when `.ito/wiki/index.md` exists, linking archived changes to affected specs, modules, research, architecture notes, and documentation
+- Prefer topic-page synthesis over one wiki page per archived change unless the archived change is historically important or too large for an existing topic page
 - Use `ito archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)
 - Run `ito validate --strict` to confirm the archived change passes checks
 
@@ -79,6 +83,7 @@ After deployment, create separate PR to:
 **Context Checklist:**
 
 - [ ] Read relevant specs in `specs/[capability]/spec.md`
+- [ ] If `.ito/wiki/index.md` exists, review relevant wiki topic pages for synthesized context and freshness metadata
 - [ ] Check pending changes in `changes/` for conflicts
 - [ ] Read `.ito/project.md` for conventions
 - [ ] Run `ito list` to see active changes | `ito list --specs` to see existing capabilities

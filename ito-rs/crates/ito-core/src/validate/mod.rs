@@ -383,6 +383,10 @@ fn validate_change_against_schema_validation(
 ) -> CoreResult<()> {
     let change_dir = paths::change_dir(ito_path, change_id);
 
+    if let Some(note) = validation.manual_semantic_validation_note.as_deref() {
+        rep.push(info("schema.validation.manual", note));
+    }
+
     let missing_level = validation
         .defaults
         .missing_required_artifact_level
