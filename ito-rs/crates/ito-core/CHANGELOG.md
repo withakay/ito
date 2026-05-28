@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.32] - 2026-05-27
+
+### 🚀 Features
+
+- *(validate)* Flag delta headings in main specs (000-11_normalize-main-spec-formatting)
+- *(worktrees)* Use worktrunk for worktree setup
+- *(schemas)* Embed openspec schema metadata
+- *(cleanup)* Add Ito managed asset cleanup
+- *(wiki)* Seed Ito project wiki
+
+### 🐛 Bug Fixes
+
+- *(coordination)* Initialize branch from empty history ([#243](https://github.com/withakay/ito/pull/243))
+
+### 🧪 Testing
+
+- Split inline Rust tests
 ## [0.1.31] - 2026-05-05
 
 ### 🚀 Features

@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.32] - 2026-05-27
+
+### 🚀 Features
+
+- *(001-32)* Add flexible planning workflow ([#239](https://github.com/withakay/ito/pull/239))
+- *(001-34)* Add DDD discovery workflow ([#240](https://github.com/withakay/ito/pull/240))
+- *(019-09)* Add Ito update repo workflow ([#241](https://github.com/withakay/ito/pull/241))
+- *(init)* Add update worktree configuration flags
+- *(worktrees)* Use worktrunk for worktree setup
+- *(schemas)* Embed openspec schema metadata
+- *(cleanup)* Add Ito managed asset cleanup
+- *(wiki)* Seed Ito project wiki
+
+### 🧪 Testing
+
+- Split inline Rust tests
 ## [0.1.31] - 2026-05-05
 
 ### 🚀 Features
