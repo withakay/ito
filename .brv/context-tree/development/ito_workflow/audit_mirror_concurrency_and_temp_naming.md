@@ -1,10 +1,14 @@
 ---
-createdAt: '2026-04-28T16:56:31.527Z'
-keywords: []
-related: [development/ito_workflow/context.md, development/ito_workflow/published_ito_mirror.md, development/ito_workflow/worktree_validation_flow.md]
+title: Audit Mirror Concurrency and Temp Naming
 summary: Audit mirror sync uses unique temp worktrees/orphan branch names with pid, timestamp, and an atomic counter; it dedupes JSONL, truncates by age and count, and retries push or ref updates once on conflict.
 tags: []
-title: Audit Mirror Concurrency and Temp Naming
+related: [development/ito_workflow/context.md, development/ito_workflow/published_ito_mirror.md, development/ito_workflow/worktree_validation_flow.md]
+keywords: []
+importance: 56
+recency: 1
+maturity: draft
+accessCount: 2
+createdAt: '2026-04-28T16:56:31.527Z'
 updatedAt: '2026-04-28T16:56:31.527Z'
 ---
 ## Reason

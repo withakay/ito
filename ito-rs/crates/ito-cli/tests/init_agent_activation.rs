@@ -116,12 +116,12 @@ fn init_update_installs_ito_plan_command_and_skill_for_all_harnesses() {
     for rel in ito_plan_skill_paths() {
         let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read skill");
         assert!(
-            contents.contains("Turn an open-ended idea into a useful planning artifact"),
+            contents.contains("name: ito-plan") && contents.contains("# Plan Before Proposal"),
             "expected {rel} to contain planning workflow guidance"
         );
         assert!(
-            contents.contains(".ito/research/"),
-            "expected {rel} to describe research artifact location"
+            contents.contains("Proposal Handoff Format"),
+            "expected {rel} to describe proposal handoff guidance"
         );
     }
 

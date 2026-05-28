@@ -4,6 +4,10 @@ summary: Installer pre-cleans obsolete ito-orchestrator specialist assets on upd
 tags: []
 related: [development/ito_workflow/worktree_validation_flow.md, development/release_workflow/release_workflow.md]
 keywords: []
+importance: 53
+recency: 1
+maturity: draft
+accessCount: 1
 createdAt: '2026-04-29T07:19:12.767Z'
 updatedAt: '2026-04-29T07:19:12.767Z'
 ---

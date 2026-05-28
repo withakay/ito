@@ -74,6 +74,56 @@ fn list_archive_json_lists_archived_changes_only() {
 }
 
 #[test]
+fn list_archived_filter_lists_archived_changes_only() {
+    let base = make_repo_with_archives();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(rust_path, &["list", "--archived"], repo.path(), home.path());
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Archived changes:"), "{}", out.stdout);
+    assert!(out.stdout.contains("000-02_archived"), "{}", out.stdout);
+    assert!(out.stdout.contains("000-03_done"), "{}", out.stdout);
+    assert!(!out.stdout.contains("000-01_active"), "{}", out.stdout);
+}
+
+#[test]
+fn list_archived_filter_json_lists_archived_changes_only() {
+    let base = make_repo_with_archives();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["list", "--archived", "--json"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    let payload: serde_json::Value = serde_json::from_str(&out.stdout).expect(&out.stdout);
+    let archived = payload
+        .get("archived")
+        .and_then(|value| value.as_array())
+        .expect(&out.stdout);
+    let mut names: Vec<&str> = Vec::with_capacity(archived.len());
+    for value in archived {
+        if let Some(name) = value.get("name").and_then(|name| name.as_str()) {
+            names.push(name);
+        }
+    }
+
+    assert_eq!(names, vec!["000-02_archived", "000-03_done"]);
+}
+
+#[test]
 fn list_archive_reports_empty_archives() {
     let base = tempfile::tempdir().expect("repo");
     fixtures::write(base.path().join("README.md"), "# temp\n");
@@ -100,4 +150,70 @@ fn list_archive_reports_empty_archives() {
         "{}",
         out.stdout
     );
+}
+
+#[test]
+fn list_archived_filter_reports_empty_archives() {
+    let base = tempfile::tempdir().expect("repo");
+    fixtures::write(base.path().join("README.md"), "# temp\n");
+    fixtures::write(
+        base.path().join(".ito/changes/000-01_active/proposal.md"),
+        "## Why\nActive fixture\n\n## What Changes\n- None\n\n## Impact\n- None\n",
+    );
+    fixtures::write(base.path().join(".ito/changes/archive/.gitkeep"), "");
+
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(rust_path, &["list", "--archived"], repo.path(), home.path());
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(
+        out.stdout.contains("No archived changes found."),
+        "{}",
+        out.stdout
+    );
+}
+
+#[test]
+fn list_archived_filter_rejects_active_change_filters() {
+    let base = make_repo_with_archives();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["list", "--archived", "--completed"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(out.stderr.contains("cannot be used with"), "{}", out.stderr);
+}
+
+#[test]
+fn list_archived_filter_rejects_sort() {
+    let base = make_repo_with_archives();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["list", "--archived", "--sort", "recent"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_ne!(out.code, 0, "stdout={}", out.stdout);
+    assert!(out.stderr.contains("cannot be used with"), "{}", out.stderr);
 }

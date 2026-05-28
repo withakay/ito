@@ -67,6 +67,32 @@ fn progress_filter_flags_are_mutually_exclusive() {
 }
 
 #[test]
+fn archived_filter_rejects_incompatible_raw_flags() {
+    let rt = Runtime::new();
+    let args = vec!["--archived".to_string(), "--completed".to_string()];
+    let err = handle_list(&rt, &args).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Flag --archived cannot be combined with --specs, --changes, --modules, --ready, --completed, --partial, --pending, or --sort."
+    );
+}
+
+#[test]
+fn archived_filter_rejects_sort_raw_flag() {
+    let rt = Runtime::new();
+    let args = vec![
+        "--archived".to_string(),
+        "--sort".to_string(),
+        "recent".to_string(),
+    ];
+    let err = handle_list(&rt, &args).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Flag --archived cannot be combined with --specs, --changes, --modules, --ready, --completed, --partial, --pending, or --sort."
+    );
+}
+
+#[test]
 fn format_relative_time_covers_major_buckets() {
     assert_eq!(
         format_relative_time(Utc::now() + Duration::seconds(1)),

@@ -96,9 +96,7 @@ pub enum Commands {
 
     /// List changes, specs, or modules with status summaries
     ///
-    /// By default lists changes sorted by ascending change ID. Use --specs or --modules
-    /// to list other item types. Use --ready to filter to changes ready for
-    /// implementation (have proposal, specs, tasks, and pending work).
+    /// By default lists changes sorted by ascending ID. Use --specs, --modules, or --archived for other item types; use --ready for implementation-ready changes.
     ///
     #[command(visible_alias = "ls", verbatim_doc_comment)]
     List(ListArgs),
@@ -836,6 +834,9 @@ pub struct ListArgs {
     /// List modules instead of changes
     #[arg(long)]
     pub modules: bool,
+    /// List archived changes
+    #[arg(long, conflicts_with_all = ["specs", "changes", "modules", "ready", "completed", "partial", "pending", "sort"])]
+    pub archived: bool,
 
     /// Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
     #[arg(long)]

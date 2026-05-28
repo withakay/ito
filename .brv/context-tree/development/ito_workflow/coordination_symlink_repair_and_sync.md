@@ -1,10 +1,14 @@
 ---
-createdAt: '2026-04-29T19:38:05.093Z'
-keywords: []
-related: [development/source_guides/source_guide_workflow.md, development/ito_workflow/coordination_branch_git_behavior.md, development/ito_workflow/ito_config_gotcha.md, development/ito_workflow/context.md]
+title: Coordination Symlink Repair and Sync
 summary: Coordination worktree init/sync now repairs missing links and broken-but-correct symlinks, rejects ambiguous duplicate or wrong-target state, and treats missing remote configuration as non-fatal after local repair.
 tags: []
-title: Coordination Symlink Repair and Sync
+related: [development/source_guides/source_guide_workflow.md, development/ito_workflow/coordination_branch_git_behavior.md, development/ito_workflow/ito_config_gotcha.md, development/ito_workflow/context.md]
+keywords: []
+importance: 56
+recency: 1
+maturity: draft
+accessCount: 2
+createdAt: '2026-04-29T19:38:05.093Z'
 updatedAt: '2026-04-29T19:38:05.093Z'
 ---
 ## Reason
