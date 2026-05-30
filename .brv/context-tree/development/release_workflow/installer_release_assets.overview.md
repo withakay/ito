@@ -1,0 +1,7 @@
+- Installer scripts prefer cargo-dist style release assets for current releases and only fall back to older version-pinned archives when the primary asset is unavailable.
+- Both Unix and Windows installers verify SHA-256 checksums before extracting archives and copying the ito binary into the install directory.
+- The Unix installer resolves the latest GitHub release tag unless ITO_VERSION is set, downloads a target-specific tar.xz asset, and can fall back to a legacy tar.gz archive.
+- The Windows installer mirrors the same release flow using PowerShell, expanding ZIP archives and optionally updating the user PATH via an AddToPath switch.
+- Key asset naming patterns are documented: preferred assets use ito-cli-&lt;target&gt; with .tar.xz or .zip extensions, while legacy fallbacks use ito-v&lt;tag&gt;-&lt;target&gt;.
+- The document describes the full installation flow from platform detection and target triple resolution through download, checksum verification, extraction, binary discovery, and install.
+- Notable entities and dependencies include scripts/install.sh, scripts/install.ps1, GitHub Releases API, curl, tar, sed, awk, head, Invoke-RestMethod, Invoke-WebRequest, and the Windows file hash utility.

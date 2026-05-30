@@ -1,0 +1,1 @@
+Installer scripts prefer cargo-dist release assets for current releases, fall back to legacy version-pinned archives when needed, and verify SHA-256 checksums before extracting and copying the binary.

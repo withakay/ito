@@ -1,6 +1,18 @@
 {
   "active_context": [
     {
+      "order": 3,
+      "path": "_index.md",
+      "tokens": 1519,
+      "type": "summary"
+    },
+    {
+      "order": 2,
+      "path": "development/_index.md",
+      "tokens": 1621,
+      "type": "summary"
+    },
+    {
       "order": 1,
       "path": "development/ito_templates/_index.md",
       "tokens": 331,
@@ -11,6 +23,12 @@
       "path": "development/ito_workflow/_index.md",
       "tokens": 1631,
       "type": "summary"
+    },
+    {
+      "importance": 50,
+      "path": "development/context.md",
+      "tokens": 150,
+      "type": "context"
     },
     {
       "abstractPath": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.abstract.md",
@@ -123,6 +141,20 @@
       "type": "context"
     },
     {
+      "importance": 50,
+      "path": "development/release_workflow/context.md",
+      "tokens": 140,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/release_workflow/installer_release_assets.abstract.md",
+      "abstractTokens": 50,
+      "importance": 50,
+      "path": "development/release_workflow/installer_release_assets.md",
+      "tokens": 50,
+      "type": "context"
+    },
+    {
       "abstractPath": "development/release_workflow/manifesto_instruction_implementation_notes.abstract.md",
       "abstractTokens": 54,
       "importance": 50,
@@ -147,13 +179,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-05-17T18:36:46.389Z",
+  "generated_at": "2026-05-29T08:59:37.843Z",
   "lane_tokens": {
-    "contexts": 1010,
+    "contexts": 1309,
     "stubs": 0,
-    "summaries": 1962
+    "summaries": 4771
   },
-  "source_fingerprint": "f1373378b041b9732c69bc57768d366b50fceb4c888990616b05623d1619b5ed",
-  "total_tokens": 2972,
+  "source_fingerprint": "43744d55617f2712be045f990cb18050970504941c7246bd47759a1e89f13cfb",
+  "total_tokens": 6080,
   "version": 1
 }
