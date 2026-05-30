@@ -55,6 +55,12 @@ download() {
   curl -fsSL "$URL" -o "$OUT"
 }
 
+try_download() {
+  URL="$1"
+  OUT="$2"
+  curl -fsL "$URL" -o "$OUT" 2>/dev/null
+}
+
 sha256_file() {
   FILE="$1"
   if command -v shasum >/dev/null 2>&1; then
@@ -86,15 +92,21 @@ main() {
   esac
 
   INSTALL_DIR=${ITO_INSTALL_DIR:-"$INSTALL_DIR_DEFAULT"}
-  ARCHIVE="ito-${TAG}-${TARGET}.tar.gz"
-  CHECKSUM="ito-${TAG}-${TARGET}.sha256"
+  ARCHIVE="ito-cli-${TARGET}.tar.xz"
+  CHECKSUM="$ARCHIVE.sha256"
+  ARCHIVE_KIND="tar.xz"
   BASE_URL=${ITO_BASE_URL:-"https://github.com/$REPO/releases/download/$TAG"}
 
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT
 
-  download "$BASE_URL/$ARCHIVE" "$TMP/$ARCHIVE"
-  download "$BASE_URL/$CHECKSUM" "$TMP/$CHECKSUM"
+  if ! try_download "$BASE_URL/$ARCHIVE" "$TMP/$ARCHIVE" || ! try_download "$BASE_URL/$CHECKSUM" "$TMP/$CHECKSUM"; then
+    ARCHIVE="ito-${TAG}-${TARGET}.tar.gz"
+    CHECKSUM="ito-${TAG}-${TARGET}.sha256"
+    ARCHIVE_KIND="tar.gz"
+    download "$BASE_URL/$ARCHIVE" "$TMP/$ARCHIVE"
+    download "$BASE_URL/$CHECKSUM" "$TMP/$CHECKSUM"
+  fi
 
   EXPECTED=$(awk '{print $1}' "$TMP/$CHECKSUM" | head -n 1)
   ACTUAL=$(sha256_file "$TMP/$ARCHIVE")
@@ -106,16 +118,23 @@ main() {
   fi
 
   mkdir -p "$TMP/extract"
-  tar -C "$TMP/extract" -xzf "$TMP/$ARCHIVE"
+  case "$ARCHIVE_KIND" in
+    tar.xz) tar -C "$TMP/extract" -xJf "$TMP/$ARCHIVE" ;;
+    tar.gz) tar -C "$TMP/extract" -xzf "$TMP/$ARCHIVE" ;;
+  esac
 
-  if [ ! -f "$TMP/extract/ito" ]; then
+  case "$ARCHIVE_KIND" in
+    tar.xz) BIN="$TMP/extract/ito-cli-$TARGET/ito" ;;
+    tar.gz) BIN="$TMP/extract/ito" ;;
+  esac
+  if [ ! -f "$BIN" ]; then
     err "archive did not contain expected binary: ito"
     exit 1
   fi
 
   mkdir -p "$INSTALL_DIR"
-  chmod +x "$TMP/extract/ito"
-  cp "$TMP/extract/ito" "$INSTALL_DIR/ito"
+  chmod +x "$BIN"
+  cp "$BIN" "$INSTALL_DIR/ito"
 
   printf '%s\n' "installed ito to $INSTALL_DIR/ito"
   "$INSTALL_DIR/ito" --version || true

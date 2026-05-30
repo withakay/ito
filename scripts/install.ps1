@@ -100,8 +100,8 @@ try {
   }
 
   $target = Get-WindowsTarget
-  $archive = "ito-$tag-$target.zip"
-  $checksum = "ito-$tag-$target.sha256"
+  $archive = "ito-cli-$target.zip"
+  $checksum = "$archive.sha256"
   $baseUrl = "https://github.com/$Repo/releases/download/$tag"
 
   if ([string]::IsNullOrWhiteSpace($InstallDir)) {
@@ -114,8 +114,17 @@ try {
   $archivePath = Join-Path $tmpRoot $archive
   $checksumPath = Join-Path $tmpRoot $checksum
 
-  Download-File "$baseUrl/$archive" $archivePath
-  Download-File "$baseUrl/$checksum" $checksumPath
+  try {
+    Download-File "$baseUrl/$archive" $archivePath
+    Download-File "$baseUrl/$checksum" $checksumPath
+  } catch {
+    $archive = "ito-$tag-$target.zip"
+    $checksum = "ito-$tag-$target.sha256"
+    $archivePath = Join-Path $tmpRoot $archive
+    $checksumPath = Join-Path $tmpRoot $checksum
+    Download-File "$baseUrl/$archive" $archivePath
+    Download-File "$baseUrl/$checksum" $checksumPath
+  }
 
   $expected = (Read-ExpectedSha256 $checksumPath).ToLowerInvariant()
   $actual = (Get-FileHash -Algorithm SHA256 -Path $archivePath).Hash.ToLowerInvariant()

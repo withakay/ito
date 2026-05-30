@@ -17,7 +17,7 @@ Ito is distributed as a Rust binary.
 
 Distribution approach:
 
-- Publish platform-specific Rust release archives via GitHub Releases (with SHA-256 checksums)
+- Publish platform-specific cargo-dist release archives via GitHub Releases (with SHA-256 checksums)
 - Support local developer installs via `make rust-install`
 
 Initial release target matrix:
@@ -30,22 +30,14 @@ Initial release target matrix:
 
 Artifact naming:
 
-- `ito-vX.Y.Z-<target>.tar.gz` (Windows: `.zip`)
-- `ito-vX.Y.Z-<target>.sha256`
+- `ito-cli-<target>.tar.xz` (Windows: `.zip`)
+- `ito-cli-<target>.tar.xz.sha256` (Windows: `.zip.sha256`)
 
-Build commands (per platform job):
+Build commands (release automation):
 
 ```bash
-cd ito-rs
-cargo build -p ito-cli --release
-
-# linux/macos
-tar -C target/release -czf "ito-v${VERSION}-${TARGET}.tar.gz" ito
-shasum -a 256 "ito-v${VERSION}-${TARGET}.tar.gz" > "ito-v${VERSION}-${TARGET}.sha256"
-
-# windows
-powershell -Command "Compress-Archive -Path target/release/ito.exe -DestinationPath ito-v${env:VERSION}-${env:TARGET}.zip"
-powershell -Command "Get-FileHash ito-v${env:VERSION}-${env:TARGET}.zip -Algorithm SHA256 | Format-List" > ito-v${env:VERSION}-${env:TARGET}.sha256
+cargo dist plan
+cargo dist build
 ```
 
 Optional developer install:
@@ -96,5 +88,5 @@ Binary (per platform):
 Checksum:
 
 ```bash
-shasum -a 256 -c ito-vX.Y.Z-<target>.sha256
+shasum -a 256 -c ito-cli-<target>.tar.xz.sha256
 ```
