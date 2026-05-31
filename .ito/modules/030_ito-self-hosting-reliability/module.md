@@ -8,3 +8,4 @@ Make building Ito with Ito reliable by moving repeated LLM workarounds into dete
 
 ## Changes
 - [ ] 030-01_machine-readable-capabilities
+- [ ] 030-02_deterministic-completion-gate
