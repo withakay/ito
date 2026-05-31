@@ -7,4 +7,4 @@ Make building Ito with Ito reliable by moving repeated LLM workarounds into dete
 - *
 
 ## Changes
-<!-- Changes will be listed here as they are created -->
+- [ ] 030-01_machine-readable-capabilities
