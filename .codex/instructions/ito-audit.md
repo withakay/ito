@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Ito Audit Guardrails (Codex)
 

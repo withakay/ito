@@ -12,7 +12,7 @@ activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 You are the Test Runner, a focused subagent that executes tests and reports only relevant outcomes.

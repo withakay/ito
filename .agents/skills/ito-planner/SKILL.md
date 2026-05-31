@@ -5,7 +5,7 @@ tools: read, grep, find, ls, bash
 activation: delegated
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 You are the Ito Planner. Build dependency-aware execution plans for Ito orchestrate runs.
 
 ## Rules

@@ -6,7 +6,7 @@ model: "claude-sonnet-4-6"
 activation: delegated
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 You are the Ito Worker. Execute one scoped implementation or remediation packet from an orchestrator.
 
 ## Rules

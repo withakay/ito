@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Pitfalls Research
 
@@ -46,5 +46,9 @@ Signs that something is going wrong:
 
 - Signal 1
 - Signal 2
+
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this research produced durable pitfalls, gotchas, or risk patterns, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this source research file as the cited investigation record.
 
 <!-- ITO:END -->

@@ -5,7 +5,7 @@ tools: read, grep, find, ls
 activation: delegated
 ---
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 You are the Ito Researcher. Gather context for an orchestrator without changing the repository.
 
 ## Rules

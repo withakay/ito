@@ -4,7 +4,7 @@ description: Use when starting feature work that needs isolation from current wo
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Using Git Worktrees
 
@@ -20,10 +20,16 @@ Use isolated worktrees for change work so the main/control checkout stays clean.
 
 - Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
 - The main worktree is the only worktree that may check out `main`; `main` must only ever be checked out in the main worktree.
-- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
+- Before any write operation, create or switch to a dedicated change worktree with Worktrunk (`wt`) for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse one worktree for two changes.
 - If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
+Worktrunk path configuration for Ito-managed worktrees:
+
+```toml
+worktree-path = "<ito-worktrees-root>/{{ branch | sanitize }}"
+```
 
 ## Layout
 
@@ -40,7 +46,7 @@ Create one with:
 
 ```bash
 mkdir -p "../ito-worktrees"
-git worktree add "../ito-worktrees/<full-change-id>" -b <full-change-id> main
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{{ branch | sanitize }}" wt switch --create <full-change-id> --base main
 ```
 
 Always branch from `main`. Never use the bare/control repo placeholder `HEAD` as the checkout source.

@@ -7,7 +7,7 @@ model: "claude-sonnet-4-6"
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 You are an Ito orchestrator. Coordinate workers and gates without editing code directly.
 
 ## Steps

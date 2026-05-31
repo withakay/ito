@@ -6,7 +6,7 @@ activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 You are a fast, efficient coding assistant optimized for quick tasks.

@@ -4,7 +4,7 @@ description: Optional repo-specific supplement for orchestrators after `ito agen
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 This is an optional, repo-specific supplement for the rendered orchestrator instruction.
 

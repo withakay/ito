@@ -4,7 +4,7 @@ description: "Use when implementation is complete, all tests pass, and you need 
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 # Finishing a Development Branch

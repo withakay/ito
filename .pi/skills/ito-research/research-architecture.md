@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Architecture Research
 
@@ -46,5 +46,9 @@ Describe the recommended approach with diagram (ASCII or description).
 ### Integration Points
 
 List external systems and how to integrate.
+
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this research produced durable architecture decisions, patterns, or integration lessons, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this source research file as the cited investigation record.
 
 <!-- ITO:END -->

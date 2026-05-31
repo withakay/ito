@@ -4,7 +4,7 @@ description: "Use when discovering, finding, invoking, or loading skills. Ensure
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 # Using Ito Skills

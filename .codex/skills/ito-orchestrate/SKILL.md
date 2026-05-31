@@ -4,7 +4,7 @@ description: Coordinate multi-change runs with gates, run state, and remediation
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 Coordinate multi-change runs by delegating workflow policy to Ito's rendered orchestrate instruction.
 

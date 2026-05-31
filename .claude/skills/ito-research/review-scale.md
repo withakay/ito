@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Scale Review
 
@@ -65,5 +65,9 @@ Brief summary of the proposed architecture from a scaling perspective.
 - [ ] Scales adequately for expected load
 - [ ] Needs optimization before launch
 - [ ] Requires architectural changes
+
+## Wiki Follow-Up
+
+If `.ito/wiki/index.md` exists and this review found reusable scale, performance, or capacity lessons, update the relevant topic page or create a query artifact under `.ito/wiki/queries/`. Keep this review file as the cited source of the finding.
 
 <!-- ITO:END -->

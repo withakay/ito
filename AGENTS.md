@@ -1,5 +1,5 @@
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 # Ito Instructions
 
@@ -10,6 +10,8 @@ Project setup: run `/ito-project-setup` (or `ito agent instruction project-setup
 Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are Ito-managed and may be overwritten. Put project-specific guidance in `.ito/user-prompts/guidance.md`, `.ito/user-prompts/<artifact>.md`, or below this block.
 
 Keep this block so `ito init --upgrade` can refresh managed content safely. To refresh only this managed section, run `ito init --upgrade`.
+
+When present, use `.ito/wiki/index.md` for Ito-scoped synthesis, freshness warnings, and archive follow-through.
 
 ## Path Helpers
 
@@ -33,10 +35,16 @@ Rules:
 
 - Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
 - The main worktree is the only worktree that may check out `main`; `main` must only ever be checked out in the main worktree.
-- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
+- Before any write operation, create or switch to a dedicated change worktree with Worktrunk (`wt`) for that change. If no change ID exists yet, create a temporary proposal worktree, create the change there, then switch to the final change worktree before editing generated artifacts.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse one worktree for two changes.
 - If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+
+Worktrunk path configuration for Ito-managed worktrees:
+
+```toml
+worktree-path = "<ito-worktrees-root>/{{ branch | sanitize }}"
+```
 
 
 Bare/control layout:
@@ -54,7 +62,7 @@ Create one with:
 
 ```bash
 mkdir -p "../ito-worktrees"
-git worktree add "../ito-worktrees/<full-change-id>" -b <full-change-id> main
+WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{{ branch | sanitize }}" wt switch --create <full-change-id> --base main
 ```
 
 Always branch new change worktrees from `main`. Do not create them from the bare/control repo placeholder `HEAD`.

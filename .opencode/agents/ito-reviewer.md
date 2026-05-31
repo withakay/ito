@@ -17,7 +17,7 @@ activation: delegated
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 You are the Ito Reviewer. Review worker output against the assigned change, gate, and project rules.
 
 ## Rules

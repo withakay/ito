@@ -4,7 +4,7 @@ description: Archive a completed change and update main specifications. Use when
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 Run the CLI-generated archive instructions for a specific change.
@@ -36,5 +36,7 @@ Run the CLI-generated archive instructions for a specific change.
    ```
 
 3. Follow the printed instructions exactly.
+
+4. After archive/spec sync succeeds, refresh relevant `.ito/wiki/` topic pages when `.ito/wiki/index.md` exists. Prefer topic-page synthesis that links to the archived change, specs, modules, research, architecture notes, and documentation instead of creating one wiki page per archived change. If wiki coverage is absent, stale, or contradictory, note the risk and continue from raw Ito artifacts; wiki refresh is recommended follow-through, not an archive blocker.
 
 <!-- ITO:END -->

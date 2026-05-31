@@ -4,7 +4,7 @@ description: List Ito changes, archived changes, specs, or modules with status s
 ---
 
 <!-- ITO:START -->
-<!--ITO:VERSION:0.1.31-->
+<!--ITO:VERSION:0.1.32-->
 
 
 Use `ito list` and `ito list-archive` to display project items and interpret the results for the user.
