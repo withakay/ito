@@ -12,3 +12,4 @@ Make building Ito with Ito reliable by moving repeated LLM workarounds into dete
 - [ ] 030-03_coordination-branch-sync
 - [ ] 030-04_archive-and-change-discovery
 - [ ] 030-05_managed-file-ownership
+- [ ] 030-06_validation-contract-and-ci-doctor
