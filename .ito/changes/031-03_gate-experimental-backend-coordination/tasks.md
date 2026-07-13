@@ -91,7 +91,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli --no-default-features migrate_to_main` (or the focused final test target selected during implementation) and a CLI invocation of `ito agent instruction migrate-to-main` from a binary without experimental features.
 - **Done When**: The standard binary renders the recovery instruction in text and JSON modes even when legacy worktree config is active, without compiling or invoking coordination synchronization.
 - **Requirements**: rust-workspace:default-iteration-surface, change-coordination-branch:compiled-out-error
-- **Status**: [ ] pending
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ### Task 2.3: Preserve legacy config parsing and adopt main-compatible defaults
