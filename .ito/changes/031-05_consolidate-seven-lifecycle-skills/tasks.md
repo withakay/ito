@@ -42,7 +42,7 @@ ______________________________________________________________________
 - **Verify**: `ito validate 031-05_consolidate-seven-lifecycle-skills --strict`
 - **Done When**: Strict validation resolves every affected current requirement by its exact heading, and the proposal capability list matches all delta-spec directories.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave 2: Consolidate shared skills and manifests
