@@ -63,7 +63,7 @@ ______________________________________________________________________
 - **Verify**: `cargo check -p ito-cli` and `cargo check -p ito-cli --no-default-features --features coordination-branch`; focused coordination tests in the coordination-enabled lane.
 - **Done When**: The default CLI omits coordination implementation code, a coordination-only build works without backend, and compiled-out coordination requests reach the typed error before artifact access.
 - **Requirements**: rust-workspace:independent-experimental-features, change-coordination-branch:independent-feature-gate, change-coordination-branch:compiled-out-error
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ______________________________________________________________________
