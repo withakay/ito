@@ -12,3 +12,4 @@
 - [ ] 031-03_gate-experimental-backend-coordination
 - [ ] 031-04_remove-tmux-integration
 - [ ] 031-05_consolidate-seven-lifecycle-skills
+- [ ] 031-06_migrate-ito-authority-and-release
