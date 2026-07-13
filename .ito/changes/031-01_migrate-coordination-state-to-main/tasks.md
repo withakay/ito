@@ -92,3 +92,13 @@ ______________________________________________________________________
 - Keep exactly one task in progress at a time for this change
 - Do not begin `031-02` or later implementation until this migration bridge has passed its change-level review gate
 <!-- ITO:END -->
+
+### Task 3.3: Resolve change-level review findings
+- **Files**: `path/to/file.rs`
+- **Dependencies**: None
+- **Action**:
+  [Describe what needs to be done]
+- **Verify**: `cargo test --workspace`
+- **Done When**: [Success criteria]
+- **Updated At**: 2026-07-13
+- **Status**: [ ] pending
