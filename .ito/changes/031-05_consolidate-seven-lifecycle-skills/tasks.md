@@ -88,7 +88,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates agents && cargo test -p ito-cli --test init_agent_activation`
 - **Done When**: Native role tests pass independently and installed skill directories still contain exactly seven Ito-managed entries for every harness.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Prune obsolete managed surfaces without losing user content
 - **Files**: `ito-rs/crates/ito-templates/src/legacy.rs`; `ito-rs/crates/ito-templates/src/legacy_tests.rs`; `ito-rs/crates/ito-core/src/installers/`; repository-validation rule/remediation sources; `ito-rs/crates/ito-cli/tests/init_obsolete_cleanup.rs`; update smoke/marker/naming tests
