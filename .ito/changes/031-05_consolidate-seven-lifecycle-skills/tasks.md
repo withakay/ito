@@ -65,7 +65,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates lifecycle_skill_content && cargo test -p ito-templates template_markdown`
 - **Done When**: Each former helper concern is discoverable from its owner, router tests cover retained/retired/direct-CLI cases, and the retained skills contain no wildcard skill discovery/cache behavior.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.3: Delete retired shared skills and helper command wrappers
 - **Files**: retired directories under `ito-rs/crates/ito-templates/assets/skills/`; retired files under `assets/commands/`; template embed/snapshot tests
