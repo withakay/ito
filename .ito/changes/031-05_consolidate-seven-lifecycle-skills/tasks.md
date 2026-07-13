@@ -33,7 +33,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates lifecycle_skill_content`
 - **Done When**: Every retired managed entry has exactly one replacement owner and the replacement map covers intake, planning, tasks, worktrees, verification, finish, memory, wiki, orchestration, update, cleanup, commit, and path/list helpers.
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.3: Lock the current-spec conflict matrix
 - **Files**: delta specs under `.ito/changes/031-05_consolidate-seven-lifecycle-skills/specs/`; current specs under `.ito/specs/`; proposal capability list
