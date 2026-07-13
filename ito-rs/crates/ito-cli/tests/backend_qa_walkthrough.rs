@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;

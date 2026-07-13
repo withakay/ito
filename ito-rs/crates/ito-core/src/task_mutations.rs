@@ -147,6 +147,7 @@ impl TaskMutationService for FsTaskMutationService {
     }
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_task_mutation_service(
     ito_path: PathBuf,
 ) -> Box<dyn TaskMutationService + Send> {
@@ -177,5 +178,6 @@ pub(crate) fn task_mutation_error_from_core(err: CoreError) -> TaskMutationError
         CoreError::Serde { context, message } => {
             TaskMutationError::other(format!("{context}: {message}"))
         }
+        error @ CoreError::FeatureUnavailable { .. } => TaskMutationError::other(error.to_string()),
     }
 }

@@ -2,15 +2,19 @@
 
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "backend")]
 use chrono::Utc;
 use diffy::{Patch, apply};
 
+#[cfg(feature = "backend")]
 use crate::backend_sync;
 use crate::errors::CoreError;
 use crate::repository_runtime::SqliteRuntime;
 use ito_common::id::parse_change_id;
 use ito_common::paths;
-use ito_domain::backend::{ArtifactBundle, BackendError, BackendProjectStore, BackendSyncClient};
+#[cfg(feature = "backend")]
+use ito_domain::backend::BackendSyncClient;
+use ito_domain::backend::{ArtifactBundle, BackendError, BackendProjectStore};
 use ito_domain::changes::{
     ChangeArtifactKind, ChangeArtifactMutationError, ChangeArtifactMutationResult,
     ChangeArtifactMutationService, ChangeArtifactMutationServiceResult, ChangeArtifactRef,
@@ -221,11 +225,13 @@ impl ChangeArtifactBundleClient for SqliteChangeArtifactBundleClient {
 }
 
 /// Filesystem-backed bundle client for active-change bundles.
+#[cfg(feature = "backend")]
 #[derive(Debug, Clone)]
 pub struct FsChangeArtifactBundleClient {
     ito_path: PathBuf,
 }
 
+#[cfg(feature = "backend")]
 impl FsChangeArtifactBundleClient {
     /// Create a filesystem-backed bundle client.
     pub fn new(ito_path: impl Into<PathBuf>) -> Self {
@@ -235,6 +241,7 @@ impl FsChangeArtifactBundleClient {
     }
 }
 
+#[cfg(feature = "backend")]
 impl ChangeArtifactBundleClient for FsChangeArtifactBundleClient {
     fn pull_bundle(&self, change_id: &str) -> ChangeArtifactMutationServiceResult<ArtifactBundle> {
         backend_sync::read_local_bundle(&self.ito_path, change_id)
@@ -257,11 +264,13 @@ impl ChangeArtifactBundleClient for FsChangeArtifactBundleClient {
 }
 
 /// Remote/backend-backed bundle client.
+#[cfg(feature = "backend")]
 #[derive(Debug, Clone)]
 pub struct RemoteChangeArtifactBundleClient<S> {
     client: S,
 }
 
+#[cfg(feature = "backend")]
 impl<S> RemoteChangeArtifactBundleClient<S> {
     /// Create a remote bundle client from an existing sync client.
     pub fn new(client: S) -> Self {
@@ -269,6 +278,7 @@ impl<S> RemoteChangeArtifactBundleClient<S> {
     }
 }
 
+#[cfg(feature = "backend")]
 impl<S> ChangeArtifactBundleClient for RemoteChangeArtifactBundleClient<S>
 where
     S: BackendSyncClient + Clone + std::fmt::Debug,
@@ -419,6 +429,9 @@ fn change_artifact_error_from_core(err: CoreError) -> ChangeArtifactMutationErro
         CoreError::NotFound(message) => ChangeArtifactMutationError::not_found(message),
         CoreError::Serde { context, message } => {
             ChangeArtifactMutationError::other(format!("{context}: {message}"))
+        }
+        error @ CoreError::FeatureUnavailable { .. } => {
+            ChangeArtifactMutationError::other(error.to_string())
         }
     }
 }

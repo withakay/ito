@@ -1,5 +1,5 @@
 use super::{Cli, Commands, WorktreeCommand};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 #[test]
 fn parses_top_level_sync_command() {
@@ -49,4 +49,25 @@ fn parses_worktree_validate_with_json_flag() {
         "012-07_guard-opencode-worktree-path"
     );
     assert!(validate_args.json);
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn default_build_parses_backend_compatibility_command() {
+    let cli = Cli::parse_from(["ito", "backend", "status", "--json"]);
+    assert!(matches!(cli.command, Some(Commands::Backend(_))));
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn default_help_hides_backend_command() {
+    let help = Cli::command().render_long_help().to_string();
+    assert!(!help.contains("ito backend status"));
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+#[test]
+fn default_help_hides_coordination_sync_command() {
+    let help = Cli::command().render_long_help().to_string();
+    assert!(!help.contains("ito sync --force"));
 }

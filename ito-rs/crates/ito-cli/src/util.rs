@@ -3,8 +3,11 @@ use crate::runtime::Runtime;
 use ito_config::ito_dir::get_ito_path;
 use ito_config::load_cascading_project_config;
 use ito_config::types::ItoConfig;
+#[cfg(feature = "backend")]
 use ito_core::backend_client::resolve_backend_runtime;
+#[cfg(feature = "backend")]
 use ito_core::event_forwarder::{ForwarderConfig, forward_events};
+#[cfg(feature = "backend")]
 use ito_core::repository_runtime::{PersistenceMode, resolve_repository_runtime};
 use ito_logging::{Logger as ExecLogger, Outcome as LogOutcome};
 use std::path::{Path, PathBuf};
@@ -65,6 +68,7 @@ where
     // Best-effort: forward locally produced audit events to the backend
     // when backend mode is enabled. Failures are logged as warnings but
     // never change the command outcome.
+    #[cfg(feature = "backend")]
     forward_events_if_backend(rt);
 
     result
@@ -328,6 +332,7 @@ fn sanitize_args_for_logging(raw_args: &[String]) -> Vec<String> {
 /// fails. In remote repository mode the command has already written to the
 /// backend-managed store directly, so there is no local backlog to forward.
 /// Never affects command outcome.
+#[cfg(feature = "backend")]
 fn forward_events_if_backend(rt: &Runtime) {
     let ito_path = rt.ito_path();
     let Some(project_root) = ito_path.parent() else {
@@ -395,6 +400,7 @@ fn forward_events_if_backend(rt: &Runtime) {
 }
 
 /// HTTP-based event ingest client that submits event batches to the backend.
+#[cfg(feature = "backend")]
 struct HttpEventIngestClient {
     base_url: String,
     token: String,
@@ -403,6 +409,7 @@ struct HttpEventIngestClient {
     repo: String,
 }
 
+#[cfg(feature = "backend")]
 impl ito_core::BackendEventIngestClient for HttpEventIngestClient {
     fn ingest(
         &self,

@@ -1,3 +1,5 @@
+#![cfg(feature = "coordination-branch")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 

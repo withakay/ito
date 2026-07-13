@@ -1,10 +1,11 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{CliResult, fail};
+use crate::cli_error::{CliError, CliResult, fail};
 use crate::runtime::Runtime;
 use crate::{commands, util};
 use clap::Parser;
 use clap::error::ErrorKind;
 use ito_config::ConfigContext;
+use ito_core::capabilities::CapabilityPreflight;
 
 /// Parse CLI arguments, initialize the runtime and logging context, and dispatch the selected subcommand.
 ///
@@ -78,6 +79,25 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
     }
 
     let rt = Runtime::new();
+
+    let preflight_mode = if is_recovery_safe_invocation(args) {
+        CapabilityPreflight::Recovery
+    } else {
+        CapabilityPreflight::Stateful
+    };
+    if let Err(error) = rt.preflight(preflight_mode) {
+        let error = CliError::from_core(error);
+        if args.iter().any(|arg| arg == "--json")
+            && let Some(value) = error.feature_unavailable_json()
+        {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&value).expect("JSON value serializes")
+            );
+            return Err(CliError::silent());
+        }
+        return Err(error);
+    }
 
     let command_id = util::command_id_from_args(args);
     let project_root = util::project_root_for_logging(&rt, args);
@@ -275,11 +295,25 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             );
         }
 
+        #[cfg(not(feature = "backend"))]
+        Some(Commands::Backend(args)) => {
+            return unavailable_backend_command(args);
+        }
+
         #[cfg(feature = "backend")]
         Some(Commands::ServeApiRemoved(args)) => {
             return fail(format!(
                 "The top-level `ito serve-api` command has been removed.\nUse `{}` instead.",
                 removed_serve_api_replacement(args)
+            ));
+        }
+
+        #[cfg(not(feature = "backend"))]
+        Some(Commands::ServeApiRemoved(_)) => {
+            return Err(CliError::feature_unavailable(
+                "backend",
+                "ito serve-api",
+                "use `ito backend serve` from an experimental build with the backend feature",
             ));
         }
 
@@ -387,6 +421,55 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             Ok(())
         },
     )
+}
+
+fn is_recovery_safe_invocation(args: &[String]) -> bool {
+    let positional = args
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    match positional.as_slice() {
+        ["help", ..]
+        | ["completions", ..]
+        | ["config", ..]
+        | ["init", ..]
+        | ["update", ..]
+        | ["backend", ..]
+        | ["serve-api", ..]
+        | ["sync", ..] => true,
+        ["tasks", operation, ..]
+            if matches!(*operation, "claim" | "release" | "allocate" | "sync") =>
+        {
+            true
+        }
+        ["agent", "instruction", "migrate-to-main", ..] => true,
+        _ => false,
+    }
+}
+
+#[cfg(not(feature = "backend"))]
+fn unavailable_backend_command(args: &crate::cli::BackendArgs) -> CliResult<()> {
+    let error = CliError::feature_unavailable(
+        "backend",
+        "ito backend",
+        "install an experimental build with the backend feature, or disable backend.enabled",
+    );
+    let wants_json = matches!(
+        args.action,
+        crate::cli::BackendAction::Status { json: true }
+    );
+    if wants_json {
+        let value = error
+            .feature_unavailable_json()
+            .expect("feature-unavailable errors have JSON details");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).expect("JSON value serializes")
+        );
+        return Err(CliError::silent());
+    }
+    Err(error)
 }
 
 #[cfg(feature = "backend")]

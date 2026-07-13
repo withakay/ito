@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Integration tests for Wave 3: backend status, generate-token, and silent fallback warnings.
 //!
 //! This test suite covers:

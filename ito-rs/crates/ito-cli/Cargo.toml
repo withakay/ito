@@ -12,24 +12,33 @@ name = "ito"
 path = "src/main.rs"
 
 [features]
-default = ["web", "backend"]
-web = ["dep:ito-web"]
-backend = ["dep:ito-backend"]
+default = ["web"]
+web = ["dep:ito-web", "dep:tokio"]
+backend = [
+  "dep:ito-backend",
+  "dep:serde_ignored",
+  "dep:tokio",
+  "dep:toml",
+  "dep:ureq",
+  "ito-core/backend",
+]
+coordination-branch = ["ito-core/coordination-branch"]
+experimental = ["backend", "coordination-branch"]
 
 [dependencies]
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
 serde = { workspace = true }
-serde_ignored = { workspace = true }
+serde_ignored = { workspace = true, optional = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-toml = { workspace = true }
+toml = { workspace = true, optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 dialoguer = { workspace = true }
-ito-core = { workspace = true }
+ito-core = { workspace = true, default-features = false }
 ito-common = { workspace = true }
 ito-config = { workspace = true }
 ito-logging = { workspace = true }
@@ -37,8 +46,8 @@ ito-templates = { workspace = true }
 ito-backend = { workspace = true, optional = true }
 ito-web = { workspace = true, optional = true }
 chrono = { workspace = true }
-ureq = { workspace = true }
-tokio = { version = "1", features = ["rt-multi-thread"] }
+ureq = { workspace = true, optional = true }
+tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 
 [build-dependencies]
 vergen-gitcl = { workspace = true }

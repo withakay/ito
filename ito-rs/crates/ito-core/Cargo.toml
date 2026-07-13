@@ -7,6 +7,11 @@ repository.workspace = true
 homepage.workspace = true
 description = "Core functionality and business logic for Ito"
 
+[features]
+default = []
+backend = ["dep:base64", "dep:rand", "dep:ureq"]
+coordination-branch = ["dep:junction"]
+
 [dependencies]
 thiserror = { workspace = true }
 serde = { workspace = true }
@@ -25,13 +30,13 @@ ito-domain = { workspace = true }
 ito-templates = { workspace = true }
 miette = { workspace = true }
 sha2 = { workspace = true }
-rand = { workspace = true }
-base64 = { workspace = true }
+rand = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
 hex = "0.4"
 grep-matcher = { workspace = true }
 grep-regex = { workspace = true }
 grep-searcher = { workspace = true }
-ureq = { workspace = true }
+ureq = { workspace = true, optional = true }
 tempfile = { workspace = true }
 diffy = { workspace = true }
 
@@ -40,4 +45,4 @@ assert-struct = "0.2"
 filetime = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-junction = "1.4.2"
+junction = { version = "1.4.2", optional = true }

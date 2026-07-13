@@ -9,12 +9,15 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ito_dir;
 use ito_config::output;
+#[cfg(feature = "coordination-branch")]
+use ito_config::resolve_coordination_branch_settings;
+#[cfg(feature = "coordination-branch")]
 use ito_config::types::CoordinationStorage;
-use ito_config::{
-    ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
-};
+use ito_config::{ConfigContext, load_cascading_project_config};
 use ito_core::config as core_config;
+#[cfg(feature = "coordination-branch")]
 use ito_core::coordination_worktree::provision_coordination_worktree;
+#[cfg(feature = "coordination-branch")]
 use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -52,6 +55,8 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
+    #[cfg(not(feature = "coordination-branch"))]
+    let _ = no_coordination_worktree;
     let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
     let worktree_overrides = parse_worktree_overrides(args)?;
@@ -253,6 +258,16 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
     }
 
+    #[cfg(not(feature = "coordination-branch"))]
+    if setup_coordination_branch {
+        return Err(CliError::feature_unavailable(
+            "coordination-branch",
+            "ito init --setup-coordination-branch",
+            "omit --setup-coordination-branch, or install an experimental build with the coordination-branch feature",
+        ));
+    }
+
+    #[cfg(feature = "coordination-branch")]
     if setup_coordination_branch {
         let ito_path = ito_dir::get_ito_path(target_path, ctx);
         let project_root = ito_path.parent().ok_or_else(|| {
@@ -284,6 +299,7 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     // Coordination worktree setup: only for fresh init (not --upgrade), and only
     // when backend mode is not enabled. Failures are non-fatal — init still succeeds
     // but falls back to embedded storage mode.
+    #[cfg(feature = "coordination-branch")]
     if !upgrade {
         setup_coordination_worktree(target_path, ctx, no_coordination_worktree);
     }
@@ -698,6 +714,7 @@ fn resolve_tmux_preference(
 /// - `Err(err)` — logs a warning and falls back to embedded storage mode.
 ///
 /// All failures are non-fatal: a warning is printed and init continues.
+#[cfg(feature = "coordination-branch")]
 fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContext, skip: bool) {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
     let config_path = ito_path.join("config.json");
@@ -755,6 +772,7 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
 ///
 /// Reads the existing config (or starts from an empty object), sets the storage
 /// field, and writes the result back.
+#[cfg(feature = "coordination-branch")]
 fn write_coordination_storage(
     config_path: &std::path::Path,
     storage: CoordinationStorage,

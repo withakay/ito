@@ -4,15 +4,25 @@ use crate::commands::sync::{best_effort_sync_coordination, best_effort_sync_coor
 use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+#[cfg(feature = "coordination-branch")]
 use ito_core::coordination_worktree::maybe_auto_commit_coordination;
 use ito_core::repository_runtime::PersistenceMode;
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{DiagnosticLevel, TaskStatus, TasksFormat};
 
+#[cfg(feature = "backend")]
 mod backend;
+#[cfg(not(feature = "backend"))]
+mod backend_unavailable;
 mod support;
 
+#[cfg(feature = "backend")]
 use backend::{
+    handle_backend_allocate, handle_backend_claim, handle_backend_release, handle_backend_sync,
+    sync_after_mutation,
+};
+#[cfg(not(feature = "backend"))]
+use backend_unavailable::{
     handle_backend_allocate, handle_backend_claim, handle_backend_release, handle_backend_sync,
     sync_after_mutation,
 };
@@ -25,6 +35,7 @@ use support::{
 ///
 /// Failures are printed as warnings to stderr and never propagate — the
 /// primary task operation has already succeeded at this point.
+#[cfg(feature = "coordination-branch")]
 fn auto_commit_after_task_mutation(rt: &Runtime, change_id: &str, action: &str) {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -33,6 +44,9 @@ fn auto_commit_after_task_mutation(rt: &Runtime, change_id: &str, action: &str) 
         eprintln!("Warning: auto-commit to coordination worktree failed: {err}");
     }
 }
+
+#[cfg(not(feature = "coordination-branch"))]
+fn auto_commit_after_task_mutation(_rt: &Runtime, _change_id: &str, _action: &str) {}
 
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
     let Some(action) = &args.action else {
