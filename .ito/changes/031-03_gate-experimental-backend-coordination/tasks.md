@@ -141,7 +141,7 @@ ______________________________________________________________________
 - **Verify**: `dist plan` or the repository's cargo-dist check, release smoke tests, and `cargo tree -p ito-cli` assertions for default and experimental selections.
 - **Done When**: Standard artifacts prove their feature set, opt-in backend resolution remains viable, and evidence accurately reports why `rusqlite`, `sha2`, or `hex` may remain.
 - **Requirements**: release-automation:default-artifact-features, release-automation:accurate-dependency-evidence, backend-client-runtime:explicit-feature-propagation
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ______________________________________________________________________
