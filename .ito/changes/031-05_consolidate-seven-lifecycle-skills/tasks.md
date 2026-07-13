@@ -97,7 +97,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates legacy && cargo test -p ito-cli --test init_obsolete_cleanup && cargo test -p ito-cli --test update_marker_scoped && cargo test -p ito-core validate_repo`
 - **Done When**: A full current-surface fixture upgrades to the canonical managed seven, preserved user extensions are reported, unrelated skills remain, direct diagnostics name no retired helper, and a second update is byte-identical.
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 3.3: Update specs/docs and run cross-harness completion audit
 - **Files**: current Ito specs for routing, planning, agents, templates, memory, orchestration, init/update/hooks, asset naming/versioning, coordination remediation, tmux, archive, and spec sync; `.ito/wiki/topics/distribution-and-agents.md`; `docs/src/content/docs/`; `CHANGELOG.md`; harness fixture snapshots
