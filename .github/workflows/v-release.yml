@@ -326,32 +326,6 @@ jobs:
               exit 1
             fi
 
-            python3 - "$filename" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path("Formula") / sys.argv[1]
-          text = path.read_text()
-
-          if "service do\n" in text:
-              raise SystemExit(f"{path} already contains a Homebrew service block")
-
-          service_block = """
-            service do
-              run [opt_bin/"ito", "backend", "serve", "--service"]
-              keep_alive true
-              log_path var/"log/ito-backend.log"
-              error_log_path var/"log/ito-backend.log"
-            end
-          """.strip("\n")
-
-          stripped = text.rstrip()
-          if not stripped.endswith("end"):
-              raise SystemExit(f"Could not find final class end in {path}")
-
-          path.write_text(f"{stripped.removesuffix('end')}\n{service_block}\n\nend\n")
-          PY
-
             export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
             brew update
             # We avoid reformatting user-provided data such as the app description and homepage.

@@ -118,13 +118,21 @@ ito archive <change-id> -y
 
 ## Backend API
 
-Ito includes an optional multi-tenant backend API for coordinating multiple agents on shared projects. Several runtime options are available:
+Ito retains an experimental multi-tenant backend API for coordinating multiple
+agents on shared projects. It is disabled and omitted from standard Cargo,
+GitHub Release, installer, and Homebrew binaries. Build it explicitly or use
+the backend container:
+
+```bash
+cargo install ito-cli --no-default-features --features backend
+```
+
+Several experimental runtime options are available:
 
 | Runtime | Platform | Use Case |
 |---------|----------|----------|
 | Docker image | Any | Production, Kubernetes, homelab |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
-| Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
 **Quick start (`ito backend serve`):**
@@ -141,17 +149,6 @@ curl http://127.0.0.1:9010/api/v1/health
 docker compose -f docker-compose.backend.yml up -d
 curl http://127.0.0.1:9010/api/v1/health
 ```
-
-**Homebrew (macOS):**
-
-```bash
-brew tap withakay/ito
-brew install ito
-brew services start ito-cli
-```
-
-The Homebrew service runs `ito backend serve --service`, which creates backend auth in
-`~/.config/ito/config.json` on first start if it is missing.
 
 **systemd (Linux):**
 

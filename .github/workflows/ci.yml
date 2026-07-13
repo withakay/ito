@@ -235,13 +235,7 @@ jobs:
         run: make test
 
       - name: Assert standard dependency boundary
-        run: |
-          set -eu
-          cargo tree -p ito-cli --edges normal --prefix none > /tmp/ito-default-tree.txt
-          if grep -q '^ito-backend ' /tmp/ito-default-tree.txt; then
-            echo "ito-backend must not be present in the shipping dependency graph" >&2
-            exit 1
-          fi
+        run: make release-feature-check
 
       - name: Verify default iteration and migration surfaces
         run: |

@@ -15,7 +15,7 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 	lint-experimental clippy-experimental check-experimental \
 	bacon bacon-export \
 	fmt clippy \
-	arch-guardrails cargo-deny \
+	arch-guardrails cargo-deny release-feature-check \
 	config-schema config-schema-check \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
@@ -290,6 +290,9 @@ cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 		echo "Install: cargo install cargo-deny"; \
 		exit 1; \
 	fi
+
+release-feature-check: ## Verify standard release and experimental feature boundaries
+	python3 ito-rs/tools/check_release_features.py
 
 release: ## Create/update release PR via release-plz
 	@set -e; \
