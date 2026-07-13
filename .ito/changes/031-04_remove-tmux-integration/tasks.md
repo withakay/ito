@@ -47,7 +47,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-config && cargo test -p ito-cli init_ && cargo run -p ito-cli -- util config-schema --check`
 - **Done When**: The CLI and schema expose no tmux preference, legacy input is handled intentionally, and all non-tmux configuration tests pass.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Remove tmux viewer implementation
 - **Files**: `ito-rs/crates/ito-core/src/viewer/tmux_nvim.rs`; `ito-rs/crates/ito-core/src/viewer/mod.rs`; `ito-rs/crates/ito-core/src/viewer/registry.rs`; `ito-rs/crates/ito-cli/src/commands/view.rs`
