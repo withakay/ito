@@ -80,7 +80,7 @@ ______________________________________________________________________
 - **Verify**: Default-build CLI help/snapshot tests plus command tests for Ralph, loop, backend compatibility, and coordination compatibility.
 - **Done When**: Standard workflows are unchanged, experimental implementations do not leak into the default help surface, and known compiled-out requests produce actionable structured errors instead of unknown-command or fallback behavior.
 - **Requirements**: rust-workspace:default-iteration-surface, backend-client-runtime:compiled-out-error, change-coordination-branch:compiled-out-error
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ### Task 2.2: Keep migrate-to-main feature-neutral
