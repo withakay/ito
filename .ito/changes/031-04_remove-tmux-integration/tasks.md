@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core viewer && cargo test -p ito-cli view_`
 - **Done When**: `tmux-nvim` is unknown, no runtime process invocation references tmux, and all remaining viewers retain their prior availability/error behavior.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave 3: Assets, cleanup, and proof
