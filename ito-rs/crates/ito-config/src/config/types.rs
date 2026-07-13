@@ -474,7 +474,7 @@ pub struct CoordinationBranchEnabled(pub bool);
 
 impl CoordinationBranchConfig {
     fn default_enabled() -> CoordinationBranchEnabled {
-        CoordinationBranchEnabled(true)
+        CoordinationBranchEnabled(false)
     }
 
     fn default_name() -> String {
@@ -583,10 +583,10 @@ impl std::fmt::Display for ArchiveMainIntegrationMode {
 #[schemars(description = "Storage backend for coordination data")]
 /// Storage backend used to persist coordination data.
 pub enum CoordinationStorage {
-    /// Store coordination data in the git worktree (default).
-    #[default]
+    /// Store coordination data in the git worktree.
     Worktree,
-    /// Store coordination data embedded in the repository.
+    /// Store coordination data embedded in the repository (default).
+    #[default]
     Embedded,
 }
 

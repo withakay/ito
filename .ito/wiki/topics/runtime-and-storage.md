@@ -32,6 +32,9 @@ mutation services.
 - Coordination worktree storage shares change, module, spec, workflow, and
   audit state across change worktrees through `.ito/*` runtime links, but is a
   legacy layout rather than the default direction.
+- New configurations default coordination to disabled with embedded,
+  main-tracked storage. Experimental features add availability without
+  activating either backend or coordination behavior.
 - Worktree lifecycle is Worktrunk-backed for creation/switching while retaining
   Ito's configured `ito-worktrees/<change-id>` path convention.
 

@@ -18,6 +18,19 @@ fn reports_the_compiled_feature_set() {
 }
 
 #[test]
+fn main_compatible_defaults_need_no_experimental_capability() {
+    let config = ItoConfig::default();
+    assert!(!config.backend.enabled);
+    assert!(!config.changes.coordination_branch.enabled.0);
+    assert_eq!(
+        config.changes.coordination_branch.storage,
+        CoordinationStorage::Embedded
+    );
+    preflight_config(&config, CapabilityPreflight::Stateful)
+        .expect("default configuration must work in the shipping binary");
+}
+
+#[test]
 fn backend_config_is_rejected_or_accepted_by_compiled_capability() {
     let mut config = ItoConfig::default();
     config.backend.enabled = true;

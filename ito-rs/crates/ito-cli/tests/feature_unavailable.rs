@@ -113,3 +113,35 @@ fn either_legacy_coordination_signal_is_rejected_before_mutation() {
         assert_eq!(std::fs::read_dir(&ito_dir).expect("read .ito").count(), 1);
     }
 }
+
+#[test]
+fn invalid_experimental_config_remains_a_configuration_error() {
+    let project = tempfile::tempdir().expect("temp project");
+    let ito_dir = project.path().join(".ito");
+    std::fs::create_dir(&ito_dir).expect("create .ito");
+    std::fs::write(
+        ito_dir.join("config.json"),
+        r#"{
+          "backend": { "enabled": false },
+          "changes": {
+            "coordination_branch": { "enabled": false, "storage": "unknown" }
+          }
+        }"#,
+    )
+    .expect("write config");
+
+    let output = ito()
+        .current_dir(project.path())
+        .args(["list", "--json"])
+        .output()
+        .expect("run ito");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unknown variant `unknown`"),
+        "stderr={stderr}"
+    );
+    assert!(!stderr.contains("feature unavailable"), "stderr={stderr}");
+    assert_eq!(std::fs::read_dir(&ito_dir).expect("read .ito").count(), 1);
+}

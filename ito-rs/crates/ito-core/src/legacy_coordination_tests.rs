@@ -4,8 +4,17 @@ use std::path::Path;
 use ito_config::types::{CoordinationBranchConfig, CoordinationBranchEnabled, CoordinationStorage};
 use tempfile::TempDir;
 
-use super::{LegacyCoordinationClass, ManagedPathKind, inspect_legacy_coordination};
-use crate::coordination::{COORDINATION_DIRS, create_dir_link};
+use super::{
+    LegacyCoordinationClass, MANAGED_STATE_DIRS, ManagedPathKind, inspect_legacy_coordination,
+};
+
+fn create_managed_link(source: &Path, destination: &Path) {
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(source, destination).expect("managed link");
+
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_dir(source, destination).expect("managed link");
+}
 
 fn config(enabled: bool, storage: CoordinationStorage) -> CoordinationBranchConfig {
     CoordinationBranchConfig {
@@ -24,7 +33,7 @@ fn roots() -> (TempDir, std::path::PathBuf, std::path::PathBuf) {
 }
 
 fn create_embedded_dirs(ito: &Path) {
-    for name in COORDINATION_DIRS {
+    for name in MANAGED_STATE_DIRS {
         fs::create_dir_all(ito.join(name)).expect("managed directory");
     }
 }
@@ -59,7 +68,7 @@ fn real_directories_with_embedded_storage_are_main_compatible() {
     .expect("inspection");
 
     assert_eq!(report.classification, LegacyCoordinationClass::Embedded);
-    assert_eq!(report.managed_paths.len(), COORDINATION_DIRS.len());
+    assert_eq!(report.managed_paths.len(), MANAGED_STATE_DIRS.len());
     assert!(
         report
             .managed_paths
@@ -88,8 +97,8 @@ fn expected_coordination_links_are_legacy() {
     let (_temp, project, ito) = roots();
     let coordination_ito = project.join("coordination").join(".ito");
     create_embedded_dirs(&coordination_ito);
-    for name in COORDINATION_DIRS {
-        create_dir_link(&coordination_ito.join(name), &ito.join(name)).expect("link");
+    for name in MANAGED_STATE_DIRS {
+        create_managed_link(&coordination_ito.join(name), &ito.join(name));
     }
 
     let report = inspect_legacy_coordination(
@@ -117,7 +126,7 @@ fn broken_expected_link_is_still_legacy_evidence() {
     let (_temp, project, ito) = roots();
     let coordination_ito = project.join("coordination").join(".ito");
     let expected = coordination_ito.join("changes");
-    create_dir_link(&expected, &ito.join("changes")).expect("broken link");
+    create_managed_link(&expected, &ito.join("changes"));
 
     let report = inspect_legacy_coordination(
         &project,
@@ -145,7 +154,7 @@ fn wrong_link_target_is_ambiguous() {
     let coordination_ito = project.join("coordination").join(".ito");
     let wrong = project.join("wrong");
     fs::create_dir_all(&wrong).expect("wrong target");
-    create_dir_link(&wrong, &ito.join("changes")).expect("wrong link");
+    create_managed_link(&wrong, &ito.join("changes"));
 
     let report = inspect_legacy_coordination(
         &project,
@@ -166,8 +175,8 @@ fn inconsistent_link_roots_are_ambiguous_without_an_expected_root() {
     let second_root = project.join("second/.ito");
     fs::create_dir_all(first_root.join("changes")).expect("first target");
     fs::create_dir_all(second_root.join("specs")).expect("second target");
-    create_dir_link(&first_root.join("changes"), &ito.join("changes")).expect("first link");
-    create_dir_link(&second_root.join("specs"), &ito.join("specs")).expect("second link");
+    create_managed_link(&first_root.join("changes"), &ito.join("changes"));
+    create_managed_link(&second_root.join("specs"), &ito.join("specs"));
 
     let report = inspect_legacy_coordination(
         &project,
@@ -185,7 +194,7 @@ fn mixed_link_and_non_empty_real_directory_is_ambiguous() {
     let (_temp, project, ito) = roots();
     let coordination_ito = project.join("coordination").join(".ito");
     create_embedded_dirs(&coordination_ito);
-    create_dir_link(&coordination_ito.join("changes"), &ito.join("changes")).expect("link");
+    create_managed_link(&coordination_ito.join("changes"), &ito.join("changes"));
     fs::create_dir_all(ito.join("specs")).expect("specs");
     fs::write(ito.join("specs/spec.md"), "conflicting").expect("conflict");
 
@@ -280,7 +289,7 @@ fn inspection_does_not_change_files_or_links() {
     let (_temp, project, ito) = roots();
     let coordination_ito = project.join("coordination").join(".ito");
     create_embedded_dirs(&coordination_ito);
-    create_dir_link(&coordination_ito.join("changes"), &ito.join("changes")).expect("link");
+    create_managed_link(&coordination_ito.join("changes"), &ito.join("changes"));
     let gitignore = "# Ito coordination worktree symlinks\n.ito/changes\n";
     fs::write(project.join(".gitignore"), gitignore).expect("gitignore");
     let before_target = fs::read_link(ito.join("changes")).expect("target before");
