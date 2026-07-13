@@ -30,7 +30,7 @@ ______________________________________________________________________
 - **Verify**: `cargo metadata --no-deps --format-version 1` and focused manifest tests/assertions for default members and feature propagation.
 - **Done When**: Cargo metadata expresses four valid combinations (default, backend-only, coordination-only, all-features), `ito-backend` explicitly activates core backend support, and neither experimental feature implies the other.
 - **Requirements**: rust-workspace:independent-experimental-features, rust-workspace:primary-default-member, backend-client-runtime:explicit-feature-propagation, change-coordination-branch:independent-feature-gate
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ### Task 1.2: Introduce the compiled-capability preflight and typed error
