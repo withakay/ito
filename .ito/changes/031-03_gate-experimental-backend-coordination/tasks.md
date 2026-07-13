@@ -41,7 +41,7 @@ ______________________________________________________________________
 - **Verify**: Focused core and CLI tests built without experimental features, including assertions on the structured error fields and proof that fallback repositories/mutations are never constructed.
 - **Done When**: Compiled-out requests fail through one typed contract, invalid configuration remains distinguishable, and stateful commands cannot silently select filesystem or embedded fallback.
 - **Requirements**: backend-client-runtime:compiled-out-error, change-coordination-branch:compiled-out-error, cascading-config:parse-compiled-out-features
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ### Task 1.3: Gate backend implementation code
