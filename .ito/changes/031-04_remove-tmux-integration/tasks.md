@@ -79,7 +79,7 @@ ______________________________________________________________________
 - **Verify**: `make check && cargo test --workspace --all-features --exclude ito-web && rg -n "tmux|tmux-nvim|ito-tmux|tools\.tmux" ito-rs schemas docs/src .github Makefile`
 - **Done When**: Default and all-feature checks pass, Ralph/loop smoke tests remain green, and the scoped search has no live integration references other than an intentional release note describing removal.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave Guidelines

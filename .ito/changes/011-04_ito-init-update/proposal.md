@@ -10,7 +10,7 @@
 - Make interactive `ito init` read existing project config before prompting and use configured values as the default selections in the TUI.
 - Update generated Ito instructions so any worktree-enabled repo tells agents to create/use a dedicated change worktree before any write operation, rather than doing proposal, code, docs, generated-asset, or commit work from the main/control checkout.
 - Preserve existing explicit config values unless the user changes them in the wizard or passes an overriding non-interactive flag.
-- Add tests that cover rerunning init against an existing config with tmux, worktrees, and bare sibling strategy already selected.
+- Add tests that cover rerunning init against an existing config with worktrees and the bare sibling strategy already selected.
 
 ## Capabilities
 

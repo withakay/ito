@@ -7,12 +7,6 @@ Interactive `ito init` SHALL load any existing project config before prompting a
 
 - **Requirement ID**: cli-init:existing-config-wizard-defaults
 
-#### Scenario: Existing tmux preference is selected
-
-- **GIVEN** a project config contains `tools.tmux.enabled = true`
-- **WHEN** the user runs interactive `ito init`
-- **THEN** the tmux prompt defaults to `Yes`
-
 #### Scenario: Existing worktree strategy is selected
 
 - **GIVEN** a project config enables worktrees and sets the bare sibling strategy

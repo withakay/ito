@@ -34,7 +34,7 @@ ______________________________________________________________________
 
 - **Files**: `ito-rs/crates/ito-cli/tests`, `ito-rs/crates/ito-test-support`
 - **Dependencies**: None
-- **Action**: Add regression tests for interactive init defaults when existing config enables tmux, worktrees, and the bare sibling strategy.
+- **Action**: Add regression tests for interactive init defaults when existing config enables worktrees and the bare sibling strategy.
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture` or the nearest added init test command
 - **Done When**: Tests fail against the current behavior and assert selected defaults plus preserved resulting config.
 - **Requirements**: cli-init:existing-config-wizard-defaults
@@ -53,7 +53,7 @@ ______________________________________________________________________
 - **Dependencies**: None
 - **Action**: Load existing config before rendering init prompts and use explicit values as prompt defaults, falling back to current defaults only when values are unset.
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture`
-- **Done When**: Rerunning interactive init preselects existing tmux/worktree/bare sibling values and preserves accepted defaults.
+- **Done When**: Rerunning interactive init preselects existing worktree/bare sibling values and preserves accepted defaults.
 - **Requirements**: cli-init:existing-config-wizard-defaults
 - **Updated At**: 2026-05-26
 - **Status**: [x] complete
