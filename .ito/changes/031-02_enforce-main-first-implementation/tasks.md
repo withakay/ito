@@ -139,7 +139,7 @@ ______________________________________________________________________
 - **Done When**: CLI help, docs, skills, commands, and generated harness assets describe one consistent main-first lifecycle.
 - **Requirements**: main-first-implementation:proposal-integration-mode, main-first-implementation:verified-worktree-base, main-first-implementation:readiness-reporting
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Prove the full lifecycle and side-effect boundaries
 
