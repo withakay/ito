@@ -35,7 +35,7 @@ ______________________________________________________________________
 - **Done When**: Tests enumerate every command variant, prove mutating is the fail-closed default, and document the recovery exceptions.
 - **Updated At**: 2026-07-13
 - **Requirements**: coordination-main-migration:read-write-safety-policy
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 ## Wave 2: Runtime guard and migration instruction
