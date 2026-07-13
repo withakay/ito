@@ -115,6 +115,9 @@ pub mod installers;
 /// List/query project entities (modules, changes, tasks).
 pub mod list;
 
+/// Read-only inspection of repositories using legacy coordination storage.
+pub mod legacy_coordination;
+
 /// Agent memory provider resolution and instruction rendering.
 pub mod memory;
 

@@ -221,24 +221,19 @@ Change coordination settings live under `changes.coordination_branch`:
 
 - `changes.coordination_branch.enabled`
 - `changes.coordination_branch.name`
+- `changes.coordination_branch.storage`
+- `changes.coordination_branch.worktree_path`
 
-#### Instruction sync behavior
+Coordination-worktree storage is a legacy layout. When Ito detects its configuration, managed links, or `.gitignore` markers, read-only commands emit a remediation warning and stateful commands stop before dispatch. Run `ito agent instruction migrate-to-main` (or the installed `/ito-migrate-to-main` prompt) to inventory, verify, and migrate the state into real directories on a reviewed main-bound branch. The source coordination worktree is retained as rollback evidence.
 
-When generating change-scoped instructions, Ito decides per-artifact whether
-to sync the coordination branch before rendering. `archive` and `finish` use
-dedicated handlers, but they also run a best-effort sync before rendering.
+#### Legacy sync behavior
 
-| Artifact | Default sync | `--sync` flag |
-| --- | --- | --- |
-| `apply` | **No** — renders from local state; no network I/O | Opt-in: pass `--sync` to fetch first |
-| `proposal` | **Yes** — always fetches coordination state | Ignored (always syncs) |
-| `review` | **Yes** — always fetches coordination state | Ignored (always syncs) |
-| `archive`, `finish` | **Yes** — dedicated handlers always fetch coordination state | Ignored (always syncs) |
-| Other (`specs`, `tasks`, `design`, …) | **No** | Ignored (never syncs) |
-
-The `--sync` flag changes behavior only for `apply`. For other artifacts the
-sync policy is fixed. To refresh coordination state independently, run
-`ito sync` (a no-op unless coordination-worktree storage is active).
+Older coordination-worktree projects may still contain automatic instruction
+sync settings and the `ito sync` command. These are compatibility surfaces, not
+a recommended workflow. While legacy or ambiguous evidence remains, the
+pre-dispatch guard suppresses incidental sync for allowed reads and blocks
+stateful commands. Do not pass `--sync` or run `ito sync` to deepen the legacy
+state; render and follow `migrate-to-main` instead.
 
 ### Agent memory
 

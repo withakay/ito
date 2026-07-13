@@ -12,6 +12,10 @@ Keep this block so `ito init --upgrade` can refresh managed content safely. To r
 
 When present, use `.ito/wiki/index.md` for Ito-scoped synthesis, freshness warnings, and archive follow-through.
 
+## Legacy Coordination Recovery
+
+If Ito reports legacy or ambiguous coordination-worktree storage, inspection commands remain available but stateful commands are blocked. Do not repair links or copy state by hand. Run `/ito-migrate-to-main` or `ito agent instruction migrate-to-main`, then follow the emitted inventory, conflict-stop, validation, and reviewed-integration procedure before starting implementation.
+
 ## Path Helpers
 
 Use `ito path ...` for runtime absolute paths; do not hardcode machine-specific paths into committed files:

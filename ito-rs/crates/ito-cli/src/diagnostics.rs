@@ -1,7 +1,56 @@
 use std::path::Path;
 
+use ito_core::legacy_coordination::LegacyCoordinationClass;
 use ito_core::tasks::{DiagnosticLevel, TaskDiagnostic};
 use ito_core::validate::ValidationIssue;
+
+const MIGRATE_TO_MAIN_COMMAND: &str = "ito agent instruction migrate-to-main";
+
+/// Typed error returned when legacy coordination evidence blocks a mutation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LegacyCoordinationMutationBlocked {
+    classification: LegacyCoordinationClass,
+}
+
+impl LegacyCoordinationMutationBlocked {
+    /// Construct a blocking diagnostic for the detected storage state.
+    pub(crate) fn new(classification: LegacyCoordinationClass) -> Self {
+        Self { classification }
+    }
+}
+
+impl std::fmt::Display for LegacyCoordinationMutationBlocked {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "legacy coordination storage is {}; mutating command blocked before execution. No mutation occurred. Run `{}` to prepare a reviewed migration to main",
+            classification_label(self.classification),
+            MIGRATE_TO_MAIN_COMMAND
+        )
+    }
+}
+
+impl std::error::Error for LegacyCoordinationMutationBlocked {}
+
+/// Format the single warning emitted before an allowed legacy-state read.
+pub(crate) fn format_legacy_coordination_read_warning(
+    classification: LegacyCoordinationClass,
+) -> String {
+    format!(
+        "Warning: legacy coordination storage is {}; read-only command allowed without logging or synchronization. Run `{}` to prepare a reviewed migration to main",
+        classification_label(classification),
+        MIGRATE_TO_MAIN_COMMAND
+    )
+}
+
+fn classification_label(classification: LegacyCoordinationClass) -> &'static str {
+    match classification {
+        LegacyCoordinationClass::Absent => "absent",
+        LegacyCoordinationClass::Embedded => "embedded",
+        LegacyCoordinationClass::Legacy => "active",
+        LegacyCoordinationClass::Ambiguous => "ambiguous",
+    }
+}
 
 pub fn format_path_line(path: &Path, line: Option<usize>) -> String {
     match line {

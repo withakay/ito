@@ -66,6 +66,8 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 return Ok(());
             }
             _ => {
+                let rt = Runtime::new();
+                super::legacy_coordination::enforce_legacy_coordination_parse_failure_guard(&rt)?;
                 let ctx = ConfigContext::from_process_env();
                 util::maybe_log_invalid_command_early(&ctx, args, &e.to_string());
                 return fail(e.to_string());
@@ -78,6 +80,10 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
     }
 
     let rt = Runtime::new();
+
+    if let Some(command) = cli.command.as_ref() {
+        super::legacy_coordination::enforce_legacy_coordination_guard(&rt, command)?;
+    }
 
     let command_id = util::command_id_from_args(args);
     let project_root = util::project_root_for_logging(&rt, args);

@@ -1,6 +1,6 @@
 use ito_core::distribution::{
-    AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
-    opencode_manifests,
+    AssetType, MIGRATE_TO_MAIN_PROMPT, claude_manifests, codex_manifests, github_manifests,
+    install_manifests, opencode_manifests, pi_manifests,
 };
 use ito_core::installers::{InitOptions, InstallMode};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -236,6 +236,49 @@ fn wiki_skills_are_distributed_to_all_harnesses() {
                 "expected {source} in {harness} manifests"
             );
         }
+    }
+}
+
+#[test]
+fn migrate_to_main_prompt_is_distributed_to_all_harnesses() {
+    let project_root = Path::new("/tmp/test");
+
+    for (harness, manifests) in [
+        ("opencode", opencode_manifests(project_root)),
+        ("claude", claude_manifests(project_root)),
+        ("codex", codex_manifests(project_root)),
+        ("github", github_manifests(project_root)),
+        ("pi", pi_manifests(project_root)),
+    ] {
+        let prompt = manifests.iter().find(|manifest| {
+            manifest.asset_type == AssetType::Command && manifest.source == MIGRATE_TO_MAIN_PROMPT
+        });
+        let prompt =
+            prompt.unwrap_or_else(|| panic!("missing migrate-to-main prompt for {harness}"));
+        let destination = prompt.dest.to_string_lossy();
+        assert!(
+            destination.contains("migrate-to-main"),
+            "unexpected {harness} destination: {destination}"
+        );
+
+        let td = tempfile::tempdir().expect("harness install root");
+        let installed = match harness {
+            "opencode" => opencode_manifests(&td.path().join(".opencode")),
+            "claude" => claude_manifests(td.path()),
+            "codex" => codex_manifests(td.path()),
+            "github" => github_manifests(td.path()),
+            "pi" => pi_manifests(td.path()),
+            _ => unreachable!("known harness"),
+        };
+        let prompt = installed
+            .into_iter()
+            .find(|manifest| manifest.source == MIGRATE_TO_MAIN_PROMPT)
+            .expect("installed migration prompt");
+        let (mode, opts) = legacy_init_args();
+        install_manifests(std::slice::from_ref(&prompt), None, mode, &opts)
+            .expect("install migration prompt");
+        let content = std::fs::read_to_string(&prompt.dest).expect("read installed prompt");
+        assert!(content.contains("ito agent instruction migrate-to-main"));
     }
 }
 

@@ -12,5 +12,6 @@ publish = false
 chrono = { workspace = true }
 ito-domain = { path = "../ito-domain" }
 portable-pty = { workspace = true }
+sha2 = { workspace = true }
 strip-ansi-escapes = { workspace = true }
 tempfile = { workspace = true }

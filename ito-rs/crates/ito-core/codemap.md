@@ -3,6 +3,7 @@
 [Entry Points]|src/lib.rs: module map + re-exports |src/repository_runtime.rs: composition point for fs/backend repo impls
 |src/{create,archive,validate,show,list}: core workflow use-cases |src/installers: ito init/update file installation
 |src/{harness,orchestrate,ralph}: AI-agent workflow integrations
+|src/legacy_coordination.rs: unconditional, side-effect-free inspection of legacy coordination evidence
 
 [Design]|policy-heavy, UI-light; domain traits from ito-domain; concrete fs/backend adapters here
 |template bytes from ito-templates; this crate decides where/how to write/render them

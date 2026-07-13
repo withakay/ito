@@ -6,6 +6,9 @@ use serde::Serialize;
 
 static INSTRUCTIONS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/instructions");
 
+/// Embedded template path for the reversible legacy-coordination migration prompt.
+pub const MIGRATE_TO_MAIN_TEMPLATE_PATH: &str = "agent/migrate-to-main.md.j2";
+
 /// List all embedded instruction template paths.
 pub fn list_instruction_templates() -> Vec<&'static str> {
     let mut out = Vec::new();
@@ -87,6 +90,10 @@ fn collect_paths(dir: &'static Dir<'static>, out: &mut Vec<&'static str>) {
 #[cfg(test)]
 #[path = "instructions_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "instructions_migrate_to_main_tests.rs"]
+mod migrate_to_main_tests;
 
 #[cfg(test)]
 #[path = "instructions_manifesto_tests.rs"]

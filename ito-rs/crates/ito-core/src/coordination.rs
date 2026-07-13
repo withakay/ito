@@ -17,21 +17,7 @@ use ito_config::types::CoordinationStorage;
 use crate::errors::{CoreError, CoreResult};
 
 /// Subdirectories of `.ito/` that are wired to the coordination worktree.
-pub const COORDINATION_DIRS: &[&str] = &["changes", "specs", "modules", "workflows", "audit"];
-
-/// Canonical `.gitignore` entries for the coordination-worktree symlinks.
-///
-/// Each entry corresponds to one directory in [`COORDINATION_DIRS`]
-/// prefixed with `.ito/`. Both [`update_gitignore_for_symlinks`] and the
-/// `coordination/gitignore-entries` rule consume this list, so any changes
-/// stay in lockstep.
-const COORDINATION_GITIGNORE_ENTRIES: &[&str] = &[
-    ".ito/changes",
-    ".ito/specs",
-    ".ito/modules",
-    ".ito/workflows",
-    ".ito/audit",
-];
+pub use crate::legacy_coordination::MANAGED_STATE_DIRS as COORDINATION_DIRS;
 
 /// Return the canonical `.gitignore` entries for coordination-worktree
 /// symlinks.
@@ -41,7 +27,7 @@ const COORDINATION_GITIGNORE_ENTRIES: &[&str] = &[
 /// module).
 #[must_use]
 pub fn gitignore_entries() -> &'static [&'static str] {
-    COORDINATION_GITIGNORE_ENTRIES
+    crate::legacy_coordination::managed_gitignore_entries()
 }
 
 // ── Platform-abstracted symlink creation ─────────────────────────────────────

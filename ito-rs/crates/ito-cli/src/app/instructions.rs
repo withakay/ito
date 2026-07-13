@@ -201,6 +201,70 @@ then re-run:\n\n\
 
         return emit_instruction(want_json, "orchestrate", instruction);
     }
+    if artifact == "migrate-to-main" {
+        let (typed, config_error) =
+            match serde_json::from_value::<ItoConfig>(rt.resolved_config().merged.clone()) {
+                Ok(typed) => (typed, None),
+                Err(error) => (
+                    ItoConfig::default(),
+                    Some(format!("resolved Ito configuration is invalid: {error}")),
+                ),
+            };
+        let ito_root = rt.ito_path();
+        let project_root = ito_root.parent().unwrap_or(ito_root);
+        let expected_coordination_ito_root =
+            ito_core::legacy_coordination::expected_coordination_ito_root(
+                project_root,
+                ito_root,
+                &typed.changes.coordination_branch,
+                &typed.backend,
+            );
+        let observed_evidence_json = if let Some(error) = config_error {
+            serde_json::to_string_pretty(&serde_json::json!({
+                "classification": { "kind": "inspection_error" },
+                "error": error,
+            }))
+            .map_err(to_cli_error)?
+        } else {
+            match ito_core::legacy_coordination::inspect_legacy_coordination(
+                project_root,
+                ito_root,
+                &typed.changes.coordination_branch,
+                expected_coordination_ito_root.as_deref(),
+            ) {
+                Ok(report) => serde_json::to_string_pretty(&report).map_err(to_cli_error)?,
+                Err(error) => serde_json::to_string_pretty(&serde_json::json!({
+                    "classification": { "kind": "inspection_error" },
+                    "error": error.to_string(),
+                }))
+                .map_err(to_cli_error)?,
+            }
+        };
+        let expected_managed_paths = ito_core::legacy_coordination::MANAGED_STATE_DIRS
+            .iter()
+            .map(|name| ito_root.join(name).to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            ito_templates::instructions::MIGRATE_TO_MAIN_TEMPLATE_PATH,
+            &serde_json::json!({
+                "project_root": project_root.to_string_lossy(),
+                "ito_root": ito_root.to_string_lossy(),
+                "coordination_branch_name": typed.changes.coordination_branch.name,
+                "coordination_enabled": typed.changes.coordination_branch.enabled.0,
+                "coordination_storage": typed.changes.coordination_branch.storage.as_str(),
+                "expected_coordination_ito_root": expected_coordination_ito_root
+                    .as_deref()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "unresolved".to_string()),
+                "expected_managed_paths": expected_managed_paths,
+                "observed_evidence_json": observed_evidence_json,
+                "main_integration_mode": typed.changes.archive.main_integration_mode.as_str(),
+            }),
+        )
+        .map_err(|error| to_cli_error(format!("rendering migrate-to-main instruction: {error}")))?;
+        return emit_instruction(want_json, "migrate-to-main", instruction);
+    }
     if artifact == "migrate-to-coordination-worktree" {
         let (_coord_enabled, coord_branch) =
             resolve_coordination_branch_settings(&rt.resolved_config().merged);
