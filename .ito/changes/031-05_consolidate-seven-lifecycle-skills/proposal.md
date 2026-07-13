@@ -30,8 +30,15 @@ The default installation should present a small, memorable lifecycle. Supporting
 ### Modified Capabilities
 - `ito-skill-routing`: Route agents through the seven-skill lifecycle without exposing redundant helper destinations.
 - `agent-surface-taxonomy`: Distinguish harness-native agent definitions from installed skills and prevent delegated roles from expanding the default skill inventory.
-- `distribution`: Install the same exact skill inventory for every supported harness.
-- `ito-update-repo-skill`: Prune obsolete Ito-managed skills and commands safely during update/upgrade while preserving user-owned content.
+- `cli-skills`: Install the same exact skill inventory for every supported harness through init/update.
+- `cli-update`: Prune obsolete Ito-managed skills and commands safely during update/upgrade while preserving user-owned content.
+- `template-assets`: Stop expressing delegated Codex roles as additional installed skills and consolidate obsolete orchestration assets.
+- `agent-memory-abstraction`: Retain memory instruction artifacts while folding their lifecycle guidance into retained skills instead of installing `ito-memory`.
+- `ito-update-repo-skill`: Retire the standalone update-repo skill and its command shells; keep essential managed update behavior in the CLI and retained `ito` lifecycle guidance.
+- `ito-init`: Retire helper-specific post-init setup advisories; retained `ito` guidance and direct CLI validation remain available.
+- `orchestrate-setup`: Replace the standalone orchestration setup skill with instruction-backed guidance reachable from retained lifecycle skills.
+- `orchestrate-instruction`: Keep orchestration policy authoritative in the rendered instruction without requiring retired setup/workflow skills.
+- `pre-commit-hooks`: Preserve opt-in downstream hook guidance without routing through the retired `ito-update-repo` skill.
 
 ## Impact
 
