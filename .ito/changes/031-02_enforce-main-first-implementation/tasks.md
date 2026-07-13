@@ -89,7 +89,7 @@ ______________________________________________________________________
 - **Done When**: No apply/setup path bypasses the central gate and worktree creation uses the captured OID.
 - **Requirements**: main-first-implementation:prepare-readiness, main-first-implementation:verified-worktree-base, main-first-implementation:entrypoint-enforcement
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.3: Gate task mutations
 
