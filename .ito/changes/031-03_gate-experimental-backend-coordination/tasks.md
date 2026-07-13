@@ -169,7 +169,7 @@ ______________________________________________________________________
 - **Verify**: Replay the Showboat document commands successfully against the implementation worktree.
 - **Done When**: Reviewers can reproduce the build boundary and release claims from captured command output without relying on narrative assertions.
 - **Requirements**: release-automation:default-artifact-features, release-automation:accurate-dependency-evidence, rust-workspace:primary-default-member, rust-workspace:default-iteration-surface
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-14
 
 ### Task 4.3: Complete independent review and repository checks
