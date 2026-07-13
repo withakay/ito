@@ -25,7 +25,7 @@ ______________________________________________________________________
 - **Done When**: The test matrix covers configuration-only, correct links, broken links, wrong links, mixed real/link state, residual markers, and fully materialized real directories; detector calls leave fixture state unchanged.
 - **Updated At**: 2026-07-13
 - **Requirements**: coordination-main-migration:legacy-state-detection
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Define exhaustive CLI command intent policy
 - **Files**: `ito-rs/crates/ito-cli/src/app/legacy_coordination.rs`; `ito-rs/crates/ito-cli/src/app/legacy_coordination_tests.rs`; `ito-rs/crates/ito-cli/src/app/mod.rs`; `ito-rs/crates/ito-cli/src/cli.rs`
