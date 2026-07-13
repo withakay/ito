@@ -6,25 +6,25 @@
 The detector gathers configuration, managed-path, link-target, and gitignore evidence without mutation. The CLI policy then classifies every compiled top-level command and fails closed for unknown or mutating operations.
 
 ```bash
-CARGO_TARGET_DIR=target-showboat CARGO_TERM_COLOR=never cargo test --quiet -p ito-core --lib legacy_coordination 2>&1 | sed -E 's/[0-9]+\.[0-9]+s/<TIME>/g'
+CARGO_TARGET_DIR=target-showboat CARGO_TERM_COLOR=never cargo test --quiet -p ito-core --lib legacy_coordination 2>&1 | sed -E -e 's/[0-9]+\.[0-9]+s/<TIME>/g' -e 's/[0-9]+ filtered out/<FILTERED> filtered out/g'
 ```
 
 ```output
 
-running 13 tests
-.............
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 730 filtered out; finished in <TIME>
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; <FILTERED> filtered out; finished in <TIME>
 
 ```
 
 ```bash
-CARGO_TARGET_DIR=target-showboat CARGO_TERM_COLOR=never cargo test --quiet -p ito-cli --bin ito command_intent 2>&1 | sed -E 's/[0-9]+\.[0-9]+s/<TIME>/g'
+CARGO_TARGET_DIR=target-showboat CARGO_TERM_COLOR=never cargo test --quiet -p ito-cli --bin ito command_intent 2>&1 | sed -E -e 's/[0-9]+\.[0-9]+s/<TIME>/g' -e 's/[0-9]+ filtered out/<FILTERED> filtered out/g'
 ```
 
 ```output
 
 running 4 tests
 ....
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 97 filtered out; finished in <TIME>
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; <FILTERED> filtered out; finished in <TIME>
 
 ```
