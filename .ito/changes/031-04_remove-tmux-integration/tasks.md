@@ -70,7 +70,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates legacy && cargo test -p ito-core distribution && cargo test -p ito-cli --test init_obsolete_cleanup`
 - **Done When**: Fresh installs contain no tmux assets; upgrade/update removes obsolete Ito-managed copies idempotently; unrelated and user-owned paths are preserved.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Update active docs and run scoped zero-reference verification
 - **Files**: `docs/src/content/docs/`; `.ito/wiki/topics/distribution-and-agents.md`; `CHANGELOG.md`; current generated/config fixtures and snapshot tests
