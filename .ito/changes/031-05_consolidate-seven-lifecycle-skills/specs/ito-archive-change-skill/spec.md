@@ -36,4 +36,30 @@ The retained `ito-archive` skill SHALL report archive location, schema, spec-pro
 #### Scenario: Archive completes without spec promotion
 - **WHEN** archive completes with no delta specs to promote
 - **THEN** the output identifies the archived location and schema
+
+## ADDED Requirements
+
+### Requirement: Archive reconciles accepted delta operations into current specs
+The archive implementation SHALL reconcile accepted delta specs by exact requirement heading before moving the change. It SHALL normalize current specs to a single `## Requirements` section and preserve unrelated requirements and purpose text.
+
+#### Scenario: Added requirement
+- **WHEN** a delta contains an ADDED requirement absent from the current spec
+- **THEN** archive appends that requirement exactly once
+
+#### Scenario: Modified requirement
+- **WHEN** a delta contains a MODIFIED requirement with an exact current heading
+- **THEN** archive replaces only that requirement and preserves unrelated requirements
+
+#### Scenario: Removed requirement
+- **WHEN** a delta contains a REMOVED requirement with an exact current heading
+- **THEN** archive removes that requirement
+- **AND** removes the capability spec when no current requirements remain
+
+#### Scenario: Renamed requirement
+- **WHEN** a delta contains a RENAMED `FROM:` and `TO:` pair
+- **THEN** archive renames the exact current requirement without changing its body
+
+#### Scenario: Invalid delta identity
+- **WHEN** a delta attempts to add a duplicate or modify, remove, or rename a missing requirement
+- **THEN** archive fails before overwriting the current spec
 <!-- ITO:END -->

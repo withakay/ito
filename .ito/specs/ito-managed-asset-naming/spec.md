@@ -1,4 +1,6 @@
-## ADDED Requirements
+<!-- ITO:START -->
+
+## Requirements
 
 ### Requirement: Ito-Managed Asset Prefix
 
@@ -49,20 +51,19 @@ Tooling that identifies orphan Ito assets in a project (for example the `ito-upd
 - **THEN** the asset SHALL be reported as an orphan candidate
 
 ### Requirement: Enforce Prefix in Templates Bundle
+The `ito-templates` crate SHALL ship exactly the canonical seven Ito-managed skill directories and SHALL enforce Ito naming rules for other managed command, prompt, and native-agent assets. It MUST NOT preserve obsolete prefixed helpers merely because their names satisfy the prefix rule.
 
-The `ito-templates` crate SHALL not ship any skill, command, prompt, or agent asset that violates the prefix rule.
+#### Scenario: Canonical lifecycle skills pass the bundle guard
+- **WHEN** embedded skill assets are audited
+- **THEN** the Ito-managed skill names are exactly `ito`, `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop`
+- **AND** every noncanonical helper skill fails the exact-inventory guard whether prefixed or not
 
-- **Requirement ID**: ito-managed-asset-naming:templates-enforce
+#### Scenario: Native agents are checked separately
+- **WHEN** embedded native-agent assets are audited
+- **THEN** their names follow the applicable Ito prefix convention
+- **AND** those native agents are not counted or installed as skills
 
-#### Scenario: Pre-existing unprefixed assets are renamed
-
-- **GIVEN** the templates bundle previously shipped `skills/tmux/`, `skills/test-with-subagent/`, `skills/using-ito-skills/`, and `agents/opencode/test-runner.md`
-- **WHEN** this change is applied
-- **THEN** they SHALL be renamed to `skills/ito-tmux/`, `skills/ito-test-with-subagent/`, `skills/ito-using-ito-skills/`, and `agents/opencode/ito-test-runner.md`
-- **AND** any internal reference inside those assets SHALL be updated to the new name
-
-#### Scenario: CI guard
-
-- **WHEN** a contributor adds a new file under `ito-rs/crates/ito-templates/assets/{skills,commands,agents}/`
-- **AND** the basename does not satisfy the prefix rule
-- **THEN** a test or guard SHALL fail the build
+#### Scenario: Retired tmux helpers are absent
+- **WHEN** the templates bundle is built
+- **THEN** it contains no `tmux` or `ito-tmux` skill directory or helper scripts
+<!-- ITO:END -->

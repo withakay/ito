@@ -25,4 +25,20 @@
 - **GIVEN** obsolete managed assets have been removed and the seven retained skills are current
 - **WHEN** update runs again
 - **THEN** no managed skill or command file changes
+
+#### Scenario: Cleanup audits every selected harness
+- **GIVEN** retired managed surfaces exist in one or more configured harness roots
+- **WHEN** update cleanup runs
+- **THEN** it audits every selected harness before writing retained assets
+- **AND** applies the same ownership proof to each harness
+
+#### Scenario: Cleanup reports every decision
+- **WHEN** update removes a proven managed surface or preserves an ambiguous surface
+- **THEN** it reports the path and lifecycle replacement
+- **AND** deliberate removals such as tmux report that no Ito replacement exists
+
+#### Scenario: Explicit update invocation is the deletion gate
+- **WHEN** the user runs `ito update`, `ito init --upgrade`, or a forceful refresh
+- **THEN** cleanup may remove only byte- or shell-fingerprint-proven Ito assets
+- **AND** never requires `--force` to preserve ambiguous or user-owned content
 <!-- ITO:END -->

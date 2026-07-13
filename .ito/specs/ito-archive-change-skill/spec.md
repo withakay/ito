@@ -7,22 +7,16 @@ Define the `/ito-archive-change` skill behavior for archiving completed changes.
 ## Requirements
 
 ### Requirement: Ito Archive Change Skill
+The system SHALL provide the retained `ito-archive` lifecycle skill for promoting accepted delta specs, archiving completed changes, and reporting archive follow-through. It MUST NOT install the obsolete `/ito-archive-change` wrapper as a separate skill.
 
-The system SHALL provide an `/ito-archive-change` skill that archives completed changes in the experimental workflow.
+#### Scenario: Archive a complete change
+- **WHEN** `ito-archive` receives a change whose required artifacts and tasks are complete
+- **THEN** it follows the authoritative archive instruction
+- **AND** promotes accepted specs before moving the change into the dated archive location
 
-#### Scenario: Archive a change with all artifacts complete
-
-- **WHEN** agent executes `/ito-archive-change` with a change name
-- **AND** all artifacts in the schema are complete
-- **AND** all tasks are complete
-- **THEN** the agent moves the change to `ito/changes/archive/YYYY-MM-DD-<name>/`
-- **AND** displays success message with archived location
-
-#### Scenario: Change selection prompt
-
-- **WHEN** agent executes `/ito-archive-change` without specifying a change
-- **THEN** the agent prompts user to select from available changes
-- **AND** shows only active changes (excludes archive/)
+#### Scenario: Archive request has no change ID
+- **WHEN** `ito-archive` is invoked without a change
+- **THEN** it uses the supported change-selection flow without invoking a retired helper
 
 ### Requirement: Artifact Completion Check
 
@@ -66,22 +60,16 @@ The skill SHALL check task completion status from tasks.md before archiving.
 - **THEN** proceed without task-related warning
 
 ### Requirement: Spec Sync Prompt
-
-The skill SHALL prompt to sync delta specs before archiving if specs exist.
+The retained archive workflow SHALL make spec promotion an explicit archive decision when delta specs exist. It MUST use the archive instruction or direct CLI behavior and MUST NOT invoke an `ito-sync-specs` skill.
 
 #### Scenario: Delta specs exist
+- **WHEN** archive preflight finds delta specs in the completed change
+- **THEN** it presents the promotion action and its effects
+- **AND** applies the accepted deltas through the archive workflow before archiving
 
-- **WHEN** agent checks for delta specs
-- **AND** `specs/` directory exists in the change with spec files
-- **THEN** prompt user: "This change has delta specs. Would you like to sync them to main specs before archiving?"
-- **AND** if user confirms, execute `/ito-sync-specs` logic
-- **AND** proceed with archive regardless of sync choice
-
-#### Scenario: No delta specs
-
-- **WHEN** agent checks for delta specs
-- **AND** no `specs/` directory or no spec files exist
-- **THEN** proceed without sync prompt
+#### Scenario: No delta specs exist
+- **WHEN** archive preflight finds no delta specs
+- **THEN** it proceeds without offering a retired sync-skill action
 
 ### Requirement: Archive Process
 
@@ -102,27 +90,38 @@ The skill SHALL move the change to the archive folder with date prefix.
 - **AND** suggest renaming existing archive or using different date
 
 ### Requirement: Skill Output
+The retained `ito-archive` skill SHALL report archive location, schema, spec-promotion results, wiki/memory follow-through, and any cleanup guidance without embedding output from a retired sync skill.
 
-The skill SHALL provide clear feedback about the archive operation.
+#### Scenario: Archive completes with spec promotion
+- **WHEN** archive completes after promoting delta specs
+- **THEN** the output summarizes promoted capabilities and the archived location
+- **AND** names any remaining lifecycle follow-through
 
-#### Scenario: Archive complete with sync
+#### Scenario: Archive completes without spec promotion
+- **WHEN** archive completes with no delta specs to promote
+- **THEN** the output identifies the archived location and schema
 
-- **WHEN** archive completes after syncing specs
-- **THEN** display summary:
-  - Specs synced (from `/ito-sync-specs` output)
-  - Change archived to location
-  - Schema that was used
+### Requirement: Archive reconciles accepted delta operations into current specs
+The archive implementation SHALL reconcile accepted delta specs by exact requirement heading before moving the change. It SHALL normalize current specs to a single `## Requirements` section and preserve unrelated requirements and purpose text.
 
-#### Scenario: Archive complete without sync
+#### Scenario: Added requirement
+- **WHEN** a delta contains an ADDED requirement absent from the current spec
+- **THEN** archive appends that requirement exactly once
 
-- **WHEN** archive completes without syncing specs
-- **THEN** display summary:
-  - Note that specs were not synced (if applicable)
-  - Change archived to location
-  - Schema that was used
+#### Scenario: Modified requirement
+- **WHEN** a delta contains a MODIFIED requirement with an exact current heading
+- **THEN** archive replaces only that requirement and preserves unrelated requirements
 
-#### Scenario: Archive complete with warnings
+#### Scenario: Removed requirement
+- **WHEN** a delta contains a REMOVED requirement with an exact current heading
+- **THEN** archive removes that requirement
+- **AND** removes the capability spec when no current requirements remain
 
-- **WHEN** archive completes with incomplete artifacts or tasks
-- **THEN** include note about what was incomplete
-- **AND** suggest reviewing if archive was intentional
+#### Scenario: Renamed requirement
+- **WHEN** a delta contains a RENAMED `FROM:` and `TO:` pair
+- **THEN** archive renames the exact current requirement without changing its body
+
+#### Scenario: Invalid delta identity
+- **WHEN** a delta attempts to add a duplicate or modify, remove, or rename a missing requirement
+- **THEN** archive fails before overwriting the current spec
+<!-- ITO:END -->

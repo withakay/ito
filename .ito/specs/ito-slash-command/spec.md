@@ -7,25 +7,22 @@ This spec defines the current behavior and requirements for ito slash command.
 
 ## Requirements
 
-### Requirement: Planning slash command installation
+### Requirement: Automatic installation during ito init
 
-The system SHALL install a dedicated `ito-plan` slash command wrapper during Ito initialization and updates for supported agent harnesses. The wrapper MUST load the `ito-plan` skill and pass the user request through unchanged.
+The ito.md slash command MUST be automatically installed in the agent harness when ito init is run. The installation SHALL place the command file in the correct location for the harness to recognize it.
 
-- **Requirement ID**: `ito-slash-command:planning-slash-command-installation`
+#### Scenario: Slash command installed during init
 
-#### Scenario: Planning slash command installed during init
+- **WHEN** user runs 'ito init'
+- **THEN** ito installs ito.md slash command to `.opencode/commands/ito.md`
+- **AND** command file is created with proper format
+- **AND** agent harness recognizes the command
+- **AND** user can invoke '/ito <command>' syntax
 
-- **WHEN** a supported harness installs Ito command assets
-- **THEN** the harness command directory includes an `ito-plan` command file
-- **AND** the command file loads the `ito-plan` skill
-- **AND** the command passes the user-provided planning topic or request through to that skill unchanged
-- **AND** the installed command is ready for users to invoke with `/ito-plan`
+#### Scenario: Command file creation
 
-#### Scenario: Planning slash command installed during updates
-
-- **WHEN** a supported harness updates Ito command assets
-- **THEN** the harness command directory includes an `ito-plan` command file
-- **AND** the command file loads the `ito-plan` skill
-- **AND** the command passes the user-provided planning topic or request through unchanged
-- **AND** the installed command is ready for users to invoke with `/ito-plan`
+- **WHEN** ito init creates the slash command
+- **THEN** file path is `.opencode/commands/ito.md`
+- **AND** file contains slash command metadata and invocation logic
+- **AND** file has correct permissions for agent harness to read
 <!-- ITO:END -->

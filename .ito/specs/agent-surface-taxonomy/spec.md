@@ -8,76 +8,42 @@ This spec defines the current behavior and requirements for agent surface taxono
 ## Requirements
 
 ### Requirement: Ito agents are classified by activation mode
+Ito-managed generated agent templates SHALL declare whether each native agent is a direct entrypoint or a delegated role sub-agent. Agent activation metadata MUST remain independent of the canonical skill inventory, and no agent definition may be installed under a skill discovery directory.
 
-Ito-managed generated agent templates SHALL declare and preserve whether each agent is a direct entrypoint or a delegated role sub-agent.
+#### Scenario: Harness supports native agent definitions
+- **WHEN** a supported harness has a distinct native location or format for agents
+- **THEN** Ito installs each retained agent only in that native agent surface
+- **AND** the prompt and metadata preserve its direct or delegated activation mode
 
-- **Requirement ID**: agent-surface-taxonomy:activation-mode
-
-#### Scenario: Direct entrypoint is installed for direct activation
-
-- **WHEN** a supported harness distinguishes direct agents from delegated sub-agents
-- **THEN** Ito installs direct entrypoint agents in the harness location or format used for direct user activation
-- **AND** the prompt describes the agent as user-activatable rather than as a worker spawned by another agent
-
-#### Scenario: Delegated role is installed as sub-agent
-
-- **WHEN** a supported harness distinguishes direct agents from delegated sub-agents
-- **THEN** Ito installs delegated role agents in the harness location or format used for sub-agents
-- **AND** the prompt names the direct workflow or coordinator expected to dispatch that role
-
-#### Scenario: Harness lacks direct versus delegated separation
-
-- **WHEN** a supported harness does not provide separate direct-agent and sub-agent installation mechanisms
-- **THEN** Ito preserves the activation-mode distinction in generated prompt text, metadata, or naming
-- **AND** direct entrypoints remain discoverable as primary user-facing Ito agents
+#### Scenario: Harness lacks an independent agent surface
+- **WHEN** a harness can represent an agent role only by creating a discoverable skill
+- **THEN** Ito does not synthesize the role as an additional managed skill
+- **AND** retained lifecycle skills use instruction-backed or ordinary harness delegation instead
 
 ### Requirement: General and orchestrator agents are direct entrypoints
+When a harness supports native agents, Ito SHALL keep `ito-general` and `ito-orchestrator` as native direct entrypoints. Neither agent SHALL create a skill directory or count toward the seven Ito-managed lifecycle skills.
 
-Ito SHALL treat `ito-general` and `ito-orchestrator` as direct entrypoint agents rather than delegated sub-agents.
+#### Scenario: Native direct agents remain activatable
+- **WHEN** Ito installs or updates agents for a harness with a native direct-agent surface
+- **THEN** `ito-general` and `ito-orchestrator` remain directly activatable there
+- **AND** their prompts describe their direct responsibilities
 
-- **Requirement ID**: agent-surface-taxonomy:direct-general-orchestrator
-
-#### Scenario: General agent is directly activatable
-
-- **WHEN** Ito installs or updates generated agents for a supported harness
-- **THEN** `ito-general` is available as a direct user-activatable agent
-- **AND** its prompt describes it as the balanced Ito development agent for direct use
-
-#### Scenario: Orchestrator agent is directly activatable
-
-- **WHEN** Ito installs or updates generated agents for a supported harness
-- **THEN** `ito-orchestrator` is available as a direct user-activatable coordinator agent
-- **AND** its prompt describes it as responsible for coordinating delegated planner, researcher, worker, reviewer, and test-runner roles
-
-#### Scenario: Direct agents are not generated only as delegated roles
-
-- **WHEN** generated harness assets are inspected after `ito init`, `ito init --upgrade`, or `ito update`
-- **THEN** `ito-general` and `ito-orchestrator` do not appear solely in delegated sub-agent locations or metadata
-- **AND** any delegated copies are either removed or clearly marked as compatibility shims with a migration path
+#### Scenario: Direct agents do not expand skills
+- **WHEN** generated agent and skill surfaces are audited
+- **THEN** direct agent definitions are reported separately
+- **AND** the Ito-managed skill set remains exactly the canonical seven
 
 ### Requirement: Delegated role agents remain narrowly scoped
+Ito MAY keep planner, researcher, worker, reviewer, and test-runner roles as narrowly scoped delegated agents only where the harness provides a native sub-agent surface. Such roles MUST report to the owning lifecycle workflow and MUST NOT be installed as discoverable skills.
 
-Ito SHALL keep planner, researcher, worker, reviewer, and test-runner style agents as delegated roles with narrow responsibilities.
+#### Scenario: Native delegated role is retained
+- **WHEN** implementation, research, review, planning, or test execution is delegated in a harness with native sub-agents
+- **THEN** the narrow role may be installed in the native sub-agent location
+- **AND** it reports to the retained lifecycle entrypoint that dispatched it
 
-- **Requirement ID**: agent-surface-taxonomy:delegated-role-agents
-
-#### Scenario: Planner role is delegated
-
-- **WHEN** the orchestrator needs a run plan or task decomposition
-- **THEN** it may dispatch the delegated planner role
-- **AND** the planner prompt does not present itself as the direct user entrypoint for Ito work
-
-#### Scenario: Worker and reviewer roles are delegated
-
-- **WHEN** implementation or review work is needed inside an orchestrated run
-- **THEN** worker and reviewer prompts are available as delegated role sub-agents
-- **AND** they report results back to the orchestrator rather than independently owning the user-facing workflow
-
-#### Scenario: Test runner role is delegated
-
-- **WHEN** verification commands need to be run with curated output
-- **THEN** the test-runner prompt is available as a delegated role sub-agent
-- **AND** it reports pass/fail evidence to the direct entrypoint or orchestrator that requested it
+#### Scenario: Delegated roles are not skill fallbacks
+- **WHEN** a harness lacks a native delegated-agent mechanism
+- **THEN** Ito does not create planner, researcher, worker, reviewer, or test-runner skill directories
 
 ### Requirement: Orchestration and multi-agent surfaces are consolidated
 

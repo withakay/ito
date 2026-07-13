@@ -22,6 +22,46 @@ The templates bundle SHALL distribute `ito-update-repo` to every configured harn
 - **WHEN** Ito initializes any supported harness
 - **THEN** no `ito-update-repo` skill or command wrapper is emitted
 
+### Requirement: Non-Destructive By Default
+The retired update skill SHALL no longer own non-destructive cleanup policy.
+
+**Reason**: Ownership-safe cleanup is enforced by direct update/install code.
+**Migration**: Run `ito update` or `ito init --upgrade`; ambiguous and user-authored content is preserved and reported without `--force`.
+
+#### Scenario: Direct update preserves ambiguous content
+- **WHEN** cleanup cannot prove an obsolete path is Ito-generated
+- **THEN** it preserves and reports the path
+
+### Requirement: Orphan Audit Across Harnesses
+The retired update skill SHALL no longer own cross-harness orphan audit.
+
+**Reason**: The installer pre-pass audits every selected harness directly.
+**Migration**: Select the configured harnesses during update and inspect the direct cleanup report.
+
+#### Scenario: Direct audit covers selected harnesses
+- **WHEN** update runs for multiple harnesses
+- **THEN** the same retired manifest and ownership checks apply to each one
+
+### Requirement: Approval Gate Before Deletion
+The retired update skill SHALL no longer own a separate approval prompt.
+
+**Reason**: Explicit update/upgrade invocation plus exact ownership proof is the deletion gate; ambiguous content is never deleted.
+**Migration**: Review the update diff/report through the repository's ordinary review workflow.
+
+#### Scenario: Proven ownership gates deletion
+- **WHEN** a retired surface differs from its known generated shell or bytes
+- **THEN** update preserves it rather than requiring force or guessing ownership
+
+### Requirement: Rerun Idempotence
+The retired update skill SHALL no longer own rerun stability.
+
+**Reason**: Idempotence is a direct installer contract.
+**Migration**: Re-run `ito update`; the second run makes no managed changes after cleanup and refresh converge.
+
+#### Scenario: Direct update converges
+- **WHEN** direct update is run twice with unchanged inputs
+- **THEN** the second run is byte-identical
+
 ### Requirement: ito-update-repo skill includes a pre-commit hook setup step
 The `ito-update-repo` skill SHALL include a pre-commit hook setup step after managed asset refresh and cleanup.
 

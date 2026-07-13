@@ -24,39 +24,26 @@ The CLI SHALL initialize the planning workspace by ensuring `.ito/planning/` exi
 - **AND** display a success message indicating the planning workspace is available
 
 ### Requirement: Planning status display
-
-The CLI SHALL display the state of the planning workspace by reporting whether `.ito/planning/` exists and which planning documents are present, rather than assuming a fixed set of planning files.
-
-- **Requirement ID**: `cli-plan:planning-workspace-status`
+The CLI SHALL display whether `.ito/planning/` exists, enumerate its planning documents, and report the companion `.ito/research/` workspace without assuming fixed planning files. Any empty-workspace hint SHALL point to retained `ito-proposal` guidance rather than an `ito-plan` helper.
 
 #### Scenario: Show planning workspace status
-
 - **WHEN** executing `ito plan status`
-- **THEN** check whether `.ito/planning/` exists
-- **AND** enumerate planning markdown documents present under `.ito/planning/`
-- **AND** indicate whether `.ito/research/` exists as a companion workspace
-- **AND** print a hint to use `/ito-plan` when the planning workspace exists but contains no plan documents
+- **THEN** the CLI reports the planning directory and its markdown documents
+- **AND** indicates whether `.ito/research/` exists
+- **AND** points an empty workspace to `ito-proposal`
 
 ### Requirement: Error handling
-
-The CLI SHALL provide clear error messages and recovery suggestions when planning workspace commands encounter issues.
-
-- **Requirement ID**: `cli-plan:planning-error-handling`
+The CLI SHALL provide clear errors and recovery suggestions for planning workspace failures, while normal empty-workspace guidance SHALL name the retained `ito-proposal` lifecycle skill.
 
 #### Scenario: Planning directory cannot be created
-
-- **WHEN** the `.ito/planning/` directory cannot be created due to permissions or filesystem errors
-- **THEN** display an error message explaining the failure
-- **AND** suggest checking directory permissions and disk space
-- **AND** exit with code 1
+- **WHEN** `.ito/planning/` cannot be created because of a filesystem error
+- **THEN** the CLI explains the failure and suggests checking permissions and available space
+- **AND** exits with code 1
 
 #### Scenario: Planning workspace has no plans yet
-
-- **WHEN** executing `ito plan status`
-- **AND** `.ito/planning/` exists but contains no planning markdown documents
-- **THEN** display a non-error status showing the workspace is empty
-- **AND** suggest using `/ito-plan` to create the first plan
-
+- **WHEN** `ito plan status` finds an empty planning workspace
+- **THEN** it reports a non-error empty status
+- **AND** suggests using `ito-proposal` to develop the first plan
 
 ### Requirement: Project state management
 
@@ -91,18 +78,10 @@ This requirement is removed; the planning workflow SHALL NOT depend on a fixed `
 - **AND** sequencing may be captured directly in planning documents instead
 
 ### Requirement: Template quality
-
-This requirement is removed; planning initialization SHALL NOT enforce fixed template content for `PROJECT.md`, `ROADMAP.md`, or `STATE.md`.
-
-- **Requirement ID**: `cli-plan:remove-fixed-template-quality`
-
-**Reason**: Planning initialization will no longer generate fixed planning templates, so template-shape requirements for `PROJECT.md`, `ROADMAP.md`, and `STATE.md` no longer apply.
-
-**Migration**: Move planning guidance into the `ito-plan` prompt and skill so planning quality is enforced by workflow guidance rather than hard-coded markdown templates.
+Planning initialization SHALL NOT enforce fixed content for `PROJECT.md`, `ROADMAP.md`, or `STATE.md`. Planning quality SHALL instead come from the retained `ito-proposal` skill and its authoritative instruction artifacts.
 
 #### Scenario: Planning init skips legacy templates
-
 - **WHEN** executing `ito plan init`
-- **THEN** the workflow SHALL NOT create template content for `PROJECT.md`, `ROADMAP.md`, or `STATE.md`
-- **AND** the planning experience relies on `ito-plan` guidance instead
+- **THEN** the workflow does not create fixed `PROJECT.md`, `ROADMAP.md`, or `STATE.md` content
+- **AND** the planning experience relies on `ito-proposal` guidance
 <!-- ITO:END -->

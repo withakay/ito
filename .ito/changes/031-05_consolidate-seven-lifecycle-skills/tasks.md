@@ -106,7 +106,7 @@ ______________________________________________________________________
 - **Verify**: `make check && cargo test --workspace --all-features --exclude ito-web && ito validate 031-05_consolidate-seven-lifecycle-skills --strict`
 - **Done When**: Specs and docs define one seven-skill contract, every fresh harness install has the exact inventory, upgraded fixtures are safe/idempotent, and default Ralph/loop tests pass.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave Guidelines

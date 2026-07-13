@@ -9,24 +9,21 @@ This spec defines the current behavior and requirements for cli skills.
 
 ### Requirement: Skills are managed via init/update (not CLI)
 
-The system SHALL NOT expose skills management as part of the supported CLI UX. Skills installed by `ito init` / `ito update` MAY include both SKILL.md-only skills and skills with bundled asset subdirectories (e.g., `scripts/`); both forms SHALL be written to the output path preserving their directory structure.
+The system SHALL NOT expose skill inventory management as part of the supported CLI UX. `ito init` and `ito update` SHALL install the canonical seven-skill lifecycle inventory for each configured harness, preserving any bundled resource subdirectories belonging to those retained skills.
 
 #### Scenario: Skills are refreshed by init/update
-
-- **WHEN** user runs `ito init` or `ito update`
-- **THEN** the system installs/refreshes the core skill set for the configured harnesses
-- **AND** any skill that bundles asset files (e.g., `scripts/`) has those files written alongside SKILL.md
+- **WHEN** a user runs `ito init` or `ito update`
+- **THEN** the system installs or refreshes exactly `ito`, `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop` as Ito-managed skills
+- **AND** retained skill resources are written alongside `SKILL.md` with their directory structure preserved
 
 #### Scenario: Skills commands remain callable but hidden
+- **WHEN** a user executes a legacy `ito skills <subcommand>` compatibility path
+- **THEN** the command executes according to its compatibility contract
+- **AND** prints a deprecation warning pointing to `ito init` and `ito update`
+- **AND** remains hidden from supported help and shell completions
 
-- **WHEN** user executes `ito skills <subcommand>`
-- **THEN** the command executes successfully (for compatibility)
-- **AND** prints a deprecation warning pointing to `ito init` and/or `ito update`
-- **AND** the command is hidden from help and omitted from shell completions
-
-#### Scenario: Skill with bundled scripts installs completely
-
-- **WHEN** a skill asset directory contains both `SKILL.md` and a `scripts/` subdirectory
-- **THEN** all files under `scripts/` are written to the output skill directory
-- **AND** script files are written with executable permissions
+#### Scenario: Harness adapters cannot add helper skills
+- **WHEN** a harness manifest adapts the canonical skill inventory to harness-specific paths
+- **THEN** it installs all seven retained skills
+- **AND** it MUST NOT add delegated roles, command helpers, or harness-only Ito skills to the installed skill set
 <!-- ITO:END -->

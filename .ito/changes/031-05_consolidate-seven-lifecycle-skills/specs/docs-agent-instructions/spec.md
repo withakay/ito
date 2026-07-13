@@ -1,10 +1,5 @@
-# Docs Agent Instructions
-
-## Purpose
-
-This spec defines the current behavior and requirements for docs agent instructions.
-
-## Requirements
+<!-- ITO:START -->
+## MODIFIED Requirements
 
 ### Requirement: Docs mention project setup workflow
 AI-facing documentation installed by Ito SHALL direct agents to run `ito agent instruction project-setup` and follow the emitted prompt. It MUST NOT install or recommend a separate `/ito-project-setup` wrapper.

@@ -8,38 +8,26 @@ This spec defines the current behavior and requirements for validate repo coordi
 ## Requirements
 
 ### Requirement: Rule coordination/symlinks-wired enforces worktree symlink layout
+While legacy coordination-worktree storage remains enabled, the system SHALL evaluate each configured coordination directory and report an `ERROR` when its symlink does not resolve to the corresponding legacy coordination-worktree path. Every remediation message SHALL name a direct CLI or emitted instruction and MUST NOT recommend `ito-update-repo`.
 
-When `changes.coordination_branch.storage = "worktree"`, the system SHALL evaluate every directory in `coordination::COORDINATION_DIRS` (`changes`, `specs`, `modules`, `workflows`, `audit`) under `.ito/` and emit an `ERROR` issue for any directory that is not a symlink resolving to the corresponding directory inside the resolved coordination worktree.
-
-- **Requirement ID**: validate-repo-coordination-rules:symlinks-wired
-
-#### Scenario: All symlinks healthy passes
-
-- **GIVEN** coordination storage is `worktree`
-- **AND** each coordination directory under `.ito/` is a symlink resolving to the matching directory inside the coordination worktree
+#### Scenario: Healthy legacy symlinks pass
+- **GIVEN** legacy coordination-worktree storage is enabled
+- **AND** every configured coordination directory resolves to its expected target
 - **WHEN** rule `coordination/symlinks-wired` runs
-- **THEN** it SHALL emit no issues
+- **THEN** it emits no issues
 
-#### Scenario: Real directory fails the rule
-
-- **GIVEN** coordination storage is `worktree`
-- **AND** `.ito/changes` is a real directory rather than a symlink
+#### Scenario: Real directory receives migration remediation
+- **GIVEN** legacy coordination-worktree storage is enabled
+- **AND** a configured coordination path is a real directory instead of its expected symlink
 - **WHEN** rule `coordination/symlinks-wired` runs
-- **THEN** it SHALL emit an `ERROR` issue identifying `.ito/changes`
-- **AND** the issue message SHALL state What (real directory found), Why (storage mode requires symlinks), and How (run `ito sync` or `ito-update-repo` to repair)
+- **THEN** it emits an `ERROR` identifying the path and expected target
+- **AND** the remediation names the direct migration instruction or supported synchronization CLI
+- **AND** it does not mention `ito-update-repo`
 
-#### Scenario: Symlink to wrong target fails the rule
-
-- **GIVEN** coordination storage is `worktree`
-- **AND** `.ito/specs` is a symlink resolving to a path outside the coordination worktree
-- **WHEN** rule `coordination/symlinks-wired` runs
-- **THEN** it SHALL emit an `ERROR` issue including both the actual target and the expected target
-
-#### Scenario: Embedded storage skips the rule
-
-- **GIVEN** coordination storage is `embedded`
-- **WHEN** the engine filters rules
-- **THEN** rule `coordination/symlinks-wired` SHALL be reported as skipped
+#### Scenario: Legacy coordination is disabled
+- **GIVEN** coordination-worktree storage is feature-disabled or not configured
+- **WHEN** repository rules are filtered
+- **THEN** `coordination/symlinks-wired` is skipped
 
 ### Requirement: Rule coordination/gitignore-entries enforces canonical .gitignore lines
 

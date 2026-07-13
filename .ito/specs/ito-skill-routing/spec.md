@@ -7,70 +7,42 @@ Define the `ito-skill-routing` capability and its current-truth behavior. This s
 ## Requirements
 
 ### Requirement: Skill-first command routing
+The `ito` skill SHALL route lifecycle intent only to the six retained phase skills: `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop`. It MUST NOT invent or discover a helper skill for each CLI command.
 
-The ito skill SHALL route incoming commands to matching ito-\* skills with higher precedence than the ito CLI. When a command matches both a ito-\* skill and the CLI, the skill MUST be invoked.
+#### Scenario: Lifecycle intent matches a retained phase
+- **WHEN** a user asks to propose, research, apply, review, archive, or iterate on an Ito change
+- **THEN** `ito` invokes the corresponding retained lifecycle skill with the original context
+- **AND** the lifecycle skill obtains detailed policy from the appropriate Ito instruction artifact
 
-#### Scenario: Command matches ito-\* skill
-
-- **WHEN** user invokes ito with command 'archive'
-- **THEN** skill checks for ito-archive skill
-- **AND** ito-archive skill exists
-- **AND** skill invokes ito-archive with provided arguments
-- **AND** ito CLI is NOT invoked
-
-#### Scenario: Command matches both skill and CLI
-
-- **WHEN** user invokes ito with command 'status'
-- **THEN** skill checks for ito-status skill
-- **AND** both ito-status skill and CLI 'status' command exist
-- **AND** skill invokes ito-status skill
-- **AND** CLI 'status' command is NOT invoked
+#### Scenario: Helper-shaped intent is absorbed by a phase
+- **WHEN** a request concerns intake, planning, tasks, worktrees, verification, memory, wiki, orchestration, path lookup, update, cleanup, or finish behavior
+- **THEN** `ito` selects the lifecycle phase that owns that concern
+- **AND** it does not attempt to invoke a retired helper skill name
 
 ### Requirement: CLI fallback for unmatched commands
+The `ito` skill SHALL invoke the Ito CLI when input names a supported CLI operation that is not a lifecycle phase. A missing retained lifecycle skill SHALL be reported as an installation error rather than silently changing a lifecycle request into a different CLI workflow.
 
-The ito skill SHALL fallback to invoking the ito CLI when no matching ito-\* skill exists. The skill MUST preserve all original command arguments.
+#### Scenario: No lifecycle skill matches
+- **WHEN** a user invokes a CLI operation such as `version`, `list`, `show`, `status`, `validate`, `config`, or `path`
+- **THEN** `ito` invokes the Ito CLI directly
+- **AND** all original arguments are passed unchanged
 
-#### Scenario: No matching skill exists
-
-- **WHEN** user invokes ito with command 'version'
-- **THEN** skill checks for ito-version skill
-- **AND** ito-version skill does not exist
-- **AND** skill invokes ito CLI with 'version' command
-- **AND** all original arguments are passed to CLI
-
-#### Scenario: Skill exists but is not installed
-
-- **WHEN** user invokes ito with command 'archive'
-- **AND** ito-archive skill exists in repository
-- **BUT** ito-archive is not installed in the agent
-- **THEN** skill checks for installed ito-archive skill
-- **AND** skill does not find installed ito-archive
-- **AND** skill invokes ito CLI with 'archive' command
+#### Scenario: Retained lifecycle skill is missing
+- **WHEN** a request matches a retained lifecycle phase but its canonical skill is unavailable
+- **THEN** `ito` reports the missing managed lifecycle skill
+- **AND** recommends refreshing the managed installation instead of routing through a retired helper or unrelated CLI command
 
 ### Requirement: Argument passthrough
+The `ito` skill MUST pass every argument through unchanged and in its original order to the selected retained lifecycle skill or direct CLI target.
 
-The ito skill MUST pass through all command arguments unchanged to the invoked target (either ito-\* skill or CLI).
+#### Scenario: Lifecycle arguments are preserved
+- **WHEN** a user invokes a retained phase with a change ID and flags
+- **THEN** `ito` invokes the retained lifecycle skill with the same change ID and flags
+- **AND** no argument is reordered, rewritten, or discarded
 
-#### Scenario: Single argument passthrough
-
-- **WHEN** user invokes ito with command 'view' and argument 'change-123'
-- **AND** ito-view skill exists
-- **THEN** skill invokes ito-view with argument 'change-123'
-- **AND** argument is not modified
-
-#### Scenario: Multiple arguments passthrough
-
-- **WHEN** user invokes ito with command 'validate' and arguments '--strict' and 'change-123'
-- **AND** ito-validate skill exists
-- **THEN** skill invokes ito-validate with arguments '--strict' and 'change-123'
-- **AND** all arguments are passed in original order
-
-#### Scenario: CLI fallback with arguments
-
-- **WHEN** user invokes ito with command 'module' and arguments 'list' and '--json'
-- **AND** no ito-module skill exists
-- **THEN** skill invokes ito CLI with arguments 'module' 'list' '--json'
-- **AND** all arguments are passed unchanged
+#### Scenario: CLI fallback arguments are preserved
+- **WHEN** a user invokes a direct CLI operation with subcommands and flags
+- **THEN** `ito` passes the complete original argument sequence to the CLI
 
 ### Requirement: Command parsing and validation
 
@@ -109,22 +81,4 @@ The ito skill SHALL capture and report errors from invoked skills or CLI in a co
 - **THEN** skill captures the error output
 - **AND** skill reports error with prefix '\[ito CLI error\]'
 - **AND** original error message is preserved
-
-### Requirement: Skill discovery
-
-The ito skill SHALL discover available ito-\* skills by querying the installed skills in the agent harness. The skill MUST maintain a cache of discovered skills for performance.
-
-#### Scenario: Initial skill discovery
-
-- **WHEN** ito skill is first invoked
-- **THEN** skill queries agent harness for all installed skills
-- **AND** skill filters skills matching pattern 'ito-\*'
-- **AND** skill builds mapping of commands to skill names
-- **AND** mapping is cached for subsequent invocations
-
-#### Scenario: Skill cache invalidation
-
-- **WHEN** ito skill receives command
-- **AND** skill cache is stale (older than configured TTL)
-- **THEN** skill refreshes skill discovery
-- **AND** cache is updated with current installed skills
+<!-- ITO:END -->

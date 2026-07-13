@@ -8,18 +8,18 @@ This spec defines the current behavior and requirements for planning workflow.
 ## Requirements
 
 ### Requirement: Pre-proposal planning prompt
+The system SHALL provide pre-proposal planning guidance through the retained `ito-proposal` lifecycle skill and authoritative proposal instruction artifacts. The guidance MUST ask clarifying questions, frame the output as a precursor to one or more change proposals, and direct any durable planning artifact into `.ito/planning/` without requiring an `ito-plan` skill.
 
-The system SHALL provide an `ito-plan` planning prompt that guides exploratory planning before proposal creation. The prompt MUST ask clarifying questions, frame the output as a precursor to one or more change proposals, and direct the resulting planning artifact into `.ito/planning/`.
-
-- **Requirement ID**: `planning-workflow:pre-proposal-planning`
-
-#### Scenario: Agent enters planning mode
-
-- **WHEN** a user invokes `/ito-plan` with an idea or rough feature request
-- **THEN** the system loads the dedicated planning guidance
-- **AND** asks clarifying questions that help shape scope, goals, constraints, and likely proposal boundaries
+#### Scenario: Agent enters pre-proposal planning
+- **WHEN** a user brings an idea or rough feature request to `ito-proposal`
+- **THEN** the retained skill uses the planning section of its authoritative guidance
+- **AND** asks questions that shape scope, goals, constraints, and likely proposal boundaries
 - **AND** treats the session as planning work rather than immediate proposal scaffolding
-- **AND** instructs the agent to create or update a markdown plan under `.ito/planning/`
+
+#### Scenario: Durable planning output is retained
+- **WHEN** exploratory planning produces reusable context
+- **THEN** the guidance directs the agent to create or update a topic-specific document under `.ito/planning/`
+- **AND** no standalone planning skill or prompt wrapper is required
 
 ### Requirement: Planning and research artifact locations
 

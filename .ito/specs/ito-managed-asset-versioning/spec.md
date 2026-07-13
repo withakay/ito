@@ -1,4 +1,6 @@
-## ADDED Requirements
+<!-- ITO:START -->
+
+## Requirements
 
 ### Requirement: Every Ito Markdown File Has A Managed Block
 
@@ -95,24 +97,18 @@ The version stamp SHALL be a single-line HTML comment of the form `<!--ITO:VERSI
 - **AND** subsequent `ito init --update` runs SHALL produce no further changes
 
 ### Requirement: Stamp Exposed Through Tooling
+Ito tooling SHALL read managed version stamps without parsing complete documents so direct update, validation, and cleanup operations can distinguish current, stale, and retired assets. This diagnostic contract MUST NOT depend on the retired `ito-update-repo` skill.
 
-Ito tooling SHALL be able to read the stamp from a managed file without parsing the full document, so orphan detection and staleness reports can surface version drift cheaply.
+#### Scenario: Direct update reports a stale managed asset
+- **GIVEN** a managed harness asset carries an `ITO:VERSION` older than the installed CLI
+- **WHEN** `ito update` or `ito init --upgrade` audits managed assets
+- **THEN** the operation reports the asset as stale
+- **AND** distinguishes a still-valid retained asset from an obsolete managed path
 
-- **Requirement ID**: ito-managed-asset-versioning:stamp-readable
-
-#### Scenario: Stale-version detection in `ito-update-repo`
-
-- **GIVEN** a harness skill carries an `ITO:VERSION` stamp older than the currently installed CLI
-- **WHEN** the `ito-update-repo` skill audits the project after running the update step
-- **THEN** the skill SHALL report any file whose stamp is older than the current CLI version as "stale"
-- **AND** SHALL distinguish stale-but-still-valid assets from orphaned (removed-upstream) assets in its report
-
-#### Scenario: Missing stamp surfaces as stale
-
-- **GIVEN** a managed file is present but carries no `ITO:VERSION` stamp
-- **WHEN** staleness detection runs
-- **THEN** the file SHALL be reported as stale with reason `missing-stamp`
-- **AND** the user SHALL be offered the option to re-run `ito init --update` to stamp it
+#### Scenario: Missing stamp remains diagnosable
+- **WHEN** a known Ito-managed path lacks a readable version stamp
+- **THEN** direct update or validation tooling reports the missing ownership/version evidence
+- **AND** does not delete user content unless managed ownership is otherwise proven
 
 ### Requirement: Version Stamping Does Not Leak User Metadata
 
@@ -125,3 +121,4 @@ The stamp SHALL record only the CLI version string. It SHALL NOT include usernam
 - **WHEN** Ito writes a stamp into any managed file
 - **THEN** the stamp SHALL contain only the semver string produced by `ito --version`
 - **AND** SHALL NOT contain any additional fields
+<!-- ITO:END -->

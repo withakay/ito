@@ -50,6 +50,8 @@ The default installation should present a small, memorable lifecycle. Supporting
 - `ito-tmux-skill`: Remove tmux skill distribution and its managed helper scripts from Ito.
 - `ito-archive-change-skill`: Make retained `ito-archive` own archive, accepted spec promotion, and archive output.
 - `ito-sync-specs-skill`: Retire the standalone spec-sync skill and fold reconciliation into archive.
+- `docs-agent-instructions`: Route project setup through the direct emitted instruction instead of an extra wrapper.
+- `experimental-workflow-commands`: Retire the absent experimental wrapper contract so the documented command palette matches the lifecycle surface.
 
 ## Impact
 
