@@ -24,7 +24,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-config tmux -- --nocapture && cargo test -p ito-cli --test init_tmux -- --nocapture`
 - **Done When**: RED tests cover config deserialization, schema generation, init/update help and prompts, and removal of the public key without changing worktree defaults.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.2: Specify viewer and installed-asset absence
 - **Files**: `ito-rs/crates/ito-core/src/viewer/viewer_tests.rs`; `ito-rs/crates/ito-templates/src/lib_tests.rs`; `ito-rs/crates/ito-core/tests/distribution.rs`; `ito-rs/crates/ito-cli/tests/view_proposal.rs`
