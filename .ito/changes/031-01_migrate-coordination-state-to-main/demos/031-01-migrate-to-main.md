@@ -20,7 +20,6 @@ source changes/.migration-proof 26ff3c5e338ce734416500ca8629ddd15c18299c2eeb5627
 source modules/.migration-proof 941bd8f163217aa942c34981b10cd817b0bca7aa3035c7718e254a6f478fada3
 source specs/.migration-proof 72463562be04d1f0269c06c9d5fd40ad127e1ed83c7b874610fbd714921a1e19
 source workflows/.migration-proof a013196483824f96509965d56d184b99fdd493fc70781ffb0a3dd6dd054d90ff
-empty directory preserved: audit/nested/empty
 executable mode preserved: 755
 after classification: embedded
 destination audit/.migration-proof 8588b0fab91fdd20465691bc46b996ce643ae0b9fd7a8c0b352d0984af93a885
@@ -31,6 +30,7 @@ destination specs/.migration-proof 72463562be04d1f0269c06c9d5fd40ad127e1ed83c7b8
 destination workflows/.migration-proof a013196483824f96509965d56d184b99fdd493fc70781ffb0a3dd6dd054d90ff
 source commit after: 87fc3998b300c1b6760d2313b02283353e8d512c
 review branch: ito/migrate-coordination-to-main
+fresh review checkout manifest: exact match
 review diff:
 M	.gitignore
 A	.ito/audit/.migration-proof
