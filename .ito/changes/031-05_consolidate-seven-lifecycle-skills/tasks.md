@@ -74,7 +74,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates && cargo test -p ito-core distribution`
 - **Done When**: The embedded shared asset tree has exactly seven `SKILL.md` entrypoints, retained commands resolve, no retired wrapper is emitted, and no tmux helper script remains in the managed bundle.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave 3: Agent separation, upgrade cleanup, and proof
