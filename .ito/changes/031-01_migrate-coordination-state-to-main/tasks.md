@@ -49,7 +49,7 @@ ______________________________________________________________________
 - **Done When**: Integration fixtures prove read commands succeed with one warning, mutating commands fail with unchanged filesystem/Git/task state, and ambiguous legacy state fails closed.
 - **Updated At**: 2026-07-13
 - **Requirements**: coordination-main-migration:read-write-safety-policy, agent-instructions:legacy-coordination-remediation
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.2: Add the always-available migrate-to-main instruction
 - **Files**: `ito-rs/crates/ito-cli/src/app/instructions.rs`; `ito-rs/crates/ito-cli/src/cli/agent.rs`; `ito-rs/crates/ito-templates/assets/instructions/agent/migrate-to-main.md.j2`; `ito-rs/crates/ito-templates/src/instructions.rs`; `ito-rs/crates/ito-templates/src/instructions_tests.rs`
