@@ -11,3 +11,4 @@
 - [ ] 031-02_enforce-main-first-implementation
 - [ ] 031-03_gate-experimental-backend-coordination
 - [ ] 031-04_remove-tmux-integration
+- [ ] 031-05_consolidate-seven-lifecycle-skills
