@@ -83,7 +83,7 @@ ______________________________________________________________________
 - **Done When**: Automated tests and captured demo evidence prove clean migration, conflict-stop behavior, exact parity, main-compatible post-state, and untouched rollback source.
 - **Updated At**: 2026-07-13
 - **Requirements**: coordination-main-migration:legacy-state-detection, coordination-main-migration:preserve-and-prove-state, coordination-worktree-migration:reverse-migration-rollback-evidence
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 ## Wave Guidelines
