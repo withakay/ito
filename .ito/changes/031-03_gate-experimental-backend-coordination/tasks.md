@@ -52,7 +52,7 @@ ______________________________________________________________________
 - **Verify**: `cargo check -p ito-cli` and `cargo check -p ito-cli --no-default-features --features backend`; focused backend tests in the backend-enabled lane.
 - **Done When**: The default CLI does not compile backend implementation modules or depend normally on `ito-backend`, while a backend-only build compiles and exercises the full backend path without coordination support.
 - **Requirements**: rust-workspace:independent-experimental-features, backend-client-runtime:explicit-feature-propagation, backend-client-runtime:compiled-out-error
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 - **Updated At**: 2026-07-13
 
 ### Task 1.4: Gate coordination implementation code
