@@ -128,13 +128,3 @@ set -e; fixture=$(cd .ito/changes/031-02_enforce-main-first-implementation/demos
   "status": "complete"
 }
 ```
-
-The same structured execute report is consumed by apply/worktree setup, task mutations, Ralph/loop dispatch, and orchestration. This demo exercised the CLI lifecycle; focused integration suites cover pull-request authority, target movement, copied artifacts, dynamic iteration selection, backend mutation boundaries, and orchestration resume.
-
-```bash
-bash .ito/changes/031-02_enforce-main-first-implementation/demos/main-first-fixture.sh cleanup .ito/changes/031-02_enforce-main-first-implementation/demos/.main-first-fixture; test ! -e .ito/changes/031-02_enforce-main-first-implementation/demos/.main-first-fixture; echo "fixture_cleaned=true"
-```
-
-```output
-fixture_cleaned=true
-```
