@@ -42,6 +42,15 @@ Reduce the shared skill asset tree to the seven retained directories. Rewrite th
 
 Retained skills reference CLI instruction artifacts for detailed policy. Resource files may remain inside a retained skill directory when phase-specific, but cannot introduce another discoverable `SKILL.md`.
 
+Reconcile the current contracts by ownership rather than leaving helper names as compatibility promises:
+
+- `ito-proposal` owns exploratory planning. Direct `ito plan init|status` workspace commands remain, but their hints and quality guidance no longer load `ito-plan` or install its slash wrapper.
+- `ito-research` owns memory search/query and `ito-archive` owns durable capture follow-through; provider-neutral memory instruction artifacts remain authoritative without `ito-memory`.
+- `ito-loop` owns iterative and multi-change orchestration. It composes `ito agent instruction orchestrate` with `.ito/user-prompts/orchestrate.md`; setup and workflow skills are not generated.
+- `ito-archive` owns accepted delta-spec promotion and archive reporting; `/ito-archive-change` and `/ito-sync-specs` are retired activation names.
+- The root `ito` skill and direct CLI own update, stamp diagnostics, repository validation, and legacy-coordination remediation; no advisory or rule points to `ito-update-repo`.
+- Tmux integration is deleted rather than assigned to a lifecycle phase. User-installed terminal automation remains outside Ito ownership.
+
 Remove retired shared skill directories and helper command/prompt wrappers. Preserve direct CLI commands where still useful. Simplify the `ito` router to a fixed six-destination lifecycle table plus CLI fallback; remove wildcard discovery/cache behavior.
 
 For agent roles, keep native agent files only for harnesses with a separate agent mechanism. Do not install specialist roles under `.agents/skills`, `.codex/skills`, or another skill discovery path. Where a harness cannot represent roles without skills, rely on retained instructions and the harness's ordinary delegation features rather than synthesizing role skills.
@@ -64,6 +73,8 @@ The `ito` routing contract recognizes the six phase intents and otherwise invoke
 
 Fresh harness installs expose only wrappers corresponding to retained lifecycle entrypoints. Direct CLI subcommands remain available through the binary and CLI help even when a similarly named skill/command wrapper is removed.
 
+Managed command surfaces MUST NOT emit `ito-plan`, `ito-update-repo`, `ito-orchestrate-setup`, `ito-orchestrator-workflow`, `ito-archive-change`, `ito-sync-specs`, `tmux`, or `ito-tmux` wrappers. Native agents remain a separate harness contract and never satisfy a missing lifecycle skill.
+
 ## Data / State
 
 No domain data changes. Installed managed assets transition as follows:
@@ -77,6 +88,8 @@ No domain data changes. Installed managed assets transition as follows:
 | Retired broken symlink | Remove through `symlink_metadata` |
 | User/project skill not in Ito legacy manifest | Preserve |
 
+Version stamps and naming rules provide cleanup evidence, not an independent activation surface. Update/validation code reads stamps directly, and exact-inventory checks reject noncanonical helper skills even when they use the `ito-` prefix.
+
 The canonical inventory is code, not user configuration. That avoids a new profile schema and ensures the default remains deterministic.
 
 ## Decisions
@@ -86,6 +99,7 @@ The canonical inventory is code, not user configuration. That avoids a new profi
 - **CLI instructions remain authoritative.** Consolidation removes duplicate activation surfaces, not the policy needed to perform work safely.
 - **No optional Ito profiles in this change.** A profile subsystem would reintroduce configuration and testing complexity before a proven need exists.
 - **Native agents are not skills.** Delegation can remain available without polluting user-facing skill discovery.
+- **Current-spec conflicts are reconciled explicitly.** Every requirement that promises a retired planning, memory, orchestration, update, tmux, archive, or sync surface is modified or removed under its existing identity.
 - **Preserve modified retired assets.** User content outranks cleanup neatness; reports make residual extensions explicit.
 
 ## Risks / Trade-offs
@@ -103,13 +117,17 @@ The canonical inventory is code, not user configuration. That avoids a new profi
 - Fresh-install integration tests inspect actual harness directories and assert exactly seven Ito-managed `SKILL.md` entrypoints.
 - Upgrade fixtures start with the current broad surface and prove managed-only helpers are pruned, user content survives, and a second update is byte-stable.
 - Router tests cover every lifecycle destination, helper-to-phase migration, CLI fallback, argument preservation, and absence of wildcard discovery.
+- Planning tests prove `ito plan` remains a direct workspace CLI while prompts/hints route to `ito-proposal` and no `ito-plan` wrapper is emitted.
+- Orchestration and archive tests prove instruction-backed setup/spec promotion works without workflow, setup, archive-change, or sync helper skills.
+- Update/validation tests prove stamps, naming checks, hook guidance, and legacy-coordination remediation use direct commands and never mention `ito-update-repo`.
+- Asset tests prove tmux `SKILL.md` and helper scripts are absent from fresh and upgraded managed installations.
 - Content tests prove retained skills link to all necessary instruction artifacts and do not duplicate canonical policy.
 - Agent-surface tests prove native roles never create extra skill directories.
 - Default build smoke tests prove `ito-loop` and Ralph remain installed and callable.
 
 ## Migration / Rollback
 
-Release cleanup and retained skill rewrites atomically. Before deletion, test the current installed inventory from every harness fixture. Upgrade output lists retired paths that could not be removed due to user content and the retained phase that replaces each helper.
+Release cleanup, current-spec reconciliation, and retained skill rewrites atomically. Before deletion, test the current installed inventory from every harness fixture. Upgrade output lists retired paths that could not be removed due to user content and the retained phase or direct CLI that replaces each helper. Tmux paths report removal with no Ito replacement.
 
 Rollback restores deleted embedded assets and manifests; the next update reinstalls managed copies. User content was preserved, so rollback does not require data recovery.
 

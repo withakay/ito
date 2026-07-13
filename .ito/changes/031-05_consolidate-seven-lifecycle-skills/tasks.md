@@ -29,9 +29,18 @@ ______________________________________________________________________
 ### Task 1.2: Map every retired helper to a retained lifecycle phase
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/`; `ito-rs/crates/ito-templates/assets/commands/`; `ito-rs/crates/ito-templates/src/legacy.rs`; `docs/src/content/docs/reference/skills.md`
 - **Dependencies**: None
-- **Action**: Inventory all current skill and command assets, record a replacement phase or intentional CLI-only path for each retired name, and add content tests proving no unique safety/gate guidance is lost before deletion.
+- **Action**: Inventory all current skill and command assets, record a replacement phase, intentional CLI-only path, native-agent carveout, or deliberate removal for each retired name, and add content tests proving no unique safety/gate guidance is lost before deletion. Cover planning→`ito-proposal`, memory→`ito-research`/`ito-archive`, orchestration→`ito-loop`, archive/sync→`ito-archive`, update/remediation→root `ito` or direct CLI, and tmux→removed.
 - **Verify**: `cargo test -p ito-templates lifecycle_skill_content`
 - **Done When**: Every retired managed entry has exactly one replacement owner and the replacement map covers intake, planning, tasks, worktrees, verification, finish, memory, wiki, orchestration, update, cleanup, commit, and path/list helpers.
+- **Updated At**: 2026-07-13
+- **Status**: [ ] pending
+
+### Task 1.3: Lock the current-spec conflict matrix
+- **Files**: delta specs under `.ito/changes/031-05_consolidate-seven-lifecycle-skills/specs/`; current specs under `.ito/specs/`; proposal capability list
+- **Dependencies**: None
+- **Action**: Verify identity-matched deltas for every current requirement that promises a retired planning, memory, orchestration, update, tmux, archive, sync, agent-as-skill, or wildcard-routing surface. Ensure native agents remain separate and the exact seven names are unchanged.
+- **Verify**: `ito validate 031-05_consolidate-seven-lifecycle-skills --strict`
+- **Done When**: Strict validation resolves every affected current requirement by its exact heading, and the proposal capability list matches all delta-spec directories.
 - **Updated At**: 2026-07-13
 - **Status**: [ ] pending
 
@@ -52,7 +61,7 @@ ______________________________________________________________________
 ### Task 2.2: Rewrite retained skills as lifecycle phase entrypoints
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito/`; `ito-proposal/`; `ito-research/`; `ito-apply/`; `ito-review/`; `ito-archive/`; `ito-loop/`
 - **Dependencies**: None
-- **Action**: Fold the approved helper mapping into the seven managed sections and phase-specific resources. Simplify `ito` to fixed lifecycle routing plus direct CLI fallback; reference authoritative instruction artifacts instead of duplicating long policy.
+- **Action**: Fold the approved helper mapping into the seven managed sections and phase-specific resources. Simplify `ito` to fixed lifecycle routing plus direct CLI fallback; route planning through `ito-proposal`, memory through `ito-research`/`ito-archive`, orchestration through `ito-loop`, and spec promotion through `ito-archive`; reference authoritative instruction artifacts instead of duplicating long policy.
 - **Verify**: `cargo test -p ito-templates lifecycle_skill_content && cargo test -p ito-templates template_markdown`
 - **Done When**: Each former helper concern is discoverable from its owner, router tests cover retained/retired/direct-CLI cases, and the retained skills contain no wildcard skill discovery/cache behavior.
 - **Updated At**: 2026-07-13
@@ -61,9 +70,9 @@ ______________________________________________________________________
 ### Task 2.3: Delete retired shared skills and helper command wrappers
 - **Files**: retired directories under `ito-rs/crates/ito-templates/assets/skills/`; retired files under `assets/commands/`; template embed/snapshot tests
 - **Dependencies**: Task 2.2
-- **Action**: Remove all non-seven shared skill entrypoints and command/prompt wrappers that expose retired helper activation names. Keep direct CLI commands and instruction templates required by the retained phases.
+- **Action**: Remove all non-seven shared skill entrypoints and command/prompt wrappers that expose retired helper activation names, including planning, memory, orchestration setup/workflow, update-repo, archive-change, sync-specs, and tmux assets/scripts. Keep direct CLI commands and instruction templates required by the retained phases.
 - **Verify**: `cargo test -p ito-templates && cargo test -p ito-core distribution`
-- **Done When**: The embedded shared asset tree has exactly seven `SKILL.md` entrypoints, retained commands resolve, and no retired wrapper is emitted.
+- **Done When**: The embedded shared asset tree has exactly seven `SKILL.md` entrypoints, retained commands resolve, no retired wrapper is emitted, and no tmux helper script remains in the managed bundle.
 - **Updated At**: 2026-07-13
 - **Status**: [ ] pending
 
@@ -82,18 +91,18 @@ ______________________________________________________________________
 - **Status**: [ ] pending
 
 ### Task 3.2: Prune obsolete managed surfaces without losing user content
-- **Files**: `ito-rs/crates/ito-templates/src/legacy.rs`; `ito-rs/crates/ito-templates/src/legacy_tests.rs`; `ito-rs/crates/ito-core/src/installers/`; `ito-rs/crates/ito-cli/tests/init_obsolete_cleanup.rs`; update smoke/marker tests
+- **Files**: `ito-rs/crates/ito-templates/src/legacy.rs`; `ito-rs/crates/ito-templates/src/legacy_tests.rs`; `ito-rs/crates/ito-core/src/installers/`; repository-validation rule/remediation sources; `ito-rs/crates/ito-cli/tests/init_obsolete_cleanup.rs`; update smoke/marker/naming tests
 - **Dependencies**: None
-- **Action**: Add the complete retired path manifest and run cleanup before retained assets are written. Remove managed-only files/directories and broken symlinks; preserve/report Markdown with user content outside managed markers; prove idempotence.
-- **Verify**: `cargo test -p ito-templates legacy && cargo test -p ito-cli --test init_obsolete_cleanup && cargo test -p ito-cli --test update_marker_scoped`
-- **Done When**: A full current-surface fixture upgrades to the canonical managed seven, preserved user extensions are reported, unrelated skills remain, and a second update is byte-identical.
+- **Action**: Add the complete retired path manifest and run cleanup before retained assets are written. Remove managed-only files/directories and broken symlinks; preserve/report Markdown with user content outside managed markers; expose version-stamp and naming diagnostics through direct update/validation code; replace every `ito-update-repo` remediation reference; prove idempotence.
+- **Verify**: `cargo test -p ito-templates legacy && cargo test -p ito-cli --test init_obsolete_cleanup && cargo test -p ito-cli --test update_marker_scoped && cargo test -p ito-core validate_repo`
+- **Done When**: A full current-surface fixture upgrades to the canonical managed seven, preserved user extensions are reported, unrelated skills remain, direct diagnostics name no retired helper, and a second update is byte-identical.
 - **Updated At**: 2026-07-13
 - **Status**: [ ] pending
 
 ### Task 3.3: Update specs/docs and run cross-harness completion audit
-- **Files**: current Ito specs for skill/agent/update/orchestration behavior; `.ito/wiki/topics/distribution-and-agents.md`; `docs/src/content/docs/`; `CHANGELOG.md`; harness fixture snapshots
+- **Files**: current Ito specs for routing, planning, agents, templates, memory, orchestration, init/update/hooks, asset naming/versioning, coordination remediation, tmux, archive, and spec sync; `.ito/wiki/topics/distribution-and-agents.md`; `docs/src/content/docs/`; `CHANGELOG.md`; harness fixture snapshots
 - **Dependencies**: Task 3.1, Task 3.2
-- **Action**: Remove contradictory current requirements and retired-name guidance, document the phase replacement map and breaking change, regenerate managed fixtures, and audit fresh plus upgraded installations across all harnesses.
+- **Action**: Promote every identity-matched delta into current specs, remove retired-name guidance, document the phase/direct-CLI/removal replacement map and breaking change, regenerate managed fixtures, and audit fresh plus upgraded installations across all harnesses.
 - **Verify**: `make check && cargo test --workspace --all-features --exclude ito-web && ito validate 031-05_consolidate-seven-lifecycle-skills --strict`
 - **Done When**: Specs and docs define one seven-skill contract, every fresh harness install has the exact inventory, upgraded fixtures are safe/idempotent, and default Ralph/loop tests pass.
 - **Updated At**: 2026-07-13

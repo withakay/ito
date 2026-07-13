@@ -7,11 +7,11 @@ The system SHALL detect when no `orchestrate.md` exists in the project's user-pr
 #### Scenario: Missing orchestrate.md triggers inline guidance
 - **WHEN** `ito agent instruction orchestrate` is invoked and `.ito/user-prompts/orchestrate.md` does not exist
 - **THEN** the system prints instruction-backed setup guidance
-- **AND** does not direct the agent to load a retired helper skill
+- **AND** it does not direct the agent to load a retired helper skill
 
 #### Scenario: Explicit setup mode uses the same instruction source
 - **WHEN** orchestration setup is requested explicitly
-- **THEN** the system renders the setup section from the authoritative instruction/template source
+- **THEN** the system renders setup guidance from the authoritative instruction/template source
 - **AND** no harness-specific setup skill is required
 
 ### Requirement: Stack detection
@@ -36,8 +36,8 @@ The instruction-backed setup flow MAY cross-reference project/user skills and na
 - **WHEN** an optional external skill is unavailable
 - **THEN** setup reports it as optional and does not block or install it
 
-### Requirement: Setup output
-The setup flow SHALL produce or update `.ito/user-prompts/orchestrate.md` after explicit confirmation. It MUST NOT create an `ito-orchestrator-workflow` skill.
+### Requirement: Setup outputs
+The setup flow SHALL produce or update `.ito/user-prompts/orchestrate.md` after explicit confirmation. It MUST NOT create an `ito-orchestrator-workflow` skill or any other skill directory.
 
 #### Scenario: Setup writes project prompt only
 - **WHEN** setup completes successfully
@@ -46,5 +46,6 @@ The setup flow SHALL produce or update `.ito/user-prompts/orchestrate.md` after 
 
 #### Scenario: Existing prompt requires confirmation
 - **WHEN** the project prompt already exists
-- **THEN** setup presents the proposed replacement or patch and requires confirmation before writing
+- **THEN** setup presents the proposed replacement or patch
+- **AND** it requires confirmation before writing
 <!-- ITO:END -->

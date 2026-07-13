@@ -1,15 +1,36 @@
 <!-- ITO:START -->
 ## REMOVED Requirements
 
+### Requirement: Ito Update Repo Skill
+The system SHALL provide an `ito-update-repo` skill and matching harness command that refreshes Ito-managed files and audits orphan assets.
+
+**Reason**: Update is a direct CLI responsibility and the standalone helper duplicates the retained root `ito` lifecycle guidance.
+**Migration**: Use `ito update` or `ito init --upgrade`, inspect their ownership-aware cleanup report, and run `ito validate repo` directly.
+
+#### Scenario: Retired update helper is requested
+- **WHEN** a user requests `ito-update-repo`
+- **THEN** retained `ito` guidance explains the direct update and validation commands
+- **AND** no replacement skill is installed
+
+### Requirement: Distribution via Templates Bundle
+The templates bundle SHALL distribute `ito-update-repo` to every configured harness.
+
+**Reason**: The canonical default contains exactly seven lifecycle skills and does not include `ito-update-repo`.
+**Migration**: Remove managed skill and command copies during ownership-aware upgrade cleanup; preserve user-authored content.
+
+#### Scenario: Fresh installation omits the retired helper
+- **WHEN** Ito initializes any supported harness
+- **THEN** no `ito-update-repo` skill or command wrapper is emitted
+
 ### Requirement: ito-update-repo skill includes a pre-commit hook setup step
 The `ito-update-repo` skill SHALL include a pre-commit hook setup step after managed asset refresh and cleanup.
 
 **Reason**: The standalone update-repo skill is retired and pre-commit framework setup is not part of the seven lifecycle entrypoints.
-**Migration**: Use direct `ito init --upgrade` or `ito update` for managed assets and configure downstream pre-commit hooks explicitly using reference documentation.
+**Migration**: Configure downstream pre-commit hooks explicitly using reference documentation and verify them with direct CLI validation.
 
-#### Scenario: Retired setup skill is requested
-- **WHEN** a user requests `ito-update-repo`
-- **THEN** retained `ito` guidance points to direct update and validation commands
+#### Scenario: Hook setup remains explicit
+- **WHEN** a downstream project adopts the Ito validation hook
+- **THEN** the user or project tooling reviews and applies the change explicitly
 
 ### Requirement: Pre-commit hook setup is dry-run by default
 The skill's pre-commit setup step SHALL preview edits and require approval unless an explicit non-interactive option is supplied.
@@ -17,15 +38,15 @@ The skill's pre-commit setup step SHALL preview edits and require approval unles
 **Reason**: Ito no longer uses a managed skill to edit third-party pre-commit framework configuration.
 **Migration**: Preview and apply hook changes with the repository's chosen tooling, then run `ito validate repo --staged --strict` directly.
 
-#### Scenario: Hook setup remains explicit
-- **WHEN** a downstream project adopts the Ito validation hook
-- **THEN** the user or project tooling reviews and applies the change explicitly
+#### Scenario: Direct hook configuration remains reviewable
+- **WHEN** a downstream project changes its hook configuration
+- **THEN** the change follows the project's normal review workflow
 
 ### Requirement: Pre-commit hook setup is verified after install
 The skill SHALL run staged repository validation after applying a hook entry.
 
 **Reason**: Verification is no longer owned by a retired skill.
-**Migration**: Run `ito validate repo --staged --strict` directly after manual hook configuration.
+**Migration**: Run `ito validate repo --staged --strict` directly after hook configuration.
 
 #### Scenario: Manual verification remains available
 - **WHEN** hook configuration is changed
