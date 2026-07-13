@@ -56,7 +56,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates manifest && cargo test -p ito-core distribution`
 - **Done When**: All logical harness manifests expose the identical exact set and no harness-specific code can append an Ito skill outside the canonical inventory.
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 2.2: Rewrite retained skills as lifecycle phase entrypoints
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/ito/`; `ito-proposal/`; `ito-research/`; `ito-apply/`; `ito-review/`; `ito-archive/`; `ito-loop/`
