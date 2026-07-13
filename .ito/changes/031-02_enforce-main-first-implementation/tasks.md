@@ -150,7 +150,7 @@ ______________________________________________________________________
 - **Done When**: Tests and the executable demo prove all entry points share the gate, failures are mutation-free, both integration modes work, and the repository check passes.
 - **Requirements**: main-first-implementation:proposal-integration-mode, main-first-implementation:immutable-authority-snapshot, main-first-implementation:prepare-readiness, main-first-implementation:execute-readiness, main-first-implementation:verified-worktree-base, main-first-implementation:entrypoint-enforcement, main-first-implementation:readiness-reporting
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 
