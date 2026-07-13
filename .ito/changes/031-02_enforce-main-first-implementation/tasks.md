@@ -111,7 +111,7 @@ ______________________________________________________________________
 - **Done When**: Iteration remains available after readiness but cannot start before main-first ancestry is established.
 - **Requirements**: main-first-implementation:execute-readiness, main-first-implementation:entrypoint-enforcement
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.5: Gate orchestration dispatch and resume
 
