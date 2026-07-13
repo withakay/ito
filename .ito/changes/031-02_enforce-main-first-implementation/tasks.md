@@ -39,7 +39,7 @@ ______________________________________________________________________
 - **Done When**: Every report names its authority ref/OID consistently and all downstream operations consume the captured OID.
 - **Requirements**: main-first-implementation:immutable-authority-snapshot, main-first-implementation:readiness-reporting
 - **Updated At**: 2026-07-13
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 1.3: Implement authoritative tree validation and integration-commit discovery
 
