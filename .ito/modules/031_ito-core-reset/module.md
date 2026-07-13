@@ -8,3 +8,4 @@
 
 ## Changes
 - [ ] 031-01_migrate-coordination-state-to-main
+- [ ] 031-02_enforce-main-first-implementation
