@@ -180,8 +180,8 @@ ______________________________________________________________________
 - **Verify**: `ito trace 031-03_gate-experimental-backend-coordination`, `ito validate 031-03_gate-experimental-backend-coordination --strict`, the default `make check`, and the experimental/all-features check target.
 - **Done When**: Reviews have no unresolved correctness findings, every requirement is covered by completed tasks/tests, both build lanes pass, and strict Ito validation succeeds.
 - **Requirements**: cascading-config:parse-compiled-out-features, backend-client-runtime:compiled-out-error, change-coordination-branch:compiled-out-error, release-automation:split-feature-verification
-- **Status**: [ ] pending
-- **Updated At**: 2026-07-13
+- **Status**: [>] in-progress
+- **Updated At**: 2026-07-14
 
 ______________________________________________________________________
 
