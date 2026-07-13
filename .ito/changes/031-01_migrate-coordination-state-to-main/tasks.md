@@ -73,7 +73,7 @@ ______________________________________________________________________
 - **Done When**: Every supported harness exposes one route to the instruction, current docs no longer recommend deepening legacy coordination state, and generated surfaces remain refreshable.
 - **Updated At**: 2026-07-13
 - **Requirements**: agent-instructions:migrate-to-main-availability, agent-instructions:legacy-coordination-remediation
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ### Task 3.2: Prove a reversible fixture migration
 - **Files**: `ito-rs/crates/ito-cli/tests/migrate_to_main_instruction.rs`; `ito-rs/crates/ito-test-support/src/fixtures.rs`; `demos/031-01-migrate-to-main.md`
