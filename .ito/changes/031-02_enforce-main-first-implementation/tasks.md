@@ -100,7 +100,7 @@ ______________________________________________________________________
 - **Done When**: Failed readiness produces zero local or remote task-state mutations.
 - **Requirements**: main-first-implementation:execute-readiness, main-first-implementation:entrypoint-enforcement
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 2.4: Gate Ralph and loop execution
 
