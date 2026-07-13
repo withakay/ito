@@ -26,7 +26,7 @@ fixture="$PWD/.ito/changes/031-02_enforce-main-first-implementation/demos/.main-
   "ready": false,
   "authority_ref": "refs/heads/main",
   "failed": [
-    "authoritative_artifacts"
+    "change_target"
   ]
 }
 ```
@@ -127,4 +127,22 @@ set -e; fixture=$(cd .ito/changes/031-02_enforce-main-first-implementation/demos
   "task_id": "1.1",
   "status": "complete"
 }
+```
+
+Orchestration persists and rechecks the same structured readiness gate before initial and resumed dispatch.
+
+```bash
+cargo test -q -p ito-core --test orchestrate_run_state orchestrate_ >/dev/null && echo "orchestration_readiness_and_resume_tests_passed=true"
+```
+
+```output
+orchestration_readiness_and_resume_tests_passed=true
+```
+
+```bash
+bash .ito/changes/031-02_enforce-main-first-implementation/demos/main-first-fixture.sh cleanup .ito/changes/031-02_enforce-main-first-implementation/demos/.main-first-fixture; test ! -e .ito/changes/031-02_enforce-main-first-implementation/demos/.main-first-fixture; echo "fixture_cleaned=true"
+```
+
+```output
+fixture_cleaned=true
 ```
