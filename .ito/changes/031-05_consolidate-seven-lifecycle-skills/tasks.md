@@ -24,7 +24,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates skill_inventory -- --nocapture && cargo test -p ito-core skill_inventory -- --nocapture && cargo test -p ito-cli --test init_agent_activation -- --nocapture`
 - **Done When**: Tests fail on any missing, duplicate, or additional Ito-managed skill and distinguish native agent files from skills.
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Map every retired helper to a retained lifecycle phase
 - **Files**: `ito-rs/crates/ito-templates/assets/skills/`; `ito-rs/crates/ito-templates/assets/commands/`; `ito-rs/crates/ito-templates/src/legacy.rs`; `docs/src/content/docs/reference/skills.md`
