@@ -102,7 +102,7 @@ ______________________________________________________________________
 - **Verify**: Focused `ito-config` and CLI/core preflight tests plus the repository's config-schema freshness check.
 - **Done When**: Old config parses in the default binary, new config does not request compiled-out coordination, invalid values remain config errors, and explicit legacy feature requests never fall back.
 - **Requirements**: cascading-config:parse-compiled-out-features, backend-client-runtime:compiled-out-error, change-coordination-branch:compiled-out-error
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 - **Updated At**: 2026-07-13
 
 ______________________________________________________________________
