@@ -9,9 +9,12 @@ use ito_core::audit::{
 use ito_core::capabilities::{CapabilityPreflight, preflight_config};
 use ito_core::errors::{CoreError, CoreResult};
 use ito_core::repo_index::RepoIndex;
-use ito_core::repository_runtime::{RepositoryRuntime, resolve_repository_runtime};
+use ito_core::repository_runtime::{
+    RepositoryRuntime, RepositoryRuntimeBuilder, resolve_repository_runtime,
+};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn resolve_runtime_root() -> PathBuf {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -64,6 +67,7 @@ pub(crate) struct Runtime {
     user_identity: OnceLock<String>,
     repository_runtime: OnceLock<RepositoryRuntime>,
     resolved_config: OnceLock<CascadingProjectConfig>,
+    suppress_command_side_effects: AtomicBool,
 }
 
 impl Runtime {
@@ -78,6 +82,7 @@ impl Runtime {
             user_identity: OnceLock::new(),
             repository_runtime: OnceLock::new(),
             resolved_config: OnceLock::new(),
+            suppress_command_side_effects: AtomicBool::new(false),
         }
     }
 
@@ -130,15 +135,33 @@ impl Runtime {
 
     /// Validate resolved configuration against the capabilities in this binary.
     pub(crate) fn preflight(&self, mode: CapabilityPreflight) -> CoreResult<()> {
+        if mode == CapabilityPreflight::Recovery {
+            return Ok(());
+        }
         let config: ItoConfig = serde_json::from_value(self.resolved_config().merged.clone())
             .map_err(|error| CoreError::serde("parse resolved Ito config", error.to_string()))?;
         preflight_config(&config, mode)
     }
 
+    /// Suppress incidental logging, event forwarding, and synchronization.
+    pub(crate) fn suppress_command_side_effects(&self) {
+        self.suppress_command_side_effects
+            .store(true, Ordering::Relaxed);
+    }
+
+    /// Whether the pre-dispatch safety guard suppressed incidental side effects.
+    pub(crate) fn command_side_effects_suppressed(&self) -> bool {
+        self.suppress_command_side_effects.load(Ordering::Relaxed)
+    }
+
     /// Returns the resolved repository runtime.
     pub(crate) fn repository_runtime(&self) -> CoreResult<&RepositoryRuntime> {
         if self.repository_runtime.get().is_none() {
-            let runtime = resolve_repository_runtime(self.ito_path(), &self.ctx)?;
+            let runtime = if self.command_side_effects_suppressed() {
+                RepositoryRuntimeBuilder::new(self.ito_path()).build()?
+            } else {
+                resolve_repository_runtime(self.ito_path(), &self.ctx)?
+            };
             let _ = self.repository_runtime.set(runtime);
         }
         self.repository_runtime

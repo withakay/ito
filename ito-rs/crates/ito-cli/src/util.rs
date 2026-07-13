@@ -43,6 +43,10 @@ pub(crate) fn with_logging<F>(
 where
     F: FnOnce() -> CliResult<()>,
 {
+    if rt.command_side_effects_suppressed() {
+        return f();
+    }
+
     let config_dir = ito_config::ito_config_dir(rt.ctx());
     let logger = ExecLogger::new(
         config_dir,

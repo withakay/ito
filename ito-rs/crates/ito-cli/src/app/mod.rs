@@ -5,6 +5,7 @@ mod entrypoint;
 mod grep;
 mod init;
 mod instructions;
+mod legacy_coordination;
 mod list;
 mod manifesto_instructions;
 mod memory_instructions;

@@ -21,6 +21,16 @@ This page is an overview and a set of practical prompts/checklists for humans.
 
 ## Typical contributor flow with an agent
 
+### 0) Clear legacy coordination state
+
+If Ito warns that coordination state is legacy or ambiguous, read-only inspection remains available but mutation is intentionally blocked. Before creating or applying a proposal, ask the agent to run:
+
+```bash
+ito agent instruction migrate-to-main
+```
+
+Follow the emitted non-destructive migration procedure. It inventories and hashes the five managed Ito state directories, stops on conflicts, preserves the source coordination worktree for rollback, validates the embedded result, and integrates the reviewed migration according to repository policy. Do not begin implementation until the migration is on main.
+
 ### 1) Decide whether a proposal is needed
 
 Use a proposal for new capabilities, breaking changes, architectural shifts, or significant security/perf changes.

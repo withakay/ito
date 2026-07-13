@@ -1451,6 +1451,7 @@ dependencies = [
  "chrono",
  "ito-domain",
  "portable-pty",
+ "sha2",
  "strip-ansi-escapes",
  "tempfile",
 ]

@@ -67,6 +67,8 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
                 return Ok(());
             }
             _ => {
+                let rt = Runtime::new();
+                super::legacy_coordination::enforce_legacy_coordination_parse_failure_guard(&rt)?;
                 let ctx = ConfigContext::from_process_env();
                 util::maybe_log_invalid_command_early(&ctx, args, &e.to_string());
                 return fail(e.to_string());
@@ -80,7 +82,14 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
 
     let rt = Runtime::new();
 
-    let preflight_mode = if is_recovery_safe_invocation(args) {
+    let recovery_safe = is_recovery_safe_invocation(args);
+    if let Some(command) = cli.command.as_ref()
+        && (!recovery_safe || is_migrate_to_main_invocation(args))
+    {
+        super::legacy_coordination::enforce_legacy_coordination_guard(&rt, command)?;
+    }
+
+    let preflight_mode = if recovery_safe || rt.command_side_effects_suppressed() {
         CapabilityPreflight::Recovery
     } else {
         CapabilityPreflight::Stateful
@@ -435,17 +444,29 @@ fn is_recovery_safe_invocation(args: &[String]) -> bool {
         | ["config", ..]
         | ["init", ..]
         | ["update", ..]
-        | ["backend", ..]
-        | ["serve-api", ..]
-        | ["sync", ..] => true,
+        | ["serve-api", ..] => true,
+        ["backend", ..] => !cfg!(feature = "backend"),
+        ["sync", ..] => !cfg!(feature = "coordination-branch"),
         ["tasks", operation, ..]
             if matches!(*operation, "claim" | "release" | "allocate" | "sync") =>
         {
-            true
+            !cfg!(feature = "backend")
         }
         ["agent", "instruction", "migrate-to-main", ..] => true,
         _ => false,
     }
+}
+
+fn is_migrate_to_main_invocation(args: &[String]) -> bool {
+    let positional = args
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    matches!(
+        positional.as_slice(),
+        ["agent", "instruction", "migrate-to-main", ..]
+    )
 }
 
 #[cfg(not(feature = "backend"))]

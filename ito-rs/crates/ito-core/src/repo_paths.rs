@@ -8,7 +8,6 @@ use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::load_cascading_project_config;
-#[cfg(feature = "coordination-branch")]
 use ito_config::types::CoordinationBranchConfig;
 use ito_config::types::{ItoConfig, WorktreeStrategy};
 use std::path::{Path, PathBuf};
@@ -232,7 +231,6 @@ pub fn resolve_worktree_paths(
 /// The `ito_path` parameter is used only for the last-resort fallback (case 4).
 /// Pass the project's `.ito` directory so the fallback path is always absolute
 /// and project-scoped rather than relative to the caller's working directory.
-#[cfg(feature = "coordination-branch")]
 pub fn coordination_worktree_path(
     config: &CoordinationBranchConfig,
     ito_path: &Path,

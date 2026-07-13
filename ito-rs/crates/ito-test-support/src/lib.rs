@@ -284,6 +284,144 @@ pub fn collect_file_bytes(root: &Path) -> BTreeMap<String, Vec<u8>> {
     out
 }
 
+/// One deterministic filesystem entry in a migration-proof tree manifest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreeSnapshotEntry {
+    /// Regular file with content digest and Git-representable executable bit.
+    File {
+        /// SHA-256 digest in lowercase hexadecimal.
+        sha256: String,
+        /// Whether Git records the file as executable on this platform.
+        executable: bool,
+    },
+    /// Symbolic link recorded without dereferencing its target.
+    Symlink {
+        /// Target stored in the link itself.
+        target: PathBuf,
+    },
+}
+
+/// Build a recursive Git-representable path/type/hash manifest without following symlinks.
+///
+/// Directories and their modes are not included because Git does not represent
+/// them independently of tracked descendants. File bytes, executable bits, and
+/// symlink targets are included.
+///
+/// # Errors
+///
+/// Returns an I/O error when metadata or file bytes cannot be read, or when the
+/// tree contains an unsupported special entry.
+pub fn snapshot_tree_manifest(
+    root: &Path,
+) -> std::io::Result<BTreeMap<PathBuf, TreeSnapshotEntry>> {
+    use sha2::{Digest, Sha256};
+
+    fn executable(metadata: &std::fs::Metadata) -> bool {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode() & 0o111 != 0
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = metadata;
+            false
+        }
+    }
+
+    fn visit(
+        root: &Path,
+        path: &Path,
+        out: &mut BTreeMap<PathBuf, TreeSnapshotEntry>,
+    ) -> std::io::Result<()> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?
+            .to_path_buf();
+
+        if metadata.file_type().is_symlink() {
+            out.insert(
+                relative,
+                TreeSnapshotEntry::Symlink {
+                    target: std::fs::read_link(path)?,
+                },
+            );
+        } else if metadata.is_dir() {
+            let mut entries = std::fs::read_dir(path)?.collect::<Result<Vec<_>, _>>()?;
+            entries.sort_by_key(std::fs::DirEntry::file_name);
+            for entry in entries {
+                visit(root, &entry.path(), out)?;
+            }
+        } else if metadata.is_file() {
+            out.insert(
+                relative,
+                TreeSnapshotEntry::File {
+                    sha256: format!("{:x}", Sha256::digest(std::fs::read(path)?)),
+                    executable: executable(&metadata),
+                },
+            );
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("snapshot contains unsupported entry '{}'", path.display()),
+            ));
+        }
+        Ok(())
+    }
+
+    let mut out = BTreeMap::new();
+    visit(root, root, &mut out)?;
+    Ok(out)
+}
+
+/// Inventory regular files beneath `root` by relative path and SHA-256 digest.
+///
+/// Directory traversal is deterministic. Symbolic links and other special
+/// entries are rejected so migration tests cannot accidentally hash data
+/// outside the requested snapshot root.
+///
+/// # Errors
+///
+/// Returns an I/O error when `root` cannot be read, a file cannot be hashed, or
+/// the tree contains a non-file, non-directory entry.
+pub fn snapshot_regular_files(root: &Path) -> std::io::Result<BTreeMap<PathBuf, String>> {
+    use sha2::{Digest, Sha256};
+
+    fn walk(
+        root: &Path,
+        directory: &Path,
+        out: &mut BTreeMap<PathBuf, String>,
+    ) -> std::io::Result<()> {
+        let mut entries = std::fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
+        entries.sort_by_key(std::fs::DirEntry::file_name);
+
+        for entry in entries {
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                walk(root, &path, out)?;
+            } else if file_type.is_file() {
+                let relative = path
+                    .strip_prefix(root)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+                let digest = Sha256::digest(std::fs::read(&path)?);
+                out.insert(relative.to_path_buf(), format!("{digest:x}"));
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("snapshot contains unsupported entry '{}'", path.display()),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    let mut out = BTreeMap::new();
+    walk(root, root, &mut out)?;
+    Ok(out)
+}
+
 /// Replace the contents of `dst` with a recursive copy of `src`.
 ///
 /// This is used in tests to reset a working directory to a known state without
@@ -320,8 +458,24 @@ pub fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
             copy_dir_all(&src, &dst)?;
         } else if ty.is_file() {
             std::fs::copy(&src, &dst)?;
+        } else if ty.is_symlink() {
+            let target = std::fs::read_link(&src)?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(target, &dst)?;
+            #[cfg(not(unix))]
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                format!("cannot preserve symbolic link '{}'", src.display()),
+            ));
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("cannot copy special entry '{}'", src.display()),
+            ));
         }
     }
+
+    std::fs::set_permissions(to, std::fs::metadata(from)?.permissions())?;
 
     Ok(())
 }
