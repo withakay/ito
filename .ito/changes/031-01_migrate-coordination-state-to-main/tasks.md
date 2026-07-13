@@ -59,7 +59,7 @@ ______________________________________________________________________
 - **Done When**: Default/no-coordination builds render contextual instructions; tests assert stop conditions, source preservation, embedded/disabled config, hash parity, validation, and reviewed integration guidance.
 - **Updated At**: 2026-07-13
 - **Requirements**: coordination-main-migration:preserve-and-prove-state, coordination-worktree-migration:reverse-agent-driven-migration, coordination-worktree-migration:reverse-migration-rollback-evidence, agent-instructions:migrate-to-main-availability
-- **Status**: [>] in-progress
+- **Status**: [x] complete
 
 ______________________________________________________________________
 ## Wave 3: Distribution and end-to-end proof
