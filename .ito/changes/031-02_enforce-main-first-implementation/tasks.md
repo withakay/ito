@@ -28,7 +28,7 @@ ______________________________________________________________________
 - **Done When**: Defaults, explicit modes, invalid values, and cascading overrides are covered and public config artifacts agree.
 - **Requirements**: main-first-implementation:proposal-integration-mode
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ### Task 1.2: Implement immutable authority resolution
 
