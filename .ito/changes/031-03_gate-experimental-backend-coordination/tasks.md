@@ -158,8 +158,8 @@ ______________________________________________________________________
 - **Verify**: The exact feature-matrix commands documented in Make/CI, executed through the test-with-subagent workflow.
 - **Done When**: Every supported combination compiles, its expected tests pass, and Cargo metadata/tree evidence matches the intended feature graph.
 - **Requirements**: rust-workspace:independent-experimental-features, rust-workspace:default-iteration-surface, backend-client-runtime:explicit-feature-propagation, change-coordination-branch:independent-feature-gate, release-automation:split-feature-verification
-- **Status**: [>] in-progress
-- **Updated At**: 2026-07-13
+- **Status**: [x] complete
+- **Updated At**: 2026-07-14
 
 ### Task 4.2: Capture reproducible dependency and artifact evidence
 
