@@ -130,7 +130,7 @@ ______________________________________________________________________
 - **Verify**: Workflow syntax validation and execution of the exact Cargo/Make commands locally where possible.
 - **Done When**: CI cannot pass solely because feature unification compiled experimental code, and both shipped and opt-in combinations have required evidence.
 - **Requirements**: release-automation:split-feature-verification, rust-workspace:primary-default-member
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 - **Updated At**: 2026-07-13
 
 ### Task 3.3: Pin and prove standard release contents
