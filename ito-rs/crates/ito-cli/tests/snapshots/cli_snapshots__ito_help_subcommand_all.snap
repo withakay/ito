@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 113
 expression: "snapshot(&[\"help\", \"--all\"])"
 ---
 ================================================================================
@@ -23,7 +22,6 @@ Commands:
   archive       Move a completed change to archive and update main specs [aliases: ar]
   patch         Apply a targeted patch to an active change artifact
   write         Replace an active change artifact completely
-  sync          Validate and synchronize coordination worktree state
   grep          Search Ito change artifacts using a regular expression [aliases: gr]
   tasks         Manage implementation tasks for a change [aliases: ts]
   plan          Initialize and inspect the planning workspace [aliases: pl]
@@ -36,7 +34,6 @@ Commands:
   worktree      Manage change worktrees (ensure, setup)
   view          View proposal artifacts with an interactive or explicit viewer
   serve         Serve local Ito artifacts and docs over HTTP [aliases: se]
-  backend       Manage backend client configuration and connectivity [aliases: be]
   audit         Query, validate, and manage the audit event log [aliases: au]
   util          Low-level utility commands for scripting and agent tooling. [aliases: u]
   trace         Show requirement traceability for a change [aliases: tr]
@@ -662,6 +659,7 @@ Artifacts:
   worktrees                          Guide for git worktree workflow (config-driven)
   repo-sweep                         Scan for old-only ID format assumptions in prompts and templates
   cleanup                            Scan for legacy Ito-managed files and cleanup candidates
+  migrate-to-main                    Guide for safely migrating coordination state back to main
   migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage
   orchestrate                        Orchestrate applying a set of changes via an orchestrator agent
   manifesto                          Generate a strict Ito manifesto for prompt-only execution
@@ -683,6 +681,7 @@ Examples:
   ito agent instruction worktrees
   ito agent instruction repo-sweep
   ito agent instruction cleanup
+  ito agent instruction migrate-to-main
   ito agent instruction migrate-to-coordination-worktree
   ito agent instruction orchestrate
   ito agent instruction manifesto

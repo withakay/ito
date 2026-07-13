@@ -1,5 +1,11 @@
 use predicates::str::contains;
 
+fn isolated_ito_command(home: &std::path::Path) -> assert_cmd::Command {
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    cmd.env("HOME", home).env("XDG_CONFIG_HOME", home);
+    cmd
+}
+
 /// Verifies that the `ito templates schemas export -f <target>` command writes the embedded schema
 /// and template files into the target directory.
 ///
@@ -16,9 +22,10 @@ use predicates::str::contains;
 #[test]
 fn templates_schemas_export_writes_embedded_files() {
     let td = tempfile::tempdir().expect("tempdir");
+    let home = tempfile::tempdir().expect("home");
     let target = td.path().join(".ito/templates/schemas");
 
-    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    let mut cmd = isolated_ito_command(home.path());
     cmd.current_dir(td.path())
         .arg("templates")
         .arg("schemas")
@@ -112,9 +119,10 @@ fn templates_schemas_export_writes_embedded_files() {
 #[test]
 fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
     let td = tempfile::tempdir().expect("tempdir");
+    let home = tempfile::tempdir().expect("home");
     let target = td.path().join(".ito/templates/schemas");
 
-    let mut first = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    let mut first = isolated_ito_command(home.path());
     first
         .current_dir(td.path())
         .arg("templates")
@@ -131,7 +139,7 @@ fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
     )
     .expect("write override");
 
-    let mut second = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    let mut second = isolated_ito_command(home.path());
     second
         .current_dir(td.path())
         .arg("templates")
@@ -147,7 +155,7 @@ fn templates_schemas_export_skips_without_force_then_overwrites_with_force() {
         .expect("read after non-force export");
     assert!(content.contains("description: modified"));
 
-    let mut forced = assert_cmd::cargo::cargo_bin_cmd!("ito");
+    let mut forced = isolated_ito_command(home.path());
     forced
         .current_dir(td.path())
         .arg("templates")

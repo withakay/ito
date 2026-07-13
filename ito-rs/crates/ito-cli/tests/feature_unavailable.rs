@@ -1,10 +1,12 @@
 use assert_cmd::Command;
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
 use serde_json::Value;
 
 fn ito() -> Command {
     Command::cargo_bin("ito").expect("ito binary")
 }
 
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
 fn assert_feature_json(output: &[u8], feature: &str, requested_by: &str) {
     let value: Value = serde_json::from_slice(output).expect("valid JSON error");
     assert_eq!(value["error"]["kind"], "feature_unavailable");

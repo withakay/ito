@@ -445,6 +445,9 @@ fn is_recovery_safe_invocation(args: &[String]) -> bool {
         | ["init", ..]
         | ["update", ..]
         | ["serve-api", ..] => true,
+        // The backend server consumes its own global/flag configuration and
+        // must be startable without compiling or migrating project coordination.
+        ["backend", "serve", ..] => true,
         ["backend", ..] => !cfg!(feature = "backend"),
         ["sync", ..] => !cfg!(feature = "coordination-branch"),
         ["tasks", operation, ..]

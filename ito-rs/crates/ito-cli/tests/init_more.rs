@@ -420,6 +420,7 @@ fn init_help_prints_usage() {
 /// let exists = remote_has_ref(Path::new("/path/to/bare.git"), "refs/heads/main");
 /// println!("ref exists: {}", exists);
 /// ```
+#[cfg(feature = "coordination-branch")]
 fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
     let output = std::process::Command::new("git")
         .args([
@@ -436,6 +437,7 @@ fn remote_has_ref(remote: &std::path::Path, reference: &str) -> bool {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn init_setup_coordination_branch_creates_branch_on_origin() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -473,6 +475,7 @@ fn init_setup_coordination_branch_creates_branch_on_origin() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn init_setup_coordination_branch_reports_ready_when_already_present() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -532,6 +535,7 @@ fn init_setup_coordination_branch_reports_ready_when_already_present() {
 /// // repository setup provided by the fixtures used in the test suite.
 /// ```
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn init_setup_coordination_branch_fails_without_origin_remote() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -559,6 +563,7 @@ fn init_setup_coordination_branch_fails_without_origin_remote() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn init_setup_coordination_branch_uses_configured_branch_name() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");

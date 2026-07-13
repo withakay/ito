@@ -351,9 +351,6 @@ fn classify(
     let has_real_directory = managed_paths
         .iter()
         .any(|evidence| matches!(evidence.kind, ManagedPathKind::Directory { .. }));
-    let all_real_directories = managed_paths
-        .iter()
-        .all(|evidence| matches!(evidence.kind, ManagedPathKind::Directory { .. }));
     let has_other = managed_paths
         .iter()
         .any(|evidence| matches!(evidence.kind, ManagedPathKind::Other));
@@ -362,7 +359,6 @@ fn classify(
         .all(|evidence| matches!(evidence.kind, ManagedPathKind::Missing));
     let has_gitignore_entries = !gitignore.matching_entries.is_empty();
     let partial_gitignore_marker = has_gitignore_entries && !gitignore.marker_present;
-    let partial_main_materialization = !has_link && has_real_directory && !all_real_directories;
     let worktree_config_with_materialized_paths =
         configured_legacy && !has_link && has_real_directory;
 
@@ -370,7 +366,6 @@ fn classify(
         || has_inconsistent_link_roots
         || has_other
         || partial_gitignore_marker
-        || partial_main_materialization
         || worktree_config_with_materialized_paths
         || (has_link && has_non_empty_directory)
         || (configured_main && (has_link || has_gitignore_entries))
@@ -382,7 +377,7 @@ fn classify(
         LegacyCoordinationClass::Legacy
     } else if all_missing {
         LegacyCoordinationClass::Absent
-    } else if all_real_directories {
+    } else if has_real_directory {
         LegacyCoordinationClass::Embedded
     } else {
         LegacyCoordinationClass::Ambiguous

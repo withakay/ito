@@ -89,6 +89,7 @@ impl LegacyFixture {
         )
     }
 
+    #[cfg(not(feature = "coordination-branch"))]
     fn update_config(&self, update: impl FnOnce(&mut serde_json::Value)) {
         let path = self.project.join(".ito/config.json");
         let mut config: serde_json::Value =
@@ -103,6 +104,7 @@ impl LegacyFixture {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_read_warns_once_and_does_not_mutate_state() {
     let fixture = LegacyFixture::linked();
     let before = fixture.snapshot();
@@ -131,6 +133,7 @@ fn legacy_read_warns_once_and_does_not_mutate_state() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_mutation_is_blocked_before_any_state_change() {
     let fixture = LegacyFixture::linked();
     let before = fixture.snapshot();
@@ -174,6 +177,7 @@ fn ambiguous_legacy_state_also_fails_closed() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_read_uses_filesystem_without_creating_configured_sqlite_database() {
     let fixture = LegacyFixture::linked();
     let database = fixture.temp.path().join("sqlite/runtime.db");
@@ -199,6 +203,7 @@ fn legacy_read_uses_filesystem_without_creating_configured_sqlite_database() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn invalid_command_is_blocked_before_invalid_command_logging() {
     let fixture = LegacyFixture::linked();
     fixture.update_config(|config| {

@@ -309,6 +309,7 @@ fn agent_instruction_manifesto_full_variant_renders_full_section() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn agent_instruction_manifesto_redacts_explicit_coordination_path() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");
@@ -852,7 +853,7 @@ fn agent_instruction_archive_without_change_prints_generic_guidance() {
         "stdout={}",
         out.stdout
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(
         out.stdout.contains("000-01_test-change"),
         "expected available change hint in generic mode; stdout={}",
@@ -893,16 +894,7 @@ fn agent_instruction_archive_with_change_prints_targeted_instruction() {
         "stdout={}",
         out.stdout
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
-    assert!(
-        out.stdout
-            .contains("create an integration branch from `main`")
-            || out
-                .stdout
-                .contains("create an integration branch from main"),
-        "stdout={}",
-        out.stdout
-    );
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
 }
 
 #[test]
@@ -966,7 +958,7 @@ fn agent_instruction_finish_with_change_prompts_for_archive() {
         out.stdout
             .contains("ito agent instruction archive --change '000-01_test-change'")
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
 }
 
 #[test]

@@ -377,6 +377,46 @@ jobs:
       - name: Build experimental all-features docs
         run: make docs-experimental
 
+  feature_matrix:
+    name: Independent feature matrix
+    needs: [autofix]
+    if: |
+      always()
+      && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
+      && needs.autofix.outputs.pushed != 'true'
+    runs-on: withakay-self-hosted-arm
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
+
+      - name: Install Rust components (clippy)
+        run: |
+          set -eu
+          mise install
+          mise trust
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add --toolchain "$TOOLCHAIN" clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: ci-feature-matrix
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check, test, and lint all feature combinations
+        run: make feature-matrix-check
+
   arch_guardrails:
     name: Architecture Guardrails
     needs: [autofix]
@@ -482,7 +522,7 @@ jobs:
     name: All checks passed
     # runs-on: ubuntu-latest
     runs-on: withakay-self-hosted-arm
-    needs: [autofix, test, experimental_test, lint, experimental_lint, arch_guardrails, docs, powershell]
+    needs: [autofix, test, experimental_test, lint, experimental_lint, feature_matrix, arch_guardrails, docs, powershell]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Verify all checks passed
@@ -510,6 +550,10 @@ jobs:
             echo "Experimental all-features lint job failed"
             exit 1
           fi
+          if [[ "${{ needs.feature_matrix.result }}" != "success" ]]; then
+            echo "Independent feature matrix job failed"
+            exit 1
+          fi
           if [[ "${{ needs.arch_guardrails.result }}" != "success" ]]; then
             echo "Architecture guardrails job failed"
             exit 1
@@ -528,7 +572,7 @@ jobs:
     name: All checks passed
     # runs-on: withakay-selfhosted
     runs-on: withakay-self-hosted-arm
-    needs: [test, experimental_test, lint, experimental_lint, arch_guardrails, docs, powershell]
+    needs: [test, experimental_test, lint, experimental_lint, feature_matrix, arch_guardrails, docs, powershell]
     if: always() && github.event_name != 'pull_request'
     steps:
       - name: Verify all checks passed
@@ -547,6 +591,10 @@ jobs:
           fi
           if [[ "${{ needs.experimental_lint.result }}" != "success" ]]; then
             echo "Experimental all-features lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.feature_matrix.result }}" != "success" ]]; then
+            echo "Independent feature matrix job failed"
             exit 1
           fi
           if [[ "${{ needs.arch_guardrails.result }}" != "success" ]]; then

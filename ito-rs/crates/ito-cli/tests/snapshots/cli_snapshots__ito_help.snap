@@ -16,7 +16,6 @@ Commands:
   archive       Move a completed change to archive and update main specs [aliases: ar]
   patch         Apply a targeted patch to an active change artifact
   write         Replace an active change artifact completely
-  sync          Validate and synchronize coordination worktree state
   grep          Search Ito change artifacts using a regular expression [aliases: gr]
   tasks         Manage implementation tasks for a change [aliases: ts]
   plan          Initialize and inspect the planning workspace [aliases: pl]
@@ -29,7 +28,6 @@ Commands:
   worktree      Manage change worktrees (ensure, setup)
   view          View proposal artifacts with an interactive or explicit viewer
   serve         Serve local Ito artifacts and docs over HTTP [aliases: se]
-  backend       Manage backend client configuration and connectivity [aliases: be]
   audit         Query, validate, and manage the audit event log [aliases: au]
   util          Low-level utility commands for scripting and agent tooling. [aliases: u]
   trace         Show requirement traceability for a change [aliases: tr]

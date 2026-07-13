@@ -251,8 +251,16 @@ fn create_change_sub_module_rejects_remote_persistence_mode() {
     );
 
     let combined = format!("{}{}", out.stdout, out.stderr);
-    assert!(
-        combined.contains("local-only") || combined.contains("remote persistence"),
-        "error should mention local-only restriction; got: {combined}"
-    );
+    if cfg!(feature = "backend") {
+        assert!(
+            combined.contains("local-only") || combined.contains("remote persistence"),
+            "error should mention local-only restriction; got: {combined}"
+        );
+    } else {
+        assert!(
+            combined.contains("feature 'backend' is unavailable")
+                && combined.contains("requested by backend.enabled"),
+            "default build should reject backend config before runtime selection; got: {combined}"
+        );
+    }
 }

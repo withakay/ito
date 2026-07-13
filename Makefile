@@ -12,7 +12,7 @@ RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 	init \
 	build test test-timed test-affected test-watch test-coverage lint check check-prek check-max-lines clean help \
 	build-experimental test-experimental test-coverage-experimental \
-	lint-experimental clippy-experimental check-experimental \
+	lint-experimental clippy-experimental check-experimental feature-matrix-check \
 	bacon bacon-export \
 	fmt clippy \
 	arch-guardrails cargo-deny release-feature-check \
@@ -293,6 +293,9 @@ cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 
 release-feature-check: ## Verify standard release and experimental feature boundaries
 	python3 ito-rs/tools/check_release_features.py
+
+feature-matrix-check: ## Check, test, and lint all supported CLI feature combinations
+	bash ito-rs/tools/check_feature_matrix.sh
 
 release: ## Create/update release PR via release-plz
 	@set -e; \

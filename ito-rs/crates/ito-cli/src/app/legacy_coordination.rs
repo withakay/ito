@@ -164,9 +164,13 @@ fn enforce_legacy_coordination_intent(runtime: &Runtime, intent: CommandIntent) 
         expected_coordination_ito_root.as_deref(),
     )
     .map_err(to_cli_error)?;
+    let supported_active_coordination = cfg!(feature = "coordination-branch")
+        && typed.changes.coordination_branch.enabled.0
+        && typed.changes.coordination_branch.storage.as_str() == "worktree";
 
     match report.classification {
         LegacyCoordinationClass::Absent | LegacyCoordinationClass::Embedded => Ok(()),
+        LegacyCoordinationClass::Legacy if supported_active_coordination => Ok(()),
         LegacyCoordinationClass::Legacy | LegacyCoordinationClass::Ambiguous => match intent {
             CommandIntent::ReadOnly => {
                 runtime.suppress_command_side_effects();

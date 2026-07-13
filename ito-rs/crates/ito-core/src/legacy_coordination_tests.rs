@@ -233,7 +233,7 @@ fn residual_managed_gitignore_marker_is_ambiguous_after_materialization() {
 }
 
 #[test]
-fn partial_real_directory_materialization_is_ambiguous() {
+fn partial_real_directory_is_main_compatible_without_legacy_evidence() {
     let (_temp, project, ito) = roots();
     fs::create_dir_all(ito.join("changes")).expect("partial materialization");
 
@@ -245,7 +245,7 @@ fn partial_real_directory_materialization_is_ambiguous() {
     )
     .expect("inspection");
 
-    assert_eq!(report.classification, LegacyCoordinationClass::Ambiguous);
+    assert_eq!(report.classification, LegacyCoordinationClass::Embedded);
 }
 
 #[test]

@@ -16,6 +16,7 @@ pub(crate) mod trace;
 mod update;
 mod validate;
 mod validate_repo;
+mod worktree_instruction_config;
 mod worktree_wizard;
 
 pub(crate) use entrypoint::main;

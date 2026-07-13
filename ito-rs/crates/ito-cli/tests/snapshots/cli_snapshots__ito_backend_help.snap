@@ -4,22 +4,13 @@ expression: "snapshot(&[\"backend\", \"--help\"])"
 ---
 Manage backend client configuration and connectivity
 
-Commands for validating backend configuration, checking server
-connectivity, and generating authentication tokens.
+Commands for validating backend configuration, checking server connectivity, and generating authentication tokens.
 
-Token resolution order (highest priority first):
-  1. Environment variable (ITO_BACKEND_TOKEN)
-  2. CLI flag (where applicable)
-  3. Config file (backend.token in .ito/config.json)
+Token resolution order (highest priority first): 1. Environment variable (ITO_BACKEND_TOKEN) 2. CLI flag (where applicable) 3. Config file (backend.token in .ito/config.json)
 
-Security: Store tokens in environment variables or .ito/config.local.json
-(gitignored), not in .ito/config.json which may be committed to git.
+Security: Store tokens in environment variables or .ito/config.local.json (gitignored), not in .ito/config.json which may be committed to git.
 
-Examples:
-  ito backend status
-  ito backend status --json
-  ito backend generate-token
-  ito backend generate-token --seed my-seed --org acme --repo widgets
+Examples: ito backend status ito backend status --json ito backend generate-token ito backend generate-token --seed my-seed --org acme --repo widgets
 
 Usage: ito backend [OPTIONS] <COMMAND>
 

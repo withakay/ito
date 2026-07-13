@@ -1,5 +1,7 @@
 use super::{Cli, Commands, WorktreeCommand};
-use clap::{CommandFactory, Parser};
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
+use clap::CommandFactory;
+use clap::Parser;
 
 #[test]
 fn parses_top_level_sync_command() {

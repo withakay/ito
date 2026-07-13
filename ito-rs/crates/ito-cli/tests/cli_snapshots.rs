@@ -1,3 +1,5 @@
+#![cfg(not(any(feature = "backend", feature = "coordination-branch")))]
+
 use ito_test_support::run_rust_candidate;
 
 /// Create a temporary directory containing a minimal Ito repository layout.

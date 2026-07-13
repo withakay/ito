@@ -112,10 +112,12 @@ pub(super) fn handle_manifesto_instruction(
         "enabled": coord_enabled,
         "name": coord_name,
         "storage": typed.changes.coordination_branch.storage.as_str(),
-        "worktree_path": if coord_enabled && coord_path.is_some() {
-            Value::String(redact_path_value(coord_path.as_ref().expect("checked").to_string_lossy().as_ref(), project_root))
-        } else {
-            Value::Null
+        "worktree_path": match (coord_enabled, coord_path.as_ref()) {
+            (true, Some(path)) => Value::String(redact_path_value(
+                path.to_string_lossy().as_ref(),
+                project_root,
+            )),
+            _ => Value::Null,
         },
     });
 
