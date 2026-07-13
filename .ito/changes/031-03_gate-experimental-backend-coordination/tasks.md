@@ -119,7 +119,7 @@ ______________________________________________________________________
 - **Verify**: Dry-run or execute the focused default and experimental Make targets with the test-with-subagent workflow.
 - **Done When**: A contributor can tell which feature set each target verifies, default targets match distributed behavior, and experimental targets still cover opt-in code.
 - **Requirements**: release-automation:split-feature-verification, rust-workspace:primary-default-member
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 - **Updated At**: 2026-07-13
 
 ### Task 3.2: Split GitHub CI into default and all-features lanes
