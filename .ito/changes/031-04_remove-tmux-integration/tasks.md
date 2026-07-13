@@ -33,7 +33,7 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-core viewer && cargo test -p ito-templates tmux && cargo test -p ito-cli --test view_proposal`
 - **Done When**: Tests define exact absence across viewer names, embedded files, executable manifests, and every supported harness destination.
 - **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Status**: [>] in-progress
 
 ______________________________________________________________________
 ## Wave 2: Remove runtime and configuration code
