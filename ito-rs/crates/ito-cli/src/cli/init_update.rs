@@ -31,10 +31,6 @@ pub struct InitArgs {
     #[arg(long = "no-coordination-worktree")]
     pub no_coordination_worktree: bool,
 
-    /// Disable tmux-backed workflow suggestions in project config
-    #[arg(long = "no-tmux")]
-    pub no_tmux: bool,
-
     /// Enable Git worktree-based workspace layout
     #[arg(long = "worktrees", conflicts_with = "no_worktrees")]
     pub worktrees: bool,

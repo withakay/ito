@@ -64,13 +64,9 @@ fn view_proposal_unknown_change_fails() {
 }
 
 #[test]
-fn view_proposal_disabled_tmux_is_rejected() {
+fn view_proposal_removed_tmux_viewer_is_unknown() {
     let repo = tempfile::tempdir().expect("repo");
     write(repo.path().join("README.md"), "# temp\n");
-    write(
-        repo.path().join(".ito/config.json"),
-        r#"{"tools":{"tmux":{"enabled":false}}}"#,
-    );
     write(
         repo.path().join(".ito/changes/001-29_demo/proposal.md"),
         "## Why\nDemo\n",
@@ -80,9 +76,10 @@ fn view_proposal_disabled_tmux_is_rejected() {
     command.current_dir(repo.path());
     command.args(["view", "proposal", "001-29_demo", "--viewer", "tmux-nvim"]);
 
-    command.assert().failure().stderr(predicates::str::contains(
-        "tmux is disabled in config (tools.tmux.enabled = false)",
-    ));
+    command
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("Unknown viewer 'tmux-nvim'"));
 }
 
 #[test]

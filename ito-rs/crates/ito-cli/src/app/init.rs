@@ -52,7 +52,6 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
-    let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
     let worktree_overrides = parse_worktree_overrides(args)?;
     if cleanup && !upgrade {
@@ -192,9 +191,6 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
-    let existing_tmux_preference = load_tmux_preference(target_path, ctx)?;
-    let tmux_enabled = resolve_tmux_preference(is_interactive, no_tmux, existing_tmux_preference)?;
-
     let (worktree_result, worktree_project_config_path, should_persist_worktree) =
         resolve_worktree_config(ctx, target_path, is_interactive, &worktree_overrides)?;
     let worktree_ctx = worktree_template_context(&worktree_result, target_path, ctx);
@@ -246,8 +242,6 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
             }
         }
     }
-
-    persist_tmux_preference(target_path, ctx, tmux_enabled)?;
 
     if should_persist_worktree {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
@@ -396,7 +390,7 @@ fn print_post_init_guidance(target_path: &std::path::Path, ctx: &ConfigContext) 
         r#"Or manually edit:
   {}/project.md        Project overview, tech stack, architecture
   {}/user-prompts/     Shared + artifact-specific instruction guidance
-  {}/config.json       Tool settings and defaults
+  {}/config.json       Workflow settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
 "#,
@@ -442,7 +436,6 @@ fn project_setup_is_incomplete(ito_dir: &std::path::Path) -> bool {
 ///     cleanup: false,
 ///     setup_coordination_branch: false,
 ///     no_coordination_worktree: false,
-///     no_tmux: false,
 ///     worktrees: false,
 ///     no_worktrees: false,
 ///     worktree_strategy: None,
@@ -485,9 +478,6 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.no_coordination_worktree {
         argv.push("--no-coordination-worktree".to_string());
-    }
-    if args.no_tmux {
-        argv.push("--no-tmux".to_string());
     }
     if args.worktrees {
         argv.push("--worktrees".to_string());
@@ -634,58 +624,6 @@ fn load_interactive_worktree_defaults(
     }
 
     WorktreeWizardDefaults::default()
-}
-
-fn persist_tmux_preference(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-    enabled: bool,
-) -> CliResult<()> {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let config_path = ito_path.join("config.json");
-    let mut config = core_config::read_json_config(&config_path)
-        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
-
-    let parts = core_config::json_split_path("tools.tmux.enabled");
-    core_config::json_set_path(&mut config, &parts, serde_json::Value::Bool(enabled))
-        .map_err(|e| CliError::msg(format!("Failed to set tmux config: {e}")))?;
-
-    core_config::write_json_config(&config_path, &config)
-        .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
-
-    Ok(())
-}
-
-fn load_tmux_preference(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-) -> CliResult<Option<bool>> {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let merged = load_cascading_project_config(target_path, &ito_path, ctx);
-    Ok(merged
-        .merged
-        .pointer("/tools/tmux/enabled")
-        .and_then(|value| value.as_bool()))
-}
-
-fn resolve_tmux_preference(
-    interactive: bool,
-    no_tmux: bool,
-    existing_preference: Option<bool>,
-) -> CliResult<bool> {
-    if no_tmux {
-        return Ok(false);
-    }
-
-    if !interactive {
-        return Ok(existing_preference.unwrap_or(true));
-    }
-
-    dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Do you use tmux?")
-        .default(existing_preference.unwrap_or(true))
-        .interact()
-        .map_err(|e| CliError::msg(format!("Failed to prompt for tmux preference: {e}")))
 }
 
 /// Set up the coordination worktree for a fresh `ito init`.

@@ -20,4 +20,9 @@ fn legacy_entries_include_required_examples() {
             && entry.new_path == Some(".opencode/commands/")
             && entry.entry_type == LegacyEntryType::Relocated
     }));
+    assert!(LEGACY_ENTRIES.iter().any(|entry| {
+        entry.old_path == "ito-tmux/"
+            && entry.new_path.is_none()
+            && entry.entry_type == LegacyEntryType::Removed
+    }));
 }

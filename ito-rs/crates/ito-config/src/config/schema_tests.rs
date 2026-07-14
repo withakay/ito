@@ -17,6 +17,9 @@ fn schema_contains_expected_sections() {
     assert!(props.contains_key("harnesses"));
     assert!(props.contains_key("cache"));
     assert!(props.contains_key("defaults"));
-    assert!(props.contains_key("tools"));
+    assert!(
+        !props.contains_key("tools"),
+        "the removed tmux-only tools namespace must not remain in the schema"
+    );
     assert!(props.contains_key("$schema"));
 }

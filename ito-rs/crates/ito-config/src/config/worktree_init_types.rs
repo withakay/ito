@@ -38,7 +38,7 @@ pub struct WorktreeInitConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-#[schemars(description = "Setup command(s) — a single string or an ordered list of strings")]
+#[schemars(description = "Setup command(s) - a single string or an ordered list of strings")]
 /// A single shell command or an ordered list of shell commands to run during
 /// worktree initialization.
 pub enum WorktreeSetupConfig {

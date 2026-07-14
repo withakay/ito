@@ -17,9 +17,6 @@ fn legacy_init_args() -> (InstallMode, InitOptions) {
     )
 }
 
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-
 #[test]
 fn opencode_manifests_includes_plugin_and_skills() {
     let config_dir = Path::new("/tmp/test/.opencode");
@@ -268,9 +265,8 @@ fn install_manifests_writes_files_to_disk() {
     );
 }
 
-#[cfg(unix)]
 #[test]
-fn install_manifests_make_tmux_skill_scripts_executable() {
+fn install_manifests_do_not_install_tmux_skill_assets() {
     let td = tempfile::tempdir().unwrap();
     let config_dir = td.path().join(".opencode");
 
@@ -278,30 +274,16 @@ fn install_manifests_make_tmux_skill_scripts_executable() {
     let (mode, opts) = legacy_init_args();
     install_manifests(&manifests, None, mode, &opts).unwrap();
 
-    let wait_for_text = config_dir.join("skills/ito-tmux/scripts/wait-for-text.sh");
-    let find_sessions = config_dir.join("skills/ito-tmux/scripts/find-sessions.sh");
-
-    assert!(wait_for_text.exists());
-    assert!(find_sessions.exists());
-
-    let wait_mode = std::fs::metadata(&wait_for_text)
-        .unwrap()
-        .permissions()
-        .mode();
-    let find_mode = std::fs::metadata(&find_sessions)
-        .unwrap()
-        .permissions()
-        .mode();
-
-    assert_ne!(
-        wait_mode & 0o111,
-        0,
-        "wait-for-text.sh should be executable"
+    assert!(!config_dir.join("skills/ito-tmux/SKILL.md").exists());
+    assert!(
+        !config_dir
+            .join("skills/ito-tmux/scripts/wait-for-text.sh")
+            .exists()
     );
-    assert_ne!(
-        find_mode & 0o111,
-        0,
-        "find-sessions.sh should be executable"
+    assert!(
+        !config_dir
+            .join("skills/ito-tmux/scripts/find-sessions.sh")
+            .exists()
     );
 }
 

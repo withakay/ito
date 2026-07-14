@@ -27,19 +27,19 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli config_coverage -- --nocapture` or the nearest added coverage test command
 - **Done When**: Every config field has a coverage classification and missing classifications fail tests.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [x] complete
 
 ### Task 1.2: Add Existing-Config Init Default Tests
 
 - **Files**: `ito-rs/crates/ito-cli/tests`, `ito-rs/crates/ito-test-support`
 - **Dependencies**: None
-- **Action**: Add regression tests for interactive init defaults when existing config enables tmux, worktrees, and the bare sibling strategy.
+- **Action**: Add regression tests for interactive init defaults when existing config enables worktrees and the bare sibling strategy.
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture` or the nearest added init test command
 - **Done When**: Tests fail against the current behavior and assert selected defaults plus preserved resulting config.
 - **Requirements**: cli-init:existing-config-wizard-defaults
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -53,10 +53,10 @@ ______________________________________________________________________
 - **Dependencies**: None
 - **Action**: Load existing config before rendering init prompts and use explicit values as prompt defaults, falling back to current defaults only when values are unset.
 - **Verify**: `cargo test -p ito-cli init_existing_config_defaults -- --nocapture`
-- **Done When**: Rerunning interactive init preselects existing tmux/worktree/bare sibling values and preserves accepted defaults.
+- **Done When**: Rerunning interactive init preselects existing worktree/bare sibling values and preserves accepted defaults.
 - **Requirements**: cli-init:existing-config-wizard-defaults
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [x] complete
 
 ### Task 2.2: Add Missing Init and Update Flags
 
@@ -66,8 +66,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli init_update_config_flags -- --nocapture` or the nearest added flag test command
 - **Done When**: Covered init/update settings have flags or documented exclusions, flags override config intentionally, and no-flag update preserves explicit config.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-26
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -83,8 +83,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-cli help -- --nocapture` or relevant docs/help verification
 - **Done When**: User-facing docs and help match the implemented flag surface, and rendered worktree-enabled instructions make main/control read/control-only for agents.
 - **Requirements**: cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 
 ### Task 3.2: Run Proposal and Implementation Gates
 
@@ -94,6 +94,6 @@ ______________________________________________________________________
 - **Verify**: `ito validate 011-04_ito-init-update --strict` and `make check`
 - **Done When**: Ito validation and repo checks pass, or failures are documented with follow-up work.
 - **Requirements**: cli-init:existing-config-wizard-defaults, cli-init:setup-config-coverage, cli-update:refreshable-config-flag-coverage, config-schema:setup-coverage-classification, worktree-aware-template-rendering:agents-md-rendered-with-worktree-context
-- **Updated At**: 2026-04-25
-- **Status**: [ ] pending
+- **Updated At**: 2026-05-27
+- **Status**: [x] complete
 <!-- ITO:END -->
