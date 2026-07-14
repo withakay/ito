@@ -385,7 +385,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     runs-on: withakay-selfhosted-arm
-    timeout-minutes: 25
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
