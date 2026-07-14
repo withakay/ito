@@ -1,9 +1,9 @@
-# Ito Slash Command Specification
+<!-- ITO:START -->
+# Ito Slash Command
 
 ## Purpose
 
-Define the `ito-slash-command` capability, including required behavior and validation scenarios, so it remains stable and testable.
-
+This spec defines the current behavior and requirements for ito slash command.
 
 ## Requirements
 
@@ -25,3 +25,4 @@ The ito.md slash command MUST be automatically installed in the agent harness wh
 - **THEN** file path is `.opencode/commands/ito.md`
 - **AND** file contains slash command metadata and invocation logic
 - **AND** file has correct permissions for agent harness to read
+<!-- ITO:END -->

@@ -1,5 +1,11 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Pre Commit Hooks
+
+## Purpose
+
+This spec defines the current behavior and requirements for pre commit hooks.
+
+## Requirements
 
 ### Requirement: Repository pre-commit stage runs ito validate repo
 
@@ -38,20 +44,15 @@ The previous no-op stub at `ito-rs/tools/hooks/pre-commit` SHALL be replaced wit
 - **AND** the section SHALL note that the previous "pre-commit is a no-op" guidance has been superseded for this repo
 
 ### Requirement: Pre-commit hook entry is opt-in for downstream projects
+The pre-commit hook entry documented by Ito SHALL be opt-in for downstream projects and SHALL NOT be installed or edited automatically by `ito init`, `ito update`, or a managed helper skill. Projects MAY copy the documented entry into their chosen hook framework and SHALL verify it with `ito validate repo --staged --strict`.
 
-The pre-commit hook entry installed by Ito templates SHALL be opt-in for projects that consume Ito; it SHALL NOT be force-installed by `ito init` without an explicit user step (such as the `ito-update-repo` skill running its pre-commit setup step). Other projects SHOULD be able to copy the example into their own pre-commit configuration without taking on Ito's full templates bundle.
-
-- **Requirement ID**: pre-commit-hooks:opt-in-downstream
-
-#### Scenario: ito init does not write to .pre-commit-config.yaml
-
+#### Scenario: Ito init does not write hook configuration
 - **WHEN** the user runs `ito init` on a fresh project
-- **THEN** the command SHALL NOT modify `.pre-commit-config.yaml` automatically
-- **AND** the command SHALL only print the advisory described by the `ito-init` capability
+- **THEN** the command SHALL NOT modify `.pre-commit-config.yaml`, Husky scripts, or other hook framework files
+- **AND** it does not delegate that edit to a retired helper skill
 
-#### Scenario: ito-update-repo writes the entry after approval
-
-- **WHEN** the user runs the `ito-update-repo` skill and approves the proposed edit
-- **THEN** the skill SHALL append the `ito-validate-repo` hook entry to the project's pre-commit configuration
-- **AND** the skill SHALL run the verification step described by `ito-update-repo-skill:verify-after-install`
+#### Scenario: Project adopts hook explicitly
+- **WHEN** a project owner copies or authors an Ito validation hook entry
+- **THEN** the edit is reviewed through the project's normal workflow
+- **AND** direct `ito validate repo --staged --strict` verification remains available
 <!-- ITO:END -->

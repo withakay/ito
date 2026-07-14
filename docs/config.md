@@ -399,11 +399,11 @@ reminder section. The reminder tells the agent what to capture
 
 #### Agent discoverability
 
-Ito installs a shared `ito-memory` skill with the normal skill bundle. The
-skill is provider-agnostic: it explains when to capture, search, and query
-memory, then routes agents through `ito agent instruction memory-capture`,
-`ito agent instruction memory-search`, and `ito agent instruction
-memory-query`.
+Memory no longer adds a standalone Ito skill. `ito-research` owns configured
+memory search/query and `ito-archive` owns durable capture follow-through.
+Both remain provider-agnostic and route through `ito agent instruction
+memory-capture`, `ito agent instruction memory-search`, and `ito agent
+instruction memory-query`.
 
 The memory instruction artifacts are also listed in `ito agent instruction
 --help`, which is the main low-context discovery surface for LLM agents. Use

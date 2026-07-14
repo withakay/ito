@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed the bundled Ito tmux skill and its executable helper scripts.
 
+### Changed
+
+- *(031-05)* Ship one canonical ordered inventory of seven lifecycle skills and matching command wrappers.
+- *(031-05)* Fold planning, memory, wiki, orchestration, verification, and finish guidance into retained lifecycle owners.
+
+### Removed
+
+- *(031-05)* Remove helper skill assets, retired wrappers, tmux helpers, and Codex role `SKILL.md` templates.
+
 ## [0.1.32] - 2026-05-27
 
 ### 🚀 Features

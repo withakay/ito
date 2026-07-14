@@ -54,7 +54,7 @@ pub(crate) fn handle_plan_clap(rt: &Runtime, args: &PlanArgs) -> CliResult<()> {
             println!("Planning workspace:");
             println!("  - {}", status.planning_dir.display());
             println!(
-                "Create plan documents with /ito-plan; supporting research can live under {}.",
+                "Create planning documents through ito-proposal; supporting research can live under {}.",
                 status.research_dir.display()
             );
             Ok(())

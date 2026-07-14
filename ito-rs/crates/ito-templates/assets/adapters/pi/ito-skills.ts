@@ -286,7 +286,7 @@ export default function itoSkills(pi: ExtensionAPI) {
 
 Load a skill with Pi's native skill command. Start with:
 \`\`\`
-/skill:ito-using-ito-skills
+/skill:ito
 \`\`\`
 
 Skills are in \`.pi/skills/\`, commands in \`.pi/commands/\`.`;
@@ -295,7 +295,7 @@ Skills are in \`.pi/skills/\`, commands in \`.pi/commands/\`.`;
     } catch {
       return `Ito integration is configured, but the Ito CLI is not available.
 
-Use \`/skill:ito-using-ito-skills\` to load Ito workflows if skills are installed.`;
+Use \`/skill:ito\` to load Ito lifecycle routing if skills are installed.`;
     }
   };
 

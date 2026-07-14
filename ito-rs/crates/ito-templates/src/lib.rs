@@ -43,6 +43,17 @@ static AGENTS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/agent
 static SCHEMAS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/schemas");
 static PRESETS_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/assets/presets");
 
+/// Canonical Ito-managed lifecycle skill inventory, in lifecycle order.
+pub const LIFECYCLE_SKILL_NAMES: [&str; 7] = [
+    "ito",
+    "ito-proposal",
+    "ito-research",
+    "ito-apply",
+    "ito-review",
+    "ito-archive",
+    "ito-loop",
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// A file embedded in the `ito-templates` assets.
 pub struct EmbeddedFile {
@@ -62,9 +73,37 @@ pub fn default_home_files() -> Vec<EmbeddedFile> {
     dir_files(&DEFAULT_HOME_DIR)
 }
 
-/// Return all embedded shared skill files.
+/// Return embedded files for the canonical lifecycle skill inventory.
+///
+/// The returned groups follow [`LIFECYCLE_SKILL_NAMES`] order. A missing or
+/// duplicate `SKILL.md` entrypoint is a template-bundle invariant violation
+/// and causes a clear panic during manifest construction.
 pub fn skills_files() -> Vec<EmbeddedFile> {
-    dir_files(&SKILLS_DIR)
+    let embedded = dir_files(&SKILLS_DIR);
+    let mut selected = Vec::new();
+
+    for skill_name in LIFECYCLE_SKILL_NAMES {
+        let prefix = format!("{skill_name}/");
+        let entrypoint = format!("{prefix}SKILL.md");
+        let entrypoint_count = embedded
+            .iter()
+            .filter(|file| file.relative_path == entrypoint)
+            .count();
+        assert_eq!(
+            entrypoint_count, 1,
+            "canonical lifecycle skill {skill_name} must contain exactly one SKILL.md"
+        );
+
+        let mut files = embedded
+            .iter()
+            .copied()
+            .filter(|file| file.relative_path.starts_with(&prefix))
+            .collect::<Vec<_>>();
+        files.sort_by_key(|file| file.relative_path);
+        selected.extend(files);
+    }
+
+    selected
 }
 
 /// Return all embedded harness adapter files.
@@ -75,7 +114,7 @@ pub fn adapters_files() -> Vec<EmbeddedFile> {
 /// Retrieves an embedded skill file by its path within the skills assets.
 ///
 /// The `path` should be the file's path relative to the skills root (for example
-/// "brainstorming/SKILL.md").
+/// "ito-proposal/SKILL.md").
 ///
 /// # Returns
 ///
@@ -85,7 +124,7 @@ pub fn adapters_files() -> Vec<EmbeddedFile> {
 ///
 /// ```
 /// use ito_templates::get_skill_file;
-/// let contents = get_skill_file("brainstorming/SKILL.md");
+/// let contents = get_skill_file("ito-proposal/SKILL.md");
 /// if let Some(bytes) = contents {
 ///     assert!(!bytes.is_empty());
 /// }

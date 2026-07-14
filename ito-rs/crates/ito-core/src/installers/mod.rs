@@ -16,6 +16,8 @@ use markers::update_file_with_markers;
 mod agent_frontmatter;
 mod agents_cleanup;
 mod markers;
+mod project_guidance_cleanup;
+mod retired_cleanup;
 
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_dir_name;
@@ -146,6 +148,24 @@ pub fn install_default_templates(
 ) -> CoreResult<()> {
     let ito_dir_name = get_ito_dir_name(project_root, ctx);
     let ito_dir = ito_templates::normalize_ito_dir(&ito_dir_name);
+
+    if mode == InstallMode::Update || opts.update || opts.upgrade || opts.force {
+        let report = retired_cleanup::cleanup_retired_surfaces(project_root, &opts.tools)?;
+        for removed in report.removed {
+            let replacement = removed.replacement.unwrap_or("no Ito replacement");
+            eprintln!(
+                "removed retired Ito surface {}; replacement: {replacement}",
+                removed.path.display()
+            );
+        }
+        for preserved in report.preserved {
+            let replacement = preserved.replacement.unwrap_or("no Ito replacement");
+            eprintln!(
+                "warning: preserving retired Ito surface {} because it contains user content outside the managed shell; replacement: {replacement}",
+                preserved.path.display()
+            );
+        }
+    }
 
     install_project_templates(project_root, &ito_dir, mode, opts, worktree_ctx)?;
 
@@ -417,6 +437,15 @@ fn install_project_templates(
         let ownership = classify_project_file_ownership(rel, ito_dir);
 
         let target = project_root.join(rel);
+        if rel == "AGENTS.md"
+            && (mode == InstallMode::Update || opts.update || opts.upgrade)
+            && project_guidance_cleanup::remove_retired_default_guidance(&target)?
+        {
+            eprintln!(
+                "removed retired Ito default project guidance from {}",
+                target.display()
+            );
+        }
         if rel == ".claude/settings.json" {
             write_claude_settings(&target, &bytes, mode, opts)?;
             continue;
@@ -990,7 +1019,10 @@ fn install_agent_templates(
             continue;
         }
 
-        let agent_dir = project_root.join(harness.project_agent_path());
+        let Some(agent_path) = harness.project_agent_path() else {
+            continue;
+        };
+        let agent_dir = project_root.join(agent_path);
         // Update-style installs and forceful re-inits should both clear the
         // legacy `ito-orchestrator-*` specialist assets before writing the new
         // `ito-*` names. Plain init keeps untouched user files in place.
@@ -1042,6 +1074,7 @@ fn install_agent_templates(
 
                     let rendered = render_and_stamp_agent(contents, config, &target);
                     write_marker_aware_markdown(&target, &rendered, mode, opts)?;
+                    normalize_agent_frontmatter(&target, &rendered, config)?;
                 }
                 InstallMode::Update => {
                     let rendered = render_and_stamp_agent(contents, config, &target);
@@ -1049,6 +1082,7 @@ fn install_agent_templates(
                         update_existing_agent_template(&target, &rendered, mode, opts, config)?;
                     } else {
                         write_marker_aware_markdown(&target, &rendered, mode, opts)?;
+                        normalize_agent_frontmatter(&target, &rendered, config)?;
                     }
                 }
             }
@@ -1088,13 +1122,19 @@ fn update_existing_agent_template(
         }
     }
 
-    if let Some(cfg) = config {
-        update_agent_model_field(target, &cfg.model)?;
+    normalize_agent_frontmatter(target, rendered, config)
+}
+
+fn normalize_agent_frontmatter(
+    target: &Path,
+    rendered: &[u8],
+    config: Option<&ito_templates::agents::AgentConfig>,
+) -> CoreResult<()> {
+    if let Some(config) = config {
+        update_agent_model_field(target, &config.model)?;
     }
     update_agent_activation_field_from_rendered(target, rendered)?;
-    remove_agent_mode_field_for_direct_activation(target, rendered)?;
-
-    Ok(())
+    remove_agent_mode_field_for_direct_activation(target, rendered)
 }
 
 #[cfg(test)]

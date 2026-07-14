@@ -1,74 +1,57 @@
 <!-- ITO:START -->
-## ADDED Requirements
+# Orchestrate Setup
+
+## Purpose
+
+This spec defines the current behavior and requirements for orchestrate setup.
+
+## Requirements
 
 ### Requirement: First-run setup detection
+The system SHALL detect when no `orchestrate.md` exists in the project's user-prompts directory and emit self-contained setup guidance from the orchestrate instruction flow. It MUST NOT require an `ito-orchestrate-setup` skill.
 
-The system SHALL detect when no `orchestrate.md` exists in the project's user-prompts directory and emit setup guidance directing the agent to load the `ito-orchestrate-setup` skill before invoking `ito agent instruction orchestrate`.
-
-- **Requirement ID**: orchestrate-setup:first-run-detection
-
-#### Scenario: Missing orchestrate.md triggers setup guidance
-
+#### Scenario: Missing orchestrate.md triggers inline guidance
 - **WHEN** `ito agent instruction orchestrate` is invoked and `.ito/user-prompts/orchestrate.md` does not exist
-- **THEN** the system prints a setup guidance message with the skill load instruction
-- **AND** exits with a non-zero status code without rendering the orchestrator document
+- **THEN** the system prints instruction-backed setup guidance
+- **AND** it does not direct the agent to load a retired helper skill
 
-#### Scenario: Explicit setup flag bypasses instruction rendering
-
-- **WHEN** `ito orchestrate --setup` is invoked (or equivalent harness command)
-- **THEN** the system prints guidance to load `ito-orchestrate-setup` regardless of whether `orchestrate.md` already exists
+#### Scenario: Explicit setup mode uses the same instruction source
+- **WHEN** orchestration setup is requested explicitly
+- **THEN** the system renders setup guidance from the authoritative instruction/template source
+- **AND** no harness-specific setup skill is required
 
 ### Requirement: Stack detection
-
-The setup wizard skill SHALL detect the project stack by scanning the worktree root for indicator files: `Cargo.toml` → `rust`, `package.json` → `typescript`, `pyproject.toml` → `python`, `go.mod` → `go`. If none are found, the wizard SHALL default to `generic`.
-
-- **Requirement ID**: orchestrate-setup:stack-detection
+The instruction-backed setup flow SHALL detect the project stack from `Cargo.toml`, `package.json`, `pyproject.toml`, and `go.mod`, using `generic` when no indicator exists.
 
 #### Scenario: Single indicator file detected
+- **WHEN** the worktree contains exactly one known stack indicator
+- **THEN** setup selects the matching preset without requiring a helper skill
 
-- **WHEN** the worktree root contains `Cargo.toml` and no other stack indicator files
-- **THEN** the wizard selects the `rust` preset and proceeds without asking the user for a stack choice
-
-#### Scenario: Multiple indicator files detected
-
-- **WHEN** the worktree root contains more than one stack indicator file
-- **THEN** the wizard presents the detected stacks to the user and asks them to confirm which preset to use
-
-#### Scenario: No indicator files detected
-
-- **WHEN** no known indicator files are found
-- **THEN** the wizard selects the `generic` preset and informs the user
+#### Scenario: Multiple or absent indicators
+- **WHEN** multiple indicators or no indicators are found
+- **THEN** setup asks for confirmation or explains the generic fallback in its emitted guidance
 
 ### Requirement: Skill and agent cross-reference
+The instruction-backed setup flow MAY cross-reference project/user skills and native agent definitions as optional suggestions. It MUST NOT generate additional Ito-managed skills or auto-wire detected agents.
 
-The setup wizard skill SHALL cross-reference available skills in the project against preset recommended skills, and detect available agent definitions, then present both as suggestions during setup. Detected agents SHALL be presented as suggestions only and SHALL NOT be auto-wired.
+#### Scenario: External project skill is detected
+- **WHEN** a preset recommends a non-Ito project skill that is installed
+- **THEN** setup may identify it as available without adding it to Ito's lifecycle inventory
 
-- **Requirement ID**: orchestrate-setup:cross-reference
-
-#### Scenario: Matching skill detected and highlighted
-
-- **WHEN** the `rust` preset recommends the `rust-style` skill and that skill exists in the project
-- **THEN** the wizard highlights the skill as already available and notes it will be referenced in the generated workflow skill
-
-#### Scenario: Missing recommended skill flagged
-
-- **WHEN** a preset recommends a skill that is not found in the project
-- **THEN** the wizard notes it as missing and advises the user on how to install it, but does not block setup completion
+#### Scenario: Recommended skill is missing
+- **WHEN** an optional external skill is unavailable
+- **THEN** setup reports it as optional and does not block or install it
 
 ### Requirement: Setup outputs
+The setup flow SHALL produce or update `.ito/user-prompts/orchestrate.md` after explicit confirmation. It MUST NOT create an `ito-orchestrator-workflow` skill or any other skill directory.
 
-The setup wizard skill SHALL produce two outputs upon completion: (1) a populated `orchestrate.md` written to `.ito/user-prompts/orchestrate.md`, and (2) a generated `ito-orchestrator-workflow` skill written to the project's skill directory.
+#### Scenario: Setup writes project prompt only
+- **WHEN** setup completes successfully
+- **THEN** `.ito/user-prompts/orchestrate.md` contains the approved project-specific policy
+- **AND** no new skill directory is created
 
-- **Requirement ID**: orchestrate-setup:outputs
-
-#### Scenario: Both outputs are written on successful setup
-
-- **WHEN** the setup wizard completes without error
-- **THEN** `.ito/user-prompts/orchestrate.md` exists with valid front matter and populated MUST/PREFER sections
-- **AND** the `ito-orchestrator-workflow` skill exists in the project skill directory with stack-appropriate content
-
-#### Scenario: Existing orchestrate.md is overwritten only after confirmation
-
-- **WHEN** `ito orchestrate --setup` is invoked and `orchestrate.md` already exists
-- **THEN** the wizard presents the existing configuration to the user and asks for confirmation before overwriting
+#### Scenario: Existing prompt requires confirmation
+- **WHEN** the project prompt already exists
+- **THEN** setup presents the proposed replacement or patch
+- **AND** it requires confirmation before writing
 <!-- ITO:END -->

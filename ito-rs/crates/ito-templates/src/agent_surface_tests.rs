@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agents::{AgentActivationMode, agent_surface_inventory};
-use crate::{AGENTS_DIR, commands_files, default_project_files, skills_files};
+use crate::{AGENTS_DIR, default_project_files, skills_files};
 
 #[test]
 fn agent_templates_declare_activation_contract() {
@@ -99,31 +99,7 @@ struct WorkflowSurface {
 
 const WORKFLOW_SURFACE_INVENTORY: &[WorkflowSurface] = &[
     WorkflowSurface {
-        path: "commands/ito-orchestrate.md",
-        class: WorkflowSurfaceClass::WorkflowAdapter,
-    },
-    WorkflowSurface {
-        path: "skills/ito-memory/SKILL.md",
-        class: WorkflowSurfaceClass::WorkflowAdapter,
-    },
-    WorkflowSurface {
-        path: "skills/ito-orchestrate/SKILL.md",
-        class: WorkflowSurfaceClass::WorkflowAdapter,
-    },
-    WorkflowSurface {
-        path: "skills/ito-orchestrate-setup/SKILL.md",
-        class: WorkflowSurfaceClass::WorkflowAdapter,
-    },
-    WorkflowSurface {
-        path: "skills/ito-orchestrator-workflow/SKILL.md",
-        class: WorkflowSurfaceClass::ProjectGuidance,
-    },
-    WorkflowSurface {
-        path: "skills/ito-subagent-driven-development/SKILL.md",
-        class: WorkflowSurfaceClass::WorkflowAdapter,
-    },
-    WorkflowSurface {
-        path: "skills/ito-test-with-subagent/SKILL.md",
+        path: "skills/ito-loop/SKILL.md",
         class: WorkflowSurfaceClass::WorkflowAdapter,
     },
     WorkflowSurface {
@@ -141,12 +117,6 @@ fn orchestration_adjacent_surfaces_are_classified() {
     assert_eq!(inventory_paths.len(), WORKFLOW_SURFACE_INVENTORY.len());
 
     let mut asset_paths: BTreeSet<String> = BTreeSet::new();
-
-    for file in commands_files() {
-        if file.relative_path == "ito-orchestrate.md" {
-            asset_paths.insert(format!("commands/{}", file.relative_path));
-        }
-    }
 
     for file in skills_files() {
         let Some(skill) = file.relative_path.split('/').next() else {
@@ -180,15 +150,6 @@ fn orchestration_adjacent_surfaces_are_classified() {
     );
 }
 
-#[allow(clippy::match_like_matches_macro)]
 fn is_orchestration_adjacent_skill(skill: &str) -> bool {
-    match skill {
-        "ito-memory" => true,
-        "ito-orchestrate" => true,
-        "ito-orchestrate-setup" => true,
-        "ito-orchestrator-workflow" => true,
-        "ito-subagent-driven-development" => true,
-        "ito-test-with-subagent" => true,
-        _ => false,
-    }
+    skill == "ito-loop"
 }

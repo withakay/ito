@@ -289,14 +289,13 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
-/// Print a brief advisory pointing at the `ito-update-repo` skill when at
-/// least one repository validation rule is active and no `ito validate repo`
-/// pre-commit hook is detected.
+/// Print a brief advisory with the direct hook command when at least one
+/// repository validation rule is active and no `ito validate repo` pre-commit
+/// hook is detected.
 ///
 /// The advisory is **purely informational**: it never modifies
 /// `.pre-commit-config.yaml`, `.husky/`, `lefthook.yml`, or any other file.
-/// Wiring is left to the `ito-update-repo` skill so downstream projects opt
-/// in by running the skill explicitly.
+/// Wiring remains an explicit downstream-project choice.
 fn print_repo_validation_advisory(target_path: &std::path::Path, ctx: &ConfigContext) {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
 
@@ -326,7 +325,7 @@ fn print_repo_validation_advisory(target_path: &std::path::Path, ctx: &ConfigCon
         rules.iter().filter(|r| r.active).count(),
     );
     eprintln!(
-        "    Run the `ito-update-repo` skill to wire it (proposes a diff, asks before applying)."
+        "    If desired, add `ito validate repo --staged --strict` to that hook configuration and review the diff before committing."
     );
 }
 
@@ -382,7 +381,7 @@ fn print_post_init_guidance(target_path: &std::path::Path, ctx: &ConfigContext) 
 
     if needs_project_setup {
         println!(
-            "Next step: Run /ito-project-setup in your AI assistant to configure the project.\n"
+            "Next step: Ask your AI assistant to run `ito agent instruction project-setup` and follow the emitted prompt.\n"
         );
     }
 

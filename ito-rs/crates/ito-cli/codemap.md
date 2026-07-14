@@ -4,6 +4,7 @@
 |src/app/{mod,entrypoint,run}.rs: dispatch + runtime |src/commands/**: command handlers + UI glue |tests/**: e2e via compiled binary
 
 [Design]|parsing+display here; state+repo in ito-core |handlers: config/ctx → core use-case → format output |integration tests = primary regression guard
+|planning/orchestration helpers retired: use ito-proposal/ito-loop or direct instruction/CLI output
 
 [Gotchas]|no business rules in CLI handlers (breaks backend/web parity) |large test files can trip max-lines guardrail |non-interactive paths must use flags not prompts
 

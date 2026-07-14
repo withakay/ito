@@ -278,7 +278,7 @@ fn init_prints_project_setup_nudge_when_marker_incomplete() {
 
     let project = std::fs::read_to_string(repo.path().join(".ito/project.md")).unwrap();
     assert!(project.contains("<!-- ITO:PROJECT_SETUP:INCOMPLETE -->"));
-    assert!(out.stdout.contains("Next step: Run /ito-project-setup"));
+    assert!(out.stdout.contains("ito agent instruction project-setup"));
 }
 
 #[test]
@@ -312,7 +312,7 @@ fn init_does_not_print_project_setup_nudge_when_marker_complete() {
         home.path(),
     );
     assert_eq!(out.code, 0, "init --update failed: {}", out.stderr);
-    assert!(!out.stdout.contains("Next step: Run /ito-project-setup"));
+    assert!(!out.stdout.contains("Next step: Ask your AI assistant"));
 }
 
 #[test]
@@ -347,7 +347,7 @@ fn init_does_not_print_project_setup_nudge_when_marker_absent() {
         home.path(),
     );
     assert_eq!(out.code, 0, "init --update failed: {}", out.stderr);
-    assert!(!out.stdout.contains("Next step: Run /ito-project-setup"));
+    assert!(!out.stdout.contains("Next step: Ask your AI assistant"));
 }
 
 #[test]
@@ -848,7 +848,7 @@ fn init_interactive_detects_tools_and_installs_adapter_files() {
     assert!(repo.path().join(".opencode/plugins/ito-skills.js").exists());
     assert!(
         repo.path()
-            .join(".opencode/skills/ito-brainstorming/SKILL.md")
+            .join(".opencode/skills/ito-proposal/SKILL.md")
             .exists()
     );
 

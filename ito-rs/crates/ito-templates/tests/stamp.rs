@@ -170,7 +170,7 @@ fn stamp_works_with_frontmatter_before_marker() {
 #[test]
 fn stamp_round_trip_on_real_skill() {
     let bytes =
-        get_skill_file("ito-feature/SKILL.md").expect("ito-feature/SKILL.md must be embedded");
+        get_skill_file("ito-proposal/SKILL.md").expect("ito-proposal/SKILL.md must be embedded");
     let text = std::str::from_utf8(bytes).expect("skill must be valid UTF-8");
 
     let version = "9.9.9";

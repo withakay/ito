@@ -297,7 +297,10 @@ fn archive_change_rolls_back_when_spec_promotion_fails() {
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some("## 1. Tasks\n- [x] 1.1 Done"),
-            specs: &[("spec-one", "## ADDED Archive me")],
+            specs: &[(
+                "spec-one",
+                "## ADDED Requirements\n\n### Requirement: Archive me\nArchive behavior.\n",
+            )],
         })
         .unwrap();
 

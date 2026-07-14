@@ -17,7 +17,7 @@ pub const MIGRATE_TO_MAIN_PROMPT: &str = MIGRATE_TO_MAIN_COMMAND_PATH;
 #[derive(Debug, Clone)]
 /// One file to be installed from embedded assets.
 pub struct FileManifest {
-    /// Source path relative to embedded assets (e.g., "brainstorming/SKILL.md" for skills)
+    /// Source path relative to embedded assets (e.g., "ito-proposal/SKILL.md" for skills)
     pub source: String,
     /// Destination path on disk
     pub dest: PathBuf,
@@ -37,9 +37,9 @@ pub enum AssetType {
 }
 
 /// Returns manifest entries for all ito-skills.
-/// Source paths are relative to assets/skills/ (e.g., "brainstorming/SKILL.md")
+/// Source paths are relative to assets/skills/ (e.g., "ito-proposal/SKILL.md")
 /// Dest paths have ito- prefix added if not already present
-/// (e.g., "brainstorming/SKILL.md" -> "ito-brainstorming/SKILL.md")
+/// (e.g., "ito-proposal/SKILL.md" remains "ito-proposal/SKILL.md")
 /// (e.g., "ito/SKILL.md" -> "ito/SKILL.md" - no double prefix)
 fn ito_skills_manifests(skills_dir: &Path) -> Vec<FileManifest> {
     let mut manifests = Vec::new();
@@ -47,7 +47,7 @@ fn ito_skills_manifests(skills_dir: &Path) -> Vec<FileManifest> {
     // Get all skill files from embedded assets
     for file in skills_files() {
         let rel_path = file.relative_path;
-        // Extract skill name from path (e.g., "brainstorming/SKILL.md" -> "brainstorming")
+        // Extract skill name from path (e.g., "ito-proposal/SKILL.md" -> "ito-proposal")
         let parts: Vec<&str> = rel_path.split('/').collect();
         if parts.is_empty() {
             continue;
@@ -226,10 +226,9 @@ pub fn github_manifests(project_root: &Path) -> Vec<FileManifest> {
 
 /// Install manifests from embedded assets to disk.
 ///
-/// When `worktree_ctx` is `Some`, the `using-git-worktrees` skill template is
-/// rendered with the given worktree configuration before writing. Other skill
-/// files (which may contain `{{` as user-facing prompt placeholders) are written
-/// as-is.
+/// Skill assets that explicitly use worktree Jinja variables are rendered with
+/// `worktree_ctx` before writing. Other skill files (which may contain `{{` as
+/// user-facing prompt placeholders) are written as-is.
 ///
 /// Every `.md` file that contains an Ito managed block receives a version stamp
 /// immediately after `<!-- ITO:START -->` before being written to disk.

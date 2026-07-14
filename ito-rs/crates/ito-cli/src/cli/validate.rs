@@ -12,8 +12,7 @@ pub enum ValidateCommand {
     /// Run repository-level validation rules driven by `.ito/config.json`.
     ///
     /// See `ito validate repo --help` for the full flag list. This is the
-    /// command invoked by the `pre-commit` hook installed via the
-    /// `ito-update-repo` skill.
+    /// command downstream projects can add directly to their pre-commit hook.
     Repo(RepoValidateArgs),
 }
 
