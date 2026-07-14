@@ -487,12 +487,12 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 docs: ## Build shipping ito-cli documentation with default features
 	RUSTDOCFLAGS="-D warnings" cargo doc -p ito-cli --no-deps
 	rm -rf docs/rustdoc
-	cp -R target/doc docs/rustdoc
+	cp -R "$${CARGO_TARGET_DIR:-target}/doc" docs/rustdoc
 
 docs-open: ## Build and open shipping ito-cli documentation
 	RUSTDOCFLAGS="-D warnings" cargo doc -p ito-cli --no-deps --open
 	rm -rf docs/rustdoc
-	cp -R target/doc docs/rustdoc
+	cp -R "$${CARGO_TARGET_DIR:-target}/doc" docs/rustdoc
 
 docs-experimental: ## Build experimental workspace documentation with all features
 	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
