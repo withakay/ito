@@ -5,6 +5,7 @@ use crate::harness::{Harness, HarnessName};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::ralph::duration::format_duration;
 use crate::ralph::prompt::{BuildPromptOptions, build_ralph_prompt};
+use crate::ralph::readiness::{RalphReadinessGate, ResolvedCwd};
 use crate::ralph::state::{
     RalphHistoryEntry, RalphState, append_context, clear_context, load_context, load_state,
     save_state,
@@ -118,19 +119,6 @@ pub struct RalphOptions {
 /// Default maximum number of non-zero harness exits Ralph tolerates.
 pub const DEFAULT_ERROR_THRESHOLD: u32 = 10;
 
-/// Resolved working directory for a Ralph invocation.
-///
-/// Bundles the effective working directory path with the `.ito` directory
-/// that should be used for state file writes.
-#[derive(Debug, Clone)]
-pub struct ResolvedCwd {
-    /// The directory where the harness and git commands should execute.
-    pub path: PathBuf,
-    /// The `.ito` directory for state file writes (may differ from the
-    /// process's `.ito` when a worktree is resolved).
-    pub ito_path: PathBuf,
-}
-
 /// Resolve the effective working directory for a Ralph invocation.
 ///
 /// When worktrees are enabled and a matching worktree exists for
@@ -193,13 +181,14 @@ fn resolve_effective_cwd_with(
 /// // let ito = Path::new(".");
 /// // run_ralph(ito, &change_repo, &task_repo, &module_repo, opts, &mut harness)?;
 /// ```
-pub fn run_ralph(
+pub fn run_ralph_with_readiness(
     ito_path: &Path,
     change_repo: &(impl DomainChangeRepository + ?Sized),
     task_repo: &dyn DomainTaskRepository,
     module_repo: &(impl DomainModuleRepository + ?Sized),
     opts: RalphOptions,
     harness: &mut dyn Harness,
+    readiness: &dyn RalphReadinessGate,
 ) -> CoreResult<()> {
     let process_runner = SystemProcessRunner;
     if opts.continue_ready {
@@ -284,13 +273,14 @@ pub fn run_ralph(
             single_opts.continue_ready = false;
             single_opts.change_id = Some(next_change.clone());
 
-            let result = run_ralph(
+            let result = run_ralph_with_readiness(
                 ito_path,
                 change_repo,
                 task_repo,
                 module_repo,
                 single_opts,
                 harness,
+                readiness,
             );
 
             processed.insert(next_change.clone());
@@ -418,13 +408,14 @@ pub fn run_ralph(
             single_opts.continue_ready = false;
             single_opts.change_id = Some(next_change.clone());
 
-            let result = run_ralph(
+            let result = run_ralph_with_readiness(
                 ito_path,
                 change_repo,
                 task_repo,
                 module_repo,
                 single_opts,
                 harness,
+                readiness,
             );
 
             // Avoid re-processing the same ready change repeatedly within the same `--continue-module` run.
@@ -482,6 +473,10 @@ pub fn run_ralph(
         &opts.worktree,
     );
     let effective_ito_path = &resolved_cwd.ito_path;
+
+    if !unscoped_target && !opts.status {
+        readiness.require(ito_path, &change_id, &resolved_cwd)?;
+    }
 
     if opts.verbose {
         if effective_ito_path != ito_path {

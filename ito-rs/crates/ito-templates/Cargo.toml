@@ -11,3 +11,6 @@ description = "Template management and installation for Ito"
 include_dir = { workspace = true }
 minijinja = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

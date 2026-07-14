@@ -1,18 +1,6 @@
 {
   "active_context": [
     {
-      "order": 3,
-      "path": "_index.md",
-      "tokens": 1519,
-      "type": "summary"
-    },
-    {
-      "order": 2,
-      "path": "development/_index.md",
-      "tokens": 1621,
-      "type": "summary"
-    },
-    {
       "order": 1,
       "path": "development/ito_templates/_index.md",
       "tokens": 331,
@@ -20,62 +8,20 @@
     },
     {
       "order": 1,
-      "path": "development/ito_workflow/_index.md",
-      "tokens": 1631,
+      "path": "development/release_workflow/_index.md",
+      "tokens": 1238,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "development/source_guides/_index.md",
+      "tokens": 341,
       "type": "summary"
     },
     {
       "importance": 50,
       "path": "development/context.md",
       "tokens": 150,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.abstract.md",
-      "abstractTokens": 45,
-      "importance": 56,
-      "path": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md",
-      "tokens": 45,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/coordination_branch_git_behavior.abstract.md",
-      "abstractTokens": 52,
-      "importance": 56,
-      "path": "development/ito_workflow/coordination_branch_git_behavior.md",
-      "tokens": 52,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/coordination_symlink_repair_and_sync.abstract.md",
-      "abstractTokens": 51,
-      "importance": 56,
-      "path": "development/ito_workflow/coordination_symlink_repair_and_sync.md",
-      "tokens": 51,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/source_guides/source_guide_workflow.abstract.md",
-      "abstractTokens": 40,
-      "importance": 56,
-      "path": "development/source_guides/source_guide_workflow.md",
-      "tokens": 40,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/obsolete_specialist_cleanup.abstract.md",
-      "abstractTokens": 50,
-      "importance": 53,
-      "path": "development/ito_workflow/obsolete_specialist_cleanup.md",
-      "tokens": 50,
-      "type": "context"
-    },
-    {
-      "abstractPath": "development/ito_workflow/pre_push_adversarial_code_review.abstract.md",
-      "abstractTokens": 41,
-      "importance": 53,
-      "path": "development/ito_workflow/pre_push_adversarial_code_review.md",
-      "tokens": 41,
       "type": "context"
     },
     {
@@ -87,9 +33,31 @@
       "type": "context"
     },
     {
+      "abstractPath": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.abstract.md",
+      "abstractTokens": 45,
+      "importance": 50,
+      "path": "development/ito_workflow/audit_mirror_concurrency_and_temp_naming.md",
+      "tokens": 45,
+      "type": "context"
+    },
+    {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
       "tokens": 136,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_branch_bootstrap.md",
+      "tokens": 1956,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/coordination_symlink_repair_and_sync.abstract.md",
+      "abstractTokens": 51,
+      "importance": 50,
+      "path": "development/ito_workflow/coordination_symlink_repair_and_sync.md",
+      "tokens": 51,
       "type": "context"
     },
     {
@@ -114,6 +82,22 @@
       "importance": 50,
       "path": "development/ito_workflow/ito_orchestration_consolidation.md",
       "tokens": 52,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/obsolete_specialist_cleanup.abstract.md",
+      "abstractTokens": 50,
+      "importance": 50,
+      "path": "development/ito_workflow/obsolete_specialist_cleanup.md",
+      "tokens": 50,
+      "type": "context"
+    },
+    {
+      "abstractPath": "development/ito_workflow/pre_push_adversarial_code_review.abstract.md",
+      "abstractTokens": 41,
+      "importance": 50,
+      "path": "development/ito_workflow/pre_push_adversarial_code_review.md",
+      "tokens": 41,
       "type": "context"
     },
     {
@@ -177,15 +161,23 @@
       "path": "development/release_workflow/release_workflow.md",
       "tokens": 85,
       "type": "context"
+    },
+    {
+      "abstractPath": "development/source_guides/source_guide_workflow.abstract.md",
+      "abstractTokens": 40,
+      "importance": 50,
+      "path": "development/source_guides/source_guide_workflow.md",
+      "tokens": 40,
+      "type": "context"
     }
   ],
-  "generated_at": "2026-05-29T08:59:37.843Z",
+  "generated_at": "2026-07-13T18:46:27.077Z",
   "lane_tokens": {
-    "contexts": 1309,
+    "contexts": 3254,
     "stubs": 0,
-    "summaries": 4771
+    "summaries": 1910
   },
-  "source_fingerprint": "43744d55617f2712be045f990cb18050970504941c7246bd47759a1e89f13cfb",
-  "total_tokens": 6080,
+  "source_fingerprint": "a7bd21fc75821cee1c269f148df9b97491d78ce94405bba3eda5cd60de78102b",
+  "total_tokens": 5164,
   "version": 1
 }

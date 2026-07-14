@@ -149,9 +149,9 @@ Worktrees are not required by config. Still keep changes scoped and avoid unrela
 {% if coordination.enabled %}
 Coordination branch mode is enabled.
 
-- Ito artifacts are coordinated through the configured coordination branch/storage.
-- Multiple change worktrees may operate concurrently, but artifacts must coordinate through the shared substrate.
-- Sync before reading or acting on change state whenever Ito is available.
+- Runtime state under `.ito/{modules,workflows,audit}` is coordinated through the configured branch/storage.
+- Proposals under `.ito/changes` and specifications under `.ito/specs` remain authoritative Git content on main.
+- Sync before reading or acting on coordination-owned runtime state whenever Ito is available.
 - Do not confuse the coordination worktree with the implementation worktree.
 
 Config:

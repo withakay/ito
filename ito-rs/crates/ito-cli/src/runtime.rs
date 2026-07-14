@@ -1,5 +1,6 @@
 use ito_config::ConfigContext;
 use ito_config::ito_dir::get_ito_path;
+use ito_config::types::ItoConfig;
 use ito_config::{CascadingProjectConfig, load_cascading_project_config};
 use ito_core::audit::{
     AuditEvent, AuditEventStore, EventContext, default_audit_store, resolve_context,
@@ -140,6 +141,12 @@ impl Runtime {
     /// Whether the pre-dispatch safety guard suppressed incidental side effects.
     pub(crate) fn command_side_effects_suppressed(&self) -> bool {
         self.suppress_command_side_effects.load(Ordering::Relaxed)
+    }
+
+    /// Return the per-invocation cascading configuration as typed values.
+    pub(crate) fn typed_config(&self) -> CoreResult<ItoConfig> {
+        serde_json::from_value(self.resolved_config().merged.clone())
+            .map_err(|error| CoreError::serde("parse Ito configuration", error.to_string()))
     }
 
     /// Returns the resolved repository runtime.

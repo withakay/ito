@@ -1,6 +1,31 @@
 use std::path::Path;
+use std::process::Command;
 
 use ito_test_support::run_rust_candidate;
+
+const COMMITTED_READY_ID: &str = "000-04_committed-ready";
+const COPIED_LOCAL_ID: &str = "000-05_copied-local";
+const READY_PROPOSAL: &str =
+    "# Proposal\n\nIntegrate reviewed intent before implementation begins.\n";
+const READY_DESIGN: &str = "# Design\n\nResolve one immutable authority commit.\n";
+const READY_DELTA_SPEC: &str = r#"## ADDED Requirements
+
+### Requirement: Main-first implementation
+Ito SHALL require accepted proposal history before implementation begins.
+
+#### Scenario: Accepted proposal
+- **GIVEN** a reviewed proposal
+- **WHEN** implementation readiness is evaluated
+- **THEN** the accepted proposal commit is present
+"#;
+const READY_TASKS: &str = r#"## Wave 1
+- **Depends On**: None
+
+### Task 1.1: Implement the accepted proposal
+- **Dependencies**: None
+- **Updated At**: 2026-07-13
+- **Status**: [ ] pending
+"#;
 
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
@@ -147,6 +172,70 @@ fn extract_names(stdout: &str) -> Vec<String> {
         .collect()
 }
 
+fn make_authority_ready_repo() -> tempfile::TempDir {
+    let repo = tempfile::tempdir().expect("repo");
+    run_git(repo.path(), &["init", "--initial-branch=main"]);
+    run_git(repo.path(), &["config", "user.name", "Ito Test"]);
+    run_git(
+        repo.path(),
+        &["config", "user.email", "ito@example.invalid"],
+    );
+    write(repo.path().join("README.md"), "# authority fixture\n");
+    write(
+        repo.path().join(".ito/config.json"),
+        r#"{
+  "changes": {
+    "proposal": { "integration_mode": "direct_merge" }
+  },
+  "worktrees": {
+    "enabled": true,
+    "default_branch": "main",
+    "strategy": "checkout_siblings",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    );
+    commit_all(repo.path(), "initial fixture");
+
+    write_ready_change(repo.path(), COMMITTED_READY_ID);
+    commit_all(repo.path(), "integrate reviewed proposal");
+
+    // This copy is deliberately as complete as the committed proposal, but it
+    // exists only in the checkout and therefore is not accepted authority.
+    write_ready_change(repo.path(), COPIED_LOCAL_ID);
+    repo
+}
+
+fn write_ready_change(repo: &Path, id: &str) {
+    let change = repo.join(".ito/changes").join(id);
+    write(change.join(".ito.yaml"), "schema: spec-driven\n");
+    write(change.join("proposal.md"), READY_PROPOSAL);
+    write(change.join("design.md"), READY_DESIGN);
+    write(change.join("tasks.md"), READY_TASKS);
+    write(change.join("specs/main-first/spec.md"), READY_DELTA_SPEC);
+}
+
+fn commit_all(repo: &Path, message: &str) {
+    run_git(repo, &["add", "."]);
+    run_git(repo, &["commit", "-m", message]);
+}
+
+fn run_git(cwd: &Path, args: &[&str]) {
+    let output = Command::new("git")
+        .args(["-c", "commit.gpgSign=false"])
+        .args(args)
+        .current_dir(cwd)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git should run");
+    assert!(
+        output.status.success(),
+        "git {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
 fn list_default_text_and_json_shape_regression() {
     let repo = make_repo();
@@ -205,15 +294,6 @@ fn list_filters_regression() {
 
     let out = run_rust_candidate(
         rust_path,
-        &["list", "--ready", "--json"],
-        repo.path(),
-        home.path(),
-    );
-    assert_eq!(out.code, 0);
-    assert_eq!(extract_names(&out.stdout).len(), 2);
-
-    let out = run_rust_candidate(
-        rust_path,
         &["list", "--pending", "--json"],
         repo.path(),
         home.path(),
@@ -238,6 +318,25 @@ fn list_filters_regression() {
     );
     assert_eq!(out.code, 0);
     assert_eq!(extract_names(&out.stdout), vec!["000-03_new-complete"]);
+}
+
+#[test]
+fn list_ready_uses_committed_authority_and_excludes_copied_local_change() {
+    let repo = make_authority_ready_repo();
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["list", "--ready", "--json"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stderr.is_empty(), "stderr={}", out.stderr);
+    assert_eq!(extract_names(&out.stdout), vec![COMMITTED_READY_ID]);
+    assert!(!out.stdout.contains(COPIED_LOCAL_ID));
 }
 
 #[test]

@@ -132,6 +132,7 @@ fn tasks_complete_supports_checkbox_compat_mode() {
         change_dir.join("tasks.md"),
         "## Tasks\n- [ ] 1.1 Do the thing\n- [ ] 1.2 Do another thing\n",
     );
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -192,7 +193,7 @@ fn tasks_error_paths_cover_more_branches() {
     assert!(out.stderr.contains("not shelved"));
 
     // checkbox-only: add not supported; ids may be explicit (e.g. 1.1) or 1-based index
-    let change_dir = repo.path().join(".ito/changes/compat");
+    let change_dir = repo.path().join(".ito/changes/test-change");
     std::fs::create_dir_all(&change_dir).unwrap();
     fixtures::write(
         change_dir.join("tasks.md"),
@@ -201,16 +202,17 @@ fn tasks_error_paths_cover_more_branches() {
 
     let out = run_rust_candidate(
         rust_path,
-        &["tasks", "add", "compat", "Nope"],
+        &["tasks", "add", "test-change", "Nope"],
         repo.path(),
         home.path(),
     );
     assert_ne!(out.code, 0);
     assert!(out.stderr.contains("checkbox-only"));
 
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
     let out = run_rust_candidate(
         rust_path,
-        &["tasks", "start", "compat", "2"],
+        &["tasks", "start", "test-change", "2"],
         repo.path(),
         home.path(),
     );
@@ -232,6 +234,7 @@ fn tasks_start_supports_checkbox_compat_mode_and_enforces_single_in_progress() {
         change_dir.join("tasks.md"),
         "## Tasks\n- [ ] first\n- [ ] second\n",
     );
+    fixtures::integrate_change_for_execution(repo.path(), "compat");
 
     let out = run_rust_candidate(
         rust_path,
@@ -282,6 +285,7 @@ fn tasks_next_supports_checkbox_compat_mode_and_shows_current_or_next() {
             .contains("Run \"ito tasks start compat 1\" to begin")
     );
 
+    fixtures::integrate_change_for_execution(repo.path(), "compat");
     let out = run_rust_candidate(
         rust_path,
         &["tasks", "start", "compat", "1"],
@@ -486,6 +490,7 @@ fn tasks_commands_support_json_output() {
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("\"action\": \"unshelve\""));
 
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
     let out = run_rust_candidate(
         rust_path,
         &["tasks", "start", "test-change", "1.1", "--json"],

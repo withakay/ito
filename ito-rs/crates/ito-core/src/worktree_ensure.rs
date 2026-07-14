@@ -11,6 +11,10 @@ use ito_config::types::ItoConfig;
 
 use crate::coordination_worktree::repair_current_worktree_coordination_links;
 use crate::errors::{CoreError, CoreResult};
+use crate::implementation_readiness::{
+    ReadinessPhase, ReadinessReport, ReadinessRequest, evaluate_execute_from_prepare,
+    evaluate_readiness,
+};
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
 use crate::worktree_init;
@@ -31,11 +35,9 @@ const INIT_MARKER: &str = "ito-initialized";
 /// 1. When `worktrees.enabled` is `false`, returns `cwd` (the current working
 ///    directory passed in).
 /// 2. Derives the expected worktree path from the configured strategy and layout.
-/// 3. If the path exists and is a directory, assumes it is already initialized
-///    and returns it immediately (no re-initialization, no setup re-run).
-/// 4. If the path does not exist, creates the worktree branching from
-///    `worktrees.default_branch`, runs [`worktree_init::init_worktree`], and
-///    returns the path.
+/// 3. Existing worktrees must pass execute readiness before reuse or setup.
+/// 4. New worktrees must pass prepare readiness, are created from the captured
+///    authority OID, and must pass execute readiness before initialization.
 ///
 /// # Errors
 ///
@@ -49,12 +51,49 @@ pub fn ensure_worktree(
     cwd: &Path,
 ) -> CoreResult<PathBuf> {
     let runner = SystemProcessRunner;
-    ensure_worktree_with_runner(&runner, change_id, config, env, worktree_paths, cwd)
+    ensure_worktree_with_runner(
+        &runner,
+        &SystemWorktreeReadiness,
+        change_id,
+        config,
+        env,
+        worktree_paths,
+        cwd,
+    )
+}
+
+pub(crate) trait WorktreeReadinessEvaluator {
+    fn evaluate(&self, request: &ReadinessRequest, config: &ItoConfig) -> ReadinessReport;
+
+    fn execute_from_prepare(
+        &self,
+        prepare: &ReadinessReport,
+        request: &ReadinessRequest,
+        config: &ItoConfig,
+    ) -> ReadinessReport;
+}
+
+struct SystemWorktreeReadiness;
+
+impl WorktreeReadinessEvaluator for SystemWorktreeReadiness {
+    fn evaluate(&self, request: &ReadinessRequest, config: &ItoConfig) -> ReadinessReport {
+        evaluate_readiness(request, config)
+    }
+
+    fn execute_from_prepare(
+        &self,
+        prepare: &ReadinessReport,
+        request: &ReadinessRequest,
+        config: &ItoConfig,
+    ) -> ReadinessReport {
+        evaluate_execute_from_prepare(prepare, request, config)
+    }
 }
 
 /// Testable inner implementation of [`ensure_worktree`].
 pub(crate) fn ensure_worktree_with_runner(
     runner: &dyn ProcessRunner,
+    readiness: &dyn WorktreeReadinessEvaluator,
     change_id: &str,
     config: &ItoConfig,
     env: &ResolvedEnv,
@@ -78,6 +117,20 @@ pub(crate) fn ensure_worktree_with_runner(
              Fix: check 'worktrees.strategy' and 'worktrees.layout' in .ito/config.json.",
         ))
     })?;
+
+    let existing_checkout = worktree_path.join(".git").exists();
+    let prepare_report = if existing_checkout {
+        let request = ReadinessRequest::new(change_id, ReadinessPhase::Execute, &env.project_root)
+            .with_current_checkout(&worktree_path);
+        let report = readiness.evaluate(&request, config);
+        require_ready(&report)?;
+        None
+    } else {
+        let request = ReadinessRequest::new(change_id, ReadinessPhase::Prepare, &env.project_root);
+        let report = readiness.evaluate(&request, config);
+        require_ready(&report)?;
+        Some(report)
+    };
 
     // If the worktree exists and was fully initialized, return it without
     // re-init. We check for a `.git` file/dir (present in all git worktrees)
@@ -127,35 +180,276 @@ pub(crate) fn ensure_worktree_with_runner(
         })?;
     }
 
-    // Create the Worktrunk-managed worktree.
-    let default_branch = &config.worktrees.default_branch;
-    create_change_worktree(
+    // Create the Worktrunk-managed worktree from the captured authority OID.
+    let prepare_report = prepare_report.expect("absent worktree has prepare readiness");
+    let authority_oid = prepare_report
+        .authority
+        .oid
+        .as_deref()
+        .expect("successful prepare readiness contains authority OID");
+    let creation_state = WorktreeCreationState {
+        target_preexisted: worktree_path.exists(),
+        branch_preexisted: local_branch_exists(runner, &env.project_root, change_id)?,
+    };
+    let worktrunk_config =
+        FileSnapshot::capture(env.ito_root.join("worktrunk").join("worktree-path.toml"))?;
+    if let Err(error) = create_change_worktree(
         runner,
         &env.project_root,
         &env.ito_root,
         change_id,
-        default_branch,
+        authority_oid,
         &worktree_path,
-    )?;
+    ) {
+        return rollback_creation_failure(
+            runner,
+            &env.project_root,
+            change_id,
+            &worktree_path,
+            creation_state,
+            worktrunk_config,
+            error,
+        );
+    }
 
-    // Resolve the source root (main worktree) for file copy.
-    let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
+    let initialize = || -> CoreResult<()> {
+        let execute_request =
+            ReadinessRequest::new(change_id, ReadinessPhase::Execute, &env.project_root)
+                .with_current_checkout(&worktree_path);
+        let execute_report =
+            readiness.execute_from_prepare(&prepare_report, &execute_request, config);
+        require_ready(&execute_report)?;
 
-    let ito_path = worktree_path.join(".ito");
-    repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
-
-    // Initialize: copy files + run setup.
-    worktree_init::init_worktree_with_runner(
-        runner,
-        source_root,
-        &worktree_path,
-        &config.worktrees,
-    )?;
-
-    // Write marker to indicate initialization completed successfully.
-    write_init_marker(&worktree_path)?;
+        let source_root = worktree_paths.main_worktree_root.as_deref().unwrap_or(cwd);
+        let ito_path = worktree_path.join(".ito");
+        repair_current_worktree_coordination_links(&env.project_root, &ito_path, config)?;
+        worktree_init::init_worktree_with_runner(
+            runner,
+            source_root,
+            &worktree_path,
+            &config.worktrees,
+        )?;
+        write_init_marker(&worktree_path)
+    };
+    if let Err(error) = initialize() {
+        return rollback_creation_failure(
+            runner,
+            &env.project_root,
+            change_id,
+            &worktree_path,
+            creation_state,
+            worktrunk_config,
+            error,
+        );
+    }
 
     Ok(worktree_path)
+}
+
+#[derive(Clone, Copy)]
+struct WorktreeCreationState {
+    target_preexisted: bool,
+    branch_preexisted: bool,
+}
+
+fn rollback_creation_failure(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+    change_id: &str,
+    worktree_path: &Path,
+    creation_state: WorktreeCreationState,
+    worktrunk_config: FileSnapshot,
+    error: CoreError,
+) -> CoreResult<PathBuf> {
+    let cleanup = rollback_created_worktree(
+        runner,
+        project_root,
+        change_id,
+        worktree_path,
+        creation_state,
+    );
+    combine_creation_failure(error, cleanup, worktrunk_config.restore())
+}
+
+fn combine_creation_failure(
+    error: CoreError,
+    cleanup: CoreResult<()>,
+    config_restore: CoreResult<()>,
+) -> CoreResult<PathBuf> {
+    let mut rollback_errors = Vec::new();
+    if let Err(cleanup_error) = cleanup {
+        rollback_errors.push(cleanup_error.to_string());
+    }
+    if let Err(restore_error) = config_restore {
+        rollback_errors.push(restore_error.to_string());
+    }
+    if rollback_errors.is_empty() {
+        return Err(error);
+    }
+    Err(CoreError::process(format!(
+        "{error}\nRollback also failed: {}",
+        rollback_errors.join("; ")
+    )))
+}
+
+fn require_ready(report: &ReadinessReport) -> CoreResult<()> {
+    if report.ready {
+        return Ok(());
+    }
+    let failures = report
+        .conditions
+        .iter()
+        .filter(|condition| !condition.passed)
+        .map(|condition| {
+            let remediation = condition
+                .remediation
+                .as_deref()
+                .map(|value| format!(" Fix: {value}"))
+                .unwrap_or_default();
+            format!("{}: {}{remediation}", condition.code, condition.message)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    Err(CoreError::validation(format!(
+        "Change '{}' is not ready for {}.\n{}",
+        report.change_id,
+        match report.phase {
+            ReadinessPhase::Prepare => "worktree preparation",
+            ReadinessPhase::Execute => "implementation execution",
+        },
+        failures
+    )))
+}
+
+struct FileSnapshot {
+    path: PathBuf,
+    contents: Option<Vec<u8>>,
+    parent_existed: bool,
+}
+
+impl FileSnapshot {
+    fn capture(path: PathBuf) -> CoreResult<Self> {
+        let parent_existed = path.parent().map(Path::exists).unwrap_or(false);
+        let contents = match std::fs::read(&path) {
+            Ok(contents) => Some(contents),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                return Err(CoreError::io(
+                    format!("Cannot snapshot '{}'.", path.display()),
+                    error,
+                ));
+            }
+        };
+        Ok(Self {
+            path,
+            contents,
+            parent_existed,
+        })
+    }
+
+    fn restore(self) -> CoreResult<()> {
+        match self.contents {
+            Some(contents) => std::fs::write(&self.path, contents).map_err(|error| {
+                CoreError::io(format!("Cannot restore '{}'.", self.path.display()), error)
+            })?,
+            None => match std::fs::remove_file(&self.path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(CoreError::io(
+                        format!("Cannot remove generated '{}'.", self.path.display()),
+                        error,
+                    ));
+                }
+            },
+        }
+        if !self.parent_existed
+            && let Some(parent) = self.path.parent()
+        {
+            match std::fs::remove_dir(parent) {
+                Ok(()) => {}
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::NotFound | std::io::ErrorKind::DirectoryNotEmpty
+                    ) => {}
+                Err(error) => {
+                    return Err(CoreError::io(
+                        format!("Cannot remove generated directory '{}'.", parent.display()),
+                        error,
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn rollback_created_worktree(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+    change_id: &str,
+    target_path: &Path,
+    creation_state: WorktreeCreationState,
+) -> CoreResult<()> {
+    let project = project_root.to_string_lossy().to_string();
+    if !creation_state.target_preexisted && target_path.exists() {
+        let target = target_path.to_string_lossy().to_string();
+        let remove = runner
+            .run(
+                &ProcessRequest::new("git")
+                    .args(["-C", &project, "worktree", "remove", "--force", &target]),
+            )
+            .map_err(|error| CoreError::process(format!("Cannot roll back worktree: {error}")))?;
+        if !remove.success {
+            return Err(CoreError::process(format!(
+                "Cannot roll back worktree '{}': {}",
+                target_path.display(),
+                remove.stderr.trim()
+            )));
+        }
+    }
+
+    if creation_state.branch_preexisted || !local_branch_exists(runner, project_root, change_id)? {
+        return Ok(());
+    }
+    let branch = runner
+        .run(&ProcessRequest::new("git").args(["-C", &project, "branch", "-D", change_id]))
+        .map_err(|error| CoreError::process(format!("Cannot roll back branch: {error}")))?;
+    if !branch.success {
+        return Err(CoreError::process(format!(
+            "Cannot roll back branch '{change_id}': {}",
+            branch.stderr.trim()
+        )));
+    }
+    Ok(())
+}
+
+fn local_branch_exists(
+    runner: &dyn ProcessRunner,
+    project_root: &Path,
+    change_id: &str,
+) -> CoreResult<bool> {
+    let project = project_root.to_string_lossy().to_string();
+    let branch_ref = format!("refs/heads/{change_id}");
+    let output = runner
+        .run(&ProcessRequest::new("git").args([
+            "-C",
+            &project,
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &branch_ref,
+        ]))
+        .map_err(|error| CoreError::process(format!("Cannot inspect worktree branch: {error}")))?;
+    match output.exit_code {
+        0 => Ok(true),
+        1 => Ok(false),
+        _ => Err(CoreError::process(format!(
+            "Cannot inspect branch '{change_id}' before worktree creation: {}",
+            output.stderr.trim()
+        ))),
+    }
 }
 
 /// Resolve the actual gitdir path for a worktree.
@@ -269,7 +563,7 @@ fn create_change_worktree(
     project_root: &Path,
     ito_root: &Path,
     change_id: &str,
-    base_branch: &str,
+    base_oid: &str,
     target_path: &Path,
 ) -> CoreResult<()> {
     let config_path = write_worktrunk_path_config(ito_root, target_path)?;
@@ -287,7 +581,7 @@ fn create_change_worktree(
             "--create",
             change_id,
             "--base",
-            base_branch,
+            base_oid,
         ])
         .current_dir(project_root);
 
@@ -295,8 +589,9 @@ fn create_change_worktree(
         CoreError::process(format!(
             "Cannot create worktree for change '{change_id}' at '{target}'.\n\
              Worktrunk command failed to run: {err}\n\
-             Command context: wt switch --create {change_id} --base {base_branch}\n\
-             Fix: install Worktrunk and ensure `wt` is available on PATH, or create the worktree manually at the target path.",
+             Requested change: {change_id}\n\
+             Verified authority OID: {base_oid}\n\
+             Fix: install Worktrunk and ensure `wt` is available on PATH, then retry the guarded Ito worktree command.",
             target = target_path.display(),
         ))
     })?;
@@ -316,8 +611,9 @@ fn create_change_worktree(
     Err(CoreError::process(format!(
         "Cannot create worktree for change '{change_id}' at '{target}'.\n\
          Worktrunk reported: {detail}\n\
-         Command context: wt switch --create {change_id} --base {base_branch}\n\
-         Fix: ensure Worktrunk can access base branch '{base_branch}', the target path is free, and the local Worktrunk path config points at the Ito worktree root.",
+         Requested change: {change_id}\n\
+         Verified authority OID: {base_oid}\n\
+         Fix: ensure Worktrunk can access verified commit '{base_oid}', the target path is free, and the local Worktrunk path config points at the Ito worktree root.",
         target = target_path.display(),
     )))
 }

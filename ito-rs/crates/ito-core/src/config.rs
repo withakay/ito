@@ -10,7 +10,7 @@ use ito_config::ConfigContext;
 use ito_config::load_cascading_project_config;
 use ito_config::types::{
     ArchiveMainIntegrationMode, IntegrationMode, MemoryConfig, MemoryOpConfig,
-    RepositoryPersistenceMode, WorktreeStrategy,
+    ProposalIntegrationMode, RepositoryPersistenceMode, WorktreeStrategy,
 };
 
 /// Read a JSON config file, returning an empty object if the file doesn't exist.
@@ -251,6 +251,23 @@ pub fn validate_config_value(parts: &[&str], value: &serde_json::Value) -> CoreR
                     s,
                     path,
                     ArchiveMainIntegrationMode::ALL.join(", ")
+                )));
+            }
+        }
+        "changes.proposal.integration_mode" => {
+            let Some(s) = value.as_str() else {
+                return Err(CoreError::validation(format!(
+                    "Key '{}' requires a string value. Valid values: {}",
+                    path,
+                    ProposalIntegrationMode::ALL.join(", ")
+                )));
+            };
+            if ProposalIntegrationMode::parse_value(s).is_none() {
+                return Err(CoreError::validation(format!(
+                    "Invalid value '{}' for key '{}'. Valid values: {}",
+                    s,
+                    path,
+                    ProposalIntegrationMode::ALL.join(", ")
                 )));
             }
         }

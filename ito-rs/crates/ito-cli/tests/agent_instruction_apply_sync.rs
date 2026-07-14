@@ -44,6 +44,12 @@ fn apply_instruction_does_not_fetch_by_default_in_worktree_mode() {
         "stdout={}",
         out.stdout
     );
+    assert!(
+        out.stdout
+            .contains("These paths are relative to the execute-ready implementation checkout root"),
+        "stdout={}",
+        out.stdout
+    );
     assert_fetch_log_empty(&fetch_log);
 }
 
@@ -135,6 +141,31 @@ fn setup_worktree_backed_apply_repo(
         out.stderr, out.stdout
     );
 
+    let config_path = repo.join(".ito/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).unwrap()).unwrap();
+    config["changes"]["proposal"]["integration_mode"] =
+        serde_json::Value::String("direct_merge".to_string());
+    assert_eq!(
+        config["changes"]["coordination_branch"]["storage"], "worktree",
+        "fixture must retain worktree-backed coordination"
+    );
+    fixtures::write(
+        &config_path,
+        &format!("{}\n", serde_json::to_string_pretty(&config).unwrap()),
+    );
+
+    // Proposal packages are authoritative Git contents under the main-first
+    // workflow, not coordination-worktree links.
+    let changes_path = repo.join(".ito/changes");
+    if std::fs::symlink_metadata(&changes_path)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        std::fs::remove_file(&changes_path).unwrap();
+    }
+    std::fs::create_dir_all(&changes_path).unwrap();
+
     fixtures::write(
         repo.join(".ito/modules/000_ungrouped/module.md"),
         "# Ungrouped\n\n## Purpose\nModule for apply instruction sync tests. This purpose is long enough.\n\n## Scope\n- *\n\n## Changes\n- [ ] 000-01_test-change\n",
@@ -144,17 +175,57 @@ fn setup_worktree_backed_apply_repo(
         "# Alpha\n\n## Purpose\nThis purpose text is intentionally long enough to avoid strict-mode warnings.\n\n## Requirements\n\n### Requirement: Alpha Behavior\nThe system SHALL do the alpha thing.\n\n#### Scenario: Alpha works\n- **WHEN** the user triggers alpha\n- **THEN** the system performs alpha\n",
     );
     fixtures::write(
+        repo.join(".ito/changes/000-01_test-change/.ito.yaml"),
+        "schema: spec-driven\n",
+    );
+    fixtures::write(
         repo.join(".ito/changes/000-01_test-change/proposal.md"),
         "## Why\nTest fixture\n\n## What Changes\n- Adds a small delta\n\n## Impact\n- None\n",
     );
     fixtures::write(
+        repo.join(".ito/changes/000-01_test-change/design.md"),
+        "# Design\n\nKeep apply instruction tests on authoritative main history.\n",
+    );
+    fixtures::write(
         repo.join(".ito/changes/000-01_test-change/tasks.md"),
-        "## 1. Implementation\n- [x] 1.1 Do a thing\n",
+        "## Wave 1\n- **Depends On**: None\n\n### Task 1.1: Do a thing\n- **Dependencies**: None\n- **Updated At**: 2026-07-13\n- **Status**: [ ] pending\n",
     );
     fixtures::write(
         repo.join(".ito/changes/000-01_test-change/specs/alpha/spec.md"),
         "## ADDED Requirements\n\n### Requirement: Alpha Delta\nThe system SHALL include alpha delta behavior in strict validation.\n\n#### Scenario: Delta ok\n- **WHEN** running validation\n- **THEN** it passes\n",
     );
+
+    let add = std::process::Command::new("git")
+        .args(["add", "-f", ".ito/config.json", ".ito/changes"])
+        .current_dir(repo)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git add should run");
+    assert!(
+        add.status.success(),
+        "git add failed: {}",
+        String::from_utf8_lossy(&add.stderr)
+    );
+    let commit = std::process::Command::new("git")
+        .args([
+            "-c",
+            "commit.gpgSign=false",
+            "commit",
+            "-m",
+            "integrate reviewed proposal",
+        ])
+        .current_dir(repo)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git commit should run");
+    assert!(
+        commit.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&commit.stderr)
+    );
+    let _ = std::fs::remove_file(repo.join(".git/ito-sync-state.json"));
 
     remote
 }

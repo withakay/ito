@@ -8,6 +8,7 @@ mod agent;
 mod artifact;
 #[cfg(feature = "backend")]
 mod backend;
+mod change;
 mod grep;
 mod init_update;
 mod path;
@@ -25,6 +26,7 @@ pub use artifact::{
 };
 #[cfg(feature = "backend")]
 pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
+pub use change::{ChangeArgs, ChangeCommand, ChangePreflightArgs, ReadinessPhaseArg};
 pub use grep::GrepArgs;
 pub use init_update::{InitArgs, UpdateArgs};
 pub use path::{PathArgs, PathCommand, PathCommonArgs, PathRootsArgs, PathWorktreeArgs};
@@ -83,6 +85,9 @@ pub struct Cli {
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     // ─── Change Lifecycle ───────────────────────────────────────────────────────
+    /// Inspect readiness for an Ito change
+    Change(ChangeArgs),
+
     /// Create a new module or change proposal
     ///
     /// Modules group related changes and specs. Changes are the unit of work
@@ -838,8 +843,8 @@ pub struct ListArgs {
     #[arg(long, conflicts_with_all = ["specs", "changes", "modules", "ready", "completed", "partial", "pending", "sort"])]
     pub archived: bool,
 
-    /// Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
-    #[arg(long)]
+    /// Filter to changes that pass centralized authoritative prepare readiness
+    #[arg(long, conflicts_with_all = ["specs", "modules", "archived", "completed", "partial", "pending"])]
     pub ready: bool,
 
     /// Filter to completed changes (all tasks done)

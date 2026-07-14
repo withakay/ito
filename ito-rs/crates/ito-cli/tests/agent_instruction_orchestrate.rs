@@ -71,6 +71,23 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
     assert!(out.stdout.contains("Direct Coordinator Activation"));
     assert!(out.stdout.contains("Delegated Role Agents"));
     assert!(out.stdout.contains("Gate Planning"));
+    assert!(
+        out.stdout
+            .contains("Mandatory implementation-readiness gate")
+    );
+    assert!(
+        out.stdout
+            .contains("ito change preflight <change-id> --for execute --json")
+    );
+    assert!(out.stdout.contains("do not create or send a work packet"));
+    assert!(out.stdout.contains("Re-evaluate this gate on every resume"));
+    assert!(out.stdout.contains("readiness` field"));
+    let readiness_gate = out
+        .stdout
+        .find("`implementation-readiness`")
+        .expect("readiness gate");
+    let apply_gate = out.stdout.find("`apply-complete`").expect("apply gate");
+    assert!(readiness_gate < apply_gate);
     assert!(out.stdout.contains("Run State"));
     assert!(out.stdout.contains("Failure and Remediation"));
     assert!(out.stdout.contains("Resume Behavior"));

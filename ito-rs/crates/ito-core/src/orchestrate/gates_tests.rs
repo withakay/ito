@@ -22,7 +22,11 @@ fn remediation_includes_failed_gate_and_downstream_run_gates() {
     assert_eq!(pkt.error, "boom");
     assert_eq!(
         pkt.rerun_gates,
-        vec!["tests".to_string(), "code-review".to_string()]
+        vec![
+            GATE_IMPLEMENTATION_READINESS.to_string(),
+            "tests".to_string(),
+            "code-review".to_string(),
+        ]
     );
 }
 
@@ -37,7 +41,11 @@ fn remediation_includes_failed_gate_even_when_policy_is_skip() {
     let pkt = remediation_packet_for_failure("001-01_demo", &gates, "tests", "boom");
     assert_eq!(
         pkt.rerun_gates,
-        vec!["tests".to_string(), "code-review".to_string()]
+        vec![
+            GATE_IMPLEMENTATION_READINESS.to_string(),
+            "tests".to_string(),
+            "code-review".to_string(),
+        ]
     );
 }
 
@@ -53,7 +61,28 @@ fn remediation_skips_downstream_skip_gates() {
     let pkt = remediation_packet_for_failure("001-01_demo", &gates, "tests", "boom");
     assert_eq!(
         pkt.rerun_gates,
-        vec!["tests".to_string(), "code-review".to_string()]
+        vec![
+            GATE_IMPLEMENTATION_READINESS.to_string(),
+            "tests".to_string(),
+            "code-review".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn remediation_synthesizes_readiness_for_legacy_gate_plans() {
+    let gates = vec![
+        gate("apply-complete", GatePolicy::Run),
+        gate("tests", GatePolicy::Run),
+    ];
+
+    let pkt = remediation_packet_for_failure("001-01_demo", &gates, "tests", "boom");
+    assert_eq!(
+        pkt.rerun_gates,
+        vec![
+            GATE_IMPLEMENTATION_READINESS.to_string(),
+            "tests".to_string(),
+        ]
     );
 }
 

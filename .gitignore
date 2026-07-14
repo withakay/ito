@@ -203,8 +203,6 @@ ito-rs/.bacon/
 .ito/config.local.json
 
 # Ito coordination worktree symlinks
-.ito/changes
-.ito/specs
 .ito/modules
 .ito/workflows
 .ito/audit

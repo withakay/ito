@@ -77,6 +77,11 @@ pub const CONFIG_SETUP_COVERAGE: &[ConfigSetupCoverageEntry] = &[
         reason: "change coordination settings are operational storage behavior",
     },
     ConfigSetupCoverageEntry {
+        path: "changes.proposal",
+        coverage: ConfigSetupCoverage::RuntimeOnly,
+        reason: "proposal authority is evaluated when implementation readiness is requested",
+    },
+    ConfigSetupCoverageEntry {
         path: "logging",
         coverage: ConfigSetupCoverage::RuntimeOnly,
         reason: "diagnostic logging is runtime behavior",

@@ -1,3 +1,4 @@
+use crate::app::change::require_runtime_readiness_at;
 use crate::cli::{HarnessArg, RalphArgs};
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
@@ -8,6 +9,7 @@ use ito_core::harness::GitHubCopilotHarness;
 use ito_core::harness::Harness;
 use ito_core::harness::OpencodeHarness;
 use ito_core::harness::stub::StubHarness;
+use ito_core::implementation_readiness::ReadinessPhase;
 use ito_core::ralph as core_ralph;
 use std::io::IsTerminal;
 use std::path::Path;
@@ -152,6 +154,22 @@ pub(crate) fn handle_ralph_clap(
 
     let ito_path = rt.ito_path();
     let repo_root = ito_path.parent().unwrap_or_else(|| Path::new("."));
+    let worktree_config = load_worktree_config(ito_path, rt);
+
+    if !args.status
+        && let Some(change_id) = args.change.as_deref()
+        && ito_core::parse_change_id(change_id).is_ok()
+    {
+        let checkout =
+            core_ralph::resolve_effective_cwd(ito_path, Some(change_id), &worktree_config);
+        require_runtime_readiness_at(
+            rt,
+            change_id,
+            ReadinessPhase::Execute,
+            false,
+            Some(&checkout.path),
+        )?;
+    }
 
     if args.parallel {
         if interactive {
@@ -184,19 +202,6 @@ pub(crate) fn handle_ralph_clap(
         .error_threshold
         .unwrap_or(core_ralph::DEFAULT_ERROR_THRESHOLD);
 
-    let branch_task_label = branch_label(args, task_source.as_ref(), &prompt);
-    let branch_context = if args.branch_per_task {
-        Some(create_task_branch(
-            repo_root,
-            &branch_task_label,
-            args.base_branch.as_deref(),
-        )?)
-    } else {
-        None
-    };
-
-    let worktree_config = load_worktree_config(ito_path, rt);
-
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let repositories = runtime.repositories();
     let change_repo = repositories.changes.as_ref();
@@ -223,6 +228,24 @@ pub(crate) fn handle_ralph_clap(
 
         let single_target = args.status || args.add_context.is_some() || args.clear_context;
         let selected = pick_change_ids(change_repo, args.module.as_deref(), single_target)?;
+
+        for change_id in &selected {
+            if args.status {
+                continue;
+            }
+            if ito_core::parse_change_id(change_id).is_err() {
+                continue;
+            }
+            let checkout =
+                core_ralph::resolve_effective_cwd(ito_path, Some(change_id), &worktree_config);
+            require_runtime_readiness_at(
+                rt,
+                change_id,
+                ReadinessPhase::Execute,
+                false,
+                Some(&checkout.path),
+            )?;
+        }
 
         let mut overrides = RalphWizardOverrides::from_args(args);
         if !single_target {
@@ -281,6 +304,17 @@ pub(crate) fn handle_ralph_clap(
 
         return Ok(());
     }
+
+    let branch_task_label = branch_label(args, task_source.as_ref(), &prompt);
+    let branch_context = if args.branch_per_task {
+        Some(create_task_branch(
+            repo_root,
+            &branch_task_label,
+            args.base_branch.as_deref(),
+        )?)
+    } else {
+        None
+    };
 
     let mut harness_impl: Box<dyn Harness> = make_harness(args.harness, args)?;
     let opts = core_ralph::RalphOptions {

@@ -5,9 +5,10 @@
 > To override it, pass `coordination_branch_name` in the template context or
 > set `changes.coordination_branch.name` in `.ito/config.json`.
 
-This guide walks you through migrating an existing Ito project from embedded
-storage (`.ito/changes/` tracked in the main repo) to coordination-worktree
-storage (content lives in a dedicated git branch, checked out as a worktree).
+This guide moves coordination runtime state to a dedicated worktree while
+keeping `.ito/changes/` and `.ito/specs/` as authoritative, tracked content on
+the main branch. Proposal review and integration therefore remain visible in
+normal Git and pull-request workflows.
 
 ## Prerequisites
 
@@ -70,12 +71,12 @@ mkdir -p "$COORD_PATH"
 git worktree add "$COORD_PATH" {{ coordination_branch_name | default("ito/internal/changes") }}
 ```
 
-## Step 5: Move Content to the Worktree
+## Step 5: Move Coordination-Owned Content to the Worktree
 
 ```bash
 COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
 
-for dir in changes specs modules workflows audit; do
+for dir in modules workflows audit; do
   src=".ito/${dir}"
   dst="${COORD_PATH}/.ito/${dir}"
 
@@ -89,18 +90,24 @@ for dir in changes specs modules workflows audit; do
 done
 ```
 
+Do not move or link `.ito/changes` or `.ito/specs`. If an older Ito version
+already linked either path, run `ito init --update`. Ito copies the legacy
+target content into a real directory in the checkout and leaves the external
+target unchanged. Review and commit the restored content to main before
+starting implementation work.
+
 ## Step 6: Update .gitignore
 
 Add these entries to `.gitignore` so the symlink targets are not accidentally
 tracked in the main branch:
 
 ```
-.ito/changes
-.ito/specs
 .ito/modules
 .ito/workflows
 .ito/audit
 ```
+
+Remove legacy `.ito/changes` and `.ito/specs` ignore entries if present.
 
 ## Step 7: Verify
 
@@ -118,7 +125,7 @@ ls -la .ito/
 ## Step 8: Commit the Migration
 
 ```bash
-git add .gitignore .ito/config.json
+git add .gitignore .ito/config.json .ito/changes .ito/specs
 git commit -m "chore: migrate to coordination worktree storage"
 ```
 
@@ -130,7 +137,7 @@ If something goes wrong before committing:
 
    ```bash
    COORD_PATH="${HOME}/.local/share/ito/<org>/<repo>"
-   for dir in changes specs modules workflows audit; do
+   for dir in modules workflows audit; do
      dst="${COORD_PATH}/.ito/${dir}"
      src=".ito/${dir}"
      [ -L "$src" ] && rm "$src" && cp -r "${dst}/." "${src}/" || true

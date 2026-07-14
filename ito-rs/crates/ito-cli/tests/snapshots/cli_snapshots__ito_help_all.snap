@@ -1,6 +1,5 @@
 ---
 source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
-assertion_line: 108
 expression: "snapshot(&[\"--help-all\"])"
 ---
 ================================================================================
@@ -14,6 +13,7 @@ AI-native system for spec-driven development
 Usage: ito [OPTIONS] [COMMAND]
 
 Commands:
+  change        Inspect readiness for an Ito change
   create        Create a new module or change proposal [aliases: cr]
   list          List changes, specs, or modules with status summaries [aliases: ls]
   list-archive  List archived changes (use --json for machine-readable output) [aliases: la]
@@ -210,6 +210,51 @@ Options:
 
 --------------------------------------------------------------------------------
 
+ito change
+----------
+Inspect readiness for an Ito change
+
+Usage: ito change <COMMAND>
+
+Commands:
+  preflight  Prove that a proposal is ready for preparation or implementation
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help
+
+
+--------------------------------------------------------------------------------
+
+ito change preflight
+--------------------
+Prove that a proposal is ready for preparation or implementation
+
+Usage: ito change preflight [OPTIONS] --for <PHASE> <CHANGE_ID>
+
+Arguments:
+  <CHANGE_ID>
+          Full canonical Ito change ID
+
+Options:
+      --for <PHASE>
+          Readiness phase to evaluate
+
+          [possible values: prepare, execute]
+
+      --refresh
+          Refresh the configured pull-request authority before evaluation
+
+      --json
+          Emit the stable readiness report as JSON
+
+  -h, --help
+          Print help
+
+
+--------------------------------------------------------------------------------
+
 ito plan
 --------
 Initialize and inspect the planning workspace
@@ -256,7 +301,7 @@ Options:
           List archived changes
 
       --ready
-          Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
+          Filter to changes that pass centralized authoritative prepare readiness
 
       --completed
           Filter to completed changes (all tasks done)

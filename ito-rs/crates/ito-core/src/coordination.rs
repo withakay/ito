@@ -1,10 +1,12 @@
 //! Symlink wiring for coordination worktrees.
 //!
-//! When Ito operates in a coordination-worktree layout, the canonical `.ito/`
-//! subdirectories (`changes`, `specs`, `modules`, `workflows`, `audit`) are
-//! replaced by symlinks that point into a shared coordination worktree.  This
-//! module provides the helpers to create, verify, and tear down those symlinks,
-//! as well as health-check utilities for detecting missing or broken setups.
+//! When Ito operates in a coordination-worktree layout, runtime coordination
+//! directories (`modules`, `workflows`, `audit`) are replaced by symlinks that
+//! point into a shared coordination worktree. Proposal and specification
+//! directories remain authoritative Git content in each checkout. This module
+//! creates, verifies, and tears down coordination links and migrates legacy
+//! `changes`/`specs` links back to real directories without deleting their
+//! external targets.
 
 use std::fs;
 use std::io;
@@ -17,7 +19,22 @@ use ito_config::types::CoordinationStorage;
 use crate::errors::{CoreError, CoreResult};
 
 /// Subdirectories of `.ito/` that are wired to the coordination worktree.
-pub use crate::legacy_coordination::MANAGED_STATE_DIRS as COORDINATION_DIRS;
+pub const COORDINATION_DIRS: &[&str] = &["modules", "workflows", "audit"];
+
+/// Subdirectories of `.ito/` that are authoritative, tracked Git content.
+pub const AUTHORITATIVE_GIT_DIRS: &[&str] = &["changes", "specs"];
+
+/// Canonical `.gitignore` entries for the coordination-worktree symlinks.
+///
+/// Each entry corresponds to one directory in [`COORDINATION_DIRS`]
+/// prefixed with `.ito/`. Both [`update_gitignore_for_symlinks`] and the
+/// `coordination/gitignore-entries` rule consume this list, so any changes
+/// stay in lockstep.
+const COORDINATION_GITIGNORE_ENTRIES: &[&str] = &[".ito/modules", ".ito/workflows", ".ito/audit"];
+
+/// Ignore entries written by older coordination layouts. These are removed
+/// when refreshing `.gitignore` so proposals and specs can be tracked on main.
+const LEGACY_AUTHORITY_GITIGNORE_ENTRIES: &[&str] = &[".ito/changes", ".ito/specs"];
 
 /// Return the canonical `.gitignore` entries for coordination-worktree
 /// symlinks.
@@ -81,8 +98,8 @@ fn read_link_opt(path: &Path) -> io::Result<Option<PathBuf>> {
 
 // ── wire_coordination_symlinks ────────────────────────────────────────────────
 
-/// Wire `.ito/<dir>` → `<worktree_ito_path>/<dir>` for every coordination
-/// directory.
+/// Restore authoritative Git directories, then wire every coordination
+/// directory as `.ito/<dir>` → `<worktree_ito_path>/<dir>`.
 ///
 /// For each directory in [`COORDINATION_DIRS`] the function applies the
 /// following logic:
@@ -99,6 +116,174 @@ fn read_link_opt(path: &Path) -> io::Result<Option<PathBuf>> {
 /// Returns [`CoreError::Io`] when any filesystem operation fails, with a
 /// message that includes the affected path and a suggested remediation.
 pub fn wire_coordination_symlinks(ito_path: &Path, worktree_ito_path: &Path) -> CoreResult<()> {
+    ensure_authoritative_git_dirs(ito_path)?;
+    wire_coordination_links(ito_path, worktree_ito_path)
+}
+
+/// Ensure `changes` and `specs` are real directories in the current checkout.
+///
+/// A legacy symlink is replaced with a real directory containing a copy of its
+/// target. The external target is never moved or deleted. Copying completes in
+/// a temporary sibling directory before the symlink is swapped, so a failed
+/// copy leaves the legacy link intact.
+///
+/// # Errors
+///
+/// Returns [`CoreError`] if a path is neither a directory nor a symlink, a
+/// legacy target is not a directory, content cannot be copied, or the safe
+/// replacement cannot be completed.
+pub fn ensure_authoritative_git_dirs(ito_path: &Path) -> CoreResult<()> {
+    fs::create_dir_all(ito_path).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot create Ito directory '{}' while restoring authoritative Git paths",
+                ito_path.display()
+            ),
+            e,
+        )
+    })?;
+
+    for dir in AUTHORITATIVE_GIT_DIRS {
+        ensure_authoritative_git_dir(ito_path, dir)?;
+    }
+
+    Ok(())
+}
+
+fn ensure_authoritative_git_dir(ito_path: &Path, dir: &str) -> CoreResult<()> {
+    let path = ito_path.join(dir);
+    let existing_link = read_link_opt(&path).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot inspect authoritative Git path '{}': check filesystem permissions",
+                path.display()
+            ),
+            e,
+        )
+    })?;
+
+    let Some(target) = existing_link else {
+        if path.exists() && !path.is_dir() {
+            return Err(CoreError::process(format!(
+                "Authoritative Git path '{}' exists but is not a directory. Move it aside, then rerun `ito init`.",
+                path.display()
+            )));
+        }
+        fs::create_dir_all(&path).map_err(|e| {
+            CoreError::io(
+                format!(
+                    "cannot create authoritative Git directory '{}': ensure the checkout is writable",
+                    path.display()
+                ),
+                e,
+            )
+        })?;
+        return Ok(());
+    };
+
+    let target = if target.is_absolute() {
+        lexical_normalize(&target)
+    } else {
+        lexical_normalize(&ito_path.join(&target))
+    };
+    if !target.exists() {
+        return Err(CoreError::process(format!(
+            "Legacy coordination link '{}' points to missing target '{}'. Restore the coordination worktree or run `ito agent instruction migrate-to-main` before retrying; no empty authority directory was created.",
+            path.display(),
+            target.display()
+        )));
+    }
+    if !target.is_dir() {
+        return Err(CoreError::process(format!(
+            "Legacy coordination link '{}' points to '{}', which is not a directory. Correct the link or move it aside before rerunning `ito init`.",
+            path.display(),
+            target.display()
+        )));
+    }
+
+    let staging = ito_path.join(format!(".{dir}.main-authority-migration"));
+    fs::create_dir(&staging).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot reserve migration directory '{}' for legacy coordination link '{}'. Move any stale migration path aside, then rerun `ito init`",
+                staging.display(),
+                path.display()
+            ),
+            e,
+        )
+    })?;
+    copy_dir_recursive(&target, &staging)?;
+
+    let backup_root = ito_path.join(format!(".{dir}.legacy-coordination-link"));
+    fs::create_dir(&backup_root).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot reserve backup directory '{}' while migrating legacy coordination link '{}'. Move any stale backup path aside, then rerun `ito init`",
+                backup_root.display(),
+                path.display()
+            ),
+            e,
+        )
+    })?;
+    let backup_link = backup_root.join("link");
+    fs::rename(&path, &backup_link).map_err(|e| {
+        CoreError::io(
+            format!(
+                "cannot preserve legacy coordination link '{}' at '{}' during migration",
+                path.display(),
+                backup_link.display()
+            ),
+            e,
+        )
+    })?;
+
+    match fs::rename(&staging, &path) {
+        Ok(()) => {}
+        Err(e) => {
+            let rollback = fs::rename(&backup_link, &path);
+            let rollback_detail = match rollback {
+                Ok(()) => "the legacy link was restored".to_string(),
+                Err(rollback_err) => {
+                    format!("the legacy link could not be restored automatically: {rollback_err}")
+                }
+            };
+            return Err(CoreError::io(
+                format!(
+                    "cannot install authoritative Git directory '{}' after copying legacy content; {rollback_detail}. The external target '{}' was not changed",
+                    path.display(),
+                    target.display()
+                ),
+                e,
+            ));
+        }
+    }
+
+    remove_symlink_path(&backup_link).map_err(|e| {
+        CoreError::io(
+            format!(
+                "authoritative Git directory '{}' was restored, but preserved legacy link '{}' could not be removed. The external target '{}' was not changed",
+                path.display(),
+                backup_link.display(),
+                target.display()
+            ),
+            e,
+        )
+    })?;
+    fs::remove_dir(&backup_root).map_err(|e| {
+        CoreError::io(
+            format!(
+                "authoritative Git directory '{}' was restored, but empty migration backup directory '{}' could not be removed",
+                path.display(),
+                backup_root.display()
+            ),
+            e,
+        )
+    })?;
+
+    Ok(())
+}
+
+fn wire_coordination_links(ito_path: &Path, worktree_ito_path: &Path) -> CoreResult<()> {
     for dir in COORDINATION_DIRS {
         let src = ito_path.join(dir);
         let dst = worktree_ito_path.join(dir);
@@ -344,14 +529,14 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> CoreResult<()> {
 ///
 /// ```text
 /// # Ito coordination worktree symlinks
-/// .ito/changes
-/// .ito/specs
 /// .ito/modules
 /// .ito/workflows
 /// .ito/audit
 /// ```
 ///
 /// Entries that already appear anywhere in the file are not duplicated.
+/// Legacy `.ito/changes` and `.ito/specs` entries are removed so those
+/// authoritative directories can be tracked on the main branch.
 ///
 /// # Errors
 ///
@@ -374,28 +559,37 @@ pub fn update_gitignore_for_symlinks(project_root: &Path) -> CoreResult<()> {
         String::new()
     };
 
+    let mut content = String::with_capacity(existing.len());
+    for line in existing.split_inclusive('\n') {
+        let entry = line.trim();
+        if LEGACY_AUTHORITY_GITIGNORE_ENTRIES.contains(&entry) {
+            continue;
+        }
+        content.push_str(line);
+    }
+
     // Collect canonical lines that are genuinely missing.
     let missing: Vec<&str> = gitignore_entries()
         .iter()
         .copied()
-        .filter(|line| !existing.lines().any(|l| l.trim() == *line))
+        .filter(|line| !content.lines().any(|l| l.trim() == *line))
         .collect();
 
-    if missing.is_empty() {
+    if missing.is_empty() && content == existing {
         return Ok(());
     }
 
-    let mut content = existing;
-
     // Ensure there is a trailing newline before appending.
-    if !content.is_empty() && !content.ends_with('\n') {
-        content.push('\n');
-    }
+    if !missing.is_empty() {
+        if !content.is_empty() && !content.ends_with('\n') {
+            content.push('\n');
+        }
 
-    content.push_str("\n# Ito coordination worktree symlinks\n");
-    for line in &missing {
-        content.push_str(line);
-        content.push('\n');
+        content.push_str("\n# Ito coordination worktree symlinks\n");
+        for line in &missing {
+            content.push_str(line);
+            content.push('\n');
+        }
     }
 
     fs::write(&gitignore_path, &content).map_err(|e| {
@@ -549,14 +743,15 @@ pub enum CoordinationHealthStatus {
 ///    expected in this mode.
 /// 2. If the worktree directory at `worktree_ito_path` does not exist, return
 ///    [`CoordinationHealthStatus::WorktreeMissing`].
-/// 3. For each of the five coordination directories (`changes`, `specs`,
-///    `modules`, `workflows`, `audit`):
+/// 3. For each coordination-owned directory (`modules`, `workflows`, `audit`):
 ///    - If `<ito_path>/<dir>` is a symlink whose target does not exist, record
 ///      it as broken.
 ///    - If `<ito_path>/<dir>` is a symlink whose resolved target exists but is
 ///      not the expected `<worktree_ito_path>/<dir>`, record it as mismatched.
 ///    - If `<ito_path>/<dir>` is a real directory (not a symlink), record it as
 ///      not-wired.
+///    - Authoritative Git directories (`changes`, `specs`) are intentionally
+///      excluded from coordination health.
 /// 4. Return [`CoordinationHealthStatus::BrokenSymlinks`],
 ///    [`CoordinationHealthStatus::WrongTargets`], or
 ///    [`CoordinationHealthStatus::NotWired`] when problems are found, or

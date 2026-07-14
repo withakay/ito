@@ -1,0 +1,7 @@
+- Coordination branch bootstrap defines how missing origin/coordination branches are initialized in git.
+- A key rule is to create a clean empty-tree root commit for bootstrap, and never derive it from the caller’s HEAD.
+- Parent references must not be included during initialization; the root commit is created without `-p`.
+- The process rejects empty stdout from git commands such as `commit-tree` or `mktree` before any hash is used.
+- Hashing is object-format-aware, supporting SHA-256 with SHA-1 fallback.
+- The described flow is: detect missing branch -> create empty-tree root commit -> validate non-empty stdout -> hash using object-format logic -> push to `refs/heads/&lt;branch&gt;`.
+- Notable entities/decisions include `root_commit_bootstrap`, `branch_bootstrap_source`, `origin_branch_bootstrap`, and `empty_stdout_validation`, which codify the safety and bootstrap conventions.

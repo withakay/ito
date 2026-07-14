@@ -28,7 +28,7 @@ Options:
           List archived changes
 
       --ready
-          Filter to changes ready for implementation (has proposal, specs, tasks, and pending work)
+          Filter to changes that pass centralized authoritative prepare readiness
 
       --completed
           Filter to completed changes (all tasks done)

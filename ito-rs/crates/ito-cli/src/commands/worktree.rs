@@ -75,6 +75,14 @@ fn handle_setup(rt: &Runtime, change_id: &str) -> CliResult<()> {
         )));
     }
 
+    crate::app::change::require_runtime_readiness_at(
+        rt,
+        change_id,
+        ito_core::implementation_readiness::ReadinessPhase::Execute,
+        false,
+        Some(&worktree_path),
+    )?;
+
     if config.worktrees.init.setup.is_none() {
         eprintln!("No setup commands configured in worktrees.init.setup — nothing to do.");
         return Ok(());

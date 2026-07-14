@@ -95,6 +95,12 @@ fn create_uses_existing_local_branch() {
             "missing .ito/{subdir}"
         );
     }
+    for subdir in crate::coordination::AUTHORITATIVE_GIT_DIRS {
+        assert!(
+            !target.join(".ito").join(subdir).exists(),
+            ".ito/{subdir} belongs in the authoritative project checkout"
+        );
+    }
 }
 
 // ── create: branch fetched from origin ───────────────────────────────────────
@@ -804,7 +810,7 @@ fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
         ok(""),                               // fetch
         ok(""),                               // merge --ff-only
         ok("abc123\n"),                       // rev-parse HEAD (state)
-        ok(" M .ito/changes/example\n"),      // status --porcelain
+        ok(" M .ito/audit/example\n"),        // status --porcelain
         ok(git_common_dir.to_str().unwrap()), // rev-parse --git-common-dir
         ok(""),                               // add -A
         Ok(ProcessOutput {
@@ -845,7 +851,7 @@ fn sync_coordination_worktree_fetches_commits_and_pushes_when_healthy() {
 
 #[test]
 #[cfg(unix)]
-fn sync_coordination_worktree_returns_error_when_links_point_to_wrong_target() {
+fn sync_coordination_worktree_rejects_links_that_point_to_wrong_target() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path();
     let ito_path = project_root.join(".ito");
@@ -857,6 +863,9 @@ fn sync_coordination_worktree_returns_error_when_links_point_to_wrong_target() {
     std::fs::create_dir_all(&ito_path).unwrap();
     std::fs::create_dir_all(&expected_coord_ito).unwrap();
     std::fs::create_dir_all(&wrong_coord_ito).unwrap();
+    for subdir in ITO_SUBDIRS {
+        std::fs::create_dir_all(expected_coord_ito.join(subdir)).unwrap();
+    }
     for subdir in ITO_SUBDIRS {
         std::fs::create_dir_all(wrong_coord_ito.join(subdir)).unwrap();
     }
@@ -873,17 +882,22 @@ fn sync_coordination_worktree_returns_error_when_links_point_to_wrong_target() {
     });
     std::fs::write(project_root.join("ito.json"), json.to_string()).unwrap();
 
-    let runner = StubRunner::with_outputs(Vec::new());
-    let err = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
-        .expect_err("mismatched wiring should fail");
+    let runner = StubRunner::with_outputs(vec![ok(""), ok("")]);
+    let error = sync_coordination_worktree_with_runner(&runner, project_root, &ito_path, false)
+        .expect_err("mismatched wiring must require an explicit safe repair");
 
-    let msg = err.to_string();
-    assert!(msg.contains("should point to"), "msg: {msg}");
-    assert!(msg.contains("ito init"), "msg: {msg}");
-    assert!(
-        runner.calls.borrow().is_empty(),
-        "validation failure should stop before git calls"
+    assert!(error.to_string().contains("Delete or move"));
+    assert_eq!(
+        runner.calls.borrow().len(),
+        2,
+        "fetch and fast-forward must precede validation"
     );
+    for subdir in ITO_SUBDIRS {
+        assert_eq!(
+            std::fs::canonicalize(ito_path.join(subdir)).unwrap(),
+            std::fs::canonicalize(wrong_coord_ito.join(subdir)).unwrap()
+        );
+    }
 }
 
 #[test]

@@ -4,7 +4,9 @@
 //! orchestration run.
 
 use crate::errors::{CoreError, CoreResult};
-use crate::orchestrate::gates::default_gate_order;
+use crate::orchestrate::gates::{
+    GATE_IMPLEMENTATION_READINESS, default_gate_order, ensure_implementation_readiness_first,
+};
 use crate::orchestrate::types::{
     FailurePolicy, GatePolicy, OrchestrateRunConfig, parse_max_parallel,
 };
@@ -91,7 +93,8 @@ pub fn build_run_plan(
             continue;
         };
 
-        let gate_names = resolve_gate_names(&input, &default_order);
+        let gate_names =
+            ensure_implementation_readiness_first(&resolve_gate_names(&input, &default_order));
         let gates = build_planned_gates(gate_names, &skip_gates);
 
         let depends_on = deps
@@ -160,7 +163,7 @@ fn build_planned_gates(gate_names: Vec<String>, skip_gates: &BTreeSet<String>) -
 }
 
 fn gate_policy_for_name(skip_gates: &BTreeSet<String>, gate_name: &str) -> GatePolicy {
-    if skip_gates.contains(gate_name) {
+    if gate_name != GATE_IMPLEMENTATION_READINESS && skip_gates.contains(gate_name) {
         return GatePolicy::Skip;
     }
 

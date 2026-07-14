@@ -21,10 +21,8 @@ struct ContextFileEntry {
 }
 
 pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
-    // Check for subcommand first - subcommand handlers have their own help checks
     match args.first().map(|s| s.as_str()) {
         Some("instruction") => handle_agent_instruction(rt, &args[1..]),
-        // Show parent help only if no valid subcommand or explicit help request
         _ if args.is_empty() || args.iter().any(|a| a == "--help" || a == "-h") => {
             println!(
                 "{}",
@@ -33,7 +31,6 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         _ => {
-            // Unknown subcommand — log it as an invalid command.
             let mut raw_args = vec!["agent".to_string()];
             raw_args.extend(args.iter().cloned());
             let error_message = format!(
@@ -182,7 +179,8 @@ then re-run:\n\n\
         }
         let agent_roles_md = agent_roles.join("\n");
         let harness_name = detect_harness_name();
-
+        let gate_order =
+            ito_core::orchestrate::ensure_implementation_readiness_first(&preset.gate_order);
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/orchestrate.md.j2",
             &Ctx {
@@ -190,7 +188,7 @@ then re-run:\n\n\
                 orchestrate_md: &orchestrate_md,
                 workflow_skill_name: "ito-orchestrator-workflow",
                 preset_name: &preset.name,
-                gate_order: &preset.gate_order,
+                gate_order: &gate_order,
                 recommended_skills: &preset.recommended_skills,
                 coordinator_agent_name: "ito-orchestrator",
                 harness_name,
@@ -526,26 +524,51 @@ then re-run:\n\n\
         }
         return fail(msg);
     }
+    let change = change.expect("checked above");
+    let schema = parse_string_flag(args, "--schema");
+    super::apply_instruction::reject_schema_override(artifact, schema.as_deref())?;
+    let mut authoritative_apply = if artifact == "apply" {
+        Some(super::apply_instruction::prepare_source(
+            rt, &change, want_json,
+        )?)
+    } else {
+        None
+    };
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
     let want_sync = args.iter().any(|a| a == "--sync");
     if sync_before_change_resolution(artifact, want_sync) {
         best_effort_sync_coordination(rt, &format!("before {artifact} instructions"));
     }
-    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
-    let change_repo = runtime.repositories().changes.as_ref();
-    let change = change.expect("checked above");
-    let change = match super::common::resolve_change_target(change_repo, &change) {
-        Ok(resolved) => resolved,
-        Err(msg) => return fail(msg),
+    let runtime = if artifact == "apply" {
+        None
+    } else {
+        Some(rt.repository_runtime().map_err(to_cli_error)?)
     };
-    let schema = parse_string_flag(args, "--schema");
-
+    let change = match authoritative_apply.as_ref() {
+        Some(prepared) => prepared.source().change_id().to_string(),
+        None => {
+            let runtime = runtime
+                .as_ref()
+                .expect("non-apply instructions initialize repository runtime");
+            let change_repo = runtime.repositories().changes.as_ref();
+            match super::common::resolve_change_target(change_repo, &change) {
+                Ok(resolved) => resolved,
+                Err(msg) => return fail(msg),
+            }
+        }
+    };
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let resolved = rt.resolved_config();
     let testing_policy = testing_policy_from_merged(&resolved.merged);
 
-    let user_guidance = match core_templates::load_composed_user_guidance(ito_path, artifact) {
+    let guidance_ito_path = authoritative_apply
+        .as_ref()
+        .map_or(ito_path, |prepared| prepared.source().ito_path());
+    let user_guidance = match core_templates::load_composed_user_guidance(
+        guidance_ito_path,
+        artifact,
+    ) {
         Ok(v) => v,
         Err(e) => {
             eprintln!(
@@ -562,24 +585,10 @@ then re-run:\n\n\
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
 
-        let apply = match core_templates::compute_apply_instructions(
-            ito_path,
-            &change,
-            schema.as_deref(),
-            ctx,
-        ) {
-            Ok(r) => r,
-            Err(core_templates::TemplatesError::InvalidChangeName) => {
-                return fail("Invalid change name");
-            }
-            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
-                return fail(format!("Change '{name}' not found"));
-            }
-            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
-                return fail(super::common::schema_not_found_message(ctx, &name));
-            }
-            Err(e) => return Err(to_cli_error(e)),
-        };
+        let prepared = authoritative_apply
+            .as_mut()
+            .expect("apply readiness creates an authoritative render source");
+        let apply = super::apply_instruction::compute(prepared, rt)?;
 
         if want_json {
             let rendered = serde_json::to_string_pretty(&apply)
@@ -603,6 +612,10 @@ then re-run:\n\n\
     }
 
     if artifact == "review" {
+        let runtime = runtime
+            .as_ref()
+            .expect("review instructions initialize repository runtime");
+        let change_repo = runtime.repositories().changes.as_ref();
         let review = match core_templates::compute_review_context(
             change_repo,
             runtime.repositories().modules.as_ref(),
@@ -1207,25 +1220,21 @@ pub(super) fn render_apply_instructions_text(
 fn collect_missing_dependencies(
     instructions: &core_templates::InstructionsResponse,
 ) -> Vec<String> {
-    let mut out = Vec::new();
-    for dep in &instructions.dependencies {
-        if dep.done {
-            continue;
-        }
-        out.push(dep.id.clone());
-    }
-    out
+    instructions
+        .dependencies
+        .iter()
+        .filter(|dependency| !dependency.done)
+        .map(|dependency| dependency.id.clone())
+        .collect()
 }
 
 fn collect_context_files(map: &BTreeMap<String, String>) -> Vec<ContextFileEntry> {
-    let mut out = Vec::new();
-    for (id, path) in map {
-        out.push(ContextFileEntry {
+    map.iter()
+        .map(|(id, path)| ContextFileEntry {
             id: id.clone(),
             path: path.clone(),
-        });
-    }
-    out
+        })
+        .collect()
 }
 
 fn collect_tracking_diagnostic_counts(

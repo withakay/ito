@@ -2,6 +2,9 @@ use std::path::Path;
 
 use ito_test_support::run_rust_candidate;
 
+#[path = "support/mod.rs"]
+mod fixtures;
+
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -339,6 +342,7 @@ fn agent_instruction_status_archive_smoke() {
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
 
     reset_repo(repo.path(), base.path());
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
 
     // agent instruction apply
     let out = run_rust_candidate(

@@ -31,6 +31,7 @@ fn audit_log_stats_and_validate_json_outputs_are_well_formed() {
         home.path(),
     );
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -100,6 +101,7 @@ fn audit_subcommands_cover_text_output_limit_reconcile_and_stream() {
         home.path(),
     );
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
     let out = run_rust_candidate(
         rust_path,
         &["tasks", "start", "test-change", "1.1"],
@@ -183,6 +185,7 @@ fn audit_more_local_audit_writes_use_internal_branch_without_worktree_log_churn(
         home.path(),
     );
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -229,6 +232,11 @@ fn audit_more_local_audit_writes_warn_and_fallback_without_worktree_log_when_bra
         home.path(),
     );
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
+    fixtures::write(
+        repo.path().join(".git/refs/heads/ito"),
+        "blocks the internal audit namespace\n",
+    );
 
     let out = run_rust_candidate(
         rust_path,
@@ -367,6 +375,15 @@ fn audit_stream_all_worktrees_dedupes_shared_routed_storage() {
     fixtures::git_init_with_initial_commit(repo.path());
     std::fs::create_dir_all(repo.path().join(".ito/changes/test-change")).unwrap();
 
+    let init = run_rust_candidate(
+        rust_path,
+        &["tasks", "init", "test-change"],
+        repo.path(),
+        home.path(),
+    );
+    assert_eq!(init.code, 0, "stderr={}", init.stderr);
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
+
     let sibling = worktree_root.path().join("repo-wt");
     let sibling_path = sibling.to_string_lossy().to_string();
     let add_worktree = run_git(
@@ -387,14 +404,6 @@ fn audit_stream_all_worktrees_dedupes_shared_routed_storage() {
         String::from_utf8_lossy(&add_worktree.stdout)
     );
     std::fs::create_dir_all(sibling.join(".ito")).unwrap();
-
-    let init = run_rust_candidate(
-        rust_path,
-        &["tasks", "init", "test-change"],
-        repo.path(),
-        home.path(),
-    );
-    assert_eq!(init.code, 0, "stderr={}", init.stderr);
 
     let start = run_rust_candidate(
         rust_path,

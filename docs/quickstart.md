@@ -32,6 +32,16 @@ ito list
 ```bash
 ito create change "my-first-change"
 ito agent instruction proposal --change <change-id>
+ito validate <change-id> --strict
+```
+
+Review and merge the proposal-only package into main (through a PR by default). Then start implementation from the accepted proposal:
+
+```bash
+ito change preflight <change-id> --for prepare --refresh
+CHANGE_DIR=$(ito worktree ensure --change <change-id>)
+cd "$CHANGE_DIR"
+ito agent instruction apply --change <change-id>
 ```
 
 ## 5) Build docs site locally

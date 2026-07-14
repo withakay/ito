@@ -11,6 +11,8 @@ use serde_json::Value;
 
 // Re-export backend server types from the dedicated submodule.
 pub use super::backend_types::*;
+// Re-export proposal integration types from the dedicated submodule.
+pub use super::proposal_types::*;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Top-level Ito configuration")]
@@ -370,21 +372,6 @@ impl Default for BackendApiConfig {
             project: BackendProjectConfig::default(),
         }
     }
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[schemars(description = "Change coordination settings")]
-/// Configuration for change coordination behavior.
-pub struct ChangesConfig {
-    #[serde(default)]
-    #[schemars(default, description = "Coordination branch settings")]
-    /// Coordination branch settings.
-    pub coordination_branch: CoordinationBranchConfig,
-
-    #[serde(default)]
-    #[schemars(default, description = "Archive integration settings")]
-    /// Archive follow-up settings.
-    pub archive: ArchiveConfig,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

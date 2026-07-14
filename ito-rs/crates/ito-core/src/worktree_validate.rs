@@ -1,7 +1,7 @@
 //! Read-only validation of whether the current checkout matches an expected change worktree.
 
 use crate::repo_paths::{ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 /// Machine-readable worktree validation result for humans and hook callers.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -78,7 +78,7 @@ pub fn validate_change_worktree(
         };
     }
 
-    if path_or_branch_matches_change_id(&current_path, current_branch, change_id) {
+    if checkout_matches_change_id(&current_path, current_branch, change_id) {
         return WorktreeValidation {
             status: WorktreeValidationStatus::Ok,
             change_id: change_id.to_string(),
@@ -135,7 +135,8 @@ pub(crate) fn is_main_checkout(
             .unwrap_or(true)
 }
 
-fn path_or_branch_matches_change_id(
+/// Whether a branch or worktree path is associated with a full Ito change ID.
+pub(crate) fn checkout_matches_change_id(
     current_path: &Path,
     current_branch: Option<&str>,
     change_id: &str,
@@ -144,15 +145,10 @@ fn path_or_branch_matches_change_id(
         .map(|branch| branch_starts_with_change_id(branch, change_id))
         .unwrap_or(false)
         || current_path
-            .components()
-            .filter_map(|component| match component {
-                Component::Normal(segment) => segment.to_str(),
-                Component::Prefix(_)
-                | Component::RootDir
-                | Component::CurDir
-                | Component::ParentDir => None,
-            })
-            .any(|segment| segment_starts_with_change_id(segment, change_id))
+            .file_name()
+            .and_then(|segment| segment.to_str())
+            .map(|segment| segment_starts_with_change_id(segment, change_id))
+            .unwrap_or(false)
 }
 
 fn branch_starts_with_change_id(branch: &str, change_id: &str) -> bool {

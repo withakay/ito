@@ -50,7 +50,7 @@ Use the commands below for the configured strategy.
 Change worktree rules:
 
 - Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
-- Before any write operation, create a dedicated change worktree or move into the existing worktree for that change. If no Ito change ID exists yet, create a temporary proposal worktree first, run change creation there, then move into the final change worktree before editing generated artifacts.
+- Before implementation writes, create or reuse the dedicated change worktree through `ito worktree ensure`. If no Ito change ID exists yet, author the proposal in an already-writable proposal checkout and keep it proposal-only until review and integration.
 - Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
 - Do not reuse one worktree for two changes.
 - If one change needs multiple worktrees, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
@@ -60,6 +60,8 @@ Helpful path commands:
 - `ito path project-root` (stable root shared across worktrees)
 - `ito path worktree-root` (current working worktree root)
 - `ito path worktrees-root` (configured worktrees root)
+
+The guarded command validates the accepted proposal on authoritative main, creates from the captured authority OID, and rejects stale or unrelated worktrees. Do not replace it with a direct Worktrunk creation command.
 
 {% if worktree.strategy == "checkout_subdir" %}
 #### Strategy: `checkout_subdir`
@@ -73,18 +75,9 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-BRANCH_NAME="<full-change-id>"
-WORKTREE_ROOT="$(ito path worktree-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
-mkdir -p "$WORKTREES_ROOT"
-
-# Ensure the worktree directory is gitignored
-GITIGNORE_PATH="$WORKTREE_ROOT/.gitignore"
-LAYOUT_DIR_NAME='{{ worktree.layout_dir_name | replace("'", "'\"'\"'") }}'
-WORKTREES_IGNORE="${LAYOUT_DIR_NAME%/}/"
-grep -qxF "$WORKTREES_IGNORE" "$GITIGNORE_PATH" 2>/dev/null || printf '%s\n' "$WORKTREES_IGNORE" >> "$GITIGNORE_PATH"
-
-WORKTRUNK_WORKTREE_PATH="$WORKTREES_ROOT/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "${BRANCH_NAME}" --base "{{ worktree.default_branch }}"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
+cd "$CHANGE_DIR"
+ito change preflight "<full-change-id>" --for execute
 ```
 {% elif worktree.strategy == "checkout_siblings" %}
 #### Strategy: `checkout_siblings`
@@ -98,12 +91,9 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-BRANCH_NAME="<full-change-id>"
-WORKTREE_ROOT="$(ito path worktree-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
-mkdir -p "$WORKTREES_ROOT"
-
-WORKTRUNK_WORKTREE_PATH="$WORKTREES_ROOT/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "${BRANCH_NAME}" --base "{{ worktree.default_branch }}"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
+cd "$CHANGE_DIR"
+ito change preflight "<full-change-id>" --for execute
 ```
 {% elif worktree.strategy == "bare_control_siblings" %}
 #### Strategy: `bare_control_siblings`
@@ -116,16 +106,12 @@ Bare repo root: `{{ worktree.project_root }}`
 Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
-Run Worktrunk from the bare/control root, and create each change worktree from `{{ worktree.default_branch }}` rather than the bare placeholder `HEAD`.
+Let Ito invoke Worktrunk from the control layout using the captured authority OID rather than the bare placeholder `HEAD`.
 
 ```bash
-BRANCH_NAME="<full-change-id>"
-PROJECT_ROOT="$(ito path project-root)"
-WORKTREES_ROOT="$(ito path worktrees-root)"
-mkdir -p "$WORKTREES_ROOT"
-
-cd "$PROJECT_ROOT"
-WORKTRUNK_WORKTREE_PATH="$WORKTREES_ROOT/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "${BRANCH_NAME}" --base "{{ worktree.default_branch }}"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
+cd "$CHANGE_DIR"
+ito change preflight "<full-change-id>" --for execute
 ```
 {% endif %}
 

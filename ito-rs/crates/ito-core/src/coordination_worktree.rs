@@ -2,9 +2,9 @@
 //!
 //! Provides `create_coordination_worktree` and `remove_coordination_worktree`
 //! for setting up and tearing down a persistent git worktree that tracks a
-//! coordination branch. The coordination branch is used to share Ito state
-//! (changes, specs, audit events) across team members without touching the
-//! project's main branch.
+//! coordination branch. The coordination branch is used to share runtime Ito
+//! state across team members. Proposals and specifications remain tracked on
+//! the project's main branch.
 //!
 //! # Branch resolution order
 //!
@@ -21,11 +21,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ito_config::types::{CoordinationStorage, ItoConfig};
 use ito_config::{ConfigContext, load_cascading_project_config};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::coordination::{
-    check_coordination_health, format_health_message, update_gitignore_for_symlinks,
-    wire_coordination_symlinks,
+    COORDINATION_DIRS, check_coordination_health, format_health_message,
+    update_gitignore_for_symlinks, wire_coordination_symlinks,
+};
+use crate::coordination_worktree_helpers::{
+    commit_staged, empty_tree_hash, fnv1a_hash, has_staged_changes, render_output, stage_all,
 };
 use crate::errors::{CoreError, CoreResult};
 use crate::git::{
@@ -37,7 +39,7 @@ use crate::repo_paths::coordination_worktree_path;
 
 // ── Subdirectories created inside the coordination worktree ──────────────────
 
-const ITO_SUBDIRS: &[&str] = &["changes", "specs", "modules", "workflows", "audit"];
+const ITO_SUBDIRS: &[&str] = COORDINATION_DIRS;
 const SYNC_STATE_FILE_NAME: &str = "ito-sync-state.json";
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -100,8 +102,7 @@ struct StoredCoordinationSyncState {
 /// 3. **Neither** — an orphan branch is created with an empty initial commit.
 ///
 /// After the worktree is created, the `.ito/` directory structure is
-/// initialised inside it (subdirectories: `changes`, `specs`, `modules`,
-/// `workflows`, `audit`).
+/// initialised inside it (subdirectories: `modules`, `workflows`, `audit`).
 ///
 /// # Errors
 ///
@@ -227,7 +228,8 @@ pub fn remove_coordination_worktree(project_root: &Path, target_path: &Path) -> 
 /// 6. Computes the worktree path via [`coordination_worktree_path`].
 /// 7. If the worktree path does not yet exist, calls
 ///    [`create_coordination_worktree`] to create it.
-/// 8. Wires `.ito/<dir>` → `<worktree>/.ito/<dir>` symlinks via
+/// 8. Restores real `.ito/changes` and `.ito/specs` directories, then wires
+///    coordination-owned `.ito/<dir>` → `<worktree>/.ito/<dir>` symlinks via
 ///    [`wire_coordination_symlinks`].
 /// 9. Updates `.gitignore` via [`update_gitignore_for_symlinks`].
 /// 10. Returns `Ok(Some(CoordinationStorage::Worktree))`.
@@ -323,8 +325,8 @@ pub fn provision_coordination_worktree(
 ///
 /// This is the worktree-local counterpart to [`provision_coordination_worktree`].
 /// It does not create the coordination worktree itself and it does not touch the
-/// project `.gitignore`; it only rewires the current checkout's `.ito/*`
-/// entries so they point at the already-resolved coordination worktree.
+/// project `.gitignore`; it restores authoritative Git directories and rewires
+/// coordination-owned `.ito/*` entries to the resolved coordination worktree.
 ///
 /// # Errors
 ///
@@ -400,32 +402,39 @@ pub(crate) fn sync_coordination_worktree_with_runner(
         return Ok(CoordinationSyncOutcome::Embedded);
     };
 
+    // Fetch before migration so a successful fast-forward can contribute every
+    // remote proposal/spec to the authoritative Git copy. A missing remote is
+    // still allowed to perform local repair before returning.
+    let (should_fast_forward, local_only) =
+        match fetch_coordination_branch_with_runner(runner, project_root, &coord.name) {
+            Ok(()) => (true, false),
+            Err(err) if err.kind == CoordinationGitErrorKind::RemoteMissing => (false, false),
+            Err(err) if err.kind == CoordinationGitErrorKind::RemoteNotConfigured => (false, true),
+            Err(err) => {
+                return Err(CoreError::process(format!(
+                    "coordination fetch failed: {}",
+                    err.message
+                )));
+            }
+        };
+
     let worktree_path = resolved_coordination_worktree_path(project_root, ito_path, &typed, false)?;
     let worktree_ito_path = worktree_path.join(".ito");
+
+    // The detached authoritative copy must be made only after the checked-out
+    // coordination tree has consumed the fetched remote state.
+    if should_fast_forward {
+        fast_forward_coordination_with_runner(runner, &worktree_path, &coord.name)?;
+    }
     wire_coordination_symlinks(ito_path, &worktree_ito_path)?;
     let status = check_coordination_health(ito_path, &worktree_ito_path, &coord.storage);
     if let Some(message) = format_health_message(&status) {
         return Err(CoreError::process(message));
     }
 
-    // Always fetch first so remote changes are visible even when rate-limiting skips the push.
-    if let Err(err) = fetch_coordination_branch_with_runner(runner, project_root, &coord.name) {
-        if err.kind == CoordinationGitErrorKind::RemoteNotConfigured {
-            return Ok(CoordinationSyncOutcome::RateLimited);
-        }
-        if err.kind != CoordinationGitErrorKind::RemoteMissing {
-            return Err(CoreError::process(format!(
-                "coordination fetch failed: {}",
-                err.message
-            )));
-        }
+    if local_only {
+        return Ok(CoordinationSyncOutcome::RateLimited);
     }
-
-    // Fast-forward the local branch to include remote changes before committing
-    // local work. This ensures remote updates from teammates are visible via
-    // the `.ito/` symlinks. Merge failures (e.g. diverged history) are non-fatal
-    // — the push will surface the conflict instead.
-    let _ = fast_forward_coordination_with_runner(runner, &worktree_path, &coord.name);
 
     let current_state = coordination_sync_state_with_runner(runner, &worktree_path)?;
     let git_common_dir = git_common_dir_with_runner(runner, project_root)?;
@@ -749,9 +758,8 @@ fn now_epoch_seconds() -> u64 {
 
 /// Fast-forward the coordination branch to include remote changes.
 ///
-/// Runs `git -C <worktree> merge --ff-only origin/<branch>`. Failures are
-/// returned as errors but callers typically treat them as non-fatal since
-/// the subsequent push will surface any real conflicts.
+/// Runs `git -C <worktree> merge --ff-only origin/<branch>`. A failure blocks
+/// migration so authoritative copies cannot silently omit fetched state.
 fn fast_forward_coordination_with_runner(
     runner: &dyn ProcessRunner,
     worktree_path: &Path,
@@ -775,8 +783,7 @@ fn fast_forward_coordination_with_runner(
         return Err(CoreError::process(format!(
             "Fast-forward merge of '{remote_ref}' failed in '{}'.\n\
              Git reported: {detail}\n\
-             This is usually non-fatal — local commits will be pushed and the remote \
-             will be updated.",
+             Resolve the coordination branch divergence before migrating or pushing state.",
             worktree_path.display(),
         )));
     }
@@ -1173,173 +1180,9 @@ fn prune_worktrees(runner: &dyn ProcessRunner, project_root: &Path) -> CoreResul
     )))
 }
 
-/// Runs `git -C <worktree_path> add -A` to stage all changes.
-fn stage_all(runner: &dyn ProcessRunner, worktree_path: &Path) -> CoreResult<()> {
-    let worktree_str = worktree_path.to_string_lossy();
-    let request = ProcessRequest::new("git").args(["-C", worktree_str.as_ref(), "add", "-A"]);
-
-    let output = runner.run(&request).map_err(|err| {
-        CoreError::process(format!(
-            "Cannot stage changes in coordination worktree '{worktree}'.\n\
-             Git command failed to run: {err}\n\
-             Fix: ensure git is installed and '{worktree}' is a git worktree.",
-            worktree = worktree_path.display(),
-        ))
-    })?;
-
-    if output.success {
-        return Ok(());
-    }
-
-    Err(CoreError::process(format!(
-        "Cannot stage changes in coordination worktree '{worktree}'.\n\
-         Git reported: {detail}\n\
-         Fix: ensure '{worktree}' is a valid git worktree and the files are readable.",
-        worktree = worktree_path.display(),
-        detail = render_output(&output),
-    )))
-}
-
-/// Returns `true` when there are staged changes ready to commit.
-///
-/// Uses `git diff --cached --quiet`: exit code 0 means no changes, exit code 1
-/// means changes exist. Any other failure (e.g. not a git repo) is an error.
-fn has_staged_changes(runner: &dyn ProcessRunner, worktree_path: &Path) -> CoreResult<bool> {
-    let worktree_str = worktree_path.to_string_lossy();
-    let request = ProcessRequest::new("git").args([
-        "-C",
-        worktree_str.as_ref(),
-        "diff",
-        "--cached",
-        "--quiet",
-    ]);
-
-    let output = runner.run(&request).map_err(|err| {
-        CoreError::process(format!(
-            "Cannot check for staged changes in coordination worktree '{worktree}'.\n\
-             Git command failed to run: {err}\n\
-             Fix: ensure git is installed and '{worktree}' is a git worktree.",
-            worktree = worktree_path.display(),
-        ))
-    })?;
-
-    // exit code 0 → no staged changes; exit code 1 → staged changes exist.
-    // Any other non-zero exit code is unexpected — treat it as an error.
-    match output.exit_code {
-        0 => Ok(false),
-        1 => Ok(true),
-        code => Err(CoreError::process(format!(
-            "Cannot check for staged changes in coordination worktree '{worktree}'.\n\
-             Git exited with unexpected code {code}: {detail}\n\
-             Fix: ensure '{worktree}' is a valid git worktree.",
-            worktree = worktree_path.display(),
-            detail = render_output(&output),
-        ))),
-    }
-}
-
-/// Runs `git -C <worktree_path> commit -m <message>` to commit staged changes.
-fn commit_staged(
-    runner: &dyn ProcessRunner,
-    worktree_path: &Path,
-    message: &str,
-) -> CoreResult<()> {
-    let worktree_str = worktree_path.to_string_lossy();
-    let request =
-        ProcessRequest::new("git").args(["-C", worktree_str.as_ref(), "commit", "-m", message]);
-
-    let output = runner.run(&request).map_err(|err| {
-        CoreError::process(format!(
-            "Cannot commit staged changes in coordination worktree '{worktree}'.\n\
-             Git command failed to run: {err}\n\
-             Fix: ensure git is installed and '{worktree}' is a git worktree.",
-            worktree = worktree_path.display(),
-        ))
-    })?;
-
-    if output.success {
-        return Ok(());
-    }
-
-    Err(CoreError::process(format!(
-        "Cannot commit staged changes in coordination worktree '{worktree}'.\n\
-         Git reported: {detail}\n\
-         Fix: ensure git user.name and user.email are configured \
-         (`git config --global user.email \"you@example.com\"`).",
-        worktree = worktree_path.display(),
-        detail = render_output(&output),
-    )))
-}
-
-// ── Hashing ───────────────────────────────────────────────────────────────────
-
-/// FNV-1a 64-bit hash — stable across Rust versions, no external dependencies.
-///
-/// Used to derive a deterministic per-project identifier when no git remote is
-/// available. Unlike `DefaultHasher`, FNV-1a produces the same output for the
-/// same input regardless of the Rust version or platform.
-fn fnv1a_hash(data: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for &byte in data {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
-}
-
-fn render_output(output: &crate::process::ProcessOutput) -> String {
-    let stderr = output.stderr.trim();
-    let stdout = output.stdout.trim();
-    if !stderr.is_empty() {
-        return stderr.to_string();
-    }
-    if !stdout.is_empty() {
-        return stdout.to_string();
-    }
-    "no command output".to_string()
-}
-
-fn empty_tree_hash(runner: &dyn ProcessRunner, project_root: &Path) -> CoreResult<String> {
-    let object_format = repository_object_format(runner, project_root)?;
-    let hash = match object_format {
-        // The empty tree SHA-1 is a well-known git constant (immutable).
-        // It is the hash of `tree 0\0` and is hardcoded in git's own source.
-        GitObjectFormat::Sha1 => "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string(),
-        GitObjectFormat::Sha256 => hex::encode(Sha256::digest(b"tree 0\0")),
-    };
-    Ok(hash)
-}
-
-fn repository_object_format(
-    runner: &dyn ProcessRunner,
-    project_root: &Path,
-) -> CoreResult<GitObjectFormat> {
-    let output = runner.run(
-        &ProcessRequest::new("git")
-            .args(["rev-parse", "--show-object-format"])
-            .current_dir(project_root),
-    );
-
-    let Ok(output) = output else {
-        return Ok(GitObjectFormat::Sha1);
-    };
-    if !output.success {
-        return Ok(GitObjectFormat::Sha1);
-    }
-
-    let format = output.stdout.trim();
-    let object_format = match format {
-        "sha256" => GitObjectFormat::Sha256,
-        _ => GitObjectFormat::Sha1,
-    };
-    Ok(object_format)
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GitObjectFormat {
-    Sha1,
-    Sha256,
-}
+#[cfg(test)]
+#[path = "coordination_worktree_migration_tests.rs"]
+mod coordination_worktree_migration_tests;
 
 #[cfg(test)]
 #[path = "coordination_worktree_tests.rs"]

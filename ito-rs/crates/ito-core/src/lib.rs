@@ -64,6 +64,7 @@ pub mod coordination;
 
 /// Coordination worktree lifecycle management (create / remove).
 pub mod coordination_worktree;
+mod coordination_worktree_helpers;
 
 /// Create new modules/changes and initial scaffolding.
 pub mod create;
@@ -94,6 +95,9 @@ pub mod orchestrate;
 
 /// Git synchronization helpers for coordination workflows.
 pub mod git;
+
+/// Main-first proposal authority and implementation readiness evaluation.
+pub mod implementation_readiness;
 
 /// Git remote URL resolution for org/repo namespace discovery.
 pub mod git_remote;

@@ -47,9 +47,15 @@ Parse `/ito-loop` arguments into one of these modes:
    - If the command fails, ask the user to clarify.
    - Never use `eval`, and always quote variables.
 
-2) Choose the active harness.
+2) Establish main-first execution readiness before starting an iteration.
 
-3) Build one base `ito ralph` command. Ralph already manages its own internal loop, so do **not** wrap it in an unbounded retry loop.
+   - For change mode, resolve the guarded worktree with `ito worktree ensure --change "<change-id>"`, move into the returned path, and run `ito change preflight <change-id> --for execute`.
+   - For module and continue-ready modes, do not guess the next change. Ralph evaluates the same execute gate after each dynamic selection and before launching the harness.
+   - A readiness failure is non-restartable. Follow its remediation; do not launch a harness, mutate task/context state, enable Git automation, or enter the bounded restart loop.
+
+3) Choose the active harness.
+
+4) Build one base `ito ralph` command. Ralph already manages its own internal loop, so do **not** wrap it in an unbounded retry loop.
 
    Command shapes:
 
@@ -66,12 +72,12 @@ Parse `/ito-loop` arguments into one of these modes:
 
    Apply any user-provided overrides on top of the defaults. Check `ito ralph --help` only if extra flags matter.
 
-4) Run the command once.
+5) Run the command once.
    - Exit `0`: report success and stop.
    - Restartable non-zero exit: restart at most **2** times.
    - Non-restartable failure: report failure and stop.
 
-5) For each bounded restart, collect context from:
+6) For each bounded restart, collect context from:
 
      ```bash
      ito ralph --no-interactive --change <change-id> --status
@@ -91,7 +97,7 @@ Parse `/ito-loop` arguments into one of these modes:
 
    Re-run the same base command.
 
-6) After the supervised run sequence finishes:
+7) After the supervised run sequence finishes:
 
    - **Exit 0**: report completion.
    - **Non-zero exit after bounded restarts**: report failure plus the last useful Ralph status summary.
@@ -99,6 +105,7 @@ Parse `/ito-loop` arguments into one of these modes:
 ## Guardrails
 
 - Do not wrap Ralph in an unbounded outer loop.
+- Treat main-first readiness failures as terminal for the current attempt; never retry around the gate.
 - Only use restart context when `ito ralph --status` and `ito tasks status` are meaningful.
 - For module or continue-ready runs, do not invent per-change restart behavior unless the failure clearly reduces to one targeted change.
 <!-- ITO:END -->

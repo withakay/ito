@@ -155,6 +155,19 @@ fn snapshot_list_help() {
 }
 
 #[test]
+fn snapshot_change_help() {
+    insta::assert_snapshot!("ito_change_help", snapshot(&["change", "--help"]));
+}
+
+#[test]
+fn snapshot_change_preflight_help() {
+    insta::assert_snapshot!(
+        "ito_change_preflight_help",
+        snapshot(&["change", "preflight", "--help"])
+    );
+}
+
+#[test]
 fn snapshot_validate_help() {
     insta::assert_snapshot!("ito_validate_help", snapshot(&["validate", "--help"]));
 }
