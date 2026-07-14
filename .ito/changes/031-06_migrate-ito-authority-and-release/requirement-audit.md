@@ -2,11 +2,11 @@
 
 Date: 2026-07-14
 
-Status: draft pending the ordered Task 6.2 migration review
+Status: final — all requirements and ordered review gates pass
 
 The implementation and automated evidence cover every declared requirement.
-This audit becomes final only after the independent migration reviewer verifies
-the committed cutover in a disposable merge/fresh-checkout simulation.
+The independent migration reviewer verified committed cutover `0b02a8c3` in a
+disposable legacy-main merge and a separate fresh checkout.
 
 | Requirement ID | Scenario evidence | Implementation and verification evidence | Result |
 | --- | --- | --- | --- |
@@ -15,8 +15,8 @@ the committed cutover in a disposable merge/fresh-checkout simulation.
 | `ito-authority-cutover:tracked-main-authority` | Materialized state and main-compatible config | Real tracked `.ito/{changes,specs,modules,workflows,audit}`; documented empty `.ito/audit/.gitkeep` sentinel; embedded/disabled coordination, backend false, no tmux; migration and config tests | PASS |
 | `ito-authority-cutover:mirror-parity-before-retirement` | Complete parity and unmatched-content stop | `evidence/mirror-parity.md`; 1,814 mapped mirror artifacts, no mirror-only authority path after normalization, reviewed semantic reconciliation, strict specs pass, `docs/ito` retired only afterward | PASS |
 | `ito-authority-cutover:guidance-and-asset-convergence` | Managed regeneration and authority-reference audit | Current specs/wiki/project guidance/templates point to tracked `.ito` on main; exactly seven Ito lifecycle skills; second generation diff hash stable; schema/docs/template gates pass | PASS |
-| `ito-authority-cutover:dual-lane-release-verification` | Passing lanes/reviews and failed-gate visibility | `evidence/release-verification.md`; clean 8/8 matrix; experimental coverage; standard cargo-dist selection; Rust review complete; migration review remains the ordered final gate | PENDING REVIEW |
-| `published-ito-mirror:plain-checkout-visibility` | Plain checkout reads tracked authority | Tracked `.ito/changes` and `.ito/specs`; `docs/ito` absent; fresh-checkout proof pending Task 6.2 | PENDING REVIEW |
+| `ito-authority-cutover:dual-lane-release-verification` | Passing lanes/reviews and failed-gate visibility | `evidence/release-verification.md`; clean 8/8 matrix; experimental coverage; standard cargo-dist selection; both ordered reviews have no remaining finding | PASS |
+| `published-ito-mirror:plain-checkout-visibility` | Plain checkout reads tracked authority | Tracked `.ito/changes` and `.ito/specs`; `docs/ito` absent; `reviews/migration-requirements-review.md` proves the legacy-main merge and clean-checkout cases | PASS |
 | `published-ito-mirror:default-and-configurable-path` | No mirror path is resolved | Published-mirror DTO/default/schema/code removed; obsolete-value regression covered by config tests and schema gate | PASS |
 | `published-ito-mirror:generated-read-only-output` | Ito mutations update canonical files | Mirror generator/publication code absent; tracked `.ito` changes are the reviewed diff; regeneration produces no mirror | PASS |
 | `published-ito-mirror:main-publication-workflow` | Canonical state is published once | No mirror workflow or follow-up publication surface; main-bound merge carries canonical `.ito` directly | PASS |
@@ -48,13 +48,15 @@ read-only `ito audit reconcile` reported the corresponding missing audit events;
 is the authority transition, and future changes use the ordinary task/audit
 path after their reviewed proposals are on main.
 
-## Ordered completion gate
+## Ordered review and completion evidence
 
-Before this audit is marked final:
+1. Integration state `0b02a8c3` committed Tasks 1.1 through 6.1 complete.
+2. `reviews/migration-requirements-review.md` independently reproduced both
+   the legacy-main merge and clean-checkout cases with no blocking or
+   non-blocking finding.
+3. Task 6.2 was marked complete only after that review.
+4. Final strict validation, 11/11 traceability, source checksums, review checks,
+   codemap freshness, and diff checks were rerun before Task 6.3 completion.
 
-1. commit the integration state with Tasks 1.1 through 6.1 complete;
-2. run the independent disposable merge and fresh-checkout review;
-3. record `reviews/migration-requirements-review.md` with no blocking finding;
-4. mark Task 6.2 complete; and
-5. rerun strict validation, traceability, source checksums, diff checks, and
-   this mapping before marking Task 6.3 complete.
+No release, tag, push, archive, mirror publication, or external-source cleanup
+was performed. The branch is ready for reviewed integration into `main`.

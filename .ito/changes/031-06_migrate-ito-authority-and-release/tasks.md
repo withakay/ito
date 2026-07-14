@@ -213,8 +213,8 @@ ______________________________________________________________________
 - **Verify**: `test -s .ito/changes/031-06_migrate-ito-authority-and-release/reviews/migration-requirements-review.md && test -z "$(rg -n 'blocking.*unresolved|unresolved.*blocking' .ito/changes/031-06_migrate-ito-authority-and-release/reviews/migration-requirements-review.md)"`
 - **Done When**: The second review is independently recorded and has no unresolved blocking finding.
 - **Requirements**: ito-authority-cutover:external-state-preservation, ito-authority-cutover:mirror-parity-before-retirement, ito-authority-cutover:dual-lane-release-verification
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 6.3: Audit every requirement and produce final readiness evidence
 
@@ -224,8 +224,8 @@ ______________________________________________________________________
 - **Verify**: `ito validate 031-06_migrate-ito-authority-and-release --strict && ito trace 031-06_migrate-ito-authority-and-release && make check && git diff --check && sha256sum --check .ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-files.sha256`
 - **Done When**: Every requirement has passing evidence, both reviews are resolved, both feature lanes and release planning are green, generated outputs are idempotent, the external source is unchanged, and the change is ready for reviewed main integration rather than locally released.
 - **Requirements**: ito-authority-cutover:dependency-gated-cutover, ito-authority-cutover:external-state-preservation, ito-authority-cutover:tracked-main-authority, ito-authority-cutover:mirror-parity-before-retirement, ito-authority-cutover:guidance-and-asset-convergence, ito-authority-cutover:dual-lane-release-verification, published-ito-mirror:plain-checkout-visibility, published-ito-mirror:default-and-configurable-path, published-ito-mirror:generated-read-only-output, published-ito-mirror:main-publication-workflow, ito-config-crate:published-mirror-path
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 

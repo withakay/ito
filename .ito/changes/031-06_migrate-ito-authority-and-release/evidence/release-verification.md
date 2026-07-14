@@ -112,5 +112,8 @@ checkout command was run in the retained source.
 
 The Rust/config/template/release review is recorded in
 `reviews/rust-release-review.md` with no remaining blocking or non-blocking
-findings. The independent migration/parity/fresh-checkout review is the next
-ordered gate and will be recorded before the requirement audit is finalized.
+findings. The ordered migration/parity review is recorded in
+`reviews/migration-requirements-review.md`, also with no remaining finding. It
+independently proved the legacy-main merge and fresh-checkout cases against
+integration commit `0b02a8c3`; the finalized requirement audit accounts for
+all 11 requirement IDs and all 16 tasks are complete.
