@@ -1,5 +1,9 @@
 # Archive Instruction
 
+{% if archive.coordination_active %}
+> **Experimental coordination compatibility.** This guidance is emitted only for an explicitly active build compiled with the experimental `coordination-branch` feature. It does not replace Git-authoritative proposal, spec, or archive state on main.
+
+{% endif %}
 {% if change and change|trim != "" %}
 ## Archive: `{{ change }}`
 

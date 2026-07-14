@@ -5,7 +5,7 @@
 
 - **Tracking**: Use `ito tasks` CLI for status updates; keep exactly one task in progress.
 - **Safety**: Freeze Ito mutations before Task 1.2 and never run sync, commit, reset, push, delete, or cleanup commands in the external coordination checkout.
-- **Stop conditions**: Any missing dependency evidence, dirty/changing source, unexpected link, collision, hash mismatch, unexplained mirror difference, failed gate, or blocking review finding stops the current wave.
+- **Stop conditions**: Any missing dependency evidence, unexplained or changing source status, unexpected link, collision, hash mismatch, unexplained mirror difference, failed gate, or blocking review finding stops the current wave.
 - **Status legend**: `[ ] pending` · `[>] in-progress` · `[x] complete` · `[-] shelved`
 
 ```bash
@@ -25,23 +25,23 @@ ______________________________________________________________________
 
 - **Files**: `.ito/changes/031-06_migrate-ito-authority-and-release/evidence/dependencies.md`, Git history, CI evidence for `031-01` through `031-05`
 - **Dependencies**: None
-- **Action**: Confirm each preceding module change is approved, implemented, merged to `main`, strictly valid, and green on its required checks. Record each integrated commit and create the cutover branch from the resulting `main`; stop if any dependency is only proposed, task-complete, or unmerged.
+- **Action**: Confirm each preceding module change is approved, implemented, strictly valid, green on its required checks, and integrated as an ancestor of this main-bound cutover branch before authority mutation. Record the `main` base and each integration commit; stop if any dependency is only proposed, task-complete, or absent from the branch.
 - **Verify**: `ito validate 031-01_migrate-coordination-state-to-main --strict && ito validate 031-02_enforce-main-first-implementation --strict && ito validate 031-03_gate-experimental-backend-coordination --strict && ito validate 031-04_remove-tmux-integration --strict && ito validate 031-05_consolidate-seven-lifecycle-skills --strict`
-- **Done When**: The evidence names five merged commits, their required green checks, and the exact `main` base commit used by `031-06`.
+- **Done When**: The evidence names five integrated commits, their required green checks, and the exact `main` base commit used by `031-06`.
 - **Requirements**: ito-authority-cutover:dependency-gated-cutover
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 1.2: Snapshot and independently hash external authority
 
 - **Files**: `.ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-manifest.md`, `.ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-files.sha256`, `.ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-links.txt`
 - **Dependencies**: Task 1.1
-- **Action**: Freeze Ito mutations; inspect the five managed links without following them implicitly; record external path, branch, commit, status, link targets, sorted relative inventories, file types/modes, and SHA-256 values. Generate the inventory and hashes twice by independent runs and stop on dirty, broken, unexpected, missing, or changing source state.
+- **Action**: Freeze Ito mutations; inspect the five managed links without following them implicitly; record external path, branch, commit, status, link targets, sorted relative inventories, file types/modes, and SHA-256 values. Generate the inventory and hashes twice by independent runs and stop on unexplained dirty state, broken links, unexpected targets, missing paths, or any change from the captured source state.
 - **Verify**: `sha256sum --check .ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-files.sha256`
 - **Done When**: Repeated manifests are identical, every managed path is covered, the source commit/status is recorded, and no source mutation has occurred.
 - **Requirements**: ito-authority-cutover:external-state-preservation
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -57,8 +57,8 @@ ______________________________________________________________________
 - **Verify**: `test ! -L .ito/changes && test ! -L .ito/specs && test ! -L .ito/modules && test ! -L .ito/workflows && test ! -L .ito/audit && sha256sum --check .ito/changes/031-06_migrate-ito-authority-and-release/evidence/source-files.sha256`
 - **Done When**: All five paths are real directories, their normalized inventories and hashes match the source manifest, and the external source still reproduces its original hashes.
 - **Requirements**: ito-authority-cutover:external-state-preservation, ito-authority-cutover:tracked-main-authority
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 2.2: Configure embedded main authority and remove local legacy wiring
 
@@ -68,8 +68,8 @@ ______________________________________________________________________
 - **Verify**: `ito config get changes.coordination_branch && ito config get backend.enabled && test -z "$(rg -l 'tools[.]tmux|ito-tmux|/tmux/' .ito/config.json .claude .codex .github .opencode .pi 2>/dev/null)"`
 - **Done When**: Resolved config is embedded/disabled with backend false, tmux is absent, the five directories are trackable, and external-state hashes remain unchanged.
 - **Requirements**: ito-authority-cutover:tracked-main-authority
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 2.3: Prove the prepared branch is main-compatible
 
@@ -79,8 +79,8 @@ ______________________________________________________________________
 - **Verify**: `ito validate 031-06_migrate-ito-authority-and-release --strict && git diff --check`
 - **Done When**: The branch is reported main-compatible, every materialized file is accounted for in Git, no managed link remains, and source-before/source-after hashes agree.
 - **Requirements**: ito-authority-cutover:external-state-preservation, ito-authority-cutover:tracked-main-authority
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -96,8 +96,8 @@ ______________________________________________________________________
 - **Verify**: `ito validate --strict && git diff --check`
 - **Done When**: Every active change, archived change, and current spec in `docs/ito` maps to byte-equivalent authoritative content or a documented approved normalization, with no unexplained mirror-only data.
 - **Requirements**: ito-authority-cutover:mirror-parity-before-retirement
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 3.2: Remove the mirror contract and publication surfaces
 
@@ -107,8 +107,8 @@ ______________________________________________________________________
 - **Verify**: `test ! -e docs/ito && test -z "$(rg -l 'published_mirror|published mirror path|generate.*docs/ito' ito-rs schemas .github docs .ito/wiki 2>/dev/null)"`
 - **Done When**: The mirror and its configurable/publication contract are absent, tracked `.ito` remains complete, and configuration/schema tests cover obsolete values according to policy.
 - **Requirements**: ito-authority-cutover:mirror-parity-before-retirement, published-ito-mirror:plain-checkout-visibility, published-ito-mirror:default-and-configurable-path, published-ito-mirror:generated-read-only-output, published-ito-mirror:main-publication-workflow, ito-config-crate:published-mirror-path
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -124,8 +124,8 @@ ______________________________________________________________________
 - **Verify**: `ito validate --strict && make docs-site-check`
 - **Done When**: Raw specs and current guidance agree on main authority, the wiki no longer indexes `docs/ito`, and no current workflow tells users to author in coordination storage or the mirror.
 - **Requirements**: ito-authority-cutover:guidance-and-asset-convergence
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 4.2: Update canonical templates and the reduced install profile
 
@@ -135,8 +135,8 @@ ______________________________________________________________________
 - **Verify**: `cargo test -p ito-templates`
 - **Done When**: Canonical sources contain one consistent lifecycle, the default profile contains exactly the approved seven skills, and negative asset tests cover tmux and retired outputs.
 - **Requirements**: ito-authority-cutover:guidance-and-asset-convergence
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 4.3: Regenerate schema and every managed harness surface
 
@@ -146,8 +146,8 @@ ______________________________________________________________________
 - **Verify**: `make config-schema && ito init --upgrade --tools all && make config-schema-check && git diff --check`
 - **Done When**: Generated outputs reflect canonical sources, the second pass adds no diff, obsolete assets are absent, and external coordination hashes still match the original snapshot.
 - **Requirements**: ito-authority-cutover:guidance-and-asset-convergence
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -163,8 +163,8 @@ ______________________________________________________________________
 - **Verify**: `make check && cargo test --workspace`
 - **Done When**: The standard lane is green and the built/default release surface excludes experimental backend/coordination runtime and all removed assets while retaining required migration recovery.
 - **Requirements**: ito-authority-cutover:dual-lane-release-verification
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 5.2: Run the explicit all-features quality lane independently
 
@@ -174,8 +174,8 @@ ______________________________________________________________________
 - **Verify**: `cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace --all-features`
 - **Done When**: The all-features lane is green, experimental behavior is opt-in, and standard/default artifact evidence is unchanged.
 - **Requirements**: ito-authority-cutover:dual-lane-release-verification
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 5.3: Verify generated artifacts, documentation, and release planning
 
@@ -185,8 +185,8 @@ ______________________________________________________________________
 - **Verify**: `make config-schema-check && make docs-site-check && dist plan --output-format=json`
 - **Done When**: All generated-artifact and docs checks pass, release planning succeeds without publication, default artifact contents are correct, and source-after hashes still match source-before hashes.
 - **Requirements**: ito-authority-cutover:external-state-preservation, ito-authority-cutover:dual-lane-release-verification
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ______________________________________________________________________
 
@@ -202,8 +202,8 @@ ______________________________________________________________________
 - **Verify**: `test -s .ito/changes/031-06_migrate-ito-authority-and-release/reviews/rust-release-review.md && test -z "$(rg -n 'blocking.*unresolved|unresolved.*blocking' .ito/changes/031-06_migrate-ito-authority-and-release/reviews/rust-release-review.md)"`
 - **Done When**: The first review is recorded and has no unresolved blocking finding.
 - **Requirements**: ito-authority-cutover:dual-lane-release-verification
-- **Updated At**: 2026-07-13
-- **Status**: [ ] pending
+- **Updated At**: 2026-07-14
+- **Status**: [x] complete
 
 ### Task 6.2: Complete an independent migration, parity, and documentation review
 

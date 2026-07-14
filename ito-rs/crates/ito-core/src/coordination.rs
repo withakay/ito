@@ -44,7 +44,7 @@ const LEGACY_AUTHORITY_GITIGNORE_ENTRIES: &[&str] = &[".ito/changes", ".ito/spec
 /// module).
 #[must_use]
 pub fn gitignore_entries() -> &'static [&'static str] {
-    crate::legacy_coordination::managed_gitignore_entries()
+    COORDINATION_GITIGNORE_ENTRIES
 }
 
 // ── Platform-abstracted symlink creation ─────────────────────────────────────

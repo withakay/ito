@@ -2,10 +2,12 @@ version: 1
 root: .ito/wiki
 purpose: ito-scoped-llm-maintained-knowledge
 default_sources:
-  - docs/ito/specs
-  - docs/ito/changes
+  - .ito/specs
+  - .ito/changes
   - .ito/research
+  - .ito/modules
   - .ito/project.md
+  - .ito/user-prompts
   - .ito/AGENTS.md
 external_sources: link-only
 page_types:

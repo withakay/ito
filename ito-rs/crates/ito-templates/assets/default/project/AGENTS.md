@@ -14,7 +14,7 @@ When present, use `.ito/wiki/index.md` for Ito-scoped synthesis, freshness warni
 
 ## Legacy Coordination Recovery
 
-If Ito reports legacy or ambiguous coordination-worktree storage, inspection commands remain available but stateful commands are blocked. Do not repair links or copy state by hand. Run `/ito-migrate-to-main` or `ito agent instruction migrate-to-main`, then follow the emitted inventory, conflict-stop, validation, and reviewed-integration procedure before starting implementation.
+If Ito reports legacy or ambiguous coordination-worktree storage, inspection commands remain available but stateful commands are blocked. Do not repair links or copy state by hand. Run `ito agent instruction migrate-to-main`, then follow the emitted inventory, conflict-stop, validation, and reviewed-integration procedure before starting implementation.
 
 ## Path Helpers
 

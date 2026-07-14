@@ -9,10 +9,12 @@ proposals, task files, or project guidance.
 
 Default sources are Ito-owned artifacts:
 
-- `docs/ito/specs/`
-- `docs/ito/changes/`
+- `.ito/specs/`
+- `.ito/changes/`
 - `.ito/research/`
+- `.ito/modules/`
 - `.ito/project.md`
+- `.ito/user-prompts/`
 - `.ito/AGENTS.md`
 
 External files can be linked when they clarify an Ito decision, but the wiki
@@ -28,7 +30,7 @@ authority: advisory-synthesis
 freshness: fresh
 last_reviewed: YYYY-MM-DD
 source_refs:
-  - docs/ito/specs/example/spec.md
+- .ito/specs/example/spec.md
 known_gaps: []
 ```
 

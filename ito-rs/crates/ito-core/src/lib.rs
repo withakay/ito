@@ -80,6 +80,7 @@ pub mod coordination;
 /// Coordination worktree lifecycle management (create / remove).
 #[cfg(feature = "coordination-branch")]
 pub mod coordination_worktree;
+#[cfg(feature = "coordination-branch")]
 mod coordination_worktree_helpers;
 
 /// Create new modules/changes and initial scaffolding.

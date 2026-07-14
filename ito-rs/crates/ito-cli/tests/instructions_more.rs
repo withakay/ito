@@ -22,7 +22,7 @@ fn agent_instruction_proposal_without_change_prints_new_proposal_guide() {
 
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("Create a New Proposal"));
-    assert!(out.stdout.contains("ito sync"));
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(out.stdout.contains("ito create change"));
     assert!(out.stdout.contains("Known modules at instruction time"));
     let lower = out.stdout.to_lowercase();
@@ -1000,7 +1000,7 @@ fn agent_instruction_apply_text_is_compact_and_has_trailing_newline() {
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("## Apply: 000-01_test-change"));
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(out.stdout.contains("### Testing Policy"));
     assert!(!out.stdout.contains("\n\n\n"), "stdout={}", out.stdout);
     assert!(out.stdout.ends_with('\n'), "stdout={}", out.stdout);

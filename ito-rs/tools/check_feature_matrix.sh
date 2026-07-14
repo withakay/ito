@@ -22,6 +22,10 @@ run_case() {
 
     echo "==> feature matrix: $name"
     cargo check -p ito-cli "$@"
+    # `assert_cmd::cargo_bin!` resolves the shared target/debug/ito path. Build
+    # the requested feature case explicitly so a previous all-feature command
+    # cannot leak an experimental binary into default-lane integration tests.
+    cargo build -p ito-cli "$@"
     cargo test -p ito-cli "$@"
     cargo clippy -p ito-cli --all-targets "$@" -- \
         -D warnings \

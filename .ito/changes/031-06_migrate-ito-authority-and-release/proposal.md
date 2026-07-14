@@ -5,7 +5,7 @@ Changes `031-01` through `031-05` make a smaller, main-first Ito possible, but I
 
 ## What Changes
 
-- Make implementation of this change depend on the reviewed, merged, and verified completion of `031-01_migrate-coordination-state-to-main`, `031-02_enforce-main-first-implementation`, `031-03_gate-experimental-backend-coordination`, `031-04_remove-tmux-integration`, and `031-05_consolidate-seven-lifecycle-skills`.
+- Make authority mutation in this change depend on the reviewed and verified implementation of `031-01_migrate-coordination-state-to-main`, `031-02_enforce-main-first-implementation`, `031-03_gate-experimental-backend-coordination`, `031-04_remove-tmux-integration`, and `031-05_consolidate-seven-lifecycle-skills`, integrated first as ancestors of one main-bound cutover branch.
 - Snapshot the external coordination checkout's Git identity, managed-path inventory, symlink metadata, and deterministic content hashes before copying `.ito/{changes,specs,modules,workflows,audit}` into real tracked directories.
 - Stop on missing, conflicting, or non-equivalent content; never delete, rewrite, commit in, or otherwise mutate the old external coordination worktree or branch.
 - Change this repository's configuration to disabled embedded coordination storage, keep `backend.enabled=false`, remove tmux configuration and generated tmux assets, and establish committed `.ito` artifacts on `main` as Ito's sole writable authority.

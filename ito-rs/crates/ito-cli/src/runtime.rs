@@ -6,7 +6,9 @@ use ito_core::audit::{
     AuditEvent, AuditEventStore, EventContext, default_audit_store, resolve_context,
     resolve_user_identity,
 };
-use ito_core::capabilities::{CapabilityPreflight, preflight_config};
+use ito_core::capabilities::{
+    CapabilityPreflight, CompiledCapabilities, preflight_config_with_capabilities,
+};
 use ito_core::errors::{CoreError, CoreResult};
 use ito_core::repo_index::RepoIndex;
 use ito_core::repository_runtime::{
@@ -140,7 +142,17 @@ impl Runtime {
         }
         let config: ItoConfig = serde_json::from_value(self.resolved_config().merged.clone())
             .map_err(|error| CoreError::serde("parse resolved Ito config", error.to_string()))?;
-        preflight_config(&config, mode)
+        // Report the executable's features explicitly. A workspace build can
+        // unify ito-core features requested by other members, but that must not
+        // expose experimental behavior through the shipping CLI.
+        preflight_config_with_capabilities(
+            &config,
+            mode,
+            CompiledCapabilities {
+                backend: cfg!(feature = "backend"),
+                coordination_branch: cfg!(feature = "coordination-branch"),
+            },
+        )
     }
 
     /// Suppress incidental logging, event forwarding, and synchronization.

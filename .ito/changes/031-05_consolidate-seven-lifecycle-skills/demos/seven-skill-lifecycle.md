@@ -72,9 +72,9 @@ ownership-safe retired-surface cleanup: passed
 
 ```bash
 for cap in experimental-workflow-commands ito-sync-specs-skill ito-tmux-skill ito-update-repo-skill orchestrate-workflow-skill; do
-  test ! -e "docs/ito/specs/$cap"
+  test ! -e ".ito/specs/$cap"
 done
-test -f docs/ito/specs/lifecycle-skill-profile/spec.md
+test -f .ito/specs/lifecycle-skill-profile/spec.md
 test -f ito-rs/crates/ito-templates/assets/skills/ito-loop/SKILL.md
 printf '%s\n' 'retired capabilities removed; lifecycle profile and iteration remain'
 

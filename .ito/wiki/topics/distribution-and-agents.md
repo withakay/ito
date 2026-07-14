@@ -6,12 +6,12 @@ authority: advisory-synthesis
 freshness: fresh
 last_reviewed: 2026-07-13
 source_refs:
-  - docs/ito/specs/agent-instructions/spec.md
-  - docs/ito/specs/agent-surface-taxonomy/spec.md
-  - docs/ito/specs/instruction-source-of-truth/spec.md
-  - docs/ito/specs/template-assets/spec.md
-  - docs/ito/specs/distribution/spec.md
-  - docs/ito/specs/ito-skill-routing/spec.md
+- .ito/specs/agent-instructions/spec.md
+- .ito/specs/agent-surface-taxonomy/spec.md
+- .ito/specs/instruction-source-of-truth/spec.md
+- .ito/specs/template-assets/spec.md
+- .ito/specs/distribution/spec.md
+- .ito/specs/ito-skill-routing/spec.md
 known_gaps: []
 ```
 

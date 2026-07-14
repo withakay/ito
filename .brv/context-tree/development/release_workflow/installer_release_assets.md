@@ -2,7 +2,7 @@
 title: Installer Release Assets
 summary: Installer scripts prefer cargo-dist release assets for current releases and fall back to legacy version-pinned archives when needed, verifying SHA-256 checksums before extracting and copying the binary.
 tags: []
-related: [development/ito_workflow/published_ito_mirror.md, development/release_workflow/context.md, development/release_workflow/release_workflow.md, development/release_workflow/build_and_coverage_guardrails.md, development/release_workflow/manifesto_instruction_implementation_notes.md, development/release_workflow/release_plz_guardrails.md]
+related: [development/release_workflow/context.md, development/release_workflow/release_workflow.md, development/release_workflow/build_and_coverage_guardrails.md, development/release_workflow/manifesto_instruction_implementation_notes.md, development/release_workflow/release_plz_guardrails.md]
 keywords: []
 createdAt: '2026-05-29T08:43:40.712Z'
 updatedAt: '2026-05-29T08:43:40.712Z'

@@ -38,60 +38,60 @@ sed -n '90,145p' ito-rs/crates/ito-core/src/implementation_readiness/git.rs
 ```
 
 ```output
+    ) -> Result<String, ReadinessGitError>;
 
-        Ok(TrackedUpstream {
-            tracking_ref: tracking_ref.to_string(),
-            remote: remote.to_string(),
-            remote_ref: remote_ref.to_string(),
-        })
+    /// List immutable tree entries below one literal repository-relative path.
+    fn list_tree(
+        &self,
+        _repository_root: &Path,
+        _authority_oid: &str,
+        _path: &str,
+    ) -> Result<Vec<GitTreeEntry>, ReadinessGitError> {
+        Err(ReadinessGitError::new(
+            "authority tree listing is not implemented by this Git adapter",
+        ))
     }
 
-    fn refresh_upstream(
+    /// Read one blob by object OID without consulting a checkout.
+    fn read_blob(
         &self,
-        repository_root: &Path,
-        upstream: &TrackedUpstream,
-    ) -> Result<(), ReadinessGitError> {
-        let refspec = format!("+{}:{}", upstream.remote_ref, upstream.tracking_ref);
-        run_git(
-            &SystemProcessRunner,
-            repository_root,
-            [
-                "fetch",
-                "--no-tags",
-                "--no-write-fetch-head",
-                upstream.remote.as_str(),
-                refspec.as_str(),
-            ],
-            "refresh target branch upstream",
-        )?;
-        Ok(())
-    }
-
-    fn resolve_commit(
-        &self,
-        repository_root: &Path,
-        target_ref: &str,
+        _repository_root: &Path,
+        _blob_oid: &str,
     ) -> Result<String, ReadinessGitError> {
-        let commit_ref = format!("{target_ref}^{{commit}}");
-        let output = run_git(
-            &SystemProcessRunner,
-            repository_root,
-            [
-                "rev-parse",
-                "--verify",
-                "--end-of-options",
-                commit_ref.as_str(),
-            ],
-            "resolve authority commit",
-        )?;
-        let oid = output.trim();
-        if !matches!(oid.len(), 40 | 64) || !oid.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err(ReadinessGitError::new(format!(
-                "authority resolution returned an invalid commit OID: '{oid}'"
-            )));
-        }
-        Ok(oid.to_ascii_lowercase())
+        Err(ReadinessGitError::new(
+            "authority blob reading is not implemented by this Git adapter",
+        ))
+    }
+
+    /// Find the newest first-parent target commit that introduced one literal marker path.
+    fn find_introduction_commit(
+        &self,
+        _repository_root: &Path,
+        _authority_oid: &str,
+        _marker_path: &str,
+    ) -> Result<String, ReadinessGitError> {
+        Err(ReadinessGitError::new(
+            "proposal integration discovery is not implemented by this Git adapter",
+        ))
+    }
+
+    /// Inspect checkout identity without reading proposal files from it.
+    fn inspect_checkout(&self, _checkout: &Path) -> Result<CheckoutState, ReadinessGitError> {
+        Err(ReadinessGitError::new(
+            "checkout identity inspection is not implemented by this Git adapter",
+        ))
+    }
+
+    /// Test whether `ancestor_oid` is an ancestor of `descendant_oid`.
+    fn is_ancestor(
+        &self,
+        _checkout: &Path,
+        _ancestor_oid: &str,
+        _descendant_oid: &str,
+    ) -> Result<bool, ReadinessGitError> {
+        Err(ReadinessGitError::new(
+            "checkout ancestry inspection is not implemented by this Git adapter",
+        ))
     }
 }
-
 ```

@@ -4,20 +4,20 @@
 page_type: topic
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-05-27
+last_reviewed: 2026-07-14
 source_refs:
-  - docs/ito/specs/
-  - docs/ito/changes/archive/
-  - .ito/research/SUMMARY.md
+- .ito/specs/
+- .ito/changes/
+- .ito/changes/archive/
+- .ito/research/SUMMARY.md
 known_gaps:
   - This is a first-pass synthesis, not exhaustive spec coverage.
 ```
 
 Ito is a change-driven workflow tool with a Rust workspace implementation,
 template-managed agent surfaces, and Ito-managed proposal/spec/task artifacts.
-The repository keeps accepted capability specs in `docs/ito/specs/`, active and
-archived changes in `docs/ito/changes/`, and research notes under
-`.ito/research/`.
+The repository keeps accepted capability specs in `.ito/specs/`, active and
+archived changes in `.ito/changes/`, and research notes under `.ito/research/`.
 
 ## Current Shape
 
@@ -26,8 +26,9 @@ archived changes in `docs/ito/changes/`, and research notes under
   workflows.
 - Template assets install AGENTS guidance, commands, skills, agent prompts,
   schema templates, and workflow instructions for multiple harnesses.
-- Coordination state is shared through Ito-managed runtime links in worktree
-  mode, while canonical docs remain committed under `docs/ito/`.
+- Proposal and specification authority is tracked directly under `.ito/` on
+  main. Worktrees may isolate implementation code, but they do not own Ito
+  authority.
 
 ## How Future Agents Should Use This Wiki
 

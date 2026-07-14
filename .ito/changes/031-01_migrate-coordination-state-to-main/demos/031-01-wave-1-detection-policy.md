@@ -11,9 +11,9 @@ CARGO_TARGET_DIR=target-showboat CARGO_TERM_COLOR=never cargo test --quiet -p it
 
 ```output
 
-running 14 tests
-..............
-test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; <FILTERED> filtered out; finished in <TIME>
+running 17 tests
+.................
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; <FILTERED> filtered out; finished in <TIME>
 
 ```
 

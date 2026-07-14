@@ -1,5 +1,7 @@
 # Migrate to Coordination Worktree Storage
 
+> **Experimental build required.** The standard Ito release does not compile coordination-branch runtime support. Do not follow this guide unless Ito was explicitly built with the experimental `coordination-branch` feature and the project has deliberately opted into it. For legacy or ambiguous coordination state, run `ito agent instruction migrate-to-main` instead.
+
 > **Note on branch name**: The coordination branch name used below is
 > `{{ coordination_branch_name | default("ito/internal/changes") }}`.
 > To override it, pass `coordination_branch_name` in the template context or

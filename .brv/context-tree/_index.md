@@ -10,17 +10,16 @@ type: summary
 ---
 # development — Structural Summary
 
-This domain groups Ito’s operational knowledge around safe coordination workflows, release/installer pipelines, source-navigation guides, and template retrofits. The main pattern is **derived outputs from authoritative coordination/source state**, with strict guardrails for worktrees, symlinks, release publication, and documentation freshness.
+This domain groups Ito’s operational knowledge around tracked-main workflows, legacy coordination migration, release/installer pipelines, source-navigation guides, and template retrofits. The main pattern is **tracked source state with explicit safety gates**, including strict guardrails for worktrees, legacy symlinks, release publication, and documentation freshness.
 
 ## Primary topic clusters
 
 ### `ito_workflow/`
-Ito’s coordination-backed workflow layer, centered on writable coordination state and read-only published outputs.
+Ito’s tracked-main workflow layer, centered on canonical `.ito` state committed to `main`, main-first proposal integration, and explicit migration from legacy coordination storage.
 
-- **Mirror publication and sync**
-  - `published_ito_mirror.md` defines the published `docs/ito` mirror as generated from coordination-backed state.
-  - Generation is read-only, skips symlinks, rejects unsafe paths, and replaces content only after drift detection.
-  - `audit_mirror_concurrency_and_temp_naming.md` covers temp naming, JSONL merge/dedup, retention limits, and bounded retry on conflicts.
+- **Authority and audit mirroring**
+  - Tracked `.ito` changes, specs, modules, workflows, and audit artifacts on `main` are authoritative.
+  - `audit_mirror_concurrency_and_temp_naming.md` covers the separate audit-mirror subsystem: temp naming, JSONL merge/dedup, retention limits, and bounded retry on conflicts.
 
 - **Worktree validation and safety**
   - `worktree_validation_flow.md` defines `ito worktree validate --change <id> [--json]`.
@@ -67,8 +66,8 @@ Ito’s release and installer pipeline, spanning `release-plz`, `cargo-dist`, in
   - Full `--operation` requires `--change`; unconfigured operations render as `null`.
 
 - **Release-plz guardrails**
-  - `release_plz_guardrails.md` preserves `.gitignore` behavior for coordination paths and keeps `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, and `.ito/audit` ignored.
-  - If ignored files become tracked, they are untracked with `git rm --cached`, not unignored.
+  - `release_plz_guardrails.md` treats tracked `.ito` on `main` as canonical release input and retires the old projected-symlink ignore rule.
+  - Never ignore or untrack the five Ito authority roots to conceal release-tree dirtiness.
   - Configuration facts include `allow_dirty = false`, `publish_allow_dirty = false`, workspace changelog/dependency updates enabled, and `cliff.toml` as changelog config.
 
 - **Shared umbrella context**
@@ -90,14 +89,13 @@ Template bundle retrofit knowledge for standardizing markdown markers.
 
 ## Cross-cutting patterns
 
-- **Source of truth**: coordination-backed state and source files remain authoritative; mirrors, guides, and published outputs are derived or advisory.
+- **Source of truth**: tracked `.ito` state on `main` and implementation source files are authoritative; legacy coordination state is a guarded migration input, while guides and generated outputs are advisory.
 - **Safety-first behavior**: explicit rejection of unsafe paths, self-referential worktrees, wrong symlink targets, empty bootstrap output, and main/control checkout validation.
 - **Release robustness**: fallback archives, checksum verification, platform-specific targets, and guarded release-plz configuration.
 - **Operational clarity**: exact file paths, branch names, CLI signatures, and config locations are preserved as primary drill-down anchors.
 
 ## Drill-down map
 
-- Mirror generation and read-only published output: `ito_workflow/published_ito_mirror.md`
 - Mirror concurrency, temp naming, and retention: `ito_workflow/audit_mirror_concurrency_and_temp_naming.md`
 - Worktree validation and hook status: `ito_workflow/worktree_validation_flow.md`
 - Pre-push adversarial review: `ito_workflow/pre_push_adversarial_code_review.md`

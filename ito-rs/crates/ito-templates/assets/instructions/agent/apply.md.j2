@@ -25,25 +25,11 @@ These paths are relative to the execute-ready implementation checkout root. Swit
 
 `ito agent instruction apply` first proves prepare readiness and renders proposal, design, specs, schema, and guidance from one captured authoritative Git commit. It never fills those inputs from the local working copy or coordination storage.
 
-`ito agent instruction apply` does **not** sync coordination state by default.
-
 To refresh pull-request authority before rendering, run:
 
 ```bash
 ito change preflight <id> --for prepare --refresh
 ito agent instruction apply --change <id>
-```
-
-The legacy `--sync` flag only refreshes remaining compatibility coordination state *after* the authority snapshot is captured; it cannot make a proposal implementation-ready:
-
-```bash
-ito agent instruction apply --change <id> --sync
-```
-
-If legacy coordination-worktree storage remains active, `ito sync` refreshes compatibility directories such as modules, workflows, and audit. Accepted changes and specs remain Git-authoritative.
-
-```bash
-ito sync
 ```
 
 {% if worktree.enabled and worktree.apply_enabled %}
@@ -68,17 +54,7 @@ CHANGE_DIR=$(ito worktree ensure --change "{{ instructions.changeName | replace(
 }
 ```
 
-This creates the dedicated change worktree (if absent), copies include files, and runs setup commands.
-It should also leave the worktree Ito-ready, including the `.ito/*` coordination links when
-coordination storage mode is `worktree`.
-All subsequent file operations should use `$CHANGE_DIR` as the working directory.
-
-After `ito worktree ensure`, legacy coordination users may refresh compatibility state from inside the change worktree:
-
-```bash
-cd "$CHANGE_DIR"
-ito sync
-```
+This creates the dedicated change worktree (if absent), copies include files, and runs setup commands. All subsequent file operations should use `$CHANGE_DIR` as the working directory.
 
 If an existing worktree needs its configured setup rerun, use the guarded setup command:
 

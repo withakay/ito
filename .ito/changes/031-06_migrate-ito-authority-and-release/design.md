@@ -11,7 +11,7 @@ The migration is high risk because source state is external, the destination pat
 
 **Goals:**
 
-- Prove the five prerequisite changes are integrated on the base `main` commit.
+- Prove the five prerequisite implementations are integrated into the main-bound cutover branch before authority mutation.
 - Capture reproducible evidence for every external managed path before mutation.
 - Materialize byte-equivalent real tracked Ito directories while keeping the external checkout untouched.
 - Make embedded, backend-disabled tracked state on `main` the only writable authority.
@@ -30,9 +30,9 @@ The migration is high risk because source state is external, the destination pat
 
 ## Approach
 
-Use a six-gate cutover executed from a branch based on the `main` commit containing `031-01` through `031-05`.
+Use a six-gate cutover executed from a branch based on `main` that first integrates `031-01` through `031-05` as reviewed dependency commits.
 
-1. **Dependency gate.** Record the merge commit, strict validation result, and required checks for each prerequisite. Stop if any evidence is missing or the branch is not based on that `main` commit.
+1. **Dependency gate.** Record the `main` base plus the integration commit, strict validation result, and required checks for each prerequisite. Stop if any evidence is missing or any dependency is not an ancestor of the cutover branch.
 2. **Immutable evidence gate.** Resolve the five managed links without following them blindly; record link targets, external Git branch/commit/status, relative file inventories, file modes where relevant, and SHA-256 content hashes. Run the inventory/hash procedure twice and require identical output. Record the external status and hashes again after every mutating phase.
 3. **Materialization gate.** Copy through a staging directory on the migration branch, reject destination collisions, replace only the five managed links with real directories, and compare the result to the source manifest. Update `.gitignore` and project config so the directories are tracked, coordination is disabled with embedded storage, backend remains disabled, and tmux configuration is absent.
 4. **Mirror gate.** Compare `.ito/changes` active/archive content and `.ito/specs` with `docs/ito` through an explicit path-normalization map. Any content that exists only in the mirror is preserved and investigated. Once every difference is accounted for, record parity and remove the mirror, its path setting, publication code/workflows/tests, and current-authority documentation.
@@ -73,7 +73,7 @@ The source manifest covers regular-file bytes, relative paths, file type, and ex
 
 ## Risks / Trade-offs
 
-- **Concurrent external writes could invalidate hashes.** Freeze Ito mutations during snapshot/copy, record source Git status, and re-hash after every phase; stop on change.
+- **Concurrent external writes could invalidate hashes.** Freeze Ito mutations during snapshot/copy, record the complete source Git status (including any reviewed pre-existing modification), and re-hash after every phase; stop on any change from that captured state.
 - **Symlink replacement can accidentally target the source.** Inspect with link metadata, operate only on repository link entries, stage copies outside both source and destination, and review resolved paths before replacement.
 - **Git does not preserve every filesystem attribute.** Define parity around tracked content and executable mode; record but do not compare irrelevant timestamps or ownership.
 - **Mirror layout differs from canonical layout.** Use a reviewed normalization map and require every unmatched artifact to be explained before deletion.
@@ -95,7 +95,7 @@ The source manifest covers regular-file bytes, relative paths, file type, and ex
 
 ## Migration / Rollback
 
-Implementation starts only from the verified post-`031-05` `main`. Freeze Ito mutations, capture source evidence, prepare the materialized state and documentation changes on the `031-06` branch, and merge through normal review. Do not archive this change or publish a reset release until the merged `main` checkout resolves the real `.ito` directories and all release gates pass.
+Implementation starts from `main` on a dedicated `031-06` branch, integrates the five verified dependency implementations, and only then freezes Ito mutations and captures source evidence. Prepare the materialized state and documentation changes on that branch and merge the batch through normal review. Do not archive this change or publish a reset release until the merged `main` checkout resolves the real `.ito` directories and all release gates pass.
 
 Before merge, rollback means discarding or repairing only the cutover branch; the external coordination checkout remains authoritative and untouched. After merge but before external cleanup, rollback is a reviewed revert that restores the prior tracked link/config entries and points back to the retained, hash-verified external state. Deleting the external checkout is intentionally excluded from this change, so rollback evidence survives the initial release.
 

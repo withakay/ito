@@ -6,13 +6,13 @@ authority: advisory-synthesis
 freshness: fresh
 last_reviewed: 2026-07-13
 source_refs:
-  - docs/ito/specs/repository-runtime-selection/spec.md
-  - docs/ito/specs/change-repository/spec.md
-  - docs/ito/specs/task-repository/spec.md
-  - docs/ito/specs/spec-repository/spec.md
-  - docs/ito/specs/backend-client-runtime/spec.md
-  - docs/ito/specs/coordination-worktree/spec.md
-  - docs/ito/specs/worktree-lifecycle/spec.md
+  - .ito/specs/repository-runtime-selection/spec.md
+  - .ito/specs/change-repository/spec.md
+  - .ito/specs/task-repository/spec.md
+  - .ito/specs/spec-repository/spec.md
+  - .ito/specs/backend-client-runtime/spec.md
+  - .ito/specs/change-coordination-branch/spec.md
+  - .ito/specs/worktree-lifecycle/spec.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/specs/coordination-main-migration/spec.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/specs/coordination-worktree-migration/spec.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/demos/031-01-migrate-to-main.md
@@ -29,9 +29,8 @@ mutation services.
 
 - Repository runtime selection decides whether operations use local markdown,
   SQLite-backed storage, or remote backend services.
-- Coordination worktree storage shares change, module, spec, workflow, and
-  audit state across change worktrees through `.ito/*` runtime links, but is a
-  legacy layout rather than the default direction.
+- Coordination worktree storage is a legacy, experimental compatibility mode;
+  tracked `.ito` directories on main are authoritative by default.
 - New configurations default coordination to disabled with embedded,
   main-tracked storage. Experimental features add availability without
   activating either backend or coordination behavior.

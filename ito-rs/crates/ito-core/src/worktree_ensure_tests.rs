@@ -542,6 +542,7 @@ fn assert_post_creation_failure_rolls_back(
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn coordination_repair_failure_rolls_back_created_worktree() {
     let mut config = make_embedded_config();
     config.changes.coordination_branch.storage = CoordinationStorage::Worktree;

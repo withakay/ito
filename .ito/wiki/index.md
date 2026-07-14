@@ -18,7 +18,7 @@ artifacts without replacing those artifacts as source truth.
 
 ## Source Boundary
 
-Default sources are Ito-owned artifacts: `docs/ito/specs/`,
-`docs/ito/changes/`, `.ito/research/`, `.ito/project.md`, and
-`.ito/AGENTS.md`. Link external project files only when they clarify Ito
-decisions.
+Default sources are the tracked Ito artifacts under `.ito/specs/`,
+`.ito/changes/`, `.ito/research/`, `.ito/modules/`, `.ito/project.md`,
+`.ito/user-prompts/`, and `.ito/AGENTS.md`. Link external project files only
+when they clarify Ito decisions.

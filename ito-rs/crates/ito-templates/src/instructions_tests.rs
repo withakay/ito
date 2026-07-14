@@ -133,6 +133,21 @@ fn backend_guide_requires_an_experimental_build() {
 }
 
 #[test]
+fn coordination_migration_guide_requires_an_experimental_build() {
+    let guide = get_instruction_template("agent/migrate-to-coordination-worktree.md.j2")
+        .expect("coordination migration guide");
+    assert_contains_all(
+        guide,
+        &[
+            "Experimental build required",
+            "standard Ito release does not compile coordination-branch runtime support",
+            "experimental `coordination-branch` feature",
+            "ito agent instruction migrate-to-main",
+        ],
+    );
+}
+
+#[test]
 fn artifact_template_renders_when_instruction_is_empty() {
     #[derive(Serialize)]
     struct Instructions {
@@ -619,14 +634,13 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     assert!(out.contains("ito worktree ensure --change \"000-01_test-change\""));
     assert!(out.contains("ito worktree setup --change \"000-01_test-change\""));
     assert!(!out.contains("wt switch --create"));
-    assert!(out.contains("does **not** sync coordination state by default"));
     assert!(out.contains("relative to the dedicated execute-ready change worktree"));
-    assert!(out.contains("ito agent instruction apply --change <id> --sync"));
-    assert!(out.contains("ito sync"));
+    assert!(out.contains("ito change preflight <id> --for prepare --refresh"));
+    assert!(!out.contains("ito agent instruction apply --change <id> --sync"));
+    assert!(!out.contains("ito sync"));
     assert!(out.contains("ito patch change 000-01_test-change proposal"));
     assert!(out.contains("ito write change 000-01_test-change design"));
     assert!(!out.contains("<details>"));
-    assert_eq!(out.matches("\nito sync\n").count(), 2);
 }
 
 #[test]
@@ -956,10 +970,12 @@ fn new_proposal_template_keeps_authoring_in_proposal_only_worktree() {
     assert!(
         out.contains("Do not run `ito worktree ensure` until this package is accepted on main")
     );
-    assert!(out.contains("## Step 0.5: Consult the Ito Wiki When Present"));
+    assert!(out.contains("## Step 0: Consult the Ito Wiki When Present"));
     assert!(out.contains(".ito/wiki/index.md"));
     assert!(out.contains("briefly warn"));
     assert!(out.contains("fall back to `.ito/specs/`"));
+    assert!(!out.contains("Synchronize Coordination State"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -1089,6 +1105,7 @@ fn archive_template_renders_generic_guidance_without_change() {
     .unwrap();
 
     assert!(out.contains("ito archive"));
+    assert!(out.contains("Experimental coordination compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile"));
@@ -1129,6 +1146,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
 
     assert!(out.contains("009-02_event-sourced-audit-log"));
     assert!(out.contains("ito archive 009-02_event-sourced-audit-log --yes"));
+    assert!(out.contains("Experimental coordination compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
@@ -1171,6 +1189,8 @@ fn archive_template_lists_available_changes_in_generic_mode() {
 
     assert!(out.contains("001-01_init"));
     assert!(out.contains("002-03_cleanup"));
+    assert!(!out.contains("Experimental coordination compatibility"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -1232,6 +1252,7 @@ fn finish_template_prompts_for_archive() {
     .unwrap();
 
     assert!(out.contains("Do you want to archive this change now?"));
+    assert!(out.contains("### Experimental Coordination Compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(
@@ -1316,6 +1337,8 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
     assert!(out.contains("### Capture memories"));
     assert!(out.contains("ito agent instruction memory-capture"));
     assert!(out.contains("### Refresh archive and specs"));
+    assert!(!out.contains("Experimental Coordination Compatibility"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -1377,4 +1400,6 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
     assert!(out.contains("**Archive**:"));
     assert!(out.contains("**Specs**:"));
     assert!(out.contains("**Docs**:"));
+    assert!(!out.contains("Experimental Coordination Compatibility"));
+    assert!(!out.contains("ito sync"));
 }

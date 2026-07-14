@@ -23,7 +23,7 @@ case "$action" in
 {
   "changes": {
     "proposal": { "integration_mode": "direct_merge" },
-    "coordination_branch": { "storage": "embedded" }
+    "coordination_branch": { "enabled": false, "storage": "embedded" }
   },
   "worktrees": {
     "enabled": true,

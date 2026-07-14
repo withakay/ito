@@ -2,7 +2,7 @@
 children_hash: 5a5843ac0d0f507516cab060cd7cf4eec9f5c65677121ed925c5dcffb5d1ffba
 compression_ratio: 0.23414918414918415
 condensation_order: 1
-covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, coordination_branch_bootstrap.md, coordination_symlink_repair_and_sync.md, ddd_discovery_workflow.md, ito_config_gotcha.md, ito_orchestration_consolidation.md, obsolete_specialist_cleanup.md, pre_push_adversarial_code_review.md, published_ito_mirror.md, worktree_validation_flow.md]
+covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, coordination_branch_bootstrap.md, coordination_symlink_repair_and_sync.md, ddd_discovery_workflow.md, ito_config_gotcha.md, ito_orchestration_consolidation.md, obsolete_specialist_cleanup.md, pre_push_adversarial_code_review.md, worktree_validation_flow.md]
 covers_token_total: 8580
 summary_level: d1
 token_count: 2009
@@ -10,26 +10,17 @@ type: summary
 ---
 # development/ito_workflow — Structural Overview
 
-This topic covers Ito’s workflow around coordination-backed state, publishing mirrors, validating worktrees, and maintaining safe Git/worktree behavior. The main structural theme is **coordination state as source of truth**, with read-only published output and guarded sync/bootstrap paths.
+This topic covers Ito’s tracked-main workflow, migration from legacy coordination-backed state, worktree validation, and safe Git behavior. The main structural theme is **tracked `.ito` state on `main` as the source of truth**, with coordination sync retained only as an experimental compatibility path and audit mirroring remaining a separate subsystem.
 
 ## Core workflow architecture
 
 - **context.md** sets the top-level framing:
-  - `changes.published_mirror.path` drives where the published mirror is generated.
-  - The published mirror is **read-only** and generated from coordination-backed state.
-  - Drift detection and safe project-relative path resolution are central to mirror handling.
-- The workflow is organized around keeping the writable coordination state separate from consumer-facing outputs.
+  - canonical changes, specs, modules, workflows, and audit artifacts live under tracked `.ito/` paths on `main`;
+  - proposals are integrated into the authoritative target before implementation begins;
+  - legacy coordination storage is detected and migrated explicitly rather than treated as current authority.
+- Worktree and Git safety gates protect the main-authoritative workflow while preserving recovery paths for legacy repositories.
 
-## Mirror publication and synchronization
-
-### published_ito_mirror.md
-- Defines the published mirror as a generated `docs/ito` tree by default.
-- Key safety rules:
-  - Reject empty paths, absolute paths, parent traversal, and root-only paths.
-  - Skip symlinks during generation.
-  - Compare generated output against the existing mirror and replace only on drift.
-- The `ito publish` CLI is the main reconciliation mechanism.
-- Relationship: coordination-backed state remains the writable source of truth; `docs/ito` is the read-only published view.
+## Audit mirroring
 
 ### audit_mirror_concurrency_and_temp_naming.md
 - Describes audit mirror sync internals and concurrency protections.
@@ -63,6 +54,8 @@ This topic covers Ito’s workflow around coordination-backed state, publishing 
 - This is positioned as a review-noise reduction and defect-catch step before publication.
 
 ## Git coordination branch lifecycle
+
+The coordination branch entries below document legacy or explicitly enabled experimental behavior. They do not supersede tracked `.ito` authority on `main`.
 
 ### coordination_branch_bootstrap.md
 - Documents bootstrap behavior for missing coordination/origin branches.
@@ -139,8 +132,8 @@ This topic covers Ito’s workflow around coordination-backed state, publishing 
 
 ## High-level relationships and patterns
 
-- **Source of truth**: coordination-backed state
-- **Published consumer view**: read-only `docs/ito`
+- **Source of truth**: tracked `.ito` artifacts on `main`
+- **Legacy compatibility**: coordination-backed state is detected, guarded, and migrated explicitly
 - **Safety gates**:
   - worktree validation hard-fails unsafe main/control states
   - pre-push adversarial review blocks major issues
@@ -154,7 +147,6 @@ This topic covers Ito’s workflow around coordination-backed state, publishing 
 
 ## Drill-down map
 
-- Mirror publication and safe read-only output: `published_ito_mirror.md`
 - Audit mirror concurrency and retention: `audit_mirror_concurrency_and_temp_naming.md`
 - Worktree validation and hook status: `worktree_validation_flow.md`
 - Pre-push review gate: `pre_push_adversarial_code_review.md`

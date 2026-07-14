@@ -102,9 +102,11 @@ After deployment, create separate PR to:
 
 ## Quick Start
 
-### Backend-Backed Mode
+### Experimental Backend-Backed Mode
 
-When `backend.enabled=true` or persistence is remote, local active-work markdown may be absent by design. Do not create/edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually. Use CLI-backed flows: `ito show <item>`, `ito patch ...`, `ito write ...`, `ito tasks ...`, `ito tasks sync pull <change-id>`, `ito archive <change-id>`. Local Git/projected files are read-oriented; mutations via CLI only.
+The standard Ito release does not compile backend runtime support. Only enable `backend.enabled=true` when using an explicitly experimental build compiled with the `backend` feature.
+
+In that experimental mode, local active-work markdown may be absent by design. Do not create/edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually. Use CLI-backed flows: `ito show <item>`, `ito patch ...`, `ito write ...`, `ito tasks ...`, `ito tasks sync pull <change-id>`, `ito archive <change-id>`. Local Git/projected files are read-oriented; mutations via CLI only.
 
 ### CLI Commands
 

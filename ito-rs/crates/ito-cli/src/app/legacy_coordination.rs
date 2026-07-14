@@ -10,7 +10,8 @@ use crate::diagnostics::{
 use crate::runtime::Runtime;
 use ito_config::types::ItoConfig;
 use ito_core::legacy_coordination::{
-    LegacyCoordinationClass, expected_coordination_ito_root, inspect_legacy_coordination,
+    LegacyCoordinationClass, ManagedPathKind, expected_coordination_ito_root,
+    inspect_legacy_coordination,
 };
 
 /// Safety intent assigned to a parsed Ito command in legacy coordination state.
@@ -171,7 +172,11 @@ fn enforce_legacy_coordination_intent(runtime: &Runtime, intent: CommandIntent) 
     .map_err(to_cli_error)?;
     let supported_active_coordination = cfg!(feature = "coordination-branch")
         && typed.changes.coordination_branch.enabled.0
-        && typed.changes.coordination_branch.storage.as_str() == "worktree";
+        && typed.changes.coordination_branch.storage.as_str() == "worktree"
+        && !report.managed_paths.iter().any(|evidence| {
+            matches!(evidence.name.as_str(), "changes" | "specs")
+                && matches!(evidence.kind, ManagedPathKind::Link { .. })
+        });
 
     match report.classification {
         LegacyCoordinationClass::Absent | LegacyCoordinationClass::Embedded => Ok(()),

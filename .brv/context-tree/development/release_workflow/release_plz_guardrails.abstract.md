@@ -1,1 +1,1 @@
-Release-plz is configured from the repo root with dirty publishes disabled and workspace changelog/dependency updates enabled, while .ito coordination paths must stay gitignored and any tracked ignored files removed with git rm --cached.
+Release-plz keeps dirty publication disabled while treating tracked `.ito` on `main` as canonical release input; agents must never ignore or untrack that authority, and standard cargo-dist artifacts contain only the `web` feature.

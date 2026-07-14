@@ -210,6 +210,37 @@ fn mixed_link_and_non_empty_real_directory_is_ambiguous() {
 }
 
 #[test]
+fn main_authority_with_runtime_coordination_links_is_supported_legacy_state() {
+    let (_temp, project, ito) = roots();
+    let coordination_ito = project.join("coordination").join(".ito");
+    create_embedded_dirs(&coordination_ito);
+
+    for name in ["changes", "specs"] {
+        fs::create_dir_all(ito.join(name)).expect("authoritative directory");
+        fs::write(ito.join(name).join("tracked.md"), "tracked on main")
+            .expect("authoritative content");
+    }
+    for name in ["modules", "workflows", "audit"] {
+        create_managed_link(&coordination_ito.join(name), &ito.join(name));
+    }
+    fs::write(
+        project.join(".gitignore"),
+        "# Ito coordination worktree symlinks\n.ito/modules\n.ito/workflows\n.ito/audit\n",
+    )
+    .expect("gitignore");
+
+    let report = inspect_legacy_coordination(
+        &project,
+        &ito,
+        &config(true, CoordinationStorage::Worktree),
+        Some(&coordination_ito),
+    )
+    .expect("inspection");
+
+    assert_eq!(report.classification, LegacyCoordinationClass::Legacy);
+}
+
+#[test]
 fn residual_managed_gitignore_marker_is_ambiguous_after_materialization() {
     let (_temp, project, ito) = roots();
     create_embedded_dirs(&ito);

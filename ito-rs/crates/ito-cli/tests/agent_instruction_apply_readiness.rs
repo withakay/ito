@@ -60,8 +60,59 @@ fn direct_apply_json_rejects_complete_local_only_artifacts() {
 }
 
 #[test]
-#[cfg(unix)]
-fn direct_apply_sync_rejects_before_coordination_fetch() {
+#[cfg(all(unix, not(feature = "coordination-branch")))]
+fn default_apply_sync_rejects_unavailable_coordination_before_fetch() {
+    let repository = tempfile::tempdir().expect("repository");
+    let home = tempfile::tempdir().expect("home");
+    let ito = assert_cmd::cargo::cargo_bin!("ito");
+    let _remote = setup_worktree_backed_local_only_repository(repository.path(), home.path(), ito);
+    let fake_git = tempfile::tempdir().expect("fake git");
+    let fetch_log = fake_git.path().join("fetch.log");
+    let real_git = real_git_path();
+    write_fetch_logging_git(fake_git.path(), &real_git);
+
+    let output = run_candidate_with_fetch_logging(
+        ito,
+        &[
+            "agent",
+            "instruction",
+            "apply",
+            "--change",
+            CHANGE_ID,
+            "--json",
+            "--sync",
+        ],
+        repository.path(),
+        home.path(),
+        fake_git.path(),
+        &fetch_log,
+        &real_git,
+    );
+
+    assert_eq!(output.code, 1, "stderr={}", output.stderr);
+    let report = parse_pure_json(&output);
+    assert_eq!(report["error"]["kind"], "feature_unavailable");
+    assert_eq!(report["error"]["feature"], "coordination-branch");
+    assert_eq!(
+        report["error"]["requested_by"],
+        "ito agent instruction apply --sync"
+    );
+    assert!(
+        report["error"]["recovery"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("ito agent instruction migrate-to-main")
+    );
+    let fetches = std::fs::read_to_string(&fetch_log).unwrap_or_default();
+    assert!(
+        fetches.trim().is_empty(),
+        "readiness rejection must precede coordination fetches: {fetches:?}"
+    );
+}
+
+#[test]
+#[cfg(all(unix, feature = "coordination-branch"))]
+fn experimental_apply_sync_rejects_before_coordination_fetch() {
     let repository = tempfile::tempdir().expect("repository");
     let home = tempfile::tempdir().expect("home");
     let ito = assert_cmd::cargo::cargo_bin!("ito");

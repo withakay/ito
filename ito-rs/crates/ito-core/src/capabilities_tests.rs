@@ -1,6 +1,9 @@
 use ito_config::types::{CoordinationStorage, ItoConfig};
 
-use super::{CapabilityPreflight, CompiledCapabilities, CompiledFeature, preflight_config};
+use super::{
+    CapabilityPreflight, CompiledCapabilities, CompiledFeature, preflight_config,
+    preflight_config_with_capabilities,
+};
 use crate::errors::CoreError;
 
 #[test]
@@ -107,6 +110,42 @@ fn recovery_preflight_remains_available_for_legacy_config() {
 
     preflight_config(&config, CapabilityPreflight::Recovery)
         .expect("recovery commands must remain available");
+}
+
+#[test]
+fn caller_capabilities_override_dependency_feature_unification() {
+    let mut config = ItoConfig::default();
+    config.backend.enabled = true;
+
+    let error = preflight_config_with_capabilities(
+        &config,
+        CapabilityPreflight::Stateful,
+        CompiledCapabilities {
+            backend: false,
+            coordination_branch: false,
+        },
+    )
+    .unwrap_err();
+
+    assert_feature_error(error, CompiledFeature::Backend, "backend.enabled");
+
+    config.backend.enabled = false;
+    config.changes.coordination_branch.storage = CoordinationStorage::Worktree;
+    let error = preflight_config_with_capabilities(
+        &config,
+        CapabilityPreflight::Stateful,
+        CompiledCapabilities {
+            backend: false,
+            coordination_branch: false,
+        },
+    )
+    .unwrap_err();
+
+    assert_feature_error(
+        error,
+        CompiledFeature::CoordinationBranch,
+        "changes.coordination_branch.storage=worktree",
+    );
 }
 
 fn assert_feature_error(error: CoreError, feature: CompiledFeature, requested_by: &str) {

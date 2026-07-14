@@ -9,7 +9,7 @@ description: Clarify, research, plan, scaffold, review, and integrate an Ito cha
 Own intake, feature/fix framing, brainstorming, pre-proposal planning, and proposal/spec/design/task scaffolding.
 
 1. Inspect relevant brownfield specs, code, history, and `.ito/wiki/index.md`. Ask one focused question at a time and use the least-sufficient discovery depth.
-2. Confirm the problem, success criteria, scope, exclusions, risks, simpler alternatives, and YAGNI trade-offs. Use `ito-research` when evidence or technology choices remain unresolved.
+2. Confirm the problem, success criteria, scope, exclusions, risks, simpler alternatives, and YAGNI trade-offs. Use `ito-research` when evidence or technology choices remain unresolved, then carry a concise research handoff into the proposal or design.
 3. Make module confirmation mandatory. Run `ito list --modules`, then wait for the user to choose an existing module, a new module, or a new sub-module. Never silently use module `000`.
 4. Keep durable exploration under `.ito/planning/`. `ito plan init` and `ito plan status` are direct workspace commands, not separate skills.
 5. Render `ito agent instruction schemas`, recommend the best-fit schema, and create the change only after module confirmation:

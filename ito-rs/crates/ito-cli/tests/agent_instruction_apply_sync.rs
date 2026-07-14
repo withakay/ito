@@ -42,12 +42,6 @@ fn apply_instruction_does_not_fetch_by_default_in_worktree_mode() {
     assert!(out.stdout.contains("## Apply: 000-01_test-change"));
     assert!(
         out.stdout
-            .contains("does **not** sync coordination state by default"),
-        "stdout={}",
-        out.stdout
-    );
-    assert!(
-        out.stdout
             .contains("These paths are relative to the execute-ready implementation checkout root"),
         "stdout={}",
         out.stdout

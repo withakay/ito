@@ -2,23 +2,23 @@
 ## ADDED Requirements
 
 ### Requirement: Cutover is gated by the preceding core-reset changes
-Ito's repository authority migration MUST NOT begin until changes `031-01` through `031-05` have each been approved, implemented, merged to `main`, strictly validated, and verified by their required test evidence. The cutover branch SHALL start from the resulting `main` commit.
+Ito's repository authority migration MUST NOT begin until changes `031-01` through `031-05` have each been approved, implemented, strictly validated, verified by their required test evidence, and integrated as ancestors of one reviewed main-bound cutover branch. The cutover branch SHALL start from `main` and merge all five dependency implementations before any authority mutation begins.
 - **Requirement ID**: ito-authority-cutover:dependency-gated-cutover
 - **Tags**: behavior, stateful
 
 #### Rules / Invariants
-- A proposal draft, task-complete marker, or unmerged implementation branch MUST NOT satisfy the dependency gate.
+- A proposal draft, task-complete marker, or implementation commit not integrated into the cutover branch MUST NOT satisfy the dependency gate.
 - The recorded readiness evidence MUST identify the integrated commit for every dependency.
 
 #### Scenario: All dependency changes are integrated
-- **GIVEN** changes `031-01` through `031-05` are approved and merged to `main`
-- **AND** strict validation and required checks pass for their integrated commits
+- **GIVEN** changes `031-01` through `031-05` are approved and their implementation commits are integrated into the main-bound cutover branch
+- **AND** strict validation and required checks pass for those integrated commits
 - **WHEN** the `031-06` implementation begins
-- **THEN** its branch is created from that verified `main` commit
+- **THEN** its authority mutation begins only after all five commits are ancestors of the branch created from `main`
 - **AND** the dependency evidence records all five integrated commits
 
 #### Scenario: A dependency is incomplete
-- **GIVEN** any change from `031-01` through `031-05` is unapproved, unmerged, invalid, or failing a required check
+- **GIVEN** any change from `031-01` through `031-05` is unapproved, not integrated into the cutover branch, invalid, or failing a required check
 - **WHEN** the cutover readiness gate is evaluated
 - **THEN** migration stops before snapshots, configuration changes, or filesystem replacement occur
 
@@ -45,7 +45,7 @@ Before replacing any managed link, the migration SHALL record the external coord
 - **AND** neither source nor destination content is deleted or overwritten
 
 ### Requirement: Tracked main state becomes the sole writable Ito authority
-The migration SHALL replace the managed coordination links with real tracked `.ito/{changes,specs,modules,workflows,audit}` directories whose inventories and file hashes match the approved source snapshot. Repository configuration MUST set coordination storage to embedded and disabled, MUST keep backend mode disabled, and MUST remove tmux configuration and managed tmux assets. After reviewed integration, `main` SHALL be the sole writable Ito authority.
+The migration SHALL replace the managed coordination links with real tracked `.ito/{changes,specs,modules,workflows,audit}` directories whose inventories and file hashes match the approved source snapshot, apart from documented repository sentinels required for Git to preserve an empty authority root. Repository configuration MUST set coordination storage to embedded and disabled, MUST keep backend mode disabled, and MUST remove tmux configuration and managed tmux assets. After reviewed integration, `main` SHALL be the sole writable Ito authority.
 - **Requirement ID**: ito-authority-cutover:tracked-main-authority
 - **Tags**: behavior, stateful
 
@@ -60,6 +60,7 @@ The migration SHALL replace the managed coordination links with real tracked `.i
 - **GIVEN** the external snapshot is complete and destination collision checks pass
 - **WHEN** the five managed paths are copied into real repository directories
 - **THEN** every copied relative path and content hash matches the snapshot
+- **AND** any extra tracked sentinel is empty, non-semantic, and documented as a Git representation exception
 - **AND** the directories are tracked rather than symlinked
 - **AND** the external source still matches its pre-migration hashes
 

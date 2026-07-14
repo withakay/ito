@@ -431,6 +431,16 @@ fn default_project_agents_mentions_lifecycle_and_artifact_guidance() {
     assert!(text.contains("integrated into main"));
     assert!(text.contains("ito patch change <id> proposal"));
     assert!(text.contains("ito write change <id> design"));
+    assert!(text.contains("standard Ito release does not compile backend runtime support"));
+
+    let project_agents = default_project_files()
+        .into_iter()
+        .find(|f| f.relative_path == "AGENTS.md")
+        .expect("expected project AGENTS.md in templates");
+    let project_agents =
+        std::str::from_utf8(project_agents.contents).expect("template should be UTF-8");
+    assert!(project_agents.contains("ito agent instruction migrate-to-main"));
+    assert!(!project_agents.contains("/ito-migrate-to-main"));
 }
 
 #[test]

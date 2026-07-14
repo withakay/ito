@@ -4,13 +4,14 @@
 page_type: topic
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-05-27
+last_reviewed: 2026-07-14
 source_refs:
-  - docs/ito/specs/cli-change/spec.md
-  - docs/ito/specs/cli-tasks/spec.md
-  - docs/ito/specs/cli-archive/spec.md
-  - docs/ito/specs/requirement-traceability/spec.md
-  - docs/ito/specs/archive-completion-validation/spec.md
+- .ito/specs/cli-change/spec.md
+- .ito/specs/cli-tasks/spec.md
+- .ito/specs/cli-archive/spec.md
+- .ito/specs/requirement-traceability/spec.md
+- .ito/specs/archive-completion-validation/spec.md
+- .ito/specs/main-first-implementation/spec.md
 known_gaps: []
 ```
 
@@ -21,10 +22,14 @@ requirements and scenarios.
 
 ## Lifecycle
 
-- Create or update a change under `docs/ito/changes/active/`.
+- Create or update a proposal package under `.ito/changes/<change-id>/`.
+- Review and integrate the proposal package into main before implementation;
+  use pull-request authority by default or explicitly configure direct merge.
+- Create implementation work from the captured main authority and require the
+  execute preflight before mutating tasks or running iterations.
 - Track work through `tasks.md`; complete tasks only after their verification
-  commands or review criteria are satisfied.
-- Promote accepted behavior into `docs/ito/specs/` during archive.
+commands or review criteria are satisfied.
+- Promote accepted behavior into `.ito/specs/` during archive.
 - Keep archive follow-through tied to specs, modules, research, demos, and
   workflow documentation rather than treating archive as file movement only.
 

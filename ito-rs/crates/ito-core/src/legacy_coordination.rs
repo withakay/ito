@@ -345,9 +345,18 @@ fn classify(
         })
         .collect::<std::collections::BTreeSet<_>>();
     let has_inconsistent_link_roots = link_roots.len() > 1;
-    let has_non_empty_directory = managed_paths
-        .iter()
-        .any(|evidence| matches!(evidence.kind, ManagedPathKind::Directory { empty: false }));
+    let has_authority_link = managed_paths.iter().any(|evidence| {
+        matches!(evidence.name.as_str(), "changes" | "specs")
+            && matches!(evidence.kind, ManagedPathKind::Link { .. })
+    });
+    let has_non_empty_authority_directory = managed_paths.iter().any(|evidence| {
+        matches!(evidence.name.as_str(), "changes" | "specs")
+            && matches!(evidence.kind, ManagedPathKind::Directory { empty: false })
+    });
+    let has_non_empty_runtime_directory = managed_paths.iter().any(|evidence| {
+        matches!(evidence.name.as_str(), "modules" | "workflows" | "audit")
+            && matches!(evidence.kind, ManagedPathKind::Directory { empty: false })
+    });
     let has_real_directory = managed_paths
         .iter()
         .any(|evidence| matches!(evidence.kind, ManagedPathKind::Directory { .. }));
@@ -370,7 +379,8 @@ fn classify(
         || partial_gitignore_marker
         || standalone_gitignore_marker
         || worktree_config_with_materialized_paths
-        || (has_link && has_non_empty_directory)
+        || (has_authority_link && has_non_empty_authority_directory)
+        || (has_link && has_non_empty_runtime_directory)
         || (configured_main && (has_link || has_gitignore_entries))
         || (gitignore.marker_present && !has_link && has_real_directory);
 

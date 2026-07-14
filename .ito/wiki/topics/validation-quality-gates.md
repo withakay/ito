@@ -4,13 +4,13 @@
 page_type: topic
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-05-27
+last_reviewed: 2026-07-14
 source_refs:
-  - docs/ito/specs/cli-validate/spec.md
-  - docs/ito/specs/validate-repo-cli-surface/spec.md
-  - docs/ito/specs/repo-precommit-quality-gates/spec.md
-  - docs/ito/specs/rust-documentation-standards/spec.md
-  - docs/ito/specs/rust-foundations/spec.md
+- .ito/specs/cli-validate/spec.md
+- .ito/specs/validate-repo-cli-surface/spec.md
+- .ito/specs/repo-precommit-quality-gates/spec.md
+- .ito/specs/rust-documentation-standards/spec.md
+- .ito/specs/rust-foundations/spec.md
 known_gaps: []
 ```
 
@@ -21,9 +21,11 @@ markdown checks, docs checks, coverage, and architecture boundaries.
 
 - `ito validate <change-id> --strict` for change package integrity.
 - Focused Rust tests for touched behavior before repo-wide checks.
-- `make test` for the workspace test suite.
-- `make check` for pre-push hooks: markdownlint, fmt, clippy, rustdoc,
-  coverage, affected tests, max-lines, architecture guardrails, and cargo-deny.
+- `make test` for the shipping default package graph.
+- `make check` for the shipping pre-push lane: markdownlint, fmt, clippy,
+  rustdoc, coverage, affected tests, max-lines, architecture guardrails, and
+  cargo-deny.
+- `make check-experimental` for the independent all-features lane.
 
 ## Current Expectations
 

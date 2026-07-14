@@ -1,5 +1,5 @@
 [Codemap: Ito Workspace]
-|purpose: Rust workspace for change-driven development (proposals, specs, tasks, validation, worktrees, orchestration, backend sync, templates, web/backend adapters)
+|purpose: Rust workspace for spec-driven design (reviewed proposals, specs, tasks, validation, implementation iteration, templates, and adapters)
 |IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any Ito architecture tasks
 
 [Entry Points]
@@ -19,10 +19,11 @@
 [Directories]|root: ./
 |ito-rs/: Rust workspace → ito-rs/codemap.md
 |ito-rs/crates/: crate index → ito-rs/crates/codemap.md
-|.ito/: workflow specs, changes, modules, prompts, project config → Ito instructions
+|.ito/: tracked authority for workflow specs, changes, modules, prompts, project config, wiki, and audit evidence → Ito instructions
 
 [Gotchas]
 |main/control checkout is read-only; use dedicated worktree for all edits
+|docs/ito is retired; do not recreate a published Ito mirror outside tracked .ito authority
 |.ito/ .opencode/ .github/ .codex/ are Ito-managed; may be overwritten by ito init/update
 |codemap.md = orientation only; verify behavior in source before editing
 |refresh codemap.json after codemap updates so agents detect drift

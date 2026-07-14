@@ -43,7 +43,7 @@
     {
       "importance": 50,
       "path": "development/ito_workflow/context.md",
-      "tokens": 136,
+      "tokens": 229,
       "type": "context"
     },
     {
@@ -101,14 +101,6 @@
       "type": "context"
     },
     {
-      "abstractPath": "development/ito_workflow/published_ito_mirror.abstract.md",
-      "abstractTokens": 50,
-      "importance": 50,
-      "path": "development/ito_workflow/published_ito_mirror.md",
-      "tokens": 50,
-      "type": "context"
-    },
-    {
       "abstractPath": "development/ito_workflow/worktree_validation_flow.abstract.md",
       "abstractTokens": 48,
       "importance": 50,
@@ -127,7 +119,7 @@
     {
       "importance": 50,
       "path": "development/release_workflow/context.md",
-      "tokens": 140,
+      "tokens": 126,
       "type": "context"
     },
     {
@@ -171,13 +163,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-07-14T00:57:11.998Z",
+  "generated_at": "2026-07-14T01:30:59.889Z",
   "lane_tokens": {
-    "contexts": 3254,
+    "contexts": 3829,
     "stubs": 0,
     "summaries": 1910
   },
-  "source_fingerprint": "97d0469084cff7770b59ccd30570584c648a64650281fe1068013f380312a972",
-  "total_tokens": 5164,
+  "source_fingerprint": "010efc4778a639121ea7192d04c4bc7c4fcf76326fbb499017b97d4e9bdade77",
+  "total_tokens": 5739,
   "version": 1
 }

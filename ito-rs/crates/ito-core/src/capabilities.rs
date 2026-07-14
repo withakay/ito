@@ -24,7 +24,10 @@ impl CompiledFeature {
         }
     }
 
-    /// Whether this implementation is present in the current binary.
+    /// Whether this implementation is present in the current `ito-core` build.
+    ///
+    /// This observes dependency-crate features. Executables should report
+    /// their local feature boundary with [`CompiledCapabilities`] instead.
     pub const fn is_compiled(self) -> bool {
         match self {
             Self::Backend => cfg!(feature = "backend"),
@@ -39,7 +42,7 @@ impl fmt::Display for CompiledFeature {
     }
 }
 
-/// Capabilities compiled into the current `ito-core` build.
+/// A caller-reported set of compiled capabilities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompiledCapabilities {
     /// Whether backend integration is compiled in.
@@ -49,7 +52,7 @@ pub struct CompiledCapabilities {
 }
 
 impl CompiledCapabilities {
-    /// Report the features compiled into this binary.
+    /// Report the features compiled into the current `ito-core` build.
     pub const fn current() -> Self {
         Self {
             backend: cfg!(feature = "backend"),
@@ -81,11 +84,25 @@ pub enum CapabilityPreflight {
 /// coordination initialization. Recovery callers deliberately bypass the gate so
 /// they can explain or migrate legacy configuration without mutating through it.
 pub fn preflight_config(config: &ItoConfig, mode: CapabilityPreflight) -> CoreResult<()> {
+    preflight_config_with_capabilities(config, mode, CompiledCapabilities::current())
+}
+
+/// Reject configuration against the capabilities reported by the executable.
+///
+/// Cargo unifies dependency features across a workspace build. Executable
+/// crates should pass their own feature set here so another workspace member
+/// cannot accidentally make an experimental dependency appear available in a
+/// shipping binary.
+pub fn preflight_config_with_capabilities(
+    config: &ItoConfig,
+    mode: CapabilityPreflight,
+    capabilities: CompiledCapabilities,
+) -> CoreResult<()> {
     if mode == CapabilityPreflight::Recovery {
         return Ok(());
     }
 
-    if config.backend.enabled && !CompiledFeature::Backend.is_compiled() {
+    if config.backend.enabled && !capabilities.contains(CompiledFeature::Backend) {
         return Err(CoreError::feature_unavailable(
             CompiledFeature::Backend,
             "backend.enabled",
@@ -95,7 +112,7 @@ pub fn preflight_config(config: &ItoConfig, mode: CapabilityPreflight) -> CoreRe
 
     let coordination = &config.changes.coordination_branch;
     if (coordination.enabled.0 || coordination.storage == CoordinationStorage::Worktree)
-        && !CompiledFeature::CoordinationBranch.is_compiled()
+        && !capabilities.contains(CompiledFeature::CoordinationBranch)
     {
         let requested_by = if coordination.enabled.0 {
             "changes.coordination_branch.enabled"

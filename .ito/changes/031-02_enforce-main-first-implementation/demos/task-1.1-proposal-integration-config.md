@@ -49,5 +49,15 @@ Ito expects a proposal to be reviewed and integrated into the configured target 
 
 There is no fallback from a missing pull-request authority to local `main`. Repositories that deliberately integrate proposals without a remote pull-request workflow must select `direct_merge`.
 
+The lifecycle is the same in both modes:
+
+1. Author and strictly validate a proposal-only package.
+2. Review and integrate that package into the configured target branch.
+3. Run `ito change preflight <change-id> --for prepare --refresh`.
+4. Create/reuse the implementation checkout with `ito worktree ensure --change <change-id>`.
+5. Run implementation commands only after `ito change preflight <change-id> --for execute` passes.
+
+`prepare` reads required artifacts directly from one captured authority commit. `execute` additionally proves that the selected change worktree contains the proposal integration commit and belongs to the full change ID. Local copies, coordination links, and backend state cannot satisfy either gate.
+
 ### Worktrees
 ````

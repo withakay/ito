@@ -23,9 +23,7 @@ The `worktrees` object SHALL support:
 - `apply.setup_commands` (array of strings): Ordered shell commands to run in the change worktree before implementation starts.
 - `default_branch` (string): Branch used when creating/reusing the base worktree.
 
-The system SHALL also support a `tools` namespace for per-tool preferences. Currently supported:
-
-- `tools.tmux.enabled` (boolean, default `true`): Whether the user's environment uses tmux. When `false`, Ito suppresses all tmux-specific suggestions across workflows and commands.
+The system MUST NOT expose a tmux-specific workflow preference or retain the former tmux-only `tools` namespace.
 
 #### Scenario: Default branch selection
 
@@ -113,8 +111,10 @@ The system SHALL also support a `tools` namespace for per-tool preferences. Curr
 - **THEN** the new key value takes precedence
 - **AND** the legacy key value is ignored
 
-#### Scenario: tools.tmux.enabled defaults to true when absent
+#### Scenario: Removed tmux key is ignored as legacy input
 
-- **WHEN** `tools.tmux.enabled` is absent from all config sources
-- **THEN** the system treats it as `true`
+- **WHEN** a config file still contains the removed tmux preference
+- **THEN** Ito warns that the key was removed and has no effect
+- **AND** no runtime behavior is enabled or suppressed by that value
+- **AND** loading the configuration does not silently rewrite the user's source file
 <!-- ITO:END -->

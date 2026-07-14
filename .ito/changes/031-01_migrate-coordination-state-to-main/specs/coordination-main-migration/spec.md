@@ -8,7 +8,7 @@ Ito SHALL classify a repository as using legacy coordination storage when resolv
 
 #### Rules / Invariants
 - A broken symlink MUST still be inspected through symlink metadata.
-- An ambiguous mixture of non-empty real directories and coordination links MUST NOT be treated as safely migrated.
+- A mixture of legacy authority links with materialized authoritative directories, or of runtime links with non-empty runtime directories, MUST NOT be treated as safely migrated. The explicit experimental layout with real tracked `changes`/`specs` and coordinated `modules`/`workflows`/`audit` is not ambiguous when its targets and marker are consistent.
 - Detection MUST NOT mutate repository or coordination state.
 
 #### Scenario: Configured worktree storage is detected
