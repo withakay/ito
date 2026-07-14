@@ -75,8 +75,8 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
-cd "$CHANGE_DIR"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") && \
+cd "$CHANGE_DIR" && \
 ito change preflight "<full-change-id>" --for execute
 ```
 {% elif worktree.strategy == "checkout_siblings" %}
@@ -91,8 +91,8 @@ Worktree root: `{{ worktree.worktree_root }}`
 {% endif %}
 
 ```bash
-CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
-cd "$CHANGE_DIR"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") && \
+cd "$CHANGE_DIR" && \
 ito change preflight "<full-change-id>" --for execute
 ```
 {% elif worktree.strategy == "bare_control_siblings" %}
@@ -109,8 +109,8 @@ Worktree root: `{{ worktree.worktree_root }}`
 Let Ito invoke Worktrunk from the control layout using the captured authority OID rather than the bare placeholder `HEAD`.
 
 ```bash
-CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
-cd "$CHANGE_DIR"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") && \
+cd "$CHANGE_DIR" && \
 ito change preflight "<full-change-id>" --for execute
 ```
 {% endif %}

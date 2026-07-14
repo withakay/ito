@@ -19,8 +19,8 @@ Apply only a reviewed proposal that satisfies the repository's main-first policy
 3. Keep the main/control checkout read-only. Create or reuse one dedicated full-ID worktree from main, protect locked worktrees, and never reuse one worktree for two changes. Then verify execution readiness:
 
    ```bash
-   CHANGE_DIR=$(ito worktree ensure --change "<change-id>") || exit 1
-   cd "$CHANGE_DIR"
+   CHANGE_DIR=$(ito worktree ensure --change "<change-id>") && \
+   cd "$CHANGE_DIR" && \
    ito change preflight "<change-id>" --for execute
    ```
 

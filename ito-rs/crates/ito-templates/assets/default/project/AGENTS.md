@@ -83,8 +83,8 @@ This project uses a custom worktree strategy. Use the configured values above.
 Create or reuse the implementation worktree only through the guarded lifecycle:
 
 ```bash
-CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") || exit 1
-cd "$CHANGE_DIR"
+CHANGE_DIR=$(ito worktree ensure --change "<full-change-id>") && \
+cd "$CHANGE_DIR" && \
 ito change preflight "<full-change-id>" --for execute
 ```
 
