@@ -6,6 +6,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+SHIPPING_PACKAGES=(
+    -p ito-common
+    -p ito-config
+    -p ito-core
+    -p ito-domain
+    -p ito-logging
+    -p ito-templates
+    -p ito-web
+)
+
 run_case() {
     local name="$1"
     shift
@@ -20,7 +30,7 @@ run_case() {
         -D clippy::unimplemented
 }
 
-run_case default
+run_case default "${SHIPPING_PACKAGES[@]}"
 run_case backend-only --no-default-features --features backend
 run_case coordination-only --no-default-features --features coordination-branch
 run_case all-features --all-features

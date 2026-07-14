@@ -1380,7 +1380,7 @@
           "type": "array"
         }
       ],
-      "description": "Setup command(s) — a single string or an ordered list of strings"
+      "description": "Setup command(s) \u2014 a single string or an ordered list of strings"
     },
     "WorktreeStrategy": {
       "description": "Supported worktree workspace topology strategies",

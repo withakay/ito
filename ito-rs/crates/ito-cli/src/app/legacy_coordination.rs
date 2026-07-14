@@ -101,10 +101,9 @@ pub(crate) fn command_intent(command: &Commands) -> CommandIntent {
         Commands::Backend(args) => match &args.action {
             BackendAction::Status { .. }
             | BackendAction::GenerateToken { .. }
+            | BackendAction::Serve(_)
             | BackendAction::Import { dry_run: true } => CommandIntent::ReadOnly,
-            BackendAction::Serve(_) | BackendAction::Import { dry_run: false } => {
-                CommandIntent::Mutating
-            }
+            BackendAction::Import { dry_run: false } => CommandIntent::Mutating,
         },
         Commands::ServeApiRemoved(_) => CommandIntent::ReadOnly,
         Commands::Create(_)

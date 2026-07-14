@@ -65,7 +65,8 @@ fn empty_registry_has_no_rules() {
 #[test]
 fn built_in_registry_contains_every_built_in_rule() {
     let registry = RuleRegistry::built_in();
-    // Thirteen rules ship after changes 011-05 + 011-06:
+    // Eight ordinary diagnostics ship in every build. Five coordination
+    // diagnostics join them only when the experimental feature is compiled.
     // - 011-05: coordination/{symlinks-wired,gitignore-entries,
     //   staged-symlinked-paths,branch-name-set} + worktrees/{
     //   no-write-on-control,layout-consistent} = 6.
@@ -75,22 +76,35 @@ fn built_in_registry_contains_every_built_in_rule() {
     //   backend/{token-not-committed,url-scheme-valid,
     //   project-org-repo-set} = 7.
     let ids: Vec<_> = registry.iter().map(|r| r.id().as_str()).collect();
-    assert_eq!(ids.len(), 13, "expected 13 built-in rules, got {ids:?}");
-    for expected in [
-        "audit/mirror-branch-distinct-from-coordination",
+    let expected = vec![
         "audit/mirror-branch-set",
         "backend/project-org-repo-set",
         "backend/token-not-committed",
         "backend/url-scheme-valid",
-        "coordination/branch-name-set",
-        "coordination/gitignore-entries",
-        "coordination/staged-symlinked-paths",
-        "coordination/symlinks-wired",
         "repository/sqlite-db-not-committed",
         "repository/sqlite-db-path-set",
         "worktrees/layout-consistent",
         "worktrees/no-write-on-control",
-    ] {
+    ];
+    #[cfg(feature = "coordination-branch")]
+    let expected = {
+        let mut expected = expected;
+        expected.extend([
+            "audit/mirror-branch-distinct-from-coordination",
+            "coordination/branch-name-set",
+            "coordination/gitignore-entries",
+            "coordination/staged-symlinked-paths",
+            "coordination/symlinks-wired",
+        ]);
+        expected
+    };
+
+    assert_eq!(
+        ids.len(),
+        expected.len(),
+        "unexpected built-in rules: {ids:?}"
+    );
+    for expected in expected {
         assert!(
             ids.contains(&expected),
             "built-in registry missing `{expected}`; have: {ids:?}",
@@ -168,6 +182,7 @@ fn list_active_rules_for_surfaces_gate_metadata() {
 /// `active = true` for it. Rules not listed are expected to be
 /// inactive. This test catches accidental gate changes by enforcing
 /// the entire matrix at once rather than one rule at a time.
+#[cfg(feature = "coordination-branch")]
 #[test]
 fn list_active_rules_matrix_matches_specification() {
     use ito_config::types::{

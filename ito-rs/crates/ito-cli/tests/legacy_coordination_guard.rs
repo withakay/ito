@@ -156,6 +156,34 @@ fn legacy_mutation_is_blocked_before_any_state_change() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
+fn legacy_config_init_and_update_mutations_are_blocked() {
+    let cases: &[&[&str]] = &[
+        &["config", "schema", "--output", ".ito/changes/schema.json"],
+        &["init", ".", "--tools", "none", "--update"],
+        &["update", "."],
+    ];
+
+    for args in cases {
+        let fixture = LegacyFixture::linked();
+        let before = fixture.snapshot();
+        let git_before = fixture.git_state();
+        let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+        let out = run_rust_candidate(rust_path, args, &fixture.project, &fixture.home);
+
+        assert_ne!(out.code, 0, "args={args:?}");
+        assert!(
+            out.stderr.contains("mutating command blocked"),
+            "args={args:?} stderr={}",
+            out.stderr
+        );
+        assert_eq!(fixture.snapshot(), before, "args={args:?}");
+        assert_eq!(fixture.git_state(), git_before, "args={args:?}");
+    }
+}
+
+#[test]
 fn ambiguous_legacy_state_also_fails_closed() {
     let fixture = LegacyFixture::ambiguous();
     let before = fixture.snapshot();
@@ -174,6 +202,72 @@ fn ambiguous_legacy_state_also_fails_closed() {
     assert!(out.stderr.contains("mutating command blocked"));
     assert_eq!(fixture.snapshot(), before);
     assert_eq!(fixture.git_state(), git_before);
+}
+
+#[test]
+#[cfg(all(feature = "backend", not(feature = "coordination-branch")))]
+fn legacy_backend_grep_does_not_materialize_remote_cache() {
+    let fixture = LegacyFixture::linked();
+    let changes = std::fs::read_link(fixture.project.join(".ito/changes"))
+        .expect("coordination changes link");
+    fixtures::write(
+        changes.join("000-01_probe/proposal.md"),
+        "# Proposal\n\nneedle\n",
+    );
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("probe listener");
+    listener.set_nonblocking(true).expect("nonblocking probe");
+    let address = listener.local_addr().expect("probe address");
+    let (connected_tx, connected_rx) = std::sync::mpsc::channel();
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while std::time::Instant::now() < deadline {
+            if stop_rx.try_recv().is_ok() {
+                return;
+            }
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    use std::io::Write;
+                    let _ = connected_tx.send(());
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                    return;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("probe accept failed: {error}"),
+            }
+        }
+    });
+    fixture.update_config(|config| {
+        config["backend"] = serde_json::json!({
+            "enabled": true,
+            "url": format!("http://{address}"),
+            "project": { "org": "acme", "repo": "widgets" }
+        });
+    });
+    let before = fixture.snapshot();
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["grep", "000-01_probe", "needle"],
+        &fixture.project,
+        &fixture.home,
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stderr.contains("read-only command allowed"));
+    let _ = stop_tx.send(());
+    server.join().expect("probe server");
+    assert!(
+        connected_rx.try_recv().is_err(),
+        "suppressed grep contacted the backend"
+    );
+    assert_eq!(fixture.snapshot(), before);
 }
 
 #[test]

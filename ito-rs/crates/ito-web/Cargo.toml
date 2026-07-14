@@ -28,5 +28,10 @@ gethostname = "0.5"
 ito-templates = { workspace = true }
 ito-core = { workspace = true, default-features = false }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+tower = { version = "0.5", features = ["util"] }
+
 [package.metadata.dist]
 dist = false

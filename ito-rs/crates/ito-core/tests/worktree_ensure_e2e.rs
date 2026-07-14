@@ -32,6 +32,7 @@ fn run_git(cwd: &Path, args: &[&str]) {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn ensure_worktree_creates_and_initializes_with_include_files() {
     use ito_config::types::{
         CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
@@ -110,7 +111,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(all(unix, feature = "coordination-branch"))]
 fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     use ito_config::types::{
         CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,

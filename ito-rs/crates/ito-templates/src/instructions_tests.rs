@@ -119,6 +119,19 @@ fn render_instruction_template_returns_not_found_for_missing_template() {
 }
 
 #[test]
+fn backend_guide_requires_an_experimental_build() {
+    let guide = get_instruction_template("agent/backend.md.j2").expect("backend guide");
+    assert_contains_all(
+        guide,
+        &[
+            "Experimental build required",
+            "standard Ito release does not compile the",
+            "experimental `backend` feature",
+        ],
+    );
+}
+
+#[test]
 fn artifact_template_renders_when_instruction_is_empty() {
     #[derive(Serialize)]
     struct Instructions {

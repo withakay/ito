@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Tests for `ito_core::backend_auth` — token resolution, config persistence,
 //! and `--init` orchestration.
 

@@ -129,6 +129,10 @@ fn materialize_backend_cache(
     use ito_core::backend_client::resolve_backend_runtime;
     use ito_core::backend_coordination::sync_pull;
 
+    if rt.command_side_effects_suppressed() {
+        return Ok(());
+    }
+
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let merged = load_cascading_project_config(project_root, ito_path, rt.ctx()).merged;

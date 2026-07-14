@@ -57,6 +57,14 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
     #[cfg(not(feature = "coordination-branch"))]
     let _ = no_coordination_worktree;
+    #[cfg(not(feature = "coordination-branch"))]
+    if setup_coordination_branch {
+        return Err(CliError::feature_unavailable(
+            "coordination-branch",
+            "ito init --setup-coordination-branch",
+            "omit --setup-coordination-branch, or install an experimental build with the coordination-branch feature",
+        ));
+    }
     let no_tmux = args.iter().any(|a| a == "--no-tmux");
     let tools_arg = parse_string_flag(args, "--tools");
     let worktree_overrides = parse_worktree_overrides(args)?;
@@ -256,15 +264,6 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
 
     if should_persist_worktree {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
-    }
-
-    #[cfg(not(feature = "coordination-branch"))]
-    if setup_coordination_branch {
-        return Err(CliError::feature_unavailable(
-            "coordination-branch",
-            "ito init --setup-coordination-branch",
-            "omit --setup-coordination-branch, or install an experimental build with the coordination-branch feature",
-        ));
     }
 
     #[cfg(feature = "coordination-branch")]

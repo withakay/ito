@@ -39,6 +39,7 @@ fn run_repo_validation_skips_inactive_rules() {
     assert!(report.issues.is_empty());
 }
 
+#[cfg(feature = "coordination-branch")]
 #[test]
 fn run_repo_validation_strict_promotes_warnings_to_errors() {
     // Branch name does not start with `ito/internal/` → branch-name-set

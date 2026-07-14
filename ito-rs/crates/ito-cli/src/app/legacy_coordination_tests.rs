@@ -33,6 +33,7 @@ fn command_intent_keeps_diagnostic_and_artifact_reads_read_only() {
         &["ito", "worktree", "validate", "--change", "031-01_example"][..],
         &["ito", "audit", "log"][..],
         &["ito", "audit", "reconcile"][..],
+        &["ito", "backend", "serve"][..],
         &["ito", "util", "parse-id", "031-01_example"][..],
         &["ito", "help"][..],
     ] {

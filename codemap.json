@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "3.0.0",
-    "last_run": "2026-07-13T23:41:54.815Z",
+    "last_run": "2026-07-14T00:55:55.231Z",
     "root": "/Users/jack/Code/withakay/ito/ito-worktrees/031-03_gate-experimental-backend-coordination",
     "include_patterns": [
       "Cargo.toml",
@@ -24,9 +24,9 @@
     },
     "Makefile": {
       "path": "Makefile",
-      "size": 19333,
-      "mtimeMs": 1783983502536,
-      "hash": "65288e324695a3748fc7daa90e1daf518f3e8f66"
+      "size": 21161,
+      "mtimeMs": 1783990309909,
+      "hash": "b047fc406583b6896c097fafb42e87fea1b7da94"
     },
     "ito-rs/crates/ito-backend/Cargo.toml": {
       "path": "ito-rs/crates/ito-backend/Cargo.toml",
@@ -126,15 +126,15 @@
     },
     "ito-rs/crates/ito-cli/src/app/grep.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/grep.rs",
-      "size": 7056,
-      "mtimeMs": 1783981056345,
-      "hash": "1abb4d27455a419e2e1431b40fc46a8afc4101f3"
+      "size": 7132,
+      "mtimeMs": 1783987506405,
+      "hash": "6c22f226a77241a69088023a8445120c22416fbd"
     },
     "ito-rs/crates/ito-cli/src/app/init.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/init.rs",
-      "size": 36386,
-      "mtimeMs": 1783985658796,
-      "hash": "d3bd7d738ca04f48496d14fa4885ae1eb8e3ced6"
+      "size": 36385,
+      "mtimeMs": 1783987506405,
+      "hash": "703a396669185bacc9ed7cb0dda94077b49b4ed7"
     },
     "ito-rs/crates/ito-cli/src/app/instructions.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/instructions.rs",
@@ -150,15 +150,15 @@
     },
     "ito-rs/crates/ito-cli/src/app/legacy_coordination.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/legacy_coordination.rs",
-      "size": 7766,
-      "mtimeMs": 1783985566176,
-      "hash": "6aefb6d90443f89db99022d8c1012b2a97c977a5"
+      "size": 7747,
+      "mtimeMs": 1783989181470,
+      "hash": "f95d8e49cd65b4ccf84122817a83d67e75b1c190"
     },
     "ito-rs/crates/ito-cli/src/app/legacy_coordination_tests.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/legacy_coordination_tests.rs",
-      "size": 2619,
-      "mtimeMs": 1783982054793,
-      "hash": "17e686f6369ff4162fe8672bd3a63e25440cdb16"
+      "size": 2661,
+      "mtimeMs": 1783989181471,
+      "hash": "10e8c338bbc2eaed94e77feb3b9406f24f229143"
     },
     "ito-rs/crates/ito-cli/src/app/list.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/list.rs",
@@ -198,9 +198,9 @@
     },
     "ito-rs/crates/ito-cli/src/app/run.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/run.rs",
-      "size": 16994,
-      "mtimeMs": 1783985002605,
-      "hash": "d192a49160201c7a74e8d9243a6f30b85f5914b0"
+      "size": 19671,
+      "mtimeMs": 1783987630320,
+      "hash": "0be593cdbf3bdea82ddcc05716d72981fcc9648d"
     },
     "ito-rs/crates/ito-cli/src/app/run_tests.rs": {
       "path": "ito-rs/crates/ito-cli/src/app/run_tests.rs",
@@ -264,15 +264,15 @@
     },
     "ito-rs/crates/ito-cli/src/cli.rs": {
       "path": "ito-rs/crates/ito-cli/src/cli.rs",
-      "size": 34611,
-      "mtimeMs": 1783982035066,
-      "hash": "c5693bdf2a534b4435c9cc6d0def43d3ca943953"
+      "size": 35006,
+      "mtimeMs": 1783987468062,
+      "hash": "2f173aac267dbd86701c73c5f6dc3720fcdb5605"
     },
     "ito-rs/crates/ito-cli/src/cli/agent.rs": {
       "path": "ito-rs/crates/ito-cli/src/cli/agent.rs",
-      "size": 8242,
-      "mtimeMs": 1783982054793,
-      "hash": "ec86685d8c17860645f7b6e7d827d929ff205703"
+      "size": 10036,
+      "mtimeMs": 1783987536691,
+      "hash": "980d679dd5ff7132bf50bf1e35ab337b4024d50d"
     },
     "ito-rs/crates/ito-cli/src/cli/artifact.rs": {
       "path": "ito-rs/crates/ito-cli/src/cli/artifact.rs",
@@ -294,9 +294,9 @@
     },
     "ito-rs/crates/ito-cli/src/cli/init_update.rs": {
       "path": "ito-rs/crates/ito-cli/src/cli/init_update.rs",
-      "size": 3001,
-      "mtimeMs": 1783942795088,
-      "hash": "6038ba48ece5205000db25237b96829e31ad2e21"
+      "size": 3145,
+      "mtimeMs": 1783987468063,
+      "hash": "ed8e64d901b6a9d07efe6c821497051e61aaa2e9"
     },
     "ito-rs/crates/ito-cli/src/cli/path.rs": {
       "path": "ito-rs/crates/ito-cli/src/cli/path.rs",
@@ -834,9 +834,9 @@
     },
     "ito-rs/crates/ito-core/Cargo.toml": {
       "path": "ito-rs/crates/ito-core/Cargo.toml",
-      "size": 1363,
-      "mtimeMs": 1783980414453,
-      "hash": "c0fd361f6106693a27492f509c18fec40479e4ab"
+      "size": 1467,
+      "mtimeMs": 1783987340625,
+      "hash": "0923724e526d381da273b1de5f05c2c5a7ce3d31"
     },
     "ito-rs/crates/ito-core/src/archive.rs": {
       "path": "ito-rs/crates/ito-core/src/archive.rs",
@@ -1392,15 +1392,15 @@
     },
     "ito-rs/crates/ito-core/src/legacy_coordination.rs": {
       "path": "ito-rs/crates/ito-core/src/legacy_coordination.rs",
-      "size": 14040,
-      "mtimeMs": 1783983607149,
-      "hash": "d7f485aa4ee3f2be70c1ff701c4187e5f60c023f"
+      "size": 14192,
+      "mtimeMs": 1783987340626,
+      "hash": "3071c1a5eb9735bfc2ad237d75c1bf8097b70b41"
     },
     "ito-rs/crates/ito-core/src/legacy_coordination_tests.rs": {
       "path": "ito-rs/crates/ito-core/src/legacy_coordination_tests.rs",
-      "size": 10331,
-      "mtimeMs": 1783983628098,
-      "hash": "f905364430a009b7e8f87d809c74a5dd773b4e80"
+      "size": 11787,
+      "mtimeMs": 1783987340627,
+      "hash": "391b6553fa8d0f83aaade119a06e39aeaae31252"
     },
     "ito-rs/crates/ito-core/src/lib.rs": {
       "path": "ito-rs/crates/ito-core/src/lib.rs",
@@ -1758,9 +1758,15 @@
     },
     "ito-rs/crates/ito-core/src/time.rs": {
       "path": "ito-rs/crates/ito-core/src/time.rs",
-      "size": 477,
-      "mtimeMs": 1783942795123,
-      "hash": "eae901a50742ba82189d9b019b01179d8dcb6586"
+      "size": 533,
+      "mtimeMs": 1783989656981,
+      "hash": "0c00ce829283b7affd60e246b1a3225fc86e03fd"
+    },
+    "ito-rs/crates/ito-core/src/time_tests.rs": {
+      "path": "ito-rs/crates/ito-core/src/time_tests.rs",
+      "size": 374,
+      "mtimeMs": 1783989656981,
+      "hash": "0d98395e6a09e36f2bd24c033ff8efac940c0c14"
     },
     "ito-rs/crates/ito-core/src/token.rs": {
       "path": "ito-rs/crates/ito-core/src/token.rs",
@@ -1908,9 +1914,9 @@
     },
     "ito-rs/crates/ito-core/src/validate_repo/registry_tests.rs": {
       "path": "ito-rs/crates/ito-core/src/validate_repo/registry_tests.rs",
-      "size": 13129,
-      "mtimeMs": 1783942795125,
-      "hash": "63afb967e982847c44a4304d6a257d2ba570962a"
+      "size": 13516,
+      "mtimeMs": 1783988174415,
+      "hash": "3750087a71a7b9aecd31e10a9710a27a3ddd8b0e"
     },
     "ito-rs/crates/ito-core/src/validate_repo/repository_rules.rs": {
       "path": "ito-rs/crates/ito-core/src/validate_repo/repository_rules.rs",
@@ -1950,9 +1956,9 @@
     },
     "ito-rs/crates/ito-core/src/validate_repo/validate_repo_tests.rs": {
       "path": "ito-rs/crates/ito-core/src/validate_repo/validate_repo_tests.rs",
-      "size": 2241,
-      "mtimeMs": 1783942795126,
-      "hash": "fc7b53b5b706534c9eff4676f3680d1d8d3e2e59"
+      "size": 2281,
+      "mtimeMs": 1783988155307,
+      "hash": "a31bf514f768bf5ba325a212ef28fe1a965c6d73"
     },
     "ito-rs/crates/ito-core/src/validate_repo/worktrees_rules.rs": {
       "path": "ito-rs/crates/ito-core/src/validate_repo/worktrees_rules.rs",
@@ -2412,9 +2418,9 @@
     },
     "ito-rs/crates/ito-templates/src/instructions_tests.rs": {
       "path": "ito-rs/crates/ito-templates/src/instructions_tests.rs",
-      "size": 41052,
-      "mtimeMs": 1783984161701,
-      "hash": "40baa345fbbfbf53cbd1fd3357ddac26952e6d09"
+      "size": 41419,
+      "mtimeMs": 1783987584913,
+      "hash": "589ced3302d8cd38ef2200e25ff92cccbf8e98d5"
     },
     "ito-rs/crates/ito-templates/src/legacy.rs": {
       "path": "ito-rs/crates/ito-templates/src/legacy.rs",
@@ -2508,27 +2514,45 @@
     },
     "ito-rs/crates/ito-web/Cargo.toml": {
       "path": "ito-rs/crates/ito-web/Cargo.toml",
-      "size": 869,
-      "mtimeMs": 1783980414453,
-      "hash": "19fbc903fc68a59b07b5ead720d78e06591473c4"
+      "size": 1063,
+      "mtimeMs": 1783988703834,
+      "hash": "5a01164a6739f37da42e92a5a7f3bdff2aa9d814"
     },
     "ito-rs/crates/ito-web/src/api.rs": {
       "path": "ito-rs/crates/ito-web/src/api.rs",
-      "size": 11393,
-      "mtimeMs": 1783942795175,
-      "hash": "eb5db022ad56d3084d0b4b2fe80145cba81d3ace"
+      "size": 11447,
+      "mtimeMs": 1783988685949,
+      "hash": "b2376539501a9ce1503d649c2e7d78c4adfbfbdb"
+    },
+    "ito-rs/crates/ito-web/src/api_tests.rs": {
+      "path": "ito-rs/crates/ito-web/src/api_tests.rs",
+      "size": 5891,
+      "mtimeMs": 1783988709008,
+      "hash": "f9e81cd9bf842fe0a5ccb6a47f1b217784eca23a"
     },
     "ito-rs/crates/ito-web/src/auth.rs": {
       "path": "ito-rs/crates/ito-web/src/auth.rs",
-      "size": 5003,
-      "mtimeMs": 1783942795175,
-      "hash": "9e02e10f9be2199d8898a07addf377bc9b271145"
+      "size": 5059,
+      "mtimeMs": 1783988690639,
+      "hash": "a24573a12195e9fe149b278fb76854954c84bb38"
+    },
+    "ito-rs/crates/ito-web/src/auth_tests.rs": {
+      "path": "ito-rs/crates/ito-web/src/auth_tests.rs",
+      "size": 3704,
+      "mtimeMs": 1783988697875,
+      "hash": "7f342d3b8d8b77dd6bb0205626345cb0b08b8d2f"
     },
     "ito-rs/crates/ito-web/src/frontend.rs": {
       "path": "ito-rs/crates/ito-web/src/frontend.rs",
-      "size": 743,
-      "mtimeMs": 1783942795175,
-      "hash": "79092936da9961e6a37108b69a1de940d368b7f4"
+      "size": 807,
+      "mtimeMs": 1783988690639,
+      "hash": "7ce417535d60fe44e7d9784938f9d5f68dc6ccee"
+    },
+    "ito-rs/crates/ito-web/src/frontend_tests.rs": {
+      "path": "ito-rs/crates/ito-web/src/frontend_tests.rs",
+      "size": 1110,
+      "mtimeMs": 1783988774609,
+      "hash": "3211446da4f9bf11ee5094617ee2278e2ed702ca"
     },
     "ito-rs/crates/ito-web/src/lib.rs": {
       "path": "ito-rs/crates/ito-web/src/lib.rs",
@@ -2544,28 +2568,40 @@
     },
     "ito-rs/crates/ito-web/src/server.rs": {
       "path": "ito-rs/crates/ito-web/src/server.rs",
-      "size": 3022,
-      "mtimeMs": 1783942795175,
-      "hash": "4c81c6bd58adc0ea8dbbd09ed5f8128af459e64d"
+      "size": 3082,
+      "mtimeMs": 1783988656704,
+      "hash": "51c4339e1599c5687b92af72415fc1e35e4d67bd"
+    },
+    "ito-rs/crates/ito-web/src/server_tests.rs": {
+      "path": "ito-rs/crates/ito-web/src/server_tests.rs",
+      "size": 1358,
+      "mtimeMs": 1783988656704,
+      "hash": "dd5668d6b66040c186d545713508d3b3325e5efd"
     },
     "ito-rs/crates/ito-web/src/terminal.rs": {
       "path": "ito-rs/crates/ito-web/src/terminal.rs",
-      "size": 4771,
-      "mtimeMs": 1783942795175,
-      "hash": "7620423f95357161b0a3a68aa2f39fd5bd636832"
+      "size": 4993,
+      "mtimeMs": 1783988780480,
+      "hash": "51b05a8d65f2d71049f9d06747f888ab0a8736b2"
+    },
+    "ito-rs/crates/ito-web/src/terminal_tests.rs": {
+      "path": "ito-rs/crates/ito-web/src/terminal_tests.rs",
+      "size": 3287,
+      "mtimeMs": 1783988774609,
+      "hash": "8bf45f350d5225cbbf403a21fe824faef655bc85"
     }
   },
   "folder_hashes": {
-    ".": "63ac512d8d33518ea7f94c3852fb7f040e5c281e",
-    "ito-rs": "bd38f3f51d8b9cf45362a36d14e947019009db02",
-    "ito-rs/crates": "bd38f3f51d8b9cf45362a36d14e947019009db02",
+    ".": "89997309e2dc293c6742d0352039e6bfb7d74697",
+    "ito-rs": "7fcb72666d2c5ee74ddd97102fcb1a93a3cd9257",
+    "ito-rs/crates": "7fcb72666d2c5ee74ddd97102fcb1a93a3cd9257",
     "ito-rs/crates/ito-backend": "d3f789567a1a8cdcb1d074032bf9a948cc58cdb6",
     "ito-rs/crates/ito-backend/src": "1fe7a9e6b48bd380a3f091258e6277ae65b178bf",
-    "ito-rs/crates/ito-cli": "dc3feb9e290967ab9b028b19137c5524cd2bfbf5",
-    "ito-rs/crates/ito-cli/src": "e5b2ba11c8fc0a9bd10d56eda3945212d5116b95",
-    "ito-rs/crates/ito-cli/src/app": "3fe1b9d32f2035e9270627a7e6e6d07dc1da0938",
+    "ito-rs/crates/ito-cli": "07d3f8ad7d440afcc0d43f389e709269954a5570",
+    "ito-rs/crates/ito-cli/src": "549a3fd14e996adfe633547f2d202586d3573b4a",
+    "ito-rs/crates/ito-cli/src/app": "04b60bf8f8f4a19bcb7384c25ee581c46e87ed7f",
     "ito-rs/crates/ito-cli/src/app/worktree_wizard": "d19cf5c94d4d3cce44f264478319d51ec404f51e",
-    "ito-rs/crates/ito-cli/src/cli": "ab7bf83bb201599cd8fa08461d20206eb068fd28",
+    "ito-rs/crates/ito-cli/src/cli": "baf8ccbea99cdec08913b119092355e383d8ae68",
     "ito-rs/crates/ito-cli/src/cli/ralph": "e86243e00f4300d4ffd15d1c081c2de9c7db2b9e",
     "ito-rs/crates/ito-cli/src/commands": "31d8505cfa6daf101432fb6eb26b06ce3e432703",
     "ito-rs/crates/ito-cli/src/commands/config": "18bd7d6fb61e6e524d8a7b29e9a9ad4fb7393b2e",
@@ -2581,8 +2617,8 @@
     "ito-rs/crates/ito-config/src/config": "80db2944a23fdc3db0e2c18eb13ee91d3254a8eb",
     "ito-rs/crates/ito-config/src/ito_dir": "071582e0436283ae42ad712ff1d244deef41be39",
     "ito-rs/crates/ito-config/src/output": "34c6407b6f233f8c166bf4b229dd2391b42e39d1",
-    "ito-rs/crates/ito-core": "f71dc143f5f42cdace680d8ec0e8666587e7e256",
-    "ito-rs/crates/ito-core/src": "53faf9b56c8880bcceb12536d391cfb7b6be9d78",
+    "ito-rs/crates/ito-core": "e05768054fcac54620b1cfed0e076790d7aa6904",
+    "ito-rs/crates/ito-core/src": "1c05c16faa20890a1b67cfed54cea415a177a4d4",
     "ito-rs/crates/ito-core/src/audit": "a0e4c02bbfca1f63d9d343139d83e99598b73b05",
     "ito-rs/crates/ito-core/src/backend_http": "9231a087bf2382003a191f0c82f2efea79313a99",
     "ito-rs/crates/ito-core/src/create": "6f8460ae8605adf2a18380015c9b42f1c3afed12",
@@ -2595,7 +2631,7 @@
     "ito-rs/crates/ito-core/src/show": "f3e1267f31cdf3f0967a7850548abb073afc0310",
     "ito-rs/crates/ito-core/src/templates": "98e5a83970799ad9b7b454aa3518a88b5ef5760b",
     "ito-rs/crates/ito-core/src/validate": "ef217f888fb14e14415154c2d32f7c62c899f9c8",
-    "ito-rs/crates/ito-core/src/validate_repo": "c5aad36fceda1ad9e2f7afde5eeb797aea14250e",
+    "ito-rs/crates/ito-core/src/validate_repo": "0a629e1f59a6e3d2a7e5f36cfb6ee66dc38250f8",
     "ito-rs/crates/ito-core/src/viewer": "0c3fe3dfcf3aed2aea8cdb33187899d07ae7869d",
     "ito-rs/crates/ito-domain": "71f163d2b952a72e56dbc68909a4bcc96e894b80",
     "ito-rs/crates/ito-domain/src": "d42b8505dbe3716c8f0dbf9059e7d62b4c702286",
@@ -2607,12 +2643,12 @@
     "ito-rs/crates/ito-domain/src/tasks": "24e541a94cc9caf6341c1ea608c0a85ac2d7e793",
     "ito-rs/crates/ito-logging": "7767905770f1ca40d279ba60cb777b0e82d0f4ea",
     "ito-rs/crates/ito-logging/src": "26d336f45584dfec14e0432398a2a96c49dc73d7",
-    "ito-rs/crates/ito-templates": "86d21707247e95c0425898b088a8af7c28327aec",
-    "ito-rs/crates/ito-templates/src": "0031b76ecedd25b5edef8eca4ee0f6455025a80b",
+    "ito-rs/crates/ito-templates": "a1489eb97eeff2ae681a58ccc6c746c58afbfc33",
+    "ito-rs/crates/ito-templates/src": "9b4489e86e69429f4481a35ebf5ac75ee63310ed",
     "ito-rs/crates/ito-test-support": "37f1cb5d6df6ebfdc1b726e3e6e760b82b75643e",
     "ito-rs/crates/ito-test-support/src": "35edc7bc5f9672c8cf5452df1f1e49934675571f",
     "ito-rs/crates/ito-test-support/src/pty": "42a02cebdb6c2c83719e0785fa34eb2681afd906",
-    "ito-rs/crates/ito-web": "c69e326350524f58329f6276e099320d94e28f13",
-    "ito-rs/crates/ito-web/src": "d65bdecc465c24bcc191cdea20ef838a2cfda048"
+    "ito-rs/crates/ito-web": "5114e66c9bda96266c87e25f5d01b6581a053eee",
+    "ito-rs/crates/ito-web/src": "11aa920bb97e3c1eb34fde862f72334b4f455bbf"
   }
 }

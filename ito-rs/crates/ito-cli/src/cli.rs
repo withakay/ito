@@ -1004,25 +1004,30 @@ pub enum TasksAction {
     },
 
     /// Claim a change lease (backend mode)
-    #[command(visible_alias = "cl")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "cl"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Claim {
         /// Change id to claim
         change_id: String,
     },
 
     /// Release a change lease (backend mode)
-    #[command(visible_alias = "rl")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "rl"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Release {
         /// Change id to release
         change_id: String,
     },
 
     /// Allocate the next available change (backend mode)
-    #[command(visible_alias = "al")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "al"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Allocate,
 
     /// Sync artifacts with the backend
-    #[command(subcommand, visible_alias = "sy")]
+    #[command(subcommand)]
+    #[cfg_attr(feature = "backend", command(visible_alias = "sy"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Sync(SyncAction),
 
     /// Forward unknown subcommands to legacy handler

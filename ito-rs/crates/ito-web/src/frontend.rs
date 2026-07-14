@@ -9,6 +9,10 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 
+#[cfg(test)]
+#[path = "frontend_tests.rs"]
+mod frontend_tests;
+
 /// Serve the root `index.html` page.
 pub async fn index() -> Html<&'static str> {
     Html(include_str!("index.html"))

@@ -10,7 +10,7 @@ description = "Core functionality and business logic for Ito"
 [features]
 default = []
 backend = ["dep:base64", "dep:rand", "dep:ureq"]
-coordination-branch = ["dep:junction"]
+coordination-branch = []
 
 [dependencies]
 thiserror = { workspace = true }
@@ -45,4 +45,6 @@ assert-struct = "0.2"
 filetime = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-junction = { version = "1.4.2", optional = true }
+# Legacy coordination detection remains available in the shipping build so
+# Windows junctions must be inspectable without the coordination runtime.
+junction = "1.4.2"

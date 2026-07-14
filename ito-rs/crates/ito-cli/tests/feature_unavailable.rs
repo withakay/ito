@@ -1,9 +1,24 @@
 use assert_cmd::Command;
 #[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
+use ito_test_support::collect_file_bytes;
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
 use serde_json::Value;
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
+use std::path::Path;
 
 fn ito() -> Command {
     Command::cargo_bin("ito").expect("ito binary")
+}
+
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
+fn isolated_ito(project: &Path, home: &Path) -> Command {
+    let mut command = ito();
+    command
+        .current_dir(project)
+        .env("HOME", home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("XDG_DATA_HOME", home);
+    command
 }
 
 #[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
@@ -38,15 +53,121 @@ fn coordination_compatibility_commands_return_structured_errors() {
     assert_feature_json(&output.stdout, "coordination-branch", "ito sync");
 }
 
+#[cfg(not(feature = "coordination-branch"))]
+#[test]
+fn coordination_requests_fail_before_logging_or_project_mutation() {
+    let project = tempfile::tempdir().expect("temp project");
+    let home = tempfile::tempdir().expect("temp home");
+    let ito_dir = project.path().join(".ito");
+    std::fs::create_dir(&ito_dir).expect("create .ito");
+    std::fs::write(
+        ito_dir.join("config.json"),
+        r#"{ "changes": { "coordination_branch": { "enabled": false, "storage": "embedded" } } }"#,
+    )
+    .expect("write config");
+    let project_before = collect_file_bytes(project.path());
+    let home_before = collect_file_bytes(home.path());
+
+    for (args, requested_by) in [
+        (&["sync", "--json"][..], "ito sync"),
+        (
+            &[
+                "agent",
+                "instruction",
+                "apply",
+                "--change",
+                "000-01_missing",
+                "--sync",
+                "--json",
+            ][..],
+            "ito agent instruction apply --sync",
+        ),
+    ] {
+        let output = isolated_ito(project.path(), home.path())
+            .args(args)
+            .output()
+            .expect("run ito");
+
+        assert!(!output.status.success(), "args={args:?}");
+        assert_feature_json(&output.stdout, "coordination-branch", requested_by);
+        assert_eq!(collect_file_bytes(project.path()), project_before);
+        assert_eq!(collect_file_bytes(home.path()), home_before);
+    }
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+#[test]
+fn init_coordination_request_fails_before_initialization() {
+    let project = tempfile::tempdir().expect("temp project");
+    let home = tempfile::tempdir().expect("temp home");
+    let project_before = collect_file_bytes(project.path());
+    let home_before = collect_file_bytes(home.path());
+
+    let output = isolated_ito(project.path(), home.path())
+        .args([
+            "init",
+            ".",
+            "--tools",
+            "none",
+            "--setup-coordination-branch",
+        ])
+        .output()
+        .expect("run ito");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("feature 'coordination-branch' is unavailable"));
+    assert!(stderr.contains("ito init --setup-coordination-branch"));
+    assert_eq!(collect_file_bytes(project.path()), project_before);
+    assert_eq!(collect_file_bytes(home.path()), home_before);
+}
+
 #[cfg(not(feature = "backend"))]
 #[test]
 fn backend_task_compatibility_command_returns_structured_error() {
-    let output = ito()
-        .args(["tasks", "claim", "001-01_example", "--json"])
+    let cases: &[(&[&str], &str)] = &[
+        (
+            &["tasks", "claim", "001-01_example", "--json"],
+            "ito tasks claim",
+        ),
+        (
+            &["tasks", "release", "001-01_example", "--json"],
+            "ito tasks release",
+        ),
+        (&["tasks", "allocate", "--json"], "ito tasks allocate"),
+        (
+            &["tasks", "sync", "pull", "001-01_example", "--json"],
+            "ito tasks sync",
+        ),
+    ];
+
+    for (args, requested_by) in cases {
+        let output = ito().args(*args).output().expect("run ito");
+        assert!(!output.status.success(), "args={args:?}");
+        assert_feature_json(&output.stdout, "backend", requested_by);
+    }
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn backend_task_request_fails_before_logging_or_project_mutation() {
+    let project = tempfile::tempdir().expect("temp project");
+    let home = tempfile::tempdir().expect("temp home");
+    let ito_dir = project.path().join(".ito");
+    std::fs::create_dir(&ito_dir).expect("create .ito");
+    std::fs::write(ito_dir.join("config.json"), "{}\n").expect("write config");
+    let project_before = collect_file_bytes(project.path());
+    let home_before = collect_file_bytes(home.path());
+
+    let output = isolated_ito(project.path(), home.path())
+        .args(["tasks", "claim", "000-01_missing", "--json"])
         .output()
         .expect("run ito");
+
     assert!(!output.status.success());
     assert_feature_json(&output.stdout, "backend", "ito tasks claim");
+    assert_eq!(collect_file_bytes(project.path()), project_before);
+    assert_eq!(collect_file_bytes(home.path()), home_before);
 }
 
 #[cfg(not(feature = "backend"))]

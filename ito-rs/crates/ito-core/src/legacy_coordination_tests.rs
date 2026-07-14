@@ -13,7 +13,7 @@ fn create_managed_link(source: &Path, destination: &Path) {
     std::os::unix::fs::symlink(source, destination).expect("managed link");
 
     #[cfg(windows)]
-    std::os::windows::fs::symlink_dir(source, destination).expect("managed link");
+    junction::create(source, destination).expect("managed junction");
 }
 
 fn config(enabled: bool, storage: CoordinationStorage) -> CoordinationBranchConfig {
@@ -266,6 +266,55 @@ fn partial_coordination_gitignore_entries_are_ambiguous() {
     assert_eq!(report.classification, LegacyCoordinationClass::Ambiguous);
     assert!(!report.gitignore.marker_present);
     assert_eq!(report.gitignore.matching_entries.len(), 2);
+}
+
+#[test]
+fn standalone_coordination_gitignore_marker_is_ambiguous() {
+    let (_temp, project, ito) = roots();
+    fs::write(
+        project.join(".gitignore"),
+        "# Ito coordination worktree symlinks\n",
+    )
+    .expect("standalone legacy marker");
+
+    let report = inspect_legacy_coordination(
+        &project,
+        &ito,
+        &config(false, CoordinationStorage::Embedded),
+        None,
+    )
+    .expect("inspection");
+
+    assert_eq!(report.classification, LegacyCoordinationClass::Ambiguous);
+    assert!(report.gitignore.marker_present);
+    assert!(report.gitignore.matching_entries.is_empty());
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_junction_is_inspected_without_coordination_runtime() {
+    let (_temp, project, ito) = roots();
+    let coordination_ito = project.join("coordination").join(".ito");
+    fs::create_dir_all(coordination_ito.join("changes")).expect("junction target");
+    create_managed_link(&coordination_ito.join("changes"), &ito.join("changes"));
+
+    let report = inspect_legacy_coordination(
+        &project,
+        &ito,
+        &config(false, CoordinationStorage::Embedded),
+        Some(&coordination_ito),
+    )
+    .expect("inspection");
+
+    assert_eq!(report.classification, LegacyCoordinationClass::Ambiguous);
+    assert!(matches!(
+        report.managed_paths[0].kind,
+        ManagedPathKind::Link {
+            matches_expected: Some(true),
+            target_exists: true,
+            ..
+        }
+    ));
 }
 
 #[test]

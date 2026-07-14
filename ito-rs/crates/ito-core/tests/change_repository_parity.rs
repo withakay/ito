@@ -4,6 +4,8 @@
 //! identically to `FsChangeRepository` for inputs like `1-12`, `1:slug`,
 //! empty strings, and lifecycle filters.
 
+#![cfg(feature = "backend")]
+
 use chrono::Utc;
 use ito_core::backend_change_repository::BackendChangeRepository;
 use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};

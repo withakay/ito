@@ -359,6 +359,8 @@ fn classify(
         .all(|evidence| matches!(evidence.kind, ManagedPathKind::Missing));
     let has_gitignore_entries = !gitignore.matching_entries.is_empty();
     let partial_gitignore_marker = has_gitignore_entries && !gitignore.marker_present;
+    let standalone_gitignore_marker =
+        gitignore.marker_present && gitignore.matching_entries.is_empty();
     let worktree_config_with_materialized_paths =
         configured_legacy && !has_link && has_real_directory;
 
@@ -366,6 +368,7 @@ fn classify(
         || has_inconsistent_link_roots
         || has_other
         || partial_gitignore_marker
+        || standalone_gitignore_marker
         || worktree_config_with_materialized_paths
         || (has_link && has_non_empty_directory)
         || (configured_main && (has_link || has_gitignore_entries))

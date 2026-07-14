@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Integration tests for backend-mode archive orchestration.
 //!
 //! Tests cover: happy-path archive with backend sync, skip-specs mode,

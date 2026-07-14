@@ -82,10 +82,14 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
 
     let rt = Runtime::new();
 
-    let recovery_safe = is_recovery_safe_invocation(args);
     if let Some(command) = cli.command.as_ref()
-        && (!recovery_safe || is_migrate_to_main_invocation(args))
+        && let Some(result) = preflight_explicit_feature_request(&rt, command)
     {
+        return result;
+    }
+
+    let recovery_safe = is_recovery_safe_invocation(args);
+    if let Some(command) = cli.command.as_ref() {
         super::legacy_coordination::enforce_legacy_coordination_guard(&rt, command)?;
     }
 
@@ -460,16 +464,83 @@ fn is_recovery_safe_invocation(args: &[String]) -> bool {
     }
 }
 
-fn is_migrate_to_main_invocation(args: &[String]) -> bool {
-    let positional = args
-        .iter()
-        .filter(|arg| !arg.starts_with('-'))
-        .map(String::as_str)
-        .collect::<Vec<_>>();
-    matches!(
-        positional.as_slice(),
-        ["agent", "instruction", "migrate-to-main", ..]
-    )
+fn preflight_explicit_feature_request(rt: &Runtime, command: &Commands) -> Option<CliResult<()>> {
+    #[cfg(all(feature = "backend", feature = "coordination-branch"))]
+    let _ = (rt, command);
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Init(args) = command
+        && args.setup_coordination_branch
+    {
+        return Some(unavailable_coordination_request(
+            "ito init --setup-coordination-branch",
+            false,
+        ));
+    }
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Sync(args) = command {
+        return Some(commands::handle_sync_clap(rt, args));
+    }
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Agent(args) = command
+        && let Some(crate::cli::AgentCommand::Instruction(instruction)) = &args.command
+        && instruction.sync
+    {
+        return Some(unavailable_coordination_request(
+            &format!("ito agent instruction {} --sync", instruction.artifact),
+            instruction.json,
+        ));
+    }
+
+    #[cfg(not(feature = "backend"))]
+    if let Commands::Tasks(args) = command {
+        match &args.action {
+            Some(
+                crate::cli::TasksAction::Claim { .. }
+                | crate::cli::TasksAction::Release { .. }
+                | crate::cli::TasksAction::Allocate
+                | crate::cli::TasksAction::Sync(_),
+            ) => return Some(commands::handle_tasks_clap(rt, args)),
+            Some(
+                crate::cli::TasksAction::Init { .. }
+                | crate::cli::TasksAction::Status { .. }
+                | crate::cli::TasksAction::Next { .. }
+                | crate::cli::TasksAction::Ready { .. }
+                | crate::cli::TasksAction::Start { .. }
+                | crate::cli::TasksAction::Complete { .. }
+                | crate::cli::TasksAction::Shelve { .. }
+                | crate::cli::TasksAction::Unshelve { .. }
+                | crate::cli::TasksAction::Add { .. }
+                | crate::cli::TasksAction::Show { .. }
+                | crate::cli::TasksAction::External(_),
+            )
+            | None => {}
+        }
+    }
+
+    None
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+fn unavailable_coordination_request(requested_by: &str, wants_json: bool) -> CliResult<()> {
+    let error = CliError::feature_unavailable(
+        "coordination-branch",
+        requested_by,
+        "run `ito agent instruction migrate-to-main`, omit the coordination request, or install an experimental build with the coordination-branch feature",
+    );
+    if wants_json {
+        let value = error
+            .feature_unavailable_json()
+            .expect("feature-unavailable errors have JSON details");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).expect("JSON value serializes")
+        );
+        return Err(CliError::silent());
+    }
+    Err(error)
 }
 
 #[cfg(not(feature = "backend"))]

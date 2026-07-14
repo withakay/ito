@@ -94,12 +94,6 @@ Options:
       --cleanup
           Remove known legacy Ito-managed paths during --upgrade
 
-      --setup-coordination-branch
-          Ensure coordination branch exists on origin after init
-
-      --no-coordination-worktree
-          Skip coordination worktree setup and use embedded storage mode instead
-
       --no-tmux
           Disable tmux-backed workflow suggestions in project config
 
@@ -191,10 +185,6 @@ Commands:
   unshelve  Restore a shelved task to pending [aliases: us]
   add       Add a new task (enhanced only) [aliases: ad]
   show      Print tasks.md [aliases: sw]
-  claim     Claim a change lease (backend mode) [aliases: cl]
-  release   Release a change lease (backend mode) [aliases: rl]
-  allocate  Allocate the next available change (backend mode) [aliases: al]
-  sync      Sync artifacts with the backend [aliases: sy]
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -628,9 +618,6 @@ Options:
       --operation <OPERATION>
           Manifesto operation selector for full renders
 
-      --sync
-          Sync coordination branch before generating instructions (opt-in for apply)
-
       --context <CONTEXT>
           Free-form context for `memory-capture`
 
@@ -655,12 +642,10 @@ Options:
 Artifacts:
   bootstrap                          Generate a tool bootstrap preamble
   project-setup                      Guide for setting up a new project
-  backend                            Backend server and client configuration guide
   worktrees                          Guide for git worktree workflow (config-driven)
   repo-sweep                         Scan for old-only ID format assumptions in prompts and templates
   cleanup                            Scan for legacy Ito-managed files and cleanup candidates
   migrate-to-main                    Guide for safely migrating coordination state back to main
-  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage
   orchestrate                        Orchestrate applying a set of changes via an orchestrator agent
   manifesto                          Generate a strict Ito manifesto for prompt-only execution
   proposal                           Show the change proposal
@@ -677,19 +662,16 @@ Artifacts:
 Examples:
   ito agent instruction bootstrap --tool opencode
   ito agent instruction project-setup
-  ito agent instruction backend
   ito agent instruction worktrees
   ito agent instruction repo-sweep
   ito agent instruction cleanup
   ito agent instruction migrate-to-main
-  ito agent instruction migrate-to-coordination-worktree
   ito agent instruction orchestrate
   ito agent instruction manifesto
   ito agent instruction manifesto --variant full --profile proposal-only
   ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply
   ito agent instruction proposal --change 005-08_migrate-cli-to-clap
   ito agent instruction apply --change 005-08_migrate-cli-to-clap
-  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync
   ito agent instruction archive
   ito agent instruction archive --change 005-08_migrate-cli-to-clap
   ito agent instruction finish --change 005-08_migrate-cli-to-clap

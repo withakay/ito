@@ -95,3 +95,7 @@ pub async fn serve(config: ServeConfig) -> miette::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "server_tests.rs"]
+mod server_tests;
