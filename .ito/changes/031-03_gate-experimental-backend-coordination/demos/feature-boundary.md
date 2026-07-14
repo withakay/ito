@@ -68,7 +68,7 @@ feature=coordination-branch
 requested_by=ito sync
 ```
 
-The standard binary keeps iteration and recovery available: Ralph and loop remain discoverable, and migrate-to-main renders without either experimental feature.
+The standard binary keeps iteration and recovery available: Ralph and loop commands remain callable, and migrate-to-main renders without either experimental feature.
 
 ```bash
 for command in ralph loop; do if cargo run -q -p ito-cli -- "$command" --help >/dev/null 2>&1; then state=available; else state=missing; fi; printf "shipping.%s=%s\n" "$command" "$state"; done
