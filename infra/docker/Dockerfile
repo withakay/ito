@@ -21,8 +21,9 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY ito-rs/ ito-rs/
 
-# Build the release binary
-RUN cargo build --release --package ito-cli \
+# Build the backend-only experimental binary explicitly. The standard release
+# binary intentionally does not contain backend implementation code.
+RUN cargo build --release --package ito-cli --no-default-features --features backend \
     && strip /src/target/release/ito
 
 # Create the data directory so it exists in the final image

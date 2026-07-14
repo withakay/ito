@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

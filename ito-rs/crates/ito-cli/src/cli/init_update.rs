@@ -25,10 +25,12 @@ pub struct InitArgs {
 
     /// Ensure coordination branch exists on origin after init
     #[arg(long = "setup-coordination-branch")]
+    #[cfg_attr(not(feature = "coordination-branch"), arg(hide = true))]
     pub setup_coordination_branch: bool,
 
     /// Skip coordination worktree setup and use embedded storage mode instead
     #[arg(long = "no-coordination-worktree")]
+    #[cfg_attr(not(feature = "coordination-branch"), arg(hide = true))]
     pub no_coordination_worktree: bool,
 
     /// Enable Git worktree-based workspace layout

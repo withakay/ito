@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use ito_config::types::ItoConfig;
 
+#[cfg(feature = "coordination-branch")]
 use crate::coordination_worktree::repair_current_worktree_coordination_links;
 use crate::errors::{CoreError, CoreResult};
 use crate::implementation_readiness::{
@@ -18,6 +19,15 @@ use crate::implementation_readiness::{
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
 use crate::repo_paths::{ResolvedEnv, ResolvedWorktreePaths, WorktreeFeature, WorktreeSelector};
 use crate::worktree_init;
+
+#[cfg(not(feature = "coordination-branch"))]
+fn repair_current_worktree_coordination_links(
+    _project_root: &Path,
+    _ito_path: &Path,
+    _config: &ItoConfig,
+) -> CoreResult<()> {
+    Ok(())
+}
 
 /// Marker file written into the worktree's gitdir after successful initialization.
 ///

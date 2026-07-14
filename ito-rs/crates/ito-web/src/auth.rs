@@ -21,6 +21,10 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
+#[cfg(test)]
+#[path = "auth_tests.rs"]
+mod auth_tests;
+
 const COOKIE_NAME: &str = "ito_token";
 const SALT: &str = "ito-web-auth-v1";
 

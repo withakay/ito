@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use ito_core::sqlite_project_store::{SqliteBackendProjectStore, UpsertChangeParams};
 use ito_domain::backend::BackendProjectStore;
 use ito_domain::tasks::TaskStatus;

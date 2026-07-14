@@ -23,6 +23,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+#[cfg(test)]
+#[path = "terminal_tests.rs"]
+mod terminal_tests;
+
 /// Shared state for the terminal WebSocket handler.
 #[derive(Clone)]
 pub struct TerminalState {
@@ -39,6 +43,11 @@ pub async fn ws_handler(
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<TerminalState>) {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+    handle_socket_with_shell(socket, state, shell).await;
+}
+
+async fn handle_socket_with_shell(socket: WebSocket, state: Arc<TerminalState>, shell: String) {
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
     // Create PTY
@@ -59,7 +68,6 @@ async fn handle_socket(socket: WebSocket, state: Arc<TerminalState>) {
     };
 
     // Spawn shell
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
     let mut cmd = CommandBuilder::new(&shell);
     cmd.cwd(&state.root);
 

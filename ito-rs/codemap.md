@@ -6,6 +6,7 @@
 
 [Design]|domain types/traits → core logic → adapter crates; shared helpers isolated from business behavior
 |flow: adapters → ito-config context → ito-core use-cases → ito-domain traits → templates/logging/test-support
+|features: shipping ito-cli={web}; experimental backend and coordination-branch compile independently
 
 [Gotchas]|#![warn(missing_docs)] on lib crates; document new pub APIs |tests in src modules and crates/tests/ folders
 

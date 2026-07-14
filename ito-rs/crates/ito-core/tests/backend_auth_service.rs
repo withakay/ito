@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use ito_config::ConfigContext;
 use ito_core::backend_auth::init_backend_auth;
 

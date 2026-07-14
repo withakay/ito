@@ -1,50 +1,90 @@
 use clap::{Args, Subcommand};
 
-const AGENT_INSTRUCTION_AFTER_HELP: &str = concat!(
-    "Artifacts:\n",
-    "  bootstrap                          Generate a tool bootstrap preamble\n",
-    "  project-setup                      Guide for setting up a new project\n",
+macro_rules! agent_instruction_after_help {
+    (
+        $backend_artifact:literal,
+        $coordination_artifact:literal,
+        $backend_example:literal,
+        $coordination_example:literal,
+        $sync_example:literal
+    ) => {
+        concat!(
+            "Artifacts:\n",
+            "  bootstrap                          Generate a tool bootstrap preamble\n",
+            "  project-setup                      Guide for setting up a new project\n",
+            $backend_artifact,
+            "  worktrees                          Guide for git worktree workflow (config-driven)\n",
+            "  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates\n",
+            "  cleanup                            Scan for legacy Ito-managed files and cleanup candidates\n",
+            "  migrate-to-main                    Guide for safely migrating coordination state back to main\n",
+            $coordination_artifact,
+            "  orchestrate                        Orchestrate applying a set of changes via an orchestrator agent\n",
+            "  manifesto                          Generate a strict Ito manifesto for prompt-only execution\n",
+            "  proposal                           Show the change proposal\n",
+            "  specs                              Show the specification deltas\n",
+            "  tasks                              Show the implementation task list\n",
+            "  apply                              Show implementation instructions\n",
+            "  review                             Show review instructions\n",
+            "  archive                            Show archive instructions\n",
+            "  finish                             Cleanup worktrees and branches after merge\n",
+            "  memory-capture                     Capture durable knowledge through configured memory\n",
+            "  memory-search                      Search configured memory for ranked matches\n",
+            "  memory-query                       Query configured memory for a synthesized answer\n",
+            "\n",
+            "Examples:\n",
+            "  ito agent instruction bootstrap --tool opencode\n",
+            "  ito agent instruction project-setup\n",
+            $backend_example,
+            "  ito agent instruction worktrees\n",
+            "  ito agent instruction repo-sweep\n",
+            "  ito agent instruction cleanup\n",
+            "  ito agent instruction migrate-to-main\n",
+            $coordination_example,
+            "  ito agent instruction orchestrate\n",
+            "  ito agent instruction manifesto\n",
+            "  ito agent instruction manifesto --variant full --profile proposal-only\n",
+            "  ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply\n",
+            "  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n",
+            "  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n",
+            $sync_example,
+            "  ito agent instruction archive\n",
+            "  ito agent instruction archive --change 005-08_migrate-cli-to-clap\n",
+            "  ito agent instruction finish --change 005-08_migrate-cli-to-clap\n",
+            "  ito agent instruction memory-capture --context \"Decision and rationale\" --file docs/config.md\n",
+            "  ito agent instruction memory-search --query \"archive workflow\" --limit 5\n",
+            "  ito agent instruction memory-query --query \"How should agents capture memories?\"",
+        )
+    };
+}
+
+#[cfg(all(not(feature = "backend"), not(feature = "coordination-branch")))]
+const AGENT_INSTRUCTION_AFTER_HELP: &str = agent_instruction_after_help!("", "", "", "", "");
+
+#[cfg(all(feature = "backend", not(feature = "coordination-branch")))]
+const AGENT_INSTRUCTION_AFTER_HELP: &str = agent_instruction_after_help!(
     "  backend                            Backend server and client configuration guide\n",
-    "  worktrees                          Guide for git worktree workflow (config-driven)\n",
-    "  repo-sweep                         Scan for old-only ID format assumptions in prompts and templates\n",
-    "  cleanup                            Scan for legacy Ito-managed files and cleanup candidates\n",
-    "  migrate-to-main                    Guide for safely migrating coordination state back to main\n",
-    "  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n",
-    "  orchestrate                        Orchestrate applying a set of changes via an orchestrator agent\n",
-    "  manifesto                          Generate a strict Ito manifesto for prompt-only execution\n",
-    "  proposal                           Show the change proposal\n",
-    "  specs                              Show the specification deltas\n",
-    "  tasks                              Show the implementation task list\n",
-    "  apply                              Show implementation instructions\n",
-    "  review                             Show review instructions\n",
-    "  archive                            Show archive instructions\n",
-    "  finish                             Cleanup worktrees and branches after merge\n",
-    "  memory-capture                     Capture durable knowledge through configured memory\n",
-    "  memory-search                      Search configured memory for ranked matches\n",
-    "  memory-query                       Query configured memory for a synthesized answer\n",
-    "\n",
-    "Examples:\n",
-    "  ito agent instruction bootstrap --tool opencode\n",
-    "  ito agent instruction project-setup\n",
+    "",
     "  ito agent instruction backend\n",
-    "  ito agent instruction worktrees\n",
-    "  ito agent instruction repo-sweep\n",
-    "  ito agent instruction cleanup\n",
-    "  ito agent instruction migrate-to-main\n",
+    "",
+    ""
+);
+
+#[cfg(all(not(feature = "backend"), feature = "coordination-branch"))]
+const AGENT_INSTRUCTION_AFTER_HELP: &str = agent_instruction_after_help!(
+    "",
+    "  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n",
+    "",
     "  ito agent instruction migrate-to-coordination-worktree\n",
-    "  ito agent instruction orchestrate\n",
-    "  ito agent instruction manifesto\n",
-    "  ito agent instruction manifesto --variant full --profile proposal-only\n",
-    "  ito agent instruction manifesto --change 005-08_migrate-cli-to-clap --variant full --operation apply\n",
-    "  ito agent instruction proposal --change 005-08_migrate-cli-to-clap\n",
-    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap\n",
-    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync\n",
-    "  ito agent instruction archive\n",
-    "  ito agent instruction archive --change 005-08_migrate-cli-to-clap\n",
-    "  ito agent instruction finish --change 005-08_migrate-cli-to-clap\n",
-    "  ito agent instruction memory-capture --context \"Decision and rationale\" --file docs/config.md\n",
-    "  ito agent instruction memory-search --query \"archive workflow\" --limit 5\n",
-    "  ito agent instruction memory-query --query \"How should agents capture memories?\"",
+    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync\n"
+);
+
+#[cfg(all(feature = "backend", feature = "coordination-branch"))]
+const AGENT_INSTRUCTION_AFTER_HELP: &str = agent_instruction_after_help!(
+    "  backend                            Backend server and client configuration guide\n",
+    "  migrate-to-coordination-worktree   Guide for migrating from embedded to worktree storage\n",
+    "  ito agent instruction backend\n",
+    "  ito agent instruction migrate-to-coordination-worktree\n",
+    "  ito agent instruction apply --change 005-08_migrate-cli-to-clap --sync\n"
 );
 
 /// Commands that generate machine-readable output for AI agents.
@@ -106,6 +146,7 @@ pub struct AgentInstructionArgs {
 
     /// Sync coordination branch before generating instructions (opt-in for apply)
     #[arg(long)]
+    #[cfg_attr(not(feature = "coordination-branch"), arg(hide = true))]
     pub sync: bool,
 
     // ---- memory-* artifact inputs --------------------------------------

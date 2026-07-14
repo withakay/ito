@@ -1,3 +1,5 @@
+#![cfg(feature = "web")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 

@@ -120,6 +120,19 @@ fn render_instruction_template_returns_not_found_for_missing_template() {
 }
 
 #[test]
+fn backend_guide_requires_an_experimental_build() {
+    let guide = get_instruction_template("agent/backend.md.j2").expect("backend guide");
+    assert_contains_all(
+        guide,
+        &[
+            "Experimental build required",
+            "standard Ito release does not compile the",
+            "experimental `backend` feature",
+        ],
+    );
+}
+
+#[test]
 fn artifact_template_renders_when_instruction_is_empty() {
     #[derive(Serialize)]
     struct Instructions {
@@ -1050,6 +1063,7 @@ fn archive_template_renders_generic_guidance_without_change() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1065,6 +1079,7 @@ fn archive_template_renders_generic_guidance_without_change() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "worktree".to_string(),
+                coordination_active: true,
                 main_integration_mode: "pull_request".to_string(),
             },
             change: None,
@@ -1087,6 +1102,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1102,6 +1118,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "worktree".to_string(),
+                coordination_active: true,
                 main_integration_mode: "pull_request_auto_merge".to_string(),
             },
             change: Some("009-02_event-sourced-audit-log".to_string()),
@@ -1127,6 +1144,7 @@ fn archive_template_lists_available_changes_in_generic_mode() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1142,6 +1160,7 @@ fn archive_template_lists_available_changes_in_generic_mode() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "embedded".to_string(),
+                coordination_active: false,
                 main_integration_mode: "pull_request".to_string(),
             },
             change: None,
@@ -1168,6 +1187,7 @@ fn finish_template_prompts_for_archive() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
 
     #[derive(Serialize, Default)]
@@ -1202,6 +1222,7 @@ fn finish_template_prompts_for_archive() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: true,
             },
             memory: MemoryCtx::default(),
             change: Some("025-09_add-worktree-sync-command".to_string()),
@@ -1246,6 +1267,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -1279,6 +1301,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: false,
             },
             memory: MemoryCtx {
                 capture: MemoryOpState { configured: true },
@@ -1308,6 +1331,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -1341,6 +1365,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: false,
             },
             memory: MemoryCtx::default(),
             change: Some("000-01_test-change".to_string()),

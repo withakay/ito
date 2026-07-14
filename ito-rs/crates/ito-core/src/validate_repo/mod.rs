@@ -37,6 +37,7 @@ use crate::validate::{ValidationReport, report, with_rule_id};
 
 pub mod audit_rules;
 pub mod backend_rules;
+#[cfg(feature = "coordination-branch")]
 pub mod coordination_rules;
 pub mod pre_commit_detect;
 pub mod registry;

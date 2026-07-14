@@ -1,3 +1,5 @@
+#![cfg(feature = "coordination-branch")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -131,6 +133,7 @@ fn setup_worktree_backed_apply_repo(
             "--tools",
             "none",
             "--update",
+            "--setup-coordination-branch",
         ],
         repo,
         home,

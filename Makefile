@@ -5,21 +5,26 @@ BUMP ?= none
 RUST_WARNINGS_AS_ERRORS ?= -D warnings
 COVERAGE_HARD_MIN ?= 80
 COVERAGE_TARGET ?= 90
+SHIPPING_PACKAGES := ito-cli ito-common ito-config ito-core ito-domain ito-logging ito-templates ito-web
+SHIPPING_PACKAGE_ARGS := $(addprefix -p ,$(SHIPPING_PACKAGES))
 SCCACHE_BIN ?= $(shell command -v sccache 2>/dev/null)
 RUSTC_WRAPPER_ENV := $(if $(SCCACHE_BIN),RUSTC_WRAPPER="$(SCCACHE_BIN)")
 
 .PHONY: \
 	init \
-	build test test-timed test-watch test-coverage lint check check-prek check-max-lines clean help \
+	build test test-timed test-affected test-watch test-coverage lint check check-prek check-max-lines clean help \
+	build-experimental test-experimental test-coverage-experimental \
+	lint-experimental clippy-experimental check-experimental feature-matrix-check \
 	bacon bacon-export \
 	fmt clippy \
-	arch-guardrails cargo-deny \
+	arch-guardrails cargo-deny release-feature-check \
 	config-schema config-schema-check \
 	release release-plz-update release-plz-release-pr \
 	version-bump version-bump-patch version-bump-minor version-bump-major \
 	version-sync \
 	rust-build rust-build-release rust-test rust-test-timed rust-test-coverage rust-lint rust-install install \
-	dev docs docs-open docs-site-install docs-site-build docs-site-serve docs-site-check \
+	rust-build-experimental rust-test-experimental rust-test-coverage-experimental rust-lint-experimental \
+	dev docs docs-open docs-experimental docs-site-install docs-site-build docs-site-serve docs-site-check \
 	hooks-install
 
 init: ## Initialize development environment (check rust, install prek hooks)
@@ -139,22 +144,28 @@ init: ## Initialize development environment (check rust, install prek hooks)
 		echo "  ○ gh CLI: https://cli.github.com/"; \
 	fi
 
-build: ## Build the project
+build: ## Build the shipping ito-cli with default features
 	$(MAKE) rust-build
 
-test: ## Run tests
+build-experimental: ## Build the experimental workspace with all features
+	$(MAKE) rust-build-experimental
+
+test: ## Test all packages in the shipping ito-cli default graph
 	$(MAKE) rust-test
 
-test-timed: ## Run tests with per-crate timing
+test-experimental: ## Test the experimental workspace with all features
+	$(MAKE) rust-test-experimental
+
+test-timed: ## Test the shipping ito-cli with timing
 	$(MAKE) rust-test-timed
 
-test-affected: ## Run tests only for crates affected by recent changes
+test-affected: ## Test affected crates using shipping feature defaults
 	bash ito-rs/tools/test-affected.sh
 
 test-watch: ## Run tests in watch mode (requires cargo-watch)
 	@set -e; \
 	if cargo watch -V >/dev/null 2>&1; then \
-		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo watch -x "test --workspace"; \
+		RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo watch -x "test -p ito-cli"; \
 	else \
 		echo "cargo-watch is not installed."; \
 		echo "Install: cargo install cargo-watch"; \
@@ -181,13 +192,13 @@ bacon-export: ## Start bacon and export locations to .bacon-locations
 		exit 1; \
 	fi
 
-test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(COVERAGE_TARGET)%)
+test-coverage: ## Cover the shipping ito-cli defaults — fails below $(COVERAGE_HARD_MIN)%
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
 		echo "Coverage enforcement: hard min=$(COVERAGE_HARD_MIN)%, target=$(COVERAGE_TARGET)%"; \
 		echo "  Below $(COVERAGE_HARD_MIN)%: build FAILS (hard floor)"; \
 		echo "  Below $(COVERAGE_TARGET)%: WARNING (target)"; \
-		echo "  Excluded crates: ito-web (no tests yet)"; \
+		echo "  Cargo lane: shipping default package graph ($(SHIPPING_PACKAGES))"; \
 		echo ""; \
 		if [ -z "$${LLVM_COV:-}" ] || [ -z "$${LLVM_PROFDATA:-}" ]; then \
 			toolchain="$${RUSTUP_TOOLCHAIN:-$$(rustup show active-toolchain 2>/dev/null | cut -d' ' -f1)}"; \
@@ -202,8 +213,7 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 				fi; \
 			fi; \
 		fi; \
-		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
-			--exclude ito-web \
+		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov $(SHIPPING_PACKAGE_ARGS) --tests \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
@@ -212,20 +222,40 @@ test-coverage: ## Run coverage — fails below $(COVERAGE_HARD_MIN)% (target $(C
 		exit 1; \
 	fi
 
-lint: ## Run linter
+test-coverage-experimental: ## Cover the experimental workspace with all features
+	$(MAKE) rust-test-coverage-experimental
+
+lint: ## Lint all packages in the shipping ito-cli default graph
 	$(MAKE) rust-lint
+
+lint-experimental: ## Lint the experimental workspace with all features
+	$(MAKE) rust-lint-experimental
 
 fmt: ## Run cargo fmt (auto-fix)
 	cargo fmt --all
 
-clippy: ## Run cargo clippy
-	cargo clippy --workspace --all-targets -- \
+clippy: ## Run clippy for all packages in the shipping ito-cli default graph
+	cargo clippy $(SHIPPING_PACKAGE_ARGS) --all-targets -- \
+		-D warnings \
+		-D clippy::dbg_macro \
+		-D clippy::todo \
+		-D clippy::unimplemented
+
+clippy-experimental: ## Run clippy for the experimental workspace with all features
+	cargo clippy --workspace --all-features --all-targets -- \
 		-D warnings \
 		-D clippy::dbg_macro \
 		-D clippy::todo \
 		-D clippy::unimplemented
 
 check: check-prek ## Run repo checks via prek (pre-push stage, incl rustdoc)
+
+check-experimental: ## Run the default gate plus experimental all-features checks
+	$(MAKE) check
+	$(MAKE) rust-build-experimental
+	$(MAKE) rust-lint-experimental
+	$(MAKE) docs-experimental
+	$(MAKE) rust-test-coverage-experimental
 
 check-prek:
 	@set -e; \
@@ -262,6 +292,12 @@ cargo-deny: ## Run cargo-deny license/advisory checks (requires cargo-deny)
 		echo "Install: cargo install cargo-deny"; \
 		exit 1; \
 	fi
+
+release-feature-check: ## Verify standard release and experimental feature boundaries
+	python3 ito-rs/tools/check_release_features.py
+
+feature-matrix-check: ## Check, test, and lint all supported CLI feature combinations
+	bash ito-rs/tools/check_feature_matrix.sh
 
 release: ## Create/update release PR via release-plz
 	@set -e; \
@@ -311,17 +347,23 @@ version-bump-major: ## Bump major version (x.y.z -> (x+1).0.0) + stamp
 rust-build: ## Build Rust ito (debug)
 	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito
 
+rust-build-experimental: ## Build the Rust workspace with all experimental features
+	$(RUSTC_WRAPPER_ENV) cargo build --workspace --all-features
+
 rust-build-release: ## Build Rust ito (release)
 	$(RUSTC_WRAPPER_ENV) cargo build -p ito-cli --bin ito --release
 
-rust-test: ## Run Rust tests (full cargo test, includes doctests)
-	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web
+rust-test: ## Test all shipping packages (full cargo test, includes doctests)
+	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test $(SHIPPING_PACKAGE_ARGS)
+
+rust-test-experimental: ## Test the Rust workspace with all experimental features
+	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --all-features --exclude ito-web
 
 rust-test-timed: ## Run Rust tests with timing
 	@set -e; \
 	START=$$(date +%s); \
-	echo "Running tests with cargo test..."; \
-	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
+	echo "Running shipping default package graph tests with cargo test..."; \
+	$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test $(SHIPPING_PACKAGE_ARGS); \
 	END=$$(date +%s); \
 	echo ""; \
 	echo "Total wall time: $$(( END - START ))s"
@@ -329,19 +371,65 @@ rust-test-timed: ## Run Rust tests with timing
 rust-test-coverage: ## Run Rust tests with coverage + hard floor (fallback to regular tests)
 	@set -e; \
 	if cargo llvm-cov --version >/dev/null 2>&1; then \
-		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --tests \
+		if [ -z "$${LLVM_COV:-}" ] || [ -z "$${LLVM_PROFDATA:-}" ]; then \
+			toolchain="$${RUSTUP_TOOLCHAIN:-$$(rustup show active-toolchain 2>/dev/null | cut -d' ' -f1)}"; \
+			if [ -n "$$toolchain" ] && rustup run "$$toolchain" rustc --version >/dev/null 2>&1; then \
+				sysroot="$$(rustup run "$$toolchain" rustc --print sysroot)"; \
+				host="$$(rustup run "$$toolchain" rustc -vV | sed -n 's/^host: //p')"; \
+				llvm_cov="$$sysroot/lib/rustlib/$$host/bin/llvm-cov"; \
+				llvm_profdata="$$sysroot/lib/rustlib/$$host/bin/llvm-profdata"; \
+				if [ -x "$$llvm_cov" ] && [ -x "$$llvm_profdata" ]; then \
+					export LLVM_COV="$${LLVM_COV:-$$llvm_cov}"; \
+					export LLVM_PROFDATA="$${LLVM_PROFDATA:-$$llvm_profdata}"; \
+				fi; \
+			fi; \
+		fi; \
+		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov $(SHIPPING_PACKAGE_ARGS) --tests \
+			--fail-under-lines $(COVERAGE_HARD_MIN) \
+			--fail-under-regions $(COVERAGE_HARD_MIN); \
+	else \
+		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
+		echo "Install: cargo install cargo-llvm-cov"; \
+		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test $(SHIPPING_PACKAGE_ARGS); \
+	fi
+
+rust-test-coverage-experimental: ## Cover the Rust workspace with all experimental features
+	@set -e; \
+	if cargo llvm-cov --version >/dev/null 2>&1; then \
+		if [ -z "$${LLVM_COV:-}" ] || [ -z "$${LLVM_PROFDATA:-}" ]; then \
+			toolchain="$${RUSTUP_TOOLCHAIN:-$$(rustup show active-toolchain 2>/dev/null | cut -d' ' -f1)}"; \
+			if [ -n "$$toolchain" ] && rustup run "$$toolchain" rustc --version >/dev/null 2>&1; then \
+				sysroot="$$(rustup run "$$toolchain" rustc --print sysroot)"; \
+				host="$$(rustup run "$$toolchain" rustc -vV | sed -n 's/^host: //p')"; \
+				llvm_cov="$$sysroot/lib/rustlib/$$host/bin/llvm-cov"; \
+				llvm_profdata="$$sysroot/lib/rustlib/$$host/bin/llvm-profdata"; \
+				if [ -x "$$llvm_cov" ] && [ -x "$$llvm_profdata" ]; then \
+					export LLVM_COV="$${LLVM_COV:-$$llvm_cov}"; \
+					export LLVM_PROFDATA="$${LLVM_PROFDATA:-$$llvm_profdata}"; \
+				fi; \
+			fi; \
+		fi; \
+		$(RUSTC_WRAPPER_ENV) CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo llvm-cov --workspace --all-features --tests \
 			--exclude ito-web \
 			--fail-under-lines $(COVERAGE_HARD_MIN) \
 			--fail-under-regions $(COVERAGE_HARD_MIN); \
 	else \
 		echo "cargo-llvm-cov is not installed, falling back to regular tests."; \
 		echo "Install: cargo install cargo-llvm-cov"; \
-		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --exclude ito-web; \
+		$(RUSTC_WRAPPER_ENV) RUSTFLAGS="$(RUST_WARNINGS_AS_ERRORS) $(RUSTFLAGS)" cargo test --workspace --all-features --exclude ito-web; \
 	fi
 
 rust-lint: ## Run Rust fmt/clippy
 	cargo fmt --all -- --check
-	$(RUSTC_WRAPPER_ENV) cargo clippy --workspace --all-targets -- \
+	$(RUSTC_WRAPPER_ENV) cargo clippy $(SHIPPING_PACKAGE_ARGS) --all-targets -- \
+		-D warnings \
+		-D clippy::dbg_macro \
+		-D clippy::todo \
+		-D clippy::unimplemented
+
+rust-lint-experimental: ## Run Rust fmt/clippy for the workspace with all features
+	cargo fmt --all -- --check
+	$(RUSTC_WRAPPER_ENV) cargo clippy --workspace --all-features --all-targets -- \
 		-D warnings \
 		-D clippy::dbg_macro \
 		-D clippy::todo \
@@ -396,15 +484,18 @@ release-plz-release-pr: ## Run release-plz release-pr (create/update release PR)
 		exit 1; \
 	fi
 
-docs: ## Build Rust documentation (warns on missing docs)
-	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+docs: ## Build shipping ito-cli documentation with default features
+	RUSTDOCFLAGS="-D warnings" cargo doc -p ito-cli --no-deps
 	rm -rf docs/rustdoc
 	cp -R target/doc docs/rustdoc
 
-docs-open: ## Build and open Rust documentation in browser
-	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open
+docs-open: ## Build and open shipping ito-cli documentation
+	RUSTDOCFLAGS="-D warnings" cargo doc -p ito-cli --no-deps --open
 	rm -rf docs/rustdoc
 	cp -R target/doc docs/rustdoc
+
+docs-experimental: ## Build experimental workspace documentation with all features
+	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 
 docs-site-install: ## Ensure uv is available for docs-site tooling
 	@set -e; \

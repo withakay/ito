@@ -35,6 +35,89 @@ fn agent_instruction_help_shows_instruction_details() {
         .stdout(contains("--operation"));
 }
 
+fn help_output(args: &[&str]) -> String {
+    let output = assert_cmd::cargo::cargo_bin_cmd!("ito")
+        .args(args)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).expect("help output should be UTF-8")
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn standard_help_hides_backend_task_operations() {
+    let output = help_output(&["tasks", "--help"]);
+    for operation in ["claim", "release", "allocate", "sync"] {
+        assert!(
+            !output
+                .lines()
+                .any(|line| line.trim_start().starts_with(operation)),
+            "standard tasks help exposed {operation}:\n{output}"
+        );
+    }
+}
+
+#[cfg(feature = "backend")]
+#[test]
+fn backend_help_shows_backend_task_operations() {
+    let output = help_output(&["tasks", "--help"]);
+    for operation in ["claim", "release", "allocate", "sync"] {
+        assert!(
+            output
+                .lines()
+                .any(|line| line.trim_start().starts_with(operation)),
+            "backend tasks help omitted {operation}:\n{output}"
+        );
+    }
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+#[test]
+fn standard_help_hides_coordination_init_and_instruction_entries() {
+    let init = help_output(&["init", "--help"]);
+    assert!(!init.contains("--setup-coordination-branch"), "{init}");
+    assert!(!init.contains("--no-coordination-worktree"), "{init}");
+
+    let instruction = help_output(&["agent", "instruction", "--help"]);
+    assert!(!instruction.contains("migrate-to-coordination-worktree"));
+    assert!(!instruction.contains("--sync"));
+    assert!(instruction.contains("migrate-to-main"));
+}
+
+#[cfg(feature = "coordination-branch")]
+#[test]
+fn coordination_help_shows_coordination_init_and_instruction_entries() {
+    let init = help_output(&["init", "--help"]);
+    assert!(init.contains("--setup-coordination-branch"), "{init}");
+    assert!(init.contains("--no-coordination-worktree"), "{init}");
+
+    let instruction = help_output(&["agent", "instruction", "--help"]);
+    assert!(instruction.contains("migrate-to-coordination-worktree"));
+    assert!(instruction.contains("--sync"));
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn standard_agent_instruction_help_hides_backend_guide_entry() {
+    let output = help_output(&["agent", "instruction", "--help"]);
+    assert!(!output.lines().any(|line| {
+        line.trim_start()
+            .starts_with("backend                            Backend")
+    }));
+    assert!(!output.contains("ito agent instruction backend"));
+}
+
+#[cfg(feature = "backend")]
+#[test]
+fn backend_agent_instruction_help_shows_backend_guide_entry() {
+    let output = help_output(&["agent", "instruction", "--help"]);
+    assert!(output.contains("backend                            Backend"));
+    assert!(output.contains("ito agent instruction backend"));
+}
+
 #[test]
 fn dash_h_help_matches_dash_dash_help() {
     let out_short = assert_cmd::cargo::cargo_bin_cmd!("ito")

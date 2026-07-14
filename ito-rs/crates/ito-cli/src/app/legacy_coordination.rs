@@ -1,6 +1,7 @@
-#[cfg(feature = "backend")]
 use crate::cli::BackendAction;
-use crate::cli::{AgentCommand, Commands, ConfigCommand, PlanAction, TasksAction, WorktreeCommand};
+use crate::cli::{
+    AgentCommand, ChangeCommand, Commands, ConfigCommand, PlanAction, TasksAction, WorktreeCommand,
+};
 use crate::cli_error::{CliResult, to_cli_error};
 use crate::commands::audit::AuditAction;
 use crate::diagnostics::{
@@ -40,6 +41,10 @@ pub(crate) fn command_intent(command: &Commands) -> CommandIntent {
         | Commands::Completions(_)
         | Commands::Stats(_)
         | Commands::Help(_) => CommandIntent::ReadOnly,
+        Commands::Change(args) => match &args.command {
+            ChangeCommand::Preflight(args) if args.refresh => CommandIntent::Mutating,
+            ChangeCommand::Preflight(_) => CommandIntent::ReadOnly,
+        },
         Commands::Tasks(args) => match &args.action {
             Some(
                 TasksAction::Status { .. }
@@ -99,16 +104,13 @@ pub(crate) fn command_intent(command: &Commands) -> CommandIntent {
             | Some(AuditAction::Reconcile { fix: false, .. }) => CommandIntent::ReadOnly,
             Some(AuditAction::Reconcile { fix: true, .. }) | None => CommandIntent::Mutating,
         },
-        #[cfg(feature = "backend")]
         Commands::Backend(args) => match &args.action {
             BackendAction::Status { .. }
             | BackendAction::GenerateToken { .. }
+            | BackendAction::Serve(_)
             | BackendAction::Import { dry_run: true } => CommandIntent::ReadOnly,
-            BackendAction::Serve(_) | BackendAction::Import { dry_run: false } => {
-                CommandIntent::Mutating
-            }
+            BackendAction::Import { dry_run: false } => CommandIntent::Mutating,
         },
-        #[cfg(feature = "backend")]
         Commands::ServeApiRemoved(_) => CommandIntent::ReadOnly,
         Commands::Create(_)
         | Commands::Archive(_)
@@ -167,9 +169,13 @@ fn enforce_legacy_coordination_intent(runtime: &Runtime, intent: CommandIntent) 
         expected_coordination_ito_root.as_deref(),
     )
     .map_err(to_cli_error)?;
+    let supported_active_coordination = cfg!(feature = "coordination-branch")
+        && typed.changes.coordination_branch.enabled.0
+        && typed.changes.coordination_branch.storage.as_str() == "worktree";
 
     match report.classification {
         LegacyCoordinationClass::Absent | LegacyCoordinationClass::Embedded => Ok(()),
+        LegacyCoordinationClass::Legacy if supported_active_coordination => Ok(()),
         LegacyCoordinationClass::Legacy | LegacyCoordinationClass::Ambiguous => match intent {
             CommandIntent::ReadOnly => {
                 runtime.suppress_command_side_effects();

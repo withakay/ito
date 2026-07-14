@@ -303,11 +303,15 @@ fn coordination_branch_defaults_exist_in_cascading_config() {
 
     assert_eq!(
         coordination.get("enabled").and_then(|v| v.as_bool()),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         coordination.get("name").and_then(|v| v.as_str()),
         Some("ito/internal/changes")
+    );
+    assert_eq!(
+        coordination.get("storage").and_then(|v| v.as_str()),
+        Some("embedded")
     );
 }
 

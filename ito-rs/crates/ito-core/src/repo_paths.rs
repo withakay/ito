@@ -8,7 +8,8 @@ use crate::errors::{CoreError, CoreResult};
 use ito_config::ConfigContext;
 use ito_config::ito_dir::{absolutize_and_normalize, get_ito_path, lexical_normalize};
 use ito_config::load_cascading_project_config;
-use ito_config::types::{CoordinationBranchConfig, ItoConfig, WorktreeStrategy};
+use ito_config::types::CoordinationBranchConfig;
+use ito_config::types::{ItoConfig, WorktreeStrategy};
 use std::path::{Path, PathBuf};
 
 /// Distinguishes bare repositories from non-bare working trees.

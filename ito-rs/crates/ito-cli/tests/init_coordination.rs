@@ -1,3 +1,5 @@
+#![cfg(feature = "coordination-branch")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -107,10 +109,9 @@ fn init_upgrade_does_not_touch_coordination_storage() {
     );
 }
 
-/// Verifies that a fresh `ito init` without a git remote gracefully falls back
-/// to embedded mode (warns but does not fail).
+/// Verifies that compiling coordination support does not activate it on init.
 #[test]
-fn init_without_git_remote_falls_back_gracefully() {
+fn init_without_explicit_setup_stays_disabled_and_embedded() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -131,22 +132,25 @@ fn init_without_git_remote_falls_back_gracefully() {
         repo.path(),
         home.path(),
     );
-    // Init must succeed even without a remote.
     assert_eq!(
         out.code, 0,
         "init should succeed without a remote; stderr={}",
         out.stderr
     );
-    // A warning should be emitted to stderr.
-    assert!(
-        out.stderr.to_lowercase().contains("warning")
-            || out.stderr.to_lowercase().contains("skipping"),
-        "expected a warning about missing remote; stderr={}",
-        out.stderr
-    );
-    // Core .ito/ structure must still be created.
     assert!(repo.path().join(".ito").is_dir());
-    assert!(repo.path().join(".ito/config.json").exists());
+    let config = std::fs::read_to_string(repo.path().join(".ito/config.json"))
+        .expect("config.json should exist");
+    let config: ito_config::types::ItoConfig =
+        serde_json::from_str(&config).expect("valid Ito config JSON");
+    assert!(!config.changes.coordination_branch.enabled.0);
+    assert_eq!(
+        config.changes.coordination_branch.storage.as_str(),
+        "embedded"
+    );
+    assert!(
+        std::fs::read_link(repo.path().join(".ito/changes")).is_err(),
+        "default init must not wire a coordination symlink"
+    );
 }
 
 /// Verifies that a fresh `ito init` with a git remote and a reachable origin
@@ -197,6 +201,7 @@ fn init_with_git_remote_creates_coordination_worktree() {
             "--tools",
             "none",
             "--update",
+            "--setup-coordination-branch",
         ],
         repo.path(),
         home.path(),
@@ -228,6 +233,10 @@ fn init_with_git_remote_creates_coordination_worktree() {
     assert!(
         config.contains("\"worktree\""),
         "config.json should contain worktree storage mode; got:\n{config}"
+    );
+    assert!(
+        config.contains("\"enabled\": true"),
+        "config.json should enable explicitly requested coordination; got:\n{config}"
     );
 }
 
@@ -273,6 +282,7 @@ fn init_update_repairs_missing_coordination_symlink() {
             "--tools",
             "none",
             "--update",
+            "--setup-coordination-branch",
         ],
         repo.path(),
         home.path(),

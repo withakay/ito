@@ -16,6 +16,14 @@ fn command_intent_keeps_diagnostic_and_artifact_reads_read_only() {
         &["ito", "list"][..],
         &["ito", "list-archive"][..],
         &["ito", "show", "031-01_example"][..],
+        &[
+            "ito",
+            "change",
+            "preflight",
+            "031-01_example",
+            "--for",
+            "execute",
+        ][..],
         &["ito", "validate", "031-01_example"][..],
         &["ito", "tasks", "status", "031-01_example"][..],
         &["ito", "tasks", "show", "031-01_example"][..],
@@ -33,6 +41,7 @@ fn command_intent_keeps_diagnostic_and_artifact_reads_read_only() {
         &["ito", "worktree", "validate", "--change", "031-01_example"][..],
         &["ito", "audit", "log"][..],
         &["ito", "audit", "reconcile"][..],
+        &["ito", "backend", "serve"][..],
         &["ito", "util", "parse-id", "031-01_example"][..],
         &["ito", "help"][..],
     ] {
@@ -67,6 +76,15 @@ fn command_intent_marks_nested_writes_and_instruction_sync_as_mutating() {
         &["ito", "config", "set", "defaults.schema", "minimalist"][..],
         &["ito", "worktree", "ensure", "--change", "031-01_example"][..],
         &["ito", "audit", "reconcile", "--fix"][..],
+        &[
+            "ito",
+            "change",
+            "preflight",
+            "031-01_example",
+            "--for",
+            "execute",
+            "--refresh",
+        ][..],
     ] {
         assert_eq!(
             command_intent(&parse(args)),

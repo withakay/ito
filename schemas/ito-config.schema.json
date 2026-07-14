@@ -557,9 +557,9 @@
             }
           ],
           "default": {
-            "enabled": true,
+            "enabled": false,
             "name": "ito/internal/changes",
-            "storage": "worktree",
+            "storage": "embedded",
             "sync_interval_seconds": 120
           },
           "description": "Coordination branch settings"
@@ -660,7 +660,7 @@
       "description": "Dedicated branch used for proposal/task coordination",
       "properties": {
         "enabled": {
-          "default": true,
+          "default": false,
           "description": "Enable change coordination branch synchronization",
           "type": "boolean"
         },
@@ -675,7 +675,7 @@
               "$ref": "#/definitions/CoordinationStorage"
             }
           ],
-          "default": "worktree",
+          "default": "embedded",
           "description": "Storage backend for coordination data"
         },
         "sync_interval_seconds": {
@@ -699,14 +699,14 @@
       "description": "Storage backend for coordination data",
       "oneOf": [
         {
-          "description": "Store coordination data in the git worktree (default).",
+          "description": "Store coordination data in the git worktree.",
           "enum": [
             "worktree"
           ],
           "type": "string"
         },
         {
-          "description": "Store coordination data embedded in the repository.",
+          "description": "Store coordination data embedded in the repository (default).",
           "enum": [
             "embedded"
           ],
@@ -1580,9 +1580,9 @@
           "main_integration_mode": "pull_request"
         },
         "coordination_branch": {
-          "enabled": true,
+          "enabled": false,
           "name": "ito/internal/changes",
-          "storage": "worktree",
+          "storage": "embedded",
           "sync_interval_seconds": 120
         },
         "proposal": {

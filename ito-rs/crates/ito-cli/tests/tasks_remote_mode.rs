@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 

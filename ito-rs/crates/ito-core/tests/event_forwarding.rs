@@ -6,6 +6,8 @@
 //! - Idempotent retry behavior
 //! - Invalid payload handling
 
+#![cfg(feature = "backend")]
+
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;

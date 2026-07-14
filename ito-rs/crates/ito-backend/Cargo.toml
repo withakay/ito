@@ -19,7 +19,7 @@ sha2 = "0.10"
 hex = "0.4"
 tracing = { workspace = true }
 hmac = "0.12"
-ito-core = { workspace = true }
+ito-core = { workspace = true, default-features = false, features = ["backend"] }
 ito-config = { workspace = true }
 
 [dev-dependencies]

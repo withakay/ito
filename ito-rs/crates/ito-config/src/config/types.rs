@@ -369,21 +369,6 @@ impl Default for BackendApiConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[schemars(description = "Change coordination settings")]
-/// Configuration for change coordination behavior.
-pub struct ChangesConfig {
-    #[serde(default)]
-    #[schemars(default, description = "Coordination branch settings")]
-    /// Coordination branch settings.
-    pub coordination_branch: CoordinationBranchConfig,
-
-    #[serde(default)]
-    #[schemars(default, description = "Archive integration settings")]
-    /// Archive follow-up settings.
-    pub archive: ArchiveConfig,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Dedicated branch used for proposal/task coordination")]
 /// Configuration for the internal change coordination branch.
@@ -434,7 +419,7 @@ pub struct CoordinationBranchEnabled(pub bool);
 
 impl CoordinationBranchConfig {
     fn default_enabled() -> CoordinationBranchEnabled {
-        CoordinationBranchEnabled(true)
+        CoordinationBranchEnabled(false)
     }
 
     fn default_name() -> String {
@@ -543,10 +528,10 @@ impl std::fmt::Display for ArchiveMainIntegrationMode {
 #[schemars(description = "Storage backend for coordination data")]
 /// Storage backend used to persist coordination data.
 pub enum CoordinationStorage {
-    /// Store coordination data in the git worktree (default).
-    #[default]
+    /// Store coordination data in the git worktree.
     Worktree,
-    /// Store coordination data embedded in the repository.
+    /// Store coordination data embedded in the repository (default).
+    #[default]
     Embedded,
 }
 

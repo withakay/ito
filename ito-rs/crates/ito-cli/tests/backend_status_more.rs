@@ -1,9 +1,11 @@
-//! Integration tests for Wave 3: backend status, generate-token, and silent fallback warnings.
+#![cfg(feature = "backend")]
+
+//! Integration tests for Wave 3: backend status, generate-token, and invalid-config failures.
 //!
 //! This test suite covers:
 //! - Task 3.1: `ito backend status` with various configurations
 //! - Task 3.2: `ito backend generate-token` with seed sources and auth verification
-//! - Task 3.3: Silent fallback warnings when backend config is broken
+//! - Task 3.3: Invalid backend configuration fails before fallback
 
 #[path = "support/mod.rs"]
 mod fixtures;
@@ -474,11 +476,11 @@ fn generate_token_flag_overrides_for_org_repo() {
 }
 
 // ============================================================================
-// Task 3.3: Tests for Silent Fallback Fixes
+// Task 3.3: Invalid Configuration Preflight
 // ============================================================================
 
 #[test]
-fn silent_fallback_tasks_warns_on_bad_config() {
+fn invalid_backend_config_blocks_tasks_before_fallback() {
     let cx = TestContext::new();
     cx.git_init();
 
@@ -497,18 +499,17 @@ fn silent_fallback_tasks_warns_on_bad_config() {
 
     let out = cx.run_backend_cmd(&["tasks", "status", "000-01_test"]);
 
-    // The command may succeed or fail, but should warn about backend integration
+    assert_ne!(out.code, 0, "stdout={}\nstderr={}", out.stdout, out.stderr);
     assert!(
-        out.stderr.contains("Warning: backend integration skipped")
-            || out.stderr.contains("backend")
-            || out.stderr.contains("skipped"),
-        "stderr should contain backend warning\nstderr={}",
+        out.stderr.contains("invalid type") && out.stderr.contains("expected a boolean"),
+        "stderr should report the invalid config type\nstderr={}",
         out.stderr
     );
+    assert!(!out.stderr.contains("integration skipped"));
 }
 
 #[test]
-fn silent_fallback_event_forwarding_warns_on_bad_config() {
+fn invalid_backend_config_blocks_path_before_event_fallback() {
     let cx = TestContext::new();
     cx.git_init();
 
@@ -517,17 +518,17 @@ fn silent_fallback_event_forwarding_warns_on_bad_config() {
 
     let out = cx.run_backend_cmd(&["path", "project-root"]);
 
-    assert_eq!(out.code, 0, "stdout={}\nstderr={}", out.stdout, out.stderr);
+    assert_ne!(out.code, 0, "stdout={}\nstderr={}", out.stdout, out.stderr);
     assert!(
-        out.stderr
-            .contains("Warning: backend event forwarding skipped due to invalid config"),
-        "stderr should contain event-forwarding warning\nstderr={}",
+        out.stderr.contains("invalid type") && out.stderr.contains("expected a boolean"),
+        "stderr should report the invalid config type\nstderr={}",
         out.stderr
     );
+    assert!(!out.stderr.contains("event forwarding skipped"));
 }
 
 #[test]
-fn silent_fallback_grep_warns_on_bad_config() {
+fn invalid_backend_config_blocks_grep_before_cache_fallback() {
     let cx = TestContext::new();
     cx.git_init();
 
@@ -542,17 +543,13 @@ fn silent_fallback_grep_warns_on_bad_config() {
 
     let out = cx.run_backend_cmd(&["grep", "--all", "Test"]);
 
-    // The command may succeed or fail, but should warn about backend cache
-    if out.stderr.contains("Warning") {
-        assert!(
-            out.stderr.contains("backend cache materialization skipped")
-                || out.stderr.contains("backend")
-                || out.stderr.contains("cache")
-                || out.stderr.contains("skipped"),
-            "if warning present, should mention backend cache\nstderr={}",
-            out.stderr
-        );
-    }
+    assert_ne!(out.code, 0, "stdout={}\nstderr={}", out.stdout, out.stderr);
+    assert!(
+        out.stderr.contains("invalid type") && out.stderr.contains("expected a string"),
+        "stderr should report the invalid config type\nstderr={}",
+        out.stderr
+    );
+    assert!(!out.stderr.contains("cache materialization skipped"));
 }
 
 // ============================================================================

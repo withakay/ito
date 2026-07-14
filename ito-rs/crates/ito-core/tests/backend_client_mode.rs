@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Integration tests for backend client mode.
 //!
 //! Tests cover: claim success/conflict, allocate no-work, pull/push success,

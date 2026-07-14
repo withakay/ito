@@ -9,10 +9,12 @@
 [Design]|policy-heavy, UI-light; domain traits from ito-domain; concrete fs/backend adapters here
 |template bytes from ito-templates; this crate decides where/how to write/render them
 |audit + coordination modules protect consistency across direct-fs and coordination-worktree modes
+|feature boundary: default empty; backend + coordination-branch modules opt in independently; capabilities.rs preflights compiled support
 
 [Gotchas]|#![warn(missing_docs)]; document new pub APIs |never bypass repo abstractions for active-work artifacts
 |coordination-worktree and backend modes need same behavior; check runtime selection before adding direct paths
 |update-style installs prune retired managed surfaces before writes; never follow symlinked roots/targets
 |retired cleanup removes only exact generated fingerprints; preserve/report customized or live-linked paths
+|backend/coordination cfgs remain parseable when compiled out; unavailable modes must fail typed preflight before repository mutation
 
 [Tests]|targeted: cargo test -p ito-core <module_or_test_name> |CLI integration tests cover core from outside |make check after broad changes

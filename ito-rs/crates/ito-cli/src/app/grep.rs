@@ -1,8 +1,10 @@
 use crate::cli::GrepArgs;
 use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::runtime::Runtime;
+#[cfg(feature = "backend")]
 use ito_core::backend_http::BackendHttpClient;
 use ito_core::grep::{GrepInput, GrepScope, grep};
+#[cfg(feature = "backend")]
 use ito_core::{ChangeRepository, ModuleRepository};
 
 /// Handle the `ito grep` CLI command.
@@ -20,6 +22,7 @@ pub(crate) fn handle_grep_clap(rt: &Runtime, args: &GrepArgs) -> CliResult<()> {
     let (scope, pattern) = parse_scope_and_pattern(args)?;
 
     // In backend mode, materialise artifacts before searching.
+    #[cfg(feature = "backend")]
     materialize_backend_cache(rt, &scope, change_repo, module_repo)?;
 
     let input = GrepInput {
@@ -114,6 +117,7 @@ fn single_pattern(positional: &[String], flag: &str) -> CliResult<String> {
 /// as-is. When the backend supports conditional requests
 /// (`ETag`/`If-None-Match`), unchanged artifacts are not
 /// re-downloaded.
+#[cfg(feature = "backend")]
 fn materialize_backend_cache(
     rt: &Runtime,
     scope: &GrepScope,
@@ -124,6 +128,10 @@ fn materialize_backend_cache(
     use ito_config::types::ItoConfig;
     use ito_core::backend_client::resolve_backend_runtime;
     use ito_core::backend_coordination::sync_pull;
+
+    if rt.command_side_effects_suppressed() {
+        return Ok(());
+    }
 
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);

@@ -5,6 +5,8 @@
 
 [Design]|parsing+display here; state+repo in ito-core |handlers: config/ctx → core use-case → format output |integration tests = primary regression guard
 |planning/orchestration helpers retired: use ito-proposal/ito-loop or direct instruction/CLI output
+|instructions: src/app/instructions.rs dispatch/rendering; worktree_instruction_config.rs owns template-facing worktree context
+|features: default={web}; backend and coordination-branch commands are opt-in with compatibility errors in standard builds
 
 [Gotchas]|no business rules in CLI handlers (breaks backend/web parity) |large test files can trip max-lines guardrail |non-interactive paths must use flags not prompts
 

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ito_core::coordination::{COORDINATION_DIRS, create_dir_link};
+use ito_core::legacy_coordination::MANAGED_STATE_DIRS as COORDINATION_DIRS;
 use ito_test_support::run_rust_candidate;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -19,6 +19,14 @@ struct LegacyFixture {
     temp: tempfile::TempDir,
     project: PathBuf,
     home: PathBuf,
+}
+
+fn create_managed_link(source: &Path, destination: &Path) {
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(source, destination).expect("coordination link");
+
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_dir(source, destination).expect("coordination link");
 }
 
 impl LegacyFixture {
@@ -35,7 +43,7 @@ impl LegacyFixture {
         for name in COORDINATION_DIRS {
             let target = coordination_ito.join(name);
             fs::create_dir_all(&target).expect("coordination directory");
-            create_dir_link(&target, &project_ito.join(name)).expect("coordination link");
+            create_managed_link(&target, &project_ito.join(name));
         }
 
         let config = serde_json::json!({
@@ -81,6 +89,7 @@ impl LegacyFixture {
         )
     }
 
+    #[cfg(not(feature = "coordination-branch"))]
     fn update_config(&self, update: impl FnOnce(&mut serde_json::Value)) {
         let path = self.project.join(".ito/config.json");
         let mut config: serde_json::Value =
@@ -95,6 +104,7 @@ impl LegacyFixture {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_read_warns_once_and_does_not_mutate_state() {
     let fixture = LegacyFixture::linked();
     let before = fixture.snapshot();
@@ -123,6 +133,7 @@ fn legacy_read_warns_once_and_does_not_mutate_state() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_mutation_is_blocked_before_any_state_change() {
     let fixture = LegacyFixture::linked();
     let before = fixture.snapshot();
@@ -142,6 +153,34 @@ fn legacy_mutation_is_blocked_before_any_state_change() {
     assert!(out.stderr.contains("ito agent instruction migrate-to-main"));
     assert_eq!(fixture.snapshot(), before);
     assert_eq!(fixture.git_state(), git_before);
+}
+
+#[test]
+#[cfg(not(feature = "coordination-branch"))]
+fn legacy_config_init_and_update_mutations_are_blocked() {
+    let cases: &[&[&str]] = &[
+        &["config", "schema", "--output", ".ito/changes/schema.json"],
+        &["init", ".", "--tools", "none", "--update"],
+        &["update", "."],
+    ];
+
+    for args in cases {
+        let fixture = LegacyFixture::linked();
+        let before = fixture.snapshot();
+        let git_before = fixture.git_state();
+        let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+        let out = run_rust_candidate(rust_path, args, &fixture.project, &fixture.home);
+
+        assert_ne!(out.code, 0, "args={args:?}");
+        assert!(
+            out.stderr.contains("mutating command blocked"),
+            "args={args:?} stderr={}",
+            out.stderr
+        );
+        assert_eq!(fixture.snapshot(), before, "args={args:?}");
+        assert_eq!(fixture.git_state(), git_before, "args={args:?}");
+    }
 }
 
 #[test]
@@ -166,6 +205,73 @@ fn ambiguous_legacy_state_also_fails_closed() {
 }
 
 #[test]
+#[cfg(all(feature = "backend", not(feature = "coordination-branch")))]
+fn legacy_backend_grep_does_not_materialize_remote_cache() {
+    let fixture = LegacyFixture::linked();
+    let changes = std::fs::read_link(fixture.project.join(".ito/changes"))
+        .expect("coordination changes link");
+    fixtures::write(
+        changes.join("000-01_probe/proposal.md"),
+        "# Proposal\n\nneedle\n",
+    );
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("probe listener");
+    listener.set_nonblocking(true).expect("nonblocking probe");
+    let address = listener.local_addr().expect("probe address");
+    let (connected_tx, connected_rx) = std::sync::mpsc::channel();
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while std::time::Instant::now() < deadline {
+            if stop_rx.try_recv().is_ok() {
+                return;
+            }
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    use std::io::Write;
+                    let _ = connected_tx.send(());
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                    return;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("probe accept failed: {error}"),
+            }
+        }
+    });
+    fixture.update_config(|config| {
+        config["backend"] = serde_json::json!({
+            "enabled": true,
+            "url": format!("http://{address}"),
+            "project": { "org": "acme", "repo": "widgets" }
+        });
+    });
+    let before = fixture.snapshot();
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    let out = run_rust_candidate(
+        rust_path,
+        &["grep", "000-01_probe", "needle"],
+        &fixture.project,
+        &fixture.home,
+    );
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stderr.contains("read-only command allowed"));
+    let _ = stop_tx.send(());
+    server.join().expect("probe server");
+    assert!(
+        connected_rx.try_recv().is_err(),
+        "suppressed grep contacted the backend"
+    );
+    assert_eq!(fixture.snapshot(), before);
+}
+
+#[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn legacy_read_uses_filesystem_without_creating_configured_sqlite_database() {
     let fixture = LegacyFixture::linked();
     let database = fixture.temp.path().join("sqlite/runtime.db");
@@ -191,6 +297,7 @@ fn legacy_read_uses_filesystem_without_creating_configured_sqlite_database() {
 }
 
 #[test]
+#[cfg(not(feature = "coordination-branch"))]
 fn invalid_command_is_blocked_before_invalid_command_logging() {
     let fixture = LegacyFixture::linked();
     fixture.update_config(|config| {

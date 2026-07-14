@@ -253,6 +253,12 @@ Change coordination settings live under `changes.coordination_branch`:
 - `changes.coordination_branch.storage`
 - `changes.coordination_branch.worktree_path`
 
+New and unspecified configurations default to `enabled: false` with
+`storage: "embedded"`, so proposal state is tracked directly on the main-bound
+branch. Explicit legacy values remain parseable for diagnosis and migration;
+building with the experimental feature makes coordination available but does
+not activate it automatically.
+
 Coordination-worktree storage is a legacy layout. When Ito detects its configuration, managed links, or `.gitignore` markers, read-only commands emit a remediation warning and stateful commands stop before dispatch. Run `ito agent instruction migrate-to-main` (or the installed `/ito-migrate-to-main` prompt) to inventory, verify, and migrate the state into real directories on a reviewed main-bound branch. The source coordination worktree is retained as rollback evidence.
 
 #### Legacy sync behavior

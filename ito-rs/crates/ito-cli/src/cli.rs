@@ -6,7 +6,6 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod agent;
 mod artifact;
-#[cfg(feature = "backend")]
 mod backend;
 mod change;
 mod grep;
@@ -25,7 +24,8 @@ pub use artifact::{
     WriteArgs,
 };
 #[cfg(feature = "backend")]
-pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs, ServeArgs as BackendServeArgs};
+pub use backend::ServeArgs as BackendServeArgs;
+pub use backend::{BackendAction, BackendArgs, RemovedServeApiArgs};
 pub use change::{ChangeArgs, ChangeCommand, ChangePreflightArgs, ReadinessPhaseArg};
 pub use grep::GrepArgs;
 pub use init_update::{InitArgs, UpdateArgs};
@@ -189,7 +189,8 @@ pub enum Commands {
     /// Examples:
     ///   ito sync
     ///   ito sync --force
-    #[command(verbatim_doc_comment)]
+    #[cfg_attr(feature = "coordination-branch", command(verbatim_doc_comment))]
+    #[cfg_attr(not(feature = "coordination-branch"), command(hide = true))]
     Sync(SyncArgs),
 
     /// Split a large change into smaller changes [not implemented]
@@ -347,13 +348,15 @@ pub enum Commands {
     ///   ito backend status --json
     ///   ito backend generate-token
     ///   ito backend generate-token --seed my-seed --org acme --repo widgets
-    #[command(verbatim_doc_comment, visible_alias = "be")]
-    #[cfg(feature = "backend")]
+    #[cfg_attr(
+        feature = "backend",
+        command(verbatim_doc_comment, visible_alias = "be")
+    )]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Backend(BackendArgs),
 
     /// Removed top-level alias for backend server startup.
     #[command(name = "serve-api", hide = true)]
-    #[cfg(feature = "backend")]
     ServeApiRemoved(RemovedServeApiArgs),
 
     // ─── Audit ────────────────────────────────────────────────────────────────────
@@ -1006,25 +1009,30 @@ pub enum TasksAction {
     },
 
     /// Claim a change lease (backend mode)
-    #[command(visible_alias = "cl")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "cl"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Claim {
         /// Change id to claim
         change_id: String,
     },
 
     /// Release a change lease (backend mode)
-    #[command(visible_alias = "rl")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "rl"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Release {
         /// Change id to release
         change_id: String,
     },
 
     /// Allocate the next available change (backend mode)
-    #[command(visible_alias = "al")]
+    #[cfg_attr(feature = "backend", command(visible_alias = "al"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Allocate,
 
     /// Sync artifacts with the backend
-    #[command(subcommand, visible_alias = "sy")]
+    #[command(subcommand)]
+    #[cfg_attr(feature = "backend", command(visible_alias = "sy"))]
+    #[cfg_attr(not(feature = "backend"), command(hide = true))]
     Sync(SyncAction),
 
     /// Forward unknown subcommands to legacy handler

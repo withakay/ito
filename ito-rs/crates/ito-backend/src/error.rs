@@ -142,6 +142,7 @@ impl From<ito_core::errors::CoreError> for ApiErrorResponse {
             CoreError::Process(_) => Self::internal(err.to_string()),
             CoreError::Sqlite(_) => Self::internal(err.to_string()),
             CoreError::Serde { .. } => Self::internal(err.to_string()),
+            CoreError::FeatureUnavailable { .. } => Self::bad_request(err.to_string()),
         }
     }
 }

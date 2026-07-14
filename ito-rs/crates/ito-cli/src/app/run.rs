@@ -1,10 +1,11 @@
 use crate::cli::{Cli, Commands};
-use crate::cli_error::{CliResult, fail};
+use crate::cli_error::{CliError, CliResult, fail};
 use crate::runtime::Runtime;
 use crate::{commands, util};
 use clap::Parser;
 use clap::error::ErrorKind;
 use ito_config::ConfigContext;
+use ito_core::capabilities::CapabilityPreflight;
 
 /// Parse CLI arguments, initialize the runtime and logging context, and dispatch the selected subcommand.
 ///
@@ -81,8 +82,34 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
 
     let rt = Runtime::new();
 
+    if let Some(command) = cli.command.as_ref()
+        && let Some(result) = preflight_explicit_feature_request(&rt, command)
+    {
+        return result;
+    }
+
+    let recovery_safe = is_recovery_safe_invocation(args);
     if let Some(command) = cli.command.as_ref() {
         super::legacy_coordination::enforce_legacy_coordination_guard(&rt, command)?;
+    }
+
+    let preflight_mode = if recovery_safe || rt.command_side_effects_suppressed() {
+        CapabilityPreflight::Recovery
+    } else {
+        CapabilityPreflight::Stateful
+    };
+    if let Err(error) = rt.preflight(preflight_mode) {
+        let error = CliError::from_core(error);
+        if args.iter().any(|arg| arg == "--json")
+            && let Some(value) = error.feature_unavailable_json()
+        {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&value).expect("JSON value serializes")
+            );
+            return Err(CliError::silent());
+        }
+        return Err(error);
     }
 
     let command_id = util::command_id_from_args(args);
@@ -290,11 +317,25 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             );
         }
 
+        #[cfg(not(feature = "backend"))]
+        Some(Commands::Backend(args)) => {
+            return unavailable_backend_command(args);
+        }
+
         #[cfg(feature = "backend")]
         Some(Commands::ServeApiRemoved(args)) => {
             return fail(format!(
                 "The top-level `ito serve-api` command has been removed.\nUse `{}` instead.",
                 removed_serve_api_replacement(args)
+            ));
+        }
+
+        #[cfg(not(feature = "backend"))]
+        Some(Commands::ServeApiRemoved(_)) => {
+            return Err(CliError::feature_unavailable(
+                "backend",
+                "ito serve-api",
+                "use `ito backend serve` from an experimental build with the backend feature",
             ));
         }
 
@@ -402,6 +443,137 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
             Ok(())
         },
     )
+}
+
+fn is_recovery_safe_invocation(args: &[String]) -> bool {
+    let positional = args
+        .iter()
+        .filter(|arg| !arg.starts_with('-'))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    match positional.as_slice() {
+        ["help", ..]
+        | ["completions", ..]
+        | ["config", ..]
+        | ["init", ..]
+        | ["update", ..]
+        | ["serve-api", ..] => true,
+        // The backend server consumes its own global/flag configuration and
+        // must be startable without compiling or migrating project coordination.
+        ["backend", "serve", ..] => true,
+        ["backend", ..] => !cfg!(feature = "backend"),
+        ["sync", ..] => !cfg!(feature = "coordination-branch"),
+        ["tasks", operation, ..]
+            if matches!(*operation, "claim" | "release" | "allocate" | "sync") =>
+        {
+            !cfg!(feature = "backend")
+        }
+        ["agent", "instruction", "migrate-to-main", ..] => true,
+        _ => false,
+    }
+}
+
+fn preflight_explicit_feature_request(rt: &Runtime, command: &Commands) -> Option<CliResult<()>> {
+    #[cfg(all(feature = "backend", feature = "coordination-branch"))]
+    let _ = (rt, command);
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Init(args) = command
+        && args.setup_coordination_branch
+    {
+        return Some(unavailable_coordination_request(
+            "ito init --setup-coordination-branch",
+            false,
+        ));
+    }
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Sync(args) = command {
+        return Some(commands::handle_sync_clap(rt, args));
+    }
+
+    #[cfg(not(feature = "coordination-branch"))]
+    if let Commands::Agent(args) = command
+        && let Some(crate::cli::AgentCommand::Instruction(instruction)) = &args.command
+        && instruction.sync
+    {
+        return Some(unavailable_coordination_request(
+            &format!("ito agent instruction {} --sync", instruction.artifact),
+            instruction.json,
+        ));
+    }
+
+    #[cfg(not(feature = "backend"))]
+    if let Commands::Tasks(args) = command {
+        match &args.action {
+            Some(
+                crate::cli::TasksAction::Claim { .. }
+                | crate::cli::TasksAction::Release { .. }
+                | crate::cli::TasksAction::Allocate
+                | crate::cli::TasksAction::Sync(_),
+            ) => return Some(commands::handle_tasks_clap(rt, args)),
+            Some(
+                crate::cli::TasksAction::Init { .. }
+                | crate::cli::TasksAction::Status { .. }
+                | crate::cli::TasksAction::Next { .. }
+                | crate::cli::TasksAction::Ready { .. }
+                | crate::cli::TasksAction::Start { .. }
+                | crate::cli::TasksAction::Complete { .. }
+                | crate::cli::TasksAction::Shelve { .. }
+                | crate::cli::TasksAction::Unshelve { .. }
+                | crate::cli::TasksAction::Add { .. }
+                | crate::cli::TasksAction::Show { .. }
+                | crate::cli::TasksAction::External(_),
+            )
+            | None => {}
+        }
+    }
+
+    None
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+fn unavailable_coordination_request(requested_by: &str, wants_json: bool) -> CliResult<()> {
+    let error = CliError::feature_unavailable(
+        "coordination-branch",
+        requested_by,
+        "run `ito agent instruction migrate-to-main`, omit the coordination request, or install an experimental build with the coordination-branch feature",
+    );
+    if wants_json {
+        let value = error
+            .feature_unavailable_json()
+            .expect("feature-unavailable errors have JSON details");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).expect("JSON value serializes")
+        );
+        return Err(CliError::silent());
+    }
+    Err(error)
+}
+
+#[cfg(not(feature = "backend"))]
+fn unavailable_backend_command(args: &crate::cli::BackendArgs) -> CliResult<()> {
+    let error = CliError::feature_unavailable(
+        "backend",
+        "ito backend",
+        "install an experimental build with the backend feature, or disable backend.enabled",
+    );
+    let wants_json = matches!(
+        args.action,
+        crate::cli::BackendAction::Status { json: true }
+    );
+    if wants_json {
+        let value = error
+            .feature_unavailable_json()
+            .expect("feature-unavailable errors have JSON details");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).expect("JSON value serializes")
+        );
+        return Err(CliError::silent());
+    }
+    Err(error)
 }
 
 #[cfg(feature = "backend")]

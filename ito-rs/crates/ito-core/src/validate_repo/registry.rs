@@ -67,27 +67,34 @@ impl RuleRegistry {
     /// - `audit/*`, `repository/*`, `backend/*` — change 011-06.
     #[must_use]
     pub fn built_in() -> Self {
-        use super::audit_rules::{MirrorBranchDistinctRule, MirrorBranchSetRule};
+        use super::audit_rules::MirrorBranchSetRule;
         use super::backend_rules::{
             ProjectOrgRepoSetRule, TokenNotCommittedRule, UrlSchemeValidRule,
-        };
-        use super::coordination_rules::{
-            BranchNameSetRule, GitignoreEntriesRule, StagedSymlinkedPathsRule, SymlinksWiredRule,
         };
         use super::repository_rules::{SqliteDbNotCommittedRule, SqliteDbPathSetRule};
         use super::worktrees_rules::{LayoutConsistentRule, NoWriteOnControlRule};
 
-        Self::empty()
-            // 011-05: coordination/*, worktrees/*
-            .with_rule(Box::new(SymlinksWiredRule))
-            .with_rule(Box::new(GitignoreEntriesRule))
-            .with_rule(Box::new(StagedSymlinkedPathsRule))
-            .with_rule(Box::new(BranchNameSetRule))
+        let registry = Self::empty();
+        #[cfg(feature = "coordination-branch")]
+        let registry = {
+            use super::audit_rules::MirrorBranchDistinctRule;
+            use super::coordination_rules::{
+                BranchNameSetRule, GitignoreEntriesRule, StagedSymlinkedPathsRule,
+                SymlinksWiredRule,
+            };
+            registry
+                .with_rule(Box::new(SymlinksWiredRule))
+                .with_rule(Box::new(GitignoreEntriesRule))
+                .with_rule(Box::new(StagedSymlinkedPathsRule))
+                .with_rule(Box::new(BranchNameSetRule))
+                .with_rule(Box::new(MirrorBranchDistinctRule))
+        };
+        registry
+            // Ordinary change worktree and config diagnostics remain standard.
             .with_rule(Box::new(NoWriteOnControlRule))
             .with_rule(Box::new(LayoutConsistentRule))
             // 011-06: audit/*, repository/*, backend/*
             .with_rule(Box::new(MirrorBranchSetRule))
-            .with_rule(Box::new(MirrorBranchDistinctRule))
             .with_rule(Box::new(SqliteDbPathSetRule))
             .with_rule(Box::new(SqliteDbNotCommittedRule))
             .with_rule(Box::new(TokenNotCommittedRule))

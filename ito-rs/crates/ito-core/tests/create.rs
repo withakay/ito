@@ -391,7 +391,7 @@ fn create_change_in_sub_module_rejects_missing_sub_module_dir() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(all(unix, feature = "coordination-branch"))]
 fn create_change_repairs_missing_coordination_links_before_module_lookup() {
     let td = tempfile::tempdir().expect("tempdir");
     let project_root = td.path();
@@ -425,6 +425,7 @@ fn create_change_repairs_missing_coordination_links_before_module_lookup() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn create_change_reports_actionable_error_when_coordination_worktree_missing() {
     let td = tempfile::tempdir().expect("tempdir");
     let project_root = td.path();

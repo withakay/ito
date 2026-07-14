@@ -10,6 +10,8 @@ use std::io;
 use ito_domain::errors::DomainError;
 use thiserror::Error;
 
+use crate::capabilities::CompiledFeature;
+
 /// Result alias for core-layer operations.
 pub type CoreResult<T> = Result<T, CoreError>;
 
@@ -60,6 +62,19 @@ pub enum CoreError {
         context: String,
         /// Error detail.
         message: String,
+    },
+
+    /// Configuration or a compatibility command requested code not present in this build.
+    #[error(
+        "feature '{feature}' is unavailable (requested by {requested_by}). Recovery: {recovery}"
+    )]
+    FeatureUnavailable {
+        /// Stable Cargo feature identifier.
+        feature: CompiledFeature,
+        /// Configuration field or command that requested the feature.
+        requested_by: String,
+        /// Action the user can take without silent fallback.
+        recovery: String,
     },
 }
 
@@ -133,6 +148,19 @@ impl CoreError {
     /// ```
     pub fn sqlite(msg: impl Into<String>) -> Self {
         Self::Sqlite(msg.into())
+    }
+
+    /// Build a typed unavailable-feature error.
+    pub fn feature_unavailable(
+        feature: CompiledFeature,
+        requested_by: impl Into<String>,
+        recovery: impl Into<String>,
+    ) -> Self {
+        Self::FeatureUnavailable {
+            feature,
+            requested_by: requested_by.into(),
+            recovery: recovery.into(),
+        }
     }
 }
 

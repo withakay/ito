@@ -11,6 +11,7 @@ fn write(path: impl AsRef<Path>, contents: &str) {
 }
 
 #[test]
+#[cfg(feature = "web")]
 fn serve_errors_when_no_ito_dir_exists() {
     let repo = tempfile::tempdir().expect("repo");
     let home = tempfile::tempdir().expect("home");

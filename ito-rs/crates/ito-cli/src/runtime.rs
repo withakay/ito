@@ -6,6 +6,7 @@ use ito_core::audit::{
     AuditEvent, AuditEventStore, EventContext, default_audit_store, resolve_context,
     resolve_user_identity,
 };
+use ito_core::capabilities::{CapabilityPreflight, preflight_config};
 use ito_core::errors::{CoreError, CoreResult};
 use ito_core::repo_index::RepoIndex;
 use ito_core::repository_runtime::{
@@ -130,6 +131,16 @@ impl Runtime {
             let project_root = ito_path.parent().unwrap_or(ito_path);
             load_cascading_project_config(project_root, ito_path, &self.ctx)
         })
+    }
+
+    /// Validate resolved configuration against the capabilities in this binary.
+    pub(crate) fn preflight(&self, mode: CapabilityPreflight) -> CoreResult<()> {
+        if mode == CapabilityPreflight::Recovery {
+            return Ok(());
+        }
+        let config: ItoConfig = serde_json::from_value(self.resolved_config().merged.clone())
+            .map_err(|error| CoreError::serde("parse resolved Ito config", error.to_string()))?;
+        preflight_config(&config, mode)
     }
 
     /// Suppress incidental logging, event forwarding, and synchronization.

@@ -6,7 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use ito_core::coordination::{COORDINATION_DIRS, create_dir_link, gitignore_entries};
+use ito_core::legacy_coordination::{
+    MANAGED_STATE_DIRS as COORDINATION_DIRS, managed_gitignore_entries,
+};
 use ito_test_support::{TreeSnapshotEntry, reset_dir, run_rust_candidate, snapshot_tree_manifest};
 
 struct LegacyFixture {
@@ -43,6 +45,14 @@ fn remove_managed_link(path: &Path) {
     fs::remove_dir(path).expect("remove managed junction");
 }
 
+fn create_managed_link(source: &Path, destination: &Path) {
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(source, destination).expect("managed link");
+
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_dir(source, destination).expect("managed link");
+}
+
 fn managed_manifest(root: &Path) -> BTreeMap<PathBuf, TreeSnapshotEntry> {
     COORDINATION_DIRS
         .iter()
@@ -71,7 +81,7 @@ fn linked_legacy_fixture() -> LegacyFixture {
             source_dir.join(".migration-proof"),
             &format!("stable source bytes for {name}\n"),
         );
-        create_dir_link(&source_dir, &project.join(".ito").join(name)).expect("managed link");
+        create_managed_link(&source_dir, &project.join(".ito").join(name));
     }
     let nested = source.join(".ito/audit/nested");
     fs::create_dir_all(&nested).expect("nested source directory");
@@ -106,7 +116,7 @@ fn linked_legacy_fixture() -> LegacyFixture {
         project.join(".gitignore"),
         &format!(
             "# unrelated\n.ito/session.json\n# Ito coordination worktree symlinks\n{}\n",
-            gitignore_entries().join("\n")
+            managed_gitignore_entries().join("\n")
         ),
     );
 

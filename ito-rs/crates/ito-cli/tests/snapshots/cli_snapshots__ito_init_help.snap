@@ -42,12 +42,6 @@ Options:
       --cleanup
           Remove known legacy Ito-managed paths during --upgrade
 
-      --setup-coordination-branch
-          Ensure coordination branch exists on origin after init
-
-      --no-coordination-worktree
-          Skip coordination worktree setup and use embedded storage mode instead
-
       --worktrees
           Enable Git worktree-based workspace layout
 

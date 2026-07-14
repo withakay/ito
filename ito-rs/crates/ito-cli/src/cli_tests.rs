@@ -1,4 +1,6 @@
 use super::{ChangeCommand, Cli, Commands, ReadinessPhaseArg, WorktreeCommand};
+#[cfg(any(not(feature = "backend"), not(feature = "coordination-branch")))]
+use clap::CommandFactory;
 use clap::Parser;
 
 #[test]
@@ -91,4 +93,27 @@ fn parses_change_preflight_execute_refresh_json() {
     assert_eq!(args.phase, ReadinessPhaseArg::Execute);
     assert!(args.refresh);
     assert!(args.json);
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn default_build_parses_backend_compatibility_command() {
+    let cli = Cli::parse_from(["ito", "backend", "status", "--json"]);
+    let Some(Commands::Backend(_)) = cli.command else {
+        panic!("expected hidden backend compatibility command");
+    };
+}
+
+#[cfg(not(feature = "backend"))]
+#[test]
+fn default_help_hides_backend_command() {
+    let help = Cli::command().render_long_help().to_string();
+    assert!(!help.contains("ito backend status"));
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+#[test]
+fn default_help_hides_coordination_sync_command() {
+    let help = Cli::command().render_long_help().to_string();
+    assert!(!help.contains("ito sync --force"));
 }

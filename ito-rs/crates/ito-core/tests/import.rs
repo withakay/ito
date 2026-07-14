@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use std::cell::RefCell;
 use std::path::Path;
 
