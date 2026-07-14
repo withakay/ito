@@ -103,9 +103,6 @@ Options:
       --no-coordination-worktree
           Skip coordination worktree setup and use embedded storage mode instead
 
-      --no-tmux
-          Disable tmux-backed workflow suggestions in project config
-
       --worktrees
           Enable Git worktree-based workspace layout
 

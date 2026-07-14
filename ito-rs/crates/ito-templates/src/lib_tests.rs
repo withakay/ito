@@ -163,31 +163,15 @@ fn loop_command_template_uses_ito_loop_command_name() {
 }
 
 #[test]
-fn tmux_skill_and_scripts_are_embedded() {
-    let skill = get_skill_file("ito-tmux/SKILL.md").expect("ito-tmux skill should exist");
-    let skill_text = std::str::from_utf8(skill).expect("skill should be utf8");
-    assert!(skill_text.starts_with("---\nname: ito-tmux\n"));
-    assert!(skill_text.contains("tmux -S \"$SOCKET\" send-keys"));
-    assert!(skill_text.contains("wait-for-text.sh -S \"$SOCKET\""));
-
-    let wait_for_text =
-        get_skill_file("ito-tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
-    let wait_for_text = std::str::from_utf8(wait_for_text).expect("script should be utf8");
-    assert!(wait_for_text.contains("-S|--socket-path"));
-    assert!(wait_for_text.contains("tmux_cmd+=(-S \"$socket_path\")"));
-
-    let files = skills_files();
+fn tmux_skill_and_scripts_are_not_embedded() {
+    assert!(get_skill_file("ito-tmux/SKILL.md").is_none());
+    assert!(get_skill_file("ito-tmux/scripts/wait-for-text.sh").is_none());
+    assert!(get_skill_file("ito-tmux/scripts/find-sessions.sh").is_none());
     assert!(
-        files
+        skills_files()
             .iter()
-            .any(|f| f.relative_path == "ito-tmux/scripts/wait-for-text.sh"),
-        "expected wait-for-text helper script to be embedded"
-    );
-    assert!(
-        files
-            .iter()
-            .any(|f| f.relative_path == "ito-tmux/scripts/find-sessions.sh"),
-        "expected find-sessions helper script to be embedded"
+            .all(|file| !file.relative_path.contains("tmux")),
+        "the embedded skill inventory must contain no tmux assets"
     );
 }
 

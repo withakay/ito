@@ -1300,34 +1300,6 @@
         }
       ]
     },
-    "TmuxConfig": {
-      "description": "tmux preferences",
-      "properties": {
-        "enabled": {
-          "default": true,
-          "description": "Whether tmux is enabled",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "ToolsConfig": {
-      "description": "Per-tool preferences",
-      "properties": {
-        "tmux": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/TmuxConfig"
-            }
-          ],
-          "default": {
-            "enabled": true
-          },
-          "description": "tmux preferences"
-        }
-      },
-      "type": "object"
-    },
     "WorktreeApplyConfig": {
       "description": "Worktree apply-time behavior configuration",
       "properties": {
@@ -1425,7 +1397,7 @@
           "type": "array"
         }
       ],
-      "description": "Setup command(s) \u2014 a single string or an ordered list of strings"
+      "description": "Setup command(s) - a single string or an ordered list of strings"
     },
     "WorktreeStrategy": {
       "description": "Supported worktree workspace topology strategies",
@@ -1754,19 +1726,6 @@
         "sqlite": {}
       },
       "description": "Repository runtime configuration"
-    },
-    "tools": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ToolsConfig"
-        }
-      ],
-      "default": {
-        "tmux": {
-          "enabled": true
-        }
-      },
-      "description": "Per-tool preferences"
     },
     "worktrees": {
       "allOf": [

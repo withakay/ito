@@ -36,3 +36,24 @@ fn github_commands_use_prompt_suffix() {
             && entry.harness == Some(HarnessTool::GitHubCopilot)
     }));
 }
+
+#[test]
+fn every_harness_manifest_excludes_removed_tmux_assets() {
+    let tools = [
+        HarnessTool::ClaudeCode,
+        HarnessTool::OpenCode,
+        HarnessTool::Codex,
+        HarnessTool::GitHubCopilot,
+        HarnessTool::Pi,
+    ];
+
+    for tool in tools {
+        let entries = generate_manifest(&[tool]);
+        assert!(
+            entries.iter().all(|entry| {
+                !entry.relative_path.contains("ito-tmux") && !entry.source_path.contains("ito-tmux")
+            }),
+            "{tool:?} manifest still contains removed tmux assets"
+        );
+    }
+}

@@ -149,6 +149,13 @@ pub fn install_default_templates(
 
     install_project_templates(project_root, &ito_dir, mode, opts, worktree_ctx)?;
 
+    // The removed tmux skill occupied an Ito-owned skill directory in every
+    // harness. Update-style installs prune only those exact legacy paths;
+    // unrelated tmux configuration remains user-owned and untouched.
+    if mode == InstallMode::Update || opts.update || opts.force {
+        remove_obsolete_tmux_skills(project_root)?;
+    }
+
     // Repository-local ignore rules for per-worktree state.
     // This is not a templated file: we update `.gitignore` directly to preserve existing content.
     if mode == InstallMode::Init {
@@ -204,10 +211,17 @@ pub fn detect_legacy_paths(project_root: &Path) -> Vec<LegacyPathHit> {
 pub fn remove_legacy_paths(project_root: &Path, hits: &[LegacyPathHit]) -> CoreResult<()> {
     for hit in hits {
         let path = project_root.join(&hit.relative_path);
-        if path.is_dir() {
+        let metadata = match std::fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(err) => {
+                return Err(CoreError::io(format!("reading {}", path.display()), err));
+            }
+        };
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
             std::fs::remove_dir_all(&path)
                 .map_err(|e| CoreError::io(format!("removing {}", path.display()), e))?;
-        } else if path.exists() {
+        } else {
             std::fs::remove_file(&path)
                 .map_err(|e| CoreError::io(format!("removing {}", path.display()), e))?;
         }
@@ -222,13 +236,21 @@ fn push_legacy_hit_if_exists(
     hits: &mut Vec<LegacyPathHit>,
 ) {
     let normalized = rel.trim_end_matches('/');
-    if project_root.join(normalized).exists() {
+    if std::fs::symlink_metadata(project_root.join(normalized)).is_ok() {
         hits.push(LegacyPathHit {
             relative_path: normalized.to_string(),
             description: entry.description,
             replacement: entry.new_path,
         });
     }
+}
+
+fn remove_obsolete_tmux_skills(project_root: &Path) -> CoreResult<()> {
+    let hits: Vec<_> = detect_legacy_paths(project_root)
+        .into_iter()
+        .filter(|hit| hit.relative_path.ends_with("/ito-tmux"))
+        .collect();
+    remove_legacy_paths(project_root, &hits)
 }
 
 fn ensure_repo_gitignore_ignores_local_configs(

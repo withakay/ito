@@ -232,6 +232,36 @@ fn write_one_marker_managed_files_refuse_overwrite_without_markers() {
     assert!(err.to_string().contains("Refusing to overwrite"));
 }
 
+#[cfg(unix)]
+#[test]
+fn legacy_cleanup_unlinks_broken_and_external_tmux_symlinks_without_following_targets() {
+    use std::os::unix::fs::symlink;
+
+    let project = tempfile::tempdir().expect("project");
+    let external = tempfile::tempdir().expect("external");
+    std::fs::write(external.path().join("keep.txt"), "user-owned\n").unwrap();
+
+    let broken = project.path().join(".codex/skills/ito-tmux");
+    std::fs::create_dir_all(broken.parent().unwrap()).unwrap();
+    symlink("missing-target", &broken).unwrap();
+
+    let external_link = project.path().join(".claude/skills/ito-tmux");
+    std::fs::create_dir_all(external_link.parent().unwrap()).unwrap();
+    symlink(external.path(), &external_link).unwrap();
+
+    let hits = detect_legacy_paths(project.path());
+    assert_eq!(hits.len(), 2, "both symlinks must be detected");
+    remove_legacy_paths(project.path(), &hits).expect("legacy cleanup");
+
+    assert!(std::fs::symlink_metadata(&broken).is_err());
+    assert!(std::fs::symlink_metadata(&external_link).is_err());
+    assert!(
+        external.path().join("keep.txt").exists(),
+        "cleanup must never follow a managed-path symlink into user-owned data"
+    );
+    remove_legacy_paths(project.path(), &hits).expect("cleanup is idempotent");
+}
+
 #[test]
 fn write_one_marker_managed_files_update_existing_markers() {
     let td = tempfile::tempdir().unwrap();

@@ -27,6 +27,12 @@ pub struct LegacyEntry {
 /// Known legacy Ito-managed files and directories from previous releases.
 pub const LEGACY_ENTRIES: &[LegacyEntry] = &[
     LegacyEntry {
+        old_path: "ito-tmux/",
+        new_path: None,
+        entry_type: LegacyEntryType::Removed,
+        description: "Ito no longer distributes or manages a tmux skill.",
+    },
+    LegacyEntry {
         old_path: ".ito/planning/",
         new_path: None,
         entry_type: LegacyEntryType::Removed,

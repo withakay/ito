@@ -190,16 +190,26 @@ fn worktrees_config_has_defaults_in_cascading_config() {
 }
 
 #[test]
-fn tools_tmux_enabled_defaults_to_true_in_cascading_config() {
+fn removed_tools_tmux_key_is_ignored_by_cascading_config() {
     let repo = tempfile::tempdir().unwrap();
     let ctx = ConfigContext::default();
     let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::write(
+        ito_path.join("config.json"),
+        r#"{"tools":{"tmux":{"enabled":false}}}"#,
+    )
+    .unwrap();
 
     let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
-    let tools = r.merged.get("tools").expect("tools key should exist");
-    let tmux = tools.get("tmux").expect("tools.tmux key should exist");
-
-    assert_eq!(tmux.get("enabled").and_then(|v| v.as_bool()), Some(true));
+    assert!(
+        r.merged.pointer("/tools/tmux/enabled").is_none(),
+        "removed tools.tmux.enabled must have no runtime effect"
+    );
+    assert!(
+        r.layers[0].value.pointer("/tools/tmux/enabled").is_none(),
+        "resolved layers must not advertise the removed key"
+    );
 }
 
 #[test]

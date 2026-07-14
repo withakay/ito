@@ -62,16 +62,6 @@ pub const CONFIG_SETUP_COVERAGE: &[ConfigSetupCoverageEntry] = &[
         reason: "worktree topology is selected during project setup and rendered into instructions",
     },
     ConfigSetupCoverageEntry {
-        path: "tools",
-        coverage: ConfigSetupCoverage::InitManaged,
-        reason: "tool preferences exposed by setup inherit init-managed coverage unless narrowed",
-    },
-    ConfigSetupCoverageEntry {
-        path: "tools.tmux.enabled",
-        coverage: ConfigSetupCoverage::InitManaged,
-        reason: "tmux preference is exposed through init flags/prompts",
-    },
-    ConfigSetupCoverageEntry {
         path: "changes",
         coverage: ConfigSetupCoverage::RuntimeOnly,
         reason: "change coordination settings are operational storage behavior",
@@ -137,7 +127,7 @@ mod tests {
     fn config_coverage_classifies_representative_setup_and_runtime_fields() {
         assert_eq!(
             classify_config_path("tools.tmux.enabled").map(|entry| entry.coverage),
-            Some(ConfigSetupCoverage::InitManaged)
+            None
         );
         assert_eq!(
             classify_config_path("worktrees.strategy").map(|entry| entry.coverage),

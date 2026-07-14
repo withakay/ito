@@ -11,9 +11,6 @@ use ito_templates::{
 };
 use std::path::{Path, PathBuf};
 
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-
 /// Shared harness prompt that invokes the migration instruction without a skill dependency.
 pub const MIGRATE_TO_MAIN_PROMPT: &str = MIGRATE_TO_MAIN_COMMAND_PATH;
 
@@ -329,7 +326,6 @@ pub fn install_manifests(
             ito_common::io::write_std(&manifest.dest, &bytes)
                 .map_err(|e| CoreError::io(format!("writing {}", manifest.dest.display()), e))?;
         }
-        ensure_manifest_script_is_executable(manifest)?;
     }
     Ok(())
 }
@@ -361,37 +357,6 @@ fn stamp_managed_markdown(bytes: Vec<u8>, rel_path: &str, version: &str) -> Vec<
     }
 
     ito_templates::stamp_version(text, version).into_bytes()
-}
-
-fn ensure_manifest_script_is_executable(manifest: &FileManifest) -> CoreResult<()> {
-    #[cfg(unix)]
-    {
-        let is_skill_script = manifest.asset_type == AssetType::Skill
-            && manifest.source.ends_with(".sh")
-            && manifest.source.contains("/scripts/");
-
-        if is_skill_script {
-            let metadata = std::fs::metadata(&manifest.dest).map_err(|e| {
-                CoreError::io(
-                    format!("reading metadata for {}", manifest.dest.display()),
-                    e,
-                )
-            })?;
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(permissions.mode() | 0o111);
-            std::fs::set_permissions(&manifest.dest, permissions).map_err(|e| {
-                CoreError::io(
-                    format!(
-                        "setting executable permissions on {}",
-                        manifest.dest.display()
-                    ),
-                    e,
-                )
-            })?;
-        }
-    }
-
-    Ok(())
 }
 
 fn skill_line_uses_worktree_template_syntax(line: &str) -> bool {

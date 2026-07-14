@@ -217,6 +217,34 @@ fn migrate_legacy_worktree_keys(config: &mut Value) {
     }
 }
 
+/// Remove the retired tmux preference from a resolved layer without rewriting
+/// the user's source file.
+fn ignore_removed_tmux_key(config: &mut Value) {
+    let Value::Object(root) = config else {
+        return;
+    };
+    let Some(Value::Object(tools)) = root.get_mut("tools") else {
+        return;
+    };
+    let Some(Value::Object(tmux)) = tools.get_mut("tmux") else {
+        return;
+    };
+    if tmux.remove("enabled").is_none() {
+        return;
+    }
+
+    eprintln!(
+        "Warning: Config key 'tools.tmux.enabled' was removed and has no effect. \
+         Remove it from Ito configuration; external tmux use requires no Ito setting."
+    );
+    if tmux.is_empty() {
+        tools.remove("tmux");
+    }
+    if tools.is_empty() {
+        root.remove("tools");
+    }
+}
+
 fn project_path_from_json(v: &Value) -> Option<String> {
     let Value::Object(map) = v else {
         return None;
@@ -386,6 +414,7 @@ pub fn load_cascading_project_config_fs<F: FileSystem>(
         // the new key names participate in the normal merge process and
         // override defaults correctly.
         migrate_legacy_worktree_keys(&mut v);
+        ignore_removed_tmux_key(&mut v);
         layers.push(ResolvedConfigLayer {
             path: path.clone(),
             value: v.clone(),
