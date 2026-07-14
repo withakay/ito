@@ -1,143 +1,87 @@
-# CLI Plan Specification
+<!-- ITO:START -->
+# Cli Plan
 
 ## Purpose
 
-The `ito plan` command group provides project-level planning functionality, enabling teams to manage PROJECT.md, ROADMAP.md, and STATE.md files that persist across sessions and provide context for long-running AI-assisted development.
+This spec defines the current behavior and requirements for cli plan.
 
 ## Requirements
 
 ### Requirement: Project planning initialization
 
-The CLI SHALL initialize the `.ito/planning/` directory structure with template files for project vision, roadmapping, and state tracking.
+The CLI SHALL initialize the planning workspace by ensuring `.ito/planning/` exists. It SHALL NOT create fixed planning markdown templates such as `PROJECT.md`, `ROADMAP.md`, or `STATE.md` during planning initialization.
 
-#### Scenario: Initialize planning directory
+- **Requirement ID**: `cli-plan:planning-workspace-initialization`
+
+#### Scenario: Initialize planning workspace
 
 - **WHEN** executing `ito plan init`
 - **THEN** create the `.ito/planning/` directory if it does not exist
-- **AND** create `PROJECT.md` template with sections for vision, value proposition, constraints, stakeholders, and out-of-scope items
-- **AND** create `ROADMAP.md` template with milestone and phase structure
-- **AND** create `STATE.md` template with sections for current focus, decisions, blockers, and session notes
-- **AND** display a success message indicating the planning structure has been initialized
-- **AND** skip creating any files that already exist to preserve existing content
+- **AND** preserve any existing planning documents already present in that directory
+- **AND** NOT create `.ito/planning/PROJECT.md`
+- **AND** NOT create `.ito/planning/ROADMAP.md`
+- **AND** NOT create `.ito/planning/STATE.md`
+- **AND** display a success message indicating the planning workspace is available
 
 ### Requirement: Planning status display
+The CLI SHALL display whether `.ito/planning/` exists, enumerate its planning documents, and report the companion `.ito/research/` workspace without assuming fixed planning files. Any empty-workspace hint SHALL point to retained `ito-proposal` guidance rather than an `ito-plan` helper.
 
-The CLI SHALL display the current state of project planning artifacts, including which documents exist and their last modification times.
-
-#### Scenario: Show planning status
-
+#### Scenario: Show planning workspace status
 - **WHEN** executing `ito plan status`
-- **THEN** check for existence of `.ito/planning/PROJECT.md`, `.ito/planning/ROADMAP.md`, and `.ito/planning/STATE.md`
-- **AND** display a table showing each file's status (exists/missing) and last modified timestamp
-- **AND** indicate the current milestone from ROADMAP.md if it exists
-- **AND** show the current focus from STATE.md if it exists
-- **AND** print a hint to run `ito plan init` if any files are missing
+- **THEN** the CLI reports the planning directory and its markdown documents
+- **AND** indicates whether `.ito/research/` exists
+- **AND** points an empty workspace to `ito-proposal`
+
+### Requirement: Error handling
+The CLI SHALL provide clear errors and recovery suggestions for planning workspace failures, while normal empty-workspace guidance SHALL name the retained `ito-proposal` lifecycle skill.
+
+#### Scenario: Planning directory cannot be created
+- **WHEN** `.ito/planning/` cannot be created because of a filesystem error
+- **THEN** the CLI explains the failure and suggests checking permissions and available space
+- **AND** exits with code 1
+
+#### Scenario: Planning workspace has no plans yet
+- **WHEN** `ito plan status` finds an empty planning workspace
+- **THEN** it reports a non-error empty status
+- **AND** suggests using `ito-proposal` to develop the first plan
 
 ### Requirement: Project state management
 
-The CLI SHALL provide commands to record and display project state information, including decisions, blockers, and session notes.
+This requirement is removed; the planning workflow SHALL NOT require a fixed `STATE.md`-centric state management model.
 
-#### Scenario: Show current state
+- **Requirement ID**: `cli-plan:remove-project-state-management`
 
-- **WHEN** executing `ito state` or `ito state show`
-- **THEN** read `.ito/planning/STATE.md` if it exists
-- **AND** display the contents in a human-readable format
-- **AND** print an error message and suggest running `ito plan init` if STATE.md does not exist
+**Reason**: The planning workflow is being repositioned as lightweight, pre-proposal exploration rather than a fixed state-tracking system centered on `STATE.md`.
 
-#### Scenario: Record a decision
+**Migration**: Capture active planning context in topic-specific markdown files under `.ito/planning/`, and use `.ito/research/` for deeper investigations that support those plans.
 
-- **WHEN** executing `ito state decision "[decision text]"`
-- **THEN** append a decision entry to the "Recent Decisions" section in STATE.md with the current timestamp
-- **AND** create STATE.md if it does not exist using the template
-- **AND** display a confirmation that the decision has been recorded
+#### Scenario: Planning no longer depends on STATE.md
 
-#### Scenario: Record a blocker
-
-- **WHEN** executing `ito state blocker "[blocker text]"`
-- **THEN** append a blocker entry to the "Blockers" section in STATE.md with the current timestamp
-- **AND** create STATE.md if it does not exist using the template
-- **AND** display a confirmation that the blocker has been recorded
-
-#### Scenario: Add a session note
-
-- **WHEN** executing `ito state note "[note text]"`
-- **THEN** append a note entry to the "Session Notes" section in STATE.md with the current date as a header
-- **AND** create STATE.md if it does not exist using the template
-- **AND** display a confirmation that the note has been added
+- **WHEN** a user initializes or reviews the planning workspace
+- **THEN** the workflow SHALL NOT require `.ito/planning/STATE.md` to exist
+- **AND** planning context may be captured in topic-specific plan documents instead
 
 ### Requirement: Roadmap milestone management
 
-The CLI SHALL provide commands to create milestones and phases in the project roadmap.
+This requirement is removed; the planning workflow SHALL NOT depend on a fixed `ROADMAP.md` milestone model.
 
-#### Scenario: Create a milestone
+- **Requirement ID**: `cli-plan:remove-roadmap-milestone-management`
 
-- **WHEN** executing `ito plan milestone [milestone-name]`
-- **THEN** append a new milestone section to `.ito/planning/ROADMAP.md` with the provided name
-- **AND** include a placeholder target date and empty phase table
-- **AND** create ROADMAP.md if it does not exist using the template
-- **AND** display a confirmation that the milestone has been created
-- **AND** update the "Current Milestone" indicator at the top of ROADMAP.md to the new milestone
+**Reason**: The legacy roadmap-specific planning model depends on `ROADMAP.md`, which this change stops bootstrapping and no longer treats as the canonical planning workflow.
 
-#### Scenario: Add a phase to a milestone
+**Migration**: Record proposal-oriented milestones or sequencing in planning documents under `.ito/planning/`, and split approved work into one or more change proposals when the plan is ready.
 
-- **WHEN** executing `ito plan phase [milestone-name] [phase-name]`
-- **THEN** add a new row to the phase table for the specified milestone in ROADMAP.md
-- **AND** set the status to "Pending" and changes to "-"
-- **AND** display a confirmation that the phase has been added
-- **AND** print an error if the specified milestone does not exist
+#### Scenario: Planning no longer depends on ROADMAP.md
 
-### Requirement: Error handling
-
-The CLI SHALL provide clear error messages and recovery suggestions when planning commands encounter issues.
-
-#### Scenario: Planning directory cannot be created
-
-- **WHEN** the `.ito/planning/` directory cannot be created due to permissions or filesystem errors
-- **THEN** display an error message explaining the failure
-- **AND** suggest checking directory permissions and disk space
-- **AND** exit with code 1
-
-#### Scenario: State file is malformed
-
-- **WHEN** STATE.md exists but has unexpected or malformed content
-- **THEN** display a warning that the file format may be incorrect
-- **AND** attempt to parse and display what content can be read
-- **AND** suggest running `ito plan init` to recreate the template
+- **WHEN** a user initializes or reviews the planning workspace
+- **THEN** the workflow SHALL NOT require `.ito/planning/ROADMAP.md` to exist
+- **AND** sequencing may be captured directly in planning documents instead
 
 ### Requirement: Template quality
+Planning initialization SHALL NOT enforce fixed content for `PROJECT.md`, `ROADMAP.md`, or `STATE.md`. Planning quality SHALL instead come from the retained `ito-proposal` skill and its authoritative instruction artifacts.
 
-The CLI SHALL generate high-quality templates that follow Ito conventions and provide clear guidance for users.
-
-#### Scenario: PROJECT.md template includes required sections
-
-- **WHEN** generating PROJECT.md
-- **THEN** include sections for: Vision, Core Value Proposition, Constraints, Stakeholders, Out of Scope, and AI Assistant Notes
-- **AND** provide clear guidance and placeholder text for each section
-- **AND** follow the format documented in project-planning-research-proposal.md
-
-#### Scenario: ROADMAP.md template includes required structure
-
-- **WHEN** generating ROADMAP.md
-- **THEN** include a "Current Milestone" indicator at the top
-- **AND** include a "Milestones" section with placeholder milestones
-- **AND** structure milestones with name, target, and a phase table (Phase, Name, Status, Changes)
-- **AND** follow the format documented in project-planning-research-proposal.md
-
-#### Scenario: STATE.md template includes required sections
-
-- **WHEN** generating STATE.md
-- **THEN** include sections for: Current Focus, Recent Decisions, Open Questions, Blockers, Session Notes, and "For AI Assistants"
-- **AND** provide clear guidance for AI assistants on how to resume work
-- **AND** follow the format documented in project-planning-research-proposal.md
-
-## Why
-
-Project-level planning is essential for long-running AI-assisted development. These commands provide:
-
-1. **Session continuity**: STATE.md persists context across coding sessions
-1. **Stakeholder alignment**: PROJECT.md captures vision, constraints, and success criteria
-1. **Milestone tracking**: ROADMAP.md provides phased execution plan
-1. **Decision history**: Record decisions to avoid revisiting settled issues
-1. **Blocker visibility**: Track and communicate obstacles to progress
-
-Without these tools, teams must manually maintain project planning artifacts, leading to lost context, unclear priorities, and difficulty onboarding new AI assistants or team members.
+#### Scenario: Planning init skips legacy templates
+- **WHEN** executing `ito plan init`
+- **THEN** the workflow does not create fixed `PROJECT.md`, `ROADMAP.md`, or `STATE.md` content
+- **AND** the planning experience relies on `ito-proposal` guidance
+<!-- ITO:END -->

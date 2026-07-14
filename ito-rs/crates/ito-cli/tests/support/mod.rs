@@ -153,13 +153,13 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
 
     // Must match ito-core `distribution.rs` ITO_SKILLS list.
     let skills = [
-        "ito-brainstorming",
-        "ito-finish",
+        "ito",
+        "ito-proposal",
         "ito-research",
-        "ito-subagent-driven-development",
-        "ito-using-git-worktrees",
-        "ito-verification-before-completion",
-        "ito-using-ito-skills",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
     ];
     for skill in skills {
         write(
@@ -223,14 +223,15 @@ fn specialist_asset_paths(prefix: &str) -> Vec<String> {
             paths.push(format!("{root}/{prefix}{role}{suffix}"));
         }
     }
-    for role in SPECIALIST_ROLES {
-        paths.push(format!(".agents/skills/{prefix}{role}/SKILL.md"));
-    }
     paths
 }
 
 pub(crate) fn obsolete_specialist_asset_paths() -> Vec<String> {
-    specialist_asset_paths("ito-orchestrator-")
+    let mut paths = specialist_asset_paths("ito-orchestrator-");
+    for role in SPECIALIST_ROLES {
+        paths.push(format!(".agents/skills/ito-orchestrator-{role}/SKILL.md"));
+    }
+    paths
 }
 
 pub(crate) fn installed_specialist_asset_paths() -> Vec<String> {
@@ -243,7 +244,6 @@ pub(crate) fn installed_orchestrator_agent_paths() -> Vec<String> {
         ".claude/agents/ito-orchestrator.md".to_string(),
         ".github/agents/ito-orchestrator.md".to_string(),
         ".pi/agents/ito-orchestrator.md".to_string(),
-        ".agents/skills/ito-orchestrator/SKILL.md".to_string(),
     ];
     paths.extend(installed_specialist_asset_paths());
     paths

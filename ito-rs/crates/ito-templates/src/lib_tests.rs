@@ -1,4 +1,136 @@
 use super::*;
+use std::collections::BTreeSet;
+
+#[test]
+fn skill_inventory_contains_exactly_seven_entrypoints() {
+    let entrypoints = skills_files()
+        .into_iter()
+        .filter(|file| file.relative_path.ends_with("/SKILL.md"))
+        .filter_map(|file| file.relative_path.split('/').next().map(str::to_owned))
+        .collect::<Vec<_>>();
+    let actual = entrypoints.iter().cloned().collect::<BTreeSet<_>>();
+    let expected = [
+        "ito",
+        "ito-proposal",
+        "ito-research",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect::<BTreeSet<_>>();
+
+    assert_eq!(
+        entrypoints.len(),
+        7,
+        "expected one entrypoint per lifecycle skill"
+    );
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn skill_inventory_keeps_canonical_lifecycle_order() {
+    assert_eq!(
+        LIFECYCLE_SKILL_NAMES,
+        [
+            "ito",
+            "ito-proposal",
+            "ito-research",
+            "ito-apply",
+            "ito-review",
+            "ito-archive",
+            "ito-loop",
+        ]
+    );
+
+    let entrypoints = skills_files()
+        .into_iter()
+        .filter(|file| file.relative_path.ends_with("/SKILL.md"))
+        .filter_map(|file| file.relative_path.split('/').next())
+        .collect::<Vec<_>>();
+    assert_eq!(entrypoints, LIFECYCLE_SKILL_NAMES);
+}
+
+#[test]
+fn lifecycle_skill_content_preserves_retired_guidance() {
+    let expectations: [(&str, &[&str]); 7] = [
+        (
+            "ito",
+            &[
+                "six lifecycle destinations",
+                "installation error",
+                "ito update",
+                "ito agent instruction cleanup",
+                "no wildcard",
+            ],
+        ),
+        (
+            "ito-proposal",
+            &[
+                "intake",
+                "module confirmation",
+                "brainstorming",
+                "ito plan init",
+                "research handoff",
+            ],
+        ),
+        (
+            "ito-research",
+            &[
+                "memory-search",
+                "memory-query",
+                ".ito/wiki/",
+                "guidance, not the source of truth",
+            ],
+        ),
+        (
+            "ito-apply",
+            &["main-first", "read-only", "worktree", "ito tasks", "commit"],
+        ),
+        (
+            "ito-review",
+            &[
+                "acceptance criteria",
+                "tests",
+                "completion evidence",
+                "independent",
+            ],
+        ),
+        (
+            "ito-archive",
+            &[
+                "explicit user confirmation",
+                "spec promotion",
+                "memory-capture",
+                ".ito/wiki/",
+                "cleanup",
+            ],
+        ),
+        (
+            "ito-loop",
+            &[
+                "ito ralph",
+                "ito agent instruction orchestrate",
+                "bounded",
+                ".ito/user-prompts/orchestrate.md",
+            ],
+        ),
+    ];
+
+    for (skill, needles) in expectations {
+        let path = format!("{skill}/SKILL.md");
+        let contents = get_skill_file(&path).expect("retained lifecycle skill should exist");
+        let contents = std::str::from_utf8(contents).expect("skill should be UTF-8");
+        for needle in needles {
+            assert!(
+                contents.contains(needle),
+                "{skill} is missing consolidated guidance: {needle}"
+            );
+        }
+    }
+}
 
 #[test]
 fn normalize_ito_dir_prefixes_dot() {
@@ -130,8 +262,8 @@ fn loop_skill_template_includes_yaml_frontmatter() {
     assert!(text.contains(
             "description: Run an ito ralph loop for a change, module, or repo-ready sequence, with safe defaults and automatic restart context on early exits."
         ));
-    assert!(text.contains("restart at most **2** times"));
-    assert!(text.contains("ito ralph --no-interactive --change <change-id> --status"));
+    assert!(text.contains("at most two outer restarts"));
+    assert!(text.contains("ito ralph --no-interactive --harness <harness> --change <change-id>"));
     assert!(text.contains("\n---\n\n<!-- ITO:START -->"));
 }
 
@@ -148,69 +280,43 @@ fn loop_command_template_uses_ito_loop_command_name() {
 }
 
 #[test]
-fn tmux_skill_and_scripts_are_embedded() {
-    let skill = get_skill_file("ito-tmux/SKILL.md").expect("ito-tmux skill should exist");
-    let skill_text = std::str::from_utf8(skill).expect("skill should be utf8");
-    assert!(skill_text.starts_with("---\nname: ito-tmux\n"));
-    assert!(skill_text.contains("tmux -S \"$SOCKET\" send-keys"));
-    assert!(skill_text.contains("wait-for-text.sh -S \"$SOCKET\""));
-
-    let wait_for_text =
-        get_skill_file("ito-tmux/scripts/wait-for-text.sh").expect("wait-for-text script");
-    let wait_for_text = std::str::from_utf8(wait_for_text).expect("script should be utf8");
-    assert!(wait_for_text.contains("-S|--socket-path"));
-    assert!(wait_for_text.contains("tmux_cmd+=(-S \"$socket_path\")"));
-
-    let files = skills_files();
-    assert!(
-        files
-            .iter()
-            .any(|f| f.relative_path == "ito-tmux/scripts/wait-for-text.sh"),
-        "expected wait-for-text helper script to be embedded"
-    );
-    assert!(
-        files
-            .iter()
-            .any(|f| f.relative_path == "ito-tmux/scripts/find-sessions.sh"),
-        "expected find-sessions helper script to be embedded"
-    );
+fn tmux_skill_and_scripts_are_not_embedded() {
+    assert!(get_skill_file("ito-tmux/SKILL.md").is_none());
+    assert!(get_skill_file("ito-tmux/scripts/wait-for-text.sh").is_none());
+    assert!(get_skill_file("ito-tmux/scripts/find-sessions.sh").is_none());
 }
 
 #[test]
-fn fix_and_feature_commands_are_embedded() {
-    let files = commands_files();
-    assert!(
-        files
-            .iter()
-            .any(|f| f.relative_path == "ito-proposal-intake.md")
-    );
-    assert!(files.iter().any(|f| f.relative_path == "ito-fix.md"));
-    assert!(files.iter().any(|f| f.relative_path == "ito-feature.md"));
+fn command_inventory_contains_only_lifecycle_entrypoints() {
+    let actual = commands_files()
+        .into_iter()
+        .map(|file| file.relative_path)
+        .collect::<BTreeSet<_>>();
+    let expected = [
+        "ito.md",
+        "ito-proposal.md",
+        "ito-research.md",
+        "ito-apply.md",
+        "ito-review.md",
+        "ito-archive.md",
+        "ito-loop.md",
+    ]
+    .into_iter()
+    .collect::<BTreeSet<_>>();
+    assert_eq!(actual, expected);
 }
 
 #[test]
-fn orchestrate_skills_and_command_are_embedded() {
-    let orchestrate = get_skill_file("ito-orchestrate/SKILL.md").expect("ito-orchestrate skill");
-    let orchestrate = std::str::from_utf8(orchestrate).expect("utf8");
-    assert!(orchestrate.starts_with("---\nname: ito-orchestrate\n"));
+fn orchestration_is_owned_by_loop_without_helper_surfaces() {
+    assert!(get_skill_file("ito-orchestrate/SKILL.md").is_none());
+    assert!(get_skill_file("ito-orchestrate-setup/SKILL.md").is_none());
+    assert!(get_skill_file("ito-orchestrator-workflow/SKILL.md").is_none());
+    assert!(get_command_file("ito-orchestrate.md").is_none());
 
-    let setup =
-        get_skill_file("ito-orchestrate-setup/SKILL.md").expect("ito-orchestrate-setup skill");
-    let setup = std::str::from_utf8(setup).expect("utf8");
-    assert!(setup.starts_with("---\nname: ito-orchestrate-setup\n"));
-
-    let workflow = get_skill_file("ito-orchestrator-workflow/SKILL.md")
-        .expect("ito-orchestrator-workflow skill");
-    let workflow = std::str::from_utf8(workflow).expect("utf8");
-    assert!(workflow.starts_with("---\nname: ito-orchestrator-workflow\n"));
-
-    let commands = commands_files();
-    assert!(
-        commands
-            .iter()
-            .any(|f| f.relative_path == "ito-orchestrate.md"),
-        "expected ito-orchestrate command to be embedded"
-    );
+    let loop_skill = get_skill_file("ito-loop/SKILL.md").expect("loop skill");
+    let loop_skill = std::str::from_utf8(loop_skill).expect("utf8");
+    assert!(loop_skill.contains("ito agent instruction orchestrate"));
+    assert!(loop_skill.contains(".ito/user-prompts/orchestrate.md"));
 }
 
 #[test]
@@ -230,6 +336,10 @@ fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
 
     for harness in Harness::all() {
         let files = get_agent_files(*harness);
+        if *harness == Harness::Codex {
+            assert!(files.is_empty(), "Codex roles must not become skills");
+            continue;
+        }
         if *harness == Harness::OpenCode {
             assert!(
                 files.iter().any(|(name, _)| *name == "ito-orchestrator.md"),
@@ -238,13 +348,6 @@ fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
         }
 
         let expected = match harness {
-            Harness::Codex => [
-                "ito-orchestrator/SKILL.md",
-                "ito-planner/SKILL.md",
-                "ito-researcher/SKILL.md",
-                "ito-worker/SKILL.md",
-                "ito-reviewer/SKILL.md",
-            ],
             Harness::OpenCode | Harness::ClaudeCode | Harness::GitHubCopilot | Harness::Pi => [
                 "ito-orchestrator.md",
                 "ito-planner.md",
@@ -252,6 +355,7 @@ fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
                 "ito-worker.md",
                 "ito-reviewer.md",
             ],
+            Harness::Codex => unreachable!(),
         };
 
         for expected in expected {
@@ -264,52 +368,48 @@ fn orchestrator_agent_templates_are_embedded_for_all_harnesses() {
 }
 
 #[test]
-fn proposal_intake_and_routing_skills_are_embedded() {
-    let intake =
-        get_skill_file("ito-proposal-intake/SKILL.md").expect("proposal intake skill should exist");
-    let intake_text = std::str::from_utf8(intake).expect("skill should be utf8");
-    assert!(intake_text.starts_with("---\nname: ito-proposal-intake\n"));
+fn proposal_owns_intake_fix_feature_and_planning() {
+    for retired in [
+        "ito-proposal-intake/SKILL.md",
+        "ito-fix/SKILL.md",
+        "ito-feature/SKILL.md",
+        "ito-plan/SKILL.md",
+    ] {
+        assert!(get_skill_file(retired).is_none(), "unexpected {retired}");
+    }
+    assert!(get_command_file("ito-plan.md").is_none());
 
-    let fix = get_skill_file("ito-fix/SKILL.md").expect("fix skill should exist");
-    let fix_text = std::str::from_utf8(fix).expect("skill should be utf8");
-    assert!(fix_text.starts_with("---\nname: ito-fix\n"));
-
-    let feature = get_skill_file("ito-feature/SKILL.md").expect("feature skill should exist");
-    let feature_text = std::str::from_utf8(feature).expect("skill should be utf8");
-    assert!(feature_text.starts_with("---\nname: ito-feature\n"));
-
-    let plan = get_skill_file("ito-plan/SKILL.md").expect("plan skill should exist");
-    let plan_text = std::str::from_utf8(plan).expect("skill should be utf8");
-    assert!(plan_text.starts_with("---\nname: ito-plan\n"));
-
-    let commands = commands_files();
-    assert!(
-        commands.iter().any(|f| f.relative_path == "ito-plan.md"),
-        "expected ito-plan command to be embedded"
-    );
+    let proposal = get_skill_file("ito-proposal/SKILL.md").expect("proposal skill");
+    let proposal = std::str::from_utf8(proposal).expect("utf8");
+    for guidance in ["intake", "feature/fix", "brainstorming", "ito plan init"] {
+        assert!(proposal.contains(guidance), "missing {guidance}");
+    }
 }
 
 #[test]
-fn memory_skill_is_embedded() {
-    let skill = get_skill_file("ito-memory/SKILL.md").expect("ito-memory skill should exist");
-    let text = std::str::from_utf8(skill).expect("skill should be utf8");
-    assert!(text.starts_with("---\nname: ito-memory\n"));
-    assert!(text.contains("ito agent instruction memory-capture"));
-    assert!(text.contains("ito agent instruction memory-search"));
-    assert!(text.contains("ito agent instruction memory-query"));
+fn memory_operations_are_owned_by_research_and_archive() {
+    assert!(get_skill_file("ito-memory/SKILL.md").is_none());
+    let research = get_skill_file("ito-research/SKILL.md").expect("research skill");
+    let research = std::str::from_utf8(research).expect("utf8");
+    assert!(research.contains("ito agent instruction memory-search"));
+    assert!(research.contains("ito agent instruction memory-query"));
+
+    let archive = get_skill_file("ito-archive/SKILL.md").expect("archive skill");
+    let archive = std::str::from_utf8(archive).expect("utf8");
+    assert!(archive.contains("ito agent instruction memory-capture"));
 }
 
 #[test]
-fn default_project_agents_mentions_fix_feature_and_wiki_guidance() {
+fn default_project_agents_mentions_lifecycle_and_artifact_guidance() {
     let agents = default_project_files()
         .into_iter()
         .find(|f| f.relative_path == ".ito/AGENTS.md")
         .expect("expected .ito/AGENTS.md in templates");
     let text = std::str::from_utf8(agents.contents).expect("template should be UTF-8");
 
-    assert!(text.contains("`ito-fix`"));
-    assert!(text.contains("`ito-feature`"));
-    assert!(text.contains("`ito-brainstorming`"));
+    assert!(text.contains("`ito-proposal`"));
+    assert!(text.contains("`ito-research`"));
+    assert!(text.contains("integrated into main"));
     assert!(text.contains("ito patch change <id> proposal"));
     assert!(text.contains("ito write change <id> design"));
 }
@@ -322,12 +422,12 @@ fn agent_templates_remind_harnesses_to_use_ito_patch_and_write_for_active_artifa
 
     for harness in Harness::all() {
         let files = get_agent_files(*harness);
+        if *harness == Harness::Codex {
+            assert!(files.is_empty(), "Codex roles must not become skills");
+            continue;
+        }
         for name in expected {
-            let path = if *harness == Harness::Codex {
-                format!("{name}/SKILL.md")
-            } else {
-                format!("{name}.md")
-            };
+            let path = format!("{name}.md");
             let contents = files
                 .iter()
                 .find(|(file_name, _)| *file_name == path)
@@ -493,7 +593,7 @@ fn stamp_version_handles_crlf_line_endings() {
 
 #[test]
 fn stamp_version_round_trip_on_real_skill() {
-    let bytes = get_skill_file("ito-feature/SKILL.md").expect("ito-feature skill exists");
+    let bytes = get_skill_file("ito-proposal/SKILL.md").expect("ito-proposal skill exists");
     let text = std::str::from_utf8(bytes).expect("skill is utf8");
     let stamped = stamp_version(text, "1.2.3");
     let restamped = stamp_version(&stamped, "1.2.3");

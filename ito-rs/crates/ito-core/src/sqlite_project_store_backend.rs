@@ -1,4 +1,5 @@
 use super::*;
+use rusqlite::OptionalExtension;
 
 impl SqliteBackendProjectStore {
     fn with_backend_transaction<T, F>(&self, op: F) -> Result<T, ito_domain::backend::BackendError>
@@ -192,11 +193,32 @@ impl BackendProjectStore for SqliteBackendProjectStore {
             };
 
             for (spec_id, markdown) in &change.specs {
-                tx.execute(
-                    "INSERT OR REPLACE INTO promoted_specs (org, repo, spec_id, markdown, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-                    rusqlite::params![org, repo, spec_id, markdown, &archived_at],
+                let current = tx
+                    .query_row(
+                        "SELECT markdown FROM promoted_specs WHERE org = ?1 AND repo = ?2 AND spec_id = ?3",
+                        rusqlite::params![org, repo, spec_id],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+                let reconciled = crate::archive::reconcile_spec_markdown(
+                    current.as_deref(),
+                    markdown,
                 )
                 .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+                if let Some(reconciled) = reconciled {
+                    tx.execute(
+                        "INSERT OR REPLACE INTO promoted_specs (org, repo, spec_id, markdown, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+                        rusqlite::params![org, repo, spec_id, reconciled, &archived_at],
+                    )
+                    .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+                } else {
+                    tx.execute(
+                        "DELETE FROM promoted_specs WHERE org = ?1 AND repo = ?2 AND spec_id = ?3",
+                        rusqlite::params![org, repo, spec_id],
+                    )
+                    .map_err(|err| ito_domain::backend::BackendError::Other(err.to_string()))?;
+                }
             }
             tx.execute(
                 "UPDATE changes SET archived_at = ?1, updated_at = ?1 WHERE org = ?2 AND repo = ?3 AND change_id = ?4",

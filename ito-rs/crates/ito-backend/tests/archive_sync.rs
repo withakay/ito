@@ -90,7 +90,11 @@ fn seed_project(data_dir: &std::path::Path) {
     std::fs::write(change_dir.join("proposal.md"), "# Proposal\n").unwrap();
     std::fs::write(change_dir.join("design.md"), "# Design\n").unwrap();
     std::fs::write(change_dir.join("tasks.md"), "- [x] done\n").unwrap();
-    std::fs::write(change_dir.join("specs/spec-one/spec.md"), "## ADDED\n").unwrap();
+    std::fs::write(
+        change_dir.join("specs/spec-one/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Remote archive\nRemote archive behavior.\n",
+    )
+    .unwrap();
 }
 
 fn project_url(base_url: &str, path: &str) -> String {
@@ -181,6 +185,9 @@ async fn archive_endpoint_promotes_specs_and_moves_change() {
         .join(REPO)
         .join(".ito");
     assert!(ito_dir.join("specs/spec-one/spec.md").exists());
+    let promoted = std::fs::read_to_string(ito_dir.join("specs/spec-one/spec.md")).unwrap();
+    assert!(promoted.contains("## Requirements"));
+    assert!(!promoted.contains("## ADDED Requirements"));
     assert!(!ito_dir.join("changes/025-05_archive-me").exists());
     let archived = ito_dir.join("changes/archive");
     let entries: Vec<_> = std::fs::read_dir(&archived)

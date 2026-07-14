@@ -54,10 +54,10 @@ fn update_preserves_user_edits_after_end_marker_in_harness_skill() {
 
     init_opencode(repo.path(), home.path());
 
-    let skill_path = repo.path().join(".opencode/skills/ito-feature/SKILL.md");
+    let skill_path = repo.path().join(".opencode/skills/ito-proposal/SKILL.md");
     assert!(
         skill_path.exists(),
-        "ito-feature skill should be installed by init"
+        "ito-proposal skill should be installed by init"
     );
 
     // Sanity: the installed skill carries a managed block.
@@ -122,7 +122,7 @@ fn second_update_is_a_noop_for_harness_skills() {
 
     init_opencode(repo.path(), home.path());
 
-    let skill_path = repo.path().join(".opencode/skills/ito-feature/SKILL.md");
+    let skill_path = repo.path().join(".opencode/skills/ito-proposal/SKILL.md");
     let cmd_path = repo.path().join(".opencode/commands/ito-loop.md");
 
     // First update establishes the canonical state.
@@ -160,7 +160,7 @@ fn update_refuses_to_overwrite_partial_marker_pair() {
 
     init_opencode(repo.path(), home.path());
 
-    let skill_path = repo.path().join(".opencode/skills/ito-feature/SKILL.md");
+    let skill_path = repo.path().join(".opencode/skills/ito-proposal/SKILL.md");
     let pristine = std::fs::read_to_string(&skill_path).expect("read skill");
 
     // Strip the END marker but keep START → corrupt half-pair.

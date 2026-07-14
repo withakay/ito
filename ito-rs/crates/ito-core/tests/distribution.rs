@@ -1,6 +1,6 @@
 use ito_core::distribution::{
     AssetType, claude_manifests, codex_manifests, github_manifests, install_manifests,
-    opencode_manifests,
+    opencode_manifests, pi_manifests,
 };
 use ito_core::installers::{InitOptions, InstallMode};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -17,8 +17,49 @@ fn legacy_init_args() -> (InstallMode, InitOptions) {
     )
 }
 
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
+#[test]
+fn skill_inventory_is_exact_across_distribution_manifests() {
+    let root = Path::new("/tmp/test");
+    let expected = [
+        "ito",
+        "ito-proposal",
+        "ito-research",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect::<BTreeSet<_>>();
+
+    for (harness, manifests) in [
+        ("opencode", opencode_manifests(root)),
+        ("claude", claude_manifests(root)),
+        ("codex", codex_manifests(root)),
+        ("github", github_manifests(root)),
+        ("pi", pi_manifests(root)),
+    ] {
+        let entrypoints = manifests
+            .into_iter()
+            .filter(|manifest| manifest.asset_type == AssetType::Skill)
+            .filter(|manifest| manifest.source.ends_with("/SKILL.md"))
+            .filter_map(|manifest| manifest.source.split('/').next().map(str::to_owned))
+            .collect::<Vec<_>>();
+        let actual = entrypoints.iter().cloned().collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            entrypoints.len(),
+            7,
+            "duplicate or extra skill for {harness}"
+        );
+        assert_eq!(actual, expected, "unexpected skill inventory for {harness}");
+        assert!(
+            actual.contains("ito-loop"),
+            "ito-loop must remain installed"
+        );
+    }
+}
 
 #[test]
 fn opencode_manifests_includes_plugin_and_skills() {
@@ -63,14 +104,12 @@ fn opencode_manifests_includes_plugin_and_skills() {
     });
     assert!(has_ito_loop, "should include ito-loop skill");
 
-    let has_ito_orchestrate = manifests.iter().any(|m| {
-        m.asset_type == AssetType::Skill
-            && m.source == "ito-orchestrate/SKILL.md"
-            && m.dest
-                .to_string_lossy()
-                .ends_with("/skills/ito-orchestrate/SKILL.md")
-    });
-    assert!(has_ito_orchestrate, "should include ito-orchestrate skill");
+    assert!(
+        !manifests
+            .iter()
+            .any(|m| m.source == "ito-orchestrate/SKILL.md"),
+        "retired orchestration helper should be absent"
+    );
 
     // Should include the renamed ito-loop command.
     let has_loop = manifests.iter().any(|m| {
@@ -80,14 +119,10 @@ fn opencode_manifests_includes_plugin_and_skills() {
     });
     assert!(has_loop, "should include ito-loop command");
 
-    let has_orchestrate = manifests.iter().any(|m| {
-        m.asset_type == AssetType::Command
-            && m.source == "ito-orchestrate.md"
-            && m.dest
-                .to_string_lossy()
-                .ends_with("/commands/ito-orchestrate.md")
-    });
-    assert!(has_orchestrate, "should include ito-orchestrate command");
+    assert!(
+        !manifests.iter().any(|m| m.source == "ito-orchestrate.md"),
+        "retired orchestration wrapper should be absent"
+    );
 }
 
 #[test]
@@ -221,7 +256,7 @@ fn github_manifests_includes_skills_and_commands() {
 }
 
 #[test]
-fn wiki_skills_are_distributed_to_all_harnesses() {
+fn wiki_guidance_is_owned_by_retained_lifecycle_skills() {
     let project_root = Path::new("/tmp/test");
 
     for (harness, manifests) in [
@@ -230,12 +265,19 @@ fn wiki_skills_are_distributed_to_all_harnesses() {
         ("codex", codex_manifests(project_root)),
         ("github", github_manifests(project_root)),
     ] {
-        for source in ["ito-wiki/SKILL.md", "ito-wiki-search/SKILL.md"] {
+        for source in ["ito-research/SKILL.md", "ito-archive/SKILL.md"] {
             assert!(
                 manifests.iter().any(|manifest| manifest.source == source),
                 "expected {source} in {harness} manifests"
             );
         }
+        assert!(
+            !manifests.iter().any(|manifest| matches!(
+                manifest.source.as_str(),
+                "ito-wiki/SKILL.md" | "ito-wiki-search/SKILL.md"
+            )),
+            "retired wiki helpers should be absent from {harness}"
+        );
     }
 }
 
@@ -258,19 +300,15 @@ fn install_manifests_writes_files_to_disk() {
     let skills_dir = config_dir.join("skills");
     assert!(skills_dir.exists(), "skills directory should exist");
 
-    // Should have ito-brainstorming skill
+    // Should have the retained proposal lifecycle skill.
     assert!(
-        skills_dir
-            .join("ito-brainstorming")
-            .join("SKILL.md")
-            .exists(),
-        "brainstorming skill should be installed"
+        skills_dir.join("ito-proposal").join("SKILL.md").exists(),
+        "proposal skill should be installed"
     );
 }
 
-#[cfg(unix)]
 #[test]
-fn install_manifests_make_tmux_skill_scripts_executable() {
+fn install_manifests_omit_retired_tmux_surface() {
     let td = tempfile::tempdir().unwrap();
     let config_dir = td.path().join(".opencode");
 
@@ -278,30 +316,9 @@ fn install_manifests_make_tmux_skill_scripts_executable() {
     let (mode, opts) = legacy_init_args();
     install_manifests(&manifests, None, mode, &opts).unwrap();
 
-    let wait_for_text = config_dir.join("skills/ito-tmux/scripts/wait-for-text.sh");
-    let find_sessions = config_dir.join("skills/ito-tmux/scripts/find-sessions.sh");
-
-    assert!(wait_for_text.exists());
-    assert!(find_sessions.exists());
-
-    let wait_mode = std::fs::metadata(&wait_for_text)
-        .unwrap()
-        .permissions()
-        .mode();
-    let find_mode = std::fs::metadata(&find_sessions)
-        .unwrap()
-        .permissions()
-        .mode();
-
-    assert_ne!(
-        wait_mode & 0o111,
-        0,
-        "wait-for-text.sh should be executable"
-    );
-    assert_ne!(
-        find_mode & 0o111,
-        0,
-        "find-sessions.sh should be executable"
+    assert!(
+        !config_dir.join("skills/ito-tmux").exists(),
+        "tmux skill and scripts should not be installed"
     );
 }
 
@@ -320,7 +337,7 @@ fn install_manifests_creates_parent_directories() {
 }
 
 #[test]
-fn install_manifests_renders_worktree_skill_with_context() {
+fn install_manifests_put_worktree_guidance_in_apply_lifecycle() {
     let td = tempfile::tempdir().unwrap();
     let project_root = td.path().join("project");
 
@@ -332,51 +349,21 @@ fn install_manifests_renders_worktree_skill_with_context() {
     let (mode, opts) = legacy_init_args();
     install_manifests(&manifests, Some(&ctx), mode, &opts).unwrap();
 
-    // The using-git-worktrees skill should exist and be rendered (no Jinja2 syntax)
-    let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
-    assert!(
-        worktree_skill.exists(),
-        "worktree skill should be installed"
-    );
-
-    let content = std::fs::read_to_string(&worktree_skill).unwrap();
+    let apply_skill = project_root.join(".claude/skills/ito-apply/SKILL.md");
+    let content = std::fs::read_to_string(&apply_skill).unwrap();
     assert!(
         !content.contains("{%"),
-        "rendered skill should not contain Jinja2 block syntax"
+        "apply skill should not contain Jinja2 block syntax"
     );
     assert!(
-        content.contains("Worktrees are not configured for this project."),
-        "disabled context should render explicit non-worktree guidance"
-    );
-}
-
-#[test]
-fn install_manifests_renders_worktree_skill_enabled() {
-    let td = tempfile::tempdir().unwrap();
-    let project_root = td.path().join("project");
-
-    let manifests = claude_manifests(&project_root);
-
-    let ctx = WorktreeTemplateContext {
-        enabled: true,
-        strategy: "checkout_subdir".to_string(),
-        layout_dir_name: "ito-worktrees".to_string(),
-        integration_mode: "commit_pr".to_string(),
-        default_branch: "main".to_string(),
-        project_root: "/home/user/project".to_string(),
-    };
-    let (mode, opts) = legacy_init_args();
-    install_manifests(&manifests, Some(&ctx), mode, &opts).unwrap();
-
-    let worktree_skill = project_root.join(".claude/skills/ito-using-git-worktrees/SKILL.md");
-    let content = std::fs::read_to_string(&worktree_skill).unwrap();
-    assert!(
-        !content.contains("{%"),
-        "rendered skill should not contain Jinja2 block syntax"
+        content.contains("dedicated full-ID worktree from main"),
+        "apply lifecycle should retain worktree guidance"
     );
     assert!(
-        content.contains("**Configured strategy:** `checkout_subdir`"),
-        "enabled context should render strategy-specific guidance"
+        !project_root
+            .join(".claude/skills/ito-using-git-worktrees")
+            .exists(),
+        "retired worktree helper should not be installed"
     );
 }
 

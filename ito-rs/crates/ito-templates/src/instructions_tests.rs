@@ -189,12 +189,12 @@ fn orchestrate_template_renders_authoritative_policy() {
     struct Ctx {
         orchestrate_md_path: &'static str,
         orchestrate_md: &'static str,
-        workflow_skill_name: &'static str,
         preset_name: &'static str,
         gate_order: Vec<&'static str>,
         recommended_skills: Vec<&'static str>,
         coordinator_agent_name: &'static str,
         harness_name: &'static str,
+        has_native_agents: bool,
         agent_roles_md: &'static str,
     }
 
@@ -203,12 +203,12 @@ fn orchestrate_template_renders_authoritative_policy() {
         &Ctx {
             orchestrate_md_path: "/repo/.ito/user-prompts/orchestrate.md",
             orchestrate_md: "---\npreset: generic\n---\n\n## MUST\n- Run tests\n",
-            workflow_skill_name: "ito-orchestrator-workflow",
             preset_name: "generic",
             gate_order: vec!["apply-complete", "tests"],
             recommended_skills: vec![],
             coordinator_agent_name: "ito-orchestrator",
             harness_name: "opencode",
+            has_native_agents: true,
             agent_roles_md: "  - `plan-worker`: `ito-planner`\n  - `apply-worker`: `ito-worker`\n  - `review-worker`: `ito-reviewer`",
         },
     )
@@ -247,7 +247,7 @@ fn orchestrate_template_renders_authoritative_policy() {
             "Resume Behavior",
             "remaining gates",
             "orchestrate.md (Current)",
-            "ito-orchestrator-workflow",
+            "Lifecycle entrypoint**: `ito-loop`",
             "Preset",
             "Detected harness",
             "`opencode`",
@@ -964,9 +964,9 @@ fn cleanup_template_renders_manifest_and_legacy_entries() {
 
     let ctx = Ctx {
         manifest_entries: vec![ManifestEntry {
-            relative_path: ".codex/skills/ito-plan/SKILL.md",
+            relative_path: ".codex/skills/ito-proposal/SKILL.md",
             source: "skill",
-            source_path: "ito-plan/SKILL.md",
+            source_path: "ito-proposal/SKILL.md",
             harness: "codex",
         }],
         legacy_entries: vec![LegacyEntry {
@@ -978,7 +978,7 @@ fn cleanup_template_renders_manifest_and_legacy_entries() {
     };
     let rendered = render_instruction_template("agent/cleanup.md.j2", &ctx).unwrap();
     assert!(rendered.contains("Ito Cleanup"));
-    assert!(rendered.contains(".codex/skills/ito-plan/SKILL.md"));
+    assert!(rendered.contains(".codex/skills/ito-proposal/SKILL.md"));
     assert!(rendered.contains("ito-write-change-proposal/SKILL.md"));
     assert!(rendered.contains("git status --short"));
 }

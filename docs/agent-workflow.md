@@ -126,7 +126,9 @@ Also: when testing changes, use the binary built in the same worktree you edited
 
 ## Agent Adapter Maintenance
 
-After upgrading Ito-managed skills, commands, or agent templates, ask your agent to run `/ito-update-repo --dry-run`. This still refreshes managed files, but stops before deleting anything while it audits stale stamps, missing stamps, and orphaned Ito-managed assets.
+After upgrading Ito, run `ito init --upgrade`. Update-style installation refreshes the seven managed lifecycle skills and safely prunes retired managed copies; user-authored skills and user content outside Ito-managed shells are preserved and reported.
+
+The supported lifecycle entrypoints are exactly `ito`, `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop`. Operational commands such as list, path, config, validation, update, and planning-workspace status remain direct CLI commands through `ito`.
 
 ## Practical prompting (what to ask the agent)
 

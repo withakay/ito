@@ -18,7 +18,10 @@ fn sqlite_archive_promotes_specs_and_marks_change_archived() {
             proposal: Some("# Proposal"),
             design: None,
             tasks_md: Some("- [x] done\n"),
-            specs: &[("spec-one", "## ADDED Requirements\n")],
+            specs: &[(
+                "spec-one",
+                "## ADDED Requirements\n\n### Requirement: SQLite archive\nArchive behavior.\n",
+            )],
         })
         .expect("seed change");
 
@@ -29,7 +32,9 @@ fn sqlite_archive_promotes_specs_and_marks_change_archived() {
 
     let spec_repo = store.spec_repository("acme", "widgets").expect("spec repo");
     let spec = spec_repo.get("spec-one").expect("promoted spec");
-    assert!(spec.markdown.contains("## ADDED Requirements"));
+    assert!(spec.markdown.contains("## Requirements"));
+    assert!(spec.markdown.contains("### Requirement: SQLite archive"));
+    assert!(!spec.markdown.contains("## ADDED Requirements"));
 
     let change_repo = store
         .change_repository("acme", "widgets")

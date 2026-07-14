@@ -1,8 +1,9 @@
 //! Integration tests for worktree-aware template rendering.
 //!
-//! Renders both AGENTS.md and the worktree skill template with each of the
-//! four worktree configuration states and asserts the output contains
-//! expected content and does not contain discovery heuristics.
+//! Renders AGENTS.md with each of the four worktree configuration states and
+//! asserts the output contains expected content and does not contain discovery
+//! heuristics. The retained apply skill is checked separately as the lifecycle
+//! entrypoint for that policy.
 
 use ito_templates::project_templates::{WorktreeTemplateContext, render_project_template};
 
@@ -25,22 +26,11 @@ fn agents_md_bytes() -> &'static [u8] {
         .contents
 }
 
-/// Returns the raw bytes of the `ito-using-git-worktrees/SKILL.md` template.
-///
-/// Panics if the template file is not present in the registered skill templates.
-///
-/// # Examples
-///
-/// ```
-/// let bytes = skill_md_bytes();
-/// let s = std::str::from_utf8(bytes).unwrap();
-/// assert!(!s.is_empty());
-/// ```
-fn skill_md_bytes() -> &'static [u8] {
+fn apply_skill_md_bytes() -> &'static [u8] {
     ito_templates::skills_files()
         .into_iter()
-        .find(|f| f.relative_path == "ito-using-git-worktrees/SKILL.md")
-        .expect("ito-using-git-worktrees/SKILL.md should exist in skill templates")
+        .find(|f| f.relative_path == "ito-apply/SKILL.md")
+        .expect("ito-apply/SKILL.md should exist in skill templates")
         .contents
 }
 
@@ -337,86 +327,20 @@ fn agents_md_disabled() {
 }
 
 // ===========================================================================
-// Worktree skill tests
+// Apply lifecycle ownership
 // ===========================================================================
 
 #[test]
-fn skill_checkout_subdir() {
-    let ctx = checkout_subdir_ctx();
-    let text = render_text(skill_md_bytes(), &ctx);
+fn apply_skill_owns_worktree_lifecycle_guidance() {
+    let text = std::str::from_utf8(apply_skill_md_bytes()).expect("skill should be UTF-8");
 
-    assert!(text.contains("**Configured strategy:** `checkout_subdir`"));
-    assert_worktrunk_command(&text, "main");
-    assert_main_worktree_guardrails(&text);
+    assert!(text.contains("main/control checkout read-only"));
+    assert!(text.contains("dedicated full-ID worktree from main"));
+    assert!(text.contains("protect locked worktrees"));
+    assert!(text.contains("ito agent instruction apply"));
     assert!(
-        text.contains("Use the full change ID as the branch and primary worktree directory name")
+        !ito_templates::skills_files()
+            .iter()
+            .any(|file| file.relative_path == "ito-using-git-worktrees/SKILL.md")
     );
-    assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert_no_unrendered_jinja(&text);
-    assert_no_discovery_heuristics(&text, "skill_checkout_subdir");
-    assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_subdir");
-}
-
-#[test]
-fn skill_checkout_siblings() {
-    let ctx = checkout_siblings_ctx();
-    let text = render_text(skill_md_bytes(), &ctx);
-
-    assert!(text.contains("**Configured strategy:** `checkout_siblings`"));
-    assert_main_worktree_guardrails(&text);
-    assert!(
-        text.contains("Use the full change ID as the branch and primary worktree directory name")
-    );
-    assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert_worktrunk_command(&text, "develop");
-    assert_no_unrendered_jinja(&text);
-    assert_no_discovery_heuristics(&text, "skill_checkout_siblings");
-    assert_no_absolute_project_root(&text, &ctx.project_root, "skill_checkout_siblings");
-}
-
-/// Integration test that renders the worktree skill template using the
-/// `bare_control_siblings` configuration and asserts the rendered output
-/// contains the expected fragments and omits machine-specific or discovery
-/// heuristics.
-///
-/// # Examples
-///
-/// ```
-/// let ctx = bare_control_siblings_ctx();
-/// let text = render_text(skill_md_bytes(), &ctx);
-/// assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
-/// assert!(text.contains("ito-worktrees/"));
-/// assert_no_unrendered_jinja(&text);
-/// assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
-/// assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
-/// ```
-#[test]
-fn skill_bare_control_siblings() {
-    let ctx = bare_control_siblings_ctx();
-    let text = render_text(skill_md_bytes(), &ctx);
-
-    assert!(text.contains("**Configured strategy:** `bare_control_siblings`"));
-    assert_main_worktree_guardrails(&text);
-    assert!(
-        text.contains("Use the full change ID as the branch and primary worktree directory name")
-    );
-    assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert!(text.contains("ito-worktrees/"));
-    assert_worktrunk_command(&text, "main");
-    assert!(
-        text.contains("Never use the bare/control repo placeholder `HEAD` as the checkout source")
-    );
-    assert_no_unrendered_jinja(&text);
-    assert_no_discovery_heuristics(&text, "skill_bare_control_siblings");
-    assert_no_absolute_project_root(&text, &ctx.project_root, "skill_bare_control_siblings");
-}
-
-#[test]
-fn skill_disabled() {
-    let text = render_text(skill_md_bytes(), &disabled_ctx());
-
-    assert!(text.contains("Worktrees are not configured for this project."));
-    assert!(text.contains("Work in the current checkout."));
-    assert_no_unrendered_jinja(&text);
-    assert_no_discovery_heuristics(&text, "skill_disabled");
 }

@@ -134,7 +134,7 @@ impl Rule for SymlinksWiredRule {
         let issue = with_metadata(
             issue,
             serde_json::json!({
-                "fix": "Run `ito sync` (or the `ito-update-repo` skill) to repair coordination symlinks.",
+                "fix": "Run `ito sync` to repair coordination symlinks, then rerun `ito validate repo`.",
                 "expected_worktree_ito_path": worktree_ito_path.to_string_lossy(),
             }),
         );

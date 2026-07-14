@@ -4,8 +4,8 @@ use crate::errors::{CoreError, CoreResult};
 
 /// Legacy specialist asset paths renamed from `ito-orchestrator-*` to `ito-*`.
 ///
-/// This migration intentionally excludes the top-level `ito-orchestrator` and
-/// `ito-orchestrator-workflow` assets, which keep their existing names.
+/// This migration intentionally excludes the top-level native
+/// `ito-orchestrator` agent, which keeps its existing name.
 const OBSOLETE_SPECIALIST_AGENT_REL_PATHS: &[&str] = &[
     "ito-orchestrator-planner.md",
     "ito-orchestrator-researcher.md",

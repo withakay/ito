@@ -889,7 +889,7 @@ pub fn compute_apply_instructions(
         (
             "blocked".to_string(),
             format!(
-                "Cannot apply this change yet. Missing artifacts: {}.\nUse the ito-continue-change skill to create the missing artifacts first.",
+                "Cannot apply this change yet. Missing artifacts: {}.\nUse the ito-proposal lifecycle skill to complete the proposal package first.",
                 missing_artifacts.join(", ")
             ),
         )
@@ -902,7 +902,7 @@ pub fn compute_apply_instructions(
         (
             "blocked".to_string(),
             format!(
-                "The {tracks_filename} file is missing and must be created.\nUse ito-continue-change to generate the tracking file."
+                "The {tracks_filename} file is missing and must be created.\nUse ito-proposal to complete the proposal package."
             ),
         )
     } else if tracks_file.is_some() && tracks_file_exists && total == 0 {
@@ -914,7 +914,7 @@ pub fn compute_apply_instructions(
         (
             "blocked".to_string(),
             format!(
-                "The {tracks_filename} file exists but contains no tasks.\nAdd tasks to {tracks_filename} or regenerate it with ito-continue-change."
+                "The {tracks_filename} file exists but contains no tasks.\nAdd tasks to {tracks_filename} through ito-proposal."
             ),
         )
     } else if tracks_file.is_some() && remaining == 0 && total > 0 {

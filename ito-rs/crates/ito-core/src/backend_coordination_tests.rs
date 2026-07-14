@@ -110,6 +110,9 @@ fn is_backend_unavailable_detects_process_error() {
 use ito_domain::backend::BackendSyncClient;
 use std::cell::Cell;
 
+const TEST_SPEC_DELTA: &str =
+    "## ADDED Requirements\n\n### Requirement: Backend archive\nBackend archive behavior.\n";
+
 struct FakeSyncClient {
     bundle: ArtifactBundle,
 }
@@ -122,10 +125,7 @@ impl FakeSyncClient {
                 proposal: Some("# Proposal\nTest content".to_string()),
                 design: None,
                 tasks: Some("- [x] Task 1\n".to_string()),
-                specs: vec![(
-                    "test-cap".to_string(),
-                    "## ADDED Requirements\n".to_string(),
-                )],
+                specs: vec![("test-cap".to_string(), TEST_SPEC_DELTA.to_string())],
                 revision: "rev-final".to_string(),
             },
         }
@@ -190,11 +190,7 @@ fn setup_change_on_disk(ito_path: &std::path::Path, change_id: &str) {
     std::fs::create_dir_all(change_dir.join("specs/test-cap")).unwrap();
     std::fs::write(change_dir.join("proposal.md"), "# Proposal").unwrap();
     std::fs::write(change_dir.join("tasks.md"), "- [x] Done").unwrap();
-    std::fs::write(
-        change_dir.join("specs/test-cap/spec.md"),
-        "## ADDED Requirements\n",
-    )
-    .unwrap();
+    std::fs::write(change_dir.join("specs/test-cap/spec.md"), TEST_SPEC_DELTA).unwrap();
 }
 
 #[test]
@@ -244,6 +240,9 @@ fn archive_with_backend_happy_path() {
     // Verify spec was copied to main specs tree
     let main_spec = ito_path.join("specs").join("test-cap").join("spec.md");
     assert!(main_spec.exists(), "main spec should exist");
+    let promoted = std::fs::read_to_string(main_spec).expect("promoted spec");
+    assert!(promoted.contains("## Requirements"));
+    assert!(!promoted.contains("## ADDED Requirements"));
 }
 
 #[test]

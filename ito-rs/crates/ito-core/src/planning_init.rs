@@ -120,7 +120,7 @@ pub fn summarize_planning_workspace(status: &PlanningWorkspaceStatus) -> Plannin
         } else if !status.planning_exists {
             Some("No planning workspace found. Run `ito plan init` to create one.".to_string())
         } else if status.planning_documents.is_empty() {
-            Some("No planning documents yet. Use /ito-plan to create the first plan.".to_string())
+            Some("No planning documents yet. Use ito-proposal to create the first plan.".to_string())
         } else {
             None
         },

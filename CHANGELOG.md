@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- *(031-05)* Consolidate Ito's default agent surface to seven lifecycle skills and seven matching wrappers while retaining Ralph iteration through `ito-loop`.
+- *(031-05)* Separate harness-native agents from skill discovery and make update-style installs prune retired managed surfaces without deleting user content.
+
+### Removed
+
+- *(031-05)* Retire 25 helper skills, seven helper wrappers, Codex role-as-skill fallbacks, and the Ito tmux skill surface.
+
 ## [0.1.32] - 2026-05-27
 
 ### 🚀 Features

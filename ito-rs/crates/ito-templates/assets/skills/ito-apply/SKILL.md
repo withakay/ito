@@ -1,31 +1,24 @@
 ---
 name: ito-apply
-description: |
-    Apply a Change Proposal.
-    Triggered by the user saying "Apply change <change-id>" or "Implement change <change-id>".
-    Use when implementing, executing, applying, building, coding, or developing a feature, change, requirement, enhancement, fix, or modification. Use when running tasks from a spec, proposal, or plan.
+description: Implement an accepted, main-first Ito change through its authoritative tasks and worktree policy.
 ---
 
 <!-- ITO:START -->
+# Apply lifecycle
 
+Apply only a reviewed proposal that satisfies the repository's main-first policy. If the change is being requested from another branch, verify that the proposal exists on the configured main branch before implementation begins.
 
-Run the CLI-generated apply instructions for a specific change.
+1. Determine the full change ID. If it is missing, use `ito list --ready`; ask when more than one change is ready.
+2. Render the source of truth and follow it exactly:
 
-**Steps**
+```bash
+ito agent instruction apply --change "<change-id>"
+```
 
-1. Determine the target change ID.
+3. Keep the main/control checkout read-only. Create one dedicated full-ID worktree from main, protect locked worktrees, and run the instructed baseline verification before edits.
+4. Drive progress with `ito tasks next|ready|start|complete`; do not edit task state directly. Use scoped worker packets and self-review when delegating.
+5. Follow RED/GREEN/REFACTOR and preserve task/acceptance scope. Run relevant checks before every completion claim.
+6. Make small, change-aligned commits. Require explicit commit confirmation unless auto-mode was explicitly authorized. Run `make check` before commit; do not use `--no-verify` until required checks pass, and avoid stash/pre-commit races.
 
-   - If the user provides one, use it.
-   - Otherwise run `ito list --ready` to see changes ready for implementation.
-   - Ask the user which change to apply if multiple are ready.
-
-2. Generate instructions (source of truth):
-   ```bash
-   ito agent instruction apply --change "<change-id>"
-   ```
-
-3. Follow the printed instructions exactly.
-
-4. Use `ito tasks ready <change-id>` to see actionable tasks at any point.
-
+Hand completed implementation evidence to `ito-review`. Do not archive or integrate merely because task boxes are checked.
 <!-- ITO:END -->

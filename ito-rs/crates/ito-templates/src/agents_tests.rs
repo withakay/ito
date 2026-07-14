@@ -91,3 +91,26 @@ fn agent_surface_inventory_defines_activation_boundaries() {
         assert_eq!(surface.activation, activation);
     }
 }
+
+#[test]
+fn native_agent_destinations_never_use_skill_discovery_paths() {
+    assert_eq!(Harness::Codex.project_agent_path(), None);
+    assert!(get_agent_files(Harness::Codex).is_empty());
+
+    for harness in [
+        Harness::OpenCode,
+        Harness::ClaudeCode,
+        Harness::GitHubCopilot,
+        Harness::Pi,
+    ] {
+        let path = harness
+            .project_agent_path()
+            .expect("harness should have a native agent surface");
+        assert!(path.ends_with("/agents"));
+        assert!(!path.contains("skills"));
+
+        let files = get_agent_files(harness);
+        assert!(!files.is_empty());
+        assert!(files.iter().all(|(name, _)| !name.ends_with("SKILL.md")));
+    }
+}

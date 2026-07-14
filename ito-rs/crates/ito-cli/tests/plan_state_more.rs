@@ -244,7 +244,7 @@ fn plan_status_succeeds_after_init() {
     assert!(out.stdout.contains("Planning Workspace"));
     assert!(out.stdout.contains("Planning: available"));
     assert!(out.stdout.contains("No planning documents yet"));
-    assert!(out.stdout.contains("/ito-plan"));
+    assert!(out.stdout.contains("ito-proposal"));
 }
 
 #[test]

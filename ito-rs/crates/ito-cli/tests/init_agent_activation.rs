@@ -2,6 +2,100 @@
 mod fixtures;
 
 use ito_test_support::run_rust_candidate;
+use std::collections::BTreeSet;
+
+#[test]
+fn init_update_installs_exact_lifecycle_skill_inventory() {
+    let base = fixtures::make_empty_repo();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+
+    let repo_path = repo.path().to_string_lossy();
+    let argv = ["init", repo_path.as_ref(), "--tools", "all", "--update"];
+    let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+
+    let expected = [
+        "ito",
+        "ito-proposal",
+        "ito-research",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect::<BTreeSet<_>>();
+
+    for root in [
+        ".claude/skills",
+        ".codex/skills",
+        ".github/skills",
+        ".opencode/skills",
+        ".pi/skills",
+    ] {
+        let actual = installed_skill_names(&repo.path().join(root));
+        assert_eq!(actual, expected, "unexpected installed skills under {root}");
+        assert!(
+            actual.contains("ito-loop"),
+            "ito-loop must remain installed"
+        );
+    }
+
+    assert!(
+        installed_skill_names(&repo.path().join(".agents/skills")).is_empty(),
+        "Codex role definitions must not be installed as discoverable skills"
+    );
+
+    let expected_commands = expected;
+    for (root, suffix) in [
+        (".claude/commands", ".md"),
+        (".codex/prompts", ".md"),
+        (".github/prompts", ".prompt.md"),
+        (".opencode/commands", ".md"),
+        (".pi/commands", ".md"),
+    ] {
+        let actual = installed_command_names(&repo.path().join(root), suffix);
+        assert_eq!(
+            actual, expected_commands,
+            "unexpected commands under {root}"
+        );
+    }
+    assert!(
+        !repo
+            .path()
+            .join(".codex/commands/ito-project-setup.md")
+            .exists(),
+        "retired project-setup wrapper must not be installed"
+    );
+}
+
+fn installed_skill_names(root: &std::path::Path) -> BTreeSet<String> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return BTreeSet::new();
+    };
+
+    entries
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("SKILL.md").is_file())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect()
+}
+
+fn installed_command_names(root: &std::path::Path, suffix: &str) -> BTreeSet<String> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return BTreeSet::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter_map(|name| name.strip_suffix(suffix).map(str::to_owned))
+        .collect()
+}
 
 #[test]
 fn init_update_with_tools_all_preserves_agent_activation_contract() {
@@ -88,7 +182,7 @@ fn init_update_adds_activation_to_existing_agent_frontmatter() {
 }
 
 #[test]
-fn init_update_installs_ito_plan_command_and_skill_for_all_harnesses() {
+fn init_update_routes_planning_through_proposal_for_all_harnesses() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -101,35 +195,25 @@ fn init_update_installs_ito_plan_command_and_skill_for_all_harnesses() {
     let out = run_rust_candidate(rust_path, &argv, repo.path(), home.path());
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
 
-    for rel in ito_plan_command_paths() {
-        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read command");
+    for rel in ito_plan_surface_paths() {
         assert!(
-            contents.contains("Load and follow the `ito-plan` skill"),
-            "expected {rel} to load the ito-plan skill"
-        );
-        assert!(
-            contents.contains("$ARGUMENTS"),
-            "expected {rel} to pass through user arguments"
+            !repo.path().join(&rel).exists(),
+            "retired planning surface should not be installed: {rel}"
         );
     }
 
-    for rel in ito_plan_skill_paths() {
-        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read skill");
-        assert!(
-            contents.contains("name: ito-plan") && contents.contains("# Plan Before Proposal"),
-            "expected {rel} to contain planning workflow guidance"
-        );
-        assert!(
-            contents.contains("Proposal Handoff Format"),
-            "expected {rel} to describe proposal handoff guidance"
-        );
+    for rel in ito_proposal_skill_paths() {
+        let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read proposal");
+        assert!(contents.contains("name: ito-proposal"));
+        assert!(contents.contains("pre-proposal planning"));
+        assert!(contents.contains("ito plan init"));
     }
 
     for rel in generic_ito_skill_paths() {
         let contents = std::fs::read_to_string(repo.path().join(&rel)).expect("read ito skill");
         assert!(
-            contents.contains("`ito plan init/status` are CLI workspace commands"),
-            "expected {rel} to keep ito plan routed to the CLI"
+            contents.contains("`ito plan init|status`"),
+            "expected {rel} to keep planning workspace commands on the CLI"
         );
     }
 }
@@ -146,9 +230,6 @@ fn direct_agent_paths() -> Vec<String> {
             paths.push(format!("{root}/{name}.md"));
         }
     }
-    for name in ["ito-general", "ito-thinking", "ito-orchestrator"] {
-        paths.push(format!(".agents/skills/{name}/SKILL.md"));
-    }
     paths
 }
 
@@ -163,7 +244,6 @@ fn delegated_agent_paths() -> Vec<String> {
         paths.push(format!("{root}/ito-quick.md"));
     }
     paths.push(".opencode/agents/ito-test-runner.md".to_string());
-    paths.push(".agents/skills/ito-quick/SKILL.md".to_string());
     paths
 }
 
@@ -178,23 +258,31 @@ fn opencode_delegated_agent_paths() -> Vec<String> {
     ]
 }
 
-fn ito_plan_command_paths() -> Vec<String> {
-    vec![
+fn ito_plan_surface_paths() -> Vec<String> {
+    let mut paths = vec![
         ".claude/commands/ito-plan.md".to_string(),
         ".codex/prompts/ito-plan.md".to_string(),
         ".github/prompts/ito-plan.prompt.md".to_string(),
         ".opencode/commands/ito-plan.md".to_string(),
         ".pi/commands/ito-plan.md".to_string(),
-    ]
-}
-
-fn ito_plan_skill_paths() -> Vec<String> {
-    vec![
+    ];
+    paths.extend([
         ".claude/skills/ito-plan/SKILL.md".to_string(),
         ".codex/skills/ito-plan/SKILL.md".to_string(),
         ".github/skills/ito-plan/SKILL.md".to_string(),
         ".opencode/skills/ito-plan/SKILL.md".to_string(),
         ".pi/skills/ito-plan/SKILL.md".to_string(),
+    ]);
+    paths
+}
+
+fn ito_proposal_skill_paths() -> Vec<String> {
+    vec![
+        ".claude/skills/ito-proposal/SKILL.md".to_string(),
+        ".codex/skills/ito-proposal/SKILL.md".to_string(),
+        ".github/skills/ito-proposal/SKILL.md".to_string(),
+        ".opencode/skills/ito-proposal/SKILL.md".to_string(),
+        ".pi/skills/ito-proposal/SKILL.md".to_string(),
     ]
 }
 

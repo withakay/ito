@@ -4,7 +4,7 @@
 
 Use `@/.ito/AGENTS.md` as the source of truth when work involves planning/proposals, new capabilities, breaking or architectural changes, major performance/security work, or any ambiguous request that needs Ito workflow guidance.
 
-Project setup: run `/ito-project-setup` (or `ito agent instruction project-setup`) until `.ito/project.md` contains `<!-- ITO:PROJECT_SETUP:COMPLETE -->`.
+Project setup: run `ito agent instruction project-setup` and follow the emitted prompt until `.ito/project.md` contains `<!-- ITO:PROJECT_SETUP:COMPLETE -->`.
 
 Files under `.ito/`, `.opencode/`, `.github/`, and `.codex/` are Ito-managed and may be overwritten. Put project-specific guidance in `.ito/user-prompts/guidance.md`, `.ito/user-prompts/<artifact>.md`, or below this block.
 
@@ -111,14 +111,4 @@ Worktrees are not configured for this project.
 
 <!-- ITO:END -->
 
-<!-- ITO:INTERNAL:START -->
-## Project Guidance
-
-[Subagents]|first-class tools; delegate independent work in parallel; ≥2 review passes for non-trivial changes
-|explore: codebase nav/search |ito-test-runner: project tests/checks curated output
-|rust-quality-checker: style/idioms |rust-code-reviewer: safety/idioms/arch
-|rust-test-engineer: test strategy |codex-review: diff correctness+edge cases
-|documentation-police: docs quality |code-simplifier: refactor for clarity
-|code-quality-squad: parallel quality |perplexity-researcher[-pro]: web research+citations
-|multi-agent: explore multiple approaches and synthesize
-<!-- ITO:INTERNAL:END -->
+<!-- Project-specific agent guidance below this line is preserved by Ito. -->

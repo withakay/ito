@@ -112,12 +112,13 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let prompt = match ito_core::orchestrate::load_orchestrate_user_prompt(ito_path) {
             Ok(prompt) => prompt,
             Err(ito_core::errors::CoreError::NotFound(_)) => {
-                return fail(
-                    "Missing required project file: .ito/user-prompts/orchestrate.md\n\n\
-The orchestrator workflow is configured via orchestrate.md and a project workflow skill.\n\
-Fix: run the orchestrator setup flow (agent-driven) by loading the ito-orchestrate-setup skill,\n\
-then re-run:\n\n\
-  ito agent instruction orchestrate\n",
+                return emit_instruction(
+                    want_json,
+                    "orchestrate",
+                    "# Orchestration setup required\n\n\
+Create `.ito/user-prompts/orchestrate.md` as additive project policy. Start with YAML frontmatter selecting the `generic` preset, then document only project-specific gate, parallelism, or role guidance. Do not copy Ito's authoritative orchestration policy into the file.\n\n\
+After creating it, rerun `ito agent instruction orchestrate`. The retained lifecycle entrypoint is `ito-loop`; no setup or workflow skill is required.\n"
+                        .to_string(),
                 );
             }
             Err(e) => return Err(to_cli_error(e)),
@@ -147,12 +148,12 @@ then re-run:\n\n\
         struct Ctx<'a> {
             orchestrate_md_path: &'a str,
             orchestrate_md: &'a str,
-            workflow_skill_name: &'a str,
             preset_name: &'a str,
             gate_order: &'a [String],
             recommended_skills: &'a [String],
             coordinator_agent_name: &'a str,
             harness_name: &'a str,
+            has_native_agents: bool,
             agent_roles_md: &'a str,
         }
 
@@ -164,36 +165,42 @@ then re-run:\n\n\
             "security-worker",
         ];
 
+        let harness_name = detect_harness_name();
+        let has_native_agents = matches!(
+            harness_name,
+            "opencode" | "claude-code" | "github-copilot" | "pi"
+        );
         let mut agent_roles = Vec::new();
-        for role in ROLE_ORDER {
-            let Some(agent) = preset.agent_roles.get(*role) else {
-                continue;
-            };
-            if agent.is_empty() {
-                continue;
+        if has_native_agents {
+            for role in ROLE_ORDER {
+                let Some(agent) = preset.agent_roles.get(*role) else {
+                    continue;
+                };
+                if agent.is_empty() {
+                    continue;
+                }
+                agent_roles.push(format!("  - `{role}`: `{agent}`"));
             }
-            agent_roles.push(format!("  - `{role}`: `{agent}`"));
-        }
-        for (role, agent) in &preset.agent_roles {
-            if ROLE_ORDER.contains(&role.as_str()) || agent.is_empty() {
-                continue;
+            for (role, agent) in &preset.agent_roles {
+                if ROLE_ORDER.contains(&role.as_str()) || agent.is_empty() {
+                    continue;
+                }
+                agent_roles.push(format!("  - `{role}`: `{agent}`"));
             }
-            agent_roles.push(format!("  - `{role}`: `{agent}`"));
         }
         let agent_roles_md = agent_roles.join("\n");
-        let harness_name = detect_harness_name();
 
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/orchestrate.md.j2",
             &Ctx {
                 orchestrate_md_path: &orchestrate_md_path,
                 orchestrate_md: &orchestrate_md,
-                workflow_skill_name: "ito-orchestrator-workflow",
                 preset_name: &preset.name,
                 gate_order: &preset.gate_order,
                 recommended_skills: &preset.recommended_skills,
                 coordinator_agent_name: "ito-orchestrator",
                 harness_name,
+                has_native_agents,
                 agent_roles_md: &agent_roles_md,
             },
         )

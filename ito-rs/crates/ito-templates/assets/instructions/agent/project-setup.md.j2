@@ -188,7 +188,7 @@ When the interview + scaffolding is done, update `.ito/project.md`:
 
 ## Step 8: Wire the `ito validate repo` pre-commit hook
 
-Once the rest of setup is done, run the `ito-update-repo` skill to wire `ito validate repo --staged --strict` into the project's pre-commit hook. The skill detects the framework in use (`prek` / `pre-commit` / `Husky` / `lefthook`) — see the detection table in the skill's "Pre-commit hook setup" section — and proposes the appropriate edit, requiring approval before applying.
+Once the rest of setup is done, optionally add `ito validate repo --staged --strict` directly to the project's existing pre-commit framework (`prek`, `pre-commit`, Husky, or lefthook). Inspect and approve that project-owned configuration diff before applying it.
 
 Skip this step when:
 

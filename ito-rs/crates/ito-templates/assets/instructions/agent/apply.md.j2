@@ -5,7 +5,7 @@ Schema: {{ instructions.schemaName }}
 ### ⚠️ Blocked
 
 Missing artifacts: {{ instructions.missingArtifacts|join(", ") }}
-Use the ito-continue-change skill to create these first.
+Use the `ito-proposal` lifecycle skill to complete the proposal package first.
 
 {% endif %}
 {% if context_files and context_files|length > 0 %}
