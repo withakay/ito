@@ -170,15 +170,20 @@ exit {}\n",
     write_executable(bin_dir.join("opencode"), &script);
 }
 
-#[cfg(unix)]
-fn make_fake_osascript(bin_dir: &Path, log_path: &Path) {
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn make_fake_notification_command(bin_dir: &Path, log_path: &Path) {
+    #[cfg(target_os = "macos")]
+    let program = "osascript";
+    #[cfg(target_os = "linux")]
+    let program = "notify-send";
+
     let script = format!(
         "#!/bin/sh\n\
 printf '%s\\n' \"$@\" >> \"{}\"\n\
 exit 0\n",
         log_path.display()
     );
-    write_executable(bin_dir.join("osascript"), &script);
+    write_executable(bin_dir.join(program), &script);
 }
 
 #[cfg(unix)]
@@ -1143,7 +1148,7 @@ fn ralph_browser_flag_injects_agent_browser_guidance_for_opencode() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn ralph_notify_emits_operator_notification_on_success() {
     let base = make_base_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -1153,7 +1158,7 @@ fn ralph_notify_emits_operator_notification_on_success() {
     let notify_log = repo.path().join("notify.log");
 
     reset_repo(repo.path(), base.path());
-    make_fake_osascript(bin.path(), &notify_log);
+    make_fake_notification_command(bin.path(), &notify_log);
 
     let old_path = std::env::var("PATH").unwrap_or_default();
     let new_path = format!("{}:{old_path}", bin.path().display());
@@ -1185,7 +1190,10 @@ fn ralph_notify_emits_operator_notification_on_success() {
 
     assert_eq!(out.code, 0, "stdout={}", out.stdout);
     let log = std::fs::read_to_string(&notify_log).unwrap();
-    assert!(log.contains("display notification"), "log={log}");
+    assert!(
+        log.contains("Ralph run completed successfully"),
+        "log={log}"
+    );
 }
 
 #[test]
