@@ -194,7 +194,7 @@ jobs:
       && needs.autofix.outputs.pushed != 'true'
     #runs-on: withakay-selfhosted
     runs-on: withakay-selfhosted-arm
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -250,7 +250,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     runs-on: withakay-selfhosted-arm
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
