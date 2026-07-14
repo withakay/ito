@@ -300,7 +300,7 @@ fn run_git(repo: &Path, args: &[&str]) {
 /// assert!(repo.join(".git").exists());
 /// ```
 pub(crate) fn git_init_with_initial_commit(repo: &Path) {
-    run_git(repo, &["init"]);
+    run_git(repo, &["init", "--initial-branch=main"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test User"]);
     // Test environments may have global commit signing enabled (gpg/1Password).
