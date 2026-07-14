@@ -18,9 +18,7 @@
 //!    exists at the project root.
 //! 5. **`None`** — no markers found.
 //!
-//! Used by the Wave 4 `ito init` advisory and by the `ito-update-repo`
-//! skill to decide which file to edit when wiring the `ito validate repo`
-//! pre-commit hook.
+//! Used by the `ito init` advisory for explicit downstream hook setup.
 
 use std::path::{Path, PathBuf};
 

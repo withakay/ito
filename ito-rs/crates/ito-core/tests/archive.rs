@@ -62,7 +62,7 @@ fn discover_and_copy_specs_and_archive_change() {
             .join("auth")
             .join("spec.md")
             .as_path(),
-        "# auth delta\n",
+        "## ADDED Requirements\n\n### Requirement: Auth\nAuth works.\n",
     );
     write(
         change_dir
@@ -70,7 +70,7 @@ fn discover_and_copy_specs_and_archive_change() {
             .join("billing")
             .join("spec.md")
             .as_path(),
-        "# billing delta\n",
+        "## ADDED Requirements\n\n### Requirement: Billing\nBilling works.\n",
     );
 
     assert!(change_exists(&ito, change_name));
@@ -84,7 +84,7 @@ fn discover_and_copy_specs_and_archive_change() {
     // Categorize specs based on existence in main specs tree.
     write(
         ito.join("specs").join("auth").join("spec.md").as_path(),
-        "# auth main\n",
+        "# Auth Specification\n\n## Purpose\n\nCurrent auth behavior.\n\n## Requirements\n\n### Requirement: Existing auth\nExisting behavior remains.\n",
     );
     let (new_specs, existing_specs) = categorize_specs(&ito, &specs);
     assert_eq!(existing_specs, vec!["auth".to_string()]);
@@ -94,6 +94,12 @@ fn discover_and_copy_specs_and_archive_change() {
     let updated = copy_specs_to_main(&ito, change_name, &specs).expect("copy_specs_to_main");
     assert_eq!(updated, specs);
     assert!(ito.join("specs").join("billing").join("spec.md").exists());
+    let auth = std::fs::read_to_string(ito.join("specs/auth/spec.md")).expect("auth spec");
+    assert!(auth.contains("# Auth Specification"));
+    assert!(auth.contains("### Requirement: Existing auth"));
+    assert!(auth.contains("## Requirements"));
+    assert!(auth.contains("### Requirement: Auth"));
+    assert!(!auth.contains("## ADDED Requirements"));
 
     // Archive.
     let archive_name = format!("2026-01-01-{change_name}");
@@ -122,4 +128,67 @@ fn generate_archive_name_prefixes_with_date() {
     let name = generate_archive_name("001-01_demo");
     assert!(name.ends_with("-001-01_demo"));
     assert!(name.len() > "001-01_demo".len());
+}
+
+#[test]
+fn retiring_last_requirement_preserves_capability_design_file() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+    let change_name = "001-02_retire-capability";
+    write(
+        &ito.join("specs/legacy/spec.md"),
+        "## Requirements\n\n### Requirement: Legacy\nLegacy behavior.\n",
+    );
+    write(
+        &ito.join("specs/legacy/design.md"),
+        "# Historical design context\n",
+    );
+    write(
+        &ito.join(format!("changes/{change_name}/specs/legacy/spec.md")),
+        "## REMOVED Requirements\n\n### Requirement: Legacy\nLegacy behavior.\n",
+    );
+
+    let updated =
+        copy_specs_to_main(&ito, change_name, &["legacy".to_string()]).expect("retire requirement");
+    assert_eq!(updated, ["legacy"]);
+    assert!(!ito.join("specs/legacy/spec.md").exists());
+    assert_eq!(
+        std::fs::read_to_string(ito.join("specs/legacy/design.md")).expect("design preserved"),
+        "# Historical design context\n"
+    );
+}
+
+#[test]
+fn reconciliation_failure_does_not_partially_update_earlier_specs() {
+    let td = tempfile::tempdir().expect("tempdir");
+    let ito = td.path().join(".ito");
+    let change_name = "001-03_atomic-reconciliation";
+    let first_base = "## Requirements\n\n### Requirement: Existing A\nStable A.\n";
+    let second_base = "## Requirements\n\n### Requirement: Existing B\nStable B.\n";
+    write(&ito.join("specs/a/spec.md"), first_base);
+    write(&ito.join("specs/b/spec.md"), second_base);
+    write(
+        &ito.join(format!("changes/{change_name}/specs/a/spec.md")),
+        "## ADDED Requirements\n\n### Requirement: Added A\nNew A.\n",
+    );
+    write(
+        &ito.join(format!("changes/{change_name}/specs/b/spec.md")),
+        "## MODIFIED Requirements\n\n### Requirement: Missing B\nInvalid B.\n",
+    );
+
+    let error = copy_specs_to_main(&ito, change_name, &["a".to_string(), "b".to_string()])
+        .expect_err("later invalid delta");
+    assert!(
+        error
+            .to_string()
+            .contains("cannot modify missing requirement")
+    );
+    assert_eq!(
+        std::fs::read_to_string(ito.join("specs/a/spec.md")).expect("first unchanged"),
+        first_base
+    );
+    assert_eq!(
+        std::fs::read_to_string(ito.join("specs/b/spec.md")).expect("second unchanged"),
+        second_base
+    );
 }

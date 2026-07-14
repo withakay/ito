@@ -4,7 +4,7 @@ use super::{default_project_files, get_skill_file};
 fn proposal_skill_mentions_wiki_consultation() {
     let proposal = get_skill_file("ito-proposal/SKILL.md").expect("proposal skill should exist");
     let proposal = std::str::from_utf8(proposal).expect("skill should be utf8");
-    assert!(proposal.contains("**Step 0.5: Consult the Ito wiki when present**"));
+    assert!(proposal.contains("Inspect relevant brownfield specs"));
     assert!(proposal.contains(".ito/wiki/index.md"));
 }
 
@@ -12,8 +12,8 @@ fn proposal_skill_mentions_wiki_consultation() {
 fn research_and_archive_skills_include_wiki_follow_up() {
     let research = get_skill_file("ito-research/SKILL.md").expect("research skill should exist");
     let research = std::str::from_utf8(research).expect("skill should be utf8");
-    assert!(research.contains("Research source artifacts and wiki synthesis have different jobs"));
-    assert!(research.contains("$ITO_ROOT/wiki/queries/"));
+    assert!(research.contains("synthesized navigation"));
+    assert!(research.contains("wiki topic/query artifacts"));
 
     let synthesize = get_skill_file("ito-research/research-synthesize.md")
         .expect("research synthesize template should exist");
@@ -23,24 +23,22 @@ fn research_and_archive_skills_include_wiki_follow_up() {
 
     let archive = get_skill_file("ito-archive/SKILL.md").expect("archive skill should exist");
     let archive = std::str::from_utf8(archive).expect("skill should be utf8");
-    assert!(archive.contains("refresh relevant `.ito/wiki/` topic pages"));
-    assert!(archive.contains("not an archive blocker"));
+    assert!(archive.contains("refresh relevant `.ito/wiki/` topic/index/status material"));
+    assert!(archive.contains("must not hide an archive failure"));
 }
 
 #[test]
-fn wiki_skills_are_embedded() {
-    let wiki = get_skill_file("ito-wiki/SKILL.md").expect("ito-wiki skill should exist");
-    let wiki = std::str::from_utf8(wiki).expect("skill should be utf8");
-    assert!(wiki.starts_with("---\nname: ito-wiki\n"));
-    assert!(wiki.contains("## Maintenance Workflow"));
-    assert!(wiki.contains("## Lint Checklist"));
+fn wiki_skills_are_consolidated_into_lifecycle_phases() {
+    assert!(get_skill_file("ito-wiki/SKILL.md").is_none());
+    assert!(get_skill_file("ito-wiki-search/SKILL.md").is_none());
 
-    let search =
-        get_skill_file("ito-wiki-search/SKILL.md").expect("ito-wiki-search skill should exist");
-    let search = std::str::from_utf8(search).expect("skill should be utf8");
-    assert!(search.starts_with("---\nname: ito-wiki-search\n"));
-    assert!(search.contains("## Search Workflow"));
-    assert!(search.contains("## Answer Rules"));
+    let research = get_skill_file("ito-research/SKILL.md").expect("research skill");
+    let research = std::str::from_utf8(research).expect("skill should be utf8");
+    assert!(research.contains("Read `.ito/wiki/index.md`"));
+
+    let archive = get_skill_file("ito-archive/SKILL.md").expect("archive skill");
+    let archive = std::str::from_utf8(archive).expect("skill should be utf8");
+    assert!(archive.contains("refresh relevant `.ito/wiki/`"));
 }
 
 #[test]

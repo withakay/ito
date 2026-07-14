@@ -5,7 +5,7 @@ use ito_test_support::{CmdOutput, run_rust_candidate, rust_candidate_command};
 use std::path::Path;
 
 #[test]
-fn orchestrate_requires_orchestrate_md() {
+fn orchestrate_emits_inline_setup_when_orchestrate_md_is_missing() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -13,24 +13,13 @@ fn orchestrate_requires_orchestrate_md() {
 
     fixtures::reset_repo(repo.path(), base.path());
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["agent", "instruction", "orchestrate"],
-        repo.path(),
-        home.path(),
-    );
+    let out = run_orchestrate_with_env(rust_path, repo.path(), home.path(), "OPENCODE_SESSION_ID");
 
-    assert_ne!(out.code, 0);
-    assert!(
-        out.stderr.contains("orchestrate.md"),
-        "stderr was: {}",
-        out.stderr
-    );
-    assert!(
-        out.stderr.contains("ito-orchestrate-setup"),
-        "stderr was: {}",
-        out.stderr
-    );
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Orchestration setup required"));
+    assert!(out.stdout.contains(".ito/user-prompts/orchestrate.md"));
+    assert!(out.stdout.contains("ito-loop"));
+    assert!(!out.stdout.contains("ito-orchestrate-setup"));
 }
 
 #[test]
@@ -46,19 +35,15 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
         "---\npreset: generic\nmax_parallel: auto\n---\n\n## MUST\n- Run make check\n",
     );
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["agent", "instruction", "orchestrate"],
-        repo.path(),
-        home.path(),
-    );
+    let out = run_orchestrate_with_env(rust_path, repo.path(), home.path(), "OPENCODE_SESSION_ID");
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(
         out.stdout
             .contains("Orchestrate: Change Apply Coordination")
     );
-    assert!(out.stdout.contains("ito-orchestrator-workflow"));
+    assert!(out.stdout.contains("Lifecycle entrypoint**: `ito-loop`"));
+    assert!(!out.stdout.contains("ito-orchestrator-workflow"));
     assert!(out.stdout.contains("Coordinator agent"));
     assert!(out.stdout.contains("ito-orchestrator"));
     assert!(out.stdout.contains("ito-planner"));
@@ -71,6 +56,23 @@ fn orchestrate_succeeds_when_orchestrate_md_exists() {
     assert!(out.stdout.contains("Direct Coordinator Activation"));
     assert!(out.stdout.contains("Delegated Role Agents"));
     assert!(out.stdout.contains("Gate Planning"));
+    assert!(
+        out.stdout
+            .contains("Mandatory implementation-readiness gate")
+    );
+    assert!(
+        out.stdout
+            .contains("ito change preflight <change-id> --for execute --json")
+    );
+    assert!(out.stdout.contains("do not create or send a work packet"));
+    assert!(out.stdout.contains("Re-evaluate this gate on every resume"));
+    assert!(out.stdout.contains("readiness` field"));
+    let readiness_gate = out
+        .stdout
+        .find("`implementation-readiness`")
+        .expect("readiness gate");
+    let apply_gate = out.stdout.find("`apply-complete`").expect("apply gate");
+    assert!(readiness_gate < apply_gate);
     assert!(out.stdout.contains("Run State"));
     assert!(out.stdout.contains("Failure and Remediation"));
     assert!(out.stdout.contains("Resume Behavior"));
@@ -142,6 +144,29 @@ fn orchestrate_uses_canonical_harness_detection_order() {
 }
 
 #[test]
+fn orchestrate_uses_ordinary_delegation_for_codex_without_role_skills() {
+    let base = fixtures::make_repo_with_spec_change_fixture();
+    let repo = tempfile::tempdir().expect("work");
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+
+    fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path().join(".ito/user-prompts/orchestrate.md"),
+        "---\npreset: generic\n---\n\n## MUST\n- Run tests\n",
+    );
+    let out = run_orchestrate_with_env(rust_path, repo.path(), home.path(), "CODEX_SESSION_ID");
+
+    assert_eq!(out.code, 0, "stderr={}", out.stderr);
+    assert!(out.stdout.contains("Detected harness**: `codex`"));
+    assert!(out.stdout.contains("current lifecycle agent"));
+    assert!(out.stdout.contains("ordinary harness capabilities"));
+    assert!(!out.stdout.contains("Preset agent roles"));
+    assert!(!out.stdout.contains("- `ito-planner`"));
+    assert!(!out.stdout.contains("- `ito-worker`"));
+}
+
+#[test]
 fn orchestrate_reports_unknown_harness_without_session_env() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");
@@ -210,12 +235,7 @@ fn orchestrate_policy_identifies_direct_and_delegated_surfaces() {
         "---\npreset: generic\n---\n\n## MUST\n- Keep local policy additive\n",
     );
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["agent", "instruction", "orchestrate"],
-        repo.path(),
-        home.path(),
-    );
+    let out = run_orchestrate_with_env(rust_path, repo.path(), home.path(), "OPENCODE_SESSION_ID");
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(
@@ -263,12 +283,7 @@ fn orchestrate_surfaces_recommended_skills_from_preset() {
         "---\npreset: rust\n---\n\n## MUST\n- Run cargo test\n",
     );
 
-    let out = run_rust_candidate(
-        rust_path,
-        &["agent", "instruction", "orchestrate"],
-        repo.path(),
-        home.path(),
-    );
+    let out = run_orchestrate_with_env(rust_path, repo.path(), home.path(), "OPENCODE_SESSION_ID");
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(

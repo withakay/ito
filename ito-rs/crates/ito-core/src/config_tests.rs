@@ -171,6 +171,25 @@ fn validate_config_value_rejects_invalid_archive_main_integration_mode() {
 }
 
 #[test]
+fn validate_config_value_accepts_proposal_integration_modes() {
+    let parts = ["changes", "proposal", "integration_mode"];
+    assert!(validate_config_value(&parts, &json!("pull_request")).is_ok());
+    assert!(validate_config_value(&parts, &json!("direct_merge")).is_ok());
+}
+
+#[test]
+fn validate_config_value_rejects_invalid_proposal_integration_mode_with_path() {
+    let parts = ["changes", "proposal", "integration_mode"];
+    let error = validate_config_value(&parts, &json!("merge_when_green"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(error.contains("changes.proposal.integration_mode"));
+    assert!(error.contains("pull_request"));
+    assert!(error.contains("direct_merge"));
+}
+
+#[test]
 fn validate_config_value_accepts_valid_audit_mirror_branch_name() {
     let parts = ["audit", "mirror", "branch"];
     let value = json!("ito/internal/audit");

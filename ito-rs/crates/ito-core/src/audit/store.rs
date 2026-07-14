@@ -8,11 +8,15 @@ use std::sync::OnceLock;
 use ito_config::{ConfigContext, load_cascading_project_config, resolve_audit_mirror_settings};
 use ito_domain::audit::event::AuditEvent;
 use ito_domain::audit::writer::AuditWriter;
+#[cfg(feature = "backend")]
 use ito_domain::backend::{BackendEventIngestClient, EventBatch};
 
+#[cfg(feature = "backend")]
 use crate::backend_client::idempotency_key;
+#[cfg(feature = "backend")]
 use crate::backend_http::BackendHttpClient;
 use crate::process::{ProcessRequest, ProcessRunner, SystemProcessRunner};
+#[cfg(feature = "backend")]
 use crate::repository_runtime::{PersistenceMode, resolve_repository_runtime};
 
 use super::mirror::{
@@ -48,16 +52,19 @@ pub fn audit_storage_location_key(location: &AuditStorageLocation) -> String {
     }
 }
 
+#[cfg(feature = "backend")]
 struct BackendAuditStore {
     client: BackendHttpClient,
 }
 
+#[cfg(feature = "backend")]
 impl BackendAuditStore {
     fn new(client: BackendHttpClient) -> Self {
         Self { client }
     }
 }
 
+#[cfg(feature = "backend")]
 impl AuditWriter for BackendAuditStore {
     fn append(&self, event: &AuditEvent) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let batch = EventBatch {
@@ -73,6 +80,7 @@ impl AuditWriter for BackendAuditStore {
     }
 }
 
+#[cfg(feature = "backend")]
 impl AuditEventStore for BackendAuditStore {
     fn read_all(&self) -> Vec<AuditEvent> {
         match self.client.list_audit_events() {
@@ -280,6 +288,7 @@ enum InternalBranchRead {
 /// or backend-managed storage without changing reader call sites again.
 pub fn default_audit_store(ito_path: &Path) -> Box<dyn AuditEventStore> {
     let ctx = ConfigContext::from_process_env();
+    #[cfg(feature = "backend")]
     if let Ok(runtime) = resolve_repository_runtime(ito_path, &ctx)
         && runtime.mode() == PersistenceMode::Remote
         && let Some(backend_runtime) = runtime.backend_runtime().cloned()

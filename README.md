@@ -11,7 +11,7 @@
 - Thread/String (糸): Used for sewing thread, yarn, or in a metaphorical sense for connections.
 - Intention/Aim (意図): Often used in the context of plans, aims, or intent.
 
-Ito is a Change Driven development tool for your terminal that brings together project-centric planning, design, specifications and tasks with an emphasis on **long-running, multi-agent tasks** to AI coding agents.
+Ito is a spec-driven design tool for your terminal that brings together project-centric research, proposals, specifications, tasks, implementation, and review for AI coding agents.
 
 It's designed for the type of AI-assisted development where work spans multiple sessions, needs explicit verification criteria, and benefits from parallel subagents. The approach draws inspiration from software development best practices, Easy Approach to Requirements Syntax and RFCs adapted for the challenges of AI-assisted coding.
 
@@ -27,7 +27,8 @@ Ito centers work around a small set of versioned artifacts under `.ito/`.
 - Modules: optional grouping of related changes with validation of scope and naming.
 - Validation: checks that changes/modules/specs follow conventions and are internally consistent.
 - Agent-facing instructions: generated instruction artifacts (`ito agent instruction ...`) and tool adapters installed by `ito init` / `ito update`.
-- Optional project planning: flexible markdown plans under `.ito/planning/` via `/ito-plan`, with deeper research under `.ito/research/`.
+- Optional project planning: flexible markdown plans under `.ito/planning/` through `ito-proposal`, with deeper research under `.ito/research/`.
+- Seven lifecycle skills: `ito`, `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop`.
 - Optional local docs server: browse `.ito/` artifacts over HTTP (`ito serve ...`, requires `caddy`).
 
 ## Core Workflow
@@ -36,8 +37,8 @@ The intended workflow is:
 
 1. Create a change.
 2. Write/iterate on the proposal: the “why”, design notes (if needed), spec deltas, and tasks.
-3. Validate the change while you iterate.
-4. Implement the tasks.
+3. Review the proposal and integrate the accepted proposal package into `main`.
+4. Start implementation from `main` and implement the tasks.
 5. Archive the change to merge approved deltas into the main specs.
 
 At each step, the existing specs are the baseline. Changes are expressed as deltas, reviewed, then merged into `.ito/specs/` when archived.
@@ -118,13 +119,21 @@ ito archive <change-id> -y
 
 ## Backend API
 
-Ito includes an optional multi-tenant backend API for coordinating multiple agents on shared projects. Several runtime options are available:
+Ito retains an experimental multi-tenant backend API for coordinating multiple
+agents on shared projects. It is disabled and omitted from standard Cargo,
+GitHub Release, installer, and Homebrew binaries. Build it explicitly or use
+the backend container:
+
+```bash
+cargo install ito-cli --no-default-features --features backend
+```
+
+Several experimental runtime options are available:
 
 | Runtime | Platform | Use Case |
 |---------|----------|----------|
 | Docker image | Any | Production, Kubernetes, homelab |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
-| Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
 **Quick start (`ito backend serve`):**
@@ -141,17 +150,6 @@ curl http://127.0.0.1:9010/api/v1/health
 docker compose -f docker-compose.backend.yml up -d
 curl http://127.0.0.1:9010/api/v1/health
 ```
-
-**Homebrew (macOS):**
-
-```bash
-brew tap withakay/ito
-brew install ito
-brew services start ito-cli
-```
-
-The Homebrew service runs `ito backend serve --service`, which creates backend auth in
-`~/.config/ito/config.json` on first start if it is missing.
 
 **systemd (Linux):**
 

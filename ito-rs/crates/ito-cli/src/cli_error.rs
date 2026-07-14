@@ -1,10 +1,22 @@
 use std::fmt;
 
+use ito_core::errors::CoreError;
+
 #[derive(Debug, Clone)]
 pub struct CliError {
     message: String,
     silent: bool,
     exit_code: i32,
+    #[allow(dead_code)]
+    feature_unavailable: Option<FeatureUnavailableDetails>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct FeatureUnavailableDetails {
+    feature: String,
+    requested_by: String,
+    recovery: String,
 }
 
 impl CliError {
@@ -13,6 +25,7 @@ impl CliError {
             message: message.into(),
             silent: false,
             exit_code: 1,
+            feature_unavailable: None,
         }
     }
 
@@ -21,6 +34,7 @@ impl CliError {
             message: String::new(),
             silent: true,
             exit_code: 1,
+            feature_unavailable: None,
         }
     }
 
@@ -34,6 +48,7 @@ impl CliError {
             message: message.into(),
             silent: false,
             exit_code,
+            feature_unavailable: None,
         }
     }
 
@@ -43,6 +58,55 @@ impl CliError {
             message: String::new(),
             silent: true,
             exit_code,
+            feature_unavailable: None,
+        }
+    }
+
+    /// Construct a typed unavailable-feature error for compatibility dispatch.
+    pub fn feature_unavailable(
+        feature: impl Into<String>,
+        requested_by: impl Into<String>,
+        recovery: impl Into<String>,
+    ) -> Self {
+        let details = FeatureUnavailableDetails {
+            feature: feature.into(),
+            requested_by: requested_by.into(),
+            recovery: recovery.into(),
+        };
+        Self {
+            message: format!(
+                "feature '{}' is unavailable (requested by {}). Recovery: {}",
+                details.feature, details.requested_by, details.recovery
+            ),
+            silent: false,
+            exit_code: 1,
+            feature_unavailable: Some(details),
+        }
+    }
+
+    /// Machine-readable representation for typed unavailable-feature errors.
+    pub fn feature_unavailable_json(&self) -> Option<serde_json::Value> {
+        self.feature_unavailable.as_ref().map(|details| {
+            serde_json::json!({
+                "error": {
+                    "kind": "feature_unavailable",
+                    "feature": details.feature,
+                    "requested_by": details.requested_by,
+                    "recovery": details.recovery,
+                }
+            })
+        })
+    }
+
+    /// Preserve typed core capability errors at the CLI presentation boundary.
+    pub fn from_core(error: CoreError) -> Self {
+        match error {
+            CoreError::FeatureUnavailable {
+                feature,
+                requested_by,
+                recovery,
+            } => Self::feature_unavailable(feature.as_str(), requested_by, recovery),
+            other => Self::msg(other.to_string()),
         }
     }
 
@@ -77,3 +141,7 @@ pub fn silent_fail<T>() -> CliResult<T> {
 pub fn to_cli_error<E: fmt::Display>(e: E) -> CliError {
     CliError::msg(e.to_string())
 }
+
+#[cfg(test)]
+#[path = "cli_error_tests.rs"]
+mod cli_error_tests;

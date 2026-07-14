@@ -18,6 +18,16 @@ use ito_common::fs::StdFs;
 use ito_common::id::parse_change_id;
 use ito_common::paths;
 
+#[path = "archive_specs.rs"]
+mod archive_specs;
+
+pub(crate) fn reconcile_spec_markdown(
+    base: Option<&str>,
+    delta: &str,
+) -> CoreResult<Option<String>> {
+    archive_specs::reconcile_spec(base, delta)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Summary of task completion for a change.
 pub enum TaskStatus {
@@ -168,7 +178,7 @@ pub fn categorize_specs(ito_path: &Path, spec_names: &[String]) -> (Vec<String>,
     (new_specs, existing_specs)
 }
 
-/// Copy change spec deltas to the main specs tree.
+/// Reconcile change spec deltas into the main specs tree.
 ///
 /// Returns the list of spec ids that were written.
 pub fn copy_specs_to_main(
@@ -176,7 +186,7 @@ pub fn copy_specs_to_main(
     change_name: &str,
     spec_names: &[String],
 ) -> CoreResult<Vec<String>> {
-    let mut updated: Vec<String> = Vec::new();
+    let mut pending = Vec::new();
     for spec in spec_names {
         let src = paths::change_specs_dir(ito_path, change_name)
             .join(spec)
@@ -184,15 +194,61 @@ pub fn copy_specs_to_main(
         if !src.exists() {
             continue;
         }
-        let dst_dir = paths::specs_dir(ito_path).join(spec);
-        ito_common::io::create_dir_all_std(&dst_dir)
-            .map_err(|e| CoreError::io(format!("creating spec dir {}", dst_dir.display()), e))?;
-        let dst = dst_dir.join("spec.md");
-        let md = ito_common::io::read_to_string_std(&src)
+        let delta = ito_common::io::read_to_string_std(&src)
             .map_err(|e| CoreError::io(format!("reading spec {}", src.display()), e))?;
-        ito_common::io::write_std(&dst, md)
-            .map_err(|e| CoreError::io(format!("writing spec {}", dst.display()), e))?;
-        updated.push(spec.clone());
+        let dst_dir = paths::specs_dir(ito_path).join(spec);
+        let dst = dst_dir.join("spec.md");
+        let base = if dst.exists() {
+            Some(
+                ito_common::io::read_to_string_std(&dst)
+                    .map_err(|e| CoreError::io(format!("reading spec {}", dst.display()), e))?,
+            )
+        } else {
+            None
+        };
+        let reconciled = archive_specs::reconcile_spec(base.as_deref(), &delta)?;
+        pending.push((spec.clone(), dst_dir, dst, reconciled));
+    }
+
+    let mut updated = Vec::with_capacity(pending.len());
+    for (spec, dst_dir, dst, reconciled) in pending {
+        match reconciled {
+            Some(markdown) => {
+                ito_common::io::create_dir_all_std(&dst_dir).map_err(|e| {
+                    CoreError::io(format!("creating spec dir {}", dst_dir.display()), e)
+                })?;
+                ito_common::io::write_std(&dst, markdown)
+                    .map_err(|e| CoreError::io(format!("writing spec {}", dst.display()), e))?;
+            }
+            None => {
+                if dst.exists() {
+                    std::fs::remove_file(&dst).map_err(|e| {
+                        CoreError::io(format!("removing retired spec {}", dst.display()), e)
+                    })?;
+                }
+                if dst_dir.exists() {
+                    let mut entries = std::fs::read_dir(&dst_dir).map_err(|e| {
+                        CoreError::io(format!("reading spec dir {}", dst_dir.display()), e)
+                    })?;
+                    if entries
+                        .next()
+                        .transpose()
+                        .map_err(|e| {
+                            CoreError::io(format!("reading spec dir {}", dst_dir.display()), e)
+                        })?
+                        .is_none()
+                    {
+                        std::fs::remove_dir(&dst_dir).map_err(|e| {
+                            CoreError::io(
+                                format!("removing retired spec dir {}", dst_dir.display()),
+                                e,
+                            )
+                        })?;
+                    }
+                }
+            }
+        }
+        updated.push(spec);
     }
     Ok(updated)
 }

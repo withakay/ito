@@ -87,8 +87,8 @@ fn gitignore_entries_passes_when_all_canonical_lines_present() {
 fn gitignore_entries_warns_on_each_missing_canonical_line() {
     let cfg = config_with_storage(CoordinationStorage::Worktree);
     let tmp = TempDir::new().unwrap();
-    // Write a gitignore that only includes `.ito/changes` and `.ito/specs`
-    // — the other three canonical entries are missing.
+    // Legacy authority entries do not satisfy any canonical coordination
+    // entry, so all three coordination-owned paths remain missing.
     std::fs::write(tmp.path().join(".gitignore"), ".ito/changes\n.ito/specs\n").unwrap();
 
     let staged = StagedFiles::empty();
@@ -165,9 +165,8 @@ fn staged_symlinked_paths_passes_when_staged_paths_outside_coordination_dirs() {
 fn staged_symlinked_paths_fails_for_each_path_under_coordination_dir() {
     let cfg = config_with_storage(CoordinationStorage::Worktree);
     let tmp = TempDir::new().unwrap();
-    // Cover every coordination directory plus an unrelated file so
-    // that adding a new entry to COORDINATION_DIRS without updating
-    // the rule logic would be visible here.
+    // Cover every coordination directory, both authoritative Git directories,
+    // and unrelated files so ownership drift is visible here.
     let staged = StagedFiles::from_paths(vec![
         PathBuf::from(".ito/changes/011-05_foo/proposal.md"),
         PathBuf::from(".ito/specs/foo/spec.md"),
@@ -184,8 +183,8 @@ fn staged_symlinked_paths_fails_for_each_path_under_coordination_dir() {
     let issues = StagedSymlinkedPathsRule.check(&ctx).unwrap();
     assert_eq!(
         issues.len(),
-        5,
-        "five coordination paths => five errors, got {issues:?}",
+        3,
+        "three coordination-owned paths => three errors, got {issues:?}",
     );
     for issue in &issues {
         assert_eq!(issue.level, "ERROR");
@@ -197,12 +196,39 @@ fn staged_symlinked_paths_fails_for_each_path_under_coordination_dir() {
 
     // Sanity: ensure each coordination dir surfaces in some issue path.
     let paths: Vec<&str> = issues.iter().map(|i| i.path.as_str()).collect();
-    for dir in &["changes", "specs", "modules", "workflows", "audit"] {
+    for dir in COORDINATION_DIRS {
         assert!(
             paths.iter().any(|p| p.contains(dir)),
             "no issue path contains `{dir}`; paths: {paths:?}",
         );
     }
+    assert!(
+        !paths.iter().any(|path| path.contains("changes")),
+        "tracked change proposals must be allowed; paths: {paths:?}"
+    );
+    assert!(
+        !paths.iter().any(|path| path.contains("specs")),
+        "tracked specs must be allowed; paths: {paths:?}"
+    );
+}
+
+#[test]
+fn staged_symlinked_paths_allows_authoritative_git_content() {
+    let cfg = config_with_storage(CoordinationStorage::Worktree);
+    let tmp = TempDir::new().unwrap();
+    let staged = StagedFiles::from_paths(vec![
+        PathBuf::from(".ito/changes/031-02_main-first/proposal.md"),
+        PathBuf::from(".ito/specs/workflow/spec.md"),
+    ]);
+    let runner = NoopRunner;
+    let ctx = RuleContext::new(&cfg, tmp.path(), &staged, &runner);
+
+    let issues = StagedSymlinkedPathsRule.check(&ctx).unwrap();
+
+    assert!(
+        issues.is_empty(),
+        "authoritative Git content is valid: {issues:?}"
+    );
 }
 
 #[test]
@@ -286,6 +312,36 @@ fn symlinks_wired_message_includes_why_clause_when_health_check_fails() {
         "wrapper should mention symlink wiring; got: {}",
         issues[0].message,
     );
+}
+
+#[test]
+#[cfg(unix)]
+fn symlinks_wired_accepts_real_authoritative_git_dirs() {
+    let tmp = TempDir::new().unwrap();
+    let project_root = tmp.path();
+    let ito_path = project_root.join(".ito");
+    let worktree_path = project_root.join("coordination");
+    let worktree_ito_path = worktree_path.join(".ito");
+    std::fs::create_dir_all(ito_path.join("changes")).unwrap();
+    std::fs::create_dir_all(ito_path.join("specs")).unwrap();
+    std::fs::write(ito_path.join("changes/proposal.md"), "tracked proposal").unwrap();
+    crate::coordination::wire_coordination_symlinks(&ito_path, &worktree_ito_path).unwrap();
+
+    let mut cfg = config_with_storage(CoordinationStorage::Worktree);
+    cfg.changes.coordination_branch.worktree_path =
+        Some(worktree_path.to_string_lossy().into_owned());
+    let staged = StagedFiles::empty();
+    let runner = NoopRunner;
+    let ctx = RuleContext::new(&cfg, project_root, &staged, &runner);
+
+    let issues = SymlinksWiredRule.check(&ctx).unwrap();
+
+    assert!(
+        issues.is_empty(),
+        "real changes/specs are healthy: {issues:?}"
+    );
+    assert!(std::fs::read_link(ito_path.join("changes")).is_err());
+    assert!(std::fs::read_link(ito_path.join("specs")).is_err());
 }
 
 // ── coordination/branch-name-set ─────────────────────────────────────

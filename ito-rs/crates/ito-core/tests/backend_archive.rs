@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Integration tests for backend-mode archive orchestration.
 //!
 //! Tests cover: happy-path archive with backend sync, skip-specs mode,
@@ -123,12 +125,12 @@ fn setup_change(ito_path: &Path, change_id: &str) {
     std::fs::write(change_dir.join("tasks.md"), "- [x] Done").unwrap();
     std::fs::write(
         change_dir.join("specs/backend-archive-sync/spec.md"),
-        "## ADDED Requirements\n",
+        "## ADDED Requirements\n\n### Requirement: Backend archive sync\nSync works.\n",
     )
     .unwrap();
     std::fs::write(
         change_dir.join("specs/cli-archive/spec.md"),
-        "## ADDED Requirements\n",
+        "## ADDED Requirements\n\n### Requirement: CLI archive\nArchive works.\n",
     )
     .unwrap();
 }

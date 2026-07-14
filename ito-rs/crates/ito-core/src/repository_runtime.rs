@@ -11,22 +11,35 @@ use ito_config::ito_dir::{absolutize_and_normalize, lexical_normalize};
 use ito_config::types::{ItoConfig, RepositoryPersistenceMode};
 use ito_config::{ConfigContext, load_cascading_project_config};
 
+#[cfg(feature = "backend")]
+use crate::artifact_mutations::RemoteChangeArtifactBundleClient;
 use crate::artifact_mutations::{
     BundleBackedChangeArtifactMutationService, FsChangeArtifactMutationService,
-    RemoteChangeArtifactBundleClient, SqliteChangeArtifactBundleClient,
+    SqliteChangeArtifactBundleClient,
 };
+#[cfg(feature = "backend")]
 use crate::backend_change_repository::BackendChangeRepository;
+#[cfg(feature = "backend")]
 use crate::backend_client::{BackendRuntime, resolve_backend_runtime};
+#[cfg(feature = "backend")]
 use crate::backend_http::BackendHttpClient;
+#[cfg(feature = "backend")]
 use crate::backend_module_repository::BackendModuleRepository;
+#[cfg(feature = "backend")]
 use crate::backend_spec_repository::BackendSpecRepository;
+#[cfg(not(feature = "backend"))]
+use crate::capabilities::CompiledFeature;
+use crate::capabilities::{CapabilityPreflight, preflight_config};
 use crate::change_repository::FsChangeRepository;
 use crate::errors::{CoreError, CoreResult};
 use crate::module_repository::FsModuleRepository;
+#[cfg(feature = "backend")]
 use crate::remote_task_repository::RemoteTaskRepository;
 use crate::spec_repository::FsSpecRepository;
 use crate::sqlite_project_store::SqliteBackendProjectStore;
-use crate::task_mutations::{FsTaskMutationService, boxed_fs_task_mutation_service};
+use crate::task_mutations::FsTaskMutationService;
+#[cfg(feature = "backend")]
+use crate::task_mutations::boxed_fs_task_mutation_service;
 use crate::task_repository::FsTaskRepository;
 use ito_domain::changes::ChangeArtifactMutationService;
 use ito_domain::changes::ChangeRepository;
@@ -75,6 +88,7 @@ pub struct SqliteRuntime {
 pub struct RepositoryRuntime {
     mode: PersistenceMode,
     ito_path: PathBuf,
+    #[cfg(feature = "backend")]
     backend_runtime: Option<BackendRuntime>,
     sqlite_runtime: Option<SqliteRuntime>,
     repositories: RepositorySet,
@@ -93,6 +107,7 @@ impl RepositoryRuntime {
     }
 
     /// Resolved backend runtime, if remote mode is active.
+    #[cfg(feature = "backend")]
     pub fn backend_runtime(&self) -> Option<&BackendRuntime> {
         self.backend_runtime.as_ref()
     }
@@ -114,14 +129,17 @@ impl RepositoryRuntime {
 }
 
 /// Factory interface for building remote repository bundles.
+#[cfg(feature = "backend")]
 pub trait RemoteRepositoryFactory: Send + Sync {
     /// Build a repository bundle using the provided backend runtime.
     fn build(&self, runtime: &BackendRuntime) -> CoreResult<RepositorySet>;
 }
 
 /// Remote factory that uses HTTP-backed repositories.
+#[cfg(feature = "backend")]
 pub struct HttpRemoteRepositoryFactory;
 
+#[cfg(feature = "backend")]
 impl RemoteRepositoryFactory for HttpRemoteRepositoryFactory {
     fn build(&self, runtime: &BackendRuntime) -> CoreResult<RepositorySet> {
         let client = BackendHttpClient::new(runtime.clone());
@@ -139,8 +157,10 @@ impl RemoteRepositoryFactory for HttpRemoteRepositoryFactory {
 pub struct RepositoryRuntimeBuilder {
     ito_path: PathBuf,
     mode: PersistenceMode,
+    #[cfg(feature = "backend")]
     backend_runtime: Option<BackendRuntime>,
     sqlite_runtime: Option<SqliteRuntime>,
+    #[cfg(feature = "backend")]
     remote_factory: Arc<dyn RemoteRepositoryFactory>,
 }
 
@@ -150,8 +170,10 @@ impl RepositoryRuntimeBuilder {
         Self {
             ito_path: ito_path.into(),
             mode: PersistenceMode::Filesystem,
+            #[cfg(feature = "backend")]
             backend_runtime: None,
             sqlite_runtime: None,
+            #[cfg(feature = "backend")]
             remote_factory: Arc::new(HttpRemoteRepositoryFactory),
         }
     }
@@ -163,6 +185,7 @@ impl RepositoryRuntimeBuilder {
     }
 
     /// Set the backend runtime for remote mode.
+    #[cfg(feature = "backend")]
     pub fn backend_runtime(mut self, runtime: BackendRuntime) -> Self {
         self.backend_runtime = Some(runtime);
         self
@@ -175,6 +198,7 @@ impl RepositoryRuntimeBuilder {
     }
 
     /// Override the remote repository factory.
+    #[cfg(feature = "backend")]
     pub fn remote_factory(mut self, factory: Arc<dyn RemoteRepositoryFactory>) -> Self {
         self.remote_factory = factory;
         self
@@ -189,6 +213,7 @@ impl RepositoryRuntimeBuilder {
                 Ok(RepositoryRuntime {
                     mode: PersistenceMode::Filesystem,
                     ito_path: ito_path.clone(),
+                    #[cfg(feature = "backend")]
                     backend_runtime: None,
                     sqlite_runtime: None,
                     repositories,
@@ -209,12 +234,14 @@ impl RepositoryRuntimeBuilder {
                 Ok(RepositoryRuntime {
                     mode: PersistenceMode::Sqlite,
                     ito_path,
+                    #[cfg(feature = "backend")]
                     backend_runtime: None,
                     sqlite_runtime: Some(runtime),
                     repositories,
                     change_artifact_mutations: artifact_mutations,
                 })
             }
+            #[cfg(feature = "backend")]
             PersistenceMode::Remote => {
                 let ito_path = self.ito_path;
                 let runtime = self.backend_runtime.ok_or_else(|| {
@@ -233,6 +260,12 @@ impl RepositoryRuntimeBuilder {
                     change_artifact_mutations: artifact_mutations,
                 })
             }
+            #[cfg(not(feature = "backend"))]
+            PersistenceMode::Remote => Err(CoreError::feature_unavailable(
+                CompiledFeature::Backend,
+                "repository.mode=remote",
+                "use filesystem or sqlite persistence, or install an experimental build with the backend feature",
+            )),
         }
     }
 }
@@ -247,10 +280,6 @@ pub fn resolve_repository_runtime(
         .as_deref()
         .unwrap_or_else(|| ito_path.parent().unwrap_or(ito_path));
     let merged = load_cascading_project_config(project_root, ito_path, ctx).merged;
-    let backend_enabled = merged
-        .pointer("/backend/enabled")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
     let raw_mode = merged
         .pointer("/repository/mode")
         .and_then(|v| v.as_str())
@@ -266,24 +295,10 @@ pub fn resolve_repository_runtime(
         )));
     }
 
-    let sqlite_enabled = raw_mode == "sqlite";
+    let config = serde_json::from_value::<ItoConfig>(merged)
+        .map_err(|err| CoreError::serde("parse resolved Ito config", err.to_string()))?;
 
-    let config = match serde_json::from_value::<ItoConfig>(merged) {
-        Ok(config) => config,
-        Err(err) => {
-            if backend_enabled || sqlite_enabled {
-                let mode = if backend_enabled {
-                    "backend mode is enabled"
-                } else {
-                    "sqlite persistence mode is enabled"
-                };
-                return Err(CoreError::validation(format!(
-                    "Failed to parse Ito config while {mode}: {err}"
-                )));
-            }
-            return RepositoryRuntimeBuilder::new(ito_path).build();
-        }
-    };
+    preflight_config(&config, CapabilityPreflight::Stateful)?;
 
     if !config.backend.enabled {
         return match config.repository.mode {
@@ -300,14 +315,26 @@ pub fn resolve_repository_runtime(
         };
     }
 
-    let runtime = resolve_backend_runtime(&config.backend)?.ok_or_else(|| {
-        CoreError::validation("Backend mode is enabled but runtime was not resolved".to_string())
-    })?;
+    #[cfg(feature = "backend")]
+    {
+        let runtime = resolve_backend_runtime(&config.backend)?.ok_or_else(|| {
+            CoreError::validation(
+                "Backend mode is enabled but runtime was not resolved".to_string(),
+            )
+        })?;
 
-    RepositoryRuntimeBuilder::new(ito_path)
-        .mode(PersistenceMode::Remote)
-        .backend_runtime(runtime)
-        .build()
+        RepositoryRuntimeBuilder::new(ito_path)
+            .mode(PersistenceMode::Remote)
+            .backend_runtime(runtime)
+            .build()
+    }
+
+    #[cfg(not(feature = "backend"))]
+    Err(CoreError::feature_unavailable(
+        CompiledFeature::Backend,
+        "backend.enabled",
+        "disable backend.enabled, or install an experimental build with the backend feature",
+    ))
 }
 
 fn resolve_sqlite_runtime(config: &ItoConfig, project_root: &Path) -> CoreResult<SqliteRuntime> {
@@ -360,24 +387,29 @@ fn sqlite_repository_set(runtime: &SqliteRuntime) -> CoreResult<RepositorySet> {
     store.repository_set(&runtime.org, &runtime.repo)
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_change_repository(ito_path: PathBuf) -> Box<dyn ChangeRepository + Send> {
     Box::new(OwnedFsChangeRepository::new(ito_path))
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_module_repository(ito_path: PathBuf) -> Box<dyn ModuleRepository + Send> {
     Box::new(OwnedFsModuleRepository::new(ito_path))
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_task_repository(ito_path: PathBuf) -> Box<dyn TaskRepository + Send> {
     Box::new(OwnedFsTaskRepository::new(ito_path))
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_task_mutation_port(
     ito_path: PathBuf,
 ) -> Box<dyn TaskMutationService + Send> {
     boxed_fs_task_mutation_service(ito_path)
 }
 
+#[cfg(feature = "backend")]
 pub(crate) fn boxed_fs_spec_repository(ito_path: PathBuf) -> Box<dyn SpecRepository + Send> {
     Box::new(OwnedFsSpecRepository::new(ito_path))
 }

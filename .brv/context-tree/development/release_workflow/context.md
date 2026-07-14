@@ -14,5 +14,4 @@ Covers installer release asset naming, download fallback behavior, checksum vali
 - optional PATH updates
 
 ## Related Topics
-- published_ito_mirror - for mirror/publishing behavior
 - release_plz_guardrails - for release pipeline guardrails

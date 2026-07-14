@@ -1,18 +1,30 @@
 # Archive Instruction
 
+{% if archive.coordination_active %}
+> **Experimental coordination compatibility.** This guidance is emitted only for an explicitly active build compiled with the experimental `coordination-branch` feature. It does not replace Git-authoritative proposal, spec, or archive state on main.
+
+{% endif %}
 {% if change and change|trim != "" %}
 ## Archive: `{{ change }}`
 
 Run the following to archive this change:
 
 ```bash
+{% if archive.coordination_active %}
 # 1. Refresh coordination state if you did not just generate these instructions
 ito sync
 
 # 2. Ensure audit log is in sync before archiving
+{% else %}
+# 1. Ensure audit log is in sync before archiving
+{% endif %}
 ito audit reconcile --change {{ change }}
 
+{% if archive.coordination_active %}
 # 3. Archive the change (merges spec deltas into main specs)
+{% else %}
+# 2. Archive the change (merges spec deltas into main specs)
+{% endif %}
 ito archive {{ change }} --yes
 ```
 
@@ -26,7 +38,7 @@ If the reconcile reports drift, fix it first:
 ito audit reconcile --change {{ change }} --fix
 ```
 
-{% if archive.coordination_storage == "worktree" %}
+{% if archive.coordination_active and archive.coordination_storage == "worktree" %}
 This project uses coordination-worktree storage, so `ito archive` archives on the coordination branch first and synchronizes that state before any `main` integration follow-up.
 
 ### Main Integration Mode
@@ -68,9 +80,11 @@ Mode `{{ archive.main_integration_mode }}` is unrecognized. Set a valid mode wit
 ### Commands
 
 ```bash
+{% if archive.coordination_active %}
 # Refresh coordination state first if you did not just generate these instructions
 ito sync
 
+{% endif %}
 # Archive a specific change
 ito archive <change-id> --yes
 

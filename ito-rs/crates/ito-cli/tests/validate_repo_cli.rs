@@ -25,6 +25,7 @@ fn write(path: impl AsRef<Path>, contents: &str) {
 /// non-zero exit. Used by tests that need a real git repository for
 /// `git ls-files --error-unmatch` / `git check-ignore` to behave
 /// correctly.
+#[cfg(feature = "backend")]
 fn run_git(cwd: &Path, args: &[&str]) {
     let output = std::process::Command::new("git")
         .args(args)
@@ -112,23 +113,30 @@ fn validate_repo_list_rules_enumerates_built_in_rules() {
         home.path(),
     );
     assert_eq!(out.code, 0, "--list-rules must exit 0");
-    for id in &[
-        // 011-05
-        "coordination/branch-name-set",
-        "coordination/gitignore-entries",
-        "coordination/staged-symlinked-paths",
-        "coordination/symlinks-wired",
+    let expected = vec![
         "worktrees/layout-consistent",
         "worktrees/no-write-on-control",
-        // 011-06
-        "audit/mirror-branch-distinct-from-coordination",
         "audit/mirror-branch-set",
         "backend/project-org-repo-set",
         "backend/token-not-committed",
         "backend/url-scheme-valid",
         "repository/sqlite-db-not-committed",
         "repository/sqlite-db-path-set",
-    ] {
+    ];
+    #[cfg(feature = "coordination-branch")]
+    let expected = {
+        let mut expected = expected;
+        expected.extend([
+            "coordination/branch-name-set",
+            "coordination/gitignore-entries",
+            "coordination/staged-symlinked-paths",
+            "coordination/symlinks-wired",
+            "audit/mirror-branch-distinct-from-coordination",
+        ]);
+        expected
+    };
+
+    for id in expected {
         assert!(
             out.stdout.contains(id),
             "--list-rules should mention `{id}`; got:\n{}",
@@ -155,18 +163,20 @@ fn validate_repo_list_rules_json_returns_array() {
         .get("rules")
         .and_then(|r| r.as_array())
         .expect("rules array");
-    // Exact count is intentional: when more rules are added, this
-    // assertion fails loudly so the test (and any docs that quote the
-    // rule count) get updated together. Currently 13 rules ship: 6 from
-    // 011-05 + 7 from 011-06.
+    let expected_count = if cfg!(feature = "coordination-branch") {
+        13
+    } else {
+        8
+    };
     assert_eq!(
         rules.len(),
-        13,
-        "expected 13 built-in rules, got {rules:#?}"
+        expected_count,
+        "expected {expected_count} built-in rules, got {rules:#?}"
     );
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn validate_repo_explain_prints_metadata() {
     let project = make_minimal_project();
     let home = tempfile::tempdir().expect("home");
@@ -273,6 +283,7 @@ fn validate_repo_json_emits_validation_report_envelope() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn validate_repo_explain_audit_mirror_distinct_rule() {
     // 011-06: explain output for one of the new rules, demonstrating
     // that the registry surfaces description and gate metadata.
@@ -298,6 +309,7 @@ fn validate_repo_explain_audit_mirror_distinct_rule() {
 }
 
 #[test]
+#[cfg(feature = "backend")]
 fn validate_repo_backend_token_not_committed_fails_when_token_in_config() {
     // 011-06 security check: write a project that has backend.enabled =
     // true and a backend.token set in `.ito/config.json`. The CLI
@@ -367,6 +379,7 @@ fn validate_repo_backend_token_not_committed_fails_when_token_in_config() {
 }
 
 #[test]
+#[cfg(feature = "backend")]
 fn validate_repo_url_scheme_valid_fails_for_non_http_scheme() {
     // 011-06: enabling the backend with an ftp URL should fail with the
     // url-scheme-valid rule.
@@ -407,6 +420,7 @@ fn validate_repo_url_scheme_valid_fails_for_non_http_scheme() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn validate_repo_strict_promotes_branch_name_warning_to_failure() {
     // Non-conventional coordination branch name + embedded storage =>
     // only `coordination/branch-name-set` fires (a WARNING). Without

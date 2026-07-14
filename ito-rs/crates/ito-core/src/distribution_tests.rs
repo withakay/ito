@@ -161,27 +161,3 @@ fn pi_manifests_commands_match_opencode_commands() {
         "Pi and OpenCode should install identical command sources"
     );
 }
-
-#[cfg(unix)]
-#[test]
-fn ensure_manifest_script_is_executable_only_adds_execute_bits() {
-    let td = tempfile::tempdir().unwrap();
-    let dest = td.path().join("skills/demo/scripts/run.sh");
-    std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
-    std::fs::write(&dest, "#!/usr/bin/env bash\n").unwrap();
-
-    let mut permissions = std::fs::metadata(&dest).unwrap().permissions();
-    permissions.set_mode(0o600);
-    std::fs::set_permissions(&dest, permissions).unwrap();
-
-    let manifest = FileManifest {
-        source: "demo/scripts/run.sh".to_string(),
-        dest: dest.clone(),
-        asset_type: AssetType::Skill,
-    };
-
-    ensure_manifest_script_is_executable(&manifest).unwrap();
-
-    let mode = std::fs::metadata(&dest).unwrap().permissions().mode() & 0o777;
-    assert_eq!(mode, 0o711);
-}

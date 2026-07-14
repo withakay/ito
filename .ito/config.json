@@ -11,9 +11,12 @@
   },
   "changes": {
     "coordination_branch": {
-      "enabled": true,
+      "enabled": false,
       "name": "ito/internal/changes",
-      "storage": "worktree"
+      "storage": "embedded"
+    },
+    "proposal": {
+      "integration_mode": "pull_request"
     }
   },
   "defaults": {
@@ -36,11 +39,6 @@
       "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented",
       "DEVELOPER_DIR=/Library/Developer/CommandLineTools cargo test --workspace --exclude ito-web"
     ]
-  },
-  "tools": {
-    "tmux": {
-      "enabled": true
-    }
   },
   "worktrees": {
     "apply": {

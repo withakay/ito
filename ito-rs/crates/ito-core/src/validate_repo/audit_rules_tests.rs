@@ -79,18 +79,21 @@ fn mirror_branch_set_active_when_mirror_enabled() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_inactive_when_mirror_disabled() {
     let cfg = config(false, "x", CoordinationStorage::Worktree, "y");
     assert!(!MirrorBranchDistinctRule.is_active(&cfg));
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_inactive_when_storage_embedded() {
     let cfg = config(true, "x", CoordinationStorage::Embedded, "y");
     assert!(!MirrorBranchDistinctRule.is_active(&cfg));
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_active_when_both_enabled() {
     let cfg = config(true, "x", CoordinationStorage::Worktree, "y");
     assert!(MirrorBranchDistinctRule.is_active(&cfg));
@@ -164,6 +167,7 @@ fn mirror_branch_set_warns_on_non_conventional_name() {
 // ── audit/mirror-branch-distinct ─────────────────────────────────────
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_passes_when_branches_differ() {
     let cfg = config(
         true,
@@ -181,6 +185,7 @@ fn mirror_branch_distinct_passes_when_branches_differ() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_fails_when_branches_match() {
     let shared = "ito/internal/changes";
     let cfg = config(true, shared, CoordinationStorage::Worktree, shared);
@@ -204,6 +209,7 @@ fn mirror_branch_distinct_fails_when_branches_match() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn mirror_branch_distinct_passes_when_either_branch_empty() {
     // Empty branches are flagged separately by `mirror-branch-set` /
     // `coordination/branch-name-set`; the distinct rule should not

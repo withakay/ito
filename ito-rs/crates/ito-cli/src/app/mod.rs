@@ -1,10 +1,13 @@
+mod apply_instruction;
 mod archive;
+pub(crate) mod change;
 mod cleanup_instructions;
 pub(crate) mod common;
 mod entrypoint;
 mod grep;
 mod init;
 mod instructions;
+mod legacy_coordination;
 mod list;
 mod manifesto_instructions;
 mod memory_instructions;
@@ -15,6 +18,7 @@ pub(crate) mod trace;
 mod update;
 mod validate;
 mod validate_repo;
+mod worktree_instruction_config;
 mod worktree_wizard;
 
 pub(crate) use entrypoint::main;

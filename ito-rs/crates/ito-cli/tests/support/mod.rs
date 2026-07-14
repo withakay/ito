@@ -153,13 +153,13 @@ pub(crate) fn write_local_ito_skills(root: &Path) {
 
     // Must match ito-core `distribution.rs` ITO_SKILLS list.
     let skills = [
-        "ito-brainstorming",
-        "ito-finish",
+        "ito",
+        "ito-proposal",
         "ito-research",
-        "ito-subagent-driven-development",
-        "ito-using-git-worktrees",
-        "ito-verification-before-completion",
-        "ito-using-ito-skills",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
     ];
     for skill in skills {
         write(
@@ -223,14 +223,15 @@ fn specialist_asset_paths(prefix: &str) -> Vec<String> {
             paths.push(format!("{root}/{prefix}{role}{suffix}"));
         }
     }
-    for role in SPECIALIST_ROLES {
-        paths.push(format!(".agents/skills/{prefix}{role}/SKILL.md"));
-    }
     paths
 }
 
 pub(crate) fn obsolete_specialist_asset_paths() -> Vec<String> {
-    specialist_asset_paths("ito-orchestrator-")
+    let mut paths = specialist_asset_paths("ito-orchestrator-");
+    for role in SPECIALIST_ROLES {
+        paths.push(format!(".agents/skills/ito-orchestrator-{role}/SKILL.md"));
+    }
+    paths
 }
 
 pub(crate) fn installed_specialist_asset_paths() -> Vec<String> {
@@ -243,7 +244,6 @@ pub(crate) fn installed_orchestrator_agent_paths() -> Vec<String> {
         ".claude/agents/ito-orchestrator.md".to_string(),
         ".github/agents/ito-orchestrator.md".to_string(),
         ".pi/agents/ito-orchestrator.md".to_string(),
-        ".agents/skills/ito-orchestrator/SKILL.md".to_string(),
     ];
     paths.extend(installed_specialist_asset_paths());
     paths
@@ -300,7 +300,7 @@ fn run_git(repo: &Path, args: &[&str]) {
 /// assert!(repo.join(".git").exists());
 /// ```
 pub(crate) fn git_init_with_initial_commit(repo: &Path) {
-    run_git(repo, &["init"]);
+    run_git(repo, &["init", "--initial-branch=main"]);
     run_git(repo, &["config", "user.email", "test@example.com"]);
     run_git(repo, &["config", "user.name", "Test User"]);
     // Test environments may have global commit signing enabled (gpg/1Password).
@@ -314,6 +314,69 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
         repo,
         &["commit", "--no-verify", "--no-gpg-sign", "-m", "initial"],
     );
+}
+
+/// Commit a minimal accepted proposal on `main`, then switch to its implementation branch.
+///
+/// Task mutation integration tests call this after creating their tracking file so the
+/// main-first execute gate observes realistic Git authority and checkout ancestry.
+pub(crate) fn integrate_change_for_execution(repo: &Path, change_id: &str) {
+    if !repo.join(".git").exists() {
+        run_git(repo, &["init", "--initial-branch=main"]);
+        run_git(repo, &["config", "user.email", "test@example.com"]);
+        run_git(repo, &["config", "user.name", "Test User"]);
+        run_git(repo, &["config", "commit.gpgsign", "false"]);
+    } else {
+        run_git(repo, &["branch", "-M", "main"]);
+    }
+
+    write(
+        repo.join(".ito/config.json"),
+        r#"{
+  "changes": { "proposal": { "integration_mode": "direct_merge" } },
+  "worktrees": {
+    "enabled": true,
+    "default_branch": "main",
+    "strategy": "checkout_siblings",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    );
+    let change_dir = repo.join(".ito/changes").join(change_id);
+    write(change_dir.join(".ito.yaml"), "schema: spec-driven\n");
+    write(
+        change_dir.join("proposal.md"),
+        "# Proposal\n\nAccept task-iteration behavior before implementation.\n",
+    );
+    write(
+        change_dir.join("design.md"),
+        "# Design\n\nExercise task mutations from a verified implementation branch.\n",
+    );
+    write(
+        change_dir.join("specs/task-iteration/spec.md"),
+        r#"## ADDED Requirements
+
+### Requirement: Task iteration
+Ito SHALL preserve task iteration after an accepted proposal is integrated.
+
+#### Scenario: Verified implementation branch
+- **WHEN** a task mutation runs from the accepted implementation branch
+- **THEN** Ito updates the requested task
+"#,
+    );
+
+    run_git(repo, &["add", "-A"]);
+    run_git(
+        repo,
+        &[
+            "commit",
+            "--no-verify",
+            "--no-gpg-sign",
+            "-m",
+            "integrate accepted proposal",
+        ],
+    );
+    run_git(repo, &["switch", "-c", change_id]);
 }
 
 /// Creates a bare Git repository in a temporary directory for use as an `origin` remote in tests.

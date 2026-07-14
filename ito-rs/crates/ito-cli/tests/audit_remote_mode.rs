@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -101,6 +103,15 @@ fn write_backend_config(repo: &Path, base_url: &str) {
       "org": "{ORG}",
       "repo": "{REPO}"
     }}
+  }},
+  "changes": {{
+    "proposal": {{ "integration_mode": "direct_merge" }}
+  }},
+  "worktrees": {{
+    "enabled": true,
+    "default_branch": "main",
+    "strategy": "checkout_siblings",
+    "layout": {{ "dir_name": "ito-worktrees" }}
   }}
 }}"#
         ),
@@ -140,11 +151,16 @@ fn audit_commands_in_backend_mode_use_server_only_storage() {
 
     let (base_url, data_dir) = spawn_backend_server();
     let change_id = "001-03_remote-audit";
-    seed_remote_change(
-        data_dir.path(),
-        change_id,
-        "# Tasks for: 001-03_remote-audit\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-03-01\n- **Status**: [ ] pending\n",
+    let tasks = "# Tasks for: 001-03_remote-audit\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-03-01\n- **Status**: [ ] pending\n";
+    seed_remote_change(data_dir.path(), change_id, tasks);
+    fixtures::write(
+        repo.path()
+            .join(".ito/changes")
+            .join(change_id)
+            .join("tasks.md"),
+        tasks,
     );
+    fixtures::integrate_change_for_execution(repo.path(), change_id);
     write_backend_config(repo.path(), &base_url);
 
     let start = run_cli(

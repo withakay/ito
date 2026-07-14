@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -87,6 +89,9 @@ fn write_backend_config(repo: &Path, base_url: &str) {
       "org": "{ORG}",
       "repo": "{REPO}"
     }}
+  }},
+  "changes": {{
+    "proposal": {{ "integration_mode": "direct_merge" }}
   }}
 }}"#
         ),
@@ -134,6 +139,25 @@ fn remote_task_start_updates_backend_without_local_tasks_file() {
         ),
     );
     write_backend_config(repo.path(), &base_url);
+    write_authoritative_change(repo.path(), change_id);
+    git(repo.path(), &["add", "-A"]);
+    git(
+        repo.path(),
+        &[
+            "commit",
+            "--no-gpg-sign",
+            "--no-verify",
+            "-m",
+            "integrate reviewed proposal",
+        ],
+    );
+    git(repo.path(), &["switch", "-c", change_id]);
+    let local_tasks_path = repo
+        .path()
+        .join(".ito/changes")
+        .join(change_id)
+        .join("tasks.md");
+    let local_before = std::fs::read(&local_tasks_path).expect("local authoritative tasks");
 
     let out = run_cli(
         rust_path,
@@ -143,20 +167,52 @@ fn remote_task_start_updates_backend_without_local_tasks_file() {
     );
 
     assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
-    assert!(
-        !repo
-            .path()
-            .join(".ito/changes")
-            .join(change_id)
-            .join("tasks.md")
-            .exists(),
-        "remote mode should not create a local tasks.md primary write path"
+    assert_eq!(
+        std::fs::read(local_tasks_path).expect("local tasks after remote mutation"),
+        local_before,
+        "remote mode must not mutate the local authoritative proposal copy"
     );
 
     let raw =
         std::fs::read_to_string(project_change_dir(data_dir.path(), change_id).join("tasks.md"))
             .expect("read backend tasks");
     assert!(raw.contains("- **Status**: [>] in-progress"), "{raw}");
+}
+
+#[test]
+fn rejected_remote_task_start_leaves_backend_state_unchanged() {
+    let repo = fixtures::make_empty_repo();
+    let home = tempfile::tempdir().expect("home");
+    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
+    fixtures::git_init_with_initial_commit(repo.path());
+
+    let (base_url, data_dir) = spawn_backend_server();
+    let change_id = "001-03_remote-rejected";
+    let tasks = "# Tasks for: 001-03_remote-rejected\n\n## Wave 1\n\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-03-01\n- **Status**: [ ] pending\n";
+    seed_remote_change(data_dir.path(), change_id, Some(tasks));
+    git(repo.path(), &["switch", "-c", change_id]);
+    write_backend_config(repo.path(), &base_url);
+    write_authoritative_change(repo.path(), change_id);
+    let remote_tasks = project_change_dir(data_dir.path(), change_id).join("tasks.md");
+    let before = std::fs::read(&remote_tasks).expect("backend tasks before");
+
+    let out = run_cli(
+        rust_path,
+        &["tasks", "start", change_id, "1.1", "--json"],
+        repo.path(),
+        home.path(),
+    );
+
+    assert_eq!(out.code, 1, "stdout={} stderr={}", out.stdout, out.stderr);
+    assert!(out.stderr.is_empty(), "stderr={}", out.stderr);
+    let report: serde_json::Value =
+        serde_json::from_str(&out.stdout).expect("readiness report JSON");
+    assert_eq!(report["phase"], "execute");
+    assert_eq!(report["ready"], false);
+    assert_eq!(
+        std::fs::read(remote_tasks).expect("backend tasks after"),
+        before
+    );
 }
 
 #[test]
@@ -217,4 +273,41 @@ fn remote_missing_tasks_commands_do_not_hard_fail() {
     );
     assert_eq!(show.code, 0, "stderr={}", show.stderr);
     assert!(show.stdout.contains("\"exists\": false"), "{}", show.stdout);
+}
+
+fn write_authoritative_change(repo: &Path, change_id: &str) {
+    let change = repo.join(".ito/changes").join(change_id);
+    fixtures::write(change.join(".ito.yaml"), "schema: spec-driven\n");
+    fixtures::write(
+        change.join("proposal.md"),
+        "# Proposal\n\nIntegrate reviewed intent before remote task execution.\n",
+    );
+    fixtures::write(
+        change.join("design.md"),
+        "# Design\n\nGate remote task mutations before backend writes.\n",
+    );
+    fixtures::write(
+        change.join("tasks.md"),
+        "## Wave 1\n- **Depends On**: None\n\n### Task 1.1: First task\n- **Dependencies**: None\n- **Updated At**: 2026-07-13\n- **Status**: [ ] pending\n",
+    );
+    fixtures::write(
+        change.join("specs/task-readiness/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Remote task readiness\nIto SHALL reject remote task mutations before proposal integration.\n\n#### Scenario: Rejected remote mutation\n- **WHEN** readiness fails\n- **THEN** backend task state remains unchanged\n",
+    );
+}
+
+fn git(repo: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git command");
+    assert!(
+        output.status.success(),
+        "git {} failed: {}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

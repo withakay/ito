@@ -16,36 +16,47 @@ pub mod archive;
 pub mod artifact_mutations;
 
 /// Backend server authentication setup and token resolution.
+#[cfg(feature = "backend")]
 pub mod backend_auth;
 
 /// Backend API client factory, runtime, and coordination services.
+#[cfg(feature = "backend")]
 pub mod backend_client;
 
 /// Backend-backed change repository adapter.
+#[cfg(feature = "backend")]
 pub mod backend_change_repository;
 
 /// Backend HTTP client for repository reads.
+#[cfg(feature = "backend")]
 pub mod backend_http;
 
 /// Backend-backed module repository adapter.
+#[cfg(feature = "backend")]
 pub mod backend_module_repository;
 
 /// Backend-backed promoted spec repository adapter.
+#[cfg(feature = "backend")]
 pub mod backend_spec_repository;
 
 /// Backend-backed task repository adapter.
+#[cfg(feature = "backend")]
 pub mod backend_task_repository;
 
 /// Backend coordination use-cases (claim, release, allocate, sync).
+#[cfg(feature = "backend")]
 pub mod backend_coordination;
 
 /// Backend health-check client for connectivity and auth validation.
+#[cfg(feature = "backend")]
 pub mod backend_health;
 
 /// Local-to-backend import orchestration.
+#[cfg(feature = "backend")]
 pub mod backend_import;
 
 /// Artifact synchronization (pull/push) for backend mode.
+#[cfg(feature = "backend")]
 pub mod backend_sync;
 
 /// Audit log infrastructure: writer, reader, reconciliation, worktree discovery.
@@ -59,11 +70,18 @@ mod change_meta;
 /// JSON configuration file CRUD operations.
 pub mod config;
 
+/// Compile-time capability reporting and configuration preflight.
+pub mod capabilities;
+
 /// Symlink wiring for coordination worktrees.
+#[cfg(feature = "coordination-branch")]
 pub mod coordination;
 
 /// Coordination worktree lifecycle management (create / remove).
+#[cfg(feature = "coordination-branch")]
 pub mod coordination_worktree;
+#[cfg(feature = "coordination-branch")]
+mod coordination_worktree_helpers;
 
 /// Create new modules/changes and initial scaffolding.
 pub mod create;
@@ -78,9 +96,11 @@ pub mod errors;
 pub mod grep;
 
 /// Client-side forwarding of local audit events to the backend.
+#[cfg(feature = "backend")]
 pub mod event_forwarder;
 
 /// Filesystem-backed backend project store implementation.
+#[cfg(feature = "backend")]
 pub mod fs_project_store;
 
 /// SQLite-backed backend project store proof-of-concept.
@@ -93,7 +113,11 @@ pub mod front_matter;
 pub mod orchestrate;
 
 /// Git synchronization helpers for coordination workflows.
+#[cfg(feature = "coordination-branch")]
 pub mod git;
+
+/// Main-first proposal authority and implementation readiness evaluation.
+pub mod implementation_readiness;
 
 /// Git remote URL resolution for org/repo namespace discovery.
 pub mod git_remote;
@@ -115,6 +139,9 @@ pub mod installers;
 /// List/query project entities (modules, changes, tasks).
 pub mod list;
 
+/// Read-only inspection of repositories using legacy coordination storage.
+pub mod legacy_coordination;
+
 /// Agent memory provider resolution and instruction rendering.
 pub mod memory;
 
@@ -134,12 +161,14 @@ pub mod spec_repository;
 pub mod task_mutations;
 
 /// Remote task repository backed by the backend API.
+#[cfg(feature = "backend")]
 pub mod remote_task_repository;
 
 /// Clock helpers (`now_time`, `now_date`).
 pub mod time;
 
 /// Cryptographic token generation for backend server authentication.
+#[cfg(feature = "backend")]
 pub mod token;
 
 /// Task-focused orchestration use-cases.

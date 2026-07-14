@@ -190,16 +190,26 @@ fn worktrees_config_has_defaults_in_cascading_config() {
 }
 
 #[test]
-fn tools_tmux_enabled_defaults_to_true_in_cascading_config() {
+fn removed_tools_tmux_key_is_ignored_by_cascading_config() {
     let repo = tempfile::tempdir().unwrap();
     let ctx = ConfigContext::default();
     let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::write(
+        ito_path.join("config.json"),
+        r#"{"tools":{"tmux":{"enabled":false}}}"#,
+    )
+    .unwrap();
 
     let r = load_cascading_project_config(repo.path(), &ito_path, &ctx);
-    let tools = r.merged.get("tools").expect("tools key should exist");
-    let tmux = tools.get("tmux").expect("tools.tmux key should exist");
-
-    assert_eq!(tmux.get("enabled").and_then(|v| v.as_bool()), Some(true));
+    assert!(
+        r.merged.pointer("/tools/tmux/enabled").is_none(),
+        "removed tools.tmux.enabled must have no runtime effect"
+    );
+    assert!(
+        r.layers[0].value.pointer("/tools/tmux/enabled").is_none(),
+        "resolved layers must not advertise the removed key"
+    );
 }
 
 #[test]
@@ -293,11 +303,15 @@ fn coordination_branch_defaults_exist_in_cascading_config() {
 
     assert_eq!(
         coordination.get("enabled").and_then(|v| v.as_bool()),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         coordination.get("name").and_then(|v| v.as_str()),
         Some("ito/internal/changes")
+    );
+    assert_eq!(
+        coordination.get("storage").and_then(|v| v.as_str()),
+        Some("embedded")
     );
 }
 
@@ -327,6 +341,71 @@ fn coordination_branch_defaults_can_be_overridden() {
         coordination.get("name").and_then(|v| v.as_str()),
         Some("team/internal/coord")
     );
+}
+
+#[test]
+fn proposal_integration_mode_defaults_in_cascading_config() {
+    let repo = tempfile::tempdir().unwrap();
+    let ctx = ConfigContext::default();
+    let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+    let resolved = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+    let mode = resolved
+        .merged
+        .pointer("/changes/proposal/integration_mode")
+        .and_then(|value| value.as_str());
+
+    assert_eq!(mode, Some("pull_request"));
+}
+
+#[test]
+fn proposal_integration_mode_cascades_with_later_override() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::write(
+        repo.path().join("ito.json"),
+        r#"{"changes":{"proposal":{"integration_mode":"pull_request"}}}"#,
+    )
+    .unwrap();
+
+    let ito_path = repo.path().join(".ito");
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::write(
+        ito_path.join("config.json"),
+        r#"{"changes":{"proposal":{"integration_mode":"direct_merge"}}}"#,
+    )
+    .unwrap();
+
+    let resolved = load_cascading_project_config(repo.path(), &ito_path, &ConfigContext::default());
+    let typed: types::ItoConfig = serde_json::from_value(resolved.merged).unwrap();
+
+    assert_eq!(
+        typed.changes.proposal.integration_mode,
+        types::ProposalIntegrationMode::DirectMerge
+    );
+}
+
+#[test]
+fn proposal_integration_mode_accepts_only_supported_values() {
+    for (value, expected) in [
+        ("pull_request", types::ProposalIntegrationMode::PullRequest),
+        ("direct_merge", types::ProposalIntegrationMode::DirectMerge),
+    ] {
+        let config: types::ItoConfig = serde_json::from_value(serde_json::json!({
+            "changes": {"proposal": {"integration_mode": value}}
+        }))
+        .unwrap();
+        assert_eq!(config.changes.proposal.integration_mode, expected);
+    }
+
+    let error = serde_json::from_value::<types::ItoConfig>(serde_json::json!({
+        "changes": {"proposal": {"integration_mode": "merge_when_green"}}
+    }))
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.contains("unknown variant"));
+    assert!(error.contains("pull_request"));
+    assert!(error.contains("direct_merge"));
 }
 
 #[test]

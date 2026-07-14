@@ -2,6 +2,9 @@ use std::path::Path;
 
 use ito_test_support::run_rust_candidate;
 
+#[path = "support/mod.rs"]
+mod fixtures;
+
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -50,7 +53,7 @@ fn reset_repo(dst: &Path, src: &Path) {
 }
 
 #[test]
-fn cli_help_hides_top_level_serve_api_entrypoint() {
+fn cli_help_exposes_only_compiled_backend_entrypoint() {
     let repo = make_base_repo();
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
@@ -58,12 +61,16 @@ fn cli_help_hides_top_level_serve_api_entrypoint() {
     let out = run_rust_candidate(rust_path, &["--help"], repo.path(), home.path());
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    assert!(out.stdout.contains("backend"), "stdout={}", out.stdout);
+    if cfg!(feature = "backend") {
+        assert!(out.stdout.contains("backend"), "stdout={}", out.stdout);
+    } else {
+        assert!(!out.stdout.contains("backend"), "stdout={}", out.stdout);
+    }
     assert!(!out.stdout.contains("serve-api"), "stdout={}", out.stdout);
 }
 
 #[test]
-fn cli_top_level_serve_api_shows_backend_migration_guidance() {
+fn cli_top_level_serve_api_shows_feature_appropriate_migration_guidance() {
     let repo = make_base_repo();
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
@@ -76,12 +83,26 @@ fn cli_top_level_serve_api_shows_backend_migration_guidance() {
     );
 
     assert_ne!(out.code, 0, "stdout={}", out.stdout);
-    assert!(
-        out.stderr
-            .contains("ito backend serve --service --bind 127.0.0.1"),
-        "stderr={}",
-        out.stderr
-    );
+    if cfg!(feature = "backend") {
+        assert!(
+            out.stderr.contains("has been removed")
+                && out
+                    .stderr
+                    .contains("ito backend serve --service --bind 127.0.0.1"),
+            "stderr={}",
+            out.stderr
+        );
+    } else {
+        assert!(
+            out.stderr.contains("feature 'backend' is unavailable")
+                && out.stderr.contains("requested by ito serve-api")
+                && out
+                    .stderr
+                    .contains("experimental build with the backend feature"),
+            "stderr={}",
+            out.stderr
+        );
+    }
     assert!(
         !out.stderr.contains("invalid subcommand"),
         "stderr={}",
@@ -90,7 +111,7 @@ fn cli_top_level_serve_api_shows_backend_migration_guidance() {
 }
 
 #[test]
-fn cli_top_level_serve_api_help_shows_backend_migration_guidance() {
+fn cli_top_level_serve_api_help_shows_feature_appropriate_migration_guidance() {
     let repo = make_base_repo();
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
@@ -103,11 +124,24 @@ fn cli_top_level_serve_api_help_shows_backend_migration_guidance() {
     );
 
     assert_ne!(out.code, 0, "stdout={}", out.stdout);
-    assert!(
-        out.stderr.contains("ito backend serve --help"),
-        "stderr={}",
-        out.stderr
-    );
+    if cfg!(feature = "backend") {
+        assert!(
+            out.stderr.contains("has been removed")
+                && out.stderr.contains("ito backend serve --help"),
+            "stderr={}",
+            out.stderr
+        );
+    } else {
+        assert!(
+            out.stderr.contains("feature 'backend' is unavailable")
+                && out.stderr.contains("requested by ito serve-api")
+                && out
+                    .stderr
+                    .contains("experimental build with the backend feature"),
+            "stderr={}",
+            out.stderr
+        );
+    }
 }
 
 #[test]
@@ -339,6 +373,7 @@ fn agent_instruction_status_archive_smoke() {
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
 
     reset_repo(repo.path(), base.path());
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
 
     // agent instruction apply
     let out = run_rust_candidate(

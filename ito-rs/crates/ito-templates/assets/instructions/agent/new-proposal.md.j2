@@ -73,17 +73,9 @@ Carry discovery into proposal scaffolding as a stable handoff:
 - Proposed documentation updates: <CONTEXT.md, CONTEXT-MAP.md, ADR candidates, or none>
 ```
 
-If the request needs this discovery but there is not enough context yet, route to `ito-plan` or `ito-proposal-intake` before continuing. Do not create proposal scaffolding until blocking language, ownership, and boundary ambiguity is resolved or explicitly recorded as an open question.
+If the request needs this discovery but there is not enough context yet, continue intake and planning inside `ito-proposal`. Do not create proposal scaffolding until blocking language, ownership, and boundary ambiguity is resolved or explicitly recorded as an open question.
 
-## Step 0: Synchronize Coordination State
-
-`ito agent instruction proposal` refreshes coordination state before rendering this guide. If you are using this guide later, refresh again before listing modules or creating proposal state. `ito sync` is a no-op unless coordination-worktree storage is active, and it rate-limits pushes to avoid excessive remote updates.
-
-```bash
-ito sync
-```
-
-## Step 0.5: Consult the Ito Wiki When Present
+## Step 0: Consult the Ito Wiki When Present
 
 If `.ito/wiki/index.md` exists, read it early to discover relevant topic pages, specs, modules, research syntheses, archived-change summaries, and workflow notes before choosing the schema or module.
 
@@ -189,20 +181,21 @@ Sub-modules group related changes within a module. Sub-module IDs use the format
 Only proceed here after the user has confirmed their module (or sub-module) choice.
 
 {% if worktree is defined and worktree.enabled %}
-Before running any command that writes proposal artifacts, create and use a **new** worktree. If the final Ito change ID is not allocated yet, start in a temporary proposal worktree, create the change there, then move into the final change worktree before editing generated artifacts:
+Before running any command that writes proposal artifacts, create and use a **proposal-only** worktree branched from authoritative main. If the final Ito change ID is not allocated yet, give this temporary checkout a descriptive proposal branch name. Keep authoring and review in that checkout after Ito allocates the ID; do not call guarded implementation-worktree commands until the proposal is accepted on main:
 
 - Treat the main/control checkout (the shared default-branch checkout, or the control checkout in a bare/control layout) as read-only. Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work.
-- Do not run `ito create change` from the main/control checkout. Run it from the temporary proposal worktree or from the final change worktree.
-- Use the full change ID as the branch and primary worktree directory name, including module/sub-module prefixes such as `012-06_example-change`.
-- Do not reuse a worktree from another change.
-- If you need more than one worktree for the same change, prefix each extra worktree and branch with the full change ID, then add a suffix such as `012-06_example-change-review`.
+- Do not run `ito create change` from the main/control checkout. Run it from the proposal-only worktree.
+- Use this checkout only for proposal artifacts and review fixes; do not begin implementation there.
+- Do not reuse a proposal worktree from another change.
+- Submit the completed proposal using the configured `changes.proposal.integration_mode`: open a PR in `pull_request` mode, or merge the proposal branch directly in `direct_merge` mode.
 {% endif %}
 
 ```bash
 {% if worktree is defined and worktree.enabled %}
-# If the final change ID is not known yet, create a temporary proposal worktree first.
-WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "proposal-<short-name>" --base {{ worktree.default_branch | default(value="main") }}
-cd "../{{ worktree.layout_dir_name | default(value="ito-worktrees") }}/proposal-<short-name>"
+# Work from the proposal-only branch/worktree, never the main/control checkout.
+# After review and integration into main, request implementation separately;
+# `ito worktree ensure --change <full-change-id>` then creates the verified
+# implementation worktree from the captured authority OID.
 
 {% endif %}
 # For a regular module:
@@ -232,17 +225,13 @@ ito create change "add-oauth-provider" --sub-module 001.02
 After creating the change, get the canonical, change-scoped instructions:
 
 ```bash
-{% if worktree is defined and worktree.enabled %}
-CHANGE_DIR=$(ito worktree ensure --change "<change-id>")
-cd "$CHANGE_DIR"
-{% endif %}
 ito agent instruction proposal --change <change-id>
 ito agent instruction specs --change <change-id>
 ito agent instruction tasks --change <change-id>
 ```
 
 {% if worktree is defined and worktree.enabled %}
-Run all subsequent file operations from `$CHANGE_DIR`.
+Run all subsequent proposal file operations from the current proposal-only checkout. Do not run `ito worktree ensure` until this package is accepted on main and implementation is requested.
 {% endif %}
 
 Follow the printed instructions exactly.

@@ -1,5 +1,7 @@
 use super::*;
-use ito_domain::backend::{LeaseConflict, PushResult, RevisionConflict};
+#[cfg(feature = "backend")]
+use ito_domain::backend::PushResult;
+use ito_domain::backend::{LeaseConflict, RevisionConflict};
 use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
 
@@ -304,11 +306,13 @@ fn backend_errors_map_to_actionable_mutation_errors() {
     assert_eq!(other.to_string(), "boom");
 }
 
+#[cfg(feature = "backend")]
 #[derive(Debug, Clone)]
 struct FakeSyncClient {
     bundle: ArtifactBundle,
 }
 
+#[cfg(feature = "backend")]
 impl BackendSyncClient for FakeSyncClient {
     fn pull(&self, _change_id: &str) -> Result<ArtifactBundle, BackendError> {
         Ok(self.bundle.clone())
@@ -323,6 +327,7 @@ impl BackendSyncClient for FakeSyncClient {
 }
 
 #[test]
+#[cfg(feature = "backend")]
 fn remote_bundle_client_delegates_pull_and_push() {
     let bundle = ArtifactBundle {
         change_id: "025-11_demo".to_string(),

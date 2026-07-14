@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -101,7 +103,7 @@ fn seed_local_changes(repo: &Path) {
     );
     fixtures::write(
         repo.join(".ito/changes/024-18_active-import/specs/backend-import/spec.md"),
-        "## ADDED Requirements\n",
+        "## ADDED Requirements\n\n### Requirement: Active backend import\nActive import behavior.\n",
     );
 
     fixtures::write(
@@ -116,7 +118,7 @@ fn seed_local_changes(repo: &Path) {
         repo.join(
             ".ito/changes/archive/2026-03-10-024-17_archived-import/specs/backend-import/spec.md",
         ),
-        "## ADDED Archived Requirements\n",
+        "## ADDED Requirements\n\n### Requirement: Archived backend import\nArchived import behavior.\n",
     );
 }
 

@@ -22,12 +22,12 @@ Then run `make check` to verify.
 
 ### Running test and checks
 
-Always use the test-with-subagent skill for running builds, tests and checks.
+Delegate long builds, tests, and checks to a dedicated test-runner subagent when one is available, and report the exact commands and outcomes.
 
 ### Commits
 
 Make small, focused commits with clear messages.
-Regularly use the `ito-commit` skill for conventional commits aligned with the project's commit message guidelines.
+Use conventional commit messages aligned with the project's commit guidelines.
 IF you have to do more work to make changes that don't break the build whilst remaining small and focused, so be it.
 
 ### Subagent Collaboration

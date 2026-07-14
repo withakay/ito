@@ -11,9 +11,9 @@
 //!   symlink resolving into the coordination worktree.
 //! - `coordination/gitignore-entries` (WARNING) — `.gitignore` MUST contain
 //!   each canonical [`crate::coordination::gitignore_entries`] line.
-//! - `coordination/staged-symlinked-paths` (ERROR) — staged paths under
-//!   any coordination directory belong to the coordination branch, not the
-//!   working branch.
+//! - `coordination/staged-symlinked-paths` (ERROR) — staged paths under a
+//!   coordination-owned directory belong to the coordination branch, not the
+//!   working branch. Tracked `changes` and `specs` paths are allowed.
 //! - `coordination/branch-name-set` (WARNING) — the coordination branch
 //!   name must be non-empty and SHOULD live under `ito/internal/`.
 
@@ -134,7 +134,7 @@ impl Rule for SymlinksWiredRule {
         let issue = with_metadata(
             issue,
             serde_json::json!({
-                "fix": "Run `ito sync` (or the `ito-update-repo` skill) to repair coordination symlinks.",
+                "fix": "Run `ito sync` to repair coordination symlinks, then rerun `ito validate repo`.",
                 "expected_worktree_ito_path": worktree_ito_path.to_string_lossy(),
             }),
         );
@@ -216,9 +216,9 @@ fn read_gitignore(path: &Path) -> Result<String, CoreError> {
 
 // ── coordination/staged-symlinked-paths ──────────────────────────────────
 
-/// `coordination/staged-symlinked-paths` — staged paths under any
-/// coordination directory belong to the coordination branch, not the
-/// working branch.
+/// `coordination/staged-symlinked-paths` — staged paths under a
+/// coordination-owned directory belong to the coordination branch, not the
+/// working branch. Authoritative `changes` and `specs` paths remain valid.
 pub(crate) struct StagedSymlinkedPathsRule;
 
 impl Rule for StagedSymlinkedPathsRule {
@@ -231,7 +231,7 @@ impl Rule for StagedSymlinkedPathsRule {
     }
 
     fn description(&self) -> &'static str {
-        "No staged paths under `.ito/{changes,specs,modules,workflows,audit}` (those belong to the coordination branch)."
+        "No staged paths under `.ito/{modules,workflows,audit}` (those belong to the coordination branch)."
     }
 
     fn gate(&self) -> Option<&'static str> {

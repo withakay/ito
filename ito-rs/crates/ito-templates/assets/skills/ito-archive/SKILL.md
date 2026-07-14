@@ -1,41 +1,24 @@
 ---
 name: ito-archive
-description: Archive a completed change and update main specifications. Use when the user has finished implementing and wants to integrate the change into the main codebase.
+description: Archive an approved Ito change, promote accepted specs, and perform durable lifecycle follow-through.
 ---
 
 <!-- ITO:START -->
+# Archive lifecycle
 
+Require explicit user confirmation before archive. Determine the full change ID, reverify the integrated result, and render the source of truth:
 
-Run the CLI-generated archive instructions for a specific change.
+```bash
+ito agent instruction archive --change "<change-id>"
+```
 
-**Rules**
+Follow its spec promotion and archive sequence exactly. `ito-archive` owns accepted delta-spec promotion; there is no separate archive-change or sync-specs skill. Report the archive location, schema, promoted specs, verification evidence, and any change with no delta specs.
 
-- Do NOT archive without explicit user confirmation.
+After success, refresh relevant `.ito/wiki/` topic/index/status material when useful and capture durable lessons through the configured provider:
 
-**Steps**
+```bash
+ito agent instruction memory-capture --context "<decision and rationale>"
+```
 
-1. Determine the target change ID:
-   - If the user provided a change ID, use it.
-   - If no change ID was provided, run:
-      ```bash
-      ito list --completed --json
-      ```
-      - Related filters (not for archiving, but useful for triage):
-        ```bash
-        ito list --partial
-        ito list --pending
-        ```
-      - If no completed changes exist, inform the user: "No completed changes found. Run `ito list` to see all changes and their status."
-      - If one or more completed changes exist, present them to the user and ask which one to archive.
-
-2. Generate instructions (source of truth):
-
-   ```bash
-   ito agent instruction archive --change "<change-id>"
-   ```
-
-3. Follow the printed instructions exactly.
-
-4. After archive/spec sync succeeds, refresh relevant `.ito/wiki/` topic pages when `.ito/wiki/index.md` exists. Prefer topic-page synthesis that links to the archived change, specs, modules, research, architecture notes, and documentation instead of creating one wiki page per archived change. If wiki coverage is absent, stale, or contradictory, note the risk and continue from raw Ito artifacts; wiki refresh is recommended follow-through, not an archive blocker.
-
+Use the finish/cleanup instruction for branch and worktree follow-through. Preserve locked worktrees, require typed confirmation before destructive discard, and never force-push implicitly. Wiki or memory follow-through is recommended and must not hide an archive failure.
 <!-- ITO:END -->

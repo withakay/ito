@@ -47,17 +47,9 @@ fn viewer_registry_filters_and_finds_available_viewers() {
 }
 
 #[test]
-fn viewer_registry_hides_tmux_when_disabled() {
-    let registry = ViewerRegistry::with_tmux_enabled(
-        vec![Box::new(TmuxNvimViewer), Box::new(DummyViewer)],
-        false,
-    );
-
-    let available = registry.available_viewers();
-    assert_eq!(available.len(), 1);
-    assert_eq!(available[0].name(), "dummy");
-    assert!(!registry.is_enabled("tmux-nvim"));
-    assert!(registry.find_by_name("tmux-nvim").is_some());
+fn default_registry_does_not_register_removed_tmux_viewer() {
+    let registry = ViewerRegistry::for_proposals();
+    assert!(registry.find_by_name("tmux-nvim").is_none());
 }
 
 #[test]
@@ -65,12 +57,11 @@ fn concrete_viewers_report_expected_names() {
     assert_eq!(BatViewer.name(), "bat");
     assert_eq!(GlowViewer.name(), "glow");
     assert_eq!(HtmlViewer.name(), "html");
-    assert_eq!(TmuxNvimViewer.name(), "tmux-nvim");
 }
 
 #[test]
 fn default_registry_includes_html_viewer() {
-    let registry = ViewerRegistry::for_proposals(true);
+    let registry = ViewerRegistry::for_proposals();
     assert!(
         registry.find_by_name("html").is_some(),
         "html viewer should be registered in the default proposal registry"

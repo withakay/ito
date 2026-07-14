@@ -1,0 +1,46 @@
+# Migrate Ito coordination state to main
+
+Migrate this repository from the legacy coordination worktree layout to embedded Ito state on the repository's main branch. This is a reviewable, reversible migration. Do not begin implementation work while performing it.
+
+## Current evidence
+
+- Project root: `{{ project_root }}`
+- Ito root: `{{ ito_root }}`
+- Coordination branch: `{{ coordination_branch_name }}`
+- Coordination enabled: `{{ coordination_enabled }}`
+- Coordination storage: `{{ coordination_storage }}`
+- Expected source Ito root: `{{ expected_coordination_ito_root }}`
+- Main integration mode: `{{ main_integration_mode }}`
+- Managed destination paths:
+{% for path in expected_managed_paths %}
+  - `{{ path }}`
+{% endfor %}
+
+Detector report:
+
+```json
+{{ observed_evidence_json }}
+```
+
+## Safety rules
+
+- Work on a dedicated migration branch created from the repository's current main branch.
+- Never delete or rewrite the source coordination worktree. It is the rollback source until the migration is reviewed and integrated.
+- Do not replace a link or directory until its source and destination have a recursive manifest of every Git-representable path, entry type, symlink target, and executable bit, plus a cryptographic hash for every regular file.
+- If an existing destination differs from the source, stop and report the conflict. Do not choose a winner automatically.
+- Keep the migration mechanical: preserve paths and file bytes, apart from the explicit configuration and managed `.gitignore` changes below.
+- Preserve Git-representable executable bits and nested symlink targets without dereferencing them. Git does not represent empty directories, directory modes, or arbitrary non-executable permission bits; if any is semantically required, stop and agree an explicit tracked encoding before migration. If an unsupported special entry cannot be represented and verified exactly, stop and report the conflict.
+
+## Migration procedure
+
+1. Record the source coordination branch name, current commit OID, resolved source Ito root, and the pre-migration coordination configuration. Confirm the source remains readable.
+2. Build a recursive inventory for every managed source path, recording each Git-representable relative path, regular-file or symlink type, executable bit, and symlink target. Record a cryptographic hash for every regular file. Record link metadata for each managed destination path.
+3. Compare each complete source manifest and file hash with any existing real destination directory. If a destination contains an additional Git-representable path, a different entry type, executable bit, symlink target, or file hash, stop and report the conflict.
+4. Stage copies in temporary sibling directories under the repository using archive-preserving, no-dereference semantics. Verify the staged manifests and hashes exactly match the source before changing any managed destination.
+5. Replace only verified coordination links with the staged real directories. Preserve byte-for-byte equality. Leave already-identical real directories intact.
+6. Set `changes.coordination_branch.storage` to `embedded` and `changes.coordination_branch.enabled` to `false`. Remove only the Ito-managed coordination-worktree marker and managed entries from `.gitignore`; preserve all unrelated content.
+7. Rebuild the complete source and destination manifests and hashes. Git-representable paths, entry types, executable bits, symlink targets, and regular-file hashes must match exactly. Run `ito agent instruction migrate-to-main` again and confirm that the detector now reports embedded storage rather than legacy or ambiguous evidence.
+8. Run `ito validate --all --strict`. Commit the migration branch, create a fresh checkout of that branch, and repeat manifest/hash parity there. Review the complete Git diff and confirm that no source coordination state was deleted or rewritten.
+9. Integrate the reviewed migration using the configured `{{ main_integration_mode }}` policy. Do not begin proposal implementation until the migration has landed on main.
+
+If any verification fails, restore the destination paths and configuration from the migration branch's pre-change state. The untouched source coordination worktree remains the authoritative rollback source.

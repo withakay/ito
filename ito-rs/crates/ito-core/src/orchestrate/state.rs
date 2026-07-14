@@ -3,6 +3,8 @@
 //! Persists run state under `.ito/.state/orchestrate/runs/<run-id>/`.
 
 use crate::errors::{CoreError, CoreResult};
+use crate::implementation_readiness::{ReadinessPhase, ReadinessReport, render_readiness_text};
+use crate::orchestrate::gates::ensure_planned_implementation_readiness_first;
 use crate::orchestrate::plan::{PlannedGate, RunPlan};
 use crate::orchestrate::types::{FailurePolicy, GateOutcome, OrchestrateRunStatus};
 use chrono::{DateTime, Utc};
@@ -42,6 +44,51 @@ pub struct OrchestrateGateRecord {
     #[serde(default)]
     /// Optional error payload (for failed gates).
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Structured main-first evidence for the mandatory readiness gate.
+    pub readiness: Option<ReadinessReport>,
+}
+
+/// Convert a shared readiness report into a persisted orchestration gate result.
+#[must_use]
+pub fn orchestrate_readiness_gate_record(
+    expected_change_id: &str,
+    report: ReadinessReport,
+    finished_at: impl Into<String>,
+) -> OrchestrateGateRecord {
+    let phase_is_execute = match report.phase {
+        ReadinessPhase::Prepare => false,
+        ReadinessPhase::Execute => true,
+    };
+    let change_matches = report.change_id == expected_change_id;
+    let passed = report.ready && phase_is_execute && change_matches;
+    let outcome = if passed {
+        GateOutcome::Pass
+    } else {
+        GateOutcome::Fail
+    };
+    let error = if !change_matches {
+        Some(format!(
+            "implementation-readiness report evaluated change `{}` but orchestration expected `{expected_change_id}`",
+            report.change_id
+        ))
+    } else if !phase_is_execute {
+        Some(
+            "implementation-readiness orchestration gate requires execute-phase evidence"
+                .to_string(),
+        )
+    } else if !report.ready {
+        Some(render_readiness_text(&report))
+    } else {
+        None
+    };
+    OrchestrateGateRecord {
+        gate: crate::orchestrate::gates::GATE_IMPLEMENTATION_READINESS.to_string(),
+        outcome,
+        finished_at: finished_at.into(),
+        error,
+        readiness: Some(report),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -277,14 +324,16 @@ pub fn generate_orchestrate_run_id(now: DateTime<Utc>) -> String {
 
 /// Compute remaining gates for a change when resuming an interrupted run.
 ///
-/// Gates that have terminal `pass` or `skip` outcomes are skipped.
-/// Execution resumes from the first gate that is missing, failed, or otherwise incomplete.
+/// Gates that have terminal `pass` or `skip` outcomes are skipped, except the
+/// mandatory implementation-readiness gate, which is returned again so the
+/// actual resume checkout is re-evaluated before dispatch.
 pub fn remaining_gates_for_change(
     planned: &[PlannedGate],
     state: Option<&OrchestrateChangeState>,
 ) -> Vec<PlannedGate> {
+    let planned = ensure_planned_implementation_readiness_first(planned);
     let Some(state) = state else {
-        return planned.to_vec();
+        return planned;
     };
 
     let mut outcomes: std::collections::BTreeMap<&str, GateOutcome> =
@@ -293,8 +342,8 @@ pub fn remaining_gates_for_change(
         outcomes.insert(&g.gate, g.outcome);
     }
 
-    let mut start = 0;
-    for (i, g) in planned.iter().enumerate() {
+    let mut start = 1;
+    for (i, g) in planned.iter().enumerate().skip(1) {
         match outcomes.get(g.name.as_str()) {
             Some(GateOutcome::Pass) | Some(GateOutcome::Skip) => {
                 start = i + 1;
@@ -307,7 +356,9 @@ pub fn remaining_gates_for_change(
         }
     }
 
-    planned[start..].to_vec()
+    let mut remaining = planned[start..].to_vec();
+    remaining.insert(0, planned[0].clone());
+    remaining
 }
 
 fn run_root(ito_path: &Path, run_id: &str) -> PathBuf {

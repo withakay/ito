@@ -3,8 +3,7 @@ use super::*;
 const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
 const MAIN_BRANCH_EXCLUSIVE_RULE: &str =
     "The main worktree is the only worktree that may check out";
-const BEFORE_WRITE_WORKTREE_RULE: &str =
-    "Before any write operation, create or switch to a dedicated change worktree with Worktrunk";
+const BEFORE_WRITE_WORKTREE_RULE: &str = "Before implementation writes, create or reuse the dedicated change worktree through `ito worktree ensure`";
 const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
 
 fn assert_main_worktree_guardrails(text: &str) {
@@ -14,10 +13,12 @@ fn assert_main_worktree_guardrails(text: &str) {
     assert!(text.contains(NO_MAIN_WRITE_RULE));
 }
 
-fn assert_worktrunk_command(text: &str, default_branch: &str) {
-    assert!(text.contains(&format!(
-        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{{{ branch | sanitize }}}}\" wt switch --create <full-change-id> --base {default_branch}"
-    )));
+fn assert_guarded_worktree_command(text: &str, default_branch: &str) {
+    assert!(text.contains("ito worktree ensure --change \"<full-change-id>\""));
+    assert!(text.contains("ito change preflight \"<full-change-id>\" --for execute"));
+    assert!(text.contains("captured authority OID"));
+    assert!(!text.contains("wt switch --create"));
+    assert!(text.contains(&format!("**Default branch:** `{default_branch}`")));
 }
 
 #[test]
@@ -112,7 +113,7 @@ fn render_agents_md_with_checkout_subdir() {
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert_worktrunk_command(&text, "main");
+    assert_guarded_worktree_command(&text, "main");
     assert!(
         text.contains(".ito-worktrees/<full-change-id>/"),
         "should contain repo-relative worktree path"
@@ -147,7 +148,7 @@ fn render_agents_md_with_checkout_siblings() {
         text.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(text.contains("Do not reuse one worktree for two changes"));
-    assert_worktrunk_command(&text, "develop");
+    assert_guarded_worktree_command(&text, "develop");
     assert!(
         text.contains("../<project-name>-worktrees/<full-change-id>/"),
         "should contain repo-relative sibling worktree path"
@@ -184,8 +185,8 @@ fn render_agents_md_with_bare_control_siblings() {
     assert!(text.contains("Do not reuse one worktree for two changes"));
     assert!(text.contains(".bare/"));
     assert!(text.contains("ito-worktrees/"));
-    assert_worktrunk_command(&text, "main");
-    assert!(text.contains("Do not create them from the bare/control repo placeholder `HEAD`"));
+    assert_guarded_worktree_command(&text, "main");
+    assert!(text.contains("Do not substitute the bare/control repo placeholder `HEAD`"));
     let layout_line = text
         .lines()
         .find(|l| l.contains("# bare/control repo"))

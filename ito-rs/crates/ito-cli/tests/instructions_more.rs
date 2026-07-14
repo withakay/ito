@@ -22,7 +22,7 @@ fn agent_instruction_proposal_without_change_prints_new_proposal_guide() {
 
     assert_eq!(out.code, 0);
     assert!(out.stdout.contains("Create a New Proposal"));
-    assert!(out.stdout.contains("ito sync"));
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(out.stdout.contains("ito create change"));
     assert!(out.stdout.contains("Known modules at instruction time"));
     let lower = out.stdout.to_lowercase();
@@ -195,6 +195,8 @@ fn agent_instruction_manifesto_change_scope_includes_change_state() {
             "manifesto",
             "--change",
             "000-01_test-change",
+            "--profile",
+            "proposal-only",
         ],
         repo.path(),
         home.path(),
@@ -223,6 +225,8 @@ fn agent_instruction_manifesto_change_scope_json_reports_state() {
             "manifesto",
             "--change",
             "000-01_test-change",
+            "--profile",
+            "proposal-only",
             "--json",
         ],
         repo.path(),
@@ -234,7 +238,7 @@ fn agent_instruction_manifesto_change_scope_json_reports_state() {
     assert_eq!(v["artifact"], "manifesto");
     assert_eq!(v["state"], "proposal-drafting");
     assert_eq!(v["variant"], "light");
-    assert_eq!(v["profile"], "full");
+    assert_eq!(v["profile"], "proposal-only");
     assert!(
         v["instruction"]
             .as_str()
@@ -309,6 +313,7 @@ fn agent_instruction_manifesto_full_variant_renders_full_section() {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn agent_instruction_manifesto_redacts_explicit_coordination_path() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");
@@ -366,13 +371,18 @@ fn agent_instruction_manifesto_full_variant_embeds_requested_proposal_instructio
 }
 
 #[test]
-fn agent_instruction_manifesto_full_variant_embeds_allowed_default_set() {
+fn agent_instruction_manifesto_full_variant_embeds_apply_for_accepted_change() {
     let base = fixtures::make_repo_with_spec_change_fixture();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
 
     fixtures::reset_repo(repo.path(), base.path());
+    fixtures::write(
+        repo.path().join(".ito/changes/000-01_test-change/tasks.md"),
+        "## 1. Implementation\n- [ ] 1.1 Do a thing\n",
+    );
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -390,8 +400,8 @@ fn agent_instruction_manifesto_full_variant_embeds_allowed_default_set() {
     );
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
-    assert!(out.stdout.contains("### `proposal`"));
-    assert!(out.stdout.contains("### `review`"));
+    assert!(out.stdout.contains("### `apply`"));
+    assert!(!out.stdout.contains("### `proposal`"));
 }
 
 #[test]
@@ -422,8 +432,7 @@ fn agent_instruction_manifesto_full_variant_rejects_incompatible_operation() {
 
     assert_ne!(out.code, 0);
     assert!(
-        out.stderr
-            .contains("Requested operation 'apply' is not allowed"),
+        out.stderr.contains("not ready for Prepare"),
         "stderr={}",
         out.stderr
     );
@@ -579,6 +588,7 @@ fn agent_instruction_manifesto_change_scope_reports_apply_ready_state() {
         repo.path().join(".ito/changes/000-01_test-change/tasks.md"),
         "## 1. Implementation\n- [ ] 1.1 Do a thing\n",
     );
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -612,6 +622,11 @@ fn agent_instruction_manifesto_change_scope_reports_applying_state() {
             .join(".ito/changes/000-01_test-change/design.md"),
         "## Context\nApplying fixture\n",
     );
+    fixtures::write(
+        repo.path().join(".ito/changes/000-01_test-change/tasks.md"),
+        "## 1. Implementation\n- [ ] 1.1 Do a thing\n- [ ] 1.2 Remaining\n",
+    );
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
     fixtures::write(
         repo.path().join(".ito/changes/000-01_test-change/tasks.md"),
         "## 1. Implementation\n- [x] 1.1 Done\n- [ ] 1.2 Remaining\n",
@@ -852,7 +867,7 @@ fn agent_instruction_archive_without_change_prints_generic_guidance() {
         "stdout={}",
         out.stdout
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(
         out.stdout.contains("000-01_test-change"),
         "expected available change hint in generic mode; stdout={}",
@@ -893,16 +908,7 @@ fn agent_instruction_archive_with_change_prints_targeted_instruction() {
         "stdout={}",
         out.stdout
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
-    assert!(
-        out.stdout
-            .contains("create an integration branch from `main`")
-            || out
-                .stdout
-                .contains("create an integration branch from main"),
-        "stdout={}",
-        out.stdout
-    );
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
 }
 
 #[test]
@@ -966,7 +972,7 @@ fn agent_instruction_finish_with_change_prompts_for_archive() {
         out.stdout
             .contains("ito agent instruction archive --change '000-01_test-change'")
     );
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
 }
 
 #[test]
@@ -977,6 +983,7 @@ fn agent_instruction_apply_text_is_compact_and_has_trailing_newline() {
     let rust_path = assert_cmd::cargo::cargo_bin!("ito");
 
     fixtures::reset_repo(repo.path(), base.path());
+    fixtures::integrate_change_for_execution(repo.path(), "000-01_test-change");
 
     let out = run_rust_candidate(
         rust_path,
@@ -993,7 +1000,7 @@ fn agent_instruction_apply_text_is_compact_and_has_trailing_newline() {
 
     assert_eq!(out.code, 0, "stderr={}", out.stderr);
     assert!(out.stdout.contains("## Apply: 000-01_test-change"));
-    assert!(out.stdout.contains("ito sync"), "stdout={}", out.stdout);
+    assert!(!out.stdout.contains("ito sync"), "stdout={}", out.stdout);
     assert!(out.stdout.contains("### Testing Policy"));
     assert!(!out.stdout.contains("\n\n\n"), "stdout={}", out.stdout);
     assert!(out.stdout.ends_with('\n'), "stdout={}", out.stdout);

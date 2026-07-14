@@ -3,7 +3,7 @@ use crate::cli_error::{CliResult, fail, to_cli_error};
 use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
-use ito_config::types::{ItoConfig, WorktreeInitConfig, WorktreeStrategy};
+use ito_config::types::ItoConfig;
 
 use super::cleanup_instructions::generate_cleanup_instruction;
 use super::memory_instructions::{MemoryTemplateConfig, memory_template_config_from_merged};
@@ -14,6 +14,14 @@ use ito_core::templates as core_templates;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+pub(super) use super::worktree_instruction_config::{
+    WorktreeConfig, worktree_config_from_merged_with_paths, worktree_config_from_resolved,
+};
+#[cfg(test)]
+use super::worktree_instruction_config::{resolve_bare_repo_root, worktree_config_from_merged};
+#[cfg(test)]
+use ito_config::types::WorktreeStrategy;
+
 #[derive(Debug, Clone, serde::Serialize)]
 struct ContextFileEntry {
     id: String,
@@ -21,10 +29,8 @@ struct ContextFileEntry {
 }
 
 pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
-    // Check for subcommand first - subcommand handlers have their own help checks
     match args.first().map(|s| s.as_str()) {
         Some("instruction") => handle_agent_instruction(rt, &args[1..]),
-        // Show parent help only if no valid subcommand or explicit help request
         _ if args.is_empty() || args.iter().any(|a| a == "--help" || a == "-h") => {
             println!(
                 "{}",
@@ -33,7 +39,6 @@ pub(crate) fn handle_agent(rt: &Runtime, args: &[String]) -> CliResult<()> {
             Ok(())
         }
         _ => {
-            // Unknown subcommand — log it as an invalid command.
             let mut raw_args = vec!["agent".to_string()];
             raw_args.extend(args.iter().cloned());
             let error_message = format!(
@@ -112,12 +117,13 @@ pub(crate) fn handle_agent_instruction(rt: &Runtime, args: &[String]) -> CliResu
         let prompt = match ito_core::orchestrate::load_orchestrate_user_prompt(ito_path) {
             Ok(prompt) => prompt,
             Err(ito_core::errors::CoreError::NotFound(_)) => {
-                return fail(
-                    "Missing required project file: .ito/user-prompts/orchestrate.md\n\n\
-The orchestrator workflow is configured via orchestrate.md and a project workflow skill.\n\
-Fix: run the orchestrator setup flow (agent-driven) by loading the ito-orchestrate-setup skill,\n\
-then re-run:\n\n\
-  ito agent instruction orchestrate\n",
+                return emit_instruction(
+                    want_json,
+                    "orchestrate",
+                    "# Orchestration setup required\n\n\
+Create `.ito/user-prompts/orchestrate.md` as additive project policy. Start with YAML frontmatter selecting the `generic` preset, then document only project-specific gate, parallelism, or role guidance. Do not copy Ito's authoritative orchestration policy into the file.\n\n\
+After creating it, rerun `ito agent instruction orchestrate`. The retained lifecycle entrypoint is `ito-loop`; no setup or workflow skill is required.\n"
+                        .to_string(),
                 );
             }
             Err(e) => return Err(to_cli_error(e)),
@@ -147,12 +153,12 @@ then re-run:\n\n\
         struct Ctx<'a> {
             orchestrate_md_path: &'a str,
             orchestrate_md: &'a str,
-            workflow_skill_name: &'a str,
             preset_name: &'a str,
             gate_order: &'a [String],
             recommended_skills: &'a [String],
             coordinator_agent_name: &'a str,
             harness_name: &'a str,
+            has_native_agents: bool,
             agent_roles_md: &'a str,
         }
 
@@ -164,42 +170,113 @@ then re-run:\n\n\
             "security-worker",
         ];
 
+        let harness_name = detect_harness_name();
+        let has_native_agents = matches!(
+            harness_name,
+            "opencode" | "claude-code" | "github-copilot" | "pi"
+        );
         let mut agent_roles = Vec::new();
-        for role in ROLE_ORDER {
-            let Some(agent) = preset.agent_roles.get(*role) else {
-                continue;
-            };
-            if agent.is_empty() {
-                continue;
+        if has_native_agents {
+            for role in ROLE_ORDER {
+                let Some(agent) = preset.agent_roles.get(*role) else {
+                    continue;
+                };
+                if agent.is_empty() {
+                    continue;
+                }
+                agent_roles.push(format!("  - `{role}`: `{agent}`"));
             }
-            agent_roles.push(format!("  - `{role}`: `{agent}`"));
-        }
-        for (role, agent) in &preset.agent_roles {
-            if ROLE_ORDER.contains(&role.as_str()) || agent.is_empty() {
-                continue;
+            for (role, agent) in &preset.agent_roles {
+                if ROLE_ORDER.contains(&role.as_str()) || agent.is_empty() {
+                    continue;
+                }
+                agent_roles.push(format!("  - `{role}`: `{agent}`"));
             }
-            agent_roles.push(format!("  - `{role}`: `{agent}`"));
         }
         let agent_roles_md = agent_roles.join("\n");
-        let harness_name = detect_harness_name();
-
+        let gate_order =
+            ito_core::orchestrate::ensure_implementation_readiness_first(&preset.gate_order);
         let instruction = ito_templates::instructions::render_instruction_template(
             "agent/orchestrate.md.j2",
             &Ctx {
                 orchestrate_md_path: &orchestrate_md_path,
                 orchestrate_md: &orchestrate_md,
-                workflow_skill_name: "ito-orchestrator-workflow",
                 preset_name: &preset.name,
-                gate_order: &preset.gate_order,
+                gate_order: &gate_order,
                 recommended_skills: &preset.recommended_skills,
                 coordinator_agent_name: "ito-orchestrator",
                 harness_name,
+                has_native_agents,
                 agent_roles_md: &agent_roles_md,
             },
         )
         .map_err(|e| to_cli_error(format!("failed to render orchestrate instruction: {e}")))?;
 
         return emit_instruction(want_json, "orchestrate", instruction);
+    }
+    if artifact == "migrate-to-main" {
+        let (typed, config_error) =
+            match serde_json::from_value::<ItoConfig>(rt.resolved_config().merged.clone()) {
+                Ok(typed) => (typed, None),
+                Err(error) => (
+                    ItoConfig::default(),
+                    Some(format!("resolved Ito configuration is invalid: {error}")),
+                ),
+            };
+        let ito_root = rt.ito_path();
+        let project_root = ito_root.parent().unwrap_or(ito_root);
+        let expected_coordination_ito_root =
+            ito_core::legacy_coordination::expected_coordination_ito_root(
+                project_root,
+                ito_root,
+                &typed.changes.coordination_branch,
+                &typed.backend,
+            );
+        let observed_evidence_json = if let Some(error) = config_error {
+            serde_json::to_string_pretty(&serde_json::json!({
+                "classification": { "kind": "inspection_error" },
+                "error": error,
+            }))
+            .map_err(to_cli_error)?
+        } else {
+            match ito_core::legacy_coordination::inspect_legacy_coordination(
+                project_root,
+                ito_root,
+                &typed.changes.coordination_branch,
+                expected_coordination_ito_root.as_deref(),
+            ) {
+                Ok(report) => serde_json::to_string_pretty(&report).map_err(to_cli_error)?,
+                Err(error) => serde_json::to_string_pretty(&serde_json::json!({
+                    "classification": { "kind": "inspection_error" },
+                    "error": error.to_string(),
+                }))
+                .map_err(to_cli_error)?,
+            }
+        };
+        let expected_managed_paths = ito_core::legacy_coordination::MANAGED_STATE_DIRS
+            .iter()
+            .map(|name| ito_root.join(name).to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        let instruction = ito_templates::instructions::render_instruction_template(
+            ito_templates::instructions::MIGRATE_TO_MAIN_TEMPLATE_PATH,
+            &serde_json::json!({
+                "project_root": project_root.to_string_lossy(),
+                "ito_root": ito_root.to_string_lossy(),
+                "coordination_branch_name": typed.changes.coordination_branch.name,
+                "coordination_enabled": typed.changes.coordination_branch.enabled.0,
+                "coordination_storage": typed.changes.coordination_branch.storage.as_str(),
+                "expected_coordination_ito_root": expected_coordination_ito_root
+                    .as_deref()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "unresolved".to_string()),
+                "expected_managed_paths": expected_managed_paths,
+                "observed_evidence_json": observed_evidence_json,
+                "main_integration_mode": typed.changes.archive.main_integration_mode.as_str(),
+            }),
+        )
+        .map_err(|error| to_cli_error(format!("rendering migrate-to-main instruction: {error}")))?;
+        return emit_instruction(want_json, "migrate-to-main", instruction);
     }
     if artifact == "migrate-to-coordination-worktree" {
         let (_coord_enabled, coord_branch) =
@@ -462,26 +539,51 @@ then re-run:\n\n\
         }
         return fail(msg);
     }
+    let change = change.expect("checked above");
+    let schema = parse_string_flag(args, "--schema");
+    super::apply_instruction::reject_schema_override(artifact, schema.as_deref())?;
+    let mut authoritative_apply = if artifact == "apply" {
+        Some(super::apply_instruction::prepare_source(
+            rt, &change, want_json,
+        )?)
+    } else {
+        None
+    };
     let ctx = rt.ctx();
     let ito_path = rt.ito_path();
     let want_sync = args.iter().any(|a| a == "--sync");
     if sync_before_change_resolution(artifact, want_sync) {
         best_effort_sync_coordination(rt, &format!("before {artifact} instructions"));
     }
-    let runtime = rt.repository_runtime().map_err(to_cli_error)?;
-    let change_repo = runtime.repositories().changes.as_ref();
-    let change = change.expect("checked above");
-    let change = match super::common::resolve_change_target(change_repo, &change) {
-        Ok(resolved) => resolved,
-        Err(msg) => return fail(msg),
+    let runtime = if artifact == "apply" {
+        None
+    } else {
+        Some(rt.repository_runtime().map_err(to_cli_error)?)
     };
-    let schema = parse_string_flag(args, "--schema");
-
+    let change = match authoritative_apply.as_ref() {
+        Some(prepared) => prepared.source().change_id().to_string(),
+        None => {
+            let runtime = runtime
+                .as_ref()
+                .expect("non-apply instructions initialize repository runtime");
+            let change_repo = runtime.repositories().changes.as_ref();
+            match super::common::resolve_change_target(change_repo, &change) {
+                Ok(resolved) => resolved,
+                Err(msg) => return fail(msg),
+            }
+        }
+    };
     let project_root = ito_path.parent().unwrap_or(ito_path);
     let resolved = rt.resolved_config();
     let testing_policy = testing_policy_from_merged(&resolved.merged);
 
-    let user_guidance = match core_templates::load_composed_user_guidance(ito_path, artifact) {
+    let guidance_ito_path = authoritative_apply
+        .as_ref()
+        .map_or(ito_path, |prepared| prepared.source().ito_path());
+    let user_guidance = match core_templates::load_composed_user_guidance(
+        guidance_ito_path,
+        artifact,
+    ) {
         Ok(v) => v,
         Err(e) => {
             eprintln!(
@@ -498,24 +600,10 @@ then re-run:\n\n\
         // Match TS/ora: spinner output is written to stderr.
         eprintln!("- Generating apply instructions...");
 
-        let apply = match core_templates::compute_apply_instructions(
-            ito_path,
-            &change,
-            schema.as_deref(),
-            ctx,
-        ) {
-            Ok(r) => r,
-            Err(core_templates::TemplatesError::InvalidChangeName) => {
-                return fail("Invalid change name");
-            }
-            Err(core_templates::TemplatesError::ChangeNotFound(name)) => {
-                return fail(format!("Change '{name}' not found"));
-            }
-            Err(core_templates::TemplatesError::SchemaNotFound(name)) => {
-                return fail(super::common::schema_not_found_message(ctx, &name));
-            }
-            Err(e) => return Err(to_cli_error(e)),
-        };
+        let prepared = authoritative_apply
+            .as_mut()
+            .expect("apply readiness creates an authoritative render source");
+        let apply = super::apply_instruction::compute(prepared, rt)?;
 
         if want_json {
             let rendered = serde_json::to_string_pretty(&apply)
@@ -539,6 +627,10 @@ then re-run:\n\n\
     }
 
     if artifact == "review" {
+        let runtime = runtime
+            .as_ref()
+            .expect("review instructions initialize repository runtime");
+        let change_repo = runtime.repositories().changes.as_ref();
         let review = match core_templates::compute_review_context(
             change_repo,
             runtime.repositories().modules.as_ref(),
@@ -752,6 +844,7 @@ fn generate_repo_sweep_instruction() -> CliResult<String> {
 #[derive(Debug, Clone, serde::Serialize)]
 pub(super) struct ArchiveInstructionConfig {
     coordination_storage: String,
+    coordination_active: bool,
     main_integration_mode: String,
 }
 
@@ -777,6 +870,8 @@ pub(super) fn archive_instruction_config_from_merged(
             .storage
             .as_str()
             .to_string(),
+        coordination_active: cfg!(feature = "coordination-branch")
+            && typed.changes.coordination_branch.enabled.0,
         main_integration_mode: typed
             .changes
             .archive
@@ -896,202 +991,6 @@ pub(super) fn render_artifact_instructions_text(
         .map_err(|e| to_cli_error(format!("rendering artifact instruction: {e}")))
 }
 
-/// Worktree configuration serialized for the apply instruction template.
-#[derive(Debug, Clone, serde::Serialize)]
-pub(super) struct WorktreeConfig {
-    pub(super) enabled: bool,
-    pub(super) strategy: WorktreeStrategy,
-    pub(super) layout_base_dir: Option<String>,
-    pub(super) layout_dir_name: String,
-    pub(super) apply_enabled: bool,
-    pub(super) integration_mode: String,
-    copy_from_main: Vec<String>,
-    setup_commands: Vec<String>,
-    pub(super) default_branch: String,
-    /// Glob patterns from `worktrees.init.include` for worktree initialization.
-    init_include: Vec<String>,
-    /// Setup commands from `worktrees.init.setup` for worktree initialization.
-    init_setup: Vec<String>,
-    /// Absolute path to the current working worktree root.
-    ///
-    /// This is the directory that contains the `.ito/` folder for this invocation.
-    worktree_root: Option<String>,
-    /// Absolute path to the `.ito/` directory for this invocation.
-    ito_root: Option<String>,
-    /// Absolute path to the project/repo root directory.
-    ///
-    /// For `BareControlSiblings` this is the bare repo root (where `.bare/`
-    /// and `.git` live), resolved via `git rev-parse --git-common-dir`.
-    /// Templates use this to emit absolute paths so agents create worktrees
-    /// in the correct location regardless of their cwd.
-    project_root: Option<String>,
-}
-
-/// Resolve the bare repo root for `bare_control_siblings` layouts.
-///
-/// Runs `git rev-parse --path-format=absolute --git-common-dir` from
-/// `project_root` and returns its parent directory. For a bare repo
-/// where `.bare/` holds the git objects, this gives the directory
-/// containing `.bare/`, `.git`, and the worktree directories.
-fn resolve_bare_repo_root(project_root: &Path) -> Option<PathBuf> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--path-format=absolute", "--git-common-dir"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let common_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if common_dir.is_empty() {
-        return None;
-    }
-    Path::new(&common_dir).parent().map(Path::to_path_buf)
-}
-
-/// This reads the `worktrees` section (if present) and populates fields such as
-/// `enabled`, `strategy`, `layout_base_dir`, `layout_dir_name`, `apply_enabled`,
-/// `integration_mode`, `copy_from_main`, `setup_commands`, and `default_branch`.
-/// Empty string values are ignored and leave defaults in place. If `project_root` is
-/// provided the function sets `project_root` on the returned config; for the
-/// `BareControlSiblings` strategy the root is resolved to the bare repository root
-/// (parent of the Git common-dir), otherwise the provided `project_root` is used
-/// as-is.
-fn worktree_config_from_merged(
-    merged: &serde_json::Value,
-    project_root: Option<&Path>,
-) -> WorktreeConfig {
-    let mut out = WorktreeConfig {
-        enabled: false,
-        strategy: WorktreeStrategy::CheckoutSubdir,
-        layout_base_dir: None,
-        layout_dir_name: "ito-worktrees".to_string(),
-        apply_enabled: true,
-        integration_mode: "commit_pr".to_string(),
-        copy_from_main: vec![
-            ".env".to_string(),
-            ".envrc".to_string(),
-            ".mise.local.toml".to_string(),
-        ],
-        setup_commands: Vec::new(),
-        default_branch: "main".to_string(),
-        init_include: Vec::new(),
-        init_setup: Vec::new(),
-        worktree_root: None,
-        ito_root: None,
-        project_root: None,
-    };
-
-    if let Some(wt) = merged.get("worktrees") {
-        if let Some(v) = wt.get("enabled").and_then(|v| v.as_bool()) {
-            out.enabled = v;
-        }
-        if let Some(v) = wt.get("strategy").and_then(|v| v.as_str())
-            && let Some(parsed) = WorktreeStrategy::parse_value(v)
-        {
-            out.strategy = parsed;
-        }
-        if let Some(v) = wt.get("default_branch").and_then(|v| v.as_str())
-            && !v.is_empty()
-        {
-            out.default_branch = v.to_string();
-        }
-
-        if let Some(layout) = wt.get("layout") {
-            if let Some(v) = layout.get("base_dir").and_then(|v| v.as_str())
-                && !v.is_empty()
-            {
-                out.layout_base_dir = Some(v.to_string());
-            }
-            if let Some(v) = layout.get("dir_name").and_then(|v| v.as_str())
-                && !v.is_empty()
-            {
-                out.layout_dir_name = v.to_string();
-            }
-        }
-
-        if let Some(apply) = wt.get("apply") {
-            if let Some(v) = apply.get("enabled").and_then(|v| v.as_bool()) {
-                out.apply_enabled = v;
-            }
-            if let Some(v) = apply.get("integration_mode").and_then(|v| v.as_str())
-                && !v.is_empty()
-            {
-                out.integration_mode = v.to_string();
-            }
-            if let Some(arr) = apply.get("copy_from_main").and_then(|v| v.as_array()) {
-                let mut items = Vec::new();
-                for item in arr {
-                    if let Some(s) = item.as_str() {
-                        items.push(s.to_string());
-                    }
-                }
-                out.copy_from_main = items;
-            }
-            if let Some(arr) = apply.get("setup_commands").and_then(|v| v.as_array()) {
-                let mut items = Vec::new();
-                for item in arr {
-                    if let Some(s) = item.as_str() {
-                        items.push(s.to_string());
-                    }
-                }
-                out.setup_commands = items;
-            }
-        }
-
-        // Parse init section (worktrees.init.include and worktrees.init.setup).
-        if let Some(init) = wt.get("init")
-            && let Ok(init_cfg) = serde_json::from_value::<WorktreeInitConfig>(init.clone())
-        {
-            out.init_include = init_cfg.include;
-            if let Some(setup) = init_cfg.setup {
-                out.init_setup = setup.as_commands().iter().map(|s| s.to_string()).collect();
-            }
-        }
-    }
-
-    // Resolve the absolute project root for all strategies so templates
-    // can emit absolute paths and agents create worktrees in the correct
-    // location regardless of their cwd.
-    //
-    // For BareControlSiblings the root is the bare repo directory (parent
-    // of `.bare/`), which may differ from the cwd when running from inside
-    // a worktree.  For other strategies it is the checkout root.
-    if let Some(root) = project_root {
-        out.project_root = match out.strategy {
-            WorktreeStrategy::BareControlSiblings => {
-                resolve_bare_repo_root(root).map(|p| p.to_string_lossy().to_string())
-            }
-            WorktreeStrategy::CheckoutSubdir | WorktreeStrategy::CheckoutSiblings => {
-                Some(root.to_string_lossy().to_string())
-            }
-        };
-    }
-
-    out
-}
-
-pub(super) fn worktree_config_from_merged_with_paths(
-    merged: &serde_json::Value,
-    project_root: &Path,
-    ito_path: &Path,
-) -> WorktreeConfig {
-    let mut out = worktree_config_from_merged(merged, Some(project_root));
-    out.worktree_root = Some(project_root.to_string_lossy().to_string());
-    out.ito_root = Some(ito_path.to_string_lossy().to_string());
-    out
-}
-
-/// Like [`worktree_config_from_merged_with_paths`] but named for clarity when
-/// the caller already holds a resolved config.
-pub(super) fn worktree_config_from_resolved(
-    merged: &serde_json::Value,
-    project_root: &Path,
-    ito_path: &Path,
-) -> WorktreeConfig {
-    worktree_config_from_merged_with_paths(merged, project_root, ito_path)
-}
-
 /// Render the apply instructions using the agent apply template and print the result to stdout.
 ///
 /// The function renders the `agent/apply.md.j2` template with a context constructed from
@@ -1143,25 +1042,21 @@ pub(super) fn render_apply_instructions_text(
 fn collect_missing_dependencies(
     instructions: &core_templates::InstructionsResponse,
 ) -> Vec<String> {
-    let mut out = Vec::new();
-    for dep in &instructions.dependencies {
-        if dep.done {
-            continue;
-        }
-        out.push(dep.id.clone());
-    }
-    out
+    instructions
+        .dependencies
+        .iter()
+        .filter(|dependency| !dependency.done)
+        .map(|dependency| dependency.id.clone())
+        .collect()
 }
 
 fn collect_context_files(map: &BTreeMap<String, String>) -> Vec<ContextFileEntry> {
-    let mut out = Vec::new();
-    for (id, path) in map {
-        out.push(ContextFileEntry {
+    map.iter()
+        .map(|(id, path)| ContextFileEntry {
             id: id.clone(),
             path: path.clone(),
-        });
-    }
-    out
+        })
+        .collect()
 }
 
 fn collect_tracking_diagnostic_counts(

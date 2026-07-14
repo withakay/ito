@@ -86,15 +86,15 @@ This topic covers Ito’s release and installer pipeline, spanning release-plz, 
   - embedded operation instructions are scoped to the resolved change state
 
 ## Release-plz guardrails — `release_plz_guardrails.md`
-- Documents release-plz configuration and coordination-branch ignore behavior.
+- Documents release-plz configuration after tracked-main authority cutover.
 - Key files:
   - `.gitignore`
   - `release-plz.toml`
   - `.github/workflows/release-plz.yml`
 - Main rules:
-  - keep projected `.ito` coordination paths gitignored
-  - if ignored files become tracked under `.ito/changes`, untrack them with `git rm --cached` while keeping local files
-  - do not unignore `.ito/changes`
+  - keep the five `.ito` authority roots tracked on `main`
+  - never hide release dirtiness by ignoring or untracking canonical Ito state
+  - do not generate or publish `docs/ito`
   - do not set `git_only = true`
 - Configuration facts:
   - `allow_dirty = false`
@@ -102,7 +102,7 @@ This topic covers Ito’s release and installer pipeline, spanning release-plz, 
   - workspace changelog and dependency updates are enabled
   - `cliff.toml` is used for changelog config
   - only `ito-cli` has git tags enabled
-- Coordination paths that must remain gitignored:
+- Authority paths that must remain tracked:
   - `.ito/changes`
   - `.ito/specs`
   - `.ito/modules`
@@ -124,5 +124,4 @@ This topic covers Ito’s release and installer pipeline, spanning release-plz, 
   - platform target triples
   - optional PATH updates
 - Related drill-downs:
-  - `published_ito_mirror`
   - `release_plz_guardrails`

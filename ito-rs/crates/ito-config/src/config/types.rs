@@ -11,6 +11,8 @@ use serde_json::Value;
 
 // Re-export backend server types from the dedicated submodule.
 pub use super::backend_types::*;
+// Re-export proposal integration types from the dedicated submodule.
+pub use super::proposal_types::*;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Top-level Ito configuration")]
@@ -45,11 +47,6 @@ pub struct ItoConfig {
     #[schemars(default, description = "Worktree workspace configuration")]
     /// Worktree workspace configuration.
     pub worktrees: WorktreesConfig,
-
-    #[serde(default)]
-    #[schemars(default, description = "Per-tool preferences")]
-    /// Per-tool preferences.
-    pub tools: ToolsConfig,
 
     #[serde(default)]
     #[schemars(default, description = "Change coordination configuration")]
@@ -372,58 +369,6 @@ impl Default for BackendApiConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[schemars(description = "Change coordination settings")]
-/// Configuration for change coordination behavior.
-pub struct ChangesConfig {
-    #[serde(default)]
-    #[schemars(default, description = "Coordination branch settings")]
-    /// Coordination branch settings.
-    pub coordination_branch: CoordinationBranchConfig,
-
-    #[serde(default)]
-    #[schemars(default, description = "Archive integration settings")]
-    /// Archive follow-up settings.
-    pub archive: ArchiveConfig,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[schemars(description = "Per-tool preferences")]
-/// Configuration for external tool preferences used by Ito workflows.
-pub struct ToolsConfig {
-    #[serde(default)]
-    #[schemars(default, description = "tmux preferences")]
-    /// tmux preferences.
-    pub tmux: TmuxConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(description = "tmux preferences")]
-/// Configuration for tmux-backed workflow integrations.
-pub struct TmuxConfig {
-    #[serde(default = "TmuxConfig::default_enabled")]
-    #[schemars(
-        default = "TmuxConfig::default_enabled",
-        description = "Whether tmux is enabled"
-    )]
-    /// Whether tmux-backed workflows should be suggested.
-    pub enabled: bool,
-}
-
-impl TmuxConfig {
-    fn default_enabled() -> bool {
-        true
-    }
-}
-
-impl Default for TmuxConfig {
-    fn default() -> Self {
-        Self {
-            enabled: Self::default_enabled(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(description = "Dedicated branch used for proposal/task coordination")]
 /// Configuration for the internal change coordination branch.
@@ -474,7 +419,7 @@ pub struct CoordinationBranchEnabled(pub bool);
 
 impl CoordinationBranchConfig {
     fn default_enabled() -> CoordinationBranchEnabled {
-        CoordinationBranchEnabled(true)
+        CoordinationBranchEnabled(false)
     }
 
     fn default_name() -> String {
@@ -583,10 +528,10 @@ impl std::fmt::Display for ArchiveMainIntegrationMode {
 #[schemars(description = "Storage backend for coordination data")]
 /// Storage backend used to persist coordination data.
 pub enum CoordinationStorage {
-    /// Store coordination data in the git worktree (default).
-    #[default]
+    /// Store coordination data in the git worktree.
     Worktree,
-    /// Store coordination data embedded in the repository.
+    /// Store coordination data embedded in the repository (default).
+    #[default]
     Embedded,
 }
 

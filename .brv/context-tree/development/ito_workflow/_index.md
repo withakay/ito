@@ -1,73 +1,158 @@
 ---
-children_hash: bf4f13cd4e911926200a311729419add744eee6d445966e9bb4f7410f2d6b16f
-compression_ratio: 0.2113789528252981
+children_hash: 5a5843ac0d0f507516cab060cd7cf4eec9f5c65677121ed925c5dcffb5d1ffba
+compression_ratio: 0.23414918414918415
 condensation_order: 1
-covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, coordination_branch_git_behavior.md, coordination_symlink_repair_and_sync.md, ddd_discovery_workflow.md, ito_config_gotcha.md, ito_orchestration_consolidation.md, obsolete_specialist_cleanup.md, pre_push_adversarial_code_review.md, published_ito_mirror.md, worktree_validation_flow.md]
-covers_token_total: 7716
+covers: [audit_mirror_concurrency_and_temp_naming.md, context.md, coordination_branch_bootstrap.md, coordination_symlink_repair_and_sync.md, ddd_discovery_workflow.md, ito_config_gotcha.md, ito_orchestration_consolidation.md, obsolete_specialist_cleanup.md, pre_push_adversarial_code_review.md, worktree_validation_flow.md]
+covers_token_total: 8580
 summary_level: d1
-token_count: 1631
+token_count: 2009
 type: summary
 ---
-# ito_workflow
+# development/ito_workflow — Structural Overview
 
-## Overview
-This domain documents how Ito manages coordination-backed state, mirrors, validation, and workflow safety around Git worktrees and generated docs. The core theme is a read-only published mirror backed by writable coordination state, with strict safeguards for symlinks, branch bootstrapping, worktree validation, and audit mirroring.
+This topic covers Ito’s tracked-main workflow, migration from legacy coordination-backed state, worktree validation, and safe Git behavior. The main structural theme is **tracked `.ito` state on `main` as the source of truth**, with coordination sync retained only as an experimental compatibility path and audit mirroring remaining a separate subsystem.
 
-## Structural Map
+## Core workflow architecture
 
-### Mirror and published output
-- **published_ito_mirror.md**: Defines the read-only `docs/ito` published mirror.
-  - Key facts: configurable via `changes.published_mirror.path` (default `docs/ito`), safe path resolution rejects empty/absolute/parent-traversal paths, renderer skips symlinks, and publish CLI detects drift then replaces the mirror from coordination-backed state.
-  - Drill down for: mirror layout, drift detection, and source-of-truth separation.
-- **audit_mirror_concurrency_and_temp_naming.md**: Covers audit mirror sync internals.
-  - Key facts: temporary worktree and orphan branch names use `pid + timestamp + atomic counter`, JSONL merge dedupes identical lines and collapses adjacent reconciled events, retention is capped by age and count, and push/ref-update conflicts retry once.
-  - Drill down for: concurrency protections, Git conflict handling, and log truncation behavior.
+- **context.md** sets the top-level framing:
+  - canonical changes, specs, modules, workflows, and audit artifacts live under tracked `.ito/` paths on `main`;
+  - proposals are integrated into the authoritative target before implementation begins;
+  - legacy coordination storage is detected and migrated explicitly rather than treated as current authority.
+- Worktree and Git safety gates protect the main-authoritative workflow while preserving recovery paths for legacy repositories.
 
-### Coordination branches and worktree safety
-- **coordination_branch_git_behavior.md**: Documents coordination branch bootstrapping and reservation behavior.
-  - Key facts: missing remote branches are initialized from an empty tree root commit, not caller HEAD; `git commit-tree` initialization must omit `-p`; remote push refspec is `<commit-hash>:refs/heads/<branch>`; SHA-256 empty-tree hashes are supported with SHA-1 fallback.
-  - Drill down for: branch initialization rules, error classification, and tests.
-- **coordination_symlink_repair_and_sync.md**: Covers symlink repair and sync orchestration for coordination worktrees.
-  - Key facts: missing `.ito/` links, correct symlinks whose targets are missing, and empty generated `.ito/` directories are treated as repairable; wrong targets and non-empty duplicate directories fail explicitly; sync wires symlinks before health checks and treats missing remote configuration as non-fatal after local repair.
-  - Drill down for: `.ito/` wiring, health checks, and sync state persistence.
-- **ito_config_gotcha.md**: Clarifies global vs repo-local config behavior.
-  - Key facts: `ito config` reads/writes global `~/.config/ito/config.json`; normal worktrees should use `changes.coordination_branch.enabled=true`, `name=ito/internal/changes`, `storage=worktree`; the coordination worktree itself must use `storage=embedded` to avoid self-symlink validation failures.
-  - Drill down for: config scope boundaries and storage mode requirements.
+## Audit mirroring
 
-### Worktree validation and branch hygiene
-- **worktree_validation_flow.md**: Defines read-only worktree validation.
-  - Key facts: `ito worktree validate --change <id> [--json]` emits machine-readable status; main/control checkouts are hard failures; mismatches outside main are advisory; matching uses exact change-id prefixes to avoid false positives such as `<change>-review`.
-  - Drill down for: pre-tool hook behavior and validation policy.
-- **obsolete_specialist_cleanup.md**: Describes installer cleanup for renamed orchestrator assets.
-  - Key facts: update and forceful init/reinstall paths pre-clean obsolete specialist assets; broken symlinks are removed via `symlink_metadata`; legacy `ito-orchestrator-*` specialist assets are removed while coordinator assets remain.
-  - Drill down for: cleanup triggers, retained assets, and installer path behavior.
+### audit_mirror_concurrency_and_temp_naming.md
+- Describes audit mirror sync internals and concurrency protections.
+- Important patterns:
+  - Unique temp worktree names and orphan branch names use `pid + timestamp + atomic counter`.
+  - JSONL merge dedupes identical lines, preserves order, and collapses adjacent reconciled events.
+  - Retention truncates by age and max count.
+- Conflict handling:
+  - Retry once on push/ref-update conflicts.
+  - Uses detached worktrees and falls back to orphan branches when needed.
+- Best read-down entry for implementation details of mirror.rs behavior.
 
-### Workflow and orchestration guidance
-- **ddd_discovery_workflow.md**: Captures the DDD discovery workflow and its gates.
-  - Key facts: integrates `strategic_ddd_for_coding_agents` as non-normative reference material; includes discovery depth gate, capability boundary checks, model ownership, named-or-provisional context relationships, consistency requirements, optional queries, and boundary-smell probes; rigorous domain-grill is gated and auto-recommended only for high-impact ambiguity or explicit opt-in.
-  - Drill down for: consensus discovery rules and boundary probes.
-- **ito_orchestration_consolidation.md**: Records orchestration consolidation into change `028-02_centralize-instruction-source-of-truth`.
-  - Key facts: consolidates overlapping orchestration and multi-agent skills/prompts, introduces agent-surface-taxonomy, and designates `ito agent instruction orchestrate` as the authoritative source.
-  - Drill down for: surface taxonomy and source-of-truth decision.
-- **pre_push_adversarial_code_review.md**: Adds a pre-push quality gate.
-  - Key facts: before pushing a change branch or opening a PR, run an adversarial code review; block P0/P1 issues; minor low-risk findings may be deferred at agent discretion.
-  - Drill down for: severity gate and review flow.
+## Worktree validation and safety gates
 
-## Cross-cutting relationships
-- **Published mirror and audit mirror** both depend on coordination-backed state but serve different outputs: `docs/ito` is read-only public output, while audit mirror synchronization handles internal branch logging and retention.
-- **Coordination branch initialization**, **symlink repair**, and **worktree validation** jointly enforce safe local state before sync/publish actions proceed.
-- **Config handling** is split between global user settings and repo-local effective configuration, with the coordination worktree explicitly exempted from normal worktree storage rules.
-- **DDD discovery** and **orchestration consolidation** both preserve Ito capability boundaries, but the former focuses on domain-discovery behavior while the latter centralizes agent instruction ownership.
+### worktree_validation_flow.md
+- Introduces a dedicated read-only validation flow for change worktrees.
+- Key rules:
+  - `ito worktree validate --change <id> [--json]`
+  - Main/control checkouts are hard failures.
+  - Non-main mismatches are advisory and include recovery guidance.
+  - Matching uses exact change-id prefixes to avoid false positives.
+- This flows into machine-readable status output for hooks and pre-tool gating.
 
-## Drill-down guide
-Use the child entries for detail on:
-- mirror safety and publishing: **published_ito_mirror.md**
-- audit branch concurrency and retention: **audit_mirror_concurrency_and_temp_naming.md**
-- coordination bootstrap and ref behavior: **coordination_branch_git_behavior.md**
-- `.ito/` symlink repair and sync: **coordination_symlink_repair_and_sync.md**
-- config scope and storage mode: **ito_config_gotcha.md**
-- read-only worktree validation: **worktree_validation_flow.md**
-- installer cleanup of renamed assets: **obsolete_specialist_cleanup.md**
-- domain discovery gates: **ddd_discovery_workflow.md**
-- orchestration source-of-truth: **ito_orchestration_consolidation.md**
-- pre-push adversarial review: **pre_push_adversarial_code_review.md**
+### pre_push_adversarial_code_review.md
+- Adds a pre-push quality gate before pushing a change branch or opening a PR.
+- The workflow is:
+  - review diff adversarially
+  - block P0/P1 issues
+  - optionally address low-risk findings
+  - then push/open PR
+- This is positioned as a review-noise reduction and defect-catch step before publication.
+
+## Git coordination branch lifecycle
+
+The coordination branch entries below document legacy or explicitly enabled experimental behavior. They do not supersede tracked `.ito` authority on `main`.
+
+### coordination_branch_bootstrap.md
+- Documents bootstrap behavior for missing coordination/origin branches.
+- Critical rules:
+  - Initialize from a clean empty-tree **root commit**, not from caller HEAD.
+  - Do not include parent refs (`-p`) during initialization.
+  - Reject empty `git commit-tree` / `mktree` stdout before hashing.
+  - Push the created commit as `<oid>:refs/heads/<branch>`.
+- Object-format handling is explicit:
+  - SHA-256 supported
+  - SHA-1 fallback when object-format detection is absent or non-sha256
+- The branch setup result distinguishes existing remote branches from newly created ones.
+- Consolidates multiple overlapping bootstrap docs into one authoritative source.
+
+### coordination_symlink_repair_and_sync.md
+- Defines coordination worktree provisioning, symlink repair, sync ordering, and failure modes.
+- Structural split:
+  - `coordination.rs`: symlink creation/repair/teardown and health classification
+  - `coordination_worktree.rs`: provisioning, auto-commit, sync state persistence, fetch/fast-forward/push orchestration
+- Repair policy:
+  - Missing links, correct symlinks with missing targets, and empty generated `.ito/` dirs are safe.
+  - Wrong symlink targets and non-empty duplicate dirs fail explicitly.
+- Sync behavior:
+  - wire symlinks before health checks
+  - fetch first, then fast-forward, then auto-commit/push
+  - missing or unconfigured remote can degrade to `RateLimited` after local repair
+- Uses `lexical_normalize` for path comparisons and `CoordinationStorage` to distinguish embedded vs worktree mode.
+
+### ito_config_gotcha.md
+- Clarifies the split between global CLI config and repo-local effective config.
+- Key paths:
+  - global user config: `~/.config/ito/config.json`
+  - repo-local config: `.ito/config.json`
+- Worktree/storage rules:
+  - normal worktrees: `changes.coordination_branch.enabled=true`, `name=ito/internal/changes`, `storage=worktree`
+  - coordination worktree: same branch settings but `storage=embedded`
+- The coordination worktree at `~/.local/share/ito/withakay/ito` must not validate itself as a self-symlinked worktree.
+
+### coordination_branch_bootstrap.md and coordination_symlink_repair_and_sync.md relation
+- Together they define the branch/worktree initialization path:
+  - bootstrap missing branch from empty tree
+  - provision or repair symlinks
+  - validate and sync safely
+  - avoid ambiguous or self-referential states
+
+## Workflow consolidation and documentation governance
+
+### ddd_discovery_workflow.md
+- Captures the DDD discovery workflow as a curated, gated discovery process.
+- Important concepts:
+  - discovery depth gate
+  - capability boundary checks
+  - model ownership over data/code location
+  - named-or-provisional context relationships
+  - consistency requirements, optional queries, boundary-smell probes
+- The “rigorous domain-grill” is **gated**, not unconditional:
+  - auto-recommended only for high-impact ambiguity or explicit opt-in
+- Treats `strategic_ddd_for_coding_agents.md` as non-normative reference material.
+
+### ito_orchestration_consolidation.md
+- Records consolidation of orchestration work into existing change `028-02_centralize-instruction-source-of-truth`.
+- Introduces an `agent-surface-taxonomy`:
+  - direct entrypoint agents vs delegated role sub-agents
+- The authoritative orchestration source is the `ito agent instruction orchestrate` path.
+- Prevents duplicated orchestration logic across overlapping skills/prompts.
+
+### obsolete_specialist_cleanup.md
+- Documents installer cleanup for obsolete `ito-orchestrator` specialist assets after rename migration.
+- Cleanup applies on:
+  - update flows
+  - forceful reinstall/init paths
+- Legacy files and broken symlinks are removed before new assets are written.
+- Empty legacy dirs are pruned, but coordinator assets remain excluded and preserved.
+
+## High-level relationships and patterns
+
+- **Source of truth**: tracked `.ito` artifacts on `main`
+- **Legacy compatibility**: coordination-backed state is detected, guarded, and migrated explicitly
+- **Safety gates**:
+  - worktree validation hard-fails unsafe main/control states
+  - pre-push adversarial review blocks major issues
+  - bootstrap rejects empty stdout and HEAD-based initialization
+  - symlink repair refuses ambiguous or wrong-target states
+- **Stability patterns**:
+  - unique temp naming with pid/timestamp/counter
+  - exact prefix matching for change IDs
+  - object-format-aware hashing with SHA-256 support
+  - explicit conflict retries and bounded mirror retention
+
+## Drill-down map
+
+- Audit mirror concurrency and retention: `audit_mirror_concurrency_and_temp_naming.md`
+- Worktree validation and hook status: `worktree_validation_flow.md`
+- Pre-push review gate: `pre_push_adversarial_code_review.md`
+- Coordination branch bootstrap rules: `coordination_branch_bootstrap.md`
+- Symlink repair and sync orchestration: `coordination_symlink_repair_and_sync.md`
+- Config path and storage mode gotcha: `ito_config_gotcha.md`
+- DDD discovery gating and boundaries: `ddd_discovery_workflow.md`
+- Orchestration consolidation and ownership: `ito_orchestration_consolidation.md`
+- Legacy asset cleanup during install/init: `obsolete_specialist_cleanup.md`

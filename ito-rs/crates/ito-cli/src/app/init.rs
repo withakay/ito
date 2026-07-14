@@ -9,12 +9,16 @@ use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use ito_config::ito_dir;
 use ito_config::output;
+#[cfg(feature = "coordination-branch")]
+use ito_config::resolve_coordination_branch_settings;
+#[cfg(feature = "coordination-branch")]
 use ito_config::types::CoordinationStorage;
-use ito_config::{
-    ConfigContext, load_cascading_project_config, resolve_coordination_branch_settings,
-};
+use ito_config::{ConfigContext, load_cascading_project_config};
+#[cfg(feature = "coordination-branch")]
 use ito_core::config as core_config;
+#[cfg(feature = "coordination-branch")]
 use ito_core::coordination_worktree::provision_coordination_worktree;
+#[cfg(feature = "coordination-branch")]
 use ito_core::git::{CoordinationBranchSetupStatus, ensure_coordination_branch_on_origin};
 use ito_core::installers::{InitOptions, InstallMode, install_default_templates};
 use ito_templates::project_templates::WorktreeTemplateContext;
@@ -52,7 +56,16 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     let update = args.iter().any(|a| a == "--update" || a == "-u");
     let setup_coordination_branch = args.iter().any(|a| a == "--setup-coordination-branch");
     let no_coordination_worktree = args.iter().any(|a| a == "--no-coordination-worktree");
-    let no_tmux = args.iter().any(|a| a == "--no-tmux");
+    #[cfg(not(feature = "coordination-branch"))]
+    let _ = no_coordination_worktree;
+    #[cfg(not(feature = "coordination-branch"))]
+    if setup_coordination_branch {
+        return Err(CliError::feature_unavailable(
+            "coordination-branch",
+            "ito init --setup-coordination-branch",
+            "omit --setup-coordination-branch, or install an experimental build with the coordination-branch feature",
+        ));
+    }
     let tools_arg = parse_string_flag(args, "--tools");
     let worktree_overrides = parse_worktree_overrides(args)?;
     if cleanup && !upgrade {
@@ -192,9 +205,6 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     );
     let is_tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     let is_interactive = ui.interactive && is_tty && !args.iter().any(|a| a == "--no-interactive");
-    let existing_tmux_preference = load_tmux_preference(target_path, ctx)?;
-    let tmux_enabled = resolve_tmux_preference(is_interactive, no_tmux, existing_tmux_preference)?;
-
     let (worktree_result, worktree_project_config_path, should_persist_worktree) =
         resolve_worktree_config(ctx, target_path, is_interactive, &worktree_overrides)?;
     let worktree_ctx = worktree_template_context(&worktree_result, target_path, ctx);
@@ -247,12 +257,11 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    persist_tmux_preference(target_path, ctx, tmux_enabled)?;
-
     if should_persist_worktree {
         save_worktree_config(&worktree_project_config_path, &worktree_result)?;
     }
 
+    #[cfg(feature = "coordination-branch")]
     if setup_coordination_branch {
         let ito_path = ito_dir::get_ito_path(target_path, ctx);
         let project_root = ito_path.parent().ok_or_else(|| {
@@ -281,10 +290,14 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
         }
     }
 
-    // Coordination worktree setup: only for fresh init (not --upgrade), and only
-    // when backend mode is not enabled. Failures are non-fatal — init still succeeds
-    // but falls back to embedded storage mode.
-    if !upgrade {
+    // A compiled feature alone must not activate coordination. Explicit setup
+    // opts in, while later init/update runs may repair an existing worktree mode.
+    #[cfg(feature = "coordination-branch")]
+    if !upgrade
+        && (setup_coordination_branch
+            || no_coordination_worktree
+            || coordination_worktree_requested(target_path, ctx))
+    {
         setup_coordination_worktree(target_path, ctx, no_coordination_worktree);
     }
 
@@ -295,14 +308,13 @@ pub(super) fn handle_init(rt: &Runtime, args: &[String]) -> CliResult<()> {
     Ok(())
 }
 
-/// Print a brief advisory pointing at the `ito-update-repo` skill when at
-/// least one repository validation rule is active and no `ito validate repo`
-/// pre-commit hook is detected.
+/// Print a brief advisory with the direct hook command when at least one
+/// repository validation rule is active and no `ito validate repo` pre-commit
+/// hook is detected.
 ///
 /// The advisory is **purely informational**: it never modifies
 /// `.pre-commit-config.yaml`, `.husky/`, `lefthook.yml`, or any other file.
-/// Wiring is left to the `ito-update-repo` skill so downstream projects opt
-/// in by running the skill explicitly.
+/// Wiring remains an explicit downstream-project choice.
 fn print_repo_validation_advisory(target_path: &std::path::Path, ctx: &ConfigContext) {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
 
@@ -332,7 +344,7 @@ fn print_repo_validation_advisory(target_path: &std::path::Path, ctx: &ConfigCon
         rules.iter().filter(|r| r.active).count(),
     );
     eprintln!(
-        "    Run the `ito-update-repo` skill to wire it (proposes a diff, asks before applying)."
+        "    If desired, add `ito validate repo --staged --strict` to that hook configuration and review the diff before committing."
     );
 }
 
@@ -388,7 +400,7 @@ fn print_post_init_guidance(target_path: &std::path::Path, ctx: &ConfigContext) 
 
     if needs_project_setup {
         println!(
-            "Next step: Run /ito-project-setup in your AI assistant to configure the project.\n"
+            "Next step: Ask your AI assistant to run `ito agent instruction project-setup` and follow the emitted prompt.\n"
         );
     }
 
@@ -396,7 +408,7 @@ fn print_post_init_guidance(target_path: &std::path::Path, ctx: &ConfigContext) 
         r#"Or manually edit:
   {}/project.md        Project overview, tech stack, architecture
   {}/user-prompts/     Shared + artifact-specific instruction guidance
-  {}/config.json       Tool settings and defaults
+  {}/config.json       Workflow settings and defaults
 
 Learn more: ito --help | ito agent instruction --help
 "#,
@@ -442,7 +454,6 @@ fn project_setup_is_incomplete(ito_dir: &std::path::Path) -> bool {
 ///     cleanup: false,
 ///     setup_coordination_branch: false,
 ///     no_coordination_worktree: false,
-///     no_tmux: false,
 ///     worktrees: false,
 ///     no_worktrees: false,
 ///     worktree_strategy: None,
@@ -485,9 +496,6 @@ pub(crate) fn handle_init_clap(rt: &Runtime, args: &InitArgs) -> CliResult<()> {
     }
     if args.no_coordination_worktree {
         argv.push("--no-coordination-worktree".to_string());
-    }
-    if args.no_tmux {
-        argv.push("--no-tmux".to_string());
     }
     if args.worktrees {
         argv.push("--worktrees".to_string());
@@ -636,68 +644,17 @@ fn load_interactive_worktree_defaults(
     WorktreeWizardDefaults::default()
 }
 
-fn persist_tmux_preference(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-    enabled: bool,
-) -> CliResult<()> {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let config_path = ito_path.join("config.json");
-    let mut config = core_config::read_json_config(&config_path)
-        .map_err(|e| CliError::msg(format!("Failed to read config: {e}")))?;
-
-    let parts = core_config::json_split_path("tools.tmux.enabled");
-    core_config::json_set_path(&mut config, &parts, serde_json::Value::Bool(enabled))
-        .map_err(|e| CliError::msg(format!("Failed to set tmux config: {e}")))?;
-
-    core_config::write_json_config(&config_path, &config)
-        .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;
-
-    Ok(())
-}
-
-fn load_tmux_preference(
-    target_path: &std::path::Path,
-    ctx: &ConfigContext,
-) -> CliResult<Option<bool>> {
-    let ito_path = ito_dir::get_ito_path(target_path, ctx);
-    let merged = load_cascading_project_config(target_path, &ito_path, ctx);
-    Ok(merged
-        .merged
-        .pointer("/tools/tmux/enabled")
-        .and_then(|value| value.as_bool()))
-}
-
-fn resolve_tmux_preference(
-    interactive: bool,
-    no_tmux: bool,
-    existing_preference: Option<bool>,
-) -> CliResult<bool> {
-    if no_tmux {
-        return Ok(false);
-    }
-
-    if !interactive {
-        return Ok(existing_preference.unwrap_or(true));
-    }
-
-    dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Do you use tmux?")
-        .default(existing_preference.unwrap_or(true))
-        .interact()
-        .map_err(|e| CliError::msg(format!("Failed to prompt for tmux preference: {e}")))
-}
-
 /// Set up the coordination worktree for a fresh `ito init`.
 ///
 /// Delegates all business logic to [`provision_coordination_worktree`] in
 /// `ito-core` and handles the result:
 ///
-/// - `Ok(Some(storage))` — writes `storage` to the project config.
+/// - `Ok(Some(storage))` — writes a consistent activation/storage mode.
 /// - `Ok(None)` — backend mode is active; nothing to do.
 /// - `Err(err)` — logs a warning and falls back to embedded storage mode.
 ///
 /// All failures are non-fatal: a warning is printed and init continues.
+#[cfg(feature = "coordination-branch")]
 fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContext, skip: bool) {
     let ito_path = ito_dir::get_ito_path(target_path, ctx);
     let config_path = ito_path.join("config.json");
@@ -710,7 +667,7 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
              Fix: ensure the .ito/ directory is inside a valid project directory.",
             ito_path.display()
         );
-        if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded) {
+        if let Err(e) = write_coordination_mode(&config_path, CoordinationStorage::Embedded) {
             eprintln!(
                 "warning: could not write coordination storage config to {}: {e}\n\
                  Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
@@ -723,7 +680,7 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
 
     match provision_coordination_worktree(project_root, &ito_path, skip) {
         Ok(Some(storage)) => {
-            if let Err(e) = write_coordination_storage(&config_path, storage) {
+            if let Err(e) = write_coordination_mode(&config_path, storage) {
                 eprintln!(
                     "warning: could not write coordination storage config to {}: {e}\n\
                      Fix: manually set `changes.coordination_branch.storage` in {}",
@@ -738,8 +695,7 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
         Err(err) => {
             eprintln!("Warning: coordination worktree setup failed: {err}");
             eprintln!("Continuing with embedded storage mode.");
-            if let Err(e) = write_coordination_storage(&config_path, CoordinationStorage::Embedded)
-            {
+            if let Err(e) = write_coordination_mode(&config_path, CoordinationStorage::Embedded) {
                 eprintln!(
                     "warning: could not write coordination storage config to {}: {e}\n\
                      Fix: manually set `changes.coordination_branch.storage` to \"embedded\" in {}",
@@ -751,11 +707,22 @@ fn setup_coordination_worktree(target_path: &std::path::Path, ctx: &ConfigContex
     }
 }
 
-/// Write the `changes.coordination_branch.storage` field to the project config file.
+/// Whether existing configuration explicitly requests worktree coordination.
+#[cfg(feature = "coordination-branch")]
+fn coordination_worktree_requested(target_path: &std::path::Path, ctx: &ConfigContext) -> bool {
+    let ito_path = ito_dir::get_ito_path(target_path, ctx);
+    let merged = load_cascading_project_config(target_path, &ito_path, ctx).merged;
+    serde_json::from_value::<ito_config::types::ItoConfig>(merged).is_ok_and(|config| {
+        config.changes.coordination_branch.storage == CoordinationStorage::Worktree
+    })
+}
+
+/// Write a consistent coordination activation and storage mode.
 ///
 /// Reads the existing config (or starts from an empty object), sets the storage
 /// field, and writes the result back.
-fn write_coordination_storage(
+#[cfg(feature = "coordination-branch")]
+fn write_coordination_mode(
     config_path: &std::path::Path,
     storage: CoordinationStorage,
 ) -> CliResult<()> {
@@ -769,6 +736,14 @@ fn write_coordination_storage(
         serde_json::Value::String(storage.to_string()),
     )
     .map_err(|e| CliError::msg(format!("Failed to set coordination storage config: {e}")))?;
+
+    let enabled_parts = core_config::json_split_path("changes.coordination_branch.enabled");
+    core_config::json_set_path(
+        &mut config,
+        &enabled_parts,
+        serde_json::Value::Bool(storage == CoordinationStorage::Worktree),
+    )
+    .map_err(|e| CliError::msg(format!("Failed to set coordination activation config: {e}")))?;
 
     core_config::write_json_config(config_path, &config)
         .map_err(|e| CliError::msg(format!("Failed to write config: {e}")))?;

@@ -18,9 +18,12 @@ use std::time::Duration;
 use ito_common::fs::StdFs;
 use ito_common::id::{parse_change_id, parse_module_id, parse_sub_module_id};
 use ito_common::paths;
+#[cfg(feature = "coordination-branch")]
 use ito_config::types::{CoordinationStorage, ItoConfig};
+#[cfg(feature = "coordination-branch")]
 use ito_config::{ConfigContext, load_cascading_project_config};
 
+#[cfg(feature = "coordination-branch")]
 use crate::coordination_worktree::repair_current_worktree_coordination_links;
 
 #[derive(Debug, thiserror::Error)]
@@ -416,6 +419,7 @@ fn create_change_inner(
     })
 }
 
+#[cfg(feature = "coordination-branch")]
 fn repair_coordination_wiring_for_change_creation(ito_path: &Path) -> Result<(), CreateError> {
     let config_path = ito_path.join("config.json");
     if !config_path.exists() {
@@ -446,13 +450,19 @@ fn repair_coordination_wiring_for_change_creation(ito_path: &Path) -> Result<(),
         CreateError::CoordinationWiring(format!(
             "Current worktree is missing required Ito coordination wiring.\n\
              Ito path: {}\n\
-             Expected shared paths: .ito/changes, .ito/specs, .ito/modules, .ito/workflows, .ito/audit\n\
+             Expected shared paths: .ito/modules, .ito/workflows, .ito/audit\n\
+             Expected tracked paths: .ito/changes, .ito/specs\n\
              Underlying error: {err}\n\
              Fix: run `ito init --update --tools none` in this worktree, then retry.",
             ito_path.display()
         ))
     })?;
 
+    Ok(())
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+fn repair_coordination_wiring_for_change_creation(_ito_path: &Path) -> Result<(), CreateError> {
     Ok(())
 }
 

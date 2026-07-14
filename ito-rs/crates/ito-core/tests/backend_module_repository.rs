@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 use std::path::PathBuf;
 
 use ito_core::ModuleRepository;

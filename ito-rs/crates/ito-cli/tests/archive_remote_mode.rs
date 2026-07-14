@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 #[path = "support/mod.rs"]
 mod fixtures;
 
@@ -25,7 +27,7 @@ fn seed_remote_change(data_dir: &Path, change_id: &str) {
     fixtures::write(change_dir.join("tasks.md"), "- [x] done\n");
     fixtures::write(
         change_dir.join("specs/spec-one/spec.md"),
-        "## ADDED Requirements\n",
+        "## ADDED Requirements\n\n### Requirement: Remote archive\nRemote archive behavior.\n",
     );
 }
 
@@ -130,7 +132,10 @@ fn remote_archive_succeeds_without_local_active_change_markdown() {
     );
 
     assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
-    assert!(repo.path().join(".ito/specs/spec-one/spec.md").exists());
+    let promoted = std::fs::read_to_string(repo.path().join(".ito/specs/spec-one/spec.md"))
+        .expect("promoted spec");
+    assert!(promoted.contains("## Requirements"));
+    assert!(!promoted.contains("## ADDED Requirements"));
     assert!(repo.path().join(".ito/changes/archive").exists());
     assert!(
         !data_dir

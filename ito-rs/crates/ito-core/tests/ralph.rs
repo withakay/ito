@@ -1,5 +1,5 @@
 use ito_core::harness::{Harness, HarnessName, HarnessRunConfig, HarnessRunResult};
-use ito_core::ralph::{RalphOptions, run_ralph};
+use ito_core::ralph::{RalphOptions, run_ralph_with_readiness};
 use ito_domain::changes::{
     Change, ChangeRepository, ChangeSummary, ChangeTargetResolution, ResolveTargetOptions,
 };
@@ -9,6 +9,10 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 static CWD_LOCK: Mutex<()> = Mutex::new(());
+
+#[path = "ralph/readiness.rs"]
+mod readiness;
+use readiness::TestReadiness;
 
 #[derive(Debug)]
 struct FixedHarness {
@@ -56,9 +60,7 @@ impl Harness for FixedHarness {
         })
     }
 
-    fn stop(&mut self) {
-        // No-op
-    }
+    fn stop(&mut self) {}
 }
 
 /// Harness that captures the cwd it receives from HarnessRunConfig.
@@ -83,9 +85,7 @@ impl Harness for CwdCapturingHarness {
         })
     }
 
-    fn stop(&mut self) {
-        // No-op
-    }
+    fn stop(&mut self) {}
 }
 
 #[derive(Debug)]
@@ -109,9 +109,7 @@ impl Harness for PromptCapturingHarness {
         })
     }
 
-    fn stop(&mut self) {
-        // No-op
-    }
+    fn stop(&mut self) {}
 }
 
 fn write_fixture_ito(ito_path: &Path, change_id: &str) {
@@ -189,13 +187,14 @@ fn run_ralph_for_test(
     let change_repo = ito_core::change_repository::FsChangeRepository::new(ito_path);
     let task_repo = ito_core::task_repository::FsTaskRepository::new(ito_path);
     let module_repo = ito_core::module_repository::FsModuleRepository::new(ito_path);
-    run_ralph(
+    run_ralph_with_readiness(
         ito_path,
         &change_repo,
         &task_repo,
         &module_repo,
         opts,
         harness,
+        &TestReadiness,
     )
 }
 
@@ -207,13 +206,14 @@ fn run_ralph_for_test_with_change_repo(
 ) -> ito_core::errors::CoreResult<()> {
     let task_repo = ito_core::task_repository::FsTaskRepository::new(ito_path);
     let module_repo = ito_core::module_repository::FsModuleRepository::new(ito_path);
-    run_ralph(
+    run_ralph_with_readiness(
         ito_path,
         change_repo,
         &task_repo,
         &module_repo,
         opts,
         harness,
+        &TestReadiness,
     )
 }
 
@@ -1067,11 +1067,9 @@ fn run_ralph_worktree_disabled_uses_fallback_cwd() {
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 1;
     opts.max_iterations = Some(1);
-    // worktree is disabled by default
     assert!(!opts.worktree.enabled);
     run_ralph_for_test(&ito, opts, &mut h).unwrap();
 
-    // When worktrees are disabled, cwd should be the process cwd (fallback)
     let captured = h.captured_cwd.unwrap();
     let process_cwd = std::env::current_dir().unwrap();
     assert_eq!(
@@ -1102,7 +1100,6 @@ fn run_ralph_worktree_enabled_state_written_to_effective_ito() {
     opts.change_id = Some("006-09_fixture".to_string());
     opts.min_iterations = 1;
     opts.max_iterations = Some(1);
-    // Worktree enabled but no actual worktree exists, so it falls back
     opts.worktree = ito_core::ralph::WorktreeConfig {
         enabled: true,
         dir_name: "ito-worktrees".to_string(),

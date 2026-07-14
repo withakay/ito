@@ -1,12 +1,16 @@
 use crate::cli_error::{CliResult, fail, to_cli_error};
+#[cfg(feature = "coordination-branch")]
 use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
 use crate::util::parse_string_flag;
 use chrono::{SecondsFormat, Utc};
 use ito_config::types::ItoConfig;
+#[cfg(feature = "coordination-branch")]
 use ito_core::coordination_worktree::CoordinationSyncOutcome;
+#[cfg(feature = "coordination-branch")]
 use ito_core::git_remote::resolve_org_repo_from_config_or_remote;
 use ito_core::memory::{CaptureInputs, QueryInputs, SearchInputs};
+#[cfg(feature = "coordination-branch")]
 use ito_core::repo_paths::coordination_worktree_path;
 use ito_core::templates as core_templates;
 use ito_core::validate::validate_change;
@@ -61,8 +65,43 @@ pub(super) fn handle_manifesto_instruction(
     want_json: bool,
 ) -> CliResult<()> {
     let request = parse_manifesto_request(args)?;
-    let coordination_sync_outcome =
-        best_effort_sync_coordination(rt, "before manifesto instructions");
+    let apply_capable = request.change.is_some()
+        && match request.operation.as_deref() {
+            Some(operation) => operation == "apply",
+            None => request.profile == "apply" || request.profile == "full",
+        };
+    let apply_prepare = if apply_capable {
+        let change_id = request
+            .change
+            .as_deref()
+            .expect("apply-capable manifesto requests include a change");
+        Some(super::change::require_runtime_readiness(
+            rt,
+            change_id,
+            ito_core::implementation_readiness::ReadinessPhase::Prepare,
+            want_json,
+        )?)
+    } else {
+        None
+    };
+    let mut authoritative_apply = if let Some(prepare) = apply_prepare.as_ref() {
+        Some(super::apply_instruction::from_prepare(
+            rt,
+            prepare.clone(),
+            &["apply", "manifesto"],
+            want_json,
+        )?)
+    } else {
+        None
+    };
+    #[cfg(feature = "coordination-branch")]
+    let coordination_sync_outcome = if apply_capable {
+        None
+    } else {
+        best_effort_sync_coordination(rt, "before manifesto instructions")
+    };
+    #[cfg(not(feature = "coordination-branch"))]
+    let coordination_sync_outcome: Option<()> = None;
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -88,30 +127,41 @@ pub(super) fn handle_manifesto_instruction(
         ito_config::resolve_coordination_branch_settings(&cfg.merged);
     let coord_enabled =
         coord_enabled_cfg || typed.changes.coordination_branch.storage.as_str() == "worktree";
-    let (org, repo) = resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
-        .unwrap_or_else(|| (String::new(), String::new()));
-    let coord_path =
-        coordination_worktree_path(&typed.changes.coordination_branch, ito_path, &org, &repo);
+    #[cfg(feature = "coordination-branch")]
+    let coord_path = {
+        let (org, repo) = resolve_org_repo_from_config_or_remote(project_root, &typed.backend)
+            .unwrap_or_else(|| (String::new(), String::new()));
+        Some(coordination_worktree_path(
+            &typed.changes.coordination_branch,
+            ito_path,
+            &org,
+            &repo,
+        ))
+    };
+    #[cfg(not(feature = "coordination-branch"))]
+    let coord_path: Option<std::path::PathBuf> = None;
     let coordination_json = json!({
         "enabled": coord_enabled,
         "name": coord_name,
         "storage": typed.changes.coordination_branch.storage.as_str(),
-        "worktree_path": if coord_enabled {
-            Value::String(redact_path_value(coord_path.to_string_lossy().as_ref(), project_root))
-        } else {
-            Value::Null
+        "worktree_path": match (coord_enabled, coord_path.as_ref()) {
+            (true, Some(path)) => Value::String(redact_path_value(
+                path.to_string_lossy().as_ref(),
+                project_root,
+            )),
+            _ => Value::Null,
         },
     });
 
     let memory = memory_template_config_from_merged(&cfg.merged);
     let memory_instructions = build_manifesto_memory_instructions(typed.memory.as_ref());
-    let resolved_change = if let Some(change) = request.change.as_deref() {
-        Some(resolve_manifesto_change(
+    let resolved_change = match (apply_prepare.as_ref(), request.change.as_deref()) {
+        (Some(prepare), _) => Some(prepare.change_id.clone()),
+        (None, Some(change)) => Some(resolve_manifesto_change(
             runtime.repositories().changes.as_ref(),
             change,
-        )?)
-    } else {
-        None
+        )?),
+        (None, None) => None,
     };
 
     let mut validation_status = "unknown".to_string();
@@ -228,6 +278,7 @@ pub(super) fn handle_manifesto_instruction(
                 change_id,
                 &state,
                 &review_status,
+                authoritative_apply.as_mut(),
             )?;
         }
 
@@ -250,8 +301,14 @@ pub(super) fn handle_manifesto_instruction(
     } else {
         let state = resolve_manifesto_state(false, &None, None, "unavailable", &review_status);
         if request.variant == "full" {
-            rendered_instructions =
-                render_manifesto_instruction_bodies(rt, &request, "", &state, &review_status)?;
+            rendered_instructions = render_manifesto_instruction_bodies(
+                rt,
+                &request,
+                "",
+                &state,
+                &review_status,
+                authoritative_apply.as_mut(),
+            )?;
         }
         json!({
             "present": false,
@@ -315,7 +372,10 @@ pub(super) fn handle_manifesto_instruction(
         &memory,
     );
 
-    let user_guidance = core_templates::load_composed_user_guidance(ito_path, "manifesto")
+    let guidance_ito_path = authoritative_apply
+        .as_ref()
+        .map_or(ito_path, |prepared| prepared.source().ito_path());
+    let user_guidance = core_templates::load_composed_user_guidance(guidance_ito_path, "manifesto")
         .unwrap_or(None)
         .unwrap_or_default();
 
@@ -483,6 +543,7 @@ fn render_manifesto_instruction_bodies(
     change_id: &str,
     state: &str,
     review_status: &str,
+    mut authoritative_apply: Option<&mut super::apply_instruction::PreparedApplySource>,
 ) -> CliResult<Vec<Value>> {
     if request.variant != "full" {
         return Ok(Vec::new());
@@ -508,7 +569,12 @@ fn render_manifesto_instruction_bodies(
 
     let mut rendered = Vec::new();
     for artifact in allowed {
-        let body = render_manifesto_instruction_body(rt, change_id, &artifact)?;
+        let body = render_manifesto_instruction_body(
+            rt,
+            change_id,
+            &artifact,
+            authoritative_apply.as_deref_mut(),
+        )?;
         if !body.trim().is_empty() {
             rendered.push(json!({ "id": artifact, "body": body }));
         }
@@ -520,6 +586,7 @@ fn render_manifesto_instruction_body(
     rt: &Runtime,
     change_id: &str,
     artifact: &str,
+    authoritative_apply: Option<&mut super::apply_instruction::PreparedApplySource>,
 ) -> CliResult<String> {
     let runtime = rt.repository_runtime().map_err(to_cli_error)?;
     let ito_path = rt.ito_path();
@@ -527,8 +594,15 @@ fn render_manifesto_instruction_body(
     let ctx = rt.ctx();
     let cfg = rt.resolved_config();
     let testing_policy = testing_policy_from_merged(&cfg.merged);
+    let guidance_ito_path = if artifact == "apply" {
+        authoritative_apply
+            .as_deref()
+            .map_or(ito_path, |prepared| prepared.source().ito_path())
+    } else {
+        ito_path
+    };
     let user_guidance =
-        core_templates::load_composed_user_guidance(ito_path, artifact).unwrap_or(None);
+        core_templates::load_composed_user_guidance(guidance_ito_path, artifact).unwrap_or(None);
 
     match artifact {
         "domain-discovery" | "proposal" | "specs" | "design" | "tasks" => {
@@ -538,8 +612,12 @@ fn render_manifesto_instruction_body(
             render_artifact_instructions_text(&resolved, user_guidance.as_deref(), &testing_policy)
         }
         "apply" => {
-            let apply = core_templates::compute_apply_instructions(ito_path, change_id, None, ctx)
-                .map_err(to_cli_error)?;
+            let Some(prepared) = authoritative_apply else {
+                return fail(
+                    "Apply manifesto rendering requires an authoritative prepare snapshot",
+                );
+            };
+            let apply = super::apply_instruction::compute(prepared, rt)?;
             let worktree_config =
                 worktree_config_from_merged_with_paths(&cfg.merged, project_root, ito_path);
             let memory_template = memory_template_config_from_merged(&cfg.merged);
@@ -710,6 +788,7 @@ fn is_registered_dedicated_worktree(project_root: &Path) -> bool {
     worktrees.len() > 1 && worktrees.iter().any(|path| path == &current_root)
 }
 
+#[cfg(feature = "coordination-branch")]
 fn coordination_sync_confirmed(outcome: &Option<CoordinationSyncOutcome>) -> bool {
     match outcome {
         Some(CoordinationSyncOutcome::Synchronized) => true,
@@ -717,6 +796,11 @@ fn coordination_sync_confirmed(outcome: &Option<CoordinationSyncOutcome>) -> boo
         Some(CoordinationSyncOutcome::Embedded) => false,
         None => false,
     }
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+fn coordination_sync_confirmed(_outcome: &Option<()>) -> bool {
+    false
 }
 
 #[derive(Debug, Clone)]

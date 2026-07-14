@@ -9,20 +9,26 @@
 //!   must not collide with the coordination branch when both worktree-based
 //!   features are enabled.
 
-use ito_config::types::{CoordinationStorage, ItoConfig};
+#[cfg(feature = "coordination-branch")]
+use ito_config::types::CoordinationStorage;
+use ito_config::types::ItoConfig;
 
 use crate::errors::CoreError;
-use crate::validate::{ValidationIssue, error, warning, with_metadata, with_rule_id};
+#[cfg(feature = "coordination-branch")]
+use crate::validate::error;
+use crate::validate::{ValidationIssue, warning, with_metadata, with_rule_id};
 
 use super::rule::{Rule, RuleContext, RuleId, RuleSeverity};
 
 const MIRROR_BRANCH_SET_ID: RuleId = RuleId::new("audit/mirror-branch-set");
+#[cfg(feature = "coordination-branch")]
 const MIRROR_BRANCH_DISTINCT_ID: RuleId =
     RuleId::new("audit/mirror-branch-distinct-from-coordination");
 
 const ITO_INTERNAL_PREFIX: &str = "ito/internal/";
 
 /// True when coordination storage is `worktree`.
+#[cfg(feature = "coordination-branch")]
 fn coordination_is_worktree(config: &ItoConfig) -> bool {
     match config.changes.coordination_branch.storage {
         CoordinationStorage::Worktree => true,
@@ -111,8 +117,10 @@ impl Rule for MirrorBranchSetRule {
 
 /// `audit/mirror-branch-distinct-from-coordination` — the audit mirror
 /// branch must not be the same as the coordination branch.
+#[cfg(feature = "coordination-branch")]
 pub(crate) struct MirrorBranchDistinctRule;
 
+#[cfg(feature = "coordination-branch")]
 impl Rule for MirrorBranchDistinctRule {
     fn id(&self) -> RuleId {
         MIRROR_BRANCH_DISTINCT_ID

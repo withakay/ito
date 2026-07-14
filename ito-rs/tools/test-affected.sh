@@ -69,11 +69,12 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 #
 # Dependency graph (A depends on B means: if B changes, test A):
 #   ito-common      -> ito-config, ito-domain, ito-core, ito-cli
-#   ito-config      -> ito-core, ito-cli
+#   ito-config      -> ito-core, ito-cli, ito-backend
 #   ito-domain      -> ito-core, ito-test-support
 #   ito-templates   -> ito-core, ito-web
 #   ito-logging     -> ito-cli
-#   ito-core        -> ito-cli, ito-web
+#   ito-core        -> ito-cli, ito-web, ito-backend
+#   ito-backend     -> ito-cli (only with the experimental backend feature)
 #   ito-cli         -> (leaf)
 #   ito-web         -> ito-cli (optional dependency with default feature)
 #   ito-test-support -> ito-cli (dev)
@@ -81,11 +82,12 @@ echo "Changed crates: ${CHANGED_CRATES[*]}"
 dependents_for() {
     case "$1" in
         ito-common) echo "ito-config ito-domain ito-core ito-cli" ;;
-        ito-config) echo "ito-core ito-cli" ;;
+        ito-config) echo "ito-core ito-cli ito-backend" ;;
         ito-domain) echo "ito-core ito-test-support" ;;
         ito-templates) echo "ito-core ito-web" ;;
         ito-logging) echo "ito-cli" ;;
-        ito-core) echo "ito-cli ito-web" ;;
+        ito-core) echo "ito-cli ito-web ito-backend" ;;
+        ito-backend) echo "ito-cli" ;;
         ito-test-support) echo "ito-cli" ;;
         ito-web) echo "ito-cli" ;;
         ito-cli) echo "" ;;
@@ -126,8 +128,20 @@ echo "Affected crates (with dependents): ${AFFECTED_CRATES[*]}"
 # Step 4: Build the test command
 PKG_FLAGS=()
 for crate in "${AFFECTED_CRATES[@]}"; do
+    # The shipping lane follows ito-cli's default graph. ito-backend remains a
+    # workspace member, but is selected only by the explicit experimental lane.
+    if [ "$crate" = "ito-backend" ]; then
+        continue
+    fi
+    # ito-web is compiled through ito-cli's shipping defaults, but has no
+    # package tests yet and is excluded from the repository's test lanes.
+    if [ "$crate" = "ito-web" ]; then
+        continue
+    fi
     PKG_FLAGS+=("-p" "$crate")
 done
+
+echo "Feature lane: shipping (ito-cli defaults)"
 
 RUSTFLAGS="${RUSTFLAGS:--D warnings}"
 export RUSTFLAGS

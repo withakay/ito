@@ -18,7 +18,7 @@ jobs:
   autofix:
     name: Autofix (lint & format)
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-    runs-on: withakay-self-hosted-arm
+    runs-on: withakay-selfhosted-arm
     timeout-minutes: 10
     permissions:
       contents: write
@@ -184,7 +184,7 @@ jobs:
           echo "::notice::Autofix pushed changes — a new CI run will validate the fixed code."
 
   test:
-    name: Test (linux)
+    name: Shipping defaults — test
     needs: [autofix]
     # Run when autofix is skipped (push to main, workflow_dispatch) or succeeded
     # without pushing. If autofix pushed, a new CI run handles checks instead.
@@ -193,8 +193,8 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     #runs-on: withakay-selfhosted
-    runs-on: withakay-self-hosted-arm
-    timeout-minutes: 10
+    runs-on: withakay-selfhosted-arm
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -229,20 +229,69 @@ jobs:
           rustc -V
           cargo -V
 
-      - name: Test
+      - name: Test shipping CLI defaults
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-        run: cargo test --workspace --exclude ito-web
+        run: make test
+
+      - name: Assert standard dependency boundary
+        run: make release-feature-check
+
+      - name: Verify default iteration and migration surfaces
+        run: |
+          cargo test -p ito-cli --test feature_unavailable
+          cargo test -p ito-cli --test migrate_to_main_instruction
+
+  experimental_test:
+    name: Experimental all-features — test
+    needs: [autofix]
+    if: |
+      always()
+      && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
+      && needs.autofix.outputs.pushed != 'true'
+    runs-on: withakay-selfhosted-arm
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: ci-test-experimental
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Print environment diagnostics
+        run: |
+          mise install
+          mise trust
+          rustc -V
+          cargo -V
+
+      - name: Test backend and coordination implementations
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+        run: make test-experimental
 
   lint:
-    name: Lint & Type Check
+    name: Shipping defaults — lint and docs
     needs: [autofix]
     if: |
       always()
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     # runs-on: withakay-selfhosted
-    runs-on: withakay-self-hosted-arm
+    runs-on: withakay-selfhosted-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -279,19 +328,94 @@ jobs:
         run: |
           make config-schema-check
 
-      - name: Rust fmt (check)
-        run: cargo fmt --all -- --check
-
-      - name: Rust clippy
-        run: |
-          cargo clippy --workspace --all-targets -- \
-            -D warnings \
-            -D clippy::dbg_macro \
-            -D clippy::todo \
-            -D clippy::unimplemented
+      - name: Lint shipping CLI defaults
+        run: make lint
 
       - name: Rust docs (warnings denied)
         run: make docs
+
+  experimental_lint:
+    name: Experimental all-features — lint and docs
+    needs: [autofix]
+    if: |
+      always()
+      && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
+      && needs.autofix.outputs.pushed != 'true'
+    runs-on: withakay-selfhosted-arm
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
+
+      - name: Install Rust components (rustfmt, clippy, rust-docs)
+        run: |
+          set -eu
+          mise install
+          mise trust
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add --toolchain "$TOOLCHAIN" rustfmt clippy rust-docs
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: ci-lint-experimental
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Lint experimental all-features workspace
+        run: make lint-experimental
+
+      - name: Build experimental all-features docs
+        run: make docs-experimental
+
+  feature_matrix:
+    name: Independent feature matrix
+    needs: [autofix]
+    if: |
+      always()
+      && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
+      && needs.autofix.outputs.pushed != 'true'
+    runs-on: withakay-selfhosted-arm
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build-essential
+        uses: ./.github/actions/cache-apt-pkgs
+        with:
+          packages: build-essential
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v3
+
+      - name: Install Rust components (clippy)
+        run: |
+          set -eu
+          mise install
+          mise trust
+          TOOLCHAIN="$(rustup show active-toolchain | awk '{print $1}')"
+          rustup component add --toolchain "$TOOLCHAIN" clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: ci-feature-matrix
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check, test, and lint all feature combinations
+        run: make feature-matrix-check
 
   arch_guardrails:
     name: Architecture Guardrails
@@ -301,7 +425,7 @@ jobs:
       && (needs.autofix.result == 'success' || needs.autofix.result == 'skipped')
       && needs.autofix.outputs.pushed != 'true'
     # runs-on: withakay-selfhosted
-    runs-on: withakay-self-hosted-arm
+    runs-on: withakay-selfhosted-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -343,8 +467,8 @@ jobs:
         run: cargo deny check
 
   docs:
-    name: Docs Site
-    runs-on: withakay-self-hosted-arm
+    name: Shipping defaults — docs site
+    runs-on: withakay-selfhosted-arm
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -397,8 +521,8 @@ jobs:
   required-checks-pr:
     name: All checks passed
     # runs-on: ubuntu-latest
-    runs-on: withakay-self-hosted-arm
-    needs: [autofix, test, lint, arch_guardrails, docs, powershell]
+    runs-on: withakay-selfhosted-arm
+    needs: [autofix, test, experimental_test, lint, experimental_lint, feature_matrix, arch_guardrails, docs, powershell]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Verify all checks passed
@@ -411,11 +535,23 @@ jobs:
           fi
 
           if [[ "${{ needs.test.result }}" != "success" ]]; then
-            echo "Test job failed"
+            echo "Shipping-default test job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.experimental_test.result }}" != "success" ]]; then
+            echo "Experimental all-features test job failed"
             exit 1
           fi
           if [[ "${{ needs.lint.result }}" != "success" ]]; then
-            echo "Lint job failed"
+            echo "Shipping-default lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.experimental_lint.result }}" != "success" ]]; then
+            echo "Experimental all-features lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.feature_matrix.result }}" != "success" ]]; then
+            echo "Independent feature matrix job failed"
             exit 1
           fi
           if [[ "${{ needs.arch_guardrails.result }}" != "success" ]]; then
@@ -435,18 +571,30 @@ jobs:
   required-checks-main:
     name: All checks passed
     # runs-on: withakay-selfhosted
-    runs-on: withakay-self-hosted-arm
-    needs: [test, lint, arch_guardrails, docs, powershell]
+    runs-on: withakay-selfhosted-arm
+    needs: [test, experimental_test, lint, experimental_lint, feature_matrix, arch_guardrails, docs, powershell]
     if: always() && github.event_name != 'pull_request'
     steps:
       - name: Verify all checks passed
         run: |
           if [[ "${{ needs.test.result }}" != "success" ]]; then
-            echo "Test job failed"
+            echo "Shipping-default test job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.experimental_test.result }}" != "success" ]]; then
+            echo "Experimental all-features test job failed"
             exit 1
           fi
           if [[ "${{ needs.lint.result }}" != "success" ]]; then
-            echo "Lint job failed"
+            echo "Shipping-default lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.experimental_lint.result }}" != "success" ]]; then
+            echo "Experimental all-features lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.feature_matrix.result }}" != "success" ]]; then
+            echo "Independent feature matrix job failed"
             exit 1
           fi
           if [[ "${{ needs.arch_guardrails.result }}" != "success" ]]; then

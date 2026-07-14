@@ -4,13 +4,14 @@ use serde::Serialize;
 
 const READ_ONLY_MAIN_RULE: &str = "Treat the main/control checkout";
 const BEFORE_WRITE_WORKTREE_RULE: &str = "Before any write operation, create a dedicated change worktree or move into the existing worktree for that change";
+const GUARDED_WORKTREE_RULE: &str = "Before implementation writes, create or reuse the dedicated change worktree through `ito worktree ensure`";
 const BEFORE_WRITE_THIS_CHANGE_RULE: &str =
     "Before any write operation, create the dedicated worktree for this change or move into it";
 const NO_MAIN_WRITE_RULE: &str = "Do not write there: no proposal artifacts, code edits, documentation edits, generated asset updates, commits, or implementation work";
 
 fn assert_main_worktree_guardrails(text: &str) {
     assert!(text.contains(READ_ONLY_MAIN_RULE));
-    assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE));
+    assert!(text.contains(BEFORE_WRITE_WORKTREE_RULE) || text.contains(GUARDED_WORKTREE_RULE));
     assert!(text.contains(NO_MAIN_WRITE_RULE));
 }
 
@@ -119,6 +120,34 @@ fn render_instruction_template_returns_not_found_for_missing_template() {
 }
 
 #[test]
+fn backend_guide_requires_an_experimental_build() {
+    let guide = get_instruction_template("agent/backend.md.j2").expect("backend guide");
+    assert_contains_all(
+        guide,
+        &[
+            "Experimental build required",
+            "standard Ito release does not compile the",
+            "experimental `backend` feature",
+        ],
+    );
+}
+
+#[test]
+fn coordination_migration_guide_requires_an_experimental_build() {
+    let guide = get_instruction_template("agent/migrate-to-coordination-worktree.md.j2")
+        .expect("coordination migration guide");
+    assert_contains_all(
+        guide,
+        &[
+            "Experimental build required",
+            "standard Ito release does not compile coordination-branch runtime support",
+            "experimental `coordination-branch` feature",
+            "ito agent instruction migrate-to-main",
+        ],
+    );
+}
+
+#[test]
 fn artifact_template_renders_when_instruction_is_empty() {
     #[derive(Serialize)]
     struct Instructions {
@@ -189,12 +218,12 @@ fn orchestrate_template_renders_authoritative_policy() {
     struct Ctx {
         orchestrate_md_path: &'static str,
         orchestrate_md: &'static str,
-        workflow_skill_name: &'static str,
         preset_name: &'static str,
         gate_order: Vec<&'static str>,
         recommended_skills: Vec<&'static str>,
         coordinator_agent_name: &'static str,
         harness_name: &'static str,
+        has_native_agents: bool,
         agent_roles_md: &'static str,
     }
 
@@ -203,12 +232,12 @@ fn orchestrate_template_renders_authoritative_policy() {
         &Ctx {
             orchestrate_md_path: "/repo/.ito/user-prompts/orchestrate.md",
             orchestrate_md: "---\npreset: generic\n---\n\n## MUST\n- Run tests\n",
-            workflow_skill_name: "ito-orchestrator-workflow",
             preset_name: "generic",
             gate_order: vec!["apply-complete", "tests"],
             recommended_skills: vec![],
             coordinator_agent_name: "ito-orchestrator",
             harness_name: "opencode",
+            has_native_agents: true,
             agent_roles_md: "  - `plan-worker`: `ito-planner`\n  - `apply-worker`: `ito-worker`\n  - `review-worker`: `ito-reviewer`",
         },
     )
@@ -247,7 +276,7 @@ fn orchestrate_template_renders_authoritative_policy() {
             "Resume Behavior",
             "remaining gates",
             "orchestrate.md (Current)",
-            "ito-orchestrator-workflow",
+            "Lifecycle entrypoint**: `ito-loop`",
             "Preset",
             "Detected harness",
             "`opencode`",
@@ -429,9 +458,10 @@ fn worktrees_template_bare_control_siblings_branches_from_default_branch() {
         out.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(out.contains("Do not reuse one worktree for two changes"));
-    assert!(out.contains(
-        "WORKTRUNK_WORKTREE_PATH=\"$WORKTREES_ROOT/{{ branch | sanitize }}\" wt switch --create \"${BRANCH_NAME}\" --base \"develop\""
-    ));
+    assert!(out.contains("ito worktree ensure --change \"<full-change-id>\""));
+    assert!(out.contains("ito change preflight \"<full-change-id>\" --for execute"));
+    assert!(out.contains("captured authority OID"));
+    assert!(!out.contains("wt switch --create"));
 }
 
 #[test]
@@ -526,6 +556,12 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
         coverage_target_percent: u64,
     }
 
+    #[derive(Serialize)]
+    struct ContextFileCtx {
+        id: &'static str,
+        path: &'static str,
+    }
+
     #[derive(Serialize, Default)]
     struct MemoryOpState {
         configured: bool,
@@ -539,7 +575,7 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     #[derive(Serialize)]
     struct Ctx {
         instructions: InstructionsCtx,
-        context_files: Vec<&'static str>,
+        context_files: Vec<ContextFileCtx>,
         worktree: WorktreeCtx,
         tracking_errors: Vec<&'static str>,
         tracking_warnings: Vec<&'static str>,
@@ -564,7 +600,10 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
             },
             tasks: Vec::new(),
         },
-        context_files: Vec::new(),
+        context_files: vec![ContextFileCtx {
+            id: "proposal",
+            path: ".ito/changes/000-01_test-change/proposal.md",
+        }],
         worktree: WorktreeCtx {
             enabled: true,
             apply_enabled: true,
@@ -592,21 +631,66 @@ fn apply_template_bare_control_siblings_branches_from_default_branch() {
     assert!(out.contains(
         "Additional worktrees for this same change must start with `000-01_test-change`"
     ));
-    assert!(out.contains(
-        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
-    ));
-    assert!(out.contains("does **not** sync coordination state by default"));
-    assert!(out.contains("ito agent instruction apply --change <id> --sync"));
-    assert!(out.contains("ito sync"));
+    assert!(out.contains("ito worktree ensure --change \"000-01_test-change\""));
+    assert!(out.contains("ito worktree setup --change \"000-01_test-change\""));
+    assert!(!out.contains("wt switch --create"));
+    assert!(out.contains("relative to the dedicated execute-ready change worktree"));
+    assert!(out.contains("ito change preflight <id> --for prepare --refresh"));
+    assert!(!out.contains("ito agent instruction apply --change <id> --sync"));
+    assert!(!out.contains("ito sync"));
     assert!(out.contains("ito patch change 000-01_test-change proposal"));
     assert!(out.contains("ito write change 000-01_test-change design"));
-    let sync_pos = out.find("ito sync").expect("sync instruction");
-    let details_pos = out.find("<details>").expect("manual details");
-    assert!(
-        sync_pos < details_pos,
-        "sync should be in the recommended setup path"
-    );
-    assert_eq!(out[..details_pos].matches("\nito sync\n").count(), 2);
+    assert!(!out.contains("<details>"));
+}
+
+#[test]
+fn apply_template_locates_context_from_non_worktree_implementation_checkout() {
+    let ctx = serde_json::json!({
+        "instructions": {
+            "changeName": "000-01_test-change",
+            "schemaName": "spec-driven",
+            "state": "ready",
+            "missingArtifacts": [],
+            "instruction": "Implement the change.",
+            "tracksFile": false,
+            "tracksPath": null,
+            "tracksFormat": null,
+            "progress": { "total": 0, "complete": 0 },
+            "tasks": []
+        },
+        "context_files": [{
+            "id": "proposal",
+            "path": ".ito/changes/000-01_test-change/proposal.md"
+        }],
+        "worktree": {
+            "enabled": false,
+            "apply_enabled": false,
+            "strategy": "checkout_subdir",
+            "default_branch": "main",
+            "layout_dir_name": "ito-worktrees",
+            "integration_mode": "commit_pr",
+            "copy_from_main": [],
+            "setup_commands": []
+        },
+        "tracking_errors": [],
+        "tracking_warnings": [],
+        "testing_policy": {
+            "tdd_workflow": "red-green-refactor",
+            "coverage_target_percent": 80
+        },
+        "user_guidance": "",
+        "memory": {
+            "capture": { "configured": false },
+            "search": { "configured": false },
+            "query": { "configured": false }
+        }
+    });
+
+    let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
+
+    assert!(out.contains("relative to the execute-ready implementation checkout root"));
+    assert!(out.contains("ito change preflight 000-01_test-change --for execute"));
+    assert!(!out.contains("changing into `$CHANGE_DIR`"));
 }
 
 #[test]
@@ -719,9 +803,8 @@ fn apply_template_checkout_subdir_branches_from_default_branch() {
     let out = render_instruction_template("agent/apply.md.j2", &ctx).unwrap();
     assert_change_worktree_guardrails(&out);
     assert!(out.contains("Default branch: `develop`"));
-    assert!(out.contains(
-        "WORKTRUNK_WORKTREE_PATH=\"$(ito path worktrees-root)/{{ branch | sanitize }}\" wt switch --create \"$CHANGE_NAME\" --base \"develop\""
-    ));
+    assert!(out.contains("ito worktree ensure --change \"000-01_test-change\""));
+    assert!(!out.contains("wt switch --create"));
 }
 
 #[test]
@@ -841,7 +924,7 @@ fn apply_template_requires_change_worktree_when_apply_setup_disabled() {
 }
 
 #[test]
-fn new_proposal_template_moves_to_worktree_after_create() {
+fn new_proposal_template_keeps_authoring_in_proposal_only_worktree() {
     #[derive(Serialize)]
     struct ModuleCtx {
         id: &'static str,
@@ -881,14 +964,18 @@ fn new_proposal_template_moves_to_worktree_after_create() {
     assert!(out.contains(READ_ONLY_MAIN_RULE));
     assert!(out.contains("Do not run `ito create change` from the main/control checkout"));
     assert!(out.contains(NO_MAIN_WRITE_RULE));
-    assert!(out.contains("proposal-<short-name>"));
-    assert!(out.contains("CHANGE_DIR=$(ito worktree ensure --change \"<change-id>\")"));
-    assert!(out.contains("cd \"$CHANGE_DIR\""));
-    assert!(out.contains("Run all subsequent file operations from `$CHANGE_DIR`"));
-    assert!(out.contains("## Step 0.5: Consult the Ito Wiki When Present"));
+    assert!(out.contains("proposal-only branch/worktree"));
+    assert!(out.contains("do not begin implementation there"));
+    assert!(!out.contains("CHANGE_DIR=$(ito worktree ensure"));
+    assert!(
+        out.contains("Do not run `ito worktree ensure` until this package is accepted on main")
+    );
+    assert!(out.contains("## Step 0: Consult the Ito Wiki When Present"));
     assert!(out.contains(".ito/wiki/index.md"));
     assert!(out.contains("briefly warn"));
     assert!(out.contains("fall back to `.ito/specs/`"));
+    assert!(!out.contains("Synchronize Coordination State"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -925,7 +1012,11 @@ fn worktree_init_template_includes_fresh_worktree_rules() {
         out.contains("Use the full change ID as the branch and primary worktree directory name")
     );
     assert!(out.contains("Do not reuse one worktree for two changes"));
+    assert!(out.contains("ito change preflight '012-06_example-change' --for prepare"));
     assert!(out.contains("WORKTREE_PATH=$(ito worktree ensure --change '012-06_example-change')"));
+    assert!(out.contains(
+        "Accepted `.ito/changes` and\nauthoritative `.ito/specs` remain ordinary Git content"
+    ));
 }
 
 #[test]
@@ -964,9 +1055,9 @@ fn cleanup_template_renders_manifest_and_legacy_entries() {
 
     let ctx = Ctx {
         manifest_entries: vec![ManifestEntry {
-            relative_path: ".codex/skills/ito-plan/SKILL.md",
+            relative_path: ".codex/skills/ito-proposal/SKILL.md",
             source: "skill",
-            source_path: "ito-plan/SKILL.md",
+            source_path: "ito-proposal/SKILL.md",
             harness: "codex",
         }],
         legacy_entries: vec![LegacyEntry {
@@ -978,7 +1069,7 @@ fn cleanup_template_renders_manifest_and_legacy_entries() {
     };
     let rendered = render_instruction_template("agent/cleanup.md.j2", &ctx).unwrap();
     assert!(rendered.contains("Ito Cleanup"));
-    assert!(rendered.contains(".codex/skills/ito-plan/SKILL.md"));
+    assert!(rendered.contains(".codex/skills/ito-proposal/SKILL.md"));
     assert!(rendered.contains("ito-write-change-proposal/SKILL.md"));
     assert!(rendered.contains("git status --short"));
 }
@@ -988,6 +1079,7 @@ fn archive_template_renders_generic_guidance_without_change() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1003,6 +1095,7 @@ fn archive_template_renders_generic_guidance_without_change() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "worktree".to_string(),
+                coordination_active: true,
                 main_integration_mode: "pull_request".to_string(),
             },
             change: None,
@@ -1012,6 +1105,7 @@ fn archive_template_renders_generic_guidance_without_change() {
     .unwrap();
 
     assert!(out.contains("ito archive"));
+    assert!(out.contains("Experimental coordination compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile"));
@@ -1025,6 +1119,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1040,6 +1135,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "worktree".to_string(),
+                coordination_active: true,
                 main_integration_mode: "pull_request_auto_merge".to_string(),
             },
             change: Some("009-02_event-sourced-audit-log".to_string()),
@@ -1050,6 +1146,7 @@ fn archive_template_renders_targeted_instruction_with_change() {
 
     assert!(out.contains("009-02_event-sourced-audit-log"));
     assert!(out.contains("ito archive 009-02_event-sourced-audit-log --yes"));
+    assert!(out.contains("Experimental coordination compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(out.contains("ito audit reconcile --change 009-02_event-sourced-audit-log"));
@@ -1065,6 +1162,7 @@ fn archive_template_lists_available_changes_in_generic_mode() {
     #[derive(Serialize)]
     struct ArchiveCfg {
         coordination_storage: String,
+        coordination_active: bool,
         main_integration_mode: String,
     }
 
@@ -1080,6 +1178,7 @@ fn archive_template_lists_available_changes_in_generic_mode() {
         &Ctx {
             archive: ArchiveCfg {
                 coordination_storage: "embedded".to_string(),
+                coordination_active: false,
                 main_integration_mode: "pull_request".to_string(),
             },
             change: None,
@@ -1090,6 +1189,8 @@ fn archive_template_lists_available_changes_in_generic_mode() {
 
     assert!(out.contains("001-01_init"));
     assert!(out.contains("002-03_cleanup"));
+    assert!(!out.contains("Experimental coordination compatibility"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -1106,6 +1207,7 @@ fn finish_template_prompts_for_archive() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
 
     #[derive(Serialize, Default)]
@@ -1140,6 +1242,7 @@ fn finish_template_prompts_for_archive() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: true,
             },
             memory: MemoryCtx::default(),
             change: Some("025-09_add-worktree-sync-command".to_string()),
@@ -1149,6 +1252,7 @@ fn finish_template_prompts_for_archive() {
     .unwrap();
 
     assert!(out.contains("Do you want to archive this change now?"));
+    assert!(out.contains("### Experimental Coordination Compatibility"));
     assert!(out.contains("ito sync"));
     assert_eq!(out.matches("\nito sync\n").count(), 1);
     assert!(
@@ -1184,6 +1288,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -1217,6 +1322,7 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: false,
             },
             memory: MemoryCtx {
                 capture: MemoryOpState { configured: true },
@@ -1231,6 +1337,8 @@ fn finish_template_includes_capture_reminder_when_memory_capture_configured() {
     assert!(out.contains("### Capture memories"));
     assert!(out.contains("ito agent instruction memory-capture"));
     assert!(out.contains("### Refresh archive and specs"));
+    assert!(!out.contains("Experimental Coordination Compatibility"));
+    assert!(!out.contains("ito sync"));
 }
 
 #[test]
@@ -1246,6 +1354,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
     struct ArchiveCfg {
         main_integration_mode: &'static str,
         coordination_storage: &'static str,
+        coordination_active: bool,
     }
     #[derive(Serialize, Default)]
     struct MemoryOpState {
@@ -1279,6 +1388,7 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
             archive: ArchiveCfg {
                 main_integration_mode: "pull_request",
                 coordination_storage: "worktree",
+                coordination_active: false,
             },
             memory: MemoryCtx::default(),
             change: Some("000-01_test-change".to_string()),
@@ -1290,4 +1400,6 @@ fn finish_template_includes_archive_check_when_prompt_suppressed() {
     assert!(out.contains("**Archive**:"));
     assert!(out.contains("**Specs**:"));
     assert!(out.contains("**Docs**:"));
+    assert!(!out.contains("Experimental Coordination Compatibility"));
+    assert!(!out.contains("ito sync"));
 }

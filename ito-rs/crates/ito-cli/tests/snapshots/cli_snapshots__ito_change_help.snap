@@ -1,0 +1,15 @@
+---
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"change\", \"--help\"])"
+---
+Inspect readiness for an Ito change
+
+Usage: ito change [OPTIONS] <COMMAND>
+
+Commands:
+  preflight  Prove that a proposal is ready for preparation or implementation
+
+Options:
+      --no-color  Disable color output
+      --help-all  Print the full CLI reference (equivalent to `ito help --all`)
+  -h, --help      Print help

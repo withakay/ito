@@ -14,6 +14,11 @@ tag-namespace = "v"
 
 # Only distribute the primary CLI app.
 packages = ["ito-cli"]
+# Pin standard artifacts to the stable web surface. Do not inherit future
+# additions to the CLI's Cargo defaults into cargo-dist accidentally.
+default-features = false
+features = ["web"]
+all-features = false
 # The installers to generate for each app
 installers = ["shell", "powershell", "homebrew"]
 # Target platforms to build apps for (Rust target-triple syntax)

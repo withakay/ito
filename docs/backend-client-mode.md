@@ -1,6 +1,13 @@
 # Backend Client Mode
 
-Backend client mode enables multiple agents to coordinate through a shared backend API instead of relying solely on filesystem and git synchronization. When enabled, agents can claim changes, synchronize artifacts, and avoid conflicting edits.
+Backend client mode is an experimental feature that enables multiple agents to
+coordinate through a shared API. It is disabled and not compiled into standard
+Ito release, installer, or Homebrew binaries. Install an explicit backend build
+before using the CLI server or client commands:
+
+```bash
+cargo install ito-cli --no-default-features --features backend
+```
 
 ## Prerequisites
 
@@ -15,7 +22,6 @@ Ito provides several options for running the backend locally:
 |---------|----------|----------|
 | Ito CLI (`ito backend serve`) | macOS, Linux | Local development, ad-hoc testing |
 | Docker Compose | macOS, Linux | Containerized testing, CI |
-| Homebrew service | macOS | Long-running development |
 | systemd service | Linux | Long-running development, self-hosted |
 
 #### Ito CLI (`ito backend serve`)
@@ -63,43 +69,10 @@ docker compose -f docker-compose.backend.yml down
 
 See `docker-compose.backend.yml` and `.env.backend.example` for configuration.
 
-#### Homebrew Service (macOS)
+#### Manual macOS service (experimental)
 
-For long-running development on macOS, you can run the backend as a Homebrew-managed service:
-
-```bash
-# Install the tap and formula
-brew tap withakay/ito
-brew install ito
-
-# Start the service
-brew services start ito-cli
-
-# First service start bootstraps backend auth in ~/.config/ito/config.json if needed
-
-# Verify the backend is running
-curl http://127.0.0.1:9010/api/v1/health
-```
-
-The Homebrew formula's service block runs `ito backend serve --service`.
-
-If you want to generate tokens ahead of time or inspect the config path, you can still run
-`ito backend serve --init` manually before starting the service.
-
-Service management commands:
-
-```bash
-# Check service status
-brew services list
-
-# Stop the service
-brew services stop ito
-
-# View logs
-tail -f $(brew --prefix)/var/log/ito-backend.log
-```
-
-**Manual plist alternative** (if not using `brew services`):
+The standard Homebrew formula intentionally has no backend service block. An
+explicit backend build can still use the repository's launchd plist:
 
 ```bash
 mkdir -p ~/Library/LaunchAgents

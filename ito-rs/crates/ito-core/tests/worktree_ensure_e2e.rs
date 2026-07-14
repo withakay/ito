@@ -15,6 +15,41 @@ fn init_git_repo(path: &Path) {
     run_git(path, &["commit", "-m", "initial"]);
 }
 
+fn integrate_change(path: &Path, change_id: &str) {
+    let change = path.join(".ito/changes").join(change_id);
+    fs::create_dir_all(change.join("specs/worktree")).unwrap();
+    fs::write(change.join(".ito.yaml"), "schema: spec-driven\n").unwrap();
+    fs::write(
+        change.join("proposal.md"),
+        "# Proposal\n\nCreate a guarded implementation worktree.\n",
+    )
+    .unwrap();
+    fs::write(
+        change.join("design.md"),
+        "# Design\n\nUse the captured authority commit as the worktree base.\n",
+    )
+    .unwrap();
+    fs::write(
+        change.join("tasks.md"),
+        "## Wave 1\n- **Depends On**: None\n\n### Task 1.1: Create worktree\n- **Dependencies**: None\n- **Updated At**: 2026-07-13\n- **Status**: [ ] pending\n",
+    )
+    .unwrap();
+    fs::write(
+        change.join("specs/worktree/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Guarded worktree\nIto SHALL create worktrees from accepted proposal history.\n\n#### Scenario: Accepted proposal\n- **WHEN** a worktree is created\n- **THEN** it uses the authority commit\n",
+    )
+    .unwrap();
+    let baseline = path.join(".ito/specs/worktree/spec.md");
+    fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+    fs::write(
+        baseline,
+        "# Worktree\n\n## Requirements\n\n### Requirement: Existing baseline\nIto SHALL preserve main specifications in implementation worktrees.\n",
+    )
+    .unwrap();
+    run_git(path, &["add", ".ito"]);
+    run_git(path, &["commit", "-m", "integrate reviewed proposal"]);
+}
+
 fn run_git(cwd: &Path, args: &[&str]) {
     let output = Command::new("git")
         .args(args)
@@ -32,6 +67,7 @@ fn run_git(cwd: &Path, args: &[&str]) {
 }
 
 #[test]
+#[cfg(feature = "coordination-branch")]
 fn ensure_worktree_creates_and_initializes_with_include_files() {
     use ito_config::types::{
         CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
@@ -42,6 +78,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo");
     init_git_repo(&project_root);
+    integrate_change(&project_root, "test-change");
 
     // Create an .env file in the project root (not committed — it's a local-only file).
     fs::write(project_root.join(".env"), "SECRET=test123").unwrap();
@@ -54,6 +91,8 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     }
 
     let mut config = ItoConfig::default();
+    config.changes.proposal.integration_mode =
+        ito_config::types::ProposalIntegrationMode::DirectMerge;
     config.worktrees.enabled = true;
     config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
     config.changes.coordination_branch.storage = CoordinationStorage::Worktree;
@@ -95,7 +134,15 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
     assert_eq!(fs::read_to_string(&env_file).unwrap(), "SECRET=test123");
 
     if cfg!(unix) {
-        for dir in ["changes", "specs", "modules", "workflows", "audit"] {
+        assert!(
+            wt_path.join(".ito/changes/test-change/.ito.yaml").is_file(),
+            "accepted proposal contents must remain in the Git worktree"
+        );
+        assert!(
+            wt_path.join(".ito/specs/worktree/spec.md").is_file(),
+            "main specifications must remain in the Git worktree"
+        );
+        for dir in ["modules", "workflows", "audit"] {
             let path = wt_path.join(".ito").join(dir);
             let target = fs::read_link(&path).unwrap_or_else(|err| {
                 panic!("{dir} should be a coordination symlink: {err}");
@@ -110,7 +157,7 @@ fn ensure_worktree_creates_and_initializes_with_include_files() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(all(unix, feature = "coordination-branch"))]
 fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     use ito_config::types::{
         CoordinationStorage, ItoConfig, WorktreeInitConfig, WorktreeLayoutConfig, WorktreeStrategy,
@@ -121,6 +168,7 @@ fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo");
     init_git_repo(&project_root);
+    integrate_change(&project_root, "repair-test");
 
     let worktrees_root = tmp.path().join("ito-worktrees");
     let coordination_root = tmp.path().join("coordination");
@@ -130,6 +178,8 @@ fn ensure_worktree_repairs_missing_coordination_links_in_existing_worktree() {
     }
 
     let mut config = ItoConfig::default();
+    config.changes.proposal.integration_mode =
+        ito_config::types::ProposalIntegrationMode::DirectMerge;
     config.worktrees.enabled = true;
     config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
     config.changes.coordination_branch.storage = CoordinationStorage::Worktree;
@@ -208,10 +258,13 @@ fn ensure_worktree_with_setup_script() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo");
     init_git_repo(&project_root);
+    integrate_change(&project_root, "setup-test");
 
     let worktrees_root = tmp.path().join("ito-worktrees");
 
     let mut config = ItoConfig::default();
+    config.changes.proposal.integration_mode =
+        ito_config::types::ProposalIntegrationMode::DirectMerge;
     config.worktrees.enabled = true;
     config.worktrees.strategy = WorktreeStrategy::CheckoutSiblings;
     config.changes.coordination_branch.storage = CoordinationStorage::Embedded;

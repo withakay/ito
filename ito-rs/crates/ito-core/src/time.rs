@@ -14,3 +14,7 @@ pub fn now_time() -> String {
 pub fn now_date() -> String {
     Local::now().format("%Y-%m-%d").to_string()
 }
+
+#[cfg(test)]
+#[path = "time_tests.rs"]
+mod time_tests;

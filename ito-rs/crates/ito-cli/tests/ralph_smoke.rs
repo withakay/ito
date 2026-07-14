@@ -3,6 +3,9 @@ use std::path::Path;
 use ito_test_support::pty::{run_pty_interactive, run_pty_interactive_with_env};
 use ito_test_support::run_rust_candidate;
 
+#[path = "ralph_smoke/readiness.rs"]
+mod readiness;
+
 fn write(path: impl AsRef<Path>, contents: &str) {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -37,10 +40,73 @@ fn make_base_repo() -> tempfile::TempDir {
         td.path().join(".ito/changes/000-01_test-change/tasks.md"),
         "## 1. Implementation\n- [x] 1.1 Do a thing\n",
     );
+    write(
+        td.path().join(".ito/changes/000-01_test-change/.ito.yaml"),
+        "schema: spec-driven\n",
+    );
+    write(
+        td.path().join(".ito/changes/000-01_test-change/design.md"),
+        "# Design\n\nExercise the Ralph iteration runtime after proposal integration.\n",
+    );
+    write(
+        td.path()
+            .join(".ito/changes/000-01_test-change/specs/alpha/spec.md"),
+        "## ADDED Requirements\n\n### Requirement: Ralph fixture\nIto SHALL run the Ralph test fixture after integration.\n\n#### Scenario: Integrated fixture\n- **WHEN** Ralph starts\n- **THEN** the accepted proposal is in its ancestry\n",
+    );
+    write(
+        td.path().join(".ito/config.json"),
+        r#"{
+  "changes": {
+    "proposal": { "integration_mode": "direct_merge" }
+  },
+  "worktrees": {
+    "enabled": true,
+    "default_branch": "main",
+    "strategy": "checkout_siblings",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    );
+    git(td.path(), &["init", "--initial-branch=main"]);
+    git(td.path(), &["config", "user.name", "Ito Test"]);
+    git(td.path(), &["config", "user.email", "ito@example.invalid"]);
+    git(td.path(), &["config", "commit.gpgsign", "false"]);
+    git(td.path(), &["add", "-A"]);
+    git(
+        td.path(),
+        &[
+            "commit",
+            "--no-gpg-sign",
+            "--no-verify",
+            "-m",
+            "integrate Ralph fixture proposal",
+        ],
+    );
+    git(td.path(), &["switch", "-c", "000-01_test-change"]);
     td
 }
 
+fn git(repo: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .output()
+        .expect("git command");
+    assert!(
+        output.status.success(),
+        "git {} failed: {}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 fn write_complete_change(repo: &Path, change_id: &str) {
+    write(
+        repo.join(".ito/changes").join(change_id).join(".ito.yaml"),
+        "schema: spec-driven\n",
+    );
     write(
         repo.join(".ito/changes")
             .join(change_id)
@@ -50,6 +116,10 @@ fn write_complete_change(repo: &Path, change_id: &str) {
     write(
         repo.join(".ito/changes").join(change_id).join("tasks.md"),
         "## 1. Implementation\n- [x] 1.1 Done\n",
+    );
+    write(
+        repo.join(".ito/changes").join(change_id).join("design.md"),
+        "# Design\n\nExercise an accepted Ralph fixture change.\n",
     );
     write(
         repo.join(".ito/changes")
@@ -100,15 +170,20 @@ exit {}\n",
     write_executable(bin_dir.join("opencode"), &script);
 }
 
-#[cfg(unix)]
-fn make_fake_osascript(bin_dir: &Path, log_path: &Path) {
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn make_fake_notification_command(bin_dir: &Path, log_path: &Path) {
+    #[cfg(target_os = "macos")]
+    let program = "osascript";
+    #[cfg(target_os = "linux")]
+    let program = "notify-send";
+
     let script = format!(
         "#!/bin/sh\n\
 printf '%s\\n' \"$@\" >> \"{}\"\n\
 exit 0\n",
         log_path.display()
     );
-    write_executable(bin_dir.join("osascript"), &script);
+    write_executable(bin_dir.join(program), &script);
 }
 
 #[cfg(unix)]
@@ -237,73 +312,6 @@ fn ralph_interactive_options_wizard_exit_on_error_stops_on_nonzero_harness_exit(
         out.stdout.contains("exited with code 42"),
         "stdout={}",
         out.stdout
-    );
-}
-
-#[test]
-fn ralph_interactive_prompts_and_runs_selected_changes_sequentially() {
-    let base = make_base_repo();
-    let repo = tempfile::tempdir().expect("work");
-    let home = tempfile::tempdir().expect("home");
-    let rust_path = assert_cmd::cargo::cargo_bin!("ito");
-
-    reset_repo(repo.path(), base.path());
-
-    // Add a second change so interactive selection has multiple items.
-    write_complete_change(repo.path(), "000-02_other");
-
-    // MultiSelect: space toggles selection, arrows move, enter confirms.
-    // Then the interactive options wizard prompts for any missing values.
-    //
-    // Select first + second change, then accept defaults for:
-    // - model (blank)
-    // - allow-all (false)
-    // - exit-on-error (false)
-    let input = " \x1b[B \n\n\n\n";
-    let out = run_pty_interactive(
-        rust_path,
-        &[
-            "ralph",
-            "--harness",
-            "stub",
-            "--no-commit",
-            "--skip-validation",
-            "--min-iterations",
-            "1",
-            "--max-iterations",
-            "1",
-        ],
-        repo.path(),
-        home.path(),
-        input,
-    );
-
-    assert_eq!(out.code, 0, "stdout={} stderr={}", out.stdout, out.stderr);
-    assert!(
-        out.stdout.contains("=== Ralph Selection 1/2"),
-        "stdout={}",
-        out.stdout
-    );
-    assert!(
-        out.stdout.contains("Starting Ralph for 000-01_test-change"),
-        "stdout={}",
-        out.stdout
-    );
-    assert!(
-        out.stdout.contains("Starting Ralph for 000-02_other"),
-        "stdout={}",
-        out.stdout
-    );
-
-    assert!(
-        repo.path()
-            .join(".ito/.state/ralph/000-01_test-change/state.json")
-            .exists()
-    );
-    assert!(
-        repo.path()
-            .join(".ito/.state/ralph/000-02_other/state.json")
-            .exists()
     );
 }
 
@@ -797,6 +805,7 @@ fn ralph_branch_per_task_requires_clean_worktree() {
         .current_dir(repo.path())
         .status()
         .unwrap();
+    git(repo.path(), &["switch", "main"]);
     std::process::Command::new("git")
         .args(["config", "user.name", "Test User"])
         .current_dir(repo.path())
@@ -874,6 +883,7 @@ fn ralph_create_pr_uses_base_branch_and_fake_gh() {
         .current_dir(repo.path())
         .status()
         .unwrap();
+    git(repo.path(), &["switch", "main"]);
     std::process::Command::new("git")
         .args(["config", "user.name", "Test User"])
         .current_dir(repo.path())
@@ -1138,7 +1148,7 @@ fn ralph_browser_flag_injects_agent_browser_guidance_for_opencode() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn ralph_notify_emits_operator_notification_on_success() {
     let base = make_base_repo();
     let repo = tempfile::tempdir().expect("work");
@@ -1148,7 +1158,7 @@ fn ralph_notify_emits_operator_notification_on_success() {
     let notify_log = repo.path().join("notify.log");
 
     reset_repo(repo.path(), base.path());
-    make_fake_osascript(bin.path(), &notify_log);
+    make_fake_notification_command(bin.path(), &notify_log);
 
     let old_path = std::env::var("PATH").unwrap_or_default();
     let new_path = format!("{}:{old_path}", bin.path().display());
@@ -1180,7 +1190,10 @@ fn ralph_notify_emits_operator_notification_on_success() {
 
     assert_eq!(out.code, 0, "stdout={}", out.stdout);
     let log = std::fs::read_to_string(&notify_log).unwrap();
-    assert!(log.contains("display notification"), "log={log}");
+    assert!(
+        log.contains("Ralph run completed successfully"),
+        "log={log}"
+    );
 }
 
 #[test]
@@ -1253,11 +1266,6 @@ fn ralph_continue_ready_errors_when_no_eligible_changes_but_work_remains() {
     assert!(out.stderr.contains("000-03_draft"), "stderr={}", out.stderr);
 }
 
-/// Verifies Ralph can run using `--file` for an unscoped prompt (no change or module).
-///
-/// Confirms the command exits successfully, prints a message indicating an unscoped run,
-/// and writes state to `.ito/.state/ralph/unscoped/state.json`.
-///
 /// # Examples
 ///
 /// ```

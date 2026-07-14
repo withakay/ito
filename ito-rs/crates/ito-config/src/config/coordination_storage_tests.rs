@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn coordination_storage_default_is_worktree() {
+fn coordination_storage_default_is_embedded() {
     assert_eq!(
         CoordinationStorage::default(),
-        CoordinationStorage::Worktree
+        CoordinationStorage::Embedded
     );
 }
 
@@ -37,10 +37,10 @@ fn coordination_storage_round_trips_embedded() {
 }
 
 #[test]
-fn coordination_branch_config_missing_storage_defaults_to_worktree() {
+fn coordination_branch_config_missing_storage_defaults_to_embedded() {
     let json = r#"{"enabled": true, "name": "ito/internal/changes"}"#;
     let config: CoordinationBranchConfig = serde_json::from_str(json).unwrap();
-    assert_eq!(config.storage, CoordinationStorage::Worktree);
+    assert_eq!(config.storage, CoordinationStorage::Embedded);
 }
 
 #[test]

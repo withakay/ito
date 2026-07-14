@@ -16,10 +16,10 @@ Use this after a change branch has been integrated (PR merged or local merge) an
 - `worktrees.default_branch`: `{{ worktree.default_branch }}`
 - `changes.archive.main_integration_mode`: `{{ archive.main_integration_mode }}`
 
-{% if archive.coordination_storage == "worktree" %}
-### Coordination Sync
+{% if archive.coordination_active and archive.coordination_storage == "worktree" %}
+### Experimental Coordination Compatibility
 
-`ito agent instruction finish` refreshes coordination state before rendering. If you are using these instructions later, refresh again before deciding whether to archive or clean up. `ito sync` rate-limits pushes, but still fetches coordination updates.
+This section applies only to an explicitly active build compiled with the experimental `coordination-branch` feature. `ito agent instruction finish` refreshes compatibility state before rendering. If you are using these instructions later, refresh again before deciding whether to archive or clean up. `ito sync` rate-limits pushes, but still fetches coordination updates. Git on main remains authoritative.
 
 ```bash
 ito sync
@@ -59,6 +59,7 @@ Worktrees are not enabled. Clean up by deleting the branch after it is merged.
 
 ```bash
 CHANGE_NAME={% if change and change|trim != "" %}'{{ change | replace("'", "'\"'\"'") }}'{% else %}'<change-name>'{% endif %}
+
 DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
 
 git switch "$DEFAULT_BRANCH" 2>/dev/null || git switch main 2>/dev/null || git switch master
@@ -74,6 +75,7 @@ When using worktrees, prefer running cleanup commands from the repo root (works 
 
 ```bash
 CHANGE_NAME={% if change and change|trim != "" %}'{{ change | replace("'", "'\"'\"'") }}'{% else %}'<change-name>'{% endif %}
+
 DEFAULT_BRANCH='{{ worktree.default_branch | replace("'", "'\"'\"'") }}'
 PROJECT_ROOT="$(ito path project-root)"
 CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"

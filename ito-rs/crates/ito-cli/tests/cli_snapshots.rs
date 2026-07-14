@@ -1,3 +1,5 @@
+#![cfg(not(any(feature = "backend", feature = "coordination-branch")))]
+
 use ito_test_support::run_rust_candidate;
 
 /// Create a temporary directory containing a minimal Ito repository layout.
@@ -152,6 +154,19 @@ fn snapshot_backend_serve_help() {
 #[test]
 fn snapshot_list_help() {
     insta::assert_snapshot!("ito_list_help", snapshot(&["list", "--help"]));
+}
+
+#[test]
+fn snapshot_change_help() {
+    insta::assert_snapshot!("ito_change_help", snapshot(&["change", "--help"]));
+}
+
+#[test]
+fn snapshot_change_preflight_help() {
+    insta::assert_snapshot!(
+        "ito_change_preflight_help",
+        snapshot(&["change", "preflight", "--help"])
+    );
 }
 
 #[test]

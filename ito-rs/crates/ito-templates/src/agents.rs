@@ -45,16 +45,17 @@ impl Harness {
         }
     }
 
-    /// Get the harness-specific directory where init/update install project agents.
+    /// Get the harness-native directory where init/update install project agents.
     ///
-    /// OpenCode expects project agents in `.opencode/agents`.
-    pub fn project_agent_path(&self) -> &'static str {
+    /// Returns `None` when a harness has no agent surface independent from
+    /// skill discovery. Ito does not synthesize role skills as a fallback.
+    pub fn project_agent_path(&self) -> Option<&'static str> {
         match self {
-            Self::OpenCode => ".opencode/agents",
-            Self::ClaudeCode => ".claude/agents",
-            Self::Codex => ".agents/skills",
-            Self::GitHubCopilot => ".github/agents",
-            Self::Pi => ".pi/agents",
+            Self::OpenCode => Some(".opencode/agents"),
+            Self::ClaudeCode => Some(".claude/agents"),
+            Self::Codex => None,
+            Self::GitHubCopilot => Some(".github/agents"),
+            Self::Pi => Some(".pi/agents"),
         }
     }
 
@@ -328,23 +329,6 @@ pub fn get_agent_files(harness: Harness) -> Vec<(&'static str, &'static [u8])> {
         for file in harness_dir.files() {
             if let Some(name) = file.path().file_name().and_then(|n| n.to_str()) {
                 files.push((name, file.contents()));
-            }
-        }
-
-        // Also check subdirectories (for Codex SKILL.md format)
-        for subdir in harness_dir.dirs() {
-            let skill_file = subdir.files().find(|file| {
-                file.path().file_name().and_then(|name| name.to_str()) == Some("SKILL.md")
-            });
-            if let Some(skill_file) = skill_file
-                && let Some(name) = subdir.path().file_name().and_then(|name| name.to_str())
-            {
-                // Return as "dirname/SKILL.md"
-                let path = format!("{name}/SKILL.md");
-                // We need to leak the string to get a static lifetime.
-                // This is acceptable since these are loaded once at startup.
-                let leaked: &'static str = Box::leak(path.into_boxed_str());
-                files.push((leaked, skill_file.contents()));
             }
         }
     }

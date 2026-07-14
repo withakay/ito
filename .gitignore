@@ -202,13 +202,6 @@ ito-rs/.bacon/
 .ito/.state/audit/.session
 .ito/config.local.json
 
-# Ito coordination worktree symlinks
-.ito/changes
-.ito/specs
-.ito/modules
-.ito/workflows
-.ito/audit
-
 # ByteRover local context tree (tracked in-repo; release-plz/cargo dirty-check
 # fails on tracked-but-ignored files, so do not ignore .brv/).
 .zoekt/

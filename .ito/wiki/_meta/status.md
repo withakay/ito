@@ -4,13 +4,14 @@
 page_type: workflow-note
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-05-27
+last_reviewed: 2026-07-14
 source_refs:
-  - docs/ito/specs/
-  - docs/ito/changes/archive/
-  - .ito/research/
+- .ito/specs/
+- .ito/changes/
+- .ito/changes/archive/
+- .ito/research/
 known_gaps:
-  - Module summaries are not seeded because coordinated module links are runtime state.
+- Module summaries are not yet seeded.
   - Spec coverage is grouped by theme rather than exhaustively summarized one spec per page.
 ```
 

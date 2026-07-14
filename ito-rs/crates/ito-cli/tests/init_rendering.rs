@@ -36,7 +36,7 @@ fn init_renders_agents_md_without_raw_jinja2_syntax() {
 }
 
 #[test]
-fn init_renders_skill_files_without_raw_jinja2_syntax() {
+fn init_installs_lifecycle_skills_without_raw_jinja2_syntax() {
     let base = fixtures::make_empty_repo();
     let repo = tempfile::tempdir().expect("work");
     let home = tempfile::tempdir().expect("home");
@@ -58,26 +58,34 @@ fn init_renders_skill_files_without_raw_jinja2_syntax() {
     );
     assert_eq!(out.code, 0, "init failed: {}", out.stderr);
 
-    // The using-git-worktrees skill should be installed and rendered.
-    let skill_path = repo
-        .path()
-        .join(".claude/skills/ito-using-git-worktrees/SKILL.md");
-    assert!(skill_path.exists(), "worktree skill should be installed");
+    for name in [
+        "ito",
+        "ito-proposal",
+        "ito-research",
+        "ito-apply",
+        "ito-review",
+        "ito-archive",
+        "ito-loop",
+    ] {
+        let skill_path = repo.path().join(format!(".claude/skills/{name}/SKILL.md"));
+        assert!(skill_path.exists(), "{name} should be installed");
 
-    let skill = std::fs::read_to_string(&skill_path).unwrap();
-    assert!(
-        !skill.contains("{%"),
-        "Skill file should not contain raw Jinja2 block syntax\nGot:\n{skill}"
-    );
-    assert!(
-        !skill.contains("{{"),
-        "Skill file should not contain raw Jinja2 variable syntax\nGot:\n{skill}"
-    );
+        let skill = std::fs::read_to_string(&skill_path).unwrap();
+        assert!(
+            !skill.contains("{%") && !skill.contains("{{"),
+            "{name} should not contain raw Jinja2 syntax\nGot:\n{skill}"
+        );
+    }
 
-    // Skill should render explicit disabled-state guidance by default.
+    let apply =
+        std::fs::read_to_string(repo.path().join(".claude/skills/ito-apply/SKILL.md")).unwrap();
+    assert!(apply.contains("dedicated full-ID worktree from main"));
     assert!(
-        skill.contains("Worktrees are not configured for this project."),
-        "Skill file should render disabled-state worktree guidance\nGot:\n{skill}"
+        !repo
+            .path()
+            .join(".claude/skills/ito-using-git-worktrees/SKILL.md")
+            .exists(),
+        "retired worktree helper should not be installed"
     );
 }
 

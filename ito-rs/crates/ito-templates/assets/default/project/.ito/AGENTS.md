@@ -18,7 +18,7 @@ Instructions for AI coding assistants using Ito for change-driven development.
 |change-id: unique, `NNN-CC_name` format for modular (e.g., `001-01_init-repo`)
 |scaffold: `proposal.md`, `tasks.md`, `design.md` (if needed), delta specs per affected capability
 |deltas: `## ADDED|MODIFIED|REMOVED|RENAMED Requirements`; ≥1 `#### Scenario:` per requirement
-|validate: `ito validate [change-id] --strict` |approval gate: do not start until proposal is approved
+|validate: `ito validate [change-id] --strict` |approval gate: review and integrate proposal to main before implementation
 
 ## Three-Stage Workflow
 
@@ -27,23 +27,22 @@ Instructions for AI coding assistants using Ito for change-driven development.
 Create proposal for: new features/functionality, breaking changes (API/schema), architecture/pattern changes, performance optimizations, security pattern updates.
 
 Entrypoints:
-- `ito-feature` - new capabilities, enhancements, or broader behavior changes
-- `ito-fix` - bounded fixes, regressions, and supporting platform/tooling/infrastructure changes
-- `ito-proposal` - neutral fallback
-- `ito-brainstorming` - open-ended exploration before proposal scaffolding
+- `ito-proposal` - intake, feature/fix framing, brainstorming, planning, and proposal scaffolding
+- `ito-research` - evidence gathering and recommendation synthesis before or during proposal review
 
 Triggers: requests containing `proposal|change|spec` + `create|plan|make|start|help`
 
-Skip proposal for: bug fixes restoring intended behavior | typos/formatting/comments | non-breaking dependency updates | config changes | tests for existing behavior. Fix-shaped but schema unclear → start with `ito-fix`.
+Skip proposal for: bug fixes restoring intended behavior | typos/formatting/comments | non-breaking dependency updates | config changes | tests for existing behavior. If scope or schema is unclear, start with `ito-proposal` intake.
 
 **Workflow:**
-1. Pick lane: `ito-feature`, `ito-fix`, `ito-proposal`, or `ito-brainstorming`
+1. Start with `ito-proposal`; hand unresolved evidence questions to `ito-research`
 1. Review `.ito/wiki/index.md` when present, then `.ito/project.md`, `ito list`, and `ito list --specs`
 1. If wiki coverage is stale, missing relevant coverage, or contradicts raw Ito artifacts, warn briefly, trust the raw artifacts, and update durable synthesis back into `.ito/wiki/` after proposal work
 1. Choose schema: `spec-driven` (new/broad/high-risk) | `minimalist` (bounded fixes/small changes) | `tdd` (regression-first) | `event-driven` (event/message-centric)
 1. Choose unique verb-led `change-id`; scaffold under `.ito/changes/<id>/`
 1. Draft spec deltas: `## ADDED|MODIFIED|REMOVED Requirements` with ≥1 `#### Scenario:` each
 1. Run `ito validate <id> --strict`; resolve issues before sharing
+1. Review the proposal and integrate the accepted proposal package into main before implementation begins
 
 ### Stage 2: Implementing Changes
 
@@ -60,11 +59,12 @@ Track these steps as TODOs and complete them one by one.
 1. **Read proposal.md**
 1. **Read design.md** (if exists)
 1. **Read tasks.md**
+1. **Verify main-first preflight** - the accepted proposal exists on the configured main branch
 1. **Implement tasks sequentially**
 1. **Confirm completion** - every `tasks.md` item finished before updating statuses
 1. **Update statuses** - MUST use `ito tasks start|complete|shelve|unshelve|add` for enhanced tasks.md (emits audit events automatically); for legacy checkbox lists set `- [x]`
 1. **Reconcile if needed** - direct edit to `tasks.md` unavoidable? Run `ito audit reconcile --fix` immediately after
-1. **Approval gate** - do not start until proposal is reviewed and approved
+1. **Approval gate** - do not start until the reviewed proposal is integrated into main
 
 ### Stage 3: Archiving Changes
 
@@ -91,7 +91,7 @@ After deployment, create separate PR to:
 **Before Creating Specs:**
 
 |check if capability exists; prefer modifying over creating duplicates; `ito show [spec]` to review current state
-|ambiguous/unclear schema → `ito-proposal-intake`
+|ambiguous/unclear schema → use intake inside `ito-proposal`
 |`minimalist`: bounded fixes, small tooling/platform changes |`tdd`: reproduce regression with failing test first |`event-driven`: event/message-centric systems
 
 ### Search Guidance
@@ -102,9 +102,11 @@ After deployment, create separate PR to:
 
 ## Quick Start
 
-### Backend-Backed Mode
+### Experimental Backend-Backed Mode
 
-When `backend.enabled=true` or persistence is remote, local active-work markdown may be absent by design. Do not create/edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually. Use CLI-backed flows: `ito show <item>`, `ito patch ...`, `ito write ...`, `ito tasks ...`, `ito tasks sync pull <change-id>`, `ito archive <change-id>`. Local Git/projected files are read-oriented; mutations via CLI only.
+The standard Ito release does not compile backend runtime support. Only enable `backend.enabled=true` when using an explicitly experimental build compiled with the `backend` feature.
+
+In that experimental mode, local active-work markdown may be absent by design. Do not create/edit `.ito/changes/*`, `.ito/specs/*`, or `tasks.md` manually. Use CLI-backed flows: `ito show <item>`, `ito patch ...`, `ito write ...`, `ito tasks ...`, `ito tasks sync pull <change-id>`, `ito archive <change-id>`. Local Git/projected files are read-oriented; mutations via CLI only.
 
 ### CLI Commands
 

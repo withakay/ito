@@ -11,6 +11,7 @@ members = [
   "ito-rs/crates/ito-test-support",
   "ito-rs/crates/ito-web",
 ]
+default-members = ["ito-rs/crates/ito-cli"]
 resolver = "3"
 
 [workspace.package]
@@ -25,7 +26,7 @@ homepage = "https://github.com/withakay/ito"
 ito-backend = { path = "ito-rs/crates/ito-backend", version = "0.1.32" }
 ito-common = { path = "ito-rs/crates/ito-common", version = "0.1.32" }
 ito-config = { path = "ito-rs/crates/ito-config", version = "0.1.32" }
-ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.32" }
+ito-core = { path = "ito-rs/crates/ito-core", version = "0.1.32", default-features = false }
 ito-domain = { path = "ito-rs/crates/ito-domain", version = "0.1.32" }
 ito-logging = { path = "ito-rs/crates/ito-logging", version = "0.1.32" }
 ito-templates = { path = "ito-rs/crates/ito-templates", version = "0.1.32" }

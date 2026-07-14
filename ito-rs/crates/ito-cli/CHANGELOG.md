@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the tmux init preference and tmux-backed proposal viewer.
+
+### Changed
+
+- *(031-05)* Route planning and orchestration setup through retained lifecycle skills and direct instruction prompts.
+- *(031-05)* Replace update-helper remediation with direct CLI guidance and report preserved retired user extensions during upgrade.
+
 ## [0.1.0](https://github.com/withakay/ito/releases/tag/ito-cli-v0.1.0) - 2026-02-05
 
 ### Added

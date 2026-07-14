@@ -1,3 +1,5 @@
+#![cfg(feature = "backend")]
+
 //! Integration tests for sub-module support in backend repositories and stores.
 //!
 //! Covers Tasks 5.7 and 5.8: verifying that sub-module IDs are correctly

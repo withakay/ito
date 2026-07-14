@@ -2,12 +2,21 @@ use crate::cli::ArchiveArgs;
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::commands::sync::best_effort_sync_coordination;
 use crate::runtime::Runtime;
+#[cfg(any(feature = "backend", feature = "coordination-branch"))]
 use ito_config::load_cascading_project_config;
-use ito_config::types::{ArchiveMainIntegrationMode, CoordinationStorage, ItoConfig};
+use ito_config::types::ArchiveMainIntegrationMode;
+#[cfg(feature = "coordination-branch")]
+use ito_config::types::CoordinationStorage;
+#[cfg(any(feature = "backend", feature = "coordination-branch"))]
+use ito_config::types::ItoConfig;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
+#[cfg(feature = "backend")]
 use ito_core::backend_client::{BackendRuntime, resolve_backend_runtime};
+#[cfg(feature = "backend")]
 use ito_core::backend_coordination;
+#[cfg(feature = "backend")]
 use ito_core::backend_http::BackendHttpClient;
+#[cfg(feature = "coordination-branch")]
 use ito_core::coordination_worktree::{CoordinationSyncOutcome, sync_coordination_worktree};
 use ito_core::paths as core_paths;
 
@@ -15,6 +24,7 @@ fn requires_local_changes_dir(mode: ito_core::repository_runtime::PersistenceMod
     mode == ito_core::repository_runtime::PersistenceMode::Filesystem
 }
 
+#[cfg(feature = "coordination-branch")]
 fn archive_config(rt: &Runtime) -> CliResult<ItoConfig> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -53,6 +63,7 @@ fn print_archive_follow_up(mode: ArchiveMainIntegrationMode, change_name: &str) 
     }
 }
 
+#[cfg(feature = "coordination-branch")]
 fn sync_archived_coordination_state(
     rt: &Runtime,
     change_name: &str,
@@ -90,6 +101,14 @@ fn sync_archived_coordination_state(
             Ok(Some(config.changes.archive.main_integration_mode))
         }
     }
+}
+
+#[cfg(not(feature = "coordination-branch"))]
+fn sync_archived_coordination_state(
+    _rt: &Runtime,
+    _change_name: &str,
+) -> CliResult<Option<ArchiveMainIntegrationMode>> {
+    Ok(None)
 }
 
 pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
@@ -184,8 +203,11 @@ pub(crate) fn handle_archive(rt: &Runtime, args: &[String]) -> CliResult<()> {
     }
 
     // Check for backend mode — if enabled, run the repository-backed archive flow.
-    if let Some(runtime) = try_backend_runtime(rt)? {
-        return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
+    #[cfg(feature = "backend")]
+    {
+        if let Some(runtime) = try_backend_runtime(rt)? {
+            return handle_backend_archive(rt, ito_path, &change_name, skip_specs, &runtime);
+        }
     }
 
     // ── Filesystem-only archive flow ───────────────────────────────
@@ -376,6 +398,7 @@ fn build_single_archive_argv(change_id: Option<&str>, args: &ArchiveArgs) -> Vec
 ///
 /// Returns `Ok(None)` if backend mode is disabled (no error). Returns
 /// `Err` only if backend is enabled but misconfigured.
+#[cfg(feature = "backend")]
 fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
@@ -390,6 +413,7 @@ fn try_backend_runtime(rt: &Runtime) -> CliResult<Option<BackendRuntime>> {
 }
 
 /// Backend-mode archive: pull from backend, archive locally, mark archived on backend.
+#[cfg(feature = "backend")]
 fn handle_backend_archive(
     rt: &Runtime,
     ito_path: &std::path::Path,

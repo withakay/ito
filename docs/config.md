@@ -92,6 +92,35 @@ ito templates schemas export --to .ito/templates/schemas
 
 The embedded OpenSpec-derived schemas include Ito-authored `validation.yaml` files. They perform presence checks and task tracking validation, and emit an informational manual semantic-validation note because Ito does not yet implement full OpenSpec semantic validation for those workflows.
 
+### Proposal integration
+
+Ito expects a proposal to be reviewed and integrated into the configured target branch before implementation begins. `changes.proposal.integration_mode` selects the authority used to prove that hand-off:
+
+- `pull_request` (default) uses the target branch's tracked upstream ref, normally `refs/remotes/origin/main`.
+- `direct_merge` is an explicit opt-in that uses the local target branch, normally `refs/heads/main`.
+
+```json
+{
+  "changes": {
+    "proposal": {
+      "integration_mode": "pull_request"
+    }
+  }
+}
+```
+
+There is no fallback from a missing pull-request authority to local `main`. Repositories that deliberately integrate proposals without a remote pull-request workflow must select `direct_merge`.
+
+The lifecycle is the same in both modes:
+
+1. Author and strictly validate a proposal-only package.
+2. Review and integrate that package into the configured target branch.
+3. Run `ito change preflight <change-id> --for prepare --refresh`.
+4. Create/reuse the implementation checkout with `ito worktree ensure --change <change-id>`.
+5. Run implementation commands only after `ito change preflight <change-id> --for execute` passes.
+
+`prepare` reads required artifacts directly from one captured authority commit. `execute` additionally proves that the selected change worktree contains the proposal integration commit and belongs to the full change ID. Local copies, coordination links, and backend state cannot satisfy either gate.
+
 ### Worktrees
 
 Worktree behavior is controlled by the `worktrees` object.
@@ -221,24 +250,47 @@ Change coordination settings live under `changes.coordination_branch`:
 
 - `changes.coordination_branch.enabled`
 - `changes.coordination_branch.name`
+- `changes.coordination_branch.storage`
+- `changes.coordination_branch.worktree_path`
+
+New and unspecified configurations default to `enabled: false` with
+`storage: "embedded"`, so proposal state is tracked directly on the main-bound
+branch. Explicit legacy values remain parseable for diagnosis and migration;
+building with the experimental feature makes coordination available but does
+not activate it automatically.
+
+Coordination-worktree storage is a legacy layout. When Ito detects its configuration, managed links, or `.gitignore` markers, read-only commands emit a remediation warning and stateful commands stop before dispatch. Run `ito agent instruction migrate-to-main` to emit the agent migration prompt, then use it to inventory, verify, and migrate the state into real directories on a reviewed main-bound branch. The source coordination worktree is retained as rollback evidence.
+
+#### Legacy sync behavior
+
+Older coordination-worktree projects may still contain automatic instruction
+sync settings and the `ito sync` command. These are compatibility surfaces, not
+a recommended workflow. While legacy or ambiguous evidence remains, the
+pre-dispatch guard suppresses incidental sync for allowed reads and blocks
+stateful commands. Do not pass `--sync` or run `ito sync` to deepen the legacy
+state; render and follow `migrate-to-main` instead.
 
 #### Instruction sync behavior
 
-When generating change-scoped instructions, Ito decides per-artifact whether
-to sync the coordination branch before rendering. `archive` and `finish` use
-dedicated handlers, but they also run a best-effort sync before rendering.
+Apply rendering captures its proposal inputs from authoritative Git before any
+optional coordination sync. Other change-scoped instructions retain their
+legacy per-artifact coordination policy. `archive` and `finish` use dedicated
+handlers, but they also run a best-effort compatibility sync before rendering.
 
 | Artifact | Default sync | `--sync` flag |
 | --- | --- | --- |
-| `apply` | **No** — renders from local state; no network I/O | Opt-in: pass `--sync` to fetch first |
+| `apply` | **No coordination sync** — renders accepted inputs from a captured authority commit | Opt-in compatibility sync after authority capture; does not refresh proposal authority |
 | `proposal` | **Yes** — always fetches coordination state | Ignored (always syncs) |
 | `review` | **Yes** — always fetches coordination state | Ignored (always syncs) |
 | `archive`, `finish` | **Yes** — dedicated handlers always fetch coordination state | Ignored (always syncs) |
 | Other (`specs`, `tasks`, `design`, …) | **No** | Ignored (never syncs) |
 
-The `--sync` flag changes behavior only for `apply`. For other artifacts the
-sync policy is fixed. To refresh coordination state independently, run
-`ito sync` (a no-op unless coordination-worktree storage is active).
+The `--sync` flag changes compatibility-sync behavior only for `apply`; it does
+not change the captured proposal authority. Use
+`ito change preflight <id> --for prepare --refresh` to refresh pull-request
+authority, then rerun apply rendering. To refresh legacy modules/workflows/audit
+state independently, run `ito sync` (a no-op unless coordination-worktree
+storage is active).
 
 ### Agent memory
 
@@ -353,11 +405,11 @@ reminder section. The reminder tells the agent what to capture
 
 #### Agent discoverability
 
-Ito installs a shared `ito-memory` skill with the normal skill bundle. The
-skill is provider-agnostic: it explains when to capture, search, and query
-memory, then routes agents through `ito agent instruction memory-capture`,
-`ito agent instruction memory-search`, and `ito agent instruction
-memory-query`.
+Memory no longer adds a standalone Ito skill. `ito-research` owns configured
+memory search/query and `ito-archive` owns durable capture follow-through.
+Both remain provider-agnostic and route through `ito agent instruction
+memory-capture`, `ito agent instruction memory-search`, and `ito agent
+instruction memory-query`.
 
 The memory instruction artifacts are also listed in `ito agent instruction
 --help`, which is the main low-context discovery surface for LLM agents. Use

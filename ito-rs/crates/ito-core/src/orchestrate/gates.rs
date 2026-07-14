@@ -1,6 +1,8 @@
 use crate::orchestrate::plan::PlannedGate;
 use crate::orchestrate::types::GatePolicy;
 
+/// Non-skippable gate proving a dispatch checkout is based on accepted main.
+pub const GATE_IMPLEMENTATION_READINESS: &str = "implementation-readiness";
 pub(crate) const GATE_APPLY_COMPLETE: &str = "apply-complete";
 pub(crate) const GATE_FORMAT: &str = "format";
 pub(crate) const GATE_LINT: &str = "lint";
@@ -12,6 +14,7 @@ pub(crate) const GATE_SECURITY_REVIEW: &str = "security-review";
 /// Default orchestrator gate order.
 pub fn default_gate_order() -> Vec<String> {
     vec![
+        GATE_IMPLEMENTATION_READINESS.to_string(),
         GATE_APPLY_COMPLETE.to_string(),
         GATE_FORMAT.to_string(),
         GATE_LINT.to_string(),
@@ -20,6 +23,29 @@ pub fn default_gate_order() -> Vec<String> {
         GATE_CODE_REVIEW.to_string(),
         GATE_SECURITY_REVIEW.to_string(),
     ]
+}
+
+/// Return a gate order with implementation readiness present exactly once at the front.
+pub fn ensure_implementation_readiness_first(gates: &[String]) -> Vec<String> {
+    let mut ordered = gates.to_vec();
+    ordered.retain(|gate| gate != GATE_IMPLEMENTATION_READINESS);
+    ordered.insert(0, GATE_IMPLEMENTATION_READINESS.to_string());
+    ordered
+}
+
+pub(crate) fn ensure_planned_implementation_readiness_first(
+    gates: &[PlannedGate],
+) -> Vec<PlannedGate> {
+    let mut ordered = gates.to_vec();
+    ordered.retain(|gate| gate.name != GATE_IMPLEMENTATION_READINESS);
+    ordered.insert(
+        0,
+        PlannedGate {
+            name: GATE_IMPLEMENTATION_READINESS.to_string(),
+            policy: GatePolicy::Run,
+        },
+    );
+    ordered
 }
 
 /// Minimal remediation payload constructed after a gate failure.
@@ -31,7 +57,7 @@ pub struct RemediationPacket {
     pub failed_gate: String,
     /// Error payload captured from the gate.
     pub error: String,
-    /// Gate names to rerun (failed gate + downstream run gates).
+    /// Gate names to rerun (readiness + failed gate + downstream run gates).
     pub rerun_gates: Vec<String>,
 }
 
@@ -42,20 +68,23 @@ pub fn remediation_packet_for_failure(
     failed_gate: &str,
     error: &str,
 ) -> RemediationPacket {
-    let mut rerun = Vec::new();
-    let mut found = false;
-    for gate in gates {
-        if gate.name == failed_gate {
-            found = true;
-            // Always include the failed gate itself, even if its policy
-            // was Skip — remediation must rerun what actually failed.
-            rerun.push(gate.name.clone());
-            continue;
+    let gates = ensure_planned_implementation_readiness_first(gates);
+    let failed_index = gates.iter().position(|gate| gate.name == failed_gate);
+    let rerun = match failed_index {
+        Some(failed_index) => {
+            let mut rerun = vec![GATE_IMPLEMENTATION_READINESS.to_string()];
+            for gate in gates.iter().skip(failed_index) {
+                if gate.name == GATE_IMPLEMENTATION_READINESS {
+                    continue;
+                }
+                if gate.name == failed_gate || gate.policy == GatePolicy::Run {
+                    rerun.push(gate.name.clone());
+                }
+            }
+            rerun
         }
-        if found && gate.policy == GatePolicy::Run {
-            rerun.push(gate.name.clone());
-        }
-    }
+        None => Vec::new(),
+    };
 
     RemediationPacket {
         change_id: change_id.to_string(),

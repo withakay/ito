@@ -1,0 +1,6 @@
+# Machine-specific legacy root normalized as $LEGACY_CHECKOUT.
+.ito/changes -> $LEGACY_CHECKOUT/.ito/changes
+.ito/specs -> $LEGACY_CHECKOUT/.ito/specs
+.ito/modules -> $LEGACY_CHECKOUT/.ito/modules
+.ito/workflows -> $LEGACY_CHECKOUT/.ito/workflows
+.ito/audit -> $LEGACY_CHECKOUT/.ito/audit

@@ -20,15 +20,11 @@ pub mod registry;
 /// Shared utilities for viewer backends.
 pub(crate) mod util;
 
-/// Tmux + Neovim popup viewer backend.
-pub mod tmux_nvim;
-
 pub use bat::BatViewer;
 pub use collector::collect_proposal_artifacts;
 pub use glow::GlowViewer;
 pub use html::HtmlViewer;
 pub use registry::ViewerRegistry;
-pub use tmux_nvim::TmuxNvimViewer;
 
 /// A pluggable backend that can render collected proposal artifacts.
 pub trait ViewerBackend {

@@ -21,6 +21,16 @@ This page is an overview and a set of practical prompts/checklists for humans.
 
 ## Typical contributor flow with an agent
 
+### 0) Clear legacy coordination state
+
+If Ito warns that coordination state is legacy or ambiguous, read-only inspection remains available but mutation is intentionally blocked. Before creating or applying a proposal, ask the agent to run:
+
+```bash
+ito agent instruction migrate-to-main
+```
+
+Follow the emitted non-destructive migration procedure. It inventories and hashes the five managed Ito state directories, stops on conflicts, preserves the source coordination worktree for rollback, validates the embedded result, and integrates the reviewed migration according to repository policy. Do not begin implementation until the migration is on main.
+
 ### 1) Decide whether a proposal is needed
 
 Use a proposal for new capabilities, breaking changes, architectural shifts, or significant security/perf changes.
@@ -57,7 +67,23 @@ ito create module <name>
 ito create change <name> --module <module-id>
 ```
 
-### 4) Use instruction artifacts to drive execution
+### 4) Review and integrate the proposal
+
+Treat the proposal package as the unit of review: proposal, delta specs, design, and tasks. Validate it before integration:
+
+```bash
+ito validate <change-id> --strict
+```
+
+The default `pull_request` mode expects that proposal-only package to be reviewed and merged through a PR into the target branch. Repositories that deliberately avoid a PR can opt into `changes.proposal.integration_mode = "direct_merge"` and merge the proposal-only commit into local main through their normal guarded workflow.
+
+Do not begin implementation on the proposal branch. After integration, verify the exact authoritative Git tree that Ito will use:
+
+```bash
+ito change preflight <change-id> --for prepare --refresh
+```
+
+### 5) Use instruction artifacts to drive implementation
 
 The most reliable way to keep an agent aligned is to have it fetch and follow the change-specific instructions:
 
@@ -68,9 +94,17 @@ ito agent instruction tasks --change <change-id>
 ito agent instruction apply --change <change-id>
 ```
 
-As reviewer, you should expect the agent to quote the relevant parts of these instructions back to you (briefly) before implementing.
+The proposal/spec/design/task instructions author the review package. `apply` is available only after prepare readiness succeeds. As reviewer, expect the agent to identify the authority ref/OID and proposal integration OID before implementing.
 
-### 5) Implement tasks and keep task state accurate
+Create or reuse the implementation worktree through the guarded command, which bases a new worktree on the captured authority OID and rejects a stale existing worktree:
+
+```bash
+CHANGE_DIR=$(ito worktree ensure --change <change-id>)
+cd "$CHANGE_DIR"
+ito change preflight <change-id> --for execute
+```
+
+### 6) Implement tasks and keep task state accurate
 
 For enhanced `tasks.md`, prefer task commands so audit events stay consistent:
 
@@ -81,13 +115,28 @@ ito tasks start <change-id> <task-id>
 ito tasks complete <change-id> <task-id>
 ```
 
+Task start/complete, Ralph/loop iterations, and orchestration dispatch all enforce the same execute-readiness report before mutation. Iteration remains a default workflow option after that gate passes.
+
+#### Migrating an in-flight change
+
+For a change created before main-first enforcement, migrate in this order:
+
+1. Stop implementation and preserve the current branch/worktree.
+2. Split or identify the proposal-only commit containing the complete reviewed artifacts.
+3. Review and integrate that proposal package into main using the configured PR or direct-merge mode.
+4. Refresh authority and run prepare preflight.
+5. Recreate or rebase the implementation worktree so its history contains the reported proposal integration OID, then run execute preflight.
+6. Resume task or iteration work only after the gate passes.
+
+Ito may emit an agent migration prompt when it detects legacy authority or coordination state. The prompt is guidance; inspect it and run the proposed migration rather than copying legacy state into the current checkout.
+
 If someone edits `tasks.md` directly, reconcile immediately:
 
 ```bash
 ito audit reconcile --fix
 ```
 
-### 6) Validate before calling something done
+### 7) Validate before calling something done
 
 At minimum:
 
@@ -103,7 +152,7 @@ For changes with a `domain-discovery.md` handoff, also check that proposal valid
 - `context_boundary_consistency`
 - `domain_documentation_consistency`
 
-### 7) Archive after merge/deploy
+### 8) Archive after merge/deploy
 
 Before archive, confirm any approved domain-doc updates from the change package are promoted into the discovered `CONTEXT.md`, `CONTEXT-MAP.md`, or ADR locations. Do not promote rejected or unresolved discovery notes.
 
@@ -119,14 +168,16 @@ This repo uses a bare/control repo with worktrees.
 Rules of thumb:
 
 - Do work inside a worktree (not the bare repo root).
-- Create feature worktrees under `ito-worktrees/`.
+- Let `ito worktree ensure --change <change-id>` create implementation worktrees under `ito-worktrees/`; do not bypass its captured-OID readiness check with a manual Worktrunk command.
 - Do not remove the locked `main` worktree.
 
 Also: when testing changes, use the binary built in the same worktree you edited (worktrees do not share `target/`).
 
 ## Agent Adapter Maintenance
 
-After upgrading Ito-managed skills, commands, or agent templates, ask your agent to run `/ito-update-repo --dry-run`. This still refreshes managed files, but stops before deleting anything while it audits stale stamps, missing stamps, and orphaned Ito-managed assets.
+After upgrading Ito, run `ito init --upgrade`. Update-style installation refreshes the seven managed lifecycle skills and safely prunes retired managed copies; user-authored skills and user content outside Ito-managed shells are preserved and reported.
+
+The supported lifecycle entrypoints are exactly `ito`, `ito-proposal`, `ito-research`, `ito-apply`, `ito-review`, `ito-archive`, and `ito-loop`. Operational commands such as list, path, config, validation, update, and planning-workspace status remain direct CLI commands through `ito`.
 
 ## Practical prompting (what to ask the agent)
 

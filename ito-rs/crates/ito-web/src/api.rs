@@ -403,3 +403,7 @@ fn detect_language(path: &str) -> String {
     }
     .to_string()
 }
+
+#[cfg(test)]
+#[path = "api_tests.rs"]
+mod api_tests;
