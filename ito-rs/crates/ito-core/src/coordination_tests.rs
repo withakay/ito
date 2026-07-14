@@ -77,22 +77,22 @@ fn wire_is_idempotent() {
 #[cfg(unix)]
 fn wire_fails_for_non_empty_real_dir() {
     let (_tmp, ito, worktree_ito) = make_dirs();
-    let changes_dir = ito.join("changes");
-    fs::create_dir_all(&changes_dir).unwrap();
-    let sentinel = changes_dir.join("sentinel.md");
+    let modules_dir = ito.join("modules");
+    fs::create_dir_all(&modules_dir).unwrap();
+    let sentinel = modules_dir.join("sentinel.md");
     fs::write(&sentinel, "hello").unwrap();
 
     let err = wire_coordination_symlinks(&ito, &worktree_ito).expect_err("wire should fail");
     let message = err.to_string();
 
-    assert!(message.contains(&changes_dir.display().to_string()));
-    assert!(message.contains(&worktree_ito.join("changes").display().to_string()));
+    assert!(message.contains(&modules_dir.display().to_string()));
+    assert!(message.contains(&worktree_ito.join("modules").display().to_string()));
     assert!(
         sentinel.exists(),
         "local content should not be moved implicitly"
     );
     assert!(
-        fs::read_link(&changes_dir).is_err(),
+        fs::read_link(&modules_dir).is_err(),
         "directory should remain real"
     );
 }
@@ -101,13 +101,16 @@ fn wire_fails_for_non_empty_real_dir() {
 #[cfg(unix)]
 fn wire_handles_empty_real_dir() {
     let (_tmp, ito, worktree_ito) = make_dirs();
-    let specs_dir = ito.join("specs");
-    fs::create_dir_all(&specs_dir).unwrap();
+    let workflows_dir = ito.join("workflows");
+    fs::create_dir_all(&workflows_dir).unwrap();
 
     wire_coordination_symlinks(&ito, &worktree_ito).expect("wire should succeed");
 
-    let link = ito.join("specs");
-    assert!(fs::read_link(&link).is_ok(), "specs should be a symlink");
+    let link = ito.join("workflows");
+    assert!(
+        fs::read_link(&link).is_ok(),
+        "workflows should be a symlink"
+    );
 }
 
 #[test]
@@ -116,7 +119,7 @@ fn wire_repairs_correct_symlink_with_missing_target() {
     let (_tmp, ito, worktree_ito) = make_dirs();
 
     wire_coordination_symlinks(&ito, &worktree_ito).expect("wire");
-    let target = worktree_ito.join("changes");
+    let target = worktree_ito.join("modules");
     fs::remove_dir_all(&target).unwrap();
 
     wire_coordination_symlinks(&ito, &worktree_ito).expect("repair should succeed");
@@ -134,19 +137,96 @@ fn wire_repairs_correct_symlink_with_missing_target() {
 fn wire_fails_for_wrong_symlink_target() {
     let (_tmp, ito, worktree_ito) = make_dirs();
     let wrong_root = ito.parent().unwrap().join("other-worktree").join(".ito");
-    fs::create_dir_all(wrong_root.join("changes")).unwrap();
-    std::os::unix::fs::symlink(wrong_root.join("changes"), ito.join("changes")).unwrap();
+    fs::create_dir_all(wrong_root.join("modules")).unwrap();
+    std::os::unix::fs::symlink(wrong_root.join("modules"), ito.join("modules")).unwrap();
 
     let err = wire_coordination_symlinks(&ito, &worktree_ito).expect_err("wire should fail");
     let message = err.to_string();
 
-    assert!(message.contains(&ito.join("changes").display().to_string()));
-    assert!(message.contains(&wrong_root.join("changes").display().to_string()));
-    assert!(message.contains(&worktree_ito.join("changes").display().to_string()));
+    assert!(message.contains(&ito.join("modules").display().to_string()));
+    assert!(message.contains(&wrong_root.join("modules").display().to_string()));
+    assert!(message.contains(&worktree_ito.join("modules").display().to_string()));
     assert_eq!(
-        fs::read_link(ito.join("changes")).unwrap(),
-        wrong_root.join("changes")
+        fs::read_link(ito.join("modules")).unwrap(),
+        wrong_root.join("modules")
     );
+}
+
+#[test]
+#[cfg(unix)]
+fn wire_preserves_real_authoritative_git_dirs() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    for dir in AUTHORITATIVE_GIT_DIRS {
+        let path = ito.join(dir);
+        fs::create_dir_all(&path).unwrap();
+        fs::write(path.join("tracked.md"), format!("tracked {dir}")).unwrap();
+    }
+
+    wire_coordination_symlinks(&ito, &worktree_ito).expect("wire should succeed");
+
+    for dir in AUTHORITATIVE_GIT_DIRS {
+        let path = ito.join(dir);
+        assert!(path.is_dir(), "{dir} should remain a real directory");
+        assert!(fs::read_link(&path).is_err(), "{dir} must not be a symlink");
+        assert_eq!(
+            fs::read_to_string(path.join("tracked.md")).unwrap(),
+            format!("tracked {dir}")
+        );
+        assert!(
+            !worktree_ito.join(dir).exists(),
+            "coordination worktree must not provision {dir}"
+        );
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn wire_migrates_legacy_authority_link_without_deleting_external_content() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    let external = worktree_ito.join("changes");
+    fs::create_dir_all(&external).unwrap();
+    fs::write(external.join("proposal.md"), "legacy proposal").unwrap();
+    std::os::unix::fs::symlink(&external, ito.join("changes")).unwrap();
+
+    wire_coordination_symlinks(&ito, &worktree_ito).expect("migration should succeed");
+
+    let local = ito.join("changes");
+    assert!(local.is_dir());
+    assert!(fs::read_link(&local).is_err());
+    assert_eq!(
+        fs::read_to_string(local.join("proposal.md")).unwrap(),
+        "legacy proposal"
+    );
+    assert_eq!(
+        fs::read_to_string(external.join("proposal.md")).unwrap(),
+        "legacy proposal",
+        "migration must preserve external coordination content"
+    );
+    assert!(!ito.join(".changes.main-authority-migration").exists());
+    assert!(!ito.join(".changes.legacy-coordination-link").exists());
+}
+
+#[test]
+#[cfg(unix)]
+fn wire_rejects_broken_legacy_authority_link_without_creating_empty_authority() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    let missing = worktree_ito.join("specs");
+    std::os::unix::fs::symlink(&missing, ito.join("specs")).unwrap();
+
+    let error = wire_coordination_symlinks(&ito, &worktree_ito)
+        .expect_err("missing legacy authority must block migration");
+
+    let specs = ito.join("specs");
+    assert!(
+        fs::read_link(&specs).is_ok(),
+        "legacy link must remain intact"
+    );
+    assert!(
+        !missing.exists(),
+        "migration must not create the external target"
+    );
+    assert!(error.to_string().contains("missing target"));
+    assert!(error.to_string().contains("migrate-to-main"));
 }
 
 #[test]
@@ -197,7 +277,7 @@ fn gitignore_preserves_existing_content() {
 }
 
 #[test]
-fn gitignore_skips_already_present_entries() {
+fn gitignore_removes_legacy_authority_entries() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path();
     let gitignore_path = project_root.join(".gitignore");
@@ -207,13 +287,8 @@ fn gitignore_skips_already_present_entries() {
     update_gitignore_for_symlinks(project_root).expect("should succeed");
 
     let content = fs::read_to_string(&gitignore_path).unwrap();
-    let changes_count = content
-        .lines()
-        .filter(|l| l.trim() == ".ito/changes")
-        .count();
-    let specs_count = content.lines().filter(|l| l.trim() == ".ito/specs").count();
-    assert_eq!(changes_count, 1);
-    assert_eq!(specs_count, 1);
+    assert!(!content.lines().any(|line| line.trim() == ".ito/changes"));
+    assert!(!content.lines().any(|line| line.trim() == ".ito/specs"));
     assert!(content.contains(".ito/modules"));
     assert!(content.contains(".ito/workflows"));
     assert!(content.contains(".ito/audit"));
@@ -235,18 +310,18 @@ fn remove_restores_real_dirs_with_content() {
     let (_tmp, ito, worktree_ito) = make_dirs();
 
     wire_coordination_symlinks(&ito, &worktree_ito).expect("wire");
-    let via_link = ito.join("changes").join("task.md");
+    let via_link = ito.join("modules").join("task.md");
     fs::write(&via_link, "task content").unwrap();
 
     remove_coordination_symlinks(&ito, &worktree_ito).expect("remove");
 
-    let changes = ito.join("changes");
-    assert!(changes.is_dir(), "changes should be a real directory");
+    let modules = ito.join("modules");
+    assert!(modules.is_dir(), "modules should be a real directory");
     assert!(
-        fs::read_link(&changes).is_err(),
-        "changes should not be a symlink"
+        fs::read_link(&modules).is_err(),
+        "modules should not be a symlink"
     );
-    let restored = changes.join("task.md");
+    let restored = modules.join("task.md");
     assert!(restored.exists(), "task.md should be restored");
     assert_eq!(fs::read_to_string(&restored).unwrap(), "task content");
 }
@@ -325,7 +400,7 @@ fn health_missing_link_is_not_wired() {
     let CoordinationHealthStatus::NotWired { dirs } = status else {
         panic!("expected NotWired, got {status:?}");
     };
-    assert!(dirs.contains(&ito.join("changes")));
+    assert!(dirs.contains(&ito.join("modules")));
 }
 
 #[test]
@@ -334,7 +409,7 @@ fn health_broken_symlinks_when_target_missing() {
     let (_tmp, ito, worktree_ito) = make_dirs();
 
     wire_coordination_symlinks(&ito, &worktree_ito).expect("wire");
-    let target = worktree_ito.join("changes");
+    let target = worktree_ito.join("modules");
     fs::remove_dir_all(&target).unwrap();
 
     let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
@@ -343,7 +418,7 @@ fn health_broken_symlinks_when_target_missing() {
         panic!("expected BrokenSymlinks, got {status:?}");
     };
     assert_eq!(broken.len(), 1);
-    assert_eq!(broken[0].0, ito.join("changes"));
+    assert_eq!(broken[0].0, ito.join("modules"));
 }
 
 #[test]
@@ -361,7 +436,25 @@ fn health_wrong_target_when_symlink_points_elsewhere() {
         panic!("expected WrongTargets, got {status:?}");
     };
     assert_eq!(mismatched.len(), COORDINATION_DIRS.len());
-    assert_eq!(mismatched[0].0, ito.join("changes"));
+    assert_eq!(mismatched[0].0, ito.join("modules"));
+}
+
+#[test]
+#[cfg(unix)]
+fn health_ignores_authoritative_git_dirs() {
+    let (_tmp, ito, worktree_ito) = make_dirs();
+    for dir in COORDINATION_DIRS {
+        fs::create_dir_all(worktree_ito.join(dir)).unwrap();
+        std::os::unix::fs::symlink(worktree_ito.join(dir), ito.join(dir)).unwrap();
+    }
+    fs::create_dir_all(ito.join("changes")).unwrap();
+    let external_specs = ito.parent().unwrap().join("legacy-specs");
+    fs::create_dir_all(&external_specs).unwrap();
+    std::os::unix::fs::symlink(&external_specs, ito.join("specs")).unwrap();
+
+    let status = check_coordination_health(&ito, &worktree_ito, &CoordinationStorage::Worktree);
+
+    assert_eq!(status, CoordinationHealthStatus::Healthy);
 }
 
 #[test]

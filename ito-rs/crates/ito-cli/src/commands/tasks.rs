@@ -1,3 +1,4 @@
+use crate::app::change::require_runtime_readiness;
 use crate::cli::{TasksAction, TasksArgs};
 use crate::cli_error::{CliError, CliResult, fail, to_cli_error};
 use crate::commands::sync::{best_effort_sync_coordination, best_effort_sync_coordination_bg};
@@ -5,6 +6,7 @@ use crate::diagnostics;
 use crate::runtime::Runtime;
 use ito_core::audit::{Actor, AuditEventBuilder, EntityType, ops};
 use ito_core::coordination_worktree::maybe_auto_commit_coordination;
+use ito_core::implementation_readiness::ReadinessPhase;
 use ito_core::repository_runtime::PersistenceMode;
 use ito_core::tasks as core_tasks;
 use ito_core::tasks::{DiagnosticLevel, TaskStatus, TasksFormat};
@@ -32,6 +34,10 @@ fn auto_commit_after_task_mutation(rt: &Runtime, change_id: &str, action: &str) 
     if let Err(err) = maybe_auto_commit_coordination(project_root, ito_path, &message) {
         eprintln!("Warning: auto-commit to coordination worktree failed: {err}");
     }
+}
+
+fn require_task_mutation_readiness(rt: &Runtime, change_id: &str, json: bool) -> CliResult<()> {
+    require_runtime_readiness(rt, change_id, ReadinessPhase::Execute, json).map(|_| ())
 }
 
 pub(crate) fn handle_tasks_clap(rt: &Runtime, args: &TasksArgs) -> CliResult<()> {
@@ -525,6 +531,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-id>");
             }
 
+            require_task_mutation_readiness(rt, &change_id, want_json)?;
             best_effort_sync_coordination(rt, "before task start");
 
             let _task = task_mutations
@@ -579,6 +586,7 @@ pub(crate) fn handle_tasks(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 return fail("Missing required argument <task-id>");
             }
 
+            require_task_mutation_readiness(rt, &change_id, want_json)?;
             let _task = task_mutations
                 .complete_task(&change_id, task_id, None)
                 .map_err(to_cli_error)?;

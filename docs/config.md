@@ -92,6 +92,35 @@ ito templates schemas export --to .ito/templates/schemas
 
 The embedded OpenSpec-derived schemas include Ito-authored `validation.yaml` files. They perform presence checks and task tracking validation, and emit an informational manual semantic-validation note because Ito does not yet implement full OpenSpec semantic validation for those workflows.
 
+### Proposal integration
+
+Ito expects a proposal to be reviewed and integrated into the configured target branch before implementation begins. `changes.proposal.integration_mode` selects the authority used to prove that hand-off:
+
+- `pull_request` (default) uses the target branch's tracked upstream ref, normally `refs/remotes/origin/main`.
+- `direct_merge` is an explicit opt-in that uses the local target branch, normally `refs/heads/main`.
+
+```json
+{
+  "changes": {
+    "proposal": {
+      "integration_mode": "pull_request"
+    }
+  }
+}
+```
+
+There is no fallback from a missing pull-request authority to local `main`. Repositories that deliberately integrate proposals without a remote pull-request workflow must select `direct_merge`.
+
+The lifecycle is the same in both modes:
+
+1. Author and strictly validate a proposal-only package.
+2. Review and integrate that package into the configured target branch.
+3. Run `ito change preflight <change-id> --for prepare --refresh`.
+4. Create/reuse the implementation checkout with `ito worktree ensure --change <change-id>`.
+5. Run implementation commands only after `ito change preflight <change-id> --for execute` passes.
+
+`prepare` reads required artifacts directly from one captured authority commit. `execute` additionally proves that the selected change worktree contains the proposal integration commit and belongs to the full change ID. Local copies, coordination links, and backend state cannot satisfy either gate.
+
 ### Worktrees
 
 Worktree behavior is controlled by the `worktrees` object.
@@ -224,21 +253,25 @@ Change coordination settings live under `changes.coordination_branch`:
 
 #### Instruction sync behavior
 
-When generating change-scoped instructions, Ito decides per-artifact whether
-to sync the coordination branch before rendering. `archive` and `finish` use
-dedicated handlers, but they also run a best-effort sync before rendering.
+Apply rendering captures its proposal inputs from authoritative Git before any
+optional coordination sync. Other change-scoped instructions retain their
+legacy per-artifact coordination policy. `archive` and `finish` use dedicated
+handlers, but they also run a best-effort compatibility sync before rendering.
 
 | Artifact | Default sync | `--sync` flag |
 | --- | --- | --- |
-| `apply` | **No** — renders from local state; no network I/O | Opt-in: pass `--sync` to fetch first |
+| `apply` | **No coordination sync** — renders accepted inputs from a captured authority commit | Opt-in compatibility sync after authority capture; does not refresh proposal authority |
 | `proposal` | **Yes** — always fetches coordination state | Ignored (always syncs) |
 | `review` | **Yes** — always fetches coordination state | Ignored (always syncs) |
 | `archive`, `finish` | **Yes** — dedicated handlers always fetch coordination state | Ignored (always syncs) |
 | Other (`specs`, `tasks`, `design`, …) | **No** | Ignored (never syncs) |
 
-The `--sync` flag changes behavior only for `apply`. For other artifacts the
-sync policy is fixed. To refresh coordination state independently, run
-`ito sync` (a no-op unless coordination-worktree storage is active).
+The `--sync` flag changes compatibility-sync behavior only for `apply`; it does
+not change the captured proposal authority. Use
+`ito change preflight <id> --for prepare --refresh` to refresh pull-request
+authority, then rerun apply rendering. To refresh legacy modules/workflows/audit
+state independently, run `ito sync` (a no-op unless coordination-worktree
+storage is active).
 
 ### Agent memory
 

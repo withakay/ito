@@ -1,0 +1,18 @@
+---
+source: ito-rs/crates/ito-cli/tests/cli_snapshots.rs
+expression: "snapshot(&[\"change\", \"preflight\", \"--help\"])"
+---
+Prove that a proposal is ready for preparation or implementation
+
+Usage: ito change preflight [OPTIONS] --for <PHASE> <CHANGE_ID>
+
+Arguments:
+  <CHANGE_ID>  Full canonical Ito change ID
+
+Options:
+      --for <PHASE>  Readiness phase to evaluate [possible values: prepare, execute]
+      --no-color     Disable color output
+      --help-all     Print the full CLI reference (equivalent to `ito help --all`)
+      --refresh      Refresh the configured pull-request authority before evaluation
+      --json         Emit the stable readiness report as JSON
+  -h, --help         Print help

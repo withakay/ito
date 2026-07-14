@@ -1,4 +1,6 @@
+mod apply_instruction;
 mod archive;
+pub(crate) mod change;
 mod cleanup_instructions;
 pub(crate) mod common;
 mod entrypoint;

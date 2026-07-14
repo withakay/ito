@@ -1,4 +1,4 @@
-use super::{Cli, Commands, WorktreeCommand};
+use super::{ChangeCommand, Cli, Commands, ReadinessPhaseArg, WorktreeCommand};
 use clap::Parser;
 
 #[test]
@@ -49,4 +49,46 @@ fn parses_worktree_validate_with_json_flag() {
         "012-07_guard-opencode-worktree-path"
     );
     assert!(validate_args.json);
+}
+
+#[test]
+fn parses_change_preflight_prepare_defaults() {
+    let cli = Cli::parse_from([
+        "ito",
+        "change",
+        "preflight",
+        "031-02_enforce-main-first-implementation",
+        "--for",
+        "prepare",
+    ]);
+
+    let Some(Commands::Change(args)) = cli.command else {
+        panic!("expected change command");
+    };
+    let ChangeCommand::Preflight(args) = args.command;
+    assert_eq!(args.change_id, "031-02_enforce-main-first-implementation");
+    assert_eq!(args.phase, ReadinessPhaseArg::Prepare);
+    assert!(!args.refresh);
+    assert!(!args.json);
+}
+
+#[test]
+fn parses_change_preflight_execute_refresh_json() {
+    let cli = Cli::parse_from([
+        "ito",
+        "change",
+        "preflight",
+        "031-02_enforce-main-first-implementation",
+        "--for=execute",
+        "--refresh",
+        "--json",
+    ]);
+
+    let Some(Commands::Change(args)) = cli.command else {
+        panic!("expected change command");
+    };
+    let ChangeCommand::Preflight(args) = args.command;
+    assert_eq!(args.phase, ReadinessPhaseArg::Execute);
+    assert!(args.refresh);
+    assert!(args.json);
 }

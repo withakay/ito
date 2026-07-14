@@ -28,6 +28,9 @@ pub mod setup_coverage;
 /// Backend server configuration types (multi-tenant API).
 pub mod backend_types;
 
+/// Proposal integration configuration types.
+pub mod proposal_types;
+
 /// Serde models for `config.json`.
 pub mod types;
 

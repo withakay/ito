@@ -330,6 +330,71 @@ fn coordination_branch_defaults_can_be_overridden() {
 }
 
 #[test]
+fn proposal_integration_mode_defaults_in_cascading_config() {
+    let repo = tempfile::tempdir().unwrap();
+    let ctx = ConfigContext::default();
+    let ito_path = crate::ito_dir::get_ito_path(repo.path(), &ctx);
+
+    let resolved = load_cascading_project_config(repo.path(), &ito_path, &ctx);
+    let mode = resolved
+        .merged
+        .pointer("/changes/proposal/integration_mode")
+        .and_then(|value| value.as_str());
+
+    assert_eq!(mode, Some("pull_request"));
+}
+
+#[test]
+fn proposal_integration_mode_cascades_with_later_override() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::write(
+        repo.path().join("ito.json"),
+        r#"{"changes":{"proposal":{"integration_mode":"pull_request"}}}"#,
+    )
+    .unwrap();
+
+    let ito_path = repo.path().join(".ito");
+    std::fs::create_dir_all(&ito_path).unwrap();
+    std::fs::write(
+        ito_path.join("config.json"),
+        r#"{"changes":{"proposal":{"integration_mode":"direct_merge"}}}"#,
+    )
+    .unwrap();
+
+    let resolved = load_cascading_project_config(repo.path(), &ito_path, &ConfigContext::default());
+    let typed: types::ItoConfig = serde_json::from_value(resolved.merged).unwrap();
+
+    assert_eq!(
+        typed.changes.proposal.integration_mode,
+        types::ProposalIntegrationMode::DirectMerge
+    );
+}
+
+#[test]
+fn proposal_integration_mode_accepts_only_supported_values() {
+    for (value, expected) in [
+        ("pull_request", types::ProposalIntegrationMode::PullRequest),
+        ("direct_merge", types::ProposalIntegrationMode::DirectMerge),
+    ] {
+        let config: types::ItoConfig = serde_json::from_value(serde_json::json!({
+            "changes": {"proposal": {"integration_mode": value}}
+        }))
+        .unwrap();
+        assert_eq!(config.changes.proposal.integration_mode, expected);
+    }
+
+    let error = serde_json::from_value::<types::ItoConfig>(serde_json::json!({
+        "changes": {"proposal": {"integration_mode": "merge_when_green"}}
+    }))
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.contains("unknown variant"));
+    assert!(error.contains("pull_request"));
+    assert!(error.contains("direct_merge"));
+}
+
+#[test]
 fn audit_mirror_defaults_exist_in_cascading_config() {
     let repo = tempfile::tempdir().unwrap();
     let ctx = ConfigContext::default();

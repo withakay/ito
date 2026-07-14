@@ -15,9 +15,9 @@ pub struct WorktreeArgs {
 pub enum WorktreeCommand {
     /// Ensure the correct change worktree exists and is initialized
     ///
-    /// Resolves the expected worktree path for a change, creates it if absent
-    /// (branching from the configured default branch), copies include files,
-    /// runs setup commands, and prints the resolved path to stdout.
+    /// Resolves the expected worktree path for a change, proves prepare
+    /// readiness, creates it from the captured authority commit if absent,
+    /// then proves execute readiness before copying files or running setup.
     ///
     /// When worktrees are disabled, prints the current working directory.
     #[command(verbatim_doc_comment)]
@@ -25,8 +25,9 @@ pub enum WorktreeCommand {
 
     /// Re-run setup commands in an existing change worktree
     ///
-    /// Runs the configured setup command(s) from `worktrees.init.setup` inside
-    /// an existing worktree without recreating it or re-copying files.
+    /// Proves that the existing worktree descends from the proposal integration
+    /// commit, then runs configured `worktrees.init.setup` commands without
+    /// recreating it or re-copying files.
     #[command(verbatim_doc_comment)]
     Setup(WorktreeChangeArgs),
 

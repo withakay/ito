@@ -59,6 +59,21 @@ fn default_project_files_contains_expected_files() {
 }
 
 #[test]
+fn default_project_config_uses_pull_request_proposal_integration() {
+    let config = default_project_files()
+        .into_iter()
+        .find(|file| file.relative_path == ".ito/config.json")
+        .expect("default project config should be embedded");
+    let value: serde_json::Value =
+        serde_json::from_slice(config.contents).expect("default project config should be JSON");
+
+    assert_eq!(
+        value.pointer("/changes/proposal/integration_mode"),
+        Some(&serde_json::json!("pull_request"))
+    );
+}
+
+#[test]
 fn default_home_files_returns_a_vec() {
     // The default home templates may be empty, but should still be loadable.
     let _ = default_home_files();

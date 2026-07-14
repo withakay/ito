@@ -1,0 +1,1 @@
+Coordination branch bootstrap must create missing origin branches from an empty-tree root commit, reject empty git stdout, and use object-format-aware hashing with SHA-256 support and SHA-1 fallback.

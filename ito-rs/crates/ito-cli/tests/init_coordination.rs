@@ -209,11 +209,17 @@ fn init_with_git_remote_creates_coordination_worktree() {
 
     // The coordination worktree should have been created under
     // ~/.local/share/ito/testorg/testrepo (or XDG_DATA_HOME equivalent).
-    // We verify indirectly: .ito/changes should be a symlink.
+    // Authoritative proposal state remains real Git content, while only the
+    // compatibility coordination directories are linked.
     let changes_path = repo.path().join(".ito/changes");
     assert!(
-        std::fs::read_link(&changes_path).is_ok(),
-        ".ito/changes should be a symlink after coordination worktree setup"
+        changes_path.is_dir() && std::fs::read_link(&changes_path).is_err(),
+        ".ito/changes should remain a real directory after coordination setup"
+    );
+    let modules_path = repo.path().join(".ito/modules");
+    assert!(
+        std::fs::read_link(&modules_path).is_ok(),
+        ".ito/modules should be a coordination symlink"
     );
 
     // The project config should record storage: "worktree".

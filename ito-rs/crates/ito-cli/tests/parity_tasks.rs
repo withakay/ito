@@ -2,6 +2,9 @@ use std::path::Path;
 
 use ito_test_support::{collect_file_bytes, reset_dir, run_rust_candidate};
 
+#[path = "support/mod.rs"]
+mod fixtures;
+
 fn rust_bin() -> std::path::PathBuf {
     if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ito") {
         return path.into();
@@ -76,6 +79,8 @@ fn parity_tasks_status_next_start_complete_match_oracle() {
 
     assert_eq!(rs.code, 0);
     assert!(rs.stdout.contains("Next Task"));
+
+    fixtures::integrate_change_for_execution(repo.path(), "test-change");
 
     // Start 1.1.
     let start_args = ["tasks", "start", "test-change", "1.1"];

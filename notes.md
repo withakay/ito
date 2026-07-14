@@ -99,7 +99,7 @@ Regular change/feature worktree placement is controlled by `worktrees.*`, especi
 
 Creation-time copy/setup for `ito worktree ensure` is `worktrees.init.include` and `worktrees.init.setup` (for example: copy `.env`, `.envrc`, `.mise.local.toml`; run `make init`). Manual apply fallback instructions use separate `worktrees.apply.copy_from_main` and `worktrees.apply.setup_commands`, which should generally mirror `worktrees.init.*`.
 
-Coordination worktree storage is separate: `changes.coordination_branch.storage = "worktree"` and optional `changes.coordination_branch.worktree_path` points to the shared coordination worktree that stores `.ito/changes`, `.ito/specs`, `.ito/modules`, `.ito/workflows`, and `.ito/audit` symlink targets. Do not confuse `changes.coordination_branch.worktree_path` with the feature worktree path prefix.
+Coordination worktree storage is separate: `changes.coordination_branch.storage = "worktree"` and optional `changes.coordination_branch.worktree_path` points to the shared coordination worktree that stores `.ito/modules`, `.ito/workflows`, and `.ito/audit` symlink targets. `.ito/changes` and `.ito/specs` remain tracked, authoritative Git directories on main. Do not confuse `changes.coordination_branch.worktree_path` with the feature worktree path prefix.
 
 Machine-specific coordination worktree absolute paths belong in ignored local config such as `.ito/config.local.json` or `.local/ito/config.json`, not committed `.ito/config.json`.
 

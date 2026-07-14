@@ -109,6 +109,18 @@ fn worktree_validate_reports_mismatch_outside_main_checkout() {
 }
 
 #[test]
+fn worktree_validate_rejects_change_id_in_ancestor_only() {
+    let validation = validate_change_worktree(
+        "012-07_guard-opencode-worktree-path",
+        Path::new("/repo/012-07_guard-opencode-worktree-path/unrelated-checkout"),
+        &enabled_paths("/repo/ito-worktrees", "/repo/main"),
+        Some("unrelated-branch"),
+    );
+
+    assert_eq!(validation.status, WorktreeValidationStatus::Mismatch);
+}
+
+#[test]
 fn worktree_validate_rejects_superstring_false_positive() {
     let validation = validate_change_worktree(
         "012-07_guard-opencode-worktree-path",

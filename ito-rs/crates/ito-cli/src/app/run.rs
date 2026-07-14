@@ -90,6 +90,15 @@ pub(super) fn run(args: &[String]) -> CliResult<()> {
         Some(Commands::Completions(args)) => {
             return commands::handle_completions(args.shell);
         }
+        Some(Commands::Change(args)) => {
+            return util::with_logging(
+                &rt,
+                &command_id,
+                &project_root,
+                &ito_path_for_logging,
+                || super::change::handle_change_clap(&rt, args),
+            );
+        }
         Some(Commands::Create(args)) => {
             return util::with_logging(
                 &rt,

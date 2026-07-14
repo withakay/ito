@@ -537,7 +537,7 @@
       "type": "object"
     },
     "ChangesConfig": {
-      "description": "Change coordination settings",
+      "description": "Change workflow settings",
       "properties": {
         "archive": {
           "allOf": [
@@ -563,6 +563,17 @@
             "sync_interval_seconds": 120
           },
           "description": "Coordination branch settings"
+        },
+        "proposal": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProposalConfig"
+            }
+          ],
+          "default": {
+            "integration_mode": "pull_request"
+          },
+          "description": "Proposal integration settings"
         }
       },
       "type": "object"
@@ -748,9 +759,9 @@
             }
           ],
           "default": {
-            "ito-general": "github-copilot/gpt-5.2-codex",
-            "ito-quick": "github-copilot/claude-haiku-4.5",
-            "ito-thinking": "github-copilot/gpt-5.2-codex"
+            "ito-general": "openai/gpt-5.4",
+            "ito-quick": "anthropic/claude-haiku-4.5",
+            "ito-thinking": "openai/gpt-5.4"
           },
           "description": "Ito agent tier model mappings"
         },
@@ -828,9 +839,9 @@
           ],
           "default": {
             "agents": {
-              "ito-general": "github-copilot/gpt-5.2-codex",
-              "ito-quick": "github-copilot/claude-haiku-4.5",
-              "ito-thinking": "github-copilot/gpt-5.2-codex"
+              "ito-general": "openai/gpt-5.4",
+              "ito-quick": "anthropic/claude-haiku-4.5",
+              "ito-thinking": "openai/gpt-5.4"
             },
             "provider": "github-copilot"
           },
@@ -1050,6 +1061,40 @@
         }
       },
       "type": "object"
+    },
+    "ProposalConfig": {
+      "description": "Proposal integration settings",
+      "properties": {
+        "integration_mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProposalIntegrationMode"
+            }
+          ],
+          "default": "pull_request",
+          "description": "Mode for integrating reviewed proposals into the authoritative target branch"
+        }
+      },
+      "type": "object"
+    },
+    "ProposalIntegrationMode": {
+      "description": "Integration mode for reviewed proposals",
+      "oneOf": [
+        {
+          "description": "Integrate through the target branch's tracked upstream ref.",
+          "enum": [
+            "pull_request"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Integrate directly into the local target branch.",
+          "enum": [
+            "direct_merge"
+          ],
+          "type": "string"
+        }
+      ]
     },
     "ProviderAnthropic": {
       "description": "Allowed providers for Anthropic-backed harnesses.",
@@ -1567,6 +1612,9 @@
           "name": "ito/internal/changes",
           "storage": "worktree",
           "sync_interval_seconds": 120
+        },
+        "proposal": {
+          "integration_mode": "pull_request"
         }
       },
       "description": "Change coordination configuration"
@@ -1630,9 +1678,9 @@
         },
         "github-copilot": {
           "agents": {
-            "ito-general": "github-copilot/gpt-5.2-codex",
-            "ito-quick": "github-copilot/claude-haiku-4.5",
-            "ito-thinking": "github-copilot/gpt-5.2-codex"
+            "ito-general": "openai/gpt-5.4",
+            "ito-quick": "anthropic/claude-haiku-4.5",
+            "ito-thinking": "openai/gpt-5.4"
           },
           "provider": "github-copilot"
         },

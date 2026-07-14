@@ -1442,6 +1442,7 @@ dependencies = [
  "include_dir",
  "minijinja",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

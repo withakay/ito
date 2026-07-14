@@ -316,6 +316,69 @@ pub(crate) fn git_init_with_initial_commit(repo: &Path) {
     );
 }
 
+/// Commit a minimal accepted proposal on `main`, then switch to its implementation branch.
+///
+/// Task mutation integration tests call this after creating their tracking file so the
+/// main-first execute gate observes realistic Git authority and checkout ancestry.
+pub(crate) fn integrate_change_for_execution(repo: &Path, change_id: &str) {
+    if !repo.join(".git").exists() {
+        run_git(repo, &["init", "--initial-branch=main"]);
+        run_git(repo, &["config", "user.email", "test@example.com"]);
+        run_git(repo, &["config", "user.name", "Test User"]);
+        run_git(repo, &["config", "commit.gpgsign", "false"]);
+    } else {
+        run_git(repo, &["branch", "-M", "main"]);
+    }
+
+    write(
+        repo.join(".ito/config.json"),
+        r#"{
+  "changes": { "proposal": { "integration_mode": "direct_merge" } },
+  "worktrees": {
+    "enabled": true,
+    "default_branch": "main",
+    "strategy": "checkout_siblings",
+    "layout": { "dir_name": "ito-worktrees" }
+  }
+}"#,
+    );
+    let change_dir = repo.join(".ito/changes").join(change_id);
+    write(change_dir.join(".ito.yaml"), "schema: spec-driven\n");
+    write(
+        change_dir.join("proposal.md"),
+        "# Proposal\n\nAccept task-iteration behavior before implementation.\n",
+    );
+    write(
+        change_dir.join("design.md"),
+        "# Design\n\nExercise task mutations from a verified implementation branch.\n",
+    );
+    write(
+        change_dir.join("specs/task-iteration/spec.md"),
+        r#"## ADDED Requirements
+
+### Requirement: Task iteration
+Ito SHALL preserve task iteration after an accepted proposal is integrated.
+
+#### Scenario: Verified implementation branch
+- **WHEN** a task mutation runs from the accepted implementation branch
+- **THEN** Ito updates the requested task
+"#,
+    );
+
+    run_git(repo, &["add", "-A"]);
+    run_git(
+        repo,
+        &[
+            "commit",
+            "--no-verify",
+            "--no-gpg-sign",
+            "-m",
+            "integrate accepted proposal",
+        ],
+    );
+    run_git(repo, &["switch", "-c", change_id]);
+}
+
 /// Creates a bare Git repository in a temporary directory for use as an `origin` remote in tests.
 ///
 /// The returned `TempDir` contains the bare repository; keep it alive while the remote is needed.

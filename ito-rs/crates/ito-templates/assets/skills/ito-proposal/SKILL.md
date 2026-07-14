@@ -84,6 +84,15 @@ ito agent instruction tasks --change "<change-id>"
 
 Follow the printed instructions for each artifact exactly.
 
+**Step 5: Review and integrate the proposal before implementation**
+
+1. Run `ito validate <change-id> --strict` and review the proposal, delta specs, design, and tasks as one proposal-only package.
+2. Integrate that package into authoritative main using the configured `changes.proposal.integration_mode`:
+   - `pull_request` (default): push the proposal branch, create/review a PR, and merge it; implementation authority is the target branch's tracked upstream.
+   - `direct_merge`: after explicit approval, merge the proposal-only commit into local main through the repository's normal guarded Git workflow.
+3. Do not begin implementation, start tasks, or launch iteration/orchestration workers from the proposal branch. Hand off to `ito-apply` only after the proposal is integrated.
+4. Verify the hand-off with `ito change preflight <change-id> --for prepare --refresh`.
+
 **Testing Policy**
 
 - Default workflow: RED/GREEN/REFACTOR. Coverage target: 80% (projects may override).

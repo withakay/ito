@@ -7,6 +7,7 @@ AI-native system for spec-driven development
 Usage: ito [OPTIONS] [COMMAND]
 
 Commands:
+  change        Inspect readiness for an Ito change
   create        Create a new module or change proposal [aliases: cr]
   list          List changes, specs, or modules with status summaries [aliases: ls]
   list-archive  List archived changes (use --json for machine-readable output) [aliases: la]

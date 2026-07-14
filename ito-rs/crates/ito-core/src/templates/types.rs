@@ -109,7 +109,7 @@ pub struct InstructionsResponse {
     /// Schema name.
     pub schema_name: String,
     #[serde(rename = "changeDir")]
-    /// Full path to the change directory.
+    /// Path to the change directory.
     pub change_dir: String,
     #[serde(rename = "outputPath")]
     /// Artifact output path (relative to the change directory).
@@ -187,7 +187,7 @@ pub struct ApplyInstructionsResponse {
     /// Schema name.
     pub schema_name: String,
     #[serde(rename = "tracksPath")]
-    /// Full path to the tracking file if configured.
+    /// Path to the tracking file if configured.
     pub tracks_path: Option<String>,
     #[serde(rename = "tracksFile")]
     /// Tracking filename relative to the change directory.
@@ -202,7 +202,7 @@ pub struct ApplyInstructionsResponse {
     /// Machine-readable state label.
     pub state: String,
     #[serde(rename = "contextFiles")]
-    /// Map of artifact id to full path for context files.
+    /// Map of artifact id to context-file path.
     pub context_files: BTreeMap<String, String>,
 
     /// Task progress totals.

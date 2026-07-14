@@ -65,6 +65,19 @@ Use the preset agent roles above as suggestions for the current run. If a preset
 
 ## Gate Planning
 
+### Mandatory implementation-readiness gate
+
+Every planned change starts with the non-skippable `implementation-readiness` gate, even when a preset, project prompt, or change-local `preferred_gates` list omits it.
+
+Before an initial worker dispatch, a resumed dispatch, or a remediation dispatch:
+
+1. Resolve the guarded implementation worktree with `ito worktree ensure --change "<change-id>"`. Stop if it cannot be prepared from authoritative main.
+2. From that returned worktree, run `ito change preflight <change-id> --for execute --json`.
+3. Persist the complete JSON report on the change's `implementation-readiness` gate record in the `readiness` field before constructing a worker or remediation packet.
+4. Dispatch only when the report has `"ready": true`. A false report is a failed gate: preserve its conditions and remediation verbatim, append the gate failure event, and do not create or send a work packet.
+
+Re-evaluate this gate on every resume and remediation attempt; a prior pass does not authorize a later dispatch from a different or stale checkout. Do not replace this check with local file existence, task status, coordination state, or a worker's assertion.
+
 Default gate order comes from the selected preset:
 
 {% for gate in gate_order %}- `{{ gate }}`
@@ -72,6 +85,7 @@ Default gate order comes from the selected preset:
 
 Gate planning rules:
 
+- Run `implementation-readiness` first for every change; it cannot be skipped or overridden.
 - Run `apply-complete` before verification or review gates.
 - Run objective gates such as `format`, `lint`, and `tests` before human/model review gates when they are present.
 - Run `style`, `code-review`, and `security-review` after objective gates so reviewers see tested output.
@@ -110,6 +124,8 @@ Do not mark remediation complete until the rerun gates have produced terminal pa
 ## Resume Behavior
 
 When resuming a run, load `run.json`, `plan.json`, and each existing `changes/<change-id>.json` before dispatching work. For every planned change, compute remaining gates from the first missing or failed gate; already passed or skipped gates remain complete and should not rerun unless remediation requires them.
+
+Regardless of the persisted remaining-gate position, rerun `implementation-readiness` against the checkout that will receive the resumed work before creating a packet. Record a fresh structured report and stop that change when it fails.
 
 If the persisted plan conflicts with current change metadata, prefer the persisted plan for the active run and report the mismatch. Start a new run when the user wants to re-plan from updated metadata.
 

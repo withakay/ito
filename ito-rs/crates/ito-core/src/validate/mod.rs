@@ -23,6 +23,7 @@ use ito_config::ConfigContext;
 use ito_domain::changes::ChangeRepository as DomainChangeRepository;
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
 
+mod authority_rules;
 mod delta_rules;
 mod domain_discovery_rules;
 mod format_specs;
@@ -32,6 +33,7 @@ mod report;
 mod rules_engine;
 mod tracking_rules;
 
+pub(crate) use authority_rules::validate_configured_schema_rules;
 pub(crate) use issue::with_format_spec;
 pub use issue::{error, info, issue, warning, with_line, with_loc, with_metadata, with_rule_id};
 pub use repo_integrity::validate_change_dirs_repo_integrity;

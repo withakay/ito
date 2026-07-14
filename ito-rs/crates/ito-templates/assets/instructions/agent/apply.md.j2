@@ -10,24 +10,37 @@ Use the ito-continue-change skill to create these first.
 {% endif %}
 {% if context_files and context_files|length > 0 %}
 ### Context Files
+{% if worktree.enabled %}
+These paths are relative to the dedicated execute-ready change worktree. Do not resolve them from the checkout that emitted this prompt; run the guarded worktree setup below and read them only after changing into `$CHANGE_DIR`.
+{% else %}
+These paths are relative to the execute-ready implementation checkout root. Switch to the implementation branch or checkout, require `ito change preflight {{ instructions.changeName }} --for execute` to pass, and only then read them.
+{% endif %}
+
 {% for entry in context_files %}
 - {{ entry.id }}: {{ entry.path }}
 {% endfor %}
 
 {% endif %}
-### Coordination Sync
+### Authoritative Proposal Source
 
-`ito agent instruction apply` does **not** sync coordination state by default — it renders from the local working copy to avoid blocking on network I/O. Pass `--sync` to opt into a coordination fetch before rendering:
+`ito agent instruction apply` first proves prepare readiness and renders proposal, design, specs, schema, and guidance from one captured authoritative Git commit. It never fills those inputs from the local working copy or coordination storage.
+
+`ito agent instruction apply` does **not** sync coordination state by default.
+
+To refresh pull-request authority before rendering, run:
 
 ```bash
-# Default: no network sync (fast, offline-safe)
+ito change preflight <id> --for prepare --refresh
 ito agent instruction apply --change <id>
+```
 
-# Opt-in: fetch coordination state first
+The legacy `--sync` flag only refreshes remaining compatibility coordination state *after* the authority snapshot is captured; it cannot make a proposal implementation-ready:
+
+```bash
 ito agent instruction apply --change <id> --sync
 ```
 
-If you are using these instructions later, or after switching worktrees, refresh coordination state manually before editing. `ito sync` is a no-op unless coordination-worktree storage is active, and it rate-limits pushes to avoid excessive remote updates.
+If legacy coordination-worktree storage remains active, `ito sync` refreshes compatibility directories such as modules, workflows, and audit. Accepted changes and specs remain Git-authoritative.
 
 ```bash
 ito sync
@@ -60,91 +73,23 @@ It should also leave the worktree Ito-ready, including the `.ito/*` coordination
 coordination storage mode is `worktree`.
 All subsequent file operations should use `$CHANGE_DIR` as the working directory.
 
-After `ito worktree ensure`, run the sync from inside the change worktree if you did not just run it there:
+After `ito worktree ensure`, legacy coordination users may refresh compatibility state from inside the change worktree:
 
 ```bash
 cd "$CHANGE_DIR"
 ito sync
 ```
 
-If you are recovering an older or manually created worktree whose `.ito/*` links are missing or stale,
-repair it in place with:
+If an existing worktree needs its configured setup rerun, use the guarded setup command:
 
 ```bash
-cd "$CHANGE_DIR"
-ito init --update --tools none
+ito worktree setup --change "{{ instructions.changeName | replace("\"", "\\\"") }}"
 ```
-
-<details>
-<summary>Manual setup (alternative)</summary>
-
-For full layout diagrams and setup commands, run:
-
-```bash
-ito agent instruction worktrees
-```
-
-**Quick start for this change:**
-
-```bash
-CHANGE_NAME='{{ instructions.changeName | replace("'", "'\"'\"'") }}'
-CHANGE_DIR="$(ito path worktree --change "$CHANGE_NAME")"
-
-if [ ! -d "$CHANGE_DIR" ]; then
-{% if worktree.strategy == "bare_control_siblings" %}
-  PROJECT_ROOT="$(ito path project-root)"
-  mkdir -p "$(ito path worktrees-root)"
-  (cd "$PROJECT_ROOT" && WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "$CHANGE_NAME" --base "{{ worktree.default_branch }}")
-{% else %}
-  WORKTREE_ROOT="$(ito path worktree-root)"
-  mkdir -p "$(ito path worktrees-root)"
-  (cd "$WORKTREE_ROOT" && WORKTRUNK_WORKTREE_PATH="$(ito path worktrees-root)/{% raw %}{{ branch | sanitize }}{% endraw %}" wt switch --create "$CHANGE_NAME" --base "{{ worktree.default_branch }}")
-{% endif %}
-fi
-
-echo "Working directory: $CHANGE_DIR"
-```
-Synchronize coordination state from inside the change worktree before editing:
-
-```bash
-cd "$CHANGE_DIR"
-ito sync
-```
-{% if worktree.copy_from_main and worktree.copy_from_main|length > 0 %}
-
-Copy local setup files into the change worktree (missing files are skipped):
-
-```bash
-{% if worktree.strategy == "bare_control_siblings" %}
-SOURCE_ROOT="$(ito path worktree --main)"
-{% else %}
-SOURCE_ROOT="$(ito path worktree-root)"
-{% endif %}
-{% for pattern in worktree.copy_from_main %}
-for match in "$SOURCE_ROOT"/{{ pattern }}; do
-  [ -e "$match" ] && cp "$match" "$CHANGE_DIR/" 2>/dev/null || true
-done
-{% endfor %}
-```
-{% endif %}
-{% if worktree.setup_commands and worktree.setup_commands|length > 0 %}
-
-Run in the change worktree before starting:
-
-```bash
-cd "$CHANGE_DIR"
-{% for cmd in worktree.setup_commands %}
-{{ cmd }}
-{% endfor %}
-```
-{% endif %}
-
-</details>
 
 {% elif worktree.enabled and not worktree.apply_enabled %}
 ### Worktree Mode
 
-Worktrees are enabled but apply-time setup is disabled. Do not write from the main/control checkout. Move into the dedicated change worktree before any write operation, or create it manually using `ito agent instruction worktrees`.
+Worktrees are enabled but apply-time setup is disabled. Do not write from the main/control checkout. Move into the dedicated change worktree before any write operation by using `ito worktree ensure --change "{{ instructions.changeName | replace("\"", "\\\"") }}"`.
 
 {% endif %}
 {% if instructions.tracksFile and instructions.tracksPath %}

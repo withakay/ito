@@ -11,10 +11,13 @@ use crate::error_bridge::IntoCoreResult;
 use crate::errors::{CoreError, CoreResult};
 use ito_common::fs::StdFs;
 use ito_common::paths;
+use ito_config::types::ItoConfig;
 use ito_domain::changes::{
     ChangeLifecycleFilter, ChangeRepository as DomainChangeRepository, ChangeStatus, ChangeSummary,
 };
 use ito_domain::modules::ModuleRepository as DomainModuleRepository;
+
+use crate::implementation_readiness::{ReadinessPhase, ReadinessRequest, evaluate_readiness};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 /// Sub-module entry nested inside a [`ModuleListItem`].
@@ -245,6 +248,35 @@ pub fn list_changes(
                 work_status: s.work_status().to_string(),
                 completed: is_completed(&s),
             }
+        })
+        .collect())
+}
+
+/// List only changes that pass centralized authoritative `prepare` readiness.
+///
+/// Candidate summaries still come from the configured change repository so
+/// existing display fields remain stable. Inclusion is decided exclusively by
+/// the immutable Git-authority readiness service, never by checkout-local
+/// artifact completeness.
+pub fn list_prepare_ready_changes(
+    change_repo: &dyn DomainChangeRepository,
+    repository_root: &Path,
+    config: &ItoConfig,
+    sort: ChangeSortOrder,
+) -> CoreResult<Vec<ChangeListSummary>> {
+    let summaries = list_changes(
+        change_repo,
+        ListChangesInput {
+            progress_filter: ChangeProgressFilter::All,
+            sort,
+        },
+    )?;
+    Ok(summaries
+        .into_iter()
+        .filter(|summary| {
+            let request =
+                ReadinessRequest::new(&summary.name, ReadinessPhase::Prepare, repository_root);
+            evaluate_readiness(&request, config).ready
         })
         .collect())
 }

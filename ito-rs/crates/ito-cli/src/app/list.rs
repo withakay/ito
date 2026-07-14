@@ -171,14 +171,25 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                 }
             }
 
-            let summaries = ito_core::list::list_changes(
-                repos.changes.as_ref(),
-                ito_core::list::ListChangesInput {
-                    progress_filter,
-                    sort: sort_order,
-                },
-            )
-            .map_err(to_cli_error)?;
+            let summaries = if want_ready {
+                let config = rt.typed_config().map_err(to_cli_error)?;
+                ito_core::list::list_prepare_ready_changes(
+                    repos.changes.as_ref(),
+                    rt.cwd(),
+                    &config,
+                    sort_order,
+                )
+                .map_err(to_cli_error)?
+            } else {
+                ito_core::list::list_changes(
+                    repos.changes.as_ref(),
+                    ito_core::list::ListChangesInput {
+                        progress_filter,
+                        sort: sort_order,
+                    },
+                )
+                .map_err(to_cli_error)?
+            };
 
             if summaries.is_empty() {
                 if want_json {
@@ -186,6 +197,9 @@ pub(crate) fn handle_list(rt: &Runtime, args: &[String]) -> CliResult<()> {
                         serde_json::to_string_pretty(&serde_json::json!({ "changes": [] }))
                             .map_err(|e| to_cli_error(format!("serializing response: {e}")))?;
                     println!("{rendered}");
+                } else if want_ready {
+                    println!("No implementation-ready changes found.");
+                    println!("Run `ito change preflight <change-id> --for prepare` for details.");
                 } else if want_completed {
                     println!("No completed changes found.");
                     println!("Run `ito list` to see all changes.");
