@@ -12,6 +12,10 @@ pub(crate) fn best_effort_sync_coordination(
     rt: &Runtime,
     context: &str,
 ) -> Option<CoordinationSyncOutcome> {
+    if rt.command_side_effects_suppressed() {
+        return None;
+    }
+
     let ito_path = rt.ito_path();
     let project_root = ito_path.parent().unwrap_or(ito_path);
     match sync_coordination_worktree(project_root, ito_path, false) {
@@ -29,6 +33,10 @@ pub(crate) fn best_effort_sync_coordination(
 /// command is not blocked by network operations (fetch/push). Use this for
 /// "after write" hooks where eventual consistency is acceptable.
 pub(crate) fn best_effort_sync_coordination_bg(rt: &Runtime, context: &str) {
+    if rt.command_side_effects_suppressed() {
+        return;
+    }
+
     let ito_path = rt.ito_path().to_path_buf();
     let context = context.to_string();
 

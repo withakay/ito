@@ -6,12 +6,16 @@
 
 use crate::errors::{CoreError, CoreResult};
 use ito_templates::{
-    commands_files, get_adapter_file, get_command_file, get_skill_file, skills_files,
+    MIGRATE_TO_MAIN_COMMAND_PATH, commands_files, get_adapter_file, get_command_file,
+    get_skill_file, skills_files,
 };
 use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+
+/// Shared harness prompt that invokes the migration instruction without a skill dependency.
+pub const MIGRATE_TO_MAIN_PROMPT: &str = MIGRATE_TO_MAIN_COMMAND_PATH;
 
 #[derive(Debug, Clone)]
 /// One file to be installed from embedded assets.
