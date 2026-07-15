@@ -1,5 +1,13 @@
 # Ito Wiki Log
 
+## 2026-07-14 Core Reset Archived
+
+- Archived `031-06_migrate-ito-authority-and-release` after reconciling its
+  bootstrap audit history.
+- Promoted the authority-cutover delta to a canonical spec, retired the
+  removal-only config-crate and published-mirror specs, and linked the archived
+  release-verification evidence.
+
 ## 2026-07-14 Main Authority Cutover
 
 - Repointed the wiki source boundary from the retired published mirror to

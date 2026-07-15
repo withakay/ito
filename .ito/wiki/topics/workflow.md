@@ -12,6 +12,8 @@ source_refs:
 - .ito/specs/requirement-traceability/spec.md
 - .ito/specs/archive-completion-validation/spec.md
 - .ito/specs/main-first-implementation/spec.md
+- .ito/specs/ito-authority-cutover/spec.md
+- .ito/changes/archive/2026-07-14-031-06_migrate-ito-authority-and-release/proposal.md
 known_gaps: []
 ```
 
