@@ -11,6 +11,7 @@ source_refs:
 - .ito/specs/repo-precommit-quality-gates/spec.md
 - .ito/specs/rust-documentation-standards/spec.md
 - .ito/specs/rust-foundations/spec.md
+- .ito/changes/archive/2026-07-14-031-06_migrate-ito-authority-and-release/evidence/release-verification.md
 known_gaps: []
 ```
 

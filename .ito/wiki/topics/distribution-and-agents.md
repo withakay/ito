@@ -4,7 +4,7 @@
 page_type: topic
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-14
 source_refs:
 - .ito/specs/agent-instructions/spec.md
 - .ito/specs/agent-surface-taxonomy/spec.md
@@ -12,6 +12,7 @@ source_refs:
 - .ito/specs/template-assets/spec.md
 - .ito/specs/distribution/spec.md
 - .ito/specs/ito-skill-routing/spec.md
+- .ito/changes/archive/2026-07-14-031-06_migrate-ito-authority-and-release/proposal.md
 known_gaps: []
 ```
 

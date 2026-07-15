@@ -4,7 +4,7 @@
 page_type: topic
 authority: advisory-synthesis
 freshness: fresh
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-14
 source_refs:
   - .ito/specs/repository-runtime-selection/spec.md
   - .ito/specs/change-repository/spec.md
@@ -13,6 +13,8 @@ source_refs:
   - .ito/specs/backend-client-runtime/spec.md
   - .ito/specs/change-coordination-branch/spec.md
   - .ito/specs/worktree-lifecycle/spec.md
+  - .ito/specs/ito-authority-cutover/spec.md
+  - .ito/changes/archive/2026-07-14-031-06_migrate-ito-authority-and-release/proposal.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/specs/coordination-main-migration/spec.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/specs/coordination-worktree-migration/spec.md
   - .ito/changes/031-01_migrate-coordination-state-to-main/demos/031-01-migrate-to-main.md
